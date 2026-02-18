@@ -8,6 +8,25 @@
 
 import { StyleSheet, useColorScheme } from "react-native";
 
+// ============================================================================
+// FONT FAMILIES — BRANDING.md §4
+// ============================================================================
+
+/** Brand font families. Must be loaded via useFonts() in _layout.tsx */
+export const fonts = {
+  /** Headlines — authority, institutional credibility */
+  display: "IBMPlexSerif_700Bold",
+  /** Display italic — signature typographic move for emphasis */
+  displayItalic: "IBMPlexSerif_700Bold_Italic",
+  /** Subheadings — warmer, editorial; bridges authority & accessibility */
+  editorial: "InriaSerif_700Bold",
+  editorialRegular: "InriaSerif_400Regular",
+  /** Body & UI — clean, geometric, legible at small sizes */
+  body: "AlbertSans_400Regular",
+  bodyMedium: "AlbertSans_500Medium",
+  bodySemibold: "AlbertSans_600SemiBold",
+} as const;
+
 import {
   colors,
   darkTheme,
@@ -113,51 +132,51 @@ export const layout = StyleSheet.create({
 // ============================================================================
 
 export const typography = StyleSheet.create({
-  // Headlines — 32px bold (IBM Plex Serif in practice; fallback to system serif)
+  // Headlines — IBM Plex Serif Bold 32px, 1.2× line height
   h1: {
-    fontSize: fontSize["5xl"] * 0.667, // 32px
-    fontWeight: fontWeight.bold,
+    fontFamily: "IBMPlexSerif_700Bold",
+    fontSize: 32,
     lineHeight: 32 * 1.2,
   },
-  // Subheadings — 22–24px bold (Inria Serif in practice)
+  // Subheadings — Inria Serif Bold 24px, 1.3× line height
   h2: {
+    fontFamily: "InriaSerif_700Bold",
     fontSize: fontSize["2xl"],
-    fontWeight: fontWeight.bold,
     lineHeight: fontSize["2xl"] * 1.3,
   },
   h3: {
+    fontFamily: "InriaSerif_700Bold",
     fontSize: 22,
-    fontWeight: fontWeight.bold,
     lineHeight: 22 * 1.3,
   },
   h4: {
+    fontFamily: "InriaSerif_700Bold",
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
     lineHeight: fontSize.lg * 1.3,
   },
 
-  // Body — 18px regular (Albert Sans)
+  // Body — Albert Sans Regular 18px, 1.5× line height
   body: {
+    fontFamily: "AlbertSans_400Regular",
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.normal,
     lineHeight: fontSize.lg * 1.5,
   },
-  // Small/UI — 16px medium
+  // Small/UI — Albert Sans Regular 16px, 1.4× line height
   bodySmall: {
+    fontFamily: "AlbertSans_400Regular",
     fontSize: fontSize.base,
-    fontWeight: fontWeight.normal,
     lineHeight: fontSize.base * 1.4,
   },
-  // Micro — 12–14px (timestamps, badges, fine print)
+  // Micro — Albert Sans Medium 12–13px
   caption: {
+    fontFamily: "AlbertSans_500Medium",
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.normal,
     lineHeight: fontSize.xs * 1.4,
   },
 
-  bold: { fontWeight: fontWeight.bold },
-  semibold: { fontWeight: fontWeight.semibold },
-  medium: { fontWeight: fontWeight.medium },
+  bold: { fontFamily: "AlbertSans_600SemiBold" },
+  semibold: { fontFamily: "AlbertSans_600SemiBold" },
+  medium: { fontFamily: "AlbertSans_500Medium" },
   italic: { fontStyle: "italic" },
   // ALL CAPS sparingly — badges, short labels (4 words max)
   uppercase: { textTransform: "uppercase", letterSpacing: 0.5 },
@@ -218,8 +237,8 @@ export const headers = StyleSheet.create({
     paddingBottom: sp[5],
   },
   title: {
+    fontFamily: "IBMPlexSerif_700Bold",
     fontSize: 32,
-    fontWeight: fontWeight.bold,
     lineHeight: 32 * 1.2,
     marginBottom: sp[4],
   },
@@ -274,8 +293,8 @@ export const buttons = StyleSheet.create({
     borderRadius: rd.full,
   },
   tabText: {
+    fontFamily: "AlbertSans_500Medium",
     fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
   },
 
   // Floating action button (44×44 minimum touch target)
@@ -312,9 +331,9 @@ export const badges = StyleSheet.create({
     borderRadius: rd.md,
   },
   text: {
+    fontFamily: "AlbertSans_500Medium",
     color: colors.white,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
@@ -329,10 +348,10 @@ export const settings = StyleSheet.create({
     marginTop: sp[8],
   },
   sectionTitle: {
+    fontFamily: "AlbertSans_500Medium",
     marginHorizontal: sp[5],
     marginBottom: sp[3],
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -351,11 +370,12 @@ export const settings = StyleSheet.create({
     flex: 1,
   },
   itemTitle: {
+    fontFamily: "AlbertSans_500Medium",
     marginBottom: sp[1],
     fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
   },
   itemSubtitle: {
+    fontFamily: "AlbertSans_400Regular",
     fontSize: fontSize.sm,
     lineHeight: sp[5],
   },
@@ -397,27 +417,28 @@ export const actions = StyleSheet.create({
 export function getMarkdownStyles(theme: Theme) {
   return {
     body: {
-      fontSize: fontSize.lg, // 18px body
+      fontFamily: "AlbertSans_400Regular",
+      fontSize: fontSize.lg,
       lineHeight: fontSize.lg * 1.5,
       color: theme.foreground,
     },
     heading1: {
+      fontFamily: "IBMPlexSerif_700Bold",
       fontSize: 32,
-      fontWeight: fontWeight.bold,
       lineHeight: 32 * 1.2,
       marginBottom: sp[4],
       color: theme.foreground,
     },
     heading2: {
+      fontFamily: "InriaSerif_700Bold",
       fontSize: fontSize["2xl"],
-      fontWeight: fontWeight.bold,
       lineHeight: fontSize["2xl"] * 1.3,
       marginBottom: sp[3],
       color: theme.foreground,
     },
     heading3: {
+      fontFamily: "InriaSerif_700Bold",
       fontSize: fontSize.lg,
-      fontWeight: fontWeight.semibold,
       lineHeight: fontSize.lg * 1.3,
       marginBottom: sp[2],
       color: theme.foreground,
@@ -500,8 +521,8 @@ export function createHeaderStyles(theme: Theme, insetTop: number) {
       paddingTop: insetTop + 20,
     },
     title: {
+      fontFamily: "IBMPlexSerif_700Bold",
       fontSize: 32,
-      fontWeight: fontWeight.bold as "700",
       lineHeight: 32 * 1.2,
       color: theme.foreground,
       marginBottom: sp[4],

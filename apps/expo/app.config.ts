@@ -26,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: "dev.thatxliner.billion",
     adaptiveIcon: {
       foregroundImage: "./assets/icon-light.png",
-      backgroundColor: "#1F104A",
+      backgroundColor: "#0E1530",
     },
     edgeToEdgeEnabled: true,
   },
@@ -48,10 +48,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-splash-screen",
       {
-        backgroundColor: "#E4E4E7",
+        backgroundColor: "#F8F9FC",
         image: "./assets/icon-light.png",
         dark: {
-          backgroundColor: "#18181B",
+          backgroundColor: "#0E1530",
           image: "./assets/icon-dark.png",
         },
       },

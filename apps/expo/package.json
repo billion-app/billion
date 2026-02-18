@@ -16,6 +16,9 @@
   "dependencies": {
     "@acme/ui": "workspace:*",
     "@better-auth/expo": "catalog:",
+    "@expo-google-fonts/albert-sans": "^0.4.2",
+    "@expo-google-fonts/ibm-plex-serif": "^0.4.1",
+    "@expo-google-fonts/inria-serif": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@legendapp/list": "^2.0.11",
     "@tanstack/react-query": "catalog:",
@@ -27,6 +30,7 @@
     "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.9",
     "expo-dev-client": "~6.0.15",
+    "expo-font": "^14.0.11",
     "expo-image": "~3.0.11",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.8",

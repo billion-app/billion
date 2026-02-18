@@ -180,7 +180,8 @@ export function Button({
 
 const styles = StyleSheet.create({
   text: {
-    fontWeight: fontWeight.medium,
+    // Albert Sans Medium — brand spec for all button labels
+    fontFamily: "AlbertSans_500Medium",
     textAlign: "center",
   },
   disabled: {

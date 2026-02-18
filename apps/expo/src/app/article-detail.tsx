@@ -261,8 +261,8 @@ const localStyles = StyleSheet.create({
     minHeight: 48,
   },
   errorButtonText: {
+    fontFamily: "AlbertSans_600SemiBold",
     fontSize: 16,
-    fontWeight: "600",
   },
   tabButton: {
     borderRadius: rd.full,
