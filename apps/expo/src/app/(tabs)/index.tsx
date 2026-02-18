@@ -52,57 +52,13 @@ const TYPE_LABELS: Record<ContentCard["type"], string> = {
 const ContentCardComponent = ({
   item,
   theme,
-  isHero = false,
 }: {
   item: ContentCard;
   theme: Theme;
-  isHero?: boolean;
 }) => {
   const router = useRouter();
   const imageUri = item.imageUri ?? item.thumbnailUrl;
   const accentColor = getTypeBadgeColor(item.type);
-
-  if (isHero) {
-    return (
-      <TouchableOpacity
-        style={[styles.heroCard, { backgroundColor: theme.card }]}
-        onPress={() => router.push(`/article-detail?id=${item.id}`)}
-        activeOpacity={0.85}
-      >
-        {/* Full-bleed image with overlay */}
-        {imageUri ? (
-          <>
-            <Image
-              style={styles.heroImage}
-              source={{ uri: imageUri }}
-              contentFit="cover"
-              transition={300}
-            />
-            <View style={styles.heroOverlay} lightColor="transparent" darkColor="transparent" />
-          </>
-        ) : (
-          <View style={[styles.heroImagePlaceholder, { backgroundColor: accentColor + "30" }]} lightColor="transparent" darkColor="transparent" />
-        )}
-
-        {/* Content sits over the image */}
-        <View style={styles.heroContent} lightColor="transparent" darkColor="transparent">
-          <View
-            style={[badges.base, { backgroundColor: accentColor }]}
-            lightColor="transparent"
-            darkColor="transparent"
-          >
-            <Text style={badges.text}>{TYPE_LABELS[item.type]}</Text>
-          </View>
-          <Text style={[styles.heroTitle, { color: colors.white }]}>
-            {item.title}
-          </Text>
-          <Text style={[styles.heroDescription, { color: "rgba(255,255,255,0.70)" }]} numberOfLines={2}>
-            {item.description}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  }
 
   return (
     <TouchableOpacity
@@ -283,8 +239,8 @@ export default function BrowseScreen() {
                 {filteredContent.length} result{filteredContent.length !== 1 ? "s" : ""}
               </Text>
             ) : null}
-            {filteredContent.map((item, index) => (
-              <ContentCardComponent key={item.id} item={item} theme={theme} isHero={index === 0} />
+            {filteredContent.map((item) => (
+              <ContentCardComponent key={item.id} item={item} theme={theme} />
             ))}
             {/* Bottom padding for tab bar */}
             <View style={styles.listFooter} lightColor="transparent" darkColor="transparent" />
@@ -305,62 +261,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: sp[5],
     paddingTop: sp[5],
-  },
-
-  // Hero card — first item, full-width with image overlay
-  heroCard: {
-    borderRadius: rd.lg,
-    marginBottom: sp[5],
-    overflow: "hidden",
-    height: 240,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.40,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  heroImage: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  heroImagePlaceholder: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  // Dark gradient scrim so text is always legible over the image
-  heroOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(14, 21, 48, 0.55)",
-  },
-  heroContent: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: sp[5],
-    gap: sp[2],
-  },
-  heroTitle: {
-    fontFamily: "IBMPlexSerif_700Bold",
-    fontSize: 22,
-    lineHeight: 22 * 1.25,
-  },
-  heroDescription: {
-    fontFamily: "AlbertSans_400Regular",
-    fontSize: fontSize.sm,
-    lineHeight: fontSize.sm * 1.5,
   },
 
   // Card — horizontal layout with left accent stripe
