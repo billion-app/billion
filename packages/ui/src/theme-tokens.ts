@@ -1,225 +1,174 @@
 /**
  * Shared theme tokens for both web and React Native
- * Billion Brand System — Authoritative · Classy · Sleek
+ * Billion Brand System — Dark-first civic tech aesthetic
  */
 
 export const colors = {
-  // Primary Palette
-  deepNavy: "#0E1530",
-  slate: "#272D3C",
+  // Brand Navy — primary surfaces
+  navy: {
+    base: "#0E1530", // Deep Navy — primary background
+    elevated: "#272D3C", // Slate — cards, elevated containers
+    higher: "#323848", // Highest surface — popovers, dropdowns
+  },
+
+  // Content type colors
+  bill: "#4A7CFF", // Civic Blue
+  executive: "#6366F1", // Deep Indigo
+  case: "#0891B2", // Teal
+  general: "#8A8FA0", // Muted
+
+  // Semantic colors
+  green: {
+    500: "#10B981",
+  },
+  yellow: {
+    500: "#F59E0B",
+  },
+  red: {
+    400: "#f87171",
+    500: "#EF4444",
+    600: "#dc2626",
+  },
+
+  // Base colors
   white: "#FFFFFF",
   black: "#000000",
   transparent: "transparent",
 
-  // Content Type Colors
-  civicBlue: "#4A7CFF",   // Bills
-  deepIndigo: "#6366F1",  // Executive Actions
-  teal: "#0891B2",        // Court Cases
-  muted: "#8A8FA0",       // General / News
-
-  // Semantic Colors
-  success: "#10B981",
-  warning: "#F59E0B",
-  error: "#EF4444",
+  // Secondary text / muted
   textSecondary: "#8A8FA0",
 
-  // Surface borders
+  // Border tokens
   borderSubtle: "rgba(255, 255, 255, 0.06)",
-  borderFocus: "rgba(255, 255, 255, 0.30)",
-  borderLight: "rgba(255, 255, 255, 0.10)",
-
-  // Legacy compatibility — mapped to brand equivalents
-  indigo: {
-    50: "#eef2ff",
-    100: "#e0e7ff",
-    200: "#c7d2fe",
-    300: "#a5b4fc",
-    400: "#818cf8",
-    500: "#6366f1",
-    600: "#4f46e5",
-    700: "#4338ca",
-    800: "#3730a3",
-    900: "#0E1530", // → Deep Navy
-    950: "#0E1530",
-  },
-  navy: {
-    700: "#272D3C", // → Slate
-    800: "#1a2040",
-    900: "#0E1530", // → Deep Navy
-  },
-  gray: {
-    50: "#fafafb",
-    100: "#f4f4f6",
-    200: "#e4e4e7",
-    300: "#d1d1d6",
-    400: "#a1a1aa",
-    500: "#8A8FA0",
-    600: "#52525b",
-    700: "#3f3f46",
-    800: "#27272a",
-    900: "#18181b",
-  },
-  cyan: {
-    400: "#22d3ee",
-    600: "#0891B2", // → Teal (Court Cases)
-    700: "#0891B2",
-    800: "#0e7490",
-  },
-  purple: {
-    600: "#6366F1", // → Deep Indigo (Executive Actions)
-  },
-  blue: {
-    400: "#4A7CFF", // → Civic Blue (Bills)
-    500: "#4A7CFF",
-  },
-  red: {
-    300: "#fca5a5",
-    400: "#f87171",
-    500: "#EF4444",
-    600: "#dc2626",
-    700: "#b91c1c",
-  },
-  green: {
-    500: "#10B981",
-    600: "#16a34a",
-  },
-  orange: {
-    500: "#F59E0B",
-  },
-  lavender: {
-    500: "#8A8FA0",
-    700: "#8A8FA0",
-  },
+  borderFocus: "rgba(255, 255, 255, 0.3)",
 };
 
 /**
- * Dark theme — the primary and only theme for Billion.
- * "Dark is the brand, not a mode."
+ * Semantic color mappings for dark mode (primary theme — dark is always default)
  */
 export const darkTheme = {
-  // Backgrounds — surface layering hierarchy
-  background: colors.deepNavy,       // #0E1530 — Base canvas
+  // Backgrounds — surface layering
+  background: colors.navy.base, // #0E1530
   foreground: colors.white,
-  card: colors.slate,                // #272D3C — Elevated cards
+  card: colors.navy.elevated, // #272D3C
   cardForeground: colors.white,
 
-  // Primary — White pill buttons on dark (brand signature)
+  // Primary — white fills on dark surfaces
   primary: colors.white,
   primaryForeground: colors.black,
 
   // Secondary surfaces
-  secondary: colors.slate,
+  secondary: colors.navy.elevated,
   secondaryForeground: colors.white,
 
   // Muted
-  muted: "rgba(255, 255, 255, 0.06)",
-  mutedForeground: colors.muted,     // #8A8FA0
+  muted: colors.navy.higher,
+  mutedForeground: colors.textSecondary,
 
-  // Accent — Civic Blue (Bills) as interactive accent
-  accent: colors.civicBlue,
+  // Accent — keep legacy accent for compatibility
+  accent: colors.bill,
   accentForeground: colors.white,
 
   // Destructive
-  destructive: colors.error,
+  destructive: colors.red[500],
   destructiveForeground: colors.white,
 
-  // Borders — subtle white strokes
-  border: colors.borderSubtle,       // rgba(255,255,255,0.06)
-  input: colors.slate,               // #272D3C
-  ring: colors.borderFocus,          // rgba(255,255,255,0.30)
+  // Border and input
+  border: colors.borderSubtle,
+  input: colors.navy.elevated,
+  ring: colors.borderFocus,
 
   // Text
   text: colors.white,
-  textSecondary: colors.textSecondary, // #8A8FA0
+  textSecondary: colors.textSecondary,
 
   // Semantic
-  success: colors.success,
-  warning: colors.warning,
-  danger: colors.error,
+  success: colors.green[500],
+  warning: colors.yellow[500],
+  danger: colors.red[500],
 };
 
 /**
- * Light theme — secondary accommodation.
- * Billion is dark-first; light mode mirrors structure with inverted surfaces.
+ * Light mode — secondary accommodation (dark is primary)
  */
 export const lightTheme = {
-  background: "#F8F9FC",
-  foreground: colors.deepNavy,
-  card: colors.white,
-  cardForeground: colors.deepNavy,
+  background: colors.white,
+  foreground: colors.navy.base,
+  card: "#F5F5F7",
+  cardForeground: colors.navy.base,
 
-  primary: colors.deepNavy,
+  primary: colors.navy.base,
   primaryForeground: colors.white,
 
-  secondary: "#E8ECF4",
-  secondaryForeground: colors.deepNavy,
+  secondary: "#E8E9ED",
+  secondaryForeground: colors.navy.base,
 
-  muted: "#F0F2F8",
-  mutedForeground: "#6B7280",
+  muted: "#F0F1F3",
+  mutedForeground: "#555E70",
 
-  accent: colors.civicBlue,
+  accent: colors.bill,
   accentForeground: colors.white,
 
-  destructive: colors.error,
+  destructive: colors.red[500],
   destructiveForeground: colors.white,
 
-  border: "rgba(14, 21, 48, 0.10)",
+  border: "rgba(14, 21, 48, 0.1)",
   input: colors.white,
-  ring: colors.civicBlue,
+  ring: "rgba(14, 21, 48, 0.4)",
 
-  text: colors.deepNavy,
-  textSecondary: "#6B7280",
+  text: colors.navy.base,
+  textSecondary: "#555E70",
 
-  success: colors.success,
-  warning: colors.warning,
-  danger: colors.error,
+  success: colors.green[500],
+  warning: colors.yellow[500],
+  danger: colors.red[500],
 };
 
 /**
- * Spacing scale (in rem for web, multiply by 16 for RN pixels)
+ * Spacing scale (in rem for web, multiply by 4 for RN)
  */
 export const spacing = {
   0: 0,
-  1: 0.25,  // 4px
-  2: 0.5,   // 8px
-  3: 0.75,  // 12px
-  4: 1,     // 16px
-  5: 1.25,  // 20px
-  6: 1.5,   // 24px
-  8: 2,     // 32px
-  10: 2.5,  // 40px
-  12: 3,    // 48px
-  16: 4,    // 64px
-  20: 5,    // 80px
-  24: 6,    // 96px
+  1: 0.25, // 4px / 1rem
+  2: 0.5, // 8px / 2rem
+  3: 0.75, // 12px / 3rem
+  4: 1, // 16px / 4rem
+  5: 1.25, // 20px / 5rem
+  6: 1.5, // 24px / 6rem
+  8: 2, // 32px / 8rem
+  10: 2.5, // 40px / 10rem
+  12: 3, // 48px / 12rem
+  16: 4, // 64px / 16rem
+  20: 5, // 80px / 20rem
+  24: 6, // 96px / 24rem
 };
 
 /**
- * Border radius values — from BRANDING.md §9
+ * Border radius values
  */
 export const radius = {
   none: 0,
-  sm: 0.375,   // 6px — small elements, inline badges
-  md: 0.5,     // 8px — content type badges, tab pills
-  lg: 0.875,   // 14px — cards, containers, inputs
-  xl: 1.25,    // 20px — large modals, overlay screens
-  "2xl": 1.5,  // 24px
-  full: 9999,  // pill buttons, navigation pills
+  sm: 0.375, // 6px
+  md: 0.5, // 8px
+  lg: 0.75, // 12px
+  xl: 1, // 16px
+  "2xl": 1.5, // 24px
+  full: 9999,
 };
 
 /**
- * Typography scale — from BRANDING.md §4
+ * Typography scale
  */
 export const fontSize = {
-  xs: 12,   // Timestamps, badges, fine print (micro)
-  sm: 14,   // Small UI labels
-  base: 16, // Small/UI: captions, button labels, metadata
-  lg: 18,   // Body text
+  xs: 12,
+  sm: 14,
+  base: 16,
+  lg: 18,
   xl: 20,
-  "2xl": 24,  // Subheadings
+  "2xl": 24,
   "3xl": 30,
   "4xl": 36,
-  "5xl": 48,  // Headlines display
+  "5xl": 48,
 };
 
 export const fontWeight = {
@@ -231,53 +180,55 @@ export const fontWeight = {
 };
 
 /**
- * Shadow presets — deep and soft, reinforcing layered dark aesthetic
+ * Shadow presets — deep, soft shadows reinforcing dark surface layering
  */
 export const shadows = {
+  // Subtle — cards resting on base surface
   light: {
     sm: {
-      shadowColor: "#0E1530",
+      shadowColor: "#000000",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
+      shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 2,
     },
     md: {
-      shadowColor: "#0E1530",
+      shadowColor: "#000000",
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.20,
+      shadowOpacity: 0.4,
       shadowRadius: 24,
       elevation: 4,
     },
     lg: {
-      shadowColor: "#0E1530",
+      shadowColor: "#000000",
       shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: 0.25,
+      shadowOpacity: 0.5,
       shadowRadius: 32,
       elevation: 6,
     },
   },
+  // Elevated — modals, overlays, popovers
   dark: {
     sm: {
       shadowColor: "#000000",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.30,
+      shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 2,
     },
     md: {
       shadowColor: "#000000",
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.40,
+      shadowOpacity: 0.4,
       shadowRadius: 24,
       elevation: 4,
     },
     lg: {
       shadowColor: "#000000",
       shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: 0.50,
+      shadowOpacity: 0.5,
       shadowRadius: 32,
-      elevation: 8,
+      elevation: 6,
     },
   },
 };

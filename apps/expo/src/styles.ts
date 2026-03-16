@@ -1,31 +1,17 @@
 /**
  * Consolidated Styles for the Expo Native App
- * Billion Brand System — Authoritative · Classy · Sleek
+ * Billion Brand System — Dark-first civic tech aesthetic
  *
  * This is the SINGLE SOURCE OF TRUTH for all styling in the app.
  * Import everything you need from here: `import { ... } from "~/styles"`
+ *
+ * Font families (must be loaded via expo-font):
+ *   Headlines:   "IBMPlexSerif-Bold", "IBMPlexSerif-BoldItalic"
+ *   Subheadings: "InriaSerif-Bold", "InriaSerif-Regular"
+ *   Body / UI:   "AlbertSans-Regular", "AlbertSans-Medium", "AlbertSans-SemiBold", "AlbertSans-Bold"
  */
 
 import { StyleSheet, useColorScheme } from "react-native";
-
-// ============================================================================
-// FONT FAMILIES — BRANDING.md §4
-// ============================================================================
-
-/** Brand font families. Must be loaded via useFonts() in _layout.tsx */
-export const fonts = {
-  /** Headlines — authority, institutional credibility */
-  display: "IBMPlexSerif_700Bold",
-  /** Display italic — signature typographic move for emphasis */
-  displayItalic: "IBMPlexSerif_700Bold_Italic",
-  /** Subheadings — warmer, editorial; bridges authority & accessibility */
-  editorial: "InriaSerif_700Bold",
-  editorialRegular: "InriaSerif_400Regular",
-  /** Body & UI — clean, geometric, legible at small sizes */
-  body: "AlbertSans_400Regular",
-  bodyMedium: "AlbertSans_500Medium",
-  bodySemibold: "AlbertSans_600SemiBold",
-} as const;
 
 import {
   colors,
@@ -51,6 +37,34 @@ export {
 } from "@acme/ui/theme-tokens";
 
 // ============================================================================
+// BRAND FONT FAMILIES
+// ============================================================================
+
+/** Use for all screen titles, hero statements, article headlines */
+export const fontDisplay = {
+  regular: "IBMPlexSerif-Regular",
+  bold: "IBMPlexSerif-Bold",
+  italic: "IBMPlexSerif-Italic",
+  boldItalic: "IBMPlexSerif-BoldItalic",
+};
+
+/** Use for section headers, card titles, pull quotes */
+export const fontEditorial = {
+  regular: "InriaSerif-Regular",
+  bold: "InriaSerif-Bold",
+  italic: "InriaSerif-Italic",
+  boldItalic: "InriaSerif-BoldItalic",
+};
+
+/** Use for body text, captions, button labels, metadata, form inputs */
+export const fontBody = {
+  regular: "AlbertSans-Regular",
+  medium: "AlbertSans-Medium",
+  semibold: "AlbertSans-SemiBold",
+  bold: "AlbertSans-Bold",
+};
+
+// ============================================================================
 // THEME HOOK - Use this to get the current theme based on color scheme
 // ============================================================================
 
@@ -73,36 +87,40 @@ export function useTheme(): {
 /** Pre-computed spacing values in pixels (spacing token * 16) */
 export const sp = {
   0: 0,
-  1: 4,   // 0.25 * 16
-  2: 8,   // 0.5 * 16
-  3: 12,  // 0.75 * 16
-  4: 16,  // 1 * 16
-  5: 20,  // 1.25 * 16
-  6: 24,  // 1.5 * 16
-  8: 32,  // 2 * 16
+  1: 4, // 0.25 * 16
+  2: 8, // 0.5 * 16
+  3: 12, // 0.75 * 16
+  4: 16, // 1 * 16
+  5: 20, // 1.25 * 16
+  6: 24, // 1.5 * 16
+  8: 32, // 2 * 16
   10: 40, // 2.5 * 16
   12: 48, // 3 * 16
   16: 64, // 4 * 16
   20: 80, // 5 * 16
   24: 96, // 6 * 16
 } as const;
-
-/** Pre-computed radius values in pixels — from BRANDING.md §9 */
+// export const sp = (key: keyof typeof spacing): number => spacing[key] * 16;
+/** Pre-computed radius values in pixels (radius token * 16) */
 export const rd = {
   none: 0,
-  sm: 6,    // Small elements, inline badges
-  md: 8,    // Content type badges, tab pills
-  lg: 14,   // Cards, containers, inputs
-  xl: 20,   // Large modals, overlay screens
-  "2xl": 24,
-  full: 9999, // Buttons, navigation pills
+  sm: 6, // 0.375 * 16
+  md: 8, // 0.5 * 16
+  lg: 12, // 0.75 * 16
+  xl: 16, // 1 * 16
+  "2xl": 24, // 1.5 * 16
+  full: 9999,
 } as const;
-
+// export const rd = (key: keyof typeof radius): number => {
+//   const value = radius[key];
+//   return typeof value === "number" ? value * 16 : value;
+// };
 // ============================================================================
 // COMMON LAYOUT STYLES
 // ============================================================================
 
 export const layout = StyleSheet.create({
+  // Flex containers
   flex1: { flex: 1 },
   row: { flexDirection: "row" },
   column: { flexDirection: "column" },
@@ -116,9 +134,11 @@ export const layout = StyleSheet.create({
   alignStart: { alignItems: "flex-start" },
   wrap: { flexWrap: "wrap" },
 
+  // Common containers
   container: { flex: 1 },
   scrollView: { flex: 1 },
 
+  // Full screen loading/error states
   fullCenter: {
     flex: 1,
     alignItems: "center",
@@ -127,102 +147,101 @@ export const layout = StyleSheet.create({
 });
 
 // ============================================================================
-// TYPOGRAPHY STYLES — BRANDING.md §4
-// Albert Sans for UI; serifs handled per-component via fontFamily
+// TYPOGRAPHY STYLES
 // ============================================================================
 
 export const typography = StyleSheet.create({
-  // Headlines — IBM Plex Serif Bold 32px, 1.2× line height
+  // Headings — IBM Plex Serif (display face, authoritative)
   h1: {
-    fontFamily: "IBMPlexSerif_700Bold",
-    fontSize: 32,
-    lineHeight: 32 * 1.2,
+    fontSize: fontSize["3xl"],
+    fontFamily: "IBMPlexSerif-Bold",
+    lineHeight: fontSize["3xl"] * 1.2,
   },
-  // Subheadings — Inria Serif Bold 24px, 1.3× line height
   h2: {
-    fontFamily: "InriaSerif_700Bold",
     fontSize: fontSize["2xl"],
-    lineHeight: fontSize["2xl"] * 1.3,
+    fontFamily: "IBMPlexSerif-Bold",
+    lineHeight: fontSize["2xl"] * 1.2,
   },
   h3: {
-    fontFamily: "InriaSerif_700Bold",
-    fontSize: 22,
-    lineHeight: 22 * 1.3,
+    fontSize: fontSize.xl,
+    fontFamily: "InriaSerif-Bold",
+    lineHeight: fontSize.xl * 1.3,
   },
   h4: {
-    fontFamily: "InriaSerif_700Bold",
     fontSize: fontSize.lg,
+    fontFamily: "InriaSerif-Bold",
     lineHeight: fontSize.lg * 1.3,
   },
 
-  // Body — Albert Sans Regular 18px, 1.5× line height
+  // Body text — Albert Sans (clean, legible)
   body: {
-    fontFamily: "AlbertSans_400Regular",
-    fontSize: fontSize.lg,
+    fontSize: fontSize.lg, // 18px per brand spec
+    fontFamily: "AlbertSans-Regular",
     lineHeight: fontSize.lg * 1.5,
   },
-  // Small/UI — Albert Sans Regular 16px, 1.4× line height
   bodySmall: {
-    fontFamily: "AlbertSans_400Regular",
-    fontSize: fontSize.base,
+    fontSize: fontSize.base, // 16px — UI / small labels
+    fontFamily: "AlbertSans-Medium",
     lineHeight: fontSize.base * 1.4,
   },
-  // Micro — Albert Sans Medium 12–13px
   caption: {
-    fontFamily: "AlbertSans_500Medium",
-    fontSize: fontSize.xs,
+    fontSize: fontSize.sm, // 14px — timestamps, badges, metadata
+    fontFamily: "AlbertSans-Medium",
+    lineHeight: fontSize.sm * 1.4,
+  },
+  micro: {
+    fontSize: fontSize.xs, // 12px — fine print
+    fontFamily: "AlbertSans-Medium",
     lineHeight: fontSize.xs * 1.4,
   },
 
-  bold: { fontFamily: "AlbertSans_600SemiBold" },
-  semibold: { fontFamily: "AlbertSans_600SemiBold" },
-  medium: { fontFamily: "AlbertSans_500Medium" },
-  italic: { fontStyle: "italic" },
-  // ALL CAPS sparingly — badges, short labels (4 words max)
-  uppercase: { textTransform: "uppercase", letterSpacing: 0.5 },
-  center: { textAlign: "center" },
+  // Text style modifiers
+  bold: { fontFamily: "AlbertSans-Bold" },
+  semibold: { fontFamily: "AlbertSans-SemiBold" },
+  medium: { fontFamily: "AlbertSans-Medium" },
+  italic: { fontStyle: "italic" as const },
+  uppercase: { textTransform: "uppercase" as const, letterSpacing: 0.5 },
+  center: { textAlign: "center" as const },
 });
 
 // ============================================================================
-// CARD STYLES — BRANDING.md §5
+// CARD STYLES
 // ============================================================================
 
 export const cards = StyleSheet.create({
-  // Base card — Slate background, 14px radius
+  // Base card
   base: {
-    borderRadius: rd.lg,
+    borderRadius: rd.xl,
     padding: sp[5],
   },
 
-  // Content card (feed items) — Slate bg, subtle white border
+  // Card with border (modern style)
   bordered: {
-    borderRadius: rd.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderRadius: rd.xl,
+    borderWidth: 2,
     padding: sp[5],
     shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.30,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
 
-  // Content card for article rendering
+  // Content card (for articles, etc.)
   content: {
     borderRadius: rd.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderWidth: 2,
     padding: sp[5],
   },
 
-  // Elevated card (modals, overlays) — deeper shadow
+  // Elevated card with heavy shadow
   elevated: {
     borderRadius: rd.xl,
     padding: sp[6],
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.40,
-    shadowRadius: 24,
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
     elevation: 8,
   },
 });
@@ -237,9 +256,8 @@ export const headers = StyleSheet.create({
     paddingBottom: sp[5],
   },
   title: {
-    fontFamily: "IBMPlexSerif_700Bold",
-    fontSize: 32,
-    lineHeight: 32 * 1.2,
+    fontSize: fontSize["2xl"],
+    fontWeight: fontWeight.bold,
     marginBottom: sp[4],
   },
   withBorder: {
@@ -248,22 +266,20 @@ export const headers = StyleSheet.create({
 });
 
 // ============================================================================
-// INPUT STYLES — BRANDING.md §5 Inputs
+// INPUT STYLES
 // ============================================================================
 
 export const inputs = StyleSheet.create({
   search: {
     borderWidth: 1,
-    borderColor: colors.borderLight,
     borderRadius: rd.lg,
     paddingHorizontal: sp[4],
     paddingVertical: sp[3],
     fontSize: fontSize.base,
-    // Color applied dynamically via createSearchStyles()
   },
   text: {
     borderWidth: 1,
-    borderRadius: rd.lg,
+    borderRadius: rd.md,
     paddingHorizontal: sp[4],
     paddingVertical: sp[3],
     fontSize: fontSize.base,
@@ -271,56 +287,45 @@ export const inputs = StyleSheet.create({
 });
 
 // ============================================================================
-// BUTTON STYLES — BRANDING.md §5 Buttons
+// BUTTON STYLES (for custom buttons, use Button from @acme/ui for standard)
 // ============================================================================
 
 export const buttons = StyleSheet.create({
-  // Primary button — white pill (brand signature)
-  primary: {
-    backgroundColor: colors.white,
-    paddingHorizontal: sp[6],
-    paddingVertical: sp[3],
-    borderRadius: rd.full,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 48,
-  },
-
-  // Tab pill — active: white fill/black text; inactive: transparent/bordered
+  // Tab button base
   tab: {
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[2],
-    borderRadius: rd.full,
+    paddingHorizontal: sp[3],
+    paddingVertical: sp[1] + 2,
+    borderRadius: rd.md,
   },
   tabText: {
-    fontFamily: "AlbertSans_500Medium",
-    fontSize: fontSize.base,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
   },
 
-  // Floating action button (44×44 minimum touch target)
+  // Floating action button
   floating: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  floatingLarge: {
     width: 48,
     height: 48,
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
+  },
+  floatingLarge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.30,
+    shadowOpacity: 0.3,
     shadowRadius: 4.65,
     elevation: 8,
   },
 });
 
 // ============================================================================
-// BADGE STYLES — BRANDING.md §5 Content Type Button
+// BADGE STYLES
 // ============================================================================
 
 export const badges = StyleSheet.create({
@@ -328,14 +333,13 @@ export const badges = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: sp[3],
     paddingVertical: sp[1],
-    borderRadius: rd.md,
+    borderRadius: rd.sm,
   },
   text: {
-    fontFamily: "AlbertSans_500Medium",
     color: colors.white,
     fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
-    textTransform: "uppercase",
   },
 });
 
@@ -348,10 +352,10 @@ export const settings = StyleSheet.create({
     marginTop: sp[8],
   },
   sectionTitle: {
-    fontFamily: "AlbertSans_500Medium",
     marginHorizontal: sp[5],
     marginBottom: sp[3],
-    fontSize: fontSize.xs,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -370,12 +374,11 @@ export const settings = StyleSheet.create({
     flex: 1,
   },
   itemTitle: {
-    fontFamily: "AlbertSans_500Medium",
     marginBottom: sp[1],
     fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
   },
   itemSubtitle: {
-    fontFamily: "AlbertSans_400Regular",
     fontSize: fontSize.sm,
     lineHeight: sp[5],
   },
@@ -417,29 +420,25 @@ export const actions = StyleSheet.create({
 export function getMarkdownStyles(theme: Theme) {
   return {
     body: {
-      fontFamily: "AlbertSans_400Regular",
-      fontSize: fontSize.lg,
-      lineHeight: fontSize.lg * 1.5,
+      fontSize: fontSize.base,
+      lineHeight: sp[6],
       color: theme.foreground,
     },
     heading1: {
-      fontFamily: "IBMPlexSerif_700Bold",
-      fontSize: 32,
-      lineHeight: 32 * 1.2,
+      fontSize: fontSize["2xl"],
+      fontWeight: fontWeight.bold,
       marginBottom: sp[4],
       color: theme.foreground,
     },
     heading2: {
-      fontFamily: "InriaSerif_700Bold",
-      fontSize: fontSize["2xl"],
-      lineHeight: fontSize["2xl"] * 1.3,
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.bold,
       marginBottom: sp[3],
       color: theme.foreground,
     },
     heading3: {
-      fontFamily: "InriaSerif_700Bold",
       fontSize: fontSize.lg,
-      lineHeight: fontSize.lg * 1.3,
+      fontWeight: fontWeight.semibold,
       marginBottom: sp[2],
       color: theme.foreground,
     },
@@ -456,13 +455,13 @@ export function getMarkdownStyles(theme: Theme) {
       fontStyle: "italic" as const,
     },
     link: {
-      color: colors.civicBlue,
+      color: theme.accent,
       textDecorationLine: "underline" as const,
     },
     blockquote: {
       backgroundColor: theme.muted,
       borderLeftWidth: 4,
-      borderLeftColor: colors.civicBlue,
+      borderLeftColor: theme.accent,
       paddingLeft: sp[4],
       paddingVertical: sp[2],
       marginVertical: sp[3],
@@ -472,14 +471,14 @@ export function getMarkdownStyles(theme: Theme) {
       color: theme.foreground,
       paddingHorizontal: sp[2],
       paddingVertical: sp[1],
-      borderRadius: rd.sm,
+      borderRadius: rd["sm"],
       fontFamily: "monospace",
     },
     code_block: {
       backgroundColor: theme.muted,
       color: theme.foreground,
       padding: sp[4],
-      borderRadius: rd.md,
+      borderRadius: rd["md"],
       marginVertical: sp[3],
       fontFamily: "monospace",
     },
@@ -487,16 +486,14 @@ export function getMarkdownStyles(theme: Theme) {
 }
 
 // ============================================================================
-// CONTENT TYPE BADGE COLORS — BRANDING.md §6
+// TYPE BADGE COLORS (for bills, orders, cases)
 // ============================================================================
 
 export const typeBadgeColors = {
-  bill: colors.civicBlue,    // #4A7CFF
-  order: colors.deepIndigo,  // #6366F1
-  case: colors.teal,         // #0891B2
-  general: colors.muted,     // #8A8FA0
-  government_content: colors.deepIndigo, // #6366F1
-  court_case: colors.teal,   // #0891B2
+  bill: colors.bill,           // Civic Blue #4A7CFF
+  order: colors.executive,     // Deep Indigo #6366F1
+  case: colors.case,           // Teal #0891B2
+  general: colors.general,     // Muted #8A8FA0
 } as const;
 
 export function getTypeBadgeColor(type: string, fallback?: string): string {
@@ -511,7 +508,7 @@ export function getTypeBadgeColor(type: string, fallback?: string): string {
 // COMBINED STYLES HELPERS - For building complete screen styles
 // ============================================================================
 
-/** Create themed header styles for a screen */
+/** Create themed styles for a screen header */
 export function createHeaderStyles(theme: Theme, insetTop: number) {
   return {
     container: {
@@ -521,25 +518,24 @@ export function createHeaderStyles(theme: Theme, insetTop: number) {
       paddingTop: insetTop + 20,
     },
     title: {
-      fontFamily: "IBMPlexSerif_700Bold",
-      fontSize: 32,
-      lineHeight: 32 * 1.2,
+      fontSize: fontSize["2xl"],
+      fontWeight: fontWeight.bold,
       color: theme.foreground,
       marginBottom: sp[4],
     },
   };
 }
 
-/** Create themed styles for search input — BRANDING.md §5 Inputs */
+/** Create themed styles for search input */
 export function createSearchStyles(theme: Theme) {
   return {
-    backgroundColor: theme.input,  // Slate
+    backgroundColor: theme.input,
     borderWidth: 1,
-    borderColor: colors.borderLight, // rgba(255,255,255,0.10)
-    borderRadius: rd.lg,             // 14px
+    borderColor: theme.border,
+    borderRadius: rd["lg"],
     paddingHorizontal: sp[4],
     paddingVertical: sp[3],
-    fontSize: fontSize.base,         // 16px
+    fontSize: fontSize.base,
     color: theme.foreground,
   };
 }

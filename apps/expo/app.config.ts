@@ -8,7 +8,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: "0.1.0",
   orientation: "portrait",
   icon: "./assets/icon-light.png",
-  userInterfaceStyle: "automatic",
+  userInterfaceStyle: "dark",
   updates: {
     fallbackToCacheTimeout: 0,
   },
@@ -48,8 +48,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-splash-screen",
       {
-        backgroundColor: "#F8F9FC",
-        image: "./assets/icon-light.png",
+        backgroundColor: "#0E1530",
+        image: "./assets/icon-dark.png",
         dark: {
           backgroundColor: "#0E1530",
           image: "./assets/icon-dark.png",

@@ -57,8 +57,36 @@ const ContentCardComponent = ({
   theme: Theme;
 }) => {
   const router = useRouter();
-  const imageUri = item.imageUri ?? item.thumbnailUrl;
-  const accentColor = getTypeBadgeColor(item.type);
+
+  const getDisplayTitle = (title: string) => {
+    if (title.length <= 60) return title;
+    const truncated = title.substring(0, 57);
+    const lastSpace = truncated.lastIndexOf(" ");
+    return lastSpace > 40
+      ? truncated.substring(0, lastSpace) + "..."
+      : truncated + "...";
+  };
+
+  const getTitleFontSize = (len: number) => {
+    if (len < 40) return fontSize.xl;
+    if (len < 60) return fontSize.lg;
+    if (len < 80) return fontSize.base;
+    return fontSize.sm;
+  };
+
+  const typeLabel =
+    item.type === "bill"
+      ? "BILL"
+      : item.type === "government_content"
+        ? "ORDER"
+        : item.type === "court_case"
+          ? "CASE"
+          : "NEWS";
+
+  const typeBadgeColor = getTypeBadgeColor(item.type);
+
+  const displayTitle = getDisplayTitle(item.title);
+  const titleFontSize = getTitleFontSize(displayTitle.length);
 
   return (
     <TouchableOpacity
@@ -66,34 +94,49 @@ const ContentCardComponent = ({
       onPress={() => router.push(`/article-detail?id=${item.id}`)}
       activeOpacity={0.85}
     >
-      {/* Left accent stripe — content type color */}
-      <View style={[styles.accentStripe, { backgroundColor: accentColor }]} lightColor="transparent" darkColor="transparent" />
+      {/* Left accent bar */}
+      <View style={[styles.cardAccent, { backgroundColor: typeBadgeColor }]} />
 
-      <View style={styles.cardBody} lightColor="transparent" darkColor="transparent">
+      <View style={styles.cardBody}>
+        {/* Type badge */}
         <View
-          style={[badges.base, { backgroundColor: accentColor }]}
-          lightColor="transparent"
-          darkColor="transparent"
+          style={[styles.typeBadge, { backgroundColor: typeBadgeColor + "22" }]}
         >
-          <Text style={badges.text}>{TYPE_LABELS[item.type]}</Text>
+          <Text style={[styles.typeBadgeText, { color: typeBadgeColor }]}>
+            {typeLabel}
+          </Text>
         </View>
 
-        <Text style={[styles.cardTitle, { color: theme.foreground }]}>
-          {item.title}
+        {/* Title */}
+        <Text
+          style={[
+            styles.cardTitle,
+            { color: theme.foreground, fontSize: titleFontSize },
+          ]}
+        >
+          {displayTitle}
         </Text>
 
-        <Text
-          style={[styles.cardDescription, { color: theme.textSecondary }]}
-          numberOfLines={2}
-        >
-          {item.description}
+        {/* Description */}
+        {item.description ? (
+          <Text
+            style={[styles.cardDescription, { color: theme.textSecondary }]}
+            numberOfLines={2}
+          >
+            {item.description}
+          </Text>
+        ) : null}
+
+        <Text style={[styles.readMore, { color: typeBadgeColor }]}>
+          Read More →
         </Text>
       </View>
 
-      {imageUri ? (
+      {/* Thumbnail */}
+      {item.imageUri ?? item.thumbnailUrl ? (
         <Image
-          style={styles.cardThumbnail}
-          source={{ uri: imageUri }}
+          style={styles.thumbnail}
+          source={{ uri: item.imageUri ?? item.thumbnailUrl }}
           contentFit="cover"
           transition={300}
         />
@@ -116,6 +159,7 @@ const TabButton = ({
   <TouchableOpacity
     style={[
       buttons.tab,
+      { borderRadius: 9999 },
       active
         ? { backgroundColor: theme.primary }
         : {
@@ -130,7 +174,10 @@ const TabButton = ({
     <Text
       style={[
         buttons.tabText,
-        { color: active ? theme.primaryForeground : "rgba(255, 255, 255, 0.60)" },
+        {
+          color: active ? theme.primaryForeground : theme.mutedForeground,
+          fontFamily: "AlbertSans-Medium",
+        },
       ]}
     >
       {title}
@@ -151,8 +198,14 @@ export default function BrowseScreen() {
   const [selectedTab, setSelectedTab] = useState<VideoPost["type"] | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: content, isLoading, error } = useQuery(
-    trpc.content.getByType.queryOptions({ type: selectedTab }),
+  const {
+    data: content,
+    isLoading,
+    error,
+  } = useQuery(
+    trpc.content.getByType.queryOptions({
+      type: selectedTab,
+    }),
   );
 
   const fuse = useMemo(() => {
@@ -177,11 +230,16 @@ export default function BrowseScreen() {
 
   return (
     <View style={layout.container}>
-      {/* Header */}
       <View style={headerStyles.container}>
-        <Text style={[headerStyles.title, styles.screenTitle]}>
-          What's Moving
+        <Text
+          style={[
+            headerStyles.title,
+            { fontFamily: "IBMPlexSerif-Bold" },
+          ]}
+        >
+          Browse
         </Text>
+
         <TextInput
           style={searchStyles}
           placeholder="Search bills, cases, orders…"
@@ -206,7 +264,6 @@ export default function BrowseScreen() {
         ))}
       </View>
 
-      {/* Content list */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <View style={styles.centerContainer}>
@@ -214,29 +271,30 @@ export default function BrowseScreen() {
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
-            <Text style={[typography.h4, { color: theme.danger }]}>
-              Failed to load
-            </Text>
-            <Text style={[styles.stateSubtext, { color: theme.mutedForeground }]}>
-              Check your connection and try again
+            <Text style={[typography.bodySmall, { color: theme.danger }]}>
+              Unable to load content
             </Text>
           </View>
         ) : filteredContent.length === 0 ? (
           <View style={styles.centerContainer}>
             <Text style={[typography.h4, { color: theme.foreground }]}>
-              Nothing here yet
+              Nothing found
             </Text>
-            <Text style={[styles.stateSubtext, { color: theme.mutedForeground }]}>
-              {searchQuery.trim()
-                ? "Try different search terms"
-                : "Check back soon for new content"}
+            <Text
+              style={[
+                typography.bodySmall,
+                { color: theme.mutedForeground, marginTop: sp[2] },
+              ]}
+            >
+              Try a different search or filter
             </Text>
           </View>
         ) : (
           <>
             {searchQuery.trim() ? (
-              <Text style={[styles.resultsLabel, { color: theme.mutedForeground }]}>
-                {filteredContent.length} result{filteredContent.length !== 1 ? "s" : ""}
+              <Text style={[styles.resultsText, { color: theme.textSecondary }]}>
+                {filteredContent.length} result
+                {filteredContent.length !== 1 ? "s" : ""}
               </Text>
             ) : null}
             {filteredContent.map((item) => (
@@ -252,23 +310,17 @@ export default function BrowseScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Screen title override — generous whitespace per brand spec
-  screenTitle: {
-    marginBottom: sp[5],
-  },
-
   scrollView: {
     flex: 1,
     paddingHorizontal: sp[5],
-    paddingTop: sp[5],
+    paddingTop: sp[4],
   },
 
-  // Card — horizontal layout with left accent stripe
   card: {
-    borderRadius: rd.lg,
-    marginBottom: sp[5],   // more air between cards
-    overflow: "hidden",
     flexDirection: "row",
+    borderRadius: rd.lg,
+    marginBottom: sp[4],
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     shadowColor: colors.black,
@@ -278,49 +330,54 @@ const styles = StyleSheet.create({
     elevation: 3,
     minHeight: 110,
   },
-  // Left colored stripe — 4px, full card height
-  accentStripe: {
-    width: 4,
-    alignSelf: "stretch",
+  cardAccent: {
+    width: 3,
   },
   cardBody: {
     flex: 1,
-    paddingVertical: sp[4],
-    paddingHorizontal: sp[4],
+    padding: sp[4],
     gap: sp[2],
-    justifyContent: "center",
   },
-  // Right thumbnail — when available
-  cardThumbnail: {
-    width: 90,
-    alignSelf: "stretch",
+  typeBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: sp[2],
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: sp[1],
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontFamily: "AlbertSans-Bold",
+    letterSpacing: 0.5,
   },
   cardTitle: {
-    fontFamily: "InriaSerif_700Bold",
-    fontSize: 18,
-    lineHeight: 18 * 1.35,
+    fontFamily: "InriaSerif-Bold",
+    lineHeight: 22,
   },
   cardDescription: {
-    fontFamily: "AlbertSans_400Regular",
     fontSize: fontSize.sm,
-    lineHeight: fontSize.sm * 1.5,
+    fontFamily: "AlbertSans-Regular",
+    lineHeight: 18,
+  },
+  readMore: {
+    fontSize: fontSize.sm,
+    fontFamily: "AlbertSans-Medium",
+    marginTop: sp[1],
+  },
+  thumbnail: {
+    width: 80,
+    height: "100%" as unknown as number,
   },
 
-  // States
   centerContainer: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: sp[16],
     gap: sp[2],
   },
-  stateSubtext: {
-    fontFamily: "AlbertSans_400Regular",
-    fontSize: fontSize.base,
-    textAlign: "center",
-  },
-  resultsLabel: {
-    fontFamily: "AlbertSans_500Medium",
+  resultsText: {
     fontSize: fontSize.sm,
+    fontFamily: "AlbertSans-Medium",
     marginBottom: sp[3],
   },
   listFooter: {

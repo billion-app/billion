@@ -173,19 +173,22 @@ export default function ArticleDetailScreen() {
           contentContainerStyle={localStyles.scrollViewContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Content type badge */}
-          <View
-            style={[badges.base, { backgroundColor: getTypeBadgeColor(content.type ?? "general") }]}
-            lightColor="transparent"
-            darkColor="transparent"
-          >
-            <Text style={badges.text}>
-              {content.type === "bill" ? "BILL" : content.type === "government_content" ? "ORDER" : content.type === "court_case" ? "CASE" : "NEWS"}
-            </Text>
-          </View>
+          {/* Type badge */}
+          {(() => {
+            const typeLabel = content.type === "bill" ? "BILL"
+              : content.type === "government_content" ? "ORDER"
+              : content.type === "court_case" ? "CASE"
+              : "NEWS";
+            const badgeColor = getTypeBadgeColor(content.type ?? "general");
+            return (
+              <View style={[badges.base, { backgroundColor: badgeColor + "22" }]} lightColor="transparent" darkColor="transparent">
+                <Text style={[badges.text, { color: badgeColor, fontFamily: "AlbertSans-Bold" }]}>{typeLabel}</Text>
+              </View>
+            );
+          })()}
 
           {/* Article title */}
-          <Text style={[typography.h1, localStyles.articleTitle, { color: theme.foreground }]}>
+          <Text style={[typography.h1, localStyles.articleTitle, { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" }]}>
             {content.title}
           </Text>
 
@@ -224,7 +227,7 @@ export default function ArticleDetailScreen() {
               cards.content,
               {
                 backgroundColor: theme.card,
-                borderColor: colors.borderSubtle,
+                borderColor: theme.border,
                 marginTop: sp[5],
                 marginBottom: sp[20],
               },

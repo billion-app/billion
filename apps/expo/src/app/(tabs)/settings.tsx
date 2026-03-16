@@ -352,7 +352,7 @@ export default function SettingsScreen() {
   return (
     <View style={[layout.container, { backgroundColor: theme.background }]}>
       <View style={[localStyles.header, { paddingTop: insets.top + 20, borderBottomColor: theme.border, backgroundColor: theme.card }]}>
-        <Text style={[typography.h2, { color: theme.foreground }]}>Settings</Text>
+        <Text style={[typography.h2, { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" }]}>Settings</Text>
       </View>
 
       <ScrollView

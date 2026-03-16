@@ -25,8 +25,8 @@ export function AIDisclaimerBanner({ style }: AIDisclaimerBannerProps) {
     : colors.red[600];
 
   const textColor = colorScheme === "dark"
-    ? colors.red[300]
-    : colors.red[700];
+    ? "#fca5a5"  // red-300 equivalent — light red for dark backgrounds
+    : "#b91c1c"; // red-700 equivalent — deep red for light backgrounds
 
   return (
     <View
