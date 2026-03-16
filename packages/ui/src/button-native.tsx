@@ -49,7 +49,7 @@ export function Button({
 
   const getVariantStyles = (pressed: boolean): ViewStyle => {
     const baseStyles: ViewStyle = {
-      borderRadius: radius.md * 16,
+      borderRadius: radius.full, // Pill — brand signature for all primary buttons
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
@@ -58,16 +58,18 @@ export function Button({
     // Size styles
     const sizeStyles: Record<ButtonSize, ViewStyle> = {
       sm: {
-        paddingHorizontal: spacing[3] * 16,
-        paddingVertical: spacing[2] * 16,
+        paddingHorizontal: spacing[4] * 16,  // 16px
+        paddingVertical: spacing[2] * 16,     // 8px → ~36px total (tab pills)
       },
       default: {
-        paddingHorizontal: spacing[4] * 16,
-        paddingVertical: spacing[2] * 16 + 1,
+        paddingHorizontal: spacing[6] * 16,  // 24px
+        paddingVertical: spacing[3] * 16,    // 12px → ~48px total (min touch target)
+        minHeight: 48,
       },
       lg: {
-        paddingHorizontal: spacing[6] * 16,
-        paddingVertical: spacing[2] * 16 + 2,
+        paddingHorizontal: spacing[6] * 16,  // 24px
+        paddingVertical: spacing[3] * 16,    // 12px → ~48px+
+        minHeight: 52,
       },
     };
 
@@ -138,16 +140,17 @@ export function Button({
       case "outline":
         return theme.foreground;
       case "ghost":
-        return theme.accent;
+        return theme.foreground;
       default:
         return theme.foreground;
     }
   };
 
+  // Brand spec: Albert Sans Medium, 16px for all button labels
   const textSize = {
-    sm: fontSize.sm,
-    default: fontSize.sm,
-    lg: fontSize.base,
+    sm: fontSize.base,     // 16px minimum
+    default: fontSize.base, // 16px
+    lg: fontSize.base,     // 16px
   }[size];
 
   return (
@@ -177,7 +180,8 @@ export function Button({
 
 const styles = StyleSheet.create({
   text: {
-    fontWeight: fontWeight.medium,
+    // Albert Sans Medium — brand spec for all button labels
+    fontFamily: "AlbertSans_500Medium",
     textAlign: "center",
   },
   disabled: {

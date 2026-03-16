@@ -1,3 +1,15 @@
+/**
+ * Settings screen
+ *
+ * MOCK DATA / TODO:
+ * - TODO: Push Notifications toggle should integrate with expo-notifications permission flow
+ * - TODO: Autoplay Videos toggle should be wired to a video player config context
+ * - TODO: Dark Mode toggle is non-functional — app always uses dark theme (dark is primary)
+ * - TODO: Reduce Data Usage toggle should gate video quality in the feed player
+ * - TODO: Logout should call the auth session invalidation API (trpc.auth.logout)
+ * - TODO: Delete Account should call a backend deletion endpoint with a confirmation code flow
+ */
+
 import { useState } from "react";
 import {
   Alert,
@@ -7,6 +19,8 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
 import {
@@ -30,6 +44,7 @@ interface SettingsItem {
   title: string;
   subtitle?: string;
   type: "toggle" | "navigation" | "action";
+  icon?: React.ComponentProps<typeof Ionicons>["name"];
   value?: boolean;
   onPress?: () => void;
   onToggle?: (value: boolean) => void;
@@ -37,6 +52,7 @@ interface SettingsItem {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { theme, isDark } = useTheme();
   const [notifications, setNotifications] = useState(true);
   const [autoplay, setAutoplay] = useState(true);
@@ -84,6 +100,7 @@ export default function SettingsScreen() {
           title: "Push Notifications",
           subtitle: "Receive updates about new content and bills",
           type: "toggle",
+          icon: "notifications-outline",
           value: notifications,
           onToggle: setNotifications,
         },
@@ -92,6 +109,7 @@ export default function SettingsScreen() {
           title: "Autoplay Videos",
           subtitle: "Automatically play next video in feed",
           type: "toggle",
+          icon: "play-circle-outline",
           value: autoplay,
           onToggle: setAutoplay,
         },
@@ -100,6 +118,7 @@ export default function SettingsScreen() {
           title: "Dark Mode",
           subtitle: "Use dark theme throughout the app",
           type: "toggle",
+          icon: "moon-outline",
           value: darkMode,
           onToggle: setDarkMode,
         },
@@ -108,6 +127,7 @@ export default function SettingsScreen() {
           title: "Reduce Data Usage",
           subtitle: "Lower video quality on cellular data",
           type: "toggle",
+          icon: "cellular-outline",
           value: dataUsage,
           onToggle: setDataUsage,
         },
@@ -121,21 +141,24 @@ export default function SettingsScreen() {
           title: "Content Interests",
           subtitle: "Customize what types of content you see",
           type: "navigation",
-          onPress: () => console.log("Navigate to content interests"),
+          icon: "sparkles-outline",
+          onPress: () => router.push("/settings/content-interests"),
         },
         {
           id: "blocked",
           title: "Blocked Content",
           subtitle: "Manage blocked users and topics",
           type: "navigation",
-          onPress: () => console.log("Navigate to blocked content"),
+          icon: "ban-outline",
+          onPress: () => router.push("/settings/blocked-content"),
         },
         {
           id: "saved",
           title: "Saved Articles",
           subtitle: "View your saved articles and videos",
           type: "navigation",
-          onPress: () => console.log("Navigate to saved articles"),
+          icon: "bookmark-outline",
+          onPress: () => router.push("/settings/saved-articles"),
         },
       ],
     },
@@ -147,21 +170,24 @@ export default function SettingsScreen() {
           title: "Edit Profile",
           subtitle: "Update your profile information",
           type: "navigation",
-          onPress: () => console.log("Navigate to profile edit"),
+          icon: "person-outline",
+          onPress: () => router.push("/settings/edit-profile"),
         },
         {
           id: "privacy",
           title: "Privacy Settings",
           subtitle: "Manage your privacy preferences",
           type: "navigation",
-          onPress: () => console.log("Navigate to privacy settings"),
+          icon: "shield-outline",
+          onPress: () => router.push("/settings/privacy"),
         },
         {
           id: "about",
           title: "About",
           subtitle: "App version and information",
           type: "navigation",
-          onPress: () => console.log("Navigate to about"),
+          icon: "information-circle-outline",
+          onPress: () => router.push("/settings/about"),
         },
       ],
     },
@@ -173,21 +199,24 @@ export default function SettingsScreen() {
           title: "Help & Support",
           subtitle: "Get help with the app",
           type: "navigation",
-          onPress: () => console.log("Navigate to help"),
+          icon: "help-circle-outline",
+          onPress: () => router.push("/settings/help"),
         },
         {
           id: "feedback",
           title: "Send Feedback",
           subtitle: "Report issues or suggest improvements",
           type: "navigation",
-          onPress: () => console.log("Navigate to feedback"),
+          icon: "chatbubble-outline",
+          onPress: () => router.push("/settings/feedback"),
         },
         {
           id: "terms",
           title: "Terms & Privacy",
           subtitle: "Read our terms of service and privacy policy",
           type: "navigation",
-          onPress: () => console.log("Navigate to terms"),
+          icon: "document-text-outline",
+          onPress: () => router.push("/settings/terms"),
         },
       ],
     },
@@ -220,6 +249,14 @@ export default function SettingsScreen() {
             lightColor="transparent"
             darkColor="transparent"
           >
+            {item.icon && (
+              <Ionicons
+                name={item.icon}
+                size={18}
+                color={theme.mutedForeground}
+                style={localStyles.itemIcon}
+              />
+            )}
             <View
               style={settings.itemTextContainer}
               lightColor="transparent"
@@ -233,7 +270,7 @@ export default function SettingsScreen() {
             <Switch
               value={item.value}
               onValueChange={item.onToggle}
-              trackColor={{ false: theme.muted, true: theme.primary }}
+              trackColor={{ false: theme.muted, true: colors.civicBlue }}
               thumbColor={colors.white}
             />
           </View>
@@ -246,6 +283,14 @@ export default function SettingsScreen() {
             style={[settings.item, { borderBottomColor: theme.border }]}
             onPress={item.onPress}
           >
+            {item.icon && (
+              <Ionicons
+                name={item.icon}
+                size={18}
+                color={theme.mutedForeground}
+                style={localStyles.itemIcon}
+              />
+            )}
             <View
               style={settings.itemTextContainer}
               lightColor="transparent"
@@ -256,7 +301,7 @@ export default function SettingsScreen() {
                 <Text style={[settings.itemSubtitle, { color: theme.textSecondary }]}>{item.subtitle}</Text>
               )}
             </View>
-            <Text style={[settings.chevron, { color: theme.mutedForeground }]}>›</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
           </TouchableOpacity>
         );
 
@@ -271,11 +316,27 @@ export default function SettingsScreen() {
             ]}
             onPress={item.onPress}
           >
+            {item.id === "logout" && (
+              <Ionicons
+                name="log-out-outline"
+                size={18}
+                color={theme.foreground}
+                style={localStyles.itemIcon}
+              />
+            )}
+            {item.id === "delete" && (
+              <Ionicons
+                name="trash-outline"
+                size={18}
+                color={theme.danger}
+                style={localStyles.itemIcon}
+              />
+            )}
             <Text
               style={[
                 settings.itemTitle,
                 { color: theme.foreground },
-                item.id === "delete" && { color: theme.danger, textAlign: "center" },
+                item.id === "delete" && { color: theme.danger },
               ]}
             >
               {item.title}
@@ -334,8 +395,11 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: sp[5],
     paddingBottom: sp[5],
   },
+  itemIcon: {
+    marginRight: sp[3],
+  },
   deleteAction: {
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   versionContainer: {
     alignItems: "center",

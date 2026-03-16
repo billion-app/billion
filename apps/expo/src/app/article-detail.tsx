@@ -24,6 +24,7 @@ import {
   colors,
   createTabContainerStyles,
   getMarkdownStyles,
+  getTypeBadgeColor,
   layout,
   rd,
   sp,
@@ -142,11 +143,19 @@ export default function ArticleDetailScreen() {
         <View
           style={[
             tabContainerStyles,
-            {
-              borderBottomColor: theme.border,
-            },
+            { borderBottomColor: theme.border, alignItems: "center" },
           ]}
         >
+          {/* Close button — left of tabs, 44×44 touch target, no background */}
+          <TouchableOpacity
+            style={localStyles.closeButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close" size={22} color={colors.white} />
+          </TouchableOpacity>
+
           <TabButton
             title="Article"
             active={selectedTab === "article"}
@@ -170,10 +179,7 @@ export default function ArticleDetailScreen() {
               : content.type === "government_content" ? "ORDER"
               : content.type === "court_case" ? "CASE"
               : "NEWS";
-            const badgeColor = content.type === "bill" ? colors.bill
-              : content.type === "government_content" ? colors.executive
-              : content.type === "court_case" ? colors.case
-              : colors.general;
+            const badgeColor = getTypeBadgeColor(content.type ?? "general");
             return (
               <View style={[badges.base, { backgroundColor: badgeColor + "22" }]} lightColor="transparent" darkColor="transparent">
                 <Text style={[badges.text, { color: badgeColor, fontFamily: "AlbertSans-Bold" }]}>{typeLabel}</Text>
@@ -235,37 +241,6 @@ export default function ArticleDetailScreen() {
           </View>
         </ScrollView>
 
-        {/* Floating action icons on right side */}
-        <View style={{...localStyles.floatingActions, backgroundColor:theme.primary, borderRadius:rd.xl, opacity:0.7 }} pointerEvents="box-none">
-          {/*<TouchableOpacity style={buttons.floating}>
-            <Ionicons
-              name="heart-outline"
-              size={24}
-              color={theme.foreground}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={buttons.floating}>
-            <Ionicons
-              name="chatbubble-outline"
-              size={24}
-              color={theme.foreground}
-            />
-          </TouchableOpacity>*/}
-
-          {/*<TouchableOpacity style={buttons.floating}>
-            <Ionicons name="share-outline" size={24} color={theme.foreground} />
-          </TouchableOpacity>*/}
-
-          <TouchableOpacity
-            style={buttons.floating}
-            // style={[buttons.floatingLarge, localStyles.floatingCloseButton, { backgroundColor: theme.primary }]}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="close" size={24} color={theme.primaryForeground} />
-          </TouchableOpacity>
-        </View>
       </SafeAreaView>
     </>
   );
@@ -282,17 +257,18 @@ const localStyles = StyleSheet.create({
     padding: sp[5],
   },
   errorButton: {
-    borderRadius: rd["md"],
+    borderRadius: rd.full,
     paddingHorizontal: sp[8],
     paddingVertical: sp[3],
     marginTop: sp[4],
+    minHeight: 48,
   },
   errorButtonText: {
+    fontFamily: "AlbertSans_600SemiBold",
     fontSize: 16,
-    fontWeight: "600",
   },
   tabButton: {
-    borderRadius: rd["md"],
+    borderRadius: rd.full,
   },
   scrollViewContent: {
     padding: sp[5],
@@ -305,25 +281,23 @@ const localStyles = StyleSheet.create({
   articleDescription: {
     marginBottom: sp[4],
   },
+  // White pill button — brand signature for primary CTAs
   viewOriginalButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: sp[3],
-    paddingHorizontal: sp[4],
-    borderRadius: rd["md"],
+    paddingHorizontal: sp[6],
+    borderRadius: rd.full,
     marginTop: sp[4],
+    minHeight: 48,
   },
-  floatingActions: {
-    position: "absolute",
-    top: "50%",
-    right: sp[5],
-    transform: [{ translateY: -80 }],
-    gap: sp[4],
-  },
-  floatingCloseButton: {
-    position: "absolute",
-    bottom: sp[8],
-    right: sp[5],
+  // Close button — inline left of tabs, 44×44 touch target, no background
+  closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: sp[1],
   },
 });

@@ -15,14 +15,16 @@ import type { VideoPost } from "@acme/api";
 
 import { Text, View } from "~/components/Themed";
 import {
+  badges,
   buttons,
   colors,
   createHeaderStyles,
   createSearchStyles,
   createTabContainerStyles,
   fontSize,
-  fontWeight,
+  getTypeBadgeColor,
   layout,
+  rd,
   sp,
   type Theme,
   typography,
@@ -39,6 +41,13 @@ interface ContentCard {
   thumbnailUrl?: string;
   imageUri?: string;
 }
+
+const TYPE_LABELS: Record<ContentCard["type"], string> = {
+  bill: "BILL",
+  government_content: "ORDER",
+  court_case: "CASE",
+  general: "NEWS",
+};
 
 const ContentCardComponent = ({
   item,
@@ -74,14 +83,7 @@ const ContentCardComponent = ({
           ? "CASE"
           : "NEWS";
 
-  const typeBadgeColor =
-    item.type === "bill"
-      ? colors.bill
-      : item.type === "government_content"
-        ? colors.executive
-        : item.type === "court_case"
-          ? colors.case
-          : colors.general;
+  const typeBadgeColor = getTypeBadgeColor(item.type);
 
   const displayTitle = getDisplayTitle(item.title);
   const titleFontSize = getTitleFontSize(displayTitle.length);
@@ -163,10 +165,11 @@ const TabButton = ({
         : {
             backgroundColor: "transparent",
             borderWidth: 1,
-            borderColor: theme.border,
+            borderColor: colors.borderLight,
           },
     ]}
     onPress={onPress}
+    activeOpacity={0.8}
   >
     <Text
       style={[
@@ -182,12 +185,17 @@ const TabButton = ({
   </TouchableOpacity>
 );
 
+const TAB_CONFIG: Array<{ key: VideoPost["type"] | "all"; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "bill", label: "Bills" },
+  { key: "court_case", label: "Cases" },
+  { key: "government_content", label: "Orders" },
+];
+
 export default function BrowseScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const [selectedTab, setSelectedTab] = useState<VideoPost["type"] | "all">(
-    "all",
-  );
+  const [selectedTab, setSelectedTab] = useState<VideoPost["type"] | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const {
@@ -216,13 +224,6 @@ export default function BrowseScreen() {
     return fuse.search(searchQuery).map((r) => r.item);
   }, [content, searchQuery, fuse]);
 
-  const tabs = [
-    { key: "all", title: "All" },
-    { key: "bill", title: "Bills" },
-    { key: "court_case", title: "Cases" },
-    { key: "government_content", title: "Orders" },
-  ] as const;
-
   const headerStyles = createHeaderStyles(theme, insets.top);
   const searchStyles = createSearchStyles(theme);
   const tabContainerStyles = createTabContainerStyles(theme);
@@ -250,13 +251,14 @@ export default function BrowseScreen() {
         />
       </View>
 
+      {/* Filter tabs */}
       <View style={tabContainerStyles}>
-        {tabs.map((tab) => (
+        {TAB_CONFIG.map(({ key, label }) => (
           <TabButton
-            key={tab.key}
-            title={tab.title}
-            active={selectedTab === tab.key}
-            onPress={() => setSelectedTab(tab.key)}
+            key={key}
+            title={label}
+            active={selectedTab === key}
+            onPress={() => setSelectedTab(key)}
             theme={theme}
           />
         ))}
@@ -265,7 +267,7 @@ export default function BrowseScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
+            <ActivityIndicator size="large" color={colors.white} />
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
@@ -298,6 +300,8 @@ export default function BrowseScreen() {
             {filteredContent.map((item) => (
               <ContentCardComponent key={item.id} item={item} theme={theme} />
             ))}
+            {/* Bottom padding for tab bar */}
+            <View style={styles.listFooter} lightColor="transparent" darkColor="transparent" />
           </>
         )}
       </ScrollView>
@@ -311,28 +315,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: sp[5],
     paddingTop: sp[4],
   },
-  centerContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: sp[10],
-  },
-  resultsText: {
-    fontSize: fontSize.sm,
-    fontFamily: "AlbertSans-Medium",
-    marginBottom: sp[3],
-  },
-  // Card
+
   card: {
     flexDirection: "row",
-    borderRadius: 14,
+    borderRadius: rd.lg,
     marginBottom: sp[4],
     overflow: "hidden",
-    shadowColor: "#000",
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
+    minHeight: 110,
   },
   cardAccent: {
     width: 3,
@@ -371,5 +367,20 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: 80,
     height: "100%" as unknown as number,
+  },
+
+  centerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: sp[16],
+    gap: sp[2],
+  },
+  resultsText: {
+    fontSize: fontSize.sm,
+    fontFamily: "AlbertSans-Medium",
+    marginBottom: sp[3],
+  },
+  listFooter: {
+    height: sp[8],
   },
 });

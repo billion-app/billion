@@ -17,17 +17,23 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
-  const { isDark, theme } = useTheme();
-  const tintColor = isDark ? colors.bill : colors.bill; // Civic Blue #4A7CFF
+  const { theme } = useTheme();
+  const tintColor = colors.white;
 
   return (
     <QueryClientProvider client={queryClient}>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: tintColor,
+          tabBarActiveTintColor: colors.white,
+          tabBarInactiveTintColor: "rgba(255, 255, 255, 0.50)",
           tabBarStyle: {
             backgroundColor: theme.background,
-            borderTopColor: theme.border,
+            borderTopColor: colors.borderSubtle,
+            borderTopWidth: 1,
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: "500",
           },
           // Disable the static render of the header on web
           // to prevent a hydration error in React Navigation v6.

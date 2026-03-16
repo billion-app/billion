@@ -4,9 +4,9 @@
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as Font from "expo-font";
-import * as SplashScreen from "expo-splash-screen";
 
 import { useTheme } from "~/styles";
 import { queryClient } from "~/utils/api";

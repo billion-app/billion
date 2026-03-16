@@ -284,10 +284,12 @@ export default function FeedScreen() {
 // const sp = (key: keyof typeof spacing): number => spacing[key] * 16;
 const styles = StyleSheet.create({
   loadingText: {
+    fontFamily: "AlbertSans_400Regular",
     marginTop: sp[4],
     fontSize: fontSize.base,
   },
   errorSubtext: {
+    fontFamily: "AlbertSans_400Regular",
     marginTop: sp[2],
   },
   videoContainer: {
@@ -297,6 +299,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cardTitle: {
+    fontFamily: "IBMPlexSerif_700Bold",
     marginBottom: sp[3],
     marginTop: sp[4],
   },
@@ -304,14 +307,14 @@ const styles = StyleSheet.create({
     marginBottom: sp[4],
   },
   articlePreview: {
-    fontSize: fontSize.sm,
+    fontFamily: "AlbertSans_400Regular",
+    fontSize: fontSize.base,
     marginBottom: sp[4],
-    lineHeight: fontSize.sm * 1.6,
-    fontStyle: "italic",
+    lineHeight: fontSize.base * 1.6,
   },
   author: {
+    fontFamily: "AlbertSans_600SemiBold",
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
     marginBottom: sp[5],
   },
   readButton: {
