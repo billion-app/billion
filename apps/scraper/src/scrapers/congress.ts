@@ -176,7 +176,7 @@ export async function scrapeCongress(config: CongressScraperConfig = {}) {
           }
           if (fullText) {
             // Clean up JavaScript and metadata
-            fullText = fullText.split('$(document)')[0]?.trim() || undefined;
+            fullText = fullText.split('$(document)')[0]!.trim() || undefined;
           }
 
           const billData = {

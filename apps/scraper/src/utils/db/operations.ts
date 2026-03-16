@@ -33,7 +33,6 @@ function isUsableText(text: string | undefined | null): text is string {
   if (/[A-Z]:\\/.test(text)) return false;
 
   const lines = text.split('\n');
-  if (lines.length === 0) return false;
   const boilerplateLines = lines.filter(
     (line) => {
       const trimmed = line.trim();
@@ -110,7 +109,7 @@ export async function upsertBill(billData: BillData) {
 
   // Conditionally generate AI article
   let aiGeneratedArticle: string | undefined = undefined;
-  if (shouldGenerateArticle && isUsableText(billData.fullText)) {
+  if (shouldGenerateArticle) {
     console.log(`Generating AI article for bill: ${billData.title}`);
     aiGeneratedArticle = await generateAIArticle(
       billData.title,
@@ -240,7 +239,7 @@ export async function upsertGovernmentContent(contentData: GovernmentContentData
 
   // Conditionally generate AI article
   let aiGeneratedArticle: string | undefined = undefined;
-  if (shouldGenerateArticle && isUsableText(contentData.fullText)) {
+  if (shouldGenerateArticle) {
     console.log(`Generating AI article for ${contentData.type}: ${contentData.title}`);
     aiGeneratedArticle = await generateAIArticle(
       contentData.title,
@@ -396,7 +395,7 @@ export async function upsertCourtCase(caseData: CourtCaseData) {
 
   // Conditionally generate AI article
   let aiGeneratedArticle: string | undefined = undefined;
-  if (shouldGenerateArticle && isUsableText(caseData.fullText)) {
+  if (shouldGenerateArticle) {
     console.log(`Generating AI article for court case: ${caseData.title}`);
     aiGeneratedArticle = await generateAIArticle(
       caseData.title,
