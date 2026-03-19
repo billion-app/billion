@@ -9,7 +9,7 @@ export const appRouter = createTRPCRouter({
   post: postRouter,
   content: contentRouter,
   video: videoRouter,
-}) as ReturnType<typeof createTRPCRouter>;
+});
 
 // export type definition of API
 export type AppRouter = typeof appRouter;

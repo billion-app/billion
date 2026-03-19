@@ -19,7 +19,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 // Terms version for future acceptance tracking
 const TERMS_VERSION = "1.0.0";
@@ -80,7 +80,15 @@ export default function TermsScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["top"]}
     >
-      <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -88,8 +96,14 @@ export default function TermsScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Terms & Privacy</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <Text style={[styles.title, { color: theme.foreground }]}>
+          Terms & Privacy
+        </Text>
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -98,20 +112,41 @@ export default function TermsScreen() {
         </Text>
 
         {SECTIONS.map((section) => (
-          <View key={section.title} style={styles.section} lightColor="transparent" darkColor="transparent">
-            <Text style={[styles.sectionTitle, { color: theme.foreground }]}>{section.title}</Text>
-            <Text style={[styles.sectionBody, { color: theme.textSecondary }]}>{section.body}</Text>
+          <View
+            key={section.title}
+            style={styles.section}
+            lightColor="transparent"
+            darkColor="transparent"
+          >
+            <Text style={[styles.sectionTitle, { color: theme.foreground }]}>
+              {section.title}
+            </Text>
+            <Text style={[styles.sectionBody, { color: theme.textSecondary }]}>
+              {section.body}
+            </Text>
           </View>
         ))}
 
         <View
-          style={[styles.privacyCard, { backgroundColor: colors.civicBlue + "18", borderColor: colors.civicBlue + "44" }]}
+          style={[
+            styles.privacyCard,
+            {
+              backgroundColor: colors.civicBlue + "18",
+              borderColor: colors.civicBlue + "44",
+            },
+          ]}
           lightColor="transparent"
           darkColor="transparent"
         >
-          <Text style={[styles.privacyCardTitle, { color: theme.foreground }]}>Privacy Policy</Text>
-          <Text style={[styles.privacyCardBody, { color: theme.textSecondary }]}>
-            Our full Privacy Policy is available at https://billion.app/privacy and governs all data collection, storage, and processing activities associated with the Service.
+          <Text style={[styles.privacyCardTitle, { color: theme.foreground }]}>
+            Privacy Policy
+          </Text>
+          <Text
+            style={[styles.privacyCardBody, { color: theme.textSecondary }]}
+          >
+            Our full Privacy Policy is available at https://billion.app/privacy
+            and governs all data collection, storage, and processing activities
+            associated with the Service.
           </Text>
         </View>
       </ScrollView>

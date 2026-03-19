@@ -6,23 +6,43 @@
  * - "Open Source Licenses" should use a real OSS license screen (e.g. react-native-oss-licenses)
  */
 
-import { ScrollView, StyleSheet, TouchableOpacity, Linking, Platform } from "react-native";
+import {
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
+import { useRouter } from "expo-router";
 import * as Updates from "expo-updates";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 // TODO: Update URLs before launch
 const LINKS = [
-  { id: "privacy", label: "Privacy Policy", url: "https://billion.app/privacy", icon: "shield-outline" as const },
-  { id: "terms", label: "Terms of Service", url: "https://billion.app/terms", icon: "document-text-outline" as const },
-  { id: "oss", label: "Open Source Licenses", url: "https://billion.app/licenses", icon: "code-slash-outline" as const },
+  {
+    id: "privacy",
+    label: "Privacy Policy",
+    url: "https://billion.app/privacy",
+    icon: "shield-outline" as const,
+  },
+  {
+    id: "terms",
+    label: "Terms of Service",
+    url: "https://billion.app/terms",
+    icon: "document-text-outline" as const,
+  },
+  {
+    id: "oss",
+    label: "Open Source Licenses",
+    url: "https://billion.app/licenses",
+    icon: "code-slash-outline" as const,
+  },
 ];
-
 
 export default function AboutScreen() {
   const router = useRouter();
@@ -30,16 +50,21 @@ export default function AboutScreen() {
 
   // Compute version info
   const version = Constants.expoConfig?.version ?? "1.0.0";
-  const buildNumber = Platform.OS === "ios"
-    ? Constants.expoConfig?.ios?.buildNumber
-    : Constants.expoConfig?.android?.versionCode;
+  const buildNumber =
+    Platform.OS === "ios"
+      ? Constants.expoConfig?.ios?.buildNumber
+      : Constants.expoConfig?.android?.versionCode;
   const versionText = buildNumber ? `${version} (${buildNumber})` : version;
   const buildChannel = Updates.channel ?? "release";
 
   const VERSION_ROWS = [
     { label: "Version", value: versionText, icon: "layers-outline" as const },
     { label: "Build", value: buildChannel, icon: "construct-outline" as const },
-    { label: "Platform", value: Platform.OS, icon: "phone-portrait-outline" as const },
+    {
+      label: "Platform",
+      value: Platform.OS,
+      icon: "phone-portrait-outline" as const,
+    },
   ];
 
   return (
@@ -47,7 +72,15 @@ export default function AboutScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["top"]}
     >
-      <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -56,13 +89,23 @@ export default function AboutScreen() {
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.foreground }]}>About</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Wordmark / logo block */}
-        <View style={styles.logoBlock} lightColor="transparent" darkColor="transparent">
-          <Text style={[styles.wordmark, { color: colors.white }]}>Billion</Text>
+        <View
+          style={styles.logoBlock}
+          lightColor="transparent"
+          darkColor="transparent"
+        >
+          <Text style={[styles.wordmark, { color: colors.white }]}>
+            Billion
+          </Text>
           <Text style={[styles.tagline, { color: theme.textSecondary }]}>
             Civic intelligence for everyone.
           </Text>
@@ -70,7 +113,10 @@ export default function AboutScreen() {
 
         {/* Version info */}
         <View
-          style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}
+          style={[
+            styles.section,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
           lightColor={theme.card}
           darkColor={theme.card}
         >
@@ -79,24 +125,46 @@ export default function AboutScreen() {
               key={row.label}
               style={[
                 styles.infoRow,
-                i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border },
+                i < arr.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                },
               ]}
               lightColor="transparent"
               darkColor="transparent"
             >
-              <View style={styles.infoLeft} lightColor="transparent" darkColor="transparent">
-                <Ionicons name={row.icon} size={16} color={theme.mutedForeground} />
-                <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>{row.label}</Text>
+              <View
+                style={styles.infoLeft}
+                lightColor="transparent"
+                darkColor="transparent"
+              >
+                <Ionicons
+                  name={row.icon}
+                  size={16}
+                  color={theme.mutedForeground}
+                />
+                <Text
+                  style={[styles.infoLabel, { color: theme.textSecondary }]}
+                >
+                  {row.label}
+                </Text>
               </View>
-              <Text style={[styles.infoValue, { color: theme.foreground }]}>{row.value}</Text>
+              <Text style={[styles.infoValue, { color: theme.foreground }]}>
+                {row.value}
+              </Text>
             </View>
           ))}
         </View>
 
         {/* Links */}
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>LEGAL</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+          LEGAL
+        </Text>
         <View
-          style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}
+          style={[
+            styles.section,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
           lightColor={theme.card}
           darkColor={theme.card}
         >
@@ -105,16 +173,33 @@ export default function AboutScreen() {
               key={link.id}
               style={[
                 styles.linkRow,
-                i < LINKS.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border },
+                i < LINKS.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                },
               ]}
               onPress={() => Linking.openURL(link.url).catch(() => null)}
               activeOpacity={0.7}
             >
-              <View style={styles.linkLeft} lightColor="transparent" darkColor="transparent">
-                <Ionicons name={link.icon} size={16} color={theme.mutedForeground} />
-                <Text style={[styles.linkLabel, { color: theme.foreground }]}>{link.label}</Text>
+              <View
+                style={styles.linkLeft}
+                lightColor="transparent"
+                darkColor="transparent"
+              >
+                <Ionicons
+                  name={link.icon}
+                  size={16}
+                  color={theme.mutedForeground}
+                />
+                <Text style={[styles.linkLabel, { color: theme.foreground }]}>
+                  {link.label}
+                </Text>
               </View>
-              <Ionicons name="open-outline" size={16} color={theme.mutedForeground} />
+              <Ionicons
+                name="open-outline"
+                size={16}
+                color={theme.mutedForeground}
+              />
             </TouchableOpacity>
           ))}
         </View>

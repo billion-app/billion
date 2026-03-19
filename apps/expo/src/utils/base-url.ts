@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 
 /**
  * Get the base URL for API requests.
@@ -26,12 +27,27 @@ export const getBaseUrl = () => {
   const debuggerHost = Constants.expoConfig?.hostUri;
   const localhost = debuggerHost?.split(":")[0];
 
-  if (!localhost) {
-    throw new Error(
-      "Failed to get localhost. Please set EXPO_PUBLIC_API_URL in your .env file.\n" +
-      "For local development, ensure Expo dev server is running.\n" +
-      "For localtunnel, set: EXPO_PUBLIC_API_URL=https://your-tunnel.loca.lt"
-    );
+  if (localhost) {
+    return `http://${localhost}:3000`;
   }
-  return `http://${localhost}:3000`;
+
+  if (Platform.OS === "web") {
+    const location = (
+      globalThis as typeof globalThis & {
+        location?: { hostname?: string; protocol?: string };
+      }
+    ).location;
+    if (location?.hostname) {
+      const protocol = location.protocol === "https:" ? "https:" : "http:";
+      return `${protocol}//${location.hostname}:3000`;
+    }
+
+    return "http://127.0.0.1:3000";
+  }
+
+  throw new Error(
+    "Failed to get localhost. Please set EXPO_PUBLIC_API_URL in your .env file.\n" +
+      "For local development, ensure Expo dev server is running.\n" +
+      "For localtunnel, set: EXPO_PUBLIC_API_URL=https://your-tunnel.loca.lt",
+  );
 };

@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/node-postgres";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/node-postgres";
 
 import * as schema from "./schema";
 
@@ -16,6 +16,6 @@ export const db = new Proxy({} as NodePgDatabase<typeof schema>, {
         casing: "snake_case",
       });
     }
-    return Reflect.get(_db, prop);
+    return Reflect.get(_db, prop) as unknown;
   },
 });

@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Albert_Sans, IBM_Plex_Serif, Inria_Serif } from "next/font/google";
-import { Geist_Mono } from "next/font/google";
+import {
+  Albert_Sans,
+  Geist_Mono,
+  IBM_Plex_Serif,
+  Inria_Serif,
+} from "next/font/google";
 
 import { cn } from "@acme/ui";
 import { ThemeProvider, ThemeToggle } from "@acme/ui/theme";

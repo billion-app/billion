@@ -15,13 +15,19 @@
  */
 
 import { useState } from "react";
-import { ScrollView, StyleSheet, TouchableOpacity, TextInput, Linking } from "react-native";
+import {
+  Linking,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 const FAQS = [
   {
@@ -65,7 +71,7 @@ export default function HelpScreen() {
   const filteredFaqs = FAQS.filter(
     (faq) =>
       faq.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      faq.a.toLowerCase().includes(searchQuery.toLowerCase())
+      faq.a.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -73,7 +79,15 @@ export default function HelpScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["top"]}
     >
-      <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -81,20 +95,42 @@ export default function HelpScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Help & Support</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <Text style={[styles.title, { color: theme.foreground }]}>
+          Help & Support
+        </Text>
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Contact card */}
         <View
-          style={[styles.contactCard, { backgroundColor: colors.civicBlue + "18", borderColor: colors.civicBlue + "44" }]}
+          style={[
+            styles.contactCard,
+            {
+              backgroundColor: colors.civicBlue + "18",
+              borderColor: colors.civicBlue + "44",
+            },
+          ]}
           lightColor="transparent"
           darkColor="transparent"
         >
-          <Ionicons name="chatbubble-ellipses-outline" size={28} color={colors.civicBlue} />
-          <View style={styles.contactText} lightColor="transparent" darkColor="transparent">
-            <Text style={[styles.contactTitle, { color: theme.foreground }]}>Contact Support</Text>
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={28}
+            color={colors.civicBlue}
+          />
+          <View
+            style={styles.contactText}
+            lightColor="transparent"
+            darkColor="transparent"
+          >
+            <Text style={[styles.contactTitle, { color: theme.foreground }]}>
+              Contact Support
+            </Text>
             <Text style={[styles.contactSub, { color: theme.textSecondary }]}>
               We usually respond within a few hours.
             </Text>
@@ -103,19 +139,33 @@ export default function HelpScreen() {
             style={[styles.contactBtn, { backgroundColor: colors.civicBlue }]}
             onPress={() => Linking.openURL("mailto:support@billion.app")}
           >
-            <Text style={[styles.contactBtnText, { color: colors.white }]}>Email</Text>
+            <Text style={[styles.contactBtnText, { color: colors.white }]}>
+              Email
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Bug report card */}
         <View
-          style={[styles.bugCard, { backgroundColor: colors.teal + "18", borderColor: colors.teal + "44" }]}
+          style={[
+            styles.bugCard,
+            {
+              backgroundColor: colors.teal + "18",
+              borderColor: colors.teal + "44",
+            },
+          ]}
           lightColor="transparent"
           darkColor="transparent"
         >
           <Ionicons name="bug-outline" size={28} color={colors.teal} />
-          <View style={styles.bugText} lightColor="transparent" darkColor="transparent">
-            <Text style={[styles.bugTitle, { color: theme.foreground }]}>Report a Bug</Text>
+          <View
+            style={styles.bugText}
+            lightColor="transparent"
+            darkColor="transparent"
+          >
+            <Text style={[styles.bugTitle, { color: theme.foreground }]}>
+              Report a Bug
+            </Text>
             <Text style={[styles.bugSub, { color: theme.textSecondary }]}>
               Found an issue? Let us know.
             </Text>
@@ -124,11 +174,15 @@ export default function HelpScreen() {
             style={[styles.bugBtn, { backgroundColor: colors.teal }]}
             onPress={() => router.push("/settings/feedback?category=bug")}
           >
-            <Text style={[styles.bugBtnText, { color: colors.white }]}>Report</Text>
+            <Text style={[styles.bugBtnText, { color: colors.white }]}>
+              Report
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>FREQUENTLY ASKED</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+          FREQUENTLY ASKED
+        </Text>
 
         {/* Search input */}
         <View
@@ -139,7 +193,12 @@ export default function HelpScreen() {
           lightColor="transparent"
           darkColor="transparent"
         >
-          <Ionicons name="search-outline" size={18} color={theme.textSecondary} style={styles.searchIcon} />
+          <Ionicons
+            name="search-outline"
+            size={18}
+            color={theme.textSecondary}
+            style={styles.searchIcon}
+          />
           <TextInput
             placeholder="Search FAQs..."
             placeholderTextColor={theme.mutedForeground}
@@ -158,7 +217,11 @@ export default function HelpScreen() {
               onPress={() => setSearchQuery("")}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={theme.textSecondary}
+              />
             </TouchableOpacity>
           )}
         </View>
@@ -182,7 +245,9 @@ export default function HelpScreen() {
                   onPress={() => toggleFaq(faq.q)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.faqQ, { color: theme.foreground }]}>{faq.q}</Text>
+                  <Text style={[styles.faqQ, { color: theme.foreground }]}>
+                    {faq.q}
+                  </Text>
                   <Ionicons
                     name={isExpanded ? "chevron-up" : "chevron-down"}
                     size={18}
@@ -190,7 +255,9 @@ export default function HelpScreen() {
                   />
                 </TouchableOpacity>
                 {isExpanded && (
-                  <Text style={[styles.faqA, { color: theme.textSecondary }]}>{faq.a}</Text>
+                  <Text style={[styles.faqA, { color: theme.textSecondary }]}>
+                    {faq.a}
+                  </Text>
                 )}
               </View>
             );

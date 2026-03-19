@@ -266,9 +266,18 @@ export default function SettingsScreen() {
               lightColor="transparent"
               darkColor="transparent"
             >
-              <Text style={[settings.itemTitle, { color: theme.foreground }]}>{item.title}</Text>
+              <Text style={[settings.itemTitle, { color: theme.foreground }]}>
+                {item.title}
+              </Text>
               {item.subtitle && (
-                <Text style={[settings.itemSubtitle, { color: theme.textSecondary }]}>{item.subtitle}</Text>
+                <Text
+                  style={[
+                    settings.itemSubtitle,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  {item.subtitle}
+                </Text>
               )}
             </View>
             <Switch
@@ -302,12 +311,25 @@ export default function SettingsScreen() {
               lightColor="transparent"
               darkColor="transparent"
             >
-              <Text style={[settings.itemTitle, { color: theme.foreground }]}>{item.title}</Text>
+              <Text style={[settings.itemTitle, { color: theme.foreground }]}>
+                {item.title}
+              </Text>
               {item.subtitle && (
-                <Text style={[settings.itemSubtitle, { color: theme.textSecondary }]}>{item.subtitle}</Text>
+                <Text
+                  style={[
+                    settings.itemSubtitle,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  {item.subtitle}
+                </Text>
               )}
             </View>
-            <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={theme.mutedForeground}
+            />
           </TouchableOpacity>
         );
 
@@ -357,8 +379,24 @@ export default function SettingsScreen() {
 
   return (
     <View style={[layout.container, { backgroundColor: theme.background }]}>
-      <View style={[localStyles.header, { paddingTop: insets.top + 20, borderBottomColor: theme.border, backgroundColor: theme.card }]}>
-        <Text style={[typography.h2, { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" }]}>Settings</Text>
+      <View
+        style={[
+          localStyles.header,
+          {
+            paddingTop: insets.top + 20,
+            borderBottomColor: theme.border,
+            backgroundColor: theme.card,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            typography.h2,
+            { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" },
+          ]}
+        >
+          Settings
+        </Text>
       </View>
 
       <ScrollView
@@ -372,9 +410,16 @@ export default function SettingsScreen() {
             lightColor="transparent"
             darkColor="transparent"
           >
-            <Text style={[settings.sectionTitle, { color: theme.textSecondary }]}>{section.title}</Text>
+            <Text
+              style={[settings.sectionTitle, { color: theme.textSecondary }]}
+            >
+              {section.title}
+            </Text>
             <View
-              style={[settings.sectionContent, { borderColor: theme.border, backgroundColor: theme.card }]}
+              style={[
+                settings.sectionContent,
+                { borderColor: theme.border, backgroundColor: theme.card },
+              ]}
               lightColor={theme.card}
               darkColor={theme.card}
             >
@@ -388,7 +433,9 @@ export default function SettingsScreen() {
           lightColor="transparent"
           darkColor="transparent"
         >
-          <Text style={[typography.caption, { color: theme.mutedForeground }]}>Version 1.0.0</Text>
+          <Text style={[typography.caption, { color: theme.mutedForeground }]}>
+            Version 1.0.0
+          </Text>
         </View>
       </ScrollView>
     </View>

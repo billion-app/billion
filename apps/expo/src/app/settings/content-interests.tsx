@@ -21,7 +21,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 interface Topic {
   id: string;
@@ -32,24 +32,114 @@ interface Topic {
 
 // TODO: Replace with real topic taxonomy from tRPC
 const ALL_TOPICS: Topic[] = [
-  { id: "bills", label: "Bills & Legislation", icon: "document-text-outline", color: colors.civicBlue },
-  { id: "executive", label: "Executive Actions", icon: "briefcase-outline", color: colors.deepIndigo },
-  { id: "courts", label: "Court Cases", icon: "scale-outline", color: colors.teal },
-  { id: "economy", label: "Economy & Finance", icon: "bar-chart-outline", color: colors.civicBlue },
-  { id: "environment", label: "Environment & Climate", icon: "leaf-outline", color: colors.teal },
-  { id: "healthcare", label: "Health & Healthcare", icon: "medkit-outline", color: colors.deepIndigo },
-  { id: "education", label: "Education", icon: "school-outline", color: colors.civicBlue },
-  { id: "immigration", label: "Immigration", icon: "globe-outline", color: colors.teal },
-  { id: "defense", label: "Defense & Security", icon: "shield-outline", color: colors.deepIndigo },
-  { id: "foreign", label: "Foreign Policy", icon: "earth-outline", color: colors.civicBlue },
-  { id: "housing", label: "Housing & Urban", icon: "home-outline", color: colors.teal },
-  { id: "tech", label: "Technology & AI", icon: "hardware-chip-outline", color: colors.deepIndigo },
-  { id: "labor", label: "Labor & Employment", icon: "people-outline", color: colors.civicBlue },
-  { id: "tax", label: "Tax Policy", icon: "calculator-outline", color: colors.deepIndigo },
-  { id: "energy", label: "Energy & Infrastructure", icon: "flash-outline", color: colors.teal },
-  { id: "civil", label: "Civil Rights", icon: "ribbon-outline", color: colors.civicBlue },
-  { id: "veterans", label: "Veterans & Military", icon: "medal-outline", color: colors.deepIndigo },
-  { id: "agriculture", label: "Agriculture & Food", icon: "nutrition-outline", color: colors.teal },
+  {
+    id: "bills",
+    label: "Bills & Legislation",
+    icon: "document-text-outline",
+    color: colors.civicBlue,
+  },
+  {
+    id: "executive",
+    label: "Executive Actions",
+    icon: "briefcase-outline",
+    color: colors.deepIndigo,
+  },
+  {
+    id: "courts",
+    label: "Court Cases",
+    icon: "scale-outline",
+    color: colors.teal,
+  },
+  {
+    id: "economy",
+    label: "Economy & Finance",
+    icon: "bar-chart-outline",
+    color: colors.civicBlue,
+  },
+  {
+    id: "environment",
+    label: "Environment & Climate",
+    icon: "leaf-outline",
+    color: colors.teal,
+  },
+  {
+    id: "healthcare",
+    label: "Health & Healthcare",
+    icon: "medkit-outline",
+    color: colors.deepIndigo,
+  },
+  {
+    id: "education",
+    label: "Education",
+    icon: "school-outline",
+    color: colors.civicBlue,
+  },
+  {
+    id: "immigration",
+    label: "Immigration",
+    icon: "globe-outline",
+    color: colors.teal,
+  },
+  {
+    id: "defense",
+    label: "Defense & Security",
+    icon: "shield-outline",
+    color: colors.deepIndigo,
+  },
+  {
+    id: "foreign",
+    label: "Foreign Policy",
+    icon: "earth-outline",
+    color: colors.civicBlue,
+  },
+  {
+    id: "housing",
+    label: "Housing & Urban",
+    icon: "home-outline",
+    color: colors.teal,
+  },
+  {
+    id: "tech",
+    label: "Technology & AI",
+    icon: "hardware-chip-outline",
+    color: colors.deepIndigo,
+  },
+  {
+    id: "labor",
+    label: "Labor & Employment",
+    icon: "people-outline",
+    color: colors.civicBlue,
+  },
+  {
+    id: "tax",
+    label: "Tax Policy",
+    icon: "calculator-outline",
+    color: colors.deepIndigo,
+  },
+  {
+    id: "energy",
+    label: "Energy & Infrastructure",
+    icon: "flash-outline",
+    color: colors.teal,
+  },
+  {
+    id: "civil",
+    label: "Civil Rights",
+    icon: "ribbon-outline",
+    color: colors.civicBlue,
+  },
+  {
+    id: "veterans",
+    label: "Veterans & Military",
+    icon: "medal-outline",
+    color: colors.deepIndigo,
+  },
+  {
+    id: "agriculture",
+    label: "Agriculture & Food",
+    icon: "nutrition-outline",
+    color: colors.teal,
+  },
 ];
 
 export default function ContentInterestsScreen() {
@@ -83,7 +173,13 @@ export default function ContentInterestsScreen() {
     >
       {/* Header */}
       <View
-        style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
       >
         <TouchableOpacity
           onPress={() => router.back()}
@@ -92,17 +188,30 @@ export default function ContentInterestsScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Content Interests</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <Text style={[styles.title, { color: theme.foreground }]}>
+          Content Interests
+        </Text>
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       {/* Search bar */}
       <View
-        style={[styles.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}
+        style={[
+          styles.searchBar,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
         lightColor="transparent"
         darkColor="transparent"
       >
-        <Ionicons name="search-outline" size={16} color={theme.mutedForeground} />
+        <Ionicons
+          name="search-outline"
+          size={16}
+          color={theme.mutedForeground}
+        />
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -118,14 +227,28 @@ export default function ContentInterestsScreen() {
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ? (
-          <View style={styles.noResults} lightColor="transparent" darkColor="transparent">
-            <Ionicons name="search-outline" size={32} color={theme.mutedForeground} />
-            <Text style={[styles.noResultsText, { color: theme.textSecondary }]}>
+          <View
+            style={styles.noResults}
+            lightColor="transparent"
+            darkColor="transparent"
+          >
+            <Ionicons
+              name="search-outline"
+              size={32}
+              color={theme.mutedForeground}
+            />
+            <Text
+              style={[styles.noResultsText, { color: theme.textSecondary }]}
+            >
               No topics match "{query}"
             </Text>
           </View>
         ) : (
-          <View style={styles.grid} lightColor="transparent" darkColor="transparent">
+          <View
+            style={styles.grid}
+            lightColor="transparent"
+            darkColor="transparent"
+          >
             {filtered.map((topic) => {
               const active = selected.has(topic.id);
               return (
@@ -175,7 +298,10 @@ export default function ContentInterestsScreen() {
 
       {/* Save CTA */}
       <View
-        style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.border }]}
+        style={[
+          styles.footer,
+          { backgroundColor: theme.background, borderTopColor: theme.border },
+        ]}
       >
         {/* TODO: Wire to trpc.user.preferences.setTopics mutation */}
         <TouchableOpacity
@@ -183,7 +309,9 @@ export default function ContentInterestsScreen() {
           onPress={() => router.back()}
           activeOpacity={0.85}
         >
-          <Text style={[styles.saveBtnText, { color: colors.black }]}>Save Preferences</Text>
+          <Text style={[styles.saveBtnText, { color: colors.black }]}>
+            Save Preferences
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

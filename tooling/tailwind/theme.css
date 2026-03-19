@@ -1,20 +1,20 @@
 :root {
   /* Billion Brand System — Light mode (dark is primary, this is secondary accommodation) */
-  --background: oklch(1 0 0);                    /* White */
-  --foreground: oklch(0.13 0.04 262);            /* Deep Navy #0E1530 */
-  --card: oklch(0.96 0.005 262);                 /* Slightly off-white */
+  --background: oklch(1 0 0); /* White */
+  --foreground: oklch(0.13 0.04 262); /* Deep Navy #0E1530 */
+  --card: oklch(0.96 0.005 262); /* Slightly off-white */
   --card-foreground: oklch(0.13 0.04 262);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.13 0.04 262);
-  --primary: oklch(0.13 0.04 262);               /* Deep Navy as primary */
+  --primary: oklch(0.13 0.04 262); /* Deep Navy as primary */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.92 0.01 262);
   --secondary-foreground: oklch(0.13 0.04 262);
   --muted: oklch(0.94 0.005 262);
-  --muted-foreground: oklch(0.42 0.04 262);      /* #555E70 */
-  --accent: oklch(0.62 0.18 257);                /* Civic Blue #4A7CFF */
+  --muted-foreground: oklch(0.42 0.04 262); /* #555E70 */
+  --accent: oklch(0.62 0.18 257); /* Civic Blue #4A7CFF */
   --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.55 0.22 25);            /* #EF4444 */
+  --destructive: oklch(0.55 0.22 25); /* #EF4444 */
   --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.13 0.04 262 / 0.1);
   --input: oklch(1 0 0);
@@ -48,23 +48,23 @@
 
   @variant dark {
     /* Billion Brand System — DARK MODE (PRIMARY THEME) */
-    --background: oklch(0.13 0.04 262);          /* Deep Navy #0E1530 */
-    --foreground: oklch(1 0 0);                  /* White */
-    --card: oklch(0.19 0.04 262);                /* Slate #272D3C */
+    --background: oklch(0.13 0.04 262); /* Deep Navy #0E1530 */
+    --foreground: oklch(1 0 0); /* White */
+    --card: oklch(0.19 0.04 262); /* Slate #272D3C */
     --card-foreground: oklch(1 0 0);
-    --popover: oklch(0.22 0.04 262);             /* Highest surface #323848 */
+    --popover: oklch(0.22 0.04 262); /* Highest surface #323848 */
     --popover-foreground: oklch(1 0 0);
-    --primary: oklch(1 0 0);                     /* White — primary action fill */
-    --primary-foreground: oklch(0 0 0);          /* Black text on white */
-    --secondary: oklch(0.19 0.04 262);           /* Slate */
+    --primary: oklch(1 0 0); /* White — primary action fill */
+    --primary-foreground: oklch(0 0 0); /* Black text on white */
+    --secondary: oklch(0.19 0.04 262); /* Slate */
     --secondary-foreground: oklch(1 0 0);
     --muted: oklch(0.22 0.04 262);
-    --muted-foreground: oklch(0.6 0.04 262);     /* #8A8FA0 */
-    --accent: oklch(0.62 0.18 257);              /* Civic Blue #4A7CFF */
+    --muted-foreground: oklch(0.6 0.04 262); /* #8A8FA0 */
+    --accent: oklch(0.62 0.18 257); /* Civic Blue #4A7CFF */
     --accent-foreground: oklch(1 0 0);
     --destructive: oklch(0.55 0.22 25);
     --destructive-foreground: oklch(1 0 0);
-    --border: oklch(1 0 0 / 0.06);              /* rgba(255,255,255,0.06) */
+    --border: oklch(1 0 0 / 0.06); /* rgba(255,255,255,0.06) */
     --input: oklch(0.19 0.04 262);
     --ring: oklch(1 0 0 / 0.3);
     --chart-1: oklch(0.62 0.18 257);
@@ -134,19 +134,19 @@
   --font-mono: var(--font-geist-mono);
 
   /* Brand content-type colors */
-  --color-bill: #4A7CFF;
-  --color-executive: #6366F1;
-  --color-case: #0891B2;
-  --color-general: #8A8FA0;
+  --color-bill: #4a7cff;
+  --color-executive: #6366f1;
+  --color-case: #0891b2;
+  --color-general: #8a8fa0;
 
   /* Semantic */
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-error: #EF4444;
-  --color-text-secondary: #8A8FA0;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-text-secondary: #8a8fa0;
 
   /* Brand gradient */
-  --gradient-brand: linear-gradient(180deg, #0E1530 0%, #272D3C 100%);
+  --gradient-brand: linear-gradient(180deg, #0e1530 0%, #272d3c 100%);
 
   --radius-sm: 6px;
   --radius-md: 8px;

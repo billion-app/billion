@@ -4,12 +4,10 @@
  * https://docs.expo.io/guides/color-schemes/
  */
 
-import {
-  Text as DefaultText,
-  View as RNView,
-} from "react-native";
+import { Text as DefaultText, View as RNView } from "react-native";
 
-import { type Theme, useTheme } from "~/styles";
+import type { Theme } from "~/styles";
+import { useTheme } from "~/styles";
 
 interface ThemeProps {
   lightColor?: string;

@@ -12,21 +12,20 @@ export function AIDisclaimerBanner({ style }: AIDisclaimerBannerProps) {
   const { theme, colorScheme } = useTheme();
 
   // Determine colors based on theme
-  const backgroundColor = colorScheme === "dark"
-    ? colors.red[500] + "20" // 20% opacity for dark mode
-    : colors.red[500] + "15"; // 15% opacity for light mode
+  const backgroundColor =
+    colorScheme === "dark"
+      ? colors.red[500] + "20" // 20% opacity for dark mode
+      : colors.red[500] + "15"; // 15% opacity for light mode
 
-  const borderColor = colorScheme === "dark"
-    ? colors.red[500]
-    : colors.red[600];
+  const borderColor =
+    colorScheme === "dark" ? colors.red[500] : colors.red[600];
 
-  const iconColor = colorScheme === "dark"
-    ? colors.red[400]
-    : colors.red[600];
+  const iconColor = colorScheme === "dark" ? colors.red[400] : colors.red[600];
 
-  const textColor = colorScheme === "dark"
-    ? "#fca5a5"  // red-300 equivalent — light red for dark backgrounds
-    : "#b91c1c"; // red-700 equivalent — deep red for light backgrounds
+  const textColor =
+    colorScheme === "dark"
+      ? "#fca5a5" // red-300 equivalent — light red for dark backgrounds
+      : "#b91c1c"; // red-700 equivalent — deep red for light backgrounds
 
   return (
     <View

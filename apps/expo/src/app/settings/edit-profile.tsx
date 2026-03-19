@@ -11,13 +11,18 @@
  */
 
 import { useState } from "react";
-import { ScrollView, StyleSheet, TextInput, TouchableOpacity } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -42,7 +47,9 @@ export default function EditProfileScreen() {
     placeholder?: string;
   }) => (
     <View style={styles.field} lightColor="transparent" darkColor="transparent">
-      <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>{label}</Text>
+      <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+        {label}
+      </Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -68,7 +75,15 @@ export default function EditProfileScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["top"]}
     >
-      <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -76,34 +91,74 @@ export default function EditProfileScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Edit Profile</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <Text style={[styles.title, { color: theme.foreground }]}>
+          Edit Profile
+        </Text>
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Avatar */}
-        <View style={styles.avatarSection} lightColor="transparent" darkColor="transparent">
+        <View
+          style={styles.avatarSection}
+          lightColor="transparent"
+          darkColor="transparent"
+        >
           <View style={[styles.avatar, { backgroundColor: colors.civicBlue }]}>
             <Text style={styles.avatarInitial}>AR</Text>
           </View>
           <TouchableOpacity activeOpacity={0.7}>
-            <Text style={[styles.changePhotoText, { color: colors.civicBlue }]}>Change photo</Text>
+            <Text style={[styles.changePhotoText, { color: colors.civicBlue }]}>
+              Change photo
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <Field label="FULL NAME" value={name} onChangeText={setName} placeholder="Your name" />
-        <Field label="USERNAME" value={username} onChangeText={setUsername} placeholder="username" />
-        <Field label="EMAIL" value={email} onChangeText={setEmail} placeholder="you@example.com" />
-        <Field label="BIO" value={bio} onChangeText={setBio} multiline placeholder="Tell us about yourself" />
+        <Field
+          label="FULL NAME"
+          value={name}
+          onChangeText={setName}
+          placeholder="Your name"
+        />
+        <Field
+          label="USERNAME"
+          value={username}
+          onChangeText={setUsername}
+          placeholder="username"
+        />
+        <Field
+          label="EMAIL"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="you@example.com"
+        />
+        <Field
+          label="BIO"
+          value={bio}
+          onChangeText={setBio}
+          multiline
+          placeholder="Tell us about yourself"
+        />
       </ScrollView>
 
-      <View style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: theme.background, borderTopColor: theme.border },
+        ]}
+      >
         <TouchableOpacity
           style={[styles.saveBtn, { backgroundColor: colors.white }]}
           onPress={() => router.back()}
           activeOpacity={0.85}
         >
-          <Text style={[styles.saveBtnText, { color: colors.black }]}>Save Changes</Text>
+          <Text style={[styles.saveBtnText, { color: colors.black }]}>
+            Save Changes
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

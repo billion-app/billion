@@ -498,10 +498,10 @@ export function getMarkdownStyles(theme: Theme) {
 // ============================================================================
 
 export const typeBadgeColors = {
-  bill: colors.bill,           // Civic Blue #4A7CFF
-  order: colors.executive,     // Deep Indigo #6366F1
-  case: colors.case,           // Teal #0891B2
-  general: colors.general,     // Muted #8A8FA0
+  bill: colors.bill, // Civic Blue #4A7CFF
+  order: colors.executive, // Deep Indigo #6366F1
+  case: colors.case, // Teal #0891B2
+  general: colors.general, // Muted #8A8FA0
 } as const;
 
 export function getTypeBadgeColor(type: string, fallback?: string): string {

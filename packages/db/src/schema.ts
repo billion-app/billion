@@ -36,38 +36,44 @@ export const CreatePostSchema = createInsertSchema(Post, {
 });
 
 // Bills table for congressional legislation
-export const Bill = pgTable("bill", (t) => ({
-  id: t.uuid().notNull().primaryKey().defaultRandom(),
-  billNumber: t.varchar({ length: 100 }).notNull(), // e.g., "H.R. 1234"
-  title: t.text().notNull(),
-  description: t.text(),
-  sponsor: t.varchar({ length: 256 }),
-  status: t.varchar({ length: 100 }), // e.g., "Introduced", "Passed House", etc.
-  introducedDate: t.timestamp(),
-  congress: t.integer(), // e.g., 118 for 118th Congress
-  chamber: t.varchar({ length: 50 }), // "House" or "Senate"
-  summary: t.text(),
-  fullText: t.text(),
-  aiGeneratedArticle: t.text(), // AI-generated accessible article version
-  thumbnailUrl: t.text(), // URL of the thumbnail image
-  images: t
-    .jsonb()
-    .$type<{ url: string; alt: string; source: string; sourceUrl: string }[]>()
-    .default([]), // Array of relevant images for the article
-  url: t.text().notNull(),
-  sourceWebsite: t.varchar({ length: 50 }).notNull(), // "govtrack", "congress.gov"
-  contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
-  versions: t
-    .jsonb()
-    .$type<{ hash: string; updatedAt: string; changes: string }[]>()
-    .default([]), // Version history
-  createdAt: t.timestamp().defaultNow().notNull(),
-  updatedAt: t
-    .timestamp({ mode: "date", withTimezone: true })
-    .$onUpdateFn(() => sql`now()`),
-}), (table) => ({
-  uniqueBillNumberSource: unique().on(table.billNumber, table.sourceWebsite),
-}));
+export const Bill = pgTable(
+  "bill",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    billNumber: t.varchar({ length: 100 }).notNull(), // e.g., "H.R. 1234"
+    title: t.text().notNull(),
+    description: t.text(),
+    sponsor: t.varchar({ length: 256 }),
+    status: t.varchar({ length: 100 }), // e.g., "Introduced", "Passed House", etc.
+    introducedDate: t.timestamp(),
+    congress: t.integer(), // e.g., 118 for 118th Congress
+    chamber: t.varchar({ length: 50 }), // "House" or "Senate"
+    summary: t.text(),
+    fullText: t.text(),
+    aiGeneratedArticle: t.text(), // AI-generated accessible article version
+    thumbnailUrl: t.text(), // URL of the thumbnail image
+    images: t
+      .jsonb()
+      .$type<
+        { url: string; alt: string; source: string; sourceUrl: string }[]
+      >()
+      .default([]), // Array of relevant images for the article
+    url: t.text().notNull(),
+    sourceWebsite: t.varchar({ length: 50 }).notNull(), // "govtrack", "congress.gov"
+    contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
+    versions: t
+      .jsonb()
+      .$type<{ hash: string; updatedAt: string; changes: string }[]>()
+      .default([]), // Version history
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueBillNumberSource: unique().on(table.billNumber, table.sourceWebsite),
+  }),
+);
 
 export const CreateBillSchema = createInsertSchema(Bill).omit({
   id: true,
@@ -115,34 +121,40 @@ export const PresidentialAction = GovernmentContent;
 export const CreatePresidentialActionSchema = CreateGovernmentContentSchema;
 
 // Court Cases table
-export const CourtCase = pgTable("court_case", (t) => ({
-  id: t.uuid().notNull().primaryKey().defaultRandom(),
-  caseNumber: t.varchar({ length: 100 }).notNull(),
-  title: t.text().notNull(),
-  court: t.varchar({ length: 256 }).notNull(), // e.g., "Supreme Court", "9th Circuit"
-  filedDate: t.timestamp(),
-  description: t.text(),
-  status: t.varchar({ length: 100 }), // e.g., "Pending", "Decided"
-  fullText: t.text(),
-  aiGeneratedArticle: t.text(), // AI-generated accessible article version
-  thumbnailUrl: t.text(), // URL of the thumbnail image
-  images: t
-    .jsonb()
-    .$type<{ url: string; alt: string; source: string; sourceUrl: string }[]>()
-    .default([]), // Array of relevant images for the article
-  url: t.text().notNull(),
-  contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
-  versions: t
-    .jsonb()
-    .$type<{ hash: string; updatedAt: string; changes: string }[]>()
-    .default([]), // Version history
-  createdAt: t.timestamp().defaultNow().notNull(),
-  updatedAt: t
-    .timestamp({ mode: "date", withTimezone: true })
-    .$onUpdateFn(() => sql`now()`),
-}), (table) => ({
-  uniqueCaseNumber: unique().on(table.caseNumber),
-}));
+export const CourtCase = pgTable(
+  "court_case",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    caseNumber: t.varchar({ length: 100 }).notNull(),
+    title: t.text().notNull(),
+    court: t.varchar({ length: 256 }).notNull(), // e.g., "Supreme Court", "9th Circuit"
+    filedDate: t.timestamp(),
+    description: t.text(),
+    status: t.varchar({ length: 100 }), // e.g., "Pending", "Decided"
+    fullText: t.text(),
+    aiGeneratedArticle: t.text(), // AI-generated accessible article version
+    thumbnailUrl: t.text(), // URL of the thumbnail image
+    images: t
+      .jsonb()
+      .$type<
+        { url: string; alt: string; source: string; sourceUrl: string }[]
+      >()
+      .default([]), // Array of relevant images for the article
+    url: t.text().notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
+    versions: t
+      .jsonb()
+      .$type<{ hash: string; updatedAt: string; changes: string }[]>()
+      .default([]), // Version history
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueCaseNumber: unique().on(table.caseNumber),
+  }),
+);
 
 export const CreateCourtCaseSchema = createInsertSchema(CourtCase).omit({
   id: true,
@@ -151,44 +163,51 @@ export const CreateCourtCaseSchema = createInsertSchema(CourtCase).omit({
 });
 
 // Video table for AI-generated feed content
-export const Video = pgTable("video", (t) => ({
-  id: t.uuid().notNull().primaryKey().defaultRandom(),
+export const Video = pgTable(
+  "video",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
 
-  // Polymorphic reference to original content (Bill, GovernmentContent, CourtCase)
-  contentType: t.varchar({ length: 20 }).notNull(), // "bill", "government_content", "court_case"
-  contentId: t.uuid().notNull(), // References id from source table
+    // Polymorphic reference to original content (Bill, GovernmentContent, CourtCase)
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill", "government_content", "court_case"
+    contentId: t.uuid().notNull(), // References id from source table
 
-  // AI-generated marketing copy
-  title: t.varchar({ length: 25 }).notNull(), // Max 25 chars
-  description: t.text().notNull(), // 50-word catchy headline
+    // AI-generated marketing copy
+    title: t.varchar({ length: 25 }).notNull(), // Max 25 chars
+    description: t.text().notNull(), // 50-word catchy headline
 
-  // Hybrid image storage: Binary AI-generated images OR URL-based scraped thumbnails
-  imageData: bytea("image_data"), // Raw JPEG bytes (AI-generated)
-  imageMimeType: t.varchar("image_mime_type", { length: 50 }), // "image/jpeg"
-  imageWidth: t.integer("image_width"),
-  imageHeight: t.integer("image_height"),
-  thumbnailUrl: t.text(), // URL from source content (scraped)
+    // Hybrid image storage: Binary AI-generated images OR URL-based scraped thumbnails
+    imageData: bytea("image_data"), // Raw JPEG bytes (AI-generated)
+    imageMimeType: t.varchar("image_mime_type", { length: 50 }), // "image/jpeg"
+    imageWidth: t.integer("image_width"),
+    imageHeight: t.integer("image_height"),
+    thumbnailUrl: t.text(), // URL from source content (scraped)
 
-  // Metadata
-  author: t.varchar({ length: 100 }), // "govtrack.com", "whitehouse.gov", etc.
-  engagementMetrics: t.jsonb().$type<{
-    likes: number;
-    comments: number;
-    shares: number;
-  }>().default({ likes: 0, comments: 0, shares: 0 }),
+    // Metadata
+    author: t.varchar({ length: 100 }), // "govtrack.com", "whitehouse.gov", etc.
+    engagementMetrics: t
+      .jsonb()
+      .$type<{
+        likes: number;
+        comments: number;
+        shares: number;
+      }>()
+      .default({ likes: 0, comments: 0, shares: 0 }),
 
-  // Cache invalidation
-  sourceContentHash: t.varchar({ length: 64 }).notNull(), // Match source content hash
+    // Cache invalidation
+    sourceContentHash: t.varchar({ length: 64 }).notNull(), // Match source content hash
 
-  createdAt: t.timestamp().defaultNow().notNull(),
-  updatedAt: t
-    .timestamp({ mode: "date", withTimezone: true })
-    .$onUpdateFn(() => sql`now()`),
-}), (table) => ({
-  uniqueContentReference: unique().on(table.contentType, table.contentId),
-  contentIdIndex: index("video_content_id_idx").on(table.contentId),
-  createdAtIndex: index("video_created_at_idx").on(table.createdAt),
-}));
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueContentReference: unique().on(table.contentType, table.contentId),
+    contentIdIndex: index("video_content_id_idx").on(table.contentId),
+    createdAtIndex: index("video_created_at_idx").on(table.createdAt),
+  }),
+);
 
 export const CreateVideoSchema = createInsertSchema(Video).omit({
   id: true,

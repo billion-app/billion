@@ -23,12 +23,13 @@
   }
   body {
     letter-spacing: var(--tracking-normal);
-    font-family: var(--font-albert-sans), 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-albert-sans), "Helvetica Neue", Arial, sans-serif;
   }
   h1 {
     font-family: var(--font-ibm-plex-serif), Georgia, serif;
   }
-  h2, h3 {
-    font-family: var(--font-inria-serif), 'Times New Roman', serif;
+  h2,
+  h3 {
+    font-family: var(--font-inria-serif), "Times New Roman", serif;
   }
 }
