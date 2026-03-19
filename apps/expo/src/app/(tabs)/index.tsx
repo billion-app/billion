@@ -94,6 +94,7 @@ const ContentCardComponent = ({
       style={[styles.card, { backgroundColor: theme.card }]}
       onPress={() => router.push(`/article-detail?id=${item.id}`)}
       activeOpacity={0.85}
+      testID="content-card"
     >
       {/* Left accent bar */}
       <View style={[styles.cardAccent, { backgroundColor: typeBadgeColor }]} />
@@ -102,6 +103,7 @@ const ContentCardComponent = ({
         {/* Type badge */}
         <View
           style={[styles.typeBadge, { backgroundColor: typeBadgeColor + "22" }]}
+          testID="content-card-badge"
         >
           <Text style={[styles.typeBadgeText, { color: typeBadgeColor }]}>
             {typeLabel}
@@ -114,6 +116,7 @@ const ContentCardComponent = ({
             styles.cardTitle,
             { color: theme.foreground, fontSize: titleFontSize },
           ]}
+          testID="content-card-title"
         >
           {displayTitle}
         </Text>
@@ -123,6 +126,7 @@ const ContentCardComponent = ({
           <Text
             style={[styles.cardDescription, { color: theme.textSecondary }]}
             numberOfLines={2}
+            testID="content-card-description"
           >
             {item.description}
           </Text>

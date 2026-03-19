@@ -105,6 +105,7 @@ export default function FeedScreen() {
         ]}
         lightColor={theme.card}
         darkColor={theme.card}
+        testID="feed-card"
       >
         {/* Type Badge */}
         <View
@@ -114,6 +115,7 @@ export default function FeedScreen() {
           ]}
           lightColor="transparent"
           darkColor="transparent"
+          testID="feed-badge"
         >
           <Text style={badges.text}>
             {item.type == "bill"
