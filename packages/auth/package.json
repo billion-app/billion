@@ -21,7 +21,7 @@
     "@better-auth/expo": "catalog:",
     "@t3-oss/env-nextjs": "^0.13.8",
     "better-auth": "catalog:",
-    "next": "^15.5.4",
+    "next": "^15.5.14",
     "react": "catalog:react19",
     "react-dom": "catalog:react19",
     "zod": "catalog:"
