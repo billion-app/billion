@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 
-import { colors, sp, typography, useTheme } from "~/styles";
+import { sp, useTheme } from "~/styles";
 import { ExternalLink } from "./ExternalLink";
 import { MonoText } from "./StyledText";
 import { Text, View } from "./Themed";

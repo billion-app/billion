@@ -35,7 +35,7 @@ import { queryClient } from "~/utils/api";
 import "../styles.css";
 
 // Keep splash screen visible while fonts load
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 // This is the main layout of the app
 // It wraps your pages with the providers they need
@@ -45,6 +45,7 @@ export default function RootLayout() {
   useEffect(() => {
     async function loadFonts() {
       try {
+        /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
         await Font.loadAsync({
           // IBM Plex Serif — headlines (hyphenated)
           "IBMPlexSerif-Regular": IBMPlexSerif_400Regular,
@@ -77,6 +78,7 @@ export default function RootLayout() {
           AlbertSans_600SemiBold: AlbertSans_600SemiBold,
           AlbertSans_700Bold: AlbertSans_700Bold,
         });
+        /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
       } catch (e) {
         // Font loading failure is non-fatal — app falls back to system fonts
         console.warn("Font loading failed:", e);

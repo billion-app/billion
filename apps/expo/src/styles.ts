@@ -19,9 +19,7 @@ import {
   fontSize,
   fontWeight,
   lightTheme,
-  radius,
   shadows,
-  spacing,
 } from "@acme/ui/theme-tokens";
 
 // Re-export everything from theme-tokens so you only need to import from one place
@@ -31,8 +29,6 @@ export {
   lightTheme,
   fontSize,
   fontWeight,
-  spacing,
-  radius,
   shadows,
 } from "@acme/ui/theme-tokens";
 
@@ -479,14 +475,14 @@ export function getMarkdownStyles(theme: Theme) {
       color: theme.foreground,
       paddingHorizontal: sp[2],
       paddingVertical: sp[1],
-      borderRadius: rd["sm"],
+      borderRadius: rd.sm,
       fontFamily: "monospace",
     },
     code_block: {
       backgroundColor: theme.muted,
       color: theme.foreground,
       padding: sp[4],
-      borderRadius: rd["md"],
+      borderRadius: rd.md,
       marginVertical: sp[3],
       fontFamily: "monospace",
     },
@@ -505,11 +501,10 @@ export const typeBadgeColors = {
 } as const;
 
 export function getTypeBadgeColor(type: string, fallback?: string): string {
-  return (
-    typeBadgeColors[type as keyof typeof typeBadgeColors] ??
-    fallback ??
-    typeBadgeColors.general
-  );
+  if (type in typeBadgeColors) {
+    return typeBadgeColors[type as keyof typeof typeBadgeColors];
+  }
+  return fallback ?? typeBadgeColors.general;
 }
 
 // ============================================================================
@@ -540,7 +535,7 @@ export function createSearchStyles(theme: Theme) {
     backgroundColor: theme.input,
     borderWidth: 1,
     borderColor: theme.border,
-    borderRadius: rd["lg"],
+    borderRadius: rd.lg,
     paddingHorizontal: sp[4],
     paddingVertical: sp[3],
     fontSize: fontSize.base,

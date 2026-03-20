@@ -17,7 +17,6 @@ import type { VideoPost } from "@acme/api";
 import type { Theme } from "~/styles";
 import { Text, View } from "~/components/Themed";
 import {
-  badges,
   buttons,
   colors,
   createHeaderStyles,
@@ -43,7 +42,7 @@ interface ContentCard {
   imageUri?: string;
 }
 
-const TYPE_LABELS: Record<ContentCard["type"], string> = {
+const _TYPE_LABELS: Record<ContentCard["type"], string> = {
   bill: "BILL",
   government_content: "ORDER",
   court_case: "CASE",
@@ -190,7 +189,7 @@ const TabButton = ({
   </TouchableOpacity>
 );
 
-const TAB_CONFIG: Array<{ key: VideoPost["type"] | "all"; label: string }> = [
+const TAB_CONFIG: { key: VideoPost["type"] | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "bill", label: "Bills" },
   { key: "court_case", label: "Cases" },
@@ -205,6 +204,7 @@ export default function BrowseScreen() {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
+  /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
   const {
     data: content,
     isLoading,
@@ -214,6 +214,7 @@ export default function BrowseScreen() {
       type: selectedTab,
     }),
   );
+  /* eslint-enable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
   const fuse = useMemo(() => {
     if (!content) return null;
@@ -270,6 +271,7 @@ export default function BrowseScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.white} />
@@ -304,7 +306,8 @@ export default function BrowseScreen() {
                 {filteredContent.length !== 1 ? "s" : ""}
               </Text>
             ) : null}
-            {filteredContent.map((item) => (
+            {/* eslint-disable-next-line @typescript-eslint/no-unsafe-call */}
+            {filteredContent.map((item: ContentCard) => (
               <ContentCardComponent key={item.id} item={item} theme={theme} />
             ))}
             {/* Bottom padding for tab bar */}

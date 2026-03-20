@@ -3,10 +3,9 @@ import { StatusBar } from "expo-status-bar";
 
 import EditScreenInfo from "~/components/EditScreenInfo";
 import { Text, View } from "~/components/Themed";
-import { layout, sp, typography, useTheme } from "~/styles";
+import { layout, sp, typography } from "~/styles";
 
 export default function ModalScreen() {
-  const { theme } = useTheme();
 
   return (
     <View style={[layout.fullCenter]}>

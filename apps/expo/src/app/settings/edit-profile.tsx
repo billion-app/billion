@@ -21,31 +21,26 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
+import type { Theme } from "~/styles";
 import { Text, View } from "~/components/Themed";
 import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
-export default function EditProfileScreen() {
-  const router = useRouter();
-  const { theme } = useTheme();
-
-  const [name, setName] = useState("Alex Rivera");
-  const [username, setUsername] = useState("alex.rivera");
-  const [email, setEmail] = useState("alex@example.com");
-  const [bio, setBio] = useState("Civic-minded. Always reading.");
-
-  const Field = ({
-    label,
-    value,
-    onChangeText,
-    multiline = false,
-    placeholder,
-  }: {
-    label: string;
-    value: string;
-    onChangeText: (v: string) => void;
-    multiline?: boolean;
-    placeholder?: string;
-  }) => (
+function Field({
+  label,
+  value,
+  onChangeText,
+  multiline = false,
+  placeholder,
+  theme,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  multiline?: boolean;
+  placeholder?: string;
+  theme: Theme;
+}) {
+  return (
     <View style={styles.field} lightColor="transparent" darkColor="transparent">
       <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
         {label}
@@ -69,6 +64,16 @@ export default function EditProfileScreen() {
       />
     </View>
   );
+}
+
+export default function EditProfileScreen() {
+  const router = useRouter();
+  const { theme } = useTheme();
+
+  const [name, setName] = useState("Alex Rivera");
+  const [username, setUsername] = useState("alex.rivera");
+  const [email, setEmail] = useState("alex@example.com");
+  const [bio, setBio] = useState("Civic-minded. Always reading.");
 
   return (
     <SafeAreaView
@@ -123,18 +128,21 @@ export default function EditProfileScreen() {
           value={name}
           onChangeText={setName}
           placeholder="Your name"
+          theme={theme}
         />
         <Field
           label="USERNAME"
           value={username}
           onChangeText={setUsername}
           placeholder="username"
+          theme={theme}
         />
         <Field
           label="EMAIL"
           value={email}
           onChangeText={setEmail}
           placeholder="you@example.com"
+          theme={theme}
         />
         <Field
           label="BIO"
@@ -142,6 +150,7 @@ export default function EditProfileScreen() {
           onChangeText={setBio}
           multiline
           placeholder="Tell us about yourself"
+          theme={theme}
         />
       </ScrollView>
 

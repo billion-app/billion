@@ -34,11 +34,7 @@ export default function FeedbackScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ category?: string }>();
   const { theme } = useTheme();
-  const [category, setCategory] = useState(
-    typeof params.category === "string"
-      ? params.category
-      : params.category?.[0] || "bug",
-  );
+  const [category, setCategory] = useState(params.category ?? "bug");
   const [text, setText] = useState("");
   const [submitted, setSubmitted] = useState(false);
 

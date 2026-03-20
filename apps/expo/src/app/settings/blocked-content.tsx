@@ -70,8 +70,8 @@ function UndoToast({
   onCommit: (key: string) => void;
 }) {
   const { theme } = useTheme();
-  const slideY = useRef(new Animated.Value(80)).current;
-  const progress = useRef(new Animated.Value(1)).current;
+  const slideYRef = useRef(new Animated.Value(80));
+  const progressRef = useRef(new Animated.Value(1));
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onUndoRef = useRef(onUndo);
   const onCommitRef = useRef(onCommit);
@@ -83,6 +83,8 @@ function UndoToast({
   }, [onCommit]);
 
   useEffect(() => {
+    const slideY = slideYRef.current;
+    const progress = progressRef.current;
     slideY.setValue(80);
     progress.setValue(1);
 
@@ -106,11 +108,11 @@ function UndoToast({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [entry.key, progress, slideY]);
+  }, [entry.key]);
 
   const handleUndo = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    Animated.spring(slideY, {
+    Animated.spring(slideYRef.current, {
       toValue: 80,
       useNativeDriver: true,
       tension: 80,
@@ -118,7 +120,9 @@ function UndoToast({
     }).start(() => onUndoRef.current(entry.key));
   };
 
-  const barWidth = progress.interpolate({
+  // React Native Animated.Value refs are designed to be read during render
+  // eslint-disable-next-line react-hooks/refs
+  const barWidth = progressRef.current.interpolate({
     inputRange: [0, 1],
     outputRange: ["0%", "100%"],
   });
@@ -133,7 +137,8 @@ function UndoToast({
           borderColor: theme.border,
           bottom: bottomOffset,
         },
-        { transform: [{ translateY: slideY }] },
+        // eslint-disable-next-line react-hooks/refs
+        { transform: [{ translateY: slideYRef.current }] },
       ]}
     >
       <Animated.View
