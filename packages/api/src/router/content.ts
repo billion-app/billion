@@ -207,23 +207,20 @@ export const contentRouter = {
         }));
       }
 
-      if (input.type === "court_case") {
-        const courtCases = await db
-          .select()
-          .from(CourtCase)
-          .orderBy(desc(CourtCase.createdAt))
-          .limit(50);
-        return courtCases.map((courtCase) => ({
-          id: courtCase.id,
-          title: courtCase.title,
-          description: courtCase.description ?? "",
-          type: "court_case" as const,
-          isAIGenerated: false,
-          thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
-        }));
-      }
-
-      return [];
+      // input.type === "court_case" — only remaining branch
+      const courtCases = await db
+        .select()
+        .from(CourtCase)
+        .orderBy(desc(CourtCase.createdAt))
+        .limit(50);
+      return courtCases.map((courtCase) => ({
+        id: courtCase.id,
+        title: courtCase.title,
+        description: courtCase.description ?? "",
+        type: "court_case" as const,
+        isAIGenerated: false,
+        thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
+      }));
     }),
 
   // Get detailed content by ID from database
@@ -240,8 +237,8 @@ export const contentRouter = {
         .from(Bill)
         .where(eq(Bill.id, input.id))
         .limit(1);
-      if (bill.length > 0) {
-        const b = bill[0]!;
+      if (bill[0]) {
+        const b = bill[0];
         return {
           id: b.id,
           title: b.title,
@@ -262,8 +259,8 @@ export const contentRouter = {
         .from(GovernmentContent)
         .where(eq(GovernmentContent.id, input.id))
         .limit(1);
-      if (content.length > 0) {
-        const c = content[0]!;
+      if (content[0]) {
+        const c = content[0];
         return {
           id: c.id,
           title: c.title,
@@ -284,8 +281,8 @@ export const contentRouter = {
         .from(CourtCase)
         .where(eq(CourtCase.id, input.id))
         .limit(1);
-      if (courtCase.length > 0) {
-        const c = courtCase[0]!;
+      if (courtCase[0]) {
+        const c = courtCase[0];
         return {
           id: c.id,
           title: c.title,
