@@ -1,12 +1,49 @@
 /**
  * Google Custom Search API integration
  * Searches for relevant images using Google's Custom Search API
+ * Falls back to OpenAI DALL-E image generation if search fails
  */
 
+import { openai } from '@ai-sdk/openai';
+import { experimental_generateImage as generateImage } from 'ai';
 import type { ImageResult } from '../types.js';
 
 /**
+ * Generate an image using OpenAI DALL-E
+ * @param query - Image generation prompt
+ * @returns Generated image URL or null if generation fails
+ */
+async function generateImageWithAI(query: string): Promise<string | null> {
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+
+  if (!openaiApiKey) {
+    console.warn('OPENAI_API_KEY not set, cannot generate images');
+    return null;
+  }
+
+  try {
+    console.log(`Generating image with AI for query: ${query}`);
+    const { image } = await generateImage({
+      model: openai.image('dall-e-3'),
+      prompt: `A high-quality, professional image representing: ${query}`,
+      size: '1024x1024',
+    });
+
+    // Convert base64 to data URL or use the URL if available
+    if ('base64' in image) {
+      return `data:image/png;base64,${image.base64}`;
+    }
+    // Type assertion for URL property that might exist in the response
+    return (image as any).url || null;
+  } catch (error) {
+    console.error('Error generating image with AI:', error);
+    return null;
+  }
+}
+
+/**
  * Search for relevant images based on keywords using Google Custom Search
+ * Falls back to AI image generation if Google Search is not configured or fails
  * @param query - Search query (keywords)
  * @param count - Number of images to retrieve (default: 3, max: 10)
  * @returns Array of image results
@@ -20,8 +57,19 @@ export async function searchImages(
 
   if (!apiKey || !searchEngineId) {
     console.warn(
-      'GOOGLE_API_KEY or GOOGLE_SEARCH_ENGINE_ID not set, skipping image search',
+      'GOOGLE_API_KEY or GOOGLE_SEARCH_ENGINE_ID not set, falling back to AI image generation',
     );
+    const imageUrl = await generateImageWithAI(query);
+    if (imageUrl) {
+      return [
+        {
+          url: imageUrl,
+          alt: `AI-generated image for ${query}`,
+          source: 'OpenAI DALL-E',
+          sourceUrl: imageUrl,
+        },
+      ];
+    }
     return [];
   }
 
@@ -55,7 +103,20 @@ export async function searchImages(
     const data = await response.json();
 
     if (!data.items || data.items.length === 0) {
-      console.log(`No images found for query: ${query}`);
+      console.log(
+        `No images found for query: ${query}, falling back to AI generation`,
+      );
+      const imageUrl = await generateImageWithAI(query);
+      if (imageUrl) {
+        return [
+          {
+            url: imageUrl,
+            alt: `AI-generated image for ${query}`,
+            source: 'OpenAI DALL-E',
+            sourceUrl: imageUrl,
+          },
+        ];
+      }
       return [];
     }
 
