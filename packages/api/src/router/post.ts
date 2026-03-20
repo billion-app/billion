@@ -1,3 +1,4 @@
+/// <reference types="@types/pg" />
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
