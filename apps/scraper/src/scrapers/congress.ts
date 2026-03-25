@@ -154,6 +154,17 @@ async function congressFetch<T>(
   }
 }
 
+/** Return the correct ordinal suffix for a congress number (e.g. 1→"st", 2→"nd", 119→"th") */
+function ordinalSuffix(n: number): string {
+  const mod100 = Math.abs(n) % 100;
+  const mod10 = Math.abs(n) % 10;
+  if (mod100 >= 11 && mod100 <= 13) return "th";
+  if (mod10 === 1) return "st";
+  if (mod10 === 2) return "nd";
+  if (mod10 === 3) return "rd";
+  return "th";
+}
+
 /** Map API bill type codes to human-readable bill number format (e.g. "HR" → "H.R.") */
 function formatBillNumber(type: string, number: string): string {
   const prefixMap: Record<string, string> = {
@@ -225,10 +236,19 @@ async function fetchFullText(
       const txtFormat = version.formats.find((f) => f.type === "Formatted Text");
       if (!txtFormat) continue;
 
-      const res = await fetch(txtFormat.url);
-      if (!res.ok) continue;
-
-      let text = await res.text();
+      const txtController = new AbortController();
+      const txtTimeoutId = setTimeout(() => txtController.abort(), 30_000);
+      let rawText: string | undefined;
+      try {
+        const res = await fetch(txtFormat.url, { signal: txtController.signal });
+        if (res.ok) {
+          rawText = await res.text();
+        }
+      } finally {
+        clearTimeout(txtTimeoutId);
+      }
+      if (!rawText) continue;
+      let text = stripHtml(rawText);
       // Truncate to 1,000 words
       const words = text.split(/\s+/);
       if (words.length > 1000) {
@@ -259,17 +279,35 @@ export async function scrapeCongress(config: CongressScraperConfig = {}) {
   // The API uses lowercase chamber strings for filtering
   const chamberParam = chamber === "House" ? "house" : "senate";
 
-  // ── Step 1: fetch bill listing ─────────────────────────────────────────────
-  const listData = await congressFetch<{ bills: ApiBillListItem[] }>(
-    `/bill/${congress}`,
-    {
-      chamber: chamberParam,
-      limit: Math.min(maxBills, 250), // API max per page is 250
-      sort: "updateDate+desc",
-    }
-  );
+  // ── Step 1: fetch bill listing (paginated — API max 250 per page) ──────────
+  const allBills: ApiBillListItem[] = [];
+  let offset = 0;
+  const pageSize = 250; // API maximum per page
 
-  const bills = (listData.bills ?? []).slice(0, maxBills);
+  while (allBills.length < maxBills) {
+    const remaining = maxBills - allBills.length;
+    const limit = Math.min(remaining, pageSize);
+
+    const pageData = await congressFetch<{ bills: ApiBillListItem[] }>(
+      `/bill/${congress}`,
+      {
+        chamber: chamberParam,
+        limit,
+        offset,
+        sort: "updateDate+desc",
+      }
+    );
+
+    const page = pageData.bills ?? [];
+    allBills.push(...page);
+
+    // Stop early if the API returned fewer items than requested (last page)
+    if (page.length < limit) break;
+
+    offset += page.length;
+  }
+
+  const bills = allBills.slice(0, maxBills);
   console.log(`Fetched ${bills.length} bills from Congress API.`);
 
   // ── Step 2: enrich each bill with detail, summary, and full text ───────────
@@ -303,7 +341,7 @@ export async function scrapeCongress(config: CongressScraperConfig = {}) {
       const chamberValue = (detail.originChamber ?? chamber) as "House" | "Senate";
 
       // Canonical congress.gov bill page URL
-      const billUrl = `https://www.congress.gov/bill/${congress}th-congress/${chamberValue.toLowerCase()}-bill/${billNumber}`;
+      const billUrl = `https://www.congress.gov/bill/${congress}${ordinalSuffix(congress)}-congress/${chamberValue.toLowerCase()}-bill/${billNumber}`;
 
       // Summary from CRS — replaces the need to AI-generate a summary in most cases
       const summary = await fetchSummary(congress, billType, billNumber);
