@@ -251,7 +251,6 @@ export default function ArticleDetailScreen() {
           {selectedTab === "original" && content.url && (
             <TouchableOpacity
               style={[
-                buttons.primary,
                 localStyles.viewOriginalButton,
                 { backgroundColor: theme.primary },
               ]}
