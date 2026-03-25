@@ -6,7 +6,7 @@ import { CreatePostSchema, Post } from "@acme/db/schema";
 
 import { protectedProcedure, publicProcedure } from "../trpc";
 
-export const postRouter: TRPCRouterRecord = {
+export const postRouter = {
   all: publicProcedure.query(({ ctx }) => {
     return ctx.db.query.Post.findMany({
       orderBy: desc(Post.id),
@@ -31,4 +31,4 @@ export const postRouter: TRPCRouterRecord = {
   delete: protectedProcedure.input(z.string()).mutation(({ ctx, input }) => {
     return ctx.db.delete(Post).where(eq(Post.id, input));
   }),
-};
+} satisfies TRPCRouterRecord;

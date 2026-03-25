@@ -10,13 +10,18 @@
  */
 
 import { useState } from "react";
-import { ScrollView, StyleSheet, TextInput, TouchableOpacity } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 const CATEGORIES = [
   { id: "bug", label: "Bug Report", icon: "bug-outline" as const },
@@ -27,8 +32,13 @@ const CATEGORIES = [
 
 export default function FeedbackScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ category?: string }>();
   const { theme } = useTheme();
-  const [category, setCategory] = useState("bug");
+  const [category, setCategory] = useState(
+    typeof params.category === "string"
+      ? params.category
+      : params.category?.[0] || "bug",
+  );
   const [text, setText] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
@@ -38,7 +48,15 @@ export default function FeedbackScreen() {
         style={[styles.container, { backgroundColor: theme.background }]}
         edges={["top"]}
       >
-        <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: theme.border,
+              backgroundColor: theme.background,
+            },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backBtn}
@@ -46,12 +64,24 @@ export default function FeedbackScreen() {
           >
             <Ionicons name="chevron-back" size={22} color={colors.white} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: theme.foreground }]}>Send Feedback</Text>
-          <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+          <Text style={[styles.title, { color: theme.foreground }]}>
+            Send Feedback
+          </Text>
+          <View
+            style={{ width: 44 }}
+            lightColor="transparent"
+            darkColor="transparent"
+          />
         </View>
-        <View style={styles.thanks} lightColor="transparent" darkColor="transparent">
+        <View
+          style={styles.thanks}
+          lightColor="transparent"
+          darkColor="transparent"
+        >
           <Ionicons name="checkmark-circle" size={56} color={colors.teal} />
-          <Text style={[styles.thanksTitle, { color: theme.foreground }]}>Thanks!</Text>
+          <Text style={[styles.thanksTitle, { color: theme.foreground }]}>
+            Thanks!
+          </Text>
           <Text style={[styles.thanksSub, { color: theme.textSecondary }]}>
             Your feedback helps us build a better Billion.
           </Text>
@@ -60,7 +90,9 @@ export default function FeedbackScreen() {
             onPress={() => router.back()}
             activeOpacity={0.85}
           >
-            <Text style={[styles.doneBtnText, { color: colors.black }]}>Done</Text>
+            <Text style={[styles.doneBtnText, { color: colors.black }]}>
+              Done
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -72,7 +104,15 @@ export default function FeedbackScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["top"]}
     >
-      <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -80,13 +120,25 @@ export default function FeedbackScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Send Feedback</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <Text style={[styles.title, { color: theme.foreground }]}>
+          Send Feedback
+        </Text>
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>CATEGORY</Text>
-        <View style={styles.categories} lightColor="transparent" darkColor="transparent">
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+          CATEGORY
+        </Text>
+        <View
+          style={styles.categories}
+          lightColor="transparent"
+          darkColor="transparent"
+        >
           {CATEGORIES.map((cat) => {
             const active = category === cat.id;
             return (
@@ -120,7 +172,9 @@ export default function FeedbackScreen() {
           })}
         </View>
 
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>YOUR FEEDBACK</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+          YOUR FEEDBACK
+        </Text>
         <TextInput
           value={text}
           onChangeText={setText}
@@ -138,11 +192,19 @@ export default function FeedbackScreen() {
         />
       </ScrollView>
 
-      <View style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: theme.background, borderTopColor: theme.border },
+        ]}
+      >
         <TouchableOpacity
           style={[
             styles.submitBtn,
-            { backgroundColor: text.trim().length > 0 ? colors.white : theme.card },
+            {
+              backgroundColor:
+                text.trim().length > 0 ? colors.white : theme.card,
+            },
           ]}
           onPress={() => text.trim().length > 0 && setSubmitted(true)}
           activeOpacity={0.85}
@@ -150,7 +212,10 @@ export default function FeedbackScreen() {
           <Text
             style={[
               styles.submitBtnText,
-              { color: text.trim().length > 0 ? colors.black : theme.mutedForeground },
+              {
+                color:
+                  text.trim().length > 0 ? colors.black : theme.mutedForeground,
+              },
             ]}
           >
             Submit Feedback

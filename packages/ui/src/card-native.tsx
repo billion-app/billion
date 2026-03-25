@@ -2,10 +2,7 @@
  * React Native Card component with neumorphic styling
  * Shared component for Expo app
  */
- 
- 
- 
- 
+
 import type { ViewProps, ViewStyle } from "react-native";
 import { Pressable, StyleSheet, useColorScheme, View } from "react-native";
 

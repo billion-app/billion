@@ -2,18 +2,13 @@
  * React Native Button component with neumorphic styling
  * Shared component for Expo app
  */
- 
- 
- 
- 
- 
+
 import type { PressableProps, ViewStyle } from "react-native";
 import { Pressable, StyleSheet, Text, useColorScheme } from "react-native";
 
 import {
   darkTheme,
   fontSize,
-  fontWeight,
   lightTheme,
   radius,
   shadows,
@@ -58,17 +53,17 @@ export function Button({
     // Size styles
     const sizeStyles: Record<ButtonSize, ViewStyle> = {
       sm: {
-        paddingHorizontal: spacing[4] * 16,  // 16px
-        paddingVertical: spacing[2] * 16,     // 8px → ~36px total (tab pills)
+        paddingHorizontal: spacing[4] * 16, // 16px
+        paddingVertical: spacing[2] * 16, // 8px → ~36px total (tab pills)
       },
       default: {
-        paddingHorizontal: spacing[6] * 16,  // 24px
-        paddingVertical: spacing[3] * 16,    // 12px → ~48px total (min touch target)
+        paddingHorizontal: spacing[6] * 16, // 24px
+        paddingVertical: spacing[3] * 16, // 12px → ~48px total (min touch target)
         minHeight: 48,
       },
       lg: {
-        paddingHorizontal: spacing[6] * 16,  // 24px
-        paddingVertical: spacing[3] * 16,    // 12px → ~48px+
+        paddingHorizontal: spacing[6] * 16, // 24px
+        paddingVertical: spacing[3] * 16, // 12px → ~48px+
         minHeight: 52,
       },
     };
@@ -148,9 +143,9 @@ export function Button({
 
   // Brand spec: Albert Sans Medium, 16px for all button labels
   const textSize = {
-    sm: fontSize.base,     // 16px minimum
+    sm: fontSize.base, // 16px minimum
     default: fontSize.base, // 16px
-    lg: fontSize.base,     // 16px
+    lg: fontSize.base, // 16px
   }[size];
 
   return (

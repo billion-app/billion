@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import Fuse from "fuse.js";
-import { Image } from "expo-image";
+
 import type { VideoPost } from "@acme/api";
 
+import type { Theme } from "~/styles";
 import { Text, View } from "~/components/Themed";
 import {
   badges,
@@ -26,7 +28,6 @@ import {
   layout,
   rd,
   sp,
-  type Theme,
   typography,
   useTheme,
 } from "~/styles";
@@ -93,6 +94,7 @@ const ContentCardComponent = ({
       style={[styles.card, { backgroundColor: theme.card }]}
       onPress={() => router.push(`/article-detail?id=${item.id}`)}
       activeOpacity={0.85}
+      testID="content-card"
     >
       {/* Left accent bar */}
       <View style={[styles.cardAccent, { backgroundColor: typeBadgeColor }]} />
@@ -101,6 +103,7 @@ const ContentCardComponent = ({
         {/* Type badge */}
         <View
           style={[styles.typeBadge, { backgroundColor: typeBadgeColor + "22" }]}
+          testID="content-card-badge"
         >
           <Text style={[styles.typeBadgeText, { color: typeBadgeColor }]}>
             {typeLabel}
@@ -113,6 +116,7 @@ const ContentCardComponent = ({
             styles.cardTitle,
             { color: theme.foreground, fontSize: titleFontSize },
           ]}
+          testID="content-card-title"
         >
           {displayTitle}
         </Text>
@@ -122,6 +126,7 @@ const ContentCardComponent = ({
           <Text
             style={[styles.cardDescription, { color: theme.textSecondary }]}
             numberOfLines={2}
+            testID="content-card-description"
           >
             {item.description}
           </Text>
@@ -133,7 +138,7 @@ const ContentCardComponent = ({
       </View>
 
       {/* Thumbnail */}
-      {item.imageUri ?? item.thumbnailUrl ? (
+      {(item.imageUri ?? item.thumbnailUrl) ? (
         <Image
           style={styles.thumbnail}
           source={{ uri: item.imageUri ?? item.thumbnailUrl }}
@@ -195,7 +200,9 @@ const TAB_CONFIG: Array<{ key: VideoPost["type"] | "all"; label: string }> = [
 export default function BrowseScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const [selectedTab, setSelectedTab] = useState<VideoPost["type"] | "all">("all");
+  const [selectedTab, setSelectedTab] = useState<VideoPost["type"] | "all">(
+    "all",
+  );
   const [searchQuery, setSearchQuery] = useState("");
 
   const {
@@ -231,12 +238,7 @@ export default function BrowseScreen() {
   return (
     <View style={layout.container}>
       <View style={headerStyles.container}>
-        <Text
-          style={[
-            headerStyles.title,
-            { fontFamily: "IBMPlexSerif-Bold" },
-          ]}
-        >
+        <Text style={[headerStyles.title, { fontFamily: "IBMPlexSerif-Bold" }]}>
           Browse
         </Text>
 
@@ -264,7 +266,10 @@ export default function BrowseScreen() {
         ))}
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.white} />
@@ -292,7 +297,9 @@ export default function BrowseScreen() {
         ) : (
           <>
             {searchQuery.trim() ? (
-              <Text style={[styles.resultsText, { color: theme.textSecondary }]}>
+              <Text
+                style={[styles.resultsText, { color: theme.textSecondary }]}
+              >
                 {filteredContent.length} result
                 {filteredContent.length !== 1 ? "s" : ""}
               </Text>
@@ -301,7 +308,11 @@ export default function BrowseScreen() {
               <ContentCardComponent key={item.id} item={item} theme={theme} />
             ))}
             {/* Bottom padding for tab bar */}
-            <View style={styles.listFooter} lightColor="transparent" darkColor="transparent" />
+            <View
+              style={styles.listFooter}
+              lightColor="transparent"
+              darkColor="transparent"
+            />
           </>
         )}
       </ScrollView>

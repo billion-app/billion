@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 
@@ -30,7 +31,7 @@ import {
   useTheme,
 } from "~/styles";
 import { trpc } from "~/utils/api";
-import { Image } from "expo-image";
+import { getBaseUrl } from "~/utils/base-url";
 
 const { height: screenHeight } = Dimensions.get("window");
 
@@ -39,6 +40,11 @@ export default function FeedScreen() {
   const router = useRouter();
   const { theme } = useTheme();
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
+
+  // Debug: log base URL
+  useEffect(() => {
+    console.warn("[FeedScreen] Base URL:", getBaseUrl());
+  }, []);
 
   // Use infinite query for video feed
   const {
@@ -99,6 +105,7 @@ export default function FeedScreen() {
         ]}
         lightColor={theme.card}
         darkColor={theme.card}
+        testID="feed-card"
       >
         {/* Type Badge */}
         <View
@@ -108,12 +115,23 @@ export default function FeedScreen() {
           ]}
           lightColor="transparent"
           darkColor="transparent"
+          testID="feed-badge"
         >
-          <Text style={badges.text}>{item.type=="bill" ? "BILL" : item.type=="government_content" ? "ORDER" : item.type=="court_case" ? "CASE" : "NEWS"}</Text>
+          <Text style={badges.text}>
+            {item.type == "bill"
+              ? "BILL"
+              : item.type == "government_content"
+                ? "ORDER"
+                : item.type == "court_case"
+                  ? "CASE"
+                  : "NEWS"}
+          </Text>
         </View>
 
         {/* Title */}
-        <Text style={[typography.h1, styles.cardTitle, { color: theme.foreground }]}>
+        <Text
+          style={[typography.h1, styles.cardTitle, { color: theme.foreground }]}
+        >
           {item.title}
         </Text>
 
@@ -146,13 +164,22 @@ export default function FeedScreen() {
             darkColor={theme.muted}
           >
             <Text style={{ fontSize: 48 }}>
-              {item.type === "bill" ? "📜" : item.type === "court_case" ? "⚖️" : "🏛️"}
+              {item.type === "bill"
+                ? "📜"
+                : item.type === "court_case"
+                  ? "⚖️"
+                  : "🏛️"}
             </Text>
           </View>
         )}
 
         {/* Article Preview */}
-        <Text style={[styles.articlePreview, { color: theme.mutedForeground, marginTop:20 }]}>
+        <Text
+          style={[
+            styles.articlePreview,
+            { color: theme.mutedForeground, marginTop: 20 },
+          ]}
+        >
           {item.articlePreview}
         </Text>
 
@@ -237,13 +264,20 @@ export default function FeedScreen() {
 
   // Show error state if fetching failed
   if (error) {
+    console.error("[FeedScreen] Error loading videos:", error);
     return (
       <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>
         <StatusBar hidden />
         <Text style={[typography.h4, { color: theme.danger }]}>
           Error loading videos
         </Text>
-        <Text style={[typography.body, styles.errorSubtext, { color: theme.textSecondary }]}>
+        <Text
+          style={[
+            typography.body,
+            styles.errorSubtext,
+            { color: theme.textSecondary },
+          ]}
+        >
           Please try again later
         </Text>
       </View>

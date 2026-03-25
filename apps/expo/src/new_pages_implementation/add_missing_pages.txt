@@ -1,0 +1,131 @@
+Based on my analysis of the settings pages and current backend capabilities, here's a priority list for
+  implementing the linked settings pages for production shipping.
+
+  Current State Analysis
+
+  All 9 linked pages already exist in apps/expo/src/app/settings/ but contain TODOs for backend
+  integration:
+  - Static content pages: About, Help & Support, Terms & Privacy (need legal copy, version info)
+  - User preference pages: Content Interests, Privacy Settings (need tRPC endpoints)
+  - Data management pages: Blocked Content, Saved Articles (need DB tables + tRPC)
+  - Action pages: Edit Profile, Send Feedback (need mutations + validation)
+
+  Backend gaps: No user router exists yet. Need DB schemas for:
+  - User preferences (topics, privacy toggles)
+  - Saved articles (bookmarks)
+  - Blocked content (sources/topics)
+  - User profiles (bio, username)
+
+  Priority Tiers for Production Shipping
+
+  🚀 Tier 1: MVP Essentials (Ship with v1.0)
+
+  These are required for legal compliance and core functionality.
+
+  ┌────────────────┬────────┬─────────────────────────────────────────────────────────────────────────┐
+  │      Page      │ Effort │                              Why Priority                               │
+  ├────────────────┼────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ About          │ Low    │ Legal requirement for app stores. Needs real version from               │
+  │                │        │ expo-constants.                                                         │
+  ├────────────────┼────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Terms &        │ Low    │ Legal requirement. Can ship with placeholder legal copy initially.      │
+  │ Privacy        │        │                                                                         │
+  ├────────────────┼────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Saved Articles │ High   │ Core bookmarking feature. Users expect to save content.                 │
+  ├────────────────┼────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Edit Profile   │ Medium │ Basic user identity. Needs profile update endpoints.                    │
+  └────────────────┴────────┴─────────────────────────────────────────────────────────────────────────┘
+
+  📈 Tier 2: User Experience (1-2 weeks post-launch)
+
+  Important for retention and personalization.
+
+  ┌───────────────────┬────────┬───────────────────────────────────────────────────────────────────┐
+  │       Page        │ Effort │                           Why Priority                            │
+  ├───────────────────┼────────┼───────────────────────────────────────────────────────────────────┤
+  │ Content Interests │ High   │ Feed personalization drives engagement. Requires topics taxonomy. │
+  ├───────────────────┼────────┼───────────────────────────────────────────────────────────────────┤
+  │ Privacy Settings  │ Medium │ User trust. Can start with local storage, then sync to backend.   │
+  ├───────────────────┼────────┼───────────────────────────────────────────────────────────────────┤
+  │ Help & Support    │ Low    │ Static FAQ content. Can ship as-is, improve with CMS later.       │
+  ├───────────────────┼────────┼───────────────────────────────────────────────────────────────────┤
+  │ Blocked Content   │ High   │ User control over feed. Requires blocking system.                 │
+  └───────────────────┴────────┴───────────────────────────────────────────────────────────────────┘
+
+  🔧 Tier 3: Enhanced Features (Future updates)
+
+  Nice-to-haves that can wait.
+
+  ┌───────────────────────────────────┬────────┬──────────────────────────────────────────────────────┐
+  │               Page                │ Effort │                     Why Priority                     │
+  ├───────────────────────────────────┼────────┼──────────────────────────────────────────────────────┤
+  │ Send Feedback                     │ Medium │ Can use email link initially. Full integration needs │
+  │                                   │        │  backend.                                            │
+  ├───────────────────────────────────┼────────┼──────────────────────────────────────────────────────┤
+  │ Settings toggles (Push, Autoplay, │ Medium │ Use local storage initially, sync later.             │
+  │  etc)                             │        │                                                      │
+  └───────────────────────────────────┴────────┴──────────────────────────────────────────────────────┘
+
+  Implementation Roadmap
+
+  Phase 1: Database Schema Additions
+
+  -- User preferences table
+  CREATE TABLE user_preferences (
+    user_id TEXT PRIMARY KEY REFERENCES user(id),
+    topics TEXT[], -- Selected topic IDs
+    privacy_settings JSONB, -- Toggle states
+    saved_articles JSONB[], -- Array of content references
+    blocked_items JSONB[] -- Sources/topics blocked
+  );
+
+  -- Separate saved_articles table for better querying
+  CREATE TABLE saved_article (
+    id UUID PRIMARY KEY,
+    user_id TEXT REFERENCES user(id),
+    content_id UUID, -- References Bill/GovernmentContent/CourtCase
+    content_type VARCHAR(20), -- 'bill', 'government_content', 'court_case'
+    saved_at TIMESTAMP
+  );
+
+  -- Topics taxonomy table
+  CREATE TABLE topic (
+    id VARCHAR(50) PRIMARY KEY,
+    label TEXT,
+    category VARCHAR(50)
+  );
+
+  Phase 2: tRPC Router Creation
+
+  Create userRouter with:
+  - user.preferences.get - Get all user preferences
+  - user.preferences.update - Update preferences
+  - user.saved.list - List saved articles
+  - user.saved.add - Save article
+  - user.saved.remove - Unsave article
+  - user.blocked.list - List blocked items
+  - user.blocked.add - Block source/topic
+  - user.blocked.remove - Unblock
+  - user.profile.get - Get profile
+  - user.profile.update - Update profile
+
+  Phase 3: Frontend Integration Order
+
+  1. About + Terms - Update with real version/legal copy (static)
+  2. Edit Profile - Connect to basic profile endpoints
+  3. Saved Articles - Connect to saved endpoints
+  4. Content Interests - Connect to topics/preferences
+  5. Privacy Settings - Connect to preferences
+  6. Blocked Content - Connect to blocked endpoints
+  7. Help & Support - Enhance with CMS later
+  8. Send Feedback - Connect to feedback endpoint
+
+  Quick Wins for Shipping
+
+  1. About page: Replace hardcoded version with Constants.expoConfig.version
+  2. Terms page: Add real legal copy (can be placeholder for first release)
+  3. Saved Articles: Use local storage initially, migrate to backend later
+  4. Edit Profile: Store in local state, add backend when ready
+
+  This prioritization balances legal requirements, user expectations, and development effort to get a
+  viable product to market quickly while planning for essential follow-up features.

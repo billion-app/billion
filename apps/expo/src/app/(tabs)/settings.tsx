@@ -46,6 +46,7 @@ interface SettingsItem {
   type: "toggle" | "navigation" | "action";
   icon?: React.ComponentProps<typeof Ionicons>["name"];
   value?: boolean;
+  disabled?: boolean;
   onPress?: () => void;
   onToggle?: (value: boolean) => void;
 }
@@ -150,6 +151,7 @@ export default function SettingsScreen() {
           subtitle: "Manage blocked users and topics",
           type: "navigation",
           icon: "ban-outline",
+          disabled: true,
           onPress: () => router.push("/settings/blocked-content"),
         },
         {
@@ -158,6 +160,7 @@ export default function SettingsScreen() {
           subtitle: "View your saved articles and videos",
           type: "navigation",
           icon: "bookmark-outline",
+          disabled: true,
           onPress: () => router.push("/settings/saved-articles"),
         },
       ],
@@ -171,6 +174,7 @@ export default function SettingsScreen() {
           subtitle: "Update your profile information",
           type: "navigation",
           icon: "person-outline",
+          disabled: true,
           onPress: () => router.push("/settings/edit-profile"),
         },
         {
@@ -262,9 +266,18 @@ export default function SettingsScreen() {
               lightColor="transparent"
               darkColor="transparent"
             >
-              <Text style={[settings.itemTitle, { color: theme.foreground }]}>{item.title}</Text>
+              <Text style={[settings.itemTitle, { color: theme.foreground }]}>
+                {item.title}
+              </Text>
               {item.subtitle && (
-                <Text style={[settings.itemSubtitle, { color: theme.textSecondary }]}>{item.subtitle}</Text>
+                <Text
+                  style={[
+                    settings.itemSubtitle,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  {item.subtitle}
+                </Text>
               )}
             </View>
             <Switch
@@ -277,11 +290,13 @@ export default function SettingsScreen() {
         );
 
       case "navigation":
+        if (item.disabled) return null;
         return (
           <TouchableOpacity
             key={item.id}
             style={[settings.item, { borderBottomColor: theme.border }]}
             onPress={item.onPress}
+            activeOpacity={0.7}
           >
             {item.icon && (
               <Ionicons
@@ -296,12 +311,25 @@ export default function SettingsScreen() {
               lightColor="transparent"
               darkColor="transparent"
             >
-              <Text style={[settings.itemTitle, { color: theme.foreground }]}>{item.title}</Text>
+              <Text style={[settings.itemTitle, { color: theme.foreground }]}>
+                {item.title}
+              </Text>
               {item.subtitle && (
-                <Text style={[settings.itemSubtitle, { color: theme.textSecondary }]}>{item.subtitle}</Text>
+                <Text
+                  style={[
+                    settings.itemSubtitle,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  {item.subtitle}
+                </Text>
               )}
             </View>
-            <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={theme.mutedForeground}
+            />
           </TouchableOpacity>
         );
 
@@ -351,8 +379,24 @@ export default function SettingsScreen() {
 
   return (
     <View style={[layout.container, { backgroundColor: theme.background }]}>
-      <View style={[localStyles.header, { paddingTop: insets.top + 20, borderBottomColor: theme.border, backgroundColor: theme.card }]}>
-        <Text style={[typography.h2, { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" }]}>Settings</Text>
+      <View
+        style={[
+          localStyles.header,
+          {
+            paddingTop: insets.top + 20,
+            borderBottomColor: theme.border,
+            backgroundColor: theme.card,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            typography.h2,
+            { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" },
+          ]}
+        >
+          Settings
+        </Text>
       </View>
 
       <ScrollView
@@ -366,9 +410,16 @@ export default function SettingsScreen() {
             lightColor="transparent"
             darkColor="transparent"
           >
-            <Text style={[settings.sectionTitle, { color: theme.textSecondary }]}>{section.title}</Text>
+            <Text
+              style={[settings.sectionTitle, { color: theme.textSecondary }]}
+            >
+              {section.title}
+            </Text>
             <View
-              style={[settings.sectionContent, { borderColor: theme.border, backgroundColor: theme.card }]}
+              style={[
+                settings.sectionContent,
+                { borderColor: theme.border, backgroundColor: theme.card },
+              ]}
               lightColor={theme.card}
               darkColor={theme.card}
             >
@@ -382,7 +433,9 @@ export default function SettingsScreen() {
           lightColor="transparent"
           darkColor="transparent"
         >
-          <Text style={[typography.caption, { color: theme.mutedForeground }]}>Version 1.0.0</Text>
+          <Text style={[typography.caption, { color: theme.mutedForeground }]}>
+            Version 1.0.0
+          </Text>
         </View>
       </ScrollView>
     </View>

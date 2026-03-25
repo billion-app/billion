@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 interface ToggleRow {
   id: string;
@@ -70,7 +70,15 @@ export default function PrivacyScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["top"]}
     >
-      <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -78,18 +86,30 @@ export default function PrivacyScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Privacy Settings</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <Text style={[styles.title, { color: theme.foreground }]}>
+          Privacy Settings
+        </Text>
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.intro, { color: theme.textSecondary }]}>
-          Control how Billion uses your data. We never sell personal information.
+          Control how Billion uses your data. We never sell personal
+          information.
         </Text>
 
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>DATA & PERSONALIZATION</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+          DATA & PERSONALIZATION
+        </Text>
         <View
-          style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}
+          style={[
+            styles.section,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
           lightColor={theme.card}
           darkColor={theme.card}
         >
@@ -98,15 +118,31 @@ export default function PrivacyScreen() {
               key={row.id}
               style={[
                 styles.row,
-                i < PRIVACY_TOGGLES.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border },
+                i < PRIVACY_TOGGLES.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                },
               ]}
               lightColor="transparent"
               darkColor="transparent"
             >
-              <Ionicons name={row.icon} size={18} color={theme.mutedForeground} style={{ marginRight: sp[3] }} />
-              <View style={styles.rowText} lightColor="transparent" darkColor="transparent">
-                <Text style={[styles.rowLabel, { color: theme.foreground }]}>{row.label}</Text>
-                <Text style={[styles.rowDesc, { color: theme.textSecondary }]}>{row.description}</Text>
+              <Ionicons
+                name={row.icon}
+                size={18}
+                color={theme.mutedForeground}
+                style={{ marginRight: sp[3] }}
+              />
+              <View
+                style={styles.rowText}
+                lightColor="transparent"
+                darkColor="transparent"
+              >
+                <Text style={[styles.rowLabel, { color: theme.foreground }]}>
+                  {row.label}
+                </Text>
+                <Text style={[styles.rowDesc, { color: theme.textSecondary }]}>
+                  {row.description}
+                </Text>
               </View>
               <Switch
                 value={toggles[row.id]}
@@ -118,15 +154,26 @@ export default function PrivacyScreen() {
           ))}
         </View>
 
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>ACCOUNT</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+          ACCOUNT
+        </Text>
         <View
-          style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}
+          style={[
+            styles.section,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
           lightColor={theme.card}
           darkColor={theme.card}
         >
           <TouchableOpacity style={styles.linkRow}>
-            <Text style={[styles.linkLabel, { color: theme.foreground }]}>Download My Data</Text>
-            <Ionicons name="download-outline" size={18} color={theme.mutedForeground} />
+            <Text style={[styles.linkLabel, { color: theme.foreground }]}>
+              Download My Data
+            </Text>
+            <Ionicons
+              name="download-outline"
+              size={18}
+              color={theme.mutedForeground}
+            />
           </TouchableOpacity>
         </View>
       </ScrollView>

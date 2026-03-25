@@ -79,7 +79,7 @@ For more information about the Better Auth CLI, see the [official documentation]
 
 -->
 
-### 3. Configure Expo `dev`-script
+### 2. Configure Expo `dev`-script
 
 > Idk why these instructions tell you to change the `dev` script (in `apps/expo`) but if that's what helps, sure. Remember to change it back to `"dev": "expo start",`
 

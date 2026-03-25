@@ -81,9 +81,13 @@ export default function ArticleDetailScreen() {
             headerBackTitle: "Back",
           }}
         />
-        <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>
+        <View
+          style={[layout.fullCenter, { backgroundColor: theme.background }]}
+        >
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={[localStyles.loadingText, { color: theme.textSecondary }]}>
+          <Text
+            style={[localStyles.loadingText, { color: theme.textSecondary }]}
+          >
             Loading content...
           </Text>
         </View>
@@ -101,15 +105,28 @@ export default function ArticleDetailScreen() {
             headerBackTitle: "Back",
           }}
         />
-        <View style={[localStyles.errorContainer, { backgroundColor: theme.background }]}>
+        <View
+          style={[
+            localStyles.errorContainer,
+            { backgroundColor: theme.background },
+          ]}
+        >
           <Text style={[typography.h4, { color: theme.danger }]}>
             {error ? "Failed to load content" : "Content not found"}
           </Text>
           <TouchableOpacity
-            style={[localStyles.errorButton, { backgroundColor: theme.primary }]}
+            style={[
+              localStyles.errorButton,
+              { backgroundColor: theme.primary },
+            ]}
             onPress={() => router.back()}
           >
-            <Text style={[localStyles.errorButtonText, { color: theme.primaryForeground }]}>
+            <Text
+              style={[
+                localStyles.errorButtonText,
+                { color: theme.primaryForeground },
+              ]}
+            >
               Go Back
             </Text>
           </TouchableOpacity>
@@ -175,26 +192,51 @@ export default function ArticleDetailScreen() {
         >
           {/* Type badge */}
           {(() => {
-            const typeLabel = content.type === "bill" ? "BILL"
-              : content.type === "government_content" ? "ORDER"
-              : content.type === "court_case" ? "CASE"
-              : "NEWS";
+            const typeLabel =
+              content.type === "bill"
+                ? "BILL"
+                : content.type === "government_content"
+                  ? "ORDER"
+                  : content.type === "court_case"
+                    ? "CASE"
+                    : "NEWS";
             const badgeColor = getTypeBadgeColor(content.type ?? "general");
             return (
-              <View style={[badges.base, { backgroundColor: badgeColor + "22" }]} lightColor="transparent" darkColor="transparent">
-                <Text style={[badges.text, { color: badgeColor, fontFamily: "AlbertSans-Bold" }]}>{typeLabel}</Text>
+              <View
+                style={[badges.base, { backgroundColor: badgeColor + "22" }]}
+                lightColor="transparent"
+                darkColor="transparent"
+              >
+                <Text
+                  style={[
+                    badges.text,
+                    { color: badgeColor, fontFamily: "AlbertSans-Bold" },
+                  ]}
+                >
+                  {typeLabel}
+                </Text>
               </View>
             );
           })()}
 
           {/* Article title */}
-          <Text style={[typography.h1, localStyles.articleTitle, { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" }]}>
+          <Text
+            style={[
+              typography.h1,
+              localStyles.articleTitle,
+              { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" },
+            ]}
+          >
             {content.title}
           </Text>
 
           {/* Short description */}
           <Text
-            style={[typography.bodySmall, localStyles.articleDescription, { color: theme.textSecondary }]}
+            style={[
+              typography.bodySmall,
+              localStyles.articleDescription,
+              { color: theme.textSecondary },
+            ]}
           >
             {content.description}
           </Text>
@@ -210,13 +252,23 @@ export default function ArticleDetailScreen() {
               style={[
                 buttons.primary,
                 localStyles.viewOriginalButton,
-                { backgroundColor: theme.primary }
+                { backgroundColor: theme.primary },
               ]}
               onPress={handleOpenOriginal}
               activeOpacity={0.8}
             >
-              <Ionicons name="open-outline" size={20} color={theme.primaryForeground} style={{ marginRight: sp[2] }} />
-              <Text style={[typography.bodySmall, { color: theme.primaryForeground, fontWeight: "600" }]}>
+              <Ionicons
+                name="open-outline"
+                size={20}
+                color={theme.primaryForeground}
+                style={{ marginRight: sp[2] }}
+              />
+              <Text
+                style={[
+                  typography.bodySmall,
+                  { color: theme.primaryForeground, fontWeight: "600" },
+                ]}
+              >
                 View on Original Site
               </Text>
             </TouchableOpacity>
@@ -240,7 +292,6 @@ export default function ArticleDetailScreen() {
             </Markdown>
           </View>
         </ScrollView>
-
       </SafeAreaView>
     </>
   );

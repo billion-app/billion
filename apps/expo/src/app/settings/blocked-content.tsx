@@ -16,13 +16,13 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Swipeable } from "react-native-gesture-handler";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 interface BlockedItem {
   id: string;
@@ -37,7 +37,10 @@ const MOCK_BLOCKED: BlockedItem[] = [
   { id: "3", name: "Cryptocurrency", type: "topic" },
 ];
 
-const TYPE_ICONS: Record<string, React.ComponentProps<typeof Ionicons>["name"]> = {
+const TYPE_ICONS: Record<
+  string,
+  React.ComponentProps<typeof Ionicons>["name"]
+> = {
   source: "globe-outline",
   topic: "pricetag-outline",
 };
@@ -72,44 +75,87 @@ function UndoToast({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onUndoRef = useRef(onUndo);
   const onCommitRef = useRef(onCommit);
-  useEffect(() => { onUndoRef.current = onUndo; }, [onUndo]);
-  useEffect(() => { onCommitRef.current = onCommit; }, [onCommit]);
+  useEffect(() => {
+    onUndoRef.current = onUndo;
+  }, [onUndo]);
+  useEffect(() => {
+    onCommitRef.current = onCommit;
+  }, [onCommit]);
 
   useEffect(() => {
     slideY.setValue(80);
     progress.setValue(1);
 
-    Animated.spring(slideY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
-    Animated.timing(progress, { toValue: 0, duration: UNDO_DURATION, easing: Easing.linear, useNativeDriver: false }).start();
+    Animated.spring(slideY, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 12,
+    }).start();
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: UNDO_DURATION,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
 
     timerRef.current = setTimeout(() => {
       onCommitRef.current(entry.key);
     }, UNDO_DURATION);
 
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [entry.key]);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [entry.key, progress, slideY]);
 
   const handleUndo = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    Animated.spring(slideY, { toValue: 80, useNativeDriver: true, tension: 80, friction: 12 })
-      .start(() => onUndoRef.current(entry.key));
+    Animated.spring(slideY, {
+      toValue: 80,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 12,
+    }).start(() => onUndoRef.current(entry.key));
   };
 
-  const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
+  const barWidth = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+  });
   const bottomOffset = sp[6] + stackIndex * (TOAST_HEIGHT + sp[2]);
 
   return (
     <Animated.View
       style={[
         styles.toast,
-        { backgroundColor: theme.card, borderColor: theme.border, bottom: bottomOffset },
+        {
+          backgroundColor: theme.card,
+          borderColor: theme.border,
+          bottom: bottomOffset,
+        },
         { transform: [{ translateY: slideY }] },
       ]}
     >
-      <Animated.View style={[styles.toastBar, { width: barWidth, backgroundColor: colors.teal }]} />
-      <View style={styles.toastContent} lightColor="transparent" darkColor="transparent">
-        <Ionicons name="shield-checkmark-outline" size={16} color={theme.textSecondary} />
-        <Text style={[styles.toastLabel, { color: theme.foreground }]} numberOfLines={1}>
+      <Animated.View
+        style={[
+          styles.toastBar,
+          { width: barWidth, backgroundColor: colors.teal },
+        ]}
+      />
+      <View
+        style={styles.toastContent}
+        lightColor="transparent"
+        darkColor="transparent"
+      >
+        <Ionicons
+          name="shield-checkmark-outline"
+          size={16}
+          color={theme.textSecondary}
+        />
+        <Text
+          style={[styles.toastLabel, { color: theme.foreground }]}
+          numberOfLines={1}
+        >
           Unblocked "{entry.item.name}"
         </Text>
         <TouchableOpacity
@@ -135,15 +181,23 @@ function SwipeableBlockedRow({
 }) {
   const { theme } = useTheme();
 
-  const renderRightActions = (progress: Animated.AnimatedInterpolation<number>) => {
+  const renderRightActions = (
+    progress: Animated.AnimatedInterpolation<number>,
+  ) => {
     const bgColor = progress.interpolate({
       inputRange: [0, 0.5, 1],
       outputRange: [colors.teal + "00", colors.teal + "88", colors.teal],
       extrapolate: "clamp",
     });
     return (
-      <Animated.View style={[styles.unblockAction, { backgroundColor: bgColor }]}>
-        <Ionicons name="shield-checkmark-outline" size={20} color={colors.white} />
+      <Animated.View
+        style={[styles.unblockAction, { backgroundColor: bgColor }]}
+      >
+        <Ionicons
+          name="shield-checkmark-outline"
+          size={20}
+          color={colors.white}
+        />
         <Text style={styles.unblockActionText}>Unblock</Text>
       </Animated.View>
     );
@@ -157,17 +211,26 @@ function SwipeableBlockedRow({
       onSwipeableOpen={() => onFullSwipe(item.id)}
     >
       <View
-        style={[styles.row, { borderBottomColor: theme.border, backgroundColor: theme.card }]}
+        style={[
+          styles.row,
+          { borderBottomColor: theme.border, backgroundColor: theme.card },
+        ]}
         lightColor={theme.card}
         darkColor={theme.card}
       >
-        <View style={styles.rowLeft} lightColor="transparent" darkColor="transparent">
+        <View
+          style={styles.rowLeft}
+          lightColor="transparent"
+          darkColor="transparent"
+        >
           <View
             style={[
               styles.iconCircle,
               {
                 backgroundColor:
-                  item.type === "source" ? colors.civicBlue + "22" : colors.deepIndigo + "22",
+                  item.type === "source"
+                    ? colors.civicBlue + "22"
+                    : colors.deepIndigo + "22",
               },
             ]}
             lightColor="transparent"
@@ -176,11 +239,19 @@ function SwipeableBlockedRow({
             <Ionicons
               name={TYPE_ICONS[item.type] ?? "ban-outline"}
               size={16}
-              color={item.type === "source" ? colors.civicBlue : colors.deepIndigo}
+              color={
+                item.type === "source" ? colors.civicBlue : colors.deepIndigo
+              }
             />
           </View>
-          <View style={styles.rowText} lightColor="transparent" darkColor="transparent">
-            <Text style={[styles.rowName, { color: theme.foreground }]}>{item.name}</Text>
+          <View
+            style={styles.rowText}
+            lightColor="transparent"
+            darkColor="transparent"
+          >
+            <Text style={[styles.rowName, { color: theme.foreground }]}>
+              {item.name}
+            </Text>
             <Text style={[styles.rowType, { color: theme.mutedForeground }]}>
               {item.type === "source" ? "Source" : "Topic"}
             </Text>
@@ -206,7 +277,11 @@ export default function BlockedContentScreen() {
     setBlocked((prev) => {
       const item = prev.find((i) => i.id === id);
       if (!item) return prev;
-      const entry: PendingRemoval = { key: `${id}-${Date.now()}`, item, originalIndex };
+      const entry: PendingRemoval = {
+        key: `${id}-${Date.now()}`,
+        item,
+        originalIndex,
+      };
       setPendingQueue((q) => [...q, entry]);
       return prev.filter((i) => i.id !== id);
     });
@@ -219,7 +294,8 @@ export default function BlockedContentScreen() {
       setBlocked((prev) => {
         const next = [...prev];
         const insertAt = next.findIndex(
-          (i) => MOCK_BLOCKED.findIndex((m) => m.id === i.id) > entry.originalIndex,
+          (i) =>
+            MOCK_BLOCKED.findIndex((m) => m.id === i.id) > entry.originalIndex,
         );
         if (insertAt === -1) next.push(entry.item);
         else next.splice(insertAt, 0, entry.item);
@@ -242,7 +318,13 @@ export default function BlockedContentScreen() {
       edges={["top"]}
     >
       <View
-        style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
       >
         <TouchableOpacity
           onPress={() => router.back()}
@@ -251,15 +333,31 @@ export default function BlockedContentScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Blocked Content</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <Text style={[styles.title, { color: theme.foreground }]}>
+          Blocked Content
+        </Text>
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {isEmpty ? (
-          <View style={styles.empty} lightColor="transparent" darkColor="transparent">
-            <Ionicons name="shield-checkmark-outline" size={48} color={theme.mutedForeground} />
-            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Nothing blocked</Text>
+          <View
+            style={styles.empty}
+            lightColor="transparent"
+            darkColor="transparent"
+          >
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={48}
+              color={theme.mutedForeground}
+            />
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              Nothing blocked
+            </Text>
             <Text style={[styles.emptyHint, { color: theme.mutedForeground }]}>
               Sources and topics you block will appear here.
             </Text>
@@ -273,10 +371,17 @@ export default function BlockedContentScreen() {
               Swipe left to unblock
             </Text>
             {blocked.map((item) => (
-              <SwipeableBlockedRow key={item.id} item={item} onFullSwipe={handleFullSwipe} />
+              <SwipeableBlockedRow
+                key={item.id}
+                item={item}
+                onFullSwipe={handleFullSwipe}
+              />
             ))}
             <View
-              style={{ height: sp[6] + pendingQueue.length * (TOAST_HEIGHT + sp[2]) + sp[10] }}
+              style={{
+                height:
+                  sp[6] + pendingQueue.length * (TOAST_HEIGHT + sp[2]) + sp[10],
+              }}
               lightColor="transparent"
               darkColor="transparent"
             />

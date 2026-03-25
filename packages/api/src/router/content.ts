@@ -1,7 +1,7 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { desc, eq, sql } from "@acme/db";
+import { desc, eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import { Bill, CourtCase, GovernmentContent } from "@acme/db/schema";
 
@@ -10,7 +10,7 @@ import { publicProcedure } from "../trpc";
 // Helper function to get thumbnail URL for any content
 export async function getThumbnailForContent(
   id: string,
-  type: "bill" | "court_case" | "government_content" | "general"
+  type: "bill" | "court_case" | "government_content" | "general",
 ): Promise<string | null> {
   try {
     if (type === "bill") {
@@ -19,21 +19,21 @@ export async function getThumbnailForContent(
         .from(Bill)
         .where(eq(Bill.id, id))
         .limit(1);
-      return result[0]?.thumbnailUrl || null;
+      return result[0]?.thumbnailUrl ?? null;
     } else if (type === "court_case") {
       const result = await db
         .select({ thumbnailUrl: CourtCase.thumbnailUrl })
         .from(CourtCase)
         .where(eq(CourtCase.id, id))
         .limit(1);
-      return result[0]?.thumbnailUrl || null;
+      return result[0]?.thumbnailUrl ?? null;
     } else {
       const result = await db
         .select({ thumbnailUrl: GovernmentContent.thumbnailUrl })
         .from(GovernmentContent)
         .where(eq(GovernmentContent.id, id))
         .limit(1);
-      return result[0]?.thumbnailUrl || null;
+      return result[0]?.thumbnailUrl ?? null;
     }
   } catch (error) {
     console.error(`Error fetching thumbnail for ${type} ${id}:`, error);
@@ -55,13 +55,13 @@ const ContentCardSchema = z.object({
 export type ContentCard = z.infer<typeof ContentCardSchema>;
 
 // Schema for detailed content
-const ContentDetailSchema = ContentCardSchema.extend({
+const _ContentDetailSchema = ContentCardSchema.extend({
   articleContent: z.string(),
   originalContent: z.string(),
   url: z.string().optional(), // URL to original source
 });
 
-export type ContentDetail = z.infer<typeof ContentDetailSchema>;
+export type ContentDetail = z.infer<typeof _ContentDetailSchema>;
 
 export const contentRouter = {
   // Get all content from database
@@ -87,28 +87,28 @@ export const contentRouter = {
       ...bills.map((bill) => ({
         id: bill.id,
         title: bill.title,
-        description: bill.description || bill.summary || "",
+        description: bill.description ?? bill.summary ?? "",
         type: "bill" as const,
         isAIGenerated: false,
-        thumbnailUrl: bill.thumbnailUrl || undefined,
+        thumbnailUrl: bill.thumbnailUrl ?? undefined,
       })),
       // Government content (news articles, executive orders, etc.) from database
       ...governmentContent.map((content) => ({
         id: content.id,
         title: content.title,
-        description: content.description || "",
+        description: content.description ?? "",
         type: "government_content" as const,
         isAIGenerated: false,
-        thumbnailUrl: content.thumbnailUrl || undefined,
+        thumbnailUrl: content.thumbnailUrl ?? undefined,
       })),
       // Court cases from database
       ...courtCases.map((courtCase) => ({
         id: courtCase.id,
         title: courtCase.title,
-        description: courtCase.description || "",
+        description: courtCase.description ?? "",
         type: "court_case" as const,
         isAIGenerated: false,
-        thumbnailUrl: courtCase.thumbnailUrl || undefined,
+        thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
       })),
     ];
 
@@ -119,7 +119,9 @@ export const contentRouter = {
   getByType: publicProcedure
     .input(
       z.object({
-        type: z.enum(["all", "bill", "government_content", "court_case", "general"]).optional(),
+        type: z
+          .enum(["all", "bill", "government_content", "court_case", "general"])
+          .optional(),
       }),
     )
     .query(async ({ input }) => {
@@ -145,28 +147,28 @@ export const contentRouter = {
           ...bills.map((bill) => ({
             id: bill.id,
             title: bill.title,
-            description: bill.description || bill.summary || "",
+            description: bill.description ?? bill.summary ?? "",
             type: "bill" as const,
             isAIGenerated: false,
-            thumbnailUrl: bill.thumbnailUrl || undefined,
+            thumbnailUrl: bill.thumbnailUrl ?? undefined,
           })),
           // Government content from database
           ...governmentContent.map((content) => ({
             id: content.id,
             title: content.title,
-            description: content.description || "",
+            description: content.description ?? "",
             type: "government_content" as const,
             isAIGenerated: false,
-            thumbnailUrl: content.thumbnailUrl || undefined,
+            thumbnailUrl: content.thumbnailUrl ?? undefined,
           })),
           // Court cases from database
           ...courtCases.map((courtCase) => ({
             id: courtCase.id,
             title: courtCase.title,
-            description: courtCase.description || "",
+            description: courtCase.description ?? "",
             type: "court_case" as const,
             isAIGenerated: false,
-            thumbnailUrl: courtCase.thumbnailUrl || undefined,
+            thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
           })),
         ];
 
@@ -182,10 +184,10 @@ export const contentRouter = {
         return bills.map((bill) => ({
           id: bill.id,
           title: bill.title,
-          description: bill.description || bill.summary || "",
+          description: bill.description ?? bill.summary ?? "",
           type: "bill" as const,
           isAIGenerated: false,
-          thumbnailUrl: bill.thumbnailUrl || undefined,
+          thumbnailUrl: bill.thumbnailUrl ?? undefined,
         }));
       }
 
@@ -198,10 +200,10 @@ export const contentRouter = {
         return governmentContent.map((content) => ({
           id: content.id,
           title: content.title,
-          description: content.description || "",
+          description: content.description ?? "",
           type: "government_content" as const,
           isAIGenerated: false,
-          thumbnailUrl: content.thumbnailUrl || undefined,
+          thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
       }
 
@@ -214,10 +216,10 @@ export const contentRouter = {
         return courtCases.map((courtCase) => ({
           id: courtCase.id,
           title: courtCase.title,
-          description: courtCase.description || "",
+          description: courtCase.description ?? "",
           type: "court_case" as const,
           isAIGenerated: false,
-          thumbnailUrl: courtCase.thumbnailUrl || undefined,
+          thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
         }));
       }
 
@@ -243,12 +245,13 @@ export const contentRouter = {
         return {
           id: b.id,
           title: b.title,
-          description: b.description || b.summary || "",
+          description: b.description ?? b.summary ?? "",
           type: "bill" as const,
           isAIGenerated: !!b.aiGeneratedArticle,
-          thumbnailUrl: b.thumbnailUrl || undefined,
-          articleContent: b.aiGeneratedArticle || b.fullText || "No content available",
-          originalContent: b.fullText || "Full text not available",
+          thumbnailUrl: b.thumbnailUrl ?? undefined,
+          articleContent:
+            b.aiGeneratedArticle ?? b.fullText ?? "No content available",
+          originalContent: b.fullText ?? "Full text not available",
           url: b.url,
         };
       }
@@ -264,12 +267,13 @@ export const contentRouter = {
         return {
           id: c.id,
           title: c.title,
-          description: c.description || "",
+          description: c.description ?? "",
           type: "government_content" as const,
           isAIGenerated: !!c.aiGeneratedArticle,
-          thumbnailUrl: c.thumbnailUrl || undefined,
-          articleContent: c.aiGeneratedArticle || c.fullText || "No content available",
-          originalContent: c.fullText || "Full text not available",
+          thumbnailUrl: c.thumbnailUrl ?? undefined,
+          articleContent:
+            c.aiGeneratedArticle ?? c.fullText ?? "No content available",
+          originalContent: c.fullText ?? "Full text not available",
           url: c.url,
         };
       }
@@ -285,12 +289,13 @@ export const contentRouter = {
         return {
           id: c.id,
           title: c.title,
-          description: c.description || "",
+          description: c.description ?? "",
           type: "court_case" as const,
           isAIGenerated: !!c.aiGeneratedArticle,
-          thumbnailUrl: c.thumbnailUrl || undefined,
-          articleContent: c.aiGeneratedArticle || c.fullText || "No content available",
-          originalContent: c.fullText || "Full text not available",
+          thumbnailUrl: c.thumbnailUrl ?? undefined,
+          articleContent:
+            c.aiGeneratedArticle ?? c.fullText ?? "No content available",
+          originalContent: c.fullText ?? "Full text not available",
           url: c.url,
         };
       }

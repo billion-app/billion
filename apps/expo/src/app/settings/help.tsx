@@ -1,21 +1,33 @@
 /**
  * Help & Support screen — settings sub-page
  *
- * MOCK DATA / TODO:
- * - TODO: FAQs are hardcoded — replace with CMS-driven content (e.g. fetched from Contentful or tRPC)
- * - TODO: "Chat" button is non-functional — integrate with a support SDK (e.g. Intercom, Zendesk)
- * - TODO: Add a "Report a bug" shortcut that pre-fills the feedback form with category="bug"
- * - TODO: Add search functionality to filter FAQs
- * - TODO: FAQ items should be collapsible accordions rather than always-expanded
+ * STATUS:
+ * - FAQs are hardcoded — replace with CMS-driven content (e.g. fetched from Contentful or tRPC) [BACKEND TODO]
+ * - "Chat" button replaced with Email link — integrate with a support SDK (e.g. Intercom, Zendesk) [BACKEND TODO]
+ * - "Report a bug" shortcut added — navigates to feedback form with category="bug"
+ * - Search functionality added — filters FAQs client-side
+ * - FAQ items are collapsible accordions — toggle by tapping question
+ *
+ * BACKEND INTEGRATION FUTURE:
+ * - Fetch FAQ content from CMS via tRPC endpoint (`content.faq.list`)
+ * - Integrate with Intercom/Zendesk SDK for in-app chat
+ * - Implement backend search endpoint for more comprehensive help articles
  */
 
-import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import { useState } from "react";
+import {
+  Linking,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 const FAQS = [
   {
@@ -43,13 +55,39 @@ const FAQS = [
 export default function HelpScreen() {
   const router = useRouter();
   const { theme } = useTheme();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedFaqs, setExpandedFaqs] = useState<Set<string>>(new Set());
+
+  const toggleFaq = (question: string) => {
+    const newSet = new Set(expandedFaqs);
+    if (newSet.has(question)) {
+      newSet.delete(question);
+    } else {
+      newSet.add(question);
+    }
+    setExpandedFaqs(newSet);
+  };
+
+  const filteredFaqs = FAQS.filter(
+    (faq) =>
+      faq.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      faq.a.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["top"]}
     >
-      <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -57,42 +95,174 @@ export default function HelpScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Help & Support</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <Text style={[styles.title, { color: theme.foreground }]}>
+          Help & Support
+        </Text>
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Contact card */}
         <View
-          style={[styles.contactCard, { backgroundColor: colors.civicBlue + "18", borderColor: colors.civicBlue + "44" }]}
+          style={[
+            styles.contactCard,
+            {
+              backgroundColor: colors.civicBlue + "18",
+              borderColor: colors.civicBlue + "44",
+            },
+          ]}
           lightColor="transparent"
           darkColor="transparent"
         >
-          <Ionicons name="chatbubble-ellipses-outline" size={28} color={colors.civicBlue} />
-          <View style={styles.contactText} lightColor="transparent" darkColor="transparent">
-            <Text style={[styles.contactTitle, { color: theme.foreground }]}>Contact Support</Text>
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={28}
+            color={colors.civicBlue}
+          />
+          <View
+            style={styles.contactText}
+            lightColor="transparent"
+            darkColor="transparent"
+          >
+            <Text style={[styles.contactTitle, { color: theme.foreground }]}>
+              Contact Support
+            </Text>
             <Text style={[styles.contactSub, { color: theme.textSecondary }]}>
               We usually respond within a few hours.
             </Text>
           </View>
-          <TouchableOpacity style={[styles.contactBtn, { backgroundColor: colors.civicBlue }]}>
-            <Text style={[styles.contactBtnText, { color: colors.white }]}>Chat</Text>
+          <TouchableOpacity
+            style={[styles.contactBtn, { backgroundColor: colors.civicBlue }]}
+            onPress={() => Linking.openURL("mailto:support@billion.app")}
+          >
+            <Text style={[styles.contactBtnText, { color: colors.white }]}>
+              Email
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>FREQUENTLY ASKED</Text>
-
-        {FAQS.map((faq, i) => (
+        {/* Bug report card */}
+        <View
+          style={[
+            styles.bugCard,
+            {
+              backgroundColor: colors.teal + "18",
+              borderColor: colors.teal + "44",
+            },
+          ]}
+          lightColor="transparent"
+          darkColor="transparent"
+        >
+          <Ionicons name="bug-outline" size={28} color={colors.teal} />
           <View
-            key={i}
-            style={[styles.faqItem, { borderBottomColor: theme.border }]}
+            style={styles.bugText}
             lightColor="transparent"
             darkColor="transparent"
           >
-            <Text style={[styles.faqQ, { color: theme.foreground }]}>{faq.q}</Text>
-            <Text style={[styles.faqA, { color: theme.textSecondary }]}>{faq.a}</Text>
+            <Text style={[styles.bugTitle, { color: theme.foreground }]}>
+              Report a Bug
+            </Text>
+            <Text style={[styles.bugSub, { color: theme.textSecondary }]}>
+              Found an issue? Let us know.
+            </Text>
           </View>
-        ))}
+          <TouchableOpacity
+            style={[styles.bugBtn, { backgroundColor: colors.teal }]}
+            onPress={() => router.push("/settings/feedback?category=bug")}
+          >
+            <Text style={[styles.bugBtnText, { color: colors.white }]}>
+              Report
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+          FREQUENTLY ASKED
+        </Text>
+
+        {/* Search input */}
+        <View
+          style={[
+            styles.searchContainer,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
+          lightColor="transparent"
+          darkColor="transparent"
+        >
+          <Ionicons
+            name="search-outline"
+            size={18}
+            color={theme.textSecondary}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            placeholder="Search FAQs..."
+            placeholderTextColor={theme.mutedForeground}
+            style={[
+              styles.searchInput,
+              {
+                color: theme.foreground,
+                marginRight: searchQuery.length > 0 ? sp[3] : 0,
+              },
+            ]}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={theme.textSecondary}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {filteredFaqs.length === 0 ? (
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+            No FAQs match your search.
+          </Text>
+        ) : (
+          filteredFaqs.map((faq, i) => {
+            const isExpanded = expandedFaqs.has(faq.q);
+            return (
+              <View
+                key={i}
+                style={[styles.faqItem, { borderBottomColor: theme.border }]}
+                lightColor="transparent"
+                darkColor="transparent"
+              >
+                <TouchableOpacity
+                  style={styles.faqHeader}
+                  onPress={() => toggleFaq(faq.q)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.faqQ, { color: theme.foreground }]}>
+                    {faq.q}
+                  </Text>
+                  <Ionicons
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color={theme.textSecondary}
+                  />
+                </TouchableOpacity>
+                {isExpanded && (
+                  <Text style={[styles.faqA, { color: theme.textSecondary }]}>
+                    {faq.a}
+                  </Text>
+                )}
+              </View>
+            );
+          })
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -169,5 +339,63 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 13,
     lineHeight: 19,
+  },
+  faqHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  bugCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: sp[4],
+    borderRadius: rd.lg,
+    borderWidth: 1,
+    marginTop: sp[5],
+    marginBottom: sp[5],
+    gap: sp[3],
+  },
+  bugText: { flex: 1 },
+  bugTitle: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 14,
+    marginBottom: sp[1],
+  },
+  bugSub: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+  },
+  bugBtn: {
+    paddingHorizontal: sp[4],
+    paddingVertical: sp[2],
+    borderRadius: rd.full,
+  },
+  bugBtnText: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 13,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: sp[3],
+    paddingHorizontal: sp[4],
+    borderRadius: rd.lg,
+    borderWidth: 1,
+    marginBottom: sp[4],
+  },
+  searchIcon: {
+    marginRight: sp[3],
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  emptyText: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    textAlign: "center",
+    paddingVertical: sp[8],
   },
 });

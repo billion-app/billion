@@ -17,13 +17,13 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Swipeable } from "react-native-gesture-handler";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, rd, useTheme } from "~/styles";
+import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 interface SavedItem {
   id: string;
@@ -72,7 +72,10 @@ const TYPE_LABELS: Record<string, string> = {
   news: "NEWS",
 };
 
-const TYPE_ICONS: Record<string, React.ComponentProps<typeof Ionicons>["name"]> = {
+const TYPE_ICONS: Record<
+  string,
+  React.ComponentProps<typeof Ionicons>["name"]
+> = {
   bill: "document-text-outline",
   order: "briefcase-outline",
   case: "scale-outline",
@@ -95,7 +98,7 @@ interface PendingRemoval {
 
 function UndoToast({
   entry,
-  stackIndex,   // 0 = bottom (newest), 1 = above that, etc.
+  stackIndex, // 0 = bottom (newest), 1 = above that, etc.
   onUndo,
   onCommit,
 }: {
@@ -111,30 +114,53 @@ function UndoToast({
   // Stable refs so animation callbacks never go stale
   const onUndoRef = useRef(onUndo);
   const onCommitRef = useRef(onCommit);
-  useEffect(() => { onUndoRef.current = onUndo; }, [onUndo]);
-  useEffect(() => { onCommitRef.current = onCommit; }, [onCommit]);
+  useEffect(() => {
+    onUndoRef.current = onUndo;
+  }, [onUndo]);
+  useEffect(() => {
+    onCommitRef.current = onCommit;
+  }, [onCommit]);
 
   useEffect(() => {
     slideY.setValue(80);
     progress.setValue(1);
 
-    Animated.spring(slideY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
-    Animated.timing(progress, { toValue: 0, duration: UNDO_DURATION, easing: Easing.linear, useNativeDriver: false }).start();
+    Animated.spring(slideY, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 12,
+    }).start();
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: UNDO_DURATION,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
 
     timerRef.current = setTimeout(() => {
       onCommitRef.current(entry.key);
     }, UNDO_DURATION);
 
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [entry.key]);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [entry.key, progress, slideY]);
 
   const handleUndo = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    Animated.spring(slideY, { toValue: 80, useNativeDriver: true, tension: 80, friction: 12 })
-      .start(() => onUndoRef.current(entry.key));
+    Animated.spring(slideY, {
+      toValue: 80,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 12,
+    }).start(() => onUndoRef.current(entry.key));
   };
 
-  const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
+  const barWidth = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+  });
 
   // Stack offset: each older toast sits higher up
   const bottomOffset = sp[6] + stackIndex * (TOAST_HEIGHT + sp[2]);
@@ -143,14 +169,34 @@ function UndoToast({
     <Animated.View
       style={[
         styles.toast,
-        { backgroundColor: theme.card, borderColor: theme.border, bottom: bottomOffset },
+        {
+          backgroundColor: theme.card,
+          borderColor: theme.border,
+          bottom: bottomOffset,
+        },
         { transform: [{ translateY: slideY }] },
       ]}
     >
-      <Animated.View style={[styles.toastBar, { width: barWidth, backgroundColor: colors.civicBlue }]} />
-      <View style={styles.toastContent} lightColor="transparent" darkColor="transparent">
-        <Ionicons name="bookmark-outline" size={16} color={theme.textSecondary} />
-        <Text style={[styles.toastLabel, { color: theme.foreground }]} numberOfLines={1}>
+      <Animated.View
+        style={[
+          styles.toastBar,
+          { width: barWidth, backgroundColor: colors.civicBlue },
+        ]}
+      />
+      <View
+        style={styles.toastContent}
+        lightColor="transparent"
+        darkColor="transparent"
+      >
+        <Ionicons
+          name="bookmark-outline"
+          size={16}
+          color={theme.textSecondary}
+        />
+        <Text
+          style={[styles.toastLabel, { color: theme.foreground }]}
+          numberOfLines={1}
+        >
           Unsaved "{entry.item.title}"
         </Text>
         <TouchableOpacity
@@ -158,7 +204,9 @@ function UndoToast({
           style={[styles.undoBtn, { borderColor: colors.civicBlue }]}
           activeOpacity={0.7}
         >
-          <Text style={[styles.undoBtnText, { color: colors.civicBlue }]}>Undo</Text>
+          <Text style={[styles.undoBtnText, { color: colors.civicBlue }]}>
+            Undo
+          </Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -176,14 +224,18 @@ function SwipeableCard({
 }) {
   const { theme } = useTheme();
 
-  const renderRightActions = (progress: Animated.AnimatedInterpolation<number>) => {
+  const renderRightActions = (
+    progress: Animated.AnimatedInterpolation<number>,
+  ) => {
     const bgColor = progress.interpolate({
       inputRange: [0, 0.5, 1],
       outputRange: [colors.civicBlue + "00", "#C0392B88", "#C0392B"],
       extrapolate: "clamp",
     });
     return (
-      <Animated.View style={[styles.deleteAction, { backgroundColor: bgColor }]}>
+      <Animated.View
+        style={[styles.deleteAction, { backgroundColor: bgColor }]}
+      >
         <Ionicons name="bookmark-outline" size={22} color={colors.white} />
         <Text style={styles.deleteActionText}>Unsave</Text>
       </Animated.View>
@@ -199,12 +251,27 @@ function SwipeableCard({
     >
       {/* TODO: Tap to navigate to article detail */}
       <TouchableOpacity
-        style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
+        style={[
+          styles.card,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
         activeOpacity={0.75}
       >
-        <View style={styles.cardTop} lightColor="transparent" darkColor="transparent">
-          <View style={styles.cardTopLeft} lightColor="transparent" darkColor="transparent">
-            <Ionicons name={TYPE_ICONS[item.type] ?? "document-outline"} size={14} color={item.color} />
+        <View
+          style={styles.cardTop}
+          lightColor="transparent"
+          darkColor="transparent"
+        >
+          <View
+            style={styles.cardTopLeft}
+            lightColor="transparent"
+            darkColor="transparent"
+          >
+            <Ionicons
+              name={TYPE_ICONS[item.type] ?? "document-outline"}
+              size={14}
+              color={item.color}
+            />
             <View
               style={[styles.typeBadge, { backgroundColor: item.color + "22" }]}
               lightColor="transparent"
@@ -215,9 +282,14 @@ function SwipeableCard({
               </Text>
             </View>
           </View>
-          <Text style={[styles.date, { color: theme.mutedForeground }]}>{item.date}</Text>
+          <Text style={[styles.date, { color: theme.mutedForeground }]}>
+            {item.date}
+          </Text>
         </View>
-        <Text style={[styles.cardTitle, { color: theme.foreground }]} numberOfLines={3}>
+        <Text
+          style={[styles.cardTitle, { color: theme.foreground }]}
+          numberOfLines={3}
+        >
           {item.title}
         </Text>
       </TouchableOpacity>
@@ -240,7 +312,11 @@ export default function SavedArticlesScreen() {
     setItems((prev) => {
       const item = prev.find((i) => i.id === id);
       if (!item) return prev;
-      const entry: PendingRemoval = { key: `${id}-${Date.now()}`, item, originalIndex };
+      const entry: PendingRemoval = {
+        key: `${id}-${Date.now()}`,
+        item,
+        originalIndex,
+      };
       setPendingQueue((q) => [...q, entry]);
       return prev.filter((i) => i.id !== id);
     });
@@ -255,7 +331,8 @@ export default function SavedArticlesScreen() {
         const next = [...prev];
         // Find the right insertion point by matching originalIndex order
         const insertAt = next.findIndex(
-          (i) => MOCK_SAVED.findIndex((m) => m.id === i.id) > entry.originalIndex,
+          (i) =>
+            MOCK_SAVED.findIndex((m) => m.id === i.id) > entry.originalIndex,
         );
         if (insertAt === -1) next.push(entry.item);
         else next.splice(insertAt, 0, entry.item);
@@ -278,7 +355,13 @@ export default function SavedArticlesScreen() {
       edges={["top"]}
     >
       <View
-        style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}
+        style={[
+          styles.header,
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          },
+        ]}
       >
         <TouchableOpacity
           onPress={() => router.back()}
@@ -287,14 +370,30 @@ export default function SavedArticlesScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>Saved Articles</Text>
-        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
+        <Text style={[styles.title, { color: theme.foreground }]}>
+          Saved Articles
+        </Text>
+        <View
+          style={{ width: 44 }}
+          lightColor="transparent"
+          darkColor="transparent"
+        />
       </View>
 
       {isEmpty ? (
-        <View style={styles.empty} lightColor="transparent" darkColor="transparent">
-          <Ionicons name="bookmark-outline" size={48} color={theme.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>Nothing saved yet</Text>
+        <View
+          style={styles.empty}
+          lightColor="transparent"
+          darkColor="transparent"
+        >
+          <Ionicons
+            name="bookmark-outline"
+            size={48}
+            color={theme.mutedForeground}
+          />
+          <Text style={[styles.emptyTitle, { color: theme.textSecondary }]}>
+            Nothing saved yet
+          </Text>
           <Text style={[styles.emptyHint, { color: theme.mutedForeground }]}>
             Bookmark articles from the feed to read them later.
           </Text>
@@ -305,11 +404,18 @@ export default function SavedArticlesScreen() {
             {items.length} saved
           </Text>
           {items.map((item) => (
-            <SwipeableCard key={item.id} item={item} onFullSwipe={handleFullSwipe} />
+            <SwipeableCard
+              key={item.id}
+              item={item}
+              onFullSwipe={handleFullSwipe}
+            />
           ))}
           {/* Spacer so last card isn't hidden behind toast stack */}
           <View
-            style={{ height: sp[6] + pendingQueue.length * (TOAST_HEIGHT + sp[2]) + sp[10] }}
+            style={{
+              height:
+                sp[6] + pendingQueue.length * (TOAST_HEIGHT + sp[2]) + sp[10],
+            }}
             lightColor="transparent"
             darkColor="transparent"
           />
