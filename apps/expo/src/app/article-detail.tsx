@@ -62,7 +62,7 @@ export default function ArticleDetailScreen() {
   );
 
   // Fetch content from tRPC
-   
+
   const {
     data: content,
     isLoading,
@@ -71,10 +71,9 @@ export default function ArticleDetailScreen() {
     ...trpc.content.getById.queryOptions({ id }),
     enabled: !!id,
   });
-   
 
   // Handle loading state
-   
+
   if (isLoading) {
     return (
       <>
@@ -144,10 +143,8 @@ export default function ArticleDetailScreen() {
   const handleOpenOriginal = async () => {
     if (content.url) {
       try {
-         
         const canOpen = await Linking.canOpenURL(content.url);
         if (canOpen) {
-           
           await Linking.openURL(content.url);
         }
       } catch (openError) {

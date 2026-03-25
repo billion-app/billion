@@ -204,7 +204,6 @@ export default function BrowseScreen() {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
-   
   const {
     data: content,
     isLoading,
@@ -214,7 +213,6 @@ export default function BrowseScreen() {
       type: selectedTab,
     }),
   );
-   
 
   const fuse = useMemo(() => {
     if (!content) return null;
@@ -271,7 +269,7 @@ export default function BrowseScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        { }
+        {}
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.white} />
@@ -306,7 +304,7 @@ export default function BrowseScreen() {
                 {filteredContent.length !== 1 ? "s" : ""}
               </Text>
             ) : null}
-            { }
+            {}
             {filteredContent.map((item: ContentCard) => (
               <ContentCardComponent key={item.id} item={item} theme={theme} />
             ))}

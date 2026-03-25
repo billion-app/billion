@@ -6,7 +6,6 @@ import { Text, View } from "~/components/Themed";
 import { layout, sp, typography } from "~/styles";
 
 export default function ModalScreen() {
-
   return (
     <View style={[layout.fullCenter]}>
       <Text style={[typography.h3]}>Modal</Text>

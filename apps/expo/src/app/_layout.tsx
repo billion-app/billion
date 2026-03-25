@@ -45,7 +45,6 @@ export default function RootLayout() {
   useEffect(() => {
     async function loadFonts() {
       try {
-         
         await Font.loadAsync({
           // IBM Plex Serif — headlines (hyphenated)
           "IBMPlexSerif-Regular": IBMPlexSerif_400Regular,
@@ -78,7 +77,6 @@ export default function RootLayout() {
           AlbertSans_600SemiBold: AlbertSans_600SemiBold,
           AlbertSans_700Bold: AlbertSans_700Bold,
         });
-         
       } catch (e) {
         // Font loading failure is non-fatal — app falls back to system fonts
         console.warn("Font loading failed:", e);

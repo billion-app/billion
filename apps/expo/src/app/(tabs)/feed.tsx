@@ -41,7 +41,7 @@ export default function FeedScreen() {
   }, []);
 
   // Use infinite query for video feed
-   
+
   const {
     data,
     fetchNextPage,
@@ -56,11 +56,14 @@ export default function FeedScreen() {
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
-   
 
   // Flatten all pages into a single array of videos
-   
-  const videos = useMemo(() => data?.pages.flatMap((page: { videos: VideoPost[] }) => page.videos) ?? [], [data]);
+
+  const videos = useMemo(
+    () =>
+      data?.pages.flatMap((page: { videos: VideoPost[] }) => page.videos) ?? [],
+    [data],
+  );
 
   const _handleLike = (videoId: string) => {
     const newLikedVideos = new Set(likedVideos);
@@ -244,7 +247,7 @@ export default function FeedScreen() {
   );
 
   // Show loading state while fetching initial videos
-   
+
   if (isLoading) {
     return (
       <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>

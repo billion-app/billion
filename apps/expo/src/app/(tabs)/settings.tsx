@@ -23,14 +23,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import {
-  colors,
-  layout,
-  settings,
-  sp,
-  typography,
-  useTheme,
-} from "~/styles";
+import { colors, layout, settings, sp, typography, useTheme } from "~/styles";
 
 interface SettingsSection {
   title: string;

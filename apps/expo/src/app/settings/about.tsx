@@ -55,7 +55,7 @@ export default function AboutScreen() {
       ? Constants.expoConfig?.ios?.buildNumber
       : Constants.expoConfig?.android?.versionCode;
   const versionText = buildNumber ? `${version} (${buildNumber})` : version;
-   
+
   const buildChannel: string = Updates.channel ?? "release";
 
   const VERSION_ROWS = [
