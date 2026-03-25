@@ -74,16 +74,84 @@ function clHeaders(): Record<string, string> {
   return headers;
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function clFetch<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
   const url = new URL(`${CL_BASE}${path}`);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, String(v));
   }
-  const res = await fetch(url.toString(), { headers: clHeaders() });
-  if (!res.ok) {
-    throw new Error(`CourtListener ${path} → HTTP ${res.status}`);
+
+  const maxRetries = 3;
+  const baseBackoffMs = 1000;      // 1s base backoff
+  const requestTimeoutMs = 30000;  // 30s per-attempt timeout
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
+
+    try {
+      const res = await fetch(url.toString(), {
+        headers: clHeaders(),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        return res.json() as Promise<T>;
+      }
+
+      const status = res.status;
+
+      // Handle rate limiting (429) and transient server errors (5xx) with retries.
+      if ((status === 429 || (status >= 500 && status < 600)) && attempt < maxRetries) {
+        let delayMs = baseBackoffMs * Math.pow(2, attempt); // exponential backoff
+
+        if (status === 429) {
+          const retryAfter = res.headers.get("Retry-After");
+          if (retryAfter) {
+            const seconds = Number(retryAfter);
+            if (!Number.isNaN(seconds)) {
+              delayMs = Math.max(delayMs, seconds * 1000);
+            } else {
+              const retryDate = new Date(retryAfter).getTime();
+              if (!Number.isNaN(retryDate)) {
+                const candidate = retryDate - Date.now();
+                if (candidate > 0) {
+                  delayMs = Math.max(delayMs, candidate);
+                }
+              }
+            }
+          }
+        }
+
+        await delay(delayMs);
+        continue;
+      }
+
+      // Non-retryable HTTP status: throw immediately.
+      throw new Error(`CourtListener ${path} → HTTP ${status}`);
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+
+      const isAbortError = err && (err.name === "AbortError" || err.code === "ABORT_ERR");
+
+      // Retry on abort/timeouts and generic network errors, up to maxRetries.
+      if (attempt < maxRetries && (isAbortError || err?.name === "FetchError" || err?.code === "ECONNRESET" || err?.code === "ECONNREFUSED")) {
+        const delayMs = baseBackoffMs * Math.pow(2, attempt);
+        await delay(delayMs);
+        continue;
+      }
+
+      // Out of retries or non-retryable error: rethrow.
+      throw err;
+    }
   }
-  return res.json() as Promise<T>;
+
+  // We should never get here because the loop either returns or throws.
+  throw new Error(`CourtListener ${path} → failed after ${maxRetries + 1} attempts`);
 }
 
 /** Strip basic HTML and collapse whitespace */
