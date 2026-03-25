@@ -103,13 +103,55 @@ async function congressFetch<T>(
     url.searchParams.set(k, String(v));
   }
 
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(
-      `Congress API ${path} → HTTP ${res.status}: ${await res.text()}`
-    );
+  // Basic network hardening: per-request timeout + limited retries for transient errors.
+  const timeoutMs = 30_000; // 30 seconds
+  const maxRetries = 3;
+
+  let attempt = 0;
+  // Exponential backoff: 1s, 2s, 4s between retries (for 429/5xx only).
+  while (true) {
+    attempt += 1;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(url.toString(), { signal: controller.signal });
+
+      if (res.ok) {
+        return res.json() as Promise<T>;
+      }
+
+      // Retry on transient errors (rate limits / server errors) up to maxRetries.
+      const isRetriableStatus =
+        res.status === 429 || (res.status >= 500 && res.status < 600);
+
+      if (isRetriableStatus && attempt < maxRetries) {
+        const backoffMs = 1000 * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        continue;
+      }
+
+      // Non-retriable error or retries exhausted: surface full error text.
+      throw new Error(
+        `Congress API ${path} → HTTP ${res.status}: ${await res.text()}`
+      );
+    } catch (err: unknown) {
+      // If the request was aborted due to timeout, surface a clear message.
+      if (
+        err instanceof Error &&
+        (err.name === "AbortError" ||
+          // Some environments use a different error name/message for aborted fetches.
+          err.message.toLowerCase().includes("aborted"))
+      ) {
+        throw new Error(
+          `Congress API ${path} → request timed out after ${timeoutMs}ms`
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
-  return res.json() as Promise<T>;
 }
 
 /** Map API bill type codes to human-readable bill number format (e.g. "HR" → "H.R.") */
