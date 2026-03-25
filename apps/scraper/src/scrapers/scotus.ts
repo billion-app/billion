@@ -198,24 +198,79 @@ async function fetchOpinionText(subOpinionUrls: string[]): Promise<string | unde
   // Fetch all available sub-opinions, then prefer lead/combined types.
   const fetched: { opinion: ClOpinion; text: string }[] = [];
 
-  for (const url of subOpinionUrls) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30_000);
-    try {
-      const res = await fetch(url, { headers: clHeaders(), signal: controller.signal });
-      if (!res.ok) continue;
-      const opinion = await res.json() as ClOpinion;
-      // Prefer plain text; fall back to stripping HTML
-      const text = (opinion.plain_text?.trim() || stripHtml(opinion.html ?? "")).trim();
-      if (text.length === 0) continue;
-      fetched.push({ opinion, text });
-    } catch {
-      continue;
-    } finally {
-      clearTimeout(timeoutId);
+  /**
+   * Fetch a sub-opinion with limited retries and backoff.
+   * Retries on 429 and 5xx responses, as well as network/timeout errors,
+   * honoring Retry-After when present.
+   */
+  async function fetchSubOpinionWithRetry(
+    url: string,
+    maxAttempts = 3,
+  ): Promise<ClOpinion | undefined> {
+    let attempt = 0;
+    let backoffMs = 1_000;
+
+    while (attempt < maxAttempts) {
+      attempt += 1;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
+      try {
+        const res = await fetch(url, { headers: clHeaders(), signal: controller.signal });
+
+        if (res.ok) {
+          return (await res.json()) as ClOpinion;
+        }
+
+        const status = res.status;
+        const shouldRetry =
+          status === 429 || (status >= 500 && status <= 599);
+
+        if (!shouldRetry || attempt >= maxAttempts) {
+          return undefined;
+        }
+
+        // Honor Retry-After header if present, otherwise use exponential backoff.
+        let delayMs = backoffMs;
+        const retryAfter = res.headers.get("Retry-After");
+        if (retryAfter) {
+          const seconds = Number.parseInt(retryAfter, 10);
+          if (!Number.isNaN(seconds)) {
+            delayMs = seconds * 1_000;
+          } else {
+            const retryDate = Date.parse(retryAfter);
+            if (!Number.isNaN(retryDate)) {
+              const diff = retryDate - Date.now();
+              if (diff > 0) {
+                delayMs = diff;
+              }
+            }
+          }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        backoffMs *= 2;
+      } catch {
+        if (attempt >= maxAttempts) {
+          return undefined;
+        }
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        backoffMs *= 2;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     }
+
+    return undefined;
   }
 
+  for (const url of subOpinionUrls) {
+    const opinion = await fetchSubOpinionWithRetry(url);
+    if (!opinion) continue;
+    // Prefer plain text; fall back to stripping HTML
+    const text = (opinion.plain_text?.trim() || stripHtml(opinion.html ?? "")).trim();
+    if (text.length === 0) continue;
+    fetched.push({ opinion, text });
+  }
   if (fetched.length === 0) {
     return undefined;
   }
