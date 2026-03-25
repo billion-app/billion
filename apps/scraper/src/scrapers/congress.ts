@@ -165,6 +165,25 @@ function ordinalSuffix(n: number): string {
   return "th";
 }
 
+/**
+ * Map API bill type codes to the congress.gov URL path segment.
+ * congress.gov uses different slugs for each legislative measure type.
+ * e.g. "HJRES" → "house-joint-resolution", not "house-bill"
+ */
+function billTypeToUrlSlug(type: string): string {
+  const slugMap: Record<string, string> = {
+    HR: "house-bill",
+    S: "senate-bill",
+    HJRES: "house-joint-resolution",
+    SJRES: "senate-joint-resolution",
+    HCONRES: "house-concurrent-resolution",
+    SCONRES: "senate-concurrent-resolution",
+    HRES: "house-simple-resolution",
+    SRES: "senate-simple-resolution",
+  };
+  return slugMap[type.toUpperCase()] ?? `${type.toLowerCase()}-bill`;
+}
+
 /** Map API bill type codes to human-readable bill number format (e.g. "HR" → "H.R.") */
 function formatBillNumber(type: string, number: string): string {
   const prefixMap: Record<string, string> = {
@@ -340,8 +359,8 @@ export async function scrapeCongress(config: CongressScraperConfig = {}) {
 
       const chamberValue = (detail.originChamber ?? chamber) as "House" | "Senate";
 
-      // Canonical congress.gov bill page URL
-      const billUrl = `https://www.congress.gov/bill/${congress}${ordinalSuffix(congress)}-congress/${chamberValue.toLowerCase()}-bill/${billNumber}`;
+      // Canonical congress.gov bill page URL — path segment varies by bill type
+      const billUrl = `https://www.congress.gov/bill/${congress}${ordinalSuffix(congress)}-congress/${billTypeToUrlSlug(detail.type)}/${billNumber}`;
 
       // Summary from CRS — replaces the need to AI-generate a summary in most cases
       const summary = await fetchSummary(congress, billType, billNumber);
