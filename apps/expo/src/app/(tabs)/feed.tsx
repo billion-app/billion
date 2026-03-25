@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -17,7 +17,6 @@ import { Button } from "@acme/ui/button-native";
 
 import { Text, View } from "~/components/Themed";
 import {
-  actions,
   badges,
   cards,
   colors,
@@ -39,7 +38,6 @@ export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useTheme();
-  const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
 
   // Debug: log base URL
   useEffect(() => {
@@ -67,16 +65,6 @@ export default function FeedScreen() {
     () => data?.pages.flatMap((page) => page.videos) ?? [],
     [data],
   );
-
-  const handleLike = (videoId: string) => {
-    const newLikedVideos = new Set(likedVideos);
-    if (newLikedVideos.has(videoId)) {
-      newLikedVideos.delete(videoId);
-    } else {
-      newLikedVideos.add(videoId);
-    }
-    setLikedVideos(newLikedVideos);
-  };
 
   const loadMoreVideos = () => {
     if (hasNextPage && !isFetchingNextPage) {
