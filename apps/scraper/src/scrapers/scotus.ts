@@ -244,18 +244,14 @@ export async function scrapeScotus(config: ScotusScraperConfig = {}) {
   for (const cluster of clusters) {
     try {
       // Fetch docket for case number + court metadata
-      const docketUrl = `${CL_BASE}/dockets/${cluster.docket_id}/`;
-      const docketRes = await fetch(docketUrl, { headers: clHeaders() });
       let docketNumber = `CL-${cluster.id}`;
       let filedDate: Date | undefined;
       let courtId = court;
 
-      if (docketRes.ok) {
-        const docket = await docketRes.json() as ClDocket;
-        docketNumber = docket.docket_number || docketNumber;
-        if (docket.date_filed) filedDate = new Date(docket.date_filed);
-        courtId = docket.court ?? court;
-      }
+      const docket = await clFetch<ClDocket>(`/dockets/${cluster.docket_id}/`);
+      docketNumber = docket.docket_number || docketNumber;
+      if (docket.date_filed) filedDate = new Date(docket.date_filed);
+      courtId = docket.court ?? court;
 
       // Map CourtListener court IDs to readable names
       const courtNames: Record<string, string> = {
