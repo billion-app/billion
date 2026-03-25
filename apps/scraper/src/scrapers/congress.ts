@@ -1,230 +1,291 @@
-import { Dataset, CheerioCrawler } from "crawlee";
+/**
+ * Congress.gov Bill Scraper
+ *
+ * Uses the official Congress.gov REST API (api.congress.gov/v3/) instead of
+ * HTML scraping. This gives us clean, structured JSON data for bills,
+ * summaries, sponsors, and full-text links — no Cheerio, no CSS selectors,
+ * no fragile DOM parsing.
+ *
+ * Requires: CONGRESS_API_KEY in your .env file.
+ * Sign up free at: https://api.congress.gov/sign-up/
+ */
 
 import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
 import { upsertBill } from "../utils/db/operations.js";
 
+const BASE_URL = "https://api.congress.gov/v3";
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
 interface CongressScraperConfig {
-  maxBills?: number;        // Default: 100
-  maxRequests?: number;     // Default: 500
-  congress?: number;        // Default: 119
-  chamber?: 'House' | 'Senate';  // Default: 'House'
+  maxBills?: number;   // Default: 100
+  congress?: number;   // Default: 119
+  chamber?: "House" | "Senate"; // Default: "House"
 }
+
+// ─── API response shapes (partial — only what we use) ────────────────────────
+
+interface ApiBillListItem {
+  number: string;           // e.g. "1234"
+  type: string;             // e.g. "HR", "S", "HJRES"
+  title: string;
+  congress: number;
+  url: string;              // Link back to this API resource
+  latestAction?: {
+    text: string;
+    actionDate: string;
+  };
+}
+
+interface ApiBillDetail {
+  bill: {
+    number: string;
+    type: string;
+    title: string;
+    congress: number;
+    originChamber: string;
+    introducedDate?: string;
+    sponsors?: Array<{
+      firstName: string;
+      lastName: string;
+      party: string;
+      state: string;
+    }>;
+    latestAction?: {
+      text: string;
+      actionDate: string;
+    };
+  };
+}
+
+interface ApiSummary {
+  actionDate: string;
+  actionDesc: string;
+  text: string;             // HTML-encoded summary text
+  updateDate: string;
+}
+
+interface ApiTextVersion {
+  type: string;             // e.g. "Introduced in House"
+  date: string | null;
+  formats: Array<{
+    type: string;           // "Formatted Text", "PDF", "Formatted XML"
+    url: string;
+  }>;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getApiKey(): string {
+  const key = process.env.CONGRESS_API_KEY;
+  if (!key) {
+    throw new Error(
+      "CONGRESS_API_KEY is not set. Sign up at https://api.congress.gov/sign-up/ " +
+      "and add it to your .env file."
+    );
+  }
+  return key;
+}
+
+async function congressFetch<T>(
+  path: string,
+  params: Record<string, string | number> = {}
+): Promise<T> {
+  const apiKey = getApiKey();
+  const url = new URL(`${BASE_URL}${path}`);
+  url.searchParams.set("api_key", apiKey);
+  url.searchParams.set("format", "json");
+  for (const [k, v] of Object.entries(params)) {
+    url.searchParams.set(k, String(v));
+  }
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    throw new Error(
+      `Congress API ${path} → HTTP ${res.status}: ${await res.text()}`
+    );
+  }
+  return res.json() as Promise<T>;
+}
+
+/** Map API bill type codes to human-readable bill number format (e.g. "HR" → "H.R.") */
+function formatBillNumber(type: string, number: string): string {
+  const prefixMap: Record<string, string> = {
+    HR: "H.R.",
+    S: "S.",
+    HJRES: "H.J.Res.",
+    SJRES: "S.J.Res.",
+    HCONRES: "H.Con.Res.",
+    SCONRES: "S.Con.Res.",
+    HRES: "H.Res.",
+    SRES: "S.Res.",
+  };
+  const prefix = prefixMap[type.toUpperCase()] ?? type;
+  return `${prefix} ${number}`;
+}
+
+/** Strip HTML tags from summary text returned by the API */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/**
+ * Fetch the latest summary text for a bill.
+ * Returns undefined if no summaries exist.
+ */
+async function fetchSummary(
+  congress: number,
+  billType: string,
+  billNumber: string
+): Promise<string | undefined> {
+  try {
+    const data = await congressFetch<{ summaries: ApiSummary[] }>(
+      `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/summaries`
+    );
+    if (!data.summaries?.length) return undefined;
+    // The last item is the most recent summary
+    const latest = data.summaries[data.summaries.length - 1]!;
+    return stripHtml(latest.text).slice(0, 5000);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Fetch full plain text for a bill.
+ * Downloads the "Formatted Text" version if available, falls back to nothing.
+ * Truncates to 1,000 words to match the govtrack scraper behaviour.
+ */
+async function fetchFullText(
+  congress: number,
+  billType: string,
+  billNumber: string
+): Promise<string | undefined> {
+  try {
+    const data = await congressFetch<{ textVersions: ApiTextVersion[] }>(
+      `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/text`
+    );
+    if (!data.textVersions?.length) return undefined;
+
+    // Prefer the most recent text version with a plain-text format
+    for (const version of [...data.textVersions].reverse()) {
+      const txtFormat = version.formats.find((f) => f.type === "Formatted Text");
+      if (!txtFormat) continue;
+
+      const res = await fetch(txtFormat.url);
+      if (!res.ok) continue;
+
+      let text = await res.text();
+      // Truncate to 1,000 words
+      const words = text.split(/\s+/);
+      if (words.length > 1000) {
+        text = words.slice(0, 1000).join(" ");
+      }
+      return text.trim() || undefined;
+    }
+  } catch {
+    // Full text is optional — continue without it
+  }
+  return undefined;
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
 
 export async function scrapeCongress(config: CongressScraperConfig = {}) {
   const {
     maxBills = 100,
-    maxRequests = 500,
     congress = 119,
-    chamber = 'House'
+    chamber = "House",
   } = config;
-  console.log("Starting Congress.gov scraper...");
 
-  // Reset metrics for this scraper run
+  console.log(
+    `Starting Congress.gov API scraper (congress=${congress}, chamber=${chamber})...`
+  );
   resetMetrics();
 
-  const crawler = new CheerioCrawler({
-    async requestHandler({ request, $, log, crawler }) {
-      log.info(`Scraping ${request.loadedUrl}`);
+  // The API uses lowercase chamber strings for filtering
+  const chamberParam = chamber === "House" ? "house" : "senate";
 
-      // Handle the browse/listing page
-      if (
-        request.url.includes("/search?q=") && request.url.includes("type%22%3A%22bills")
-      ) {
-        // Extract bill links with the correct format
-        const billLinks: string[] = [];
-        $('a[href*="/bill/"]').each((_, element) => {
-          const href = $(element).attr('href');
-          if (href && /\/bill\/\d+(?:th|st|nd|rd)-congress\/(?:house|senate)-bill\/\d+/i.test(href)) {
-            // Make absolute URL if relative
-            const fullUrl = href.startsWith('/')
-              ? `https://www.congress.gov${href}`
-              : href;
-            billLinks.push(fullUrl);
-          }
-        });
-
-        // Remove duplicates and apply limit
-        const uniqueBillLinks = [...new Set(billLinks)].slice(0, maxBills);
-
-        log.info(`Found ${uniqueBillLinks.length} bill links from Congress.gov`);
-
-        // Return bill links to be processed
-        await Dataset.pushData({
-          type: "congressBillLinks",
-          links: uniqueBillLinks,
-        });
-
-        // Look for pagination - next page link
-        if (uniqueBillLinks.length < maxBills) {
-          const nextPageLink = $('a.next, a[rel="next"], a:contains("Next")').attr('href');
-          if (nextPageLink) {
-            const fullNextUrl = nextPageLink.startsWith('http')
-              ? nextPageLink
-              : `https://www.congress.gov${nextPageLink}`;
-            log.info(`Found next page: ${fullNextUrl}`);
-            await crawler.addRequests([fullNextUrl]);
-          }
-        }
-      }
-      // Handle individual bill pages
-      else if (
-        /\/bill\/\d+(?:th|st|nd|rd)-congress\/(?:house|senate)-bill\/\d+/i.test(
-          request.url,
-        )
-      ) {
-        try {
-          // Extract bill number
-          let billNumber = "Unknown";
-          const billNumberText = $(".bill-number, h1").first().text().trim();
-          if (billNumberText) {
-            const match = billNumberText.match(
-              /([HS]\.\s?(?:R\.|J\.\s?Res\.|Con\.\s?Res\.|Res\.)\s?\d+)/i,
-            );
-            billNumber = match ? match[1]!.trim() : billNumberText.split(" ")[0] || "Unknown";
-          }
-
-          // Extract title
-          let title = "Unknown";
-          const titleText = $(".bill-title, h1").first().text().trim();
-          if (titleText) {
-            // Remove bill number from title if present
-            let cleanTitle = titleText
-              .replace(/[HS]\.\s?(?:R\.|J\.\s?Res\.|Con\.\s?Res\.|Res\.)\s?\d+/i, "")
-              .trim();
-
-            // Clean up extra content (JavaScript, metadata, etc.)
-            // Take only the first line or up to the first newline/special marker
-            cleanTitle = cleanTitle.split('\n')[0]!.trim();
-            cleanTitle = cleanTitle.split('$(document)')[0]!.trim();
-            cleanTitle = cleanTitle.split('Congress (')[0]!.trim();
-
-            // Truncate to 250 chars to fit DB limit (256) with some buffer
-            title = cleanTitle.slice(0, 250) || "Unknown";
-          }
-
-          // Extract sponsor
-          let sponsor: string | undefined;
-          $('*:contains("Sponsor:")').each((_, element) => {
-            const text = $(element).text();
-            if (text.includes("Sponsor:")) {
-              let cleanSponsor = text.replace(/Sponsor:/i, "").trim();
-              // Take first line and truncate to fit DB
-              cleanSponsor = cleanSponsor.split('\n')[0]!.trim().slice(0, 250);
-              sponsor = cleanSponsor || undefined;
-              return false; // break
-            }
-          });
-
-          // Extract status
-          let status = $('.bill-status, [class*="status"]').first().text().trim() || "Unknown";
-          // Clean and truncate status
-          status = status.split('\n')[0]!.trim().slice(0, 250) || "Unknown";
-
-          // Extract introduced date
-          let introducedDate: Date | undefined;
-          $('*:contains("Introduced:")').each((_, element) => {
-            const text = $(element).text();
-            if (text.includes("Introduced:")) {
-              const dateStr = text.replace(/Introduced:/i, "").trim();
-              introducedDate = new Date(dateStr);
-              return false; // break
-            }
-          });
-
-          // Extract congress number from URL
-          const congressMatch = request.url.match(
-            /\/bill\/(\d+)(?:th|st|nd|rd)-congress/i,
-          );
-          const congressNum = congressMatch
-            ? parseInt(congressMatch[1]!)
-            : undefined;
-
-          // Extract chamber from URL
-          const chamberMatch = request.url.match(/\/(house|senate)-bill\//i);
-          const chamberValue = chamberMatch
-            ? chamberMatch[1]!.charAt(0).toUpperCase() + chamberMatch[1]!.slice(1)
-            : billNumber.toLowerCase().startsWith("h.")
-              ? "House"
-              : "Senate";
-
-          // Extract summary
-          let summary = $('.summary, [class*="summary"]').first().text().trim() || undefined;
-          if (summary) {
-            // Clean up and truncate (summary doesn't have strict DB limit but keep it reasonable)
-            summary = summary.split('$(document)')[0]!.trim();
-            summary = summary.slice(0, 1000); // Reasonable limit for summary
-          }
-
-          // Try to get full text using specific selectors to avoid grabbing garbage
-          let fullText: string | undefined;
-          const specificSelectors = [".bill-text-content", "#bill-summary", ".legis-body"];
-          for (const sel of specificSelectors) {
-            const el = $(sel).first();
-            if (el.length > 0) {
-              fullText = el.text().trim() || undefined;
-              break;
-            }
-          }
-          if (!fullText) {
-            // Fallback: collect only <p> elements inside .bill-text
-            const paragraphs: string[] = [];
-            $(".bill-text p").each((_, el) => {
-              const txt = $(el).text().trim();
-              if (txt) paragraphs.push(txt);
-            });
-            fullText = paragraphs.length > 0 ? paragraphs.join("\n\n") : undefined;
-          }
-          if (fullText) {
-            // Clean up JavaScript and metadata
-            fullText = fullText.split('$(document)')[0]!.trim() || undefined;
-          }
-
-          const billData = {
-            billNumber,
-            title,
-            description: summary,
-            sponsor,
-            status,
-            introducedDate,
-            congress: congressNum,
-            chamber: chamberValue,
-            summary,
-            fullText,
-            url: request.url,
-            sourceWebsite: "congress.gov" as const,
-          };
-
-          log.info(`Scraped bill from Congress.gov: ${billNumber} - ${title}`);
-
-          // Save to database
-          await upsertBill(billData);
-        } catch (error) {
-          log.error(`Error scraping bill from ${request.url}:`, error);
-        }
-      }
-    },
-    maxRequestsPerCrawl: maxRequests,
-    requestHandlerTimeoutSecs: 60,
-  });
-
-  // Build the URL dynamically from config
-  const searchUrl = `https://www.congress.gov/search?q=%7B%22congress%22%3A${congress}%2C%22chamber%22%3A%22${chamber}%22%2C%22type%22%3A%22bills%22%7D&pageSort=documentNumber%3Adesc`;
-
-  // Start with the browse page
-  await crawler.run([searchUrl]);
-
-  // Get the bill links from the dataset
-  const dataset = await Dataset.open();
-  const data = await dataset.getData();
-  const billLinksData = data.items.find(
-    (item: any) => item.type === "congressBillLinks",
+  // ── Step 1: fetch bill listing ─────────────────────────────────────────────
+  const listData = await congressFetch<{ bills: ApiBillListItem[] }>(
+    `/bill/${congress}`,
+    {
+      chamber: chamberParam,
+      limit: Math.min(maxBills, 250), // API max per page is 250
+      sort: "updateDate+desc",
+    }
   );
 
-  if (billLinksData && Array.isArray(billLinksData.links)) {
-    // Now scrape each bill page
-    await crawler.run(billLinksData.links);
+  const bills = (listData.bills ?? []).slice(0, maxBills);
+  console.log(`Fetched ${bills.length} bills from Congress API.`);
+
+  // ── Step 2: enrich each bill with detail, summary, and full text ───────────
+  for (const item of bills) {
+    try {
+      const billType = item.type.toLowerCase(); // e.g. "hr", "s"
+      const billNumber = item.number;           // e.g. "1234"
+
+      // Detail endpoint
+      const detailData = await congressFetch<ApiBillDetail>(
+        `/bill/${congress}/${billType}/${billNumber}`
+      );
+      const detail = detailData.bill;
+
+      const formattedBillNumber = formatBillNumber(detail.type, detail.number);
+      const title = (detail.title ?? "Unknown").slice(0, 250);
+
+      // Sponsor — use the first (primary) sponsor
+      const primarySponsor = detail.sponsors?.[0];
+      const sponsor = primarySponsor
+        ? `${primarySponsor.firstName} ${primarySponsor.lastName} (${primarySponsor.party}-${primarySponsor.state})`.slice(0, 250)
+        : undefined;
+
+      // Status: most recent legislative action text
+      const status = (detail.latestAction?.text ?? "Unknown").slice(0, 250);
+
+      const introducedDate = detail.introducedDate
+        ? new Date(detail.introducedDate)
+        : undefined;
+
+      const chamberValue = (detail.originChamber ?? chamber) as "House" | "Senate";
+
+      // Canonical congress.gov bill page URL
+      const billUrl = `https://www.congress.gov/bill/${congress}th-congress/${chamberValue.toLowerCase()}-bill/${billNumber}`;
+
+      // Summary from CRS — replaces the need to AI-generate a summary in most cases
+      const summary = await fetchSummary(congress, billType, billNumber);
+
+      // Full text — used downstream for AI article generation
+      const fullText = await fetchFullText(congress, billType, billNumber);
+
+      await upsertBill({
+        billNumber: formattedBillNumber,
+        title,
+        description: summary,
+        sponsor,
+        status,
+        introducedDate,
+        congress,
+        chamber: chamberValue,
+        summary,
+        fullText,
+        url: billUrl,
+        sourceWebsite: "congress.gov",
+      });
+
+      console.log(`Processed: ${formattedBillNumber} — ${title}`);
+    } catch (error) {
+      console.error(`Error processing bill ${item.type}${item.number}:`, error);
+    }
   }
 
-  console.log("Congress.gov scraper completed");
+  console.log("Congress.gov API scraper completed.");
   printMetricsSummary("Congress.gov");
 }
