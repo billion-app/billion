@@ -1,8 +1,7 @@
 /**
  * Supreme Court (SCOTUS) Case Scraper
  *
- * Fetches case data from the Supreme Court's official website
- * (supremecourt.gov) and the CourtListener REST API, which provides
+ * Fetches case data from the CourtListener REST API, which provides
  * structured JSON for opinions, docket entries, and case metadata.
  *
  * CourtListener API: https://www.courtlistener.com/api/rest/v4/
@@ -60,6 +59,25 @@ interface ClDocket {
   pacer_case_id: string | null;
   clusters: string[];          // URLs to opinion clusters
 }
+
+// ─── Module-level constants ───────────────────────────────────────────────────
+
+/** Map CourtListener court IDs to readable names */
+const COURT_NAMES: Record<string, string> = {
+  scotus: "Supreme Court of the United States",
+  ca1: "1st Circuit Court of Appeals",
+  ca2: "2nd Circuit Court of Appeals",
+  ca3: "3rd Circuit Court of Appeals",
+  ca4: "4th Circuit Court of Appeals",
+  ca5: "5th Circuit Court of Appeals",
+  ca6: "6th Circuit Court of Appeals",
+  ca7: "7th Circuit Court of Appeals",
+  ca8: "8th Circuit Court of Appeals",
+  ca9: "9th Circuit Court of Appeals",
+  ca10: "10th Circuit Court of Appeals",
+  ca11: "11th Circuit Court of Appeals",
+  cadc: "D.C. Circuit Court of Appeals",
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -181,8 +199,10 @@ async function fetchOpinionText(subOpinionUrls: string[]): Promise<string | unde
   const fetched: { opinion: ClOpinion; text: string }[] = [];
 
   for (const url of subOpinionUrls) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
     try {
-      const res = await fetch(url, { headers: clHeaders() });
+      const res = await fetch(url, { headers: clHeaders(), signal: controller.signal });
       if (!res.ok) continue;
       const opinion = await res.json() as ClOpinion;
       // Prefer plain text; fall back to stripping HTML
@@ -191,6 +211,8 @@ async function fetchOpinionText(subOpinionUrls: string[]): Promise<string | unde
       fetched.push({ opinion, text });
     } catch {
       continue;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -227,17 +249,32 @@ export async function scrapeScotus(config: ScotusScraperConfig = {}) {
   console.log(`Starting CourtListener scraper (court=${court}, maxCases=${maxCases})...`);
   resetMetrics();
 
-  // ── Step 1: fetch recent opinion clusters for the target court ─────────────
-  const data = await clFetch<{ results: ClCluster[]; count: number }>(
-    "/clusters/",
-    {
-      court: court,
-      order_by: "-date_filed",
-      page_size: Math.min(maxCases, 100),
-    }
-  );
+  // ── Step 1: fetch recent opinion clusters (paginated — API max 100 per page) ─
+  const allClusters: ClCluster[] = [];
+  let page = 1;
+  const pageSize = 100; // CourtListener API maximum per page
 
-  const clusters = (data.results ?? []).slice(0, maxCases);
+  while (allClusters.length < maxCases) {
+    const pageData = await clFetch<{ results: ClCluster[]; count: number; next: string | null }>(
+      "/clusters/",
+      {
+        court,
+        order_by: "-date_filed",
+        page_size: pageSize,
+        page,
+      }
+    );
+
+    const results = pageData.results ?? [];
+    allClusters.push(...results);
+
+    // Stop if there are no more pages or we have enough results
+    if (!pageData.next || results.length < pageSize) break;
+
+    page++;
+  }
+
+  const clusters = allClusters.slice(0, maxCases);
   console.log(`Fetched ${clusters.length} opinion clusters.`);
 
   // ── Step 2: process each cluster ───────────────────────────────────────────
@@ -253,23 +290,7 @@ export async function scrapeScotus(config: ScotusScraperConfig = {}) {
       if (docket.date_filed) filedDate = new Date(docket.date_filed);
       courtId = docket.court ?? court;
 
-      // Map CourtListener court IDs to readable names
-      const courtNames: Record<string, string> = {
-        scotus: "Supreme Court of the United States",
-        ca1: "1st Circuit Court of Appeals",
-        ca2: "2nd Circuit Court of Appeals",
-        ca3: "3rd Circuit Court of Appeals",
-        ca4: "4th Circuit Court of Appeals",
-        ca5: "5th Circuit Court of Appeals",
-        ca6: "6th Circuit Court of Appeals",
-        ca7: "7th Circuit Court of Appeals",
-        ca8: "8th Circuit Court of Appeals",
-        ca9: "9th Circuit Court of Appeals",
-        ca10: "10th Circuit Court of Appeals",
-        ca11: "11th Circuit Court of Appeals",
-        cadc: "D.C. Circuit Court of Appeals",
-      };
-      const courtName = courtNames[courtId] ?? courtId.toUpperCase();
+      const courtName = COURT_NAMES[courtId] ?? courtId.toUpperCase();
 
       const title = cluster.case_name?.slice(0, 250) || "Unknown Case";
       const status = cluster.precedential_status || "Unknown";
