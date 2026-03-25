@@ -41,7 +41,7 @@ export default function FeedScreen() {
   }, []);
 
   // Use infinite query for video feed
-  /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+   
   const {
     data,
     fetchNextPage,
@@ -56,10 +56,10 @@ export default function FeedScreen() {
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
-  /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+   
 
   // Flatten all pages into a single array of videos
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+   
   const videos = useMemo(() => data?.pages.flatMap((page: { videos: VideoPost[] }) => page.videos) ?? [], [data]);
 
   const _handleLike = (videoId: string) => {
@@ -244,7 +244,7 @@ export default function FeedScreen() {
   );
 
   // Show loading state while fetching initial videos
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+   
   if (isLoading) {
     return (
       <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>

@@ -204,7 +204,7 @@ export default function BrowseScreen() {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
-  /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+   
   const {
     data: content,
     isLoading,
@@ -214,7 +214,7 @@ export default function BrowseScreen() {
       type: selectedTab,
     }),
   );
-  /* eslint-enable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+   
 
   const fuse = useMemo(() => {
     if (!content) return null;
@@ -271,7 +271,7 @@ export default function BrowseScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
+        { }
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.white} />
@@ -306,7 +306,7 @@ export default function BrowseScreen() {
                 {filteredContent.length !== 1 ? "s" : ""}
               </Text>
             ) : null}
-            {/* eslint-disable-next-line @typescript-eslint/no-unsafe-call */}
+            { }
             {filteredContent.map((item: ContentCard) => (
               <ContentCardComponent key={item.id} item={item} theme={theme} />
             ))}
