@@ -19,7 +19,6 @@ import { Text, View } from "~/components/Themed";
 // import { WireframeWave } from "~/components/WireframeWave";
 import {
   badges,
-  buttons,
   cards,
   colors,
   createTabContainerStyles,

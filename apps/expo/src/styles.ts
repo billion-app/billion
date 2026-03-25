@@ -500,9 +500,22 @@ export const typeBadgeColors = {
   general: colors.general, // Muted #8A8FA0
 } as const;
 
+const backendTypeMap: Record<string, keyof typeof typeBadgeColors> = {
+  bill: "bill",
+  government_content: "order",
+  court_case: "case",
+  general: "general",
+};
+
 export function getTypeBadgeColor(type: string, fallback?: string): string {
-  if (type in typeBadgeColors) {
-    return typeBadgeColors[type as keyof typeof typeBadgeColors];
+  const normalized = Object.hasOwn(backendTypeMap, type)
+    ? backendTypeMap[type]
+    : type;
+  if (
+    normalized !== undefined &&
+    Object.hasOwn(typeBadgeColors, normalized)
+  ) {
+    return typeBadgeColors[normalized as keyof typeof typeBadgeColors];
   }
   return fallback ?? typeBadgeColors.general;
 }
