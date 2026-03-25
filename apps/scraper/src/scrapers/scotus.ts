@@ -296,7 +296,6 @@ export async function scrapeScotus(config: ScotusScraperConfig = {}) {
         status,
         fullText,
         url: caseUrl,
-        contentHash: "",  // computed inside upsertCourtCase
       });
 
       console.log(`Processed: ${docketNumber} — ${title}`);
