@@ -21,6 +21,10 @@ interface CongressScraperConfig {
   maxBills?: number;   // Default: 100
   congress?: number;   // Default: 119
   chamber?: "House" | "Senate"; // Default: "House"
+  /**
+   * @deprecated This option is ignored. Kept for backward compatibility with older callers.
+   */
+  maxRequests?: number;
 }
 
 // ─── API response shapes (partial — only what we use) ────────────────────────
