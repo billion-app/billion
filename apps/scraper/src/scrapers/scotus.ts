@@ -177,18 +177,40 @@ function truncateWords(text: string, maxWords: number): string {
  * Returns the first non-empty lead/combined opinion text, truncated to 1,000 words.
  */
 async function fetchOpinionText(subOpinionUrls: string[]): Promise<string | undefined> {
+  // Fetch all available sub-opinions, then prefer lead/combined types.
+  const fetched: { opinion: ClOpinion; text: string }[] = [];
+
   for (const url of subOpinionUrls) {
     try {
       const res = await fetch(url, { headers: clHeaders() });
       if (!res.ok) continue;
       const opinion = await res.json() as ClOpinion;
       // Prefer plain text; fall back to stripping HTML
-      const text = opinion.plain_text?.trim() || stripHtml(opinion.html ?? "");
-      if (text.length > 200) {
-        return truncateWords(text, 1000);
-      }
+      const text = (opinion.plain_text?.trim() || stripHtml(opinion.html ?? "")).trim();
+      if (text.length === 0) continue;
+      fetched.push({ opinion, text });
     } catch {
       continue;
+    }
+  }
+
+  if (fetched.length === 0) {
+    return undefined;
+  }
+
+  const preferredTypes = new Set<string>(["010combined", "020lead"]);
+
+  fetched.sort((a, b) => {
+    const aPref = preferredTypes.has(a.opinion.type) ? 0 : 1;
+    const bPref = preferredTypes.has(b.opinion.type) ? 0 : 1;
+    if (aPref !== bPref) return aPref - bPref;
+    // Stable within the same preference group; leave original order otherwise.
+    return 0;
+  });
+
+  for (const { text } of fetched) {
+    if (text.length > 200) {
+      return truncateWords(text, 1000);
     }
   }
   return undefined;
