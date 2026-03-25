@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import { scrapeCongress } from "./scrapers/congress.js";
 // Import scrapers AFTER env is loaded (they import db which needs POSTGRES_URL)
 import { scrapeGovTrack } from "./scrapers/govtrack.js";
+import { scrapeScotus } from "./scrapers/scotus.js";
 import { scrapeWhiteHouse } from "./scrapers/whitehouse.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -47,6 +48,12 @@ async function main() {
       });
       console.log("\n---\n");
 
+      await scrapeScotus({
+        court: "scotus",
+        maxCases: 50,
+      });
+      console.log("\n---\n");
+
       console.log("All scrapers completed successfully!");
     } else if (scraperArg === "govtrack") {
       await scrapeGovTrack({
@@ -63,9 +70,14 @@ async function main() {
         congress: 119,
         chamber: "House",
       });
+    } else if (scraperArg === "scotus") {
+      await scrapeScotus({
+        court: "scotus",
+        maxCases: 50,
+      });
     } else {
       console.error(
-        "Invalid scraper name. Available options: govtrack, whitehouse, congress, all",
+        "Invalid scraper name. Available options: govtrack, whitehouse, congress, scotus, all",
       );
       process.exit(1);
     }
