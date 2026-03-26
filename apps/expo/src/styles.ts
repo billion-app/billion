@@ -511,10 +511,7 @@ export function getTypeBadgeColor(type: string, fallback?: string): string {
   const normalized = Object.hasOwn(backendTypeMap, type)
     ? backendTypeMap[type]
     : type;
-  if (
-    normalized !== undefined &&
-    Object.hasOwn(typeBadgeColors, normalized)
-  ) {
+  if (normalized !== undefined && Object.hasOwn(typeBadgeColors, normalized)) {
     return typeBadgeColors[normalized as keyof typeof typeBadgeColors];
   }
   return fallback ?? typeBadgeColors.general;
