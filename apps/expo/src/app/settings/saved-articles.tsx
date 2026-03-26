@@ -159,8 +159,6 @@ function UndoToast({
     }).start(() => onUndoRef.current(entry.key));
   };
 
-  // React Native Animated.Value refs are designed to be read during render
-  // eslint-disable-next-line react-hooks/refs
   const barWidth = progressRef.current.interpolate({
     inputRange: [0, 1],
     outputRange: ["0%", "100%"],
@@ -178,7 +176,6 @@ function UndoToast({
           borderColor: theme.border,
           bottom: bottomOffset,
         },
-        // eslint-disable-next-line react-hooks/refs
         { transform: [{ translateY: slideYRef.current }] },
       ]}
     >
