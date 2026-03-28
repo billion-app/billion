@@ -23,16 +23,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import {
-  colors,
-  fontSize,
-  fontWeight,
-  layout,
-  settings,
-  sp,
-  typography,
-  useTheme,
-} from "~/styles";
+import { colors, layout, settings, sp, typography, useTheme } from "~/styles";
 
 interface SettingsSection {
   title: string;
@@ -54,7 +45,7 @@ interface SettingsItem {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const [notifications, setNotifications] = useState(true);
   const [autoplay, setAutoplay] = useState(true);
   const [darkMode, setDarkMode] = useState(false);

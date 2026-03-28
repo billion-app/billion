@@ -19,7 +19,6 @@ import { Text, View } from "~/components/Themed";
 // import { WireframeWave } from "~/components/WireframeWave";
 import {
   badges,
-  buttons,
   cards,
   colors,
   createTabContainerStyles,
@@ -62,6 +61,7 @@ export default function ArticleDetailScreen() {
   );
 
   // Fetch content from tRPC
+
   const {
     data: content,
     isLoading,
@@ -72,6 +72,7 @@ export default function ArticleDetailScreen() {
   });
 
   // Handle loading state
+
   if (isLoading) {
     return (
       <>
@@ -145,8 +146,8 @@ export default function ArticleDetailScreen() {
         if (canOpen) {
           await Linking.openURL(content.url);
         }
-      } catch (error) {
-        console.error("Error opening URL:", error);
+      } catch (openError) {
+        console.error("Error opening URL:", openError);
       }
     }
   };
@@ -197,10 +198,9 @@ export default function ArticleDetailScreen() {
                 ? "BILL"
                 : content.type === "government_content"
                   ? "ORDER"
-                  : content.type === "court_case"
-                    ? "CASE"
-                    : "NEWS";
-            const badgeColor = getTypeBadgeColor(content.type ?? "general");
+                  : "CASE";
+
+            const badgeColor = getTypeBadgeColor(content.type);
             return (
               <View
                 style={[badges.base, { backgroundColor: badgeColor + "22" }]}
@@ -250,7 +250,6 @@ export default function ArticleDetailScreen() {
           {selectedTab === "original" && content.url && (
             <TouchableOpacity
               style={[
-                buttons.primary,
                 localStyles.viewOriginalButton,
                 { backgroundColor: theme.primary },
               ]}

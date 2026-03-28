@@ -5,9 +5,7 @@ import {
   FlatList,
   StatusBar,
   StyleSheet,
-  TouchableOpacity,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -17,12 +15,9 @@ import { Button } from "@acme/ui/button-native";
 
 import { Text, View } from "~/components/Themed";
 import {
-  actions,
   badges,
   cards,
-  colors,
   fontSize,
-  fontWeight,
   getTypeBadgeColor,
   layout,
   rd,
@@ -36,7 +31,6 @@ import { getBaseUrl } from "~/utils/base-url";
 const { height: screenHeight } = Dimensions.get("window");
 
 export default function FeedScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useTheme();
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
@@ -47,6 +41,7 @@ export default function FeedScreen() {
   }, []);
 
   // Use infinite query for video feed
+
   const {
     data,
     fetchNextPage,
@@ -63,12 +58,14 @@ export default function FeedScreen() {
   });
 
   // Flatten all pages into a single array of videos
+
   const videos = useMemo(
-    () => data?.pages.flatMap((page) => page.videos) ?? [],
+    () =>
+      data?.pages.flatMap((page: { videos: VideoPost[] }) => page.videos) ?? [],
     [data],
   );
 
-  const handleLike = (videoId: string) => {
+  const _handleLike = (videoId: string) => {
     const newLikedVideos = new Set(likedVideos);
     if (newLikedVideos.has(videoId)) {
       newLikedVideos.delete(videoId);
@@ -250,6 +247,7 @@ export default function FeedScreen() {
   );
 
   // Show loading state while fetching initial videos
+
   if (isLoading) {
     return (
       <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>

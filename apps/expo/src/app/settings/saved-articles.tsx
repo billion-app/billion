@@ -108,8 +108,10 @@ function UndoToast({
   onCommit: (key: string) => void;
 }) {
   const { theme } = useTheme();
-  const slideY = useRef(new Animated.Value(80)).current;
-  const progress = useRef(new Animated.Value(1)).current;
+  const [slideY] = useState(() => new Animated.Value(80));
+  const [progress] = useState(() => new Animated.Value(1));
+  const slideYRef = useRef(slideY);
+  const progressRef = useRef(progress);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Stable refs so animation callbacks never go stale
   const onUndoRef = useRef(onUndo);
@@ -122,6 +124,8 @@ function UndoToast({
   }, [onCommit]);
 
   useEffect(() => {
+    const slideY = slideYRef.current;
+    const progress = progressRef.current;
     slideY.setValue(80);
     progress.setValue(1);
 
@@ -145,11 +149,11 @@ function UndoToast({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [entry.key, progress, slideY]);
+  }, [entry.key]);
 
   const handleUndo = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    Animated.spring(slideY, {
+    Animated.spring(slideYRef.current, {
       toValue: 80,
       useNativeDriver: true,
       tension: 80,

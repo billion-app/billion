@@ -17,6 +17,14 @@ export const colors = {
   case: "#0891B2", // Teal
   general: "#8A8FA0", // Muted
 
+  // Content type aliases (convenience)
+  civicBlue: "#4A7CFF",
+  deepIndigo: "#6366F1",
+  teal: "#0891B2",
+
+  // Additional border tokens
+  borderLight: "rgba(255, 255, 255, 0.12)",
+
   // Semantic colors
   green: {
     500: "#10B981",

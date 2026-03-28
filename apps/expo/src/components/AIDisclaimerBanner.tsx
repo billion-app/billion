@@ -1,15 +1,15 @@
-import { StyleSheet, TouchableOpacity } from "react-native";
+import { StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { cards, colors, rd, sp, typography, useTheme } from "~/styles";
+import { colors, rd, sp, typography, useTheme } from "~/styles";
 
 interface AIDisclaimerBannerProps {
   style?: object;
 }
 
 export function AIDisclaimerBanner({ style }: AIDisclaimerBannerProps) {
-  const { theme, colorScheme } = useTheme();
+  const { colorScheme } = useTheme();
 
   // Determine colors based on theme
   const backgroundColor =
@@ -77,7 +77,7 @@ const localStyles = StyleSheet.create({
     alignItems: "flex-start",
     paddingVertical: sp[3],
     paddingHorizontal: sp[4],
-    borderRadius: rd["md"],
+    borderRadius: rd.md,
     borderWidth: 1,
     gap: sp[3],
   },
