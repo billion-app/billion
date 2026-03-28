@@ -108,8 +108,10 @@ function UndoToast({
   onCommit: (key: string) => void;
 }) {
   const { theme } = useTheme();
-  const slideYRef = useRef(new Animated.Value(80));
-  const progressRef = useRef(new Animated.Value(1));
+  const [slideY] = useState(() => new Animated.Value(80));
+  const [progress] = useState(() => new Animated.Value(1));
+  const slideYRef = useRef(slideY);
+  const progressRef = useRef(progress);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Stable refs so animation callbacks never go stale
   const onUndoRef = useRef(onUndo);
@@ -159,7 +161,7 @@ function UndoToast({
     }).start(() => onUndoRef.current(entry.key));
   };
 
-  const barWidth = progressRef.current.interpolate({
+  const barWidth = progress.interpolate({
     inputRange: [0, 1],
     outputRange: ["0%", "100%"],
   });
@@ -176,7 +178,7 @@ function UndoToast({
           borderColor: theme.border,
           bottom: bottomOffset,
         },
-        { transform: [{ translateY: slideYRef.current }] },
+        { transform: [{ translateY: slideY }] },
       ]}
     >
       <Animated.View
