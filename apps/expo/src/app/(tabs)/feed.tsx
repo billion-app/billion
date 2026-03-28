@@ -5,9 +5,7 @@ import {
   FlatList,
   StatusBar,
   StyleSheet,
-  TouchableOpacity,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -19,9 +17,7 @@ import { Text, View } from "~/components/Themed";
 import {
   badges,
   cards,
-  colors,
   fontSize,
-  fontWeight,
   getTypeBadgeColor,
   layout,
   rd,
@@ -35,7 +31,6 @@ import { getBaseUrl } from "~/utils/base-url";
 const { height: screenHeight } = Dimensions.get("window");
 
 export default function FeedScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme } = useTheme();
 
@@ -45,6 +40,7 @@ export default function FeedScreen() {
   }, []);
 
   // Use infinite query for video feed
+
   const {
     data,
     fetchNextPage,
@@ -61,8 +57,10 @@ export default function FeedScreen() {
   });
 
   // Flatten all pages into a single array of videos
+
   const videos = useMemo(
-    () => data?.pages.flatMap((page) => page.videos) ?? [],
+    () =>
+      data?.pages.flatMap((page: { videos: VideoPost[] }) => page.videos) ?? [],
     [data],
   );
 
@@ -238,6 +236,7 @@ export default function FeedScreen() {
   );
 
   // Show loading state while fetching initial videos
+
   if (isLoading) {
     return (
       <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>

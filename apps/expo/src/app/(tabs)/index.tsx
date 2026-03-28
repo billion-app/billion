@@ -17,7 +17,6 @@ import type { VideoPost } from "@acme/api";
 import type { Theme } from "~/styles";
 import { Text, View } from "~/components/Themed";
 import {
-  badges,
   buttons,
   colors,
   createHeaderStyles,
@@ -43,7 +42,7 @@ interface ContentCard {
   imageUri?: string;
 }
 
-const TYPE_LABELS: Record<ContentCard["type"], string> = {
+const _TYPE_LABELS: Record<ContentCard["type"], string> = {
   bill: "BILL",
   government_content: "ORDER",
   court_case: "CASE",
@@ -190,7 +189,7 @@ const TabButton = ({
   </TouchableOpacity>
 );
 
-const TAB_CONFIG: Array<{ key: VideoPost["type"] | "all"; label: string }> = [
+const TAB_CONFIG: { key: VideoPost["type"] | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "bill", label: "Bills" },
   { key: "court_case", label: "Cases" },
@@ -304,7 +303,7 @@ export default function BrowseScreen() {
                 {filteredContent.length !== 1 ? "s" : ""}
               </Text>
             ) : null}
-            {filteredContent.map((item) => (
+            {filteredContent.map((item: ContentCard) => (
               <ContentCardComponent key={item.id} item={item} theme={theme} />
             ))}
             {/* Bottom padding for tab bar */}

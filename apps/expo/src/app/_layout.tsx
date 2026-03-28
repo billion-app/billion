@@ -35,7 +35,7 @@ import { queryClient } from "~/utils/api";
 import "../styles.css";
 
 // Keep splash screen visible while fonts load
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 // This is the main layout of the app
 // It wraps your pages with the providers they need

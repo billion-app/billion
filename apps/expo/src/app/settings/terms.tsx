@@ -22,7 +22,7 @@ import { Text, View } from "~/components/Themed";
 import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
 // Terms version for future acceptance tracking
-const TERMS_VERSION = "1.0.0";
+const _TERMS_VERSION = "1.0.0";
 
 const SECTIONS = [
   {

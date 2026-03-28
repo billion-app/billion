@@ -55,7 +55,8 @@ export default function AboutScreen() {
       ? Constants.expoConfig?.ios?.buildNumber
       : Constants.expoConfig?.android?.versionCode;
   const versionText = buildNumber ? `${version} (${buildNumber})` : version;
-  const buildChannel = Updates.channel ?? "release";
+
+  const buildChannel: string = Updates.channel ?? "release";
 
   const VERSION_ROWS = [
     { label: "Version", value: versionText, icon: "layers-outline" as const },
