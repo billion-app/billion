@@ -22,14 +22,14 @@
     "@acme/db": "workspace:*",
     "@acme/validators": "workspace:*",
     "@trpc/server": "catalog:",
-    "superjson": "2.2.2",
+    "superjson": "2.2.6",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@acme/eslint-config": "workspace:*",
     "@acme/prettier-config": "workspace:*",
     "@acme/tsconfig": "workspace:*",
-    "@types/pg": "^8.15.6",
+    "@types/pg": "^8.20.0",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:"

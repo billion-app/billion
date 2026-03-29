@@ -6,21 +6,21 @@
   "dependencies": {
     "@acme/db": "workspace:*",
     "@ai-sdk/google": "^3.0.53",
-    "ai": "^6.0.41",
-    "crawlee": "^3.15.3",
-    "dotenv": "^16.6.1",
-    "openai": "^4.77.3",
+    "ai": "^6.0.141",
+    "crawlee": "^3.16.0",
+    "dotenv": "^17.3.1",
+    "openai": "^6.33.0",
     "playwright": "^1.58.2",
-    "sharp": "^0.33.5",
+    "sharp": "^0.34.5",
     "turndown": "^7.2.2",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@apify/tsconfig": "^0.1.1",
-    "@types/node": "^22.19.7",
+    "@types/node": "^25.5.0",
     "@types/turndown": "^5.0.6",
     "tsx": "^4.21.0",
-    "typescript": "~5.9.3"
+    "typescript": "~6.0.2"
   },
   "scripts": {
     "dev": "pnpm run start:dev",
