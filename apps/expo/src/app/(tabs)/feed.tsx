@@ -46,15 +46,14 @@ export default function FeedScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading,
+    status,
     error,
-  } = useInfiniteQuery({
-    ...trpc.video.getInfinite.infiniteQueryOptions({
-      limit: 10,
-    }),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-  });
+  } = useInfiniteQuery(
+    trpc.video.getInfinite.infiniteQueryOptions(
+      { limit: 10 },
+      { initialCursor: 0, getNextPageParam: (lastPage) => lastPage.nextCursor },
+    ),
+  );
 
   // Flatten all pages into a single array of videos
 
@@ -237,7 +236,7 @@ export default function FeedScreen() {
 
   // Show loading state while fetching initial videos
 
-  if (isLoading) {
+  if (status === "pending") {
     return (
       <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>
         <StatusBar hidden />

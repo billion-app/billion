@@ -79,7 +79,7 @@ export function useTheme(): {
   colorScheme: "light" | "dark";
   isDark: boolean;
 } {
-  const colorScheme = useColorScheme() ?? "dark";
+  const colorScheme: "light" | "dark" = (useColorScheme() as "light" | "dark" | null | undefined) ?? "dark";
   const theme = colorScheme === "dark" ? darkTheme : lightTheme;
   return { theme, colorScheme, isDark: colorScheme === "dark" };
 }
