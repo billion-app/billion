@@ -18,21 +18,20 @@ import "~/app/globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(
     env.VERCEL_ENV === "production"
-      ? "https://turbo.t3.gg"
+      ? "https://billion.app"
       : "http://localhost:3000",
   ),
-  title: "Create T3 Turbo",
-  description: "Simple monorepo with shared backend for web & mobile apps",
+  title: "Billion — Civic Intelligence for Every American",
+  description:
+    "Bills, executive orders, and court cases — in plain language, from every angle. AI-powered civic information for the people.",
   openGraph: {
-    title: "Create T3 Turbo",
-    description: "Simple monorepo with shared backend for web & mobile apps",
-    url: "https://create-t3-turbo.vercel.app",
-    siteName: "Create T3 Turbo",
+    title: "Billion — Civic Intelligence for Every American",
+    description:
+      "Bills, executive orders, and court cases — in plain language, from every angle.",
+    siteName: "Billion",
   },
   twitter: {
     card: "summary_large_image",
-    site: "@jullerino",
-    creator: "@jullerino",
   },
 };
 
