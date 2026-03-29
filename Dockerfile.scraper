@@ -2,7 +2,7 @@
 # Render: set Root Directory to blank, Dockerfile Path to Dockerfile.scraper
 FROM apify/actor-node-playwright-chrome:20 AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm
 
 COPY --chown=myuser pnpm-lock.yaml ./
 COPY --chown=myuser apps/scraper/package.json ./
@@ -16,7 +16,7 @@ RUN pnpm run build
 # Final image
 FROM apify/actor-node-playwright-chrome:20
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm
 
 COPY --chown=myuser pnpm-lock.yaml ./
 COPY --chown=myuser apps/scraper/package.json ./
