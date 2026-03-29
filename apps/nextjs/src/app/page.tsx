@@ -30,13 +30,7 @@ const SAMPLE_ITEMS = [
   },
 ];
 
-function Badge({
-  type,
-  color,
-}: {
-  type: string;
-  color: string;
-}) {
+function Badge({ type, color }: { type: string; color: string }) {
   return (
     <span
       className="inline-block rounded-[6px] px-3 py-1 text-[11px] font-medium tracking-[0.6px] text-white uppercase"
@@ -47,11 +41,7 @@ function Badge({
   );
 }
 
-function ContentCard({
-  item,
-}: {
-  item: (typeof SAMPLE_ITEMS)[number];
-}) {
+function ContentCard({ item }: { item: (typeof SAMPLE_ITEMS)[number] }) {
   return (
     <article
       className="group relative flex flex-col gap-3 rounded-2xl p-6 transition-transform duration-200 ease-out hover:-translate-y-0.5"
@@ -68,7 +58,9 @@ function ContentCard({
       <Badge type={item.type} color={item.color} />
       <h3
         className="text-[17px] leading-snug font-bold text-white"
-        style={{ fontFamily: "var(--font-inria-serif), 'Times New Roman', serif" }}
+        style={{
+          fontFamily: "var(--font-inria-serif), 'Times New Roman', serif",
+        }}
       >
         {item.title}
       </h3>
@@ -115,14 +107,20 @@ export default function LandingPage() {
           <Link
             href="#how-it-works"
             className="text-[14px] font-medium transition-opacity duration-150 hover:opacity-100"
-            style={{ color: "rgba(255,255,255,0.6)", fontFamily: "var(--font-albert-sans)" }}
+            style={{
+              color: "rgba(255,255,255,0.6)",
+              fontFamily: "var(--font-albert-sans)",
+            }}
           >
             How it works
           </Link>
           <a
             href="#"
             className="rounded-full px-5 py-2 text-[14px] font-medium text-black transition-opacity duration-150 hover:opacity-90"
-            style={{ backgroundColor: "#FFFFFF", fontFamily: "var(--font-albert-sans)" }}
+            style={{
+              backgroundColor: "#FFFFFF",
+              fontFamily: "var(--font-albert-sans)",
+            }}
           >
             Get early access
           </a>
@@ -131,8 +129,10 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section
-        className="relative overflow-hidden px-8 pb-28 pt-24 text-center"
-        style={{ background: "linear-gradient(180deg, #0E1530 0%, #141c3a 100%)" }}
+        className="relative overflow-hidden px-8 pt-24 pb-28 text-center"
+        style={{
+          background: "linear-gradient(180deg, #0E1530 0%, #141c3a 100%)",
+        }}
       >
         {/* Decorative rule */}
         <div
@@ -148,7 +148,7 @@ export default function LandingPage() {
         </p>
 
         <h1
-          className="mx-auto max-w-3xl text-[clamp(2.6rem,5.5vw,4.2rem)] font-bold leading-[1.15] tracking-[-0.01em] text-white"
+          className="mx-auto max-w-3xl text-[clamp(2.6rem,5.5vw,4.2rem)] leading-[1.15] font-bold tracking-[-0.01em] text-white"
           style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
         >
           Your government, <em>understood.</em>
@@ -169,7 +169,10 @@ export default function LandingPage() {
           <a
             href="#"
             className="rounded-full px-8 py-3.5 text-[15px] font-medium text-black transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
-            style={{ backgroundColor: "#FFFFFF", fontFamily: "var(--font-albert-sans)" }}
+            style={{
+              backgroundColor: "#FFFFFF",
+              fontFamily: "var(--font-albert-sans)",
+            }}
           >
             Download the app
           </a>
@@ -209,7 +212,10 @@ export default function LandingPage() {
           </div>
           <p
             className="mt-6 text-center text-[14px]"
-            style={{ color: "rgba(255,255,255,0.35)", fontFamily: "var(--font-albert-sans)" }}
+            style={{
+              color: "rgba(255,255,255,0.35)",
+              fontFamily: "var(--font-albert-sans)",
+            }}
           >
             Updated continuously · Every piece links to the original source
           </p>
@@ -224,7 +230,7 @@ export default function LandingPage() {
       >
         <div className="mx-auto max-w-3xl">
           <h2
-            className="mb-16 text-[clamp(1.6rem,3vw,2.2rem)] font-bold leading-tight text-white"
+            className="mb-16 text-[clamp(1.6rem,3vw,2.2rem)] leading-tight font-bold text-white"
             style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
           >
             Information that exists.
@@ -253,13 +259,19 @@ export default function LandingPage() {
               <div key={step.label} className="flex flex-col gap-3">
                 <span
                   className="text-[12px] font-medium tracking-[1px]"
-                  style={{ color: "#4A7CFF", fontFamily: "var(--font-albert-sans)" }}
+                  style={{
+                    color: "#4A7CFF",
+                    fontFamily: "var(--font-albert-sans)",
+                  }}
                 >
                   {step.label}
                 </span>
                 <h3
                   className="text-[18px] font-bold text-white"
-                  style={{ fontFamily: "var(--font-inria-serif), 'Times New Roman', serif" }}
+                  style={{
+                    fontFamily:
+                      "var(--font-inria-serif), 'Times New Roman', serif",
+                  }}
                 >
                   {step.heading}
                 </h3>
@@ -293,21 +305,27 @@ export default function LandingPage() {
           Early access
         </p>
         <h2
-          className="mx-auto mb-6 max-w-lg text-[clamp(1.8rem,4vw,2.8rem)] font-bold leading-tight text-white"
+          className="mx-auto mb-6 max-w-lg text-[clamp(1.8rem,4vw,2.8rem)] leading-tight font-bold text-white"
           style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
         >
           A well-informed people.
         </h2>
         <p
           className="mx-auto mb-10 max-w-sm text-[16px] leading-relaxed"
-          style={{ color: "rgba(255,255,255,0.55)", fontFamily: "var(--font-albert-sans)" }}
+          style={{
+            color: "rgba(255,255,255,0.55)",
+            fontFamily: "var(--font-albert-sans)",
+          }}
         >
           Join the waitlist. We're launching on iOS and Android.
         </p>
         <a
           href="#"
           className="inline-block rounded-full px-10 py-4 text-[15px] font-medium text-black transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
-          style={{ backgroundColor: "#FFFFFF", fontFamily: "var(--font-albert-sans)" }}
+          style={{
+            backgroundColor: "#FFFFFF",
+            fontFamily: "var(--font-albert-sans)",
+          }}
         >
           Join the waitlist
         </a>
