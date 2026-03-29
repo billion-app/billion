@@ -13,7 +13,6 @@ RUN pnpm install --frozen-lockfile
 
 COPY apps/scraper/src ./apps/scraper/src
 COPY apps/scraper/tsconfig.json ./apps/scraper/tsconfig.json
-COPY apps/scraper/run.ts ./apps/scraper/run.ts
 COPY packages/db/src ./packages/db/src
 WORKDIR /app/apps/scraper
 RUN pnpm run build
