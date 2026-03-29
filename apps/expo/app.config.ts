@@ -1,6 +1,7 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
 
-export default ({ config }: ConfigContext): ExpoConfig => ({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default ({ config }: ConfigContext): any => ({
   ...config,
   name: "billion",
   slug: "billion",
