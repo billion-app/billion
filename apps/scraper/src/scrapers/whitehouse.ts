@@ -192,7 +192,7 @@ export async function scrapeWhiteHouse() {
           // Save to database
           await upsertPresidentialAction(contentData);
         } catch (error) {
-          log.error(`Error scraping article from ${request.url}:`, error);
+          log.error(`Error scraping article from ${request.url}:`, error as Error);
         }
       }
     },
