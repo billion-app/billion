@@ -12129,7 +12129,7 @@ snapshots:
       invariant: 2.2.4
       metro: 0.83.3(bufferutil@4.1.0)
       metro-config: 0.83.3(bufferutil@4.1.0)
-      metro-core: 0.83.3
+      metro-core: 0.83.5
       semver: 7.7.3
     optionalDependencies:
       '@react-native/metro-config': 0.84.1(@babel/core@7.29.0)
