@@ -48,13 +48,11 @@ export default function FeedScreen() {
     isFetchingNextPage,
     status,
     error,
-  } = useInfiniteQuery({
-    ...trpc.video.getInfinite.infiniteQueryOptions({
-      limit: 10,
+  } = useInfiniteQuery(
+    trpc.video.getInfinite.infiniteQueryOptions({ limit: 10 }, {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
     }),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-  });
+  );
 
   // Flatten all pages into a single array of videos
 
