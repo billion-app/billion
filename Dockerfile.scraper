@@ -1,0 +1,27 @@
+# Build context: repo root
+# Render: set Root Directory to blank, Dockerfile Path to Dockerfile.scraper
+FROM apify/actor-node-playwright-chrome:20 AS builder
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY --chown=myuser pnpm-lock.yaml ./
+COPY --chown=myuser apps/scraper/package.json ./
+RUN pnpm install --frozen-lockfile
+
+COPY --chown=myuser apps/scraper/src ./src
+COPY --chown=myuser apps/scraper/tsconfig.json ./
+COPY --chown=myuser apps/scraper/run.ts ./
+RUN pnpm run build
+
+# Final image
+FROM apify/actor-node-playwright-chrome:20
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY --chown=myuser pnpm-lock.yaml ./
+COPY --chown=myuser apps/scraper/package.json ./
+RUN pnpm install --frozen-lockfile --prod
+
+COPY --from=builder --chown=myuser /home/myuser/dist ./dist
+
+CMD ./start_xvfb_and_run_cmd.sh && pnpm run start:prod --silent
