@@ -3,7 +3,7 @@
  * Generates compelling social media titles, descriptions, and image prompts
  */
 
-import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
 
@@ -31,7 +31,7 @@ export async function generateMarketingCopy(
     console.log(`Generating marketing copy for: ${articleTitle}`);
 
     const { object } = await generateObject({
-      model: openai("gpt-4o-mini"),
+      model: google("gemini-2.0-flash"),
       schema: MarketingCopySchema,
       prompt: `You are a professional marketing copywriter creating engaging social media content.
 

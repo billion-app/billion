@@ -3,7 +3,7 @@
  * Uses OpenAI to extract visual concepts for image search
  */
 
-import { openai } from '@ai-sdk/openai';
+import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
 /**
@@ -21,7 +21,7 @@ export async function generateImageSearchKeywords(
 ): Promise<string> {
   try {
     const { text } = await generateText({
-      model: openai('gpt-4o-mini'),
+      model: google('gemini-2.0-flash'),
       prompt: `Given this ${type} title and content, generate 2-4 search keywords for finding relevant stock photos. Focus on concrete, visual, photographic concepts that would actually appear in news photography or documentary images.
 
 GOOD examples (specific, visual, photographic):
