@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -33,7 +33,6 @@ const { height: screenHeight } = Dimensions.get("window");
 export default function FeedScreen() {
   const router = useRouter();
   const { theme } = useTheme();
-  const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
 
   // Debug: log base URL
   useEffect(() => {
@@ -64,16 +63,6 @@ export default function FeedScreen() {
       data?.pages.flatMap((page: { videos: VideoPost[] }) => page.videos) ?? [],
     [data],
   );
-
-  const _handleLike = (videoId: string) => {
-    const newLikedVideos = new Set(likedVideos);
-    if (newLikedVideos.has(videoId)) {
-      newLikedVideos.delete(videoId);
-    } else {
-      newLikedVideos.add(videoId);
-    }
-    setLikedVideos(newLikedVideos);
-  };
 
   const loadMoreVideos = () => {
     if (hasNextPage && !isFetchingNextPage) {
