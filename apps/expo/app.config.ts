@@ -1,4 +1,4 @@
-import type { ConfigContext, ExpoConfig } from "expo/config";
+import type { ConfigContext } from "expo/config";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default ({ config }: ConfigContext): any => ({
