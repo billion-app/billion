@@ -4,13 +4,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import {
-  layout,
-  settings,
-  sp,
-  typography,
-  useTheme,
-} from "~/styles";
+import { layout, settings, sp, typography, useTheme } from "~/styles";
 
 interface SettingsSection {
   title: string;
@@ -95,9 +89,7 @@ export default function SettingsScreen() {
           {item.title}
         </Text>
         {item.subtitle && (
-          <Text
-            style={[settings.itemSubtitle, { color: theme.textSecondary }]}
-          >
+          <Text style={[settings.itemSubtitle, { color: theme.textSecondary }]}>
             {item.subtitle}
           </Text>
         )}
