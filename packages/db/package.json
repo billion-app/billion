@@ -5,14 +5,17 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "node": "./dist/index.js",
       "default": "./src/index.ts"
     },
     "./client": {
       "types": "./dist/client.d.ts",
+      "node": "./dist/client.js",
       "default": "./src/client.ts"
     },
     "./schema": {
       "types": "./dist/schema.d.ts",
+      "node": "./dist/schema.js",
       "default": "./src/schema.ts"
     }
   },
