@@ -11,8 +11,8 @@ export function initAuth(options: {
   productionUrl: string;
   secret: string | undefined;
 
-  discordClientId: string;
-  discordClientSecret: string;
+  discordClientId: string | undefined;
+  discordClientSecret: string | undefined;
 }) {
   const config = {
     database: drizzleAdapter(db, {
@@ -27,11 +27,15 @@ export function initAuth(options: {
       expo(),
     ],
     socialProviders: {
-      discord: {
-        clientId: options.discordClientId,
-        clientSecret: options.discordClientSecret,
-        redirectURI: `${options.productionUrl}/api/auth/callback/discord`,
-      },
+      ...(options.discordClientId && options.discordClientSecret
+        ? {
+            discord: {
+              clientId: options.discordClientId,
+              clientSecret: options.discordClientSecret,
+              redirectURI: `${options.productionUrl}/api/auth/callback/discord`,
+            },
+          }
+        : {}),
     },
     trustedOrigins: ["expo://"],
     onAPIError: {
