@@ -46,7 +46,7 @@ export default function FeedScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isPending,
+    status,
     error,
   } = useInfiniteQuery(
     trpc.video.getInfinite.infiniteQueryOptions({ limit: 10 }, {
@@ -58,7 +58,7 @@ export default function FeedScreen() {
 
   const videos = useMemo(
     () =>
-      data?.pages.flatMap((page: { videos: VideoPost[] }) => page.videos) ?? [],
+      data.pages.flatMap((page: { videos: VideoPost[] }) => page.videos),
     [data],
   );
 
@@ -235,7 +235,7 @@ export default function FeedScreen() {
 
   // Show loading state while fetching initial videos
 
-  if (isPending) {
+  if (status === "pending") {
     return (
       <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>
         <StatusBar hidden />

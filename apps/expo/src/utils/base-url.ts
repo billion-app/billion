@@ -13,7 +13,7 @@ import Constants from "expo-constants";
  */
 export const getBaseUrl = () => {
   // Check for explicit API URL configuration (production, localtunnel, etc.)
-  const configuredUrl = process.env.EXPO_PUBLIC_API_URL;
+  const configuredUrl = process.env.EXPO_PUBLIC_API_URL as string | undefined;
   if (configuredUrl) {
     return configuredUrl;
   }
