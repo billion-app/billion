@@ -34,3 +34,5 @@ COPY --from=builder --chown=myuser /home/myuser/apps/scraper/dist ./apps/scraper
 
 WORKDIR /home/myuser/apps/scraper
 CMD ./start_xvfb_and_run_cmd.sh && pnpm run start:prod --silent
+
+# trigger build
