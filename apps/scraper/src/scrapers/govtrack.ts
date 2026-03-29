@@ -166,7 +166,7 @@ export async function scrapeGovTrack(config: GovTrackScraperConfig = {}) {
           }
         } catch (error) {
           console.log(error);
-          log.error(`Error scraping full text from ${request.url}:`, error);
+          log.error(`Error scraping full text from ${request.url}:`, error as Error);
         }
       }
     },

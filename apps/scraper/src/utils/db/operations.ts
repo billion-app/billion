@@ -114,7 +114,7 @@ export async function upsertBill(billData: BillData) {
     console.log(`Generating AI article for bill: ${billData.title}`);
     aiGeneratedArticle = await generateAIArticle(
       billData.title,
-      billData.fullText,
+      billData.fullText!,
       "bill",
       billData.url,
     );
@@ -245,7 +245,7 @@ export async function upsertGovernmentContent(contentData: GovernmentContentData
     console.log(`Generating AI article for ${contentData.type}: ${contentData.title}`);
     aiGeneratedArticle = await generateAIArticle(
       contentData.title,
-      contentData.fullText,
+      contentData.fullText!,
       contentData.type,
       contentData.url,
     );
@@ -402,7 +402,7 @@ export async function upsertCourtCase(caseData: CourtCaseData) {
     console.log(`Generating AI article for court case: ${caseData.title}`);
     aiGeneratedArticle = await generateAIArticle(
       caseData.title,
-      caseData.fullText,
+      caseData.fullText!,
       "court case",
       caseData.url,
     );

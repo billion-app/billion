@@ -93,7 +93,7 @@ async function main() {
   };
 
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i].toLowerCase();
+    const arg = args[i]!.toLowerCase();
 
     if (arg === '--type' || arg === '-t') {
       const type = args[++i]?.toLowerCase();
@@ -101,7 +101,7 @@ async function main() {
         options.contentType = type;
       }
     } else if (arg === '--limit' || arg === '-l') {
-      options.limit = parseInt(args[++i], 10);
+      options.limit = parseInt(args[++i]!, 10);
     } else if (arg === '--dry-run' || arg === '-d') {
       options.dryRun = true;
     } else if (arg === '--help' || arg === '-h') {
