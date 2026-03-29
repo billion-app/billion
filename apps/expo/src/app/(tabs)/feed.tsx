@@ -48,19 +48,18 @@ export default function FeedScreen() {
     isFetchingNextPage,
     status,
     error,
-  } = useInfiniteQuery({
-    ...trpc.video.getInfinite.infiniteQueryOptions({
-      limit: 10,
-    }),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-  });
+  } = useInfiniteQuery(
+    trpc.video.getInfinite.infiniteQueryOptions(
+      { limit: 10 },
+      { initialCursor: 0, getNextPageParam: (lastPage) => lastPage.nextCursor },
+    ),
+  );
 
   // Flatten all pages into a single array of videos
 
   const videos = useMemo(
     () =>
-      data.pages.flatMap((page: { videos: VideoPost[] }) => page.videos),
+      data?.pages.flatMap((page: { videos: VideoPost[] }) => page.videos) ?? [],
     [data],
   );
 
