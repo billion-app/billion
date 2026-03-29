@@ -215,4 +215,4 @@ export const CreateVideoSchema = createInsertSchema(Video).omit({
   updatedAt: true,
 });
 
-export * from "./auth-schema.js";
+export * from "./auth-schema";

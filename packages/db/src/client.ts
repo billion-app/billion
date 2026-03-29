@@ -1,7 +1,7 @@
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { drizzle } from "drizzle-orm/node-postgres";
 
-import * as schema from "./schema.js";
+import * as schema from "./schema";
 
 let _db: NodePgDatabase<typeof schema> | null = null;
 
