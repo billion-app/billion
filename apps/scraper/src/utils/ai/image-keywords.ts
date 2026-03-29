@@ -21,7 +21,7 @@ export async function generateImageSearchKeywords(
 ): Promise<string> {
   try {
     const { text } = await generateText({
-      model: google('gemini-2.0-flash'),
+      model: google('gemini-2.5-flash'),
       prompt: `Given this ${type} title and content, generate 2-4 search keywords for finding relevant stock photos. Focus on concrete, visual, photographic concepts that would actually appear in news photography or documentary images.
 
 GOOD examples (specific, visual, photographic):

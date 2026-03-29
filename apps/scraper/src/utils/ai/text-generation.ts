@@ -18,7 +18,7 @@ export async function generateAISummary(
 ): Promise<string> {
   try {
     const { text } = await generateText({
-      model: google('gemini-2.0-flash'),
+      model: google('gemini-2.5-flash'),
       prompt: `Generate a concise, engaging summary (max 100 characters) for this government content. Focus on the key action or impact.
 
 Title: ${title}
@@ -55,7 +55,7 @@ export async function generateAIArticle(
     console.log(`Generating AI article for: ${title}`);
 
     const { text } = await generateText({
-      model: google('gemini-2.0-flash'),
+      model: google('gemini-2.5-flash'),
       prompt: `You are an expert at making government and legal content accessible and engaging for everyday people. Transform the following ${type} into a well-structured, markdown-formatted article.
 
 **Structure your article with these 4 sections:**
