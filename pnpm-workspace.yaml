@@ -18,7 +18,7 @@ catalog:
   eslint: ^10.1.0
   prettier: ^3.8.1
   tailwindcss: ^4.2.2
-  typescript: 6.0.2
+  typescript: 5.9.2
   zod: 4.3.6
 
 catalogs:
@@ -32,6 +32,12 @@ linkWorkspacePackages: true
 
 onlyBuiltDependencies:
   - esbuild
+
+peerDependencyRules:
+  allowedVersions:
+    # These plugins work with ESLint 10 but haven't updated their peer dep declarations yet
+    eslint-plugin-jsx-a11y>eslint: '10'
+    eslint-plugin-react>eslint: '10'
 
 overrides:
   '@types/minimatch': 5.1.2

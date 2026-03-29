@@ -3,7 +3,7 @@
 import * as path from "node:path";
 import { includeIgnoreFile } from "@eslint/compat";
 import eslint from "@eslint/js";
-import importPlugin from "eslint-plugin-import";
+import importPlugin from "eslint-plugin-import-x";
 import turboPlugin from "eslint-plugin-turbo";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
@@ -45,7 +45,7 @@ export const baseConfig = defineConfig(
   {
     files: ["**/*.js", "**/*.ts", "**/*.tsx"],
     plugins: {
-      import: importPlugin,
+      "import-x": importPlugin,
       turbo: turboPlugin,
     },
     extends: [
@@ -75,7 +75,7 @@ export const baseConfig = defineConfig(
         },
       ],
       "@typescript-eslint/no-non-null-assertion": "error",
-      "import/consistent-type-specifier-style": ["error", "prefer-top-level"],
+      "import-x/consistent-type-specifier-style": ["error", "prefer-top-level"],
     },
   },
   {
