@@ -13,9 +13,13 @@ COPY tooling/typescript/package.json ./tooling/typescript/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY tooling/typescript ./tooling/typescript
-COPY apps/scraper/src ./apps/scraper/src
-COPY apps/scraper/tsconfig.json ./apps/scraper/tsconfig.json
 COPY packages/db/src ./packages/db/src
+COPY packages/db/tsconfig.json ./packages/db/tsconfig.json
+WORKDIR /app/packages/db
+RUN pnpm exec tsc --emitDeclarationOnly false --module NodeNext --moduleResolution NodeNext
+
+COPY apps/scraper/src /app/apps/scraper/src
+COPY apps/scraper/tsconfig.json /app/apps/scraper/tsconfig.json
 WORKDIR /app/apps/scraper
 RUN pnpm run build
 
@@ -33,6 +37,7 @@ COPY packages/db/package.json ./packages/db/package.json
 RUN echo "enable-pre-post-scripts=true" >> .npmrc && pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/apps/scraper/dist ./apps/scraper/dist
+COPY --from=builder /app/packages/db/dist ./packages/db/dist
 
 WORKDIR /app/apps/scraper
 CMD ["pnpm", "run", "start:prod"]
