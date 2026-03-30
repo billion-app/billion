@@ -42,3 +42,12 @@ export interface ExistingRecordCheck {
   hasArticle: boolean;
   hasThumbnail: boolean;
 }
+
+// Content type union for unified upsert
+export type ContentType = "bill" | "government_content" | "court_case";
+
+// Scraper interface for the runner
+export interface Scraper {
+  name: string;
+  scrape: () => Promise<void>;
+}
