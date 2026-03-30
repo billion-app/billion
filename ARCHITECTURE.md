@@ -121,7 +121,11 @@ Next.js at port 3000 serves both the web frontend and the tRPC API. The Expo app
 | `whitehouse.ts` | whitehouse.gov | Government content (EOs, memoranda, briefings) |
 | `scotus.ts` | Supreme Court | Court cases |
 
-All scrapers use [Crawlee](https://crawlee.dev/) for HTTP crawling. Scrapers are run individually or all at once via CLI: `pnpm scrape [govtrack|whitehouse|congress|scotus|all]`.
+The HTML scrapers (govtrack, whitehouse) use `fetch` + [cheerio](https://cheerio.js.org/) for page fetching and DOM parsing. The API scrapers (congress, scotus) use `fetch` against official REST APIs. All four share a `fetchWithRetry()` utility with exponential backoff, `Retry-After` support, and configurable timeout. A unified `upsertContent(type, data)` function handles the DB write + AI generation pipeline for all content types via a discriminated union.
+
+Scrapers are run individually or all at once via CLI: `pnpm start:dev [govtrack|whitehouse|congressgov|scotus|all]`.
+
+**Why custom fetch+cheerio instead of Crawlee?** Crawlee pulled in Playwright and Apify's storage layer — heavy dependencies for what amounted to "fetch HTML, parse with CSS selectors, follow some links." Two of four scrapers used REST APIs directly and didn't need Crawlee at all. The retry logic, which is the only non-trivial part, is ~60 lines in `fetchWithRetry()`. Less to learn, less to debug, unified patterns across all scrapers.
 
 ### Upsert + Change Detection
 
@@ -193,3 +197,4 @@ Both apps share design tokens from `tooling/tailwind/theme.css` and `packages/ui
 | AI text model | Gemini 2.5 Flash | GPT-4o, Claude | Cost/quality ratio; structured output support via Vercel AI SDK |
 | Image storage | bytea in Postgres | S3/R2 object storage | Simpler for now; object storage is the right move at scale |
 | Scraper DB access | Direct Drizzle | tRPC mutations | No benefit to HTTP overhead for a trusted server process |
+| Scraper framework | Custom fetch+cheerio | Crawlee | Crawlee pulled in Playwright + Apify storage for a pattern that's ~60 lines of fetch+retry. Two of four scrapers use REST APIs and didn't need it at all |
