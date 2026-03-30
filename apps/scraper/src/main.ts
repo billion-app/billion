@@ -6,8 +6,6 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
-import { Configuration } from "crawlee";
-
 import { scrapeCongress } from "./scrapers/congress.js";
 // Import scrapers AFTER env is loaded (they import db which needs POSTGRES_URL)
 import { scrapeGovTrack } from "./scrapers/govtrack.js";
@@ -22,11 +20,6 @@ dotenv.config({ path: join(__dirname, "../../../.env") });
 dotenv.config({ path: join(__dirname, "../.env") });
 
 async function main() {
-  // Disable system info snapshots — the `ps` command isn't available in
-  // minimal Docker containers (e.g. Render), which causes ENOENT crashes.
-  const config = Configuration.getGlobalConfig();
-  config.set("systemInfoIntervalMillis", 0);
-
   console.log("Starting government data scrapers...\n");
 
   const args = process.argv.slice(2);
