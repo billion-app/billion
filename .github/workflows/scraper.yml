@@ -1,0 +1,35 @@
+name: Scraper
+
+on:
+  schedule:
+    # Daily at 8am UTC (midnight PST / 1am PDT)
+    - cron: "0 8 * * *"
+  workflow_dispatch: # Allow manual runs
+
+concurrency:
+  group: scraper
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+      CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
+      COURTLISTENER_API_KEY: ${{ secrets.COURTLISTENER_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      GOOGLE_SEARCH_ENGINE_ID: ${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Install Playwright
+        run: pnpm --filter @acme/scraper exec playwright install --with-deps chromium
+
+      - name: Run scrapers
+        run: pnpm --filter @acme/scraper start:dev
