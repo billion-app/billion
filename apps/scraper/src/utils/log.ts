@@ -9,7 +9,3 @@ export function log(scraper: string, message: string): void {
 export function logError(scraper: string, message: string, error?: unknown): void {
   console.error(`[${timestamp()}] [${scraper}] ERROR: ${message}`, error ?? "");
 }
-
-export function logWarn(scraper: string, message: string): void {
-  console.warn(`[${timestamp()}] [${scraper}] WARN: ${message}`);
-}

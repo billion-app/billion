@@ -134,11 +134,11 @@ export async function upsertContent(input: ContentData) {
 
   if (existingDescription) {
     description = existingDescription;
-  } else if (shouldGenerateArticle && fullText) {
+  } else if (shouldGenerateArticle && (fullText || (input.type === "bill" && input.data.summary))) {
     const summarySource =
       input.type === "bill"
         ? input.data.summary || input.data.fullText || ""
-        : fullText;
+        : fullText!;
     console.log(`Generating AI summary for ${label}`);
     description = await generateAISummary(title, summarySource);
   }
@@ -179,7 +179,7 @@ export async function upsertContent(input: ContentData) {
     console.log(`Using existing thumbnail for ${label}`);
   }
 
-  let result: any;
+  let result: { id: string; thumbnailUrl: string | null } | undefined;
 
   if (input.type === "bill") {
     const d = input.data;
@@ -223,6 +223,7 @@ export async function upsertContent(input: ContentData) {
       .insert(GovernmentContent)
       .values({
         ...d,
+        description: description ?? d.description,
         aiGeneratedArticle: aiGeneratedArticle || undefined,
         thumbnailUrl:
           thumbnailUrl === undefined ? undefined : thumbnailUrl || undefined,
@@ -235,7 +236,7 @@ export async function upsertContent(input: ContentData) {
           title: d.title,
           type: d.type,
           publishedDate: d.publishedDate,
-          description: d.description,
+          description: description ?? d.description,
           fullText: d.fullText,
           ...(aiGeneratedArticle !== undefined && { aiGeneratedArticle }),
           ...(thumbnailUrl !== undefined && {
@@ -304,25 +305,4 @@ export async function upsertContent(input: ContentData) {
   }
 
   return result;
-}
-
-export async function upsertPresidentialAction(actionData: {
-  title: string;
-  type: string;
-  issuedDate?: Date;
-  publishedDate?: Date;
-  description?: string;
-  fullText?: string;
-  url: string;
-  source?: string;
-}) {
-  return upsertContent({
-    type: "government_content",
-    data: {
-      ...actionData,
-      publishedDate:
-        actionData.publishedDate || actionData.issuedDate || new Date(),
-      source: actionData.source || "whitehouse.gov",
-    },
-  });
 }
