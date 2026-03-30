@@ -2,21 +2,19 @@
   "name": "@acme/scraper",
   "version": "0.0.1",
   "type": "module",
-  "description": "This is an example of a Crawlee project.",
+  "description": "Government data scraper for Billion app",
   "dependencies": {
     "@acme/db": "workspace:*",
     "@ai-sdk/google": "^3.0.53",
     "ai": "^6.0.141",
-    "crawlee": "^3.16.0",
+    "cheerio": "^1.2.0",
     "dotenv": "^17.3.1",
     "openai": "^6.33.0",
-    "playwright": "^1.58.2",
     "sharp": "^0.34.5",
     "turndown": "^7.2.2",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@apify/tsconfig": "^0.1.1",
     "@types/node": "^25.5.0",
     "@types/turndown": "^5.0.6",
     "tsx": "^4.21.0",
