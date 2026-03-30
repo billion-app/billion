@@ -80,6 +80,8 @@ The `video` table is a derived feed layer — one row per content item, with a p
 
 The API is implemented as a [tRPC v11](https://trpc.io/) router in `packages/api/`, served by Next.js at `/api/trpc`.
 
+Because the mobile app can't access the database directly (no TCP sockets in React Native — see [why below](#expo-mobile)), tRPC serves as the RPC layer that lets the phone call server-side database operations over HTTP.
+
 tRPC was chosen because:
 
 - **End-to-end type safety without a schema file.** The router's input/output types flow directly to both the Next.js server components and the Expo client. There's no OpenAPI spec to maintain, no codegen to run, no type drift between client and server.
