@@ -1,340 +1,465 @@
 import Link from "next/link";
 import { WaitlistForm } from "./_components/waitlist-form";
 
-const SAMPLE_ITEMS = [
-  {
-    type: "BILL",
-    color: "#4A7CFF",
-    title: "H.R. 1892 — American Infrastructure Reinvestment Act",
-    preview:
-      "Allocates $480 billion toward highway reconstruction, broadband expansion, and clean energy grid modernization across all 50 states.",
-    meta: "Sponsored by Rep. Torres · House Transportation Committee",
-    date: "Mar 24, 2026",
-  },
-  {
-    type: "ORDER",
-    color: "#6366F1",
-    title: "Executive Order 14201 — Reforming Federal AI Procurement",
-    preview:
-      "Requires all federal agencies to conduct bias audits before deploying AI systems, and establishes the Office of Algorithmic Accountability.",
-    meta: "White House · Office of Science and Technology Policy",
-    date: "Mar 21, 2026",
-  },
-  {
-    type: "CASE",
-    color: "#0891B2",
-    title: "Chen v. Department of Education — 9th Circuit",
-    preview:
-      "Three-judge panel hears arguments on whether student loan servicer data-sharing agreements violate federal privacy statutes.",
-    meta: "9th Circuit Court of Appeals · Oral arguments heard",
-    date: "Mar 19, 2026",
-  },
-];
+// ── Color constants matching the Svelte design ──────────────────────────────
+const C = {
+  deepNavy: "#0e1530",
+  slate: "#272d3c",
+  bill: "#4a7cff",
+  executive: "#6366f1",
+  case: "#0891b2",
+  general: "#8a8fa0",
+  border: "rgba(255,255,255,0.08)",
+  borderFocus: "rgba(255,255,255,0.3)",
+  success: "#10b981",
+  error: "#ef4444",
+};
 
+// ── Badge ────────────────────────────────────────────────────────────────────
 function Badge({ type, color }: { type: string; color: string }) {
   return (
     <span
-      className="inline-block rounded-[6px] px-3 py-1 text-[11px] font-medium tracking-[0.6px] text-white uppercase"
-      style={{ backgroundColor: color }}
+      className="inline-flex items-center rounded-[6px] px-[10px] text-[11px] font-medium tracking-[0.06em] uppercase text-white"
+      style={{ backgroundColor: color, height: 24 }}
     >
       {type}
     </span>
   );
 }
 
-function ContentCard({ item }: { item: (typeof SAMPLE_ITEMS)[number] }) {
+// ── Hero content cards ───────────────────────────────────────────────────────
+const HERO_CARDS = [
+  {
+    type: "BILL",
+    color: C.bill,
+    title: "H.R. 4312: National Housing Stabilization Act",
+    preview: "What changed in committee, who supports it, and what it means for your state.",
+    meta: "Congress.gov · Passed Committee",
+    time: "2h ago",
+    opacity: 1,
+  },
+  {
+    type: "CASE",
+    color: C.case,
+    title: "U.S. v. Westfield Utilities",
+    preview: "Majority and dissent logic, plain language, side by side.",
+    meta: "U.S. Court of Appeals, 9th Circuit",
+    time: "5h ago",
+    opacity: 1,
+  },
+  {
+    type: "ORDER",
+    color: C.executive,
+    title: "E.O. 14192: Department of Government Efficiency",
+    preview: "What it authorizes, which agencies are affected, and open legal challenges.",
+    meta: "",
+    time: "8h ago",
+    opacity: 0.7,
+  },
+];
+
+function HeroCard({ card }: { card: (typeof HERO_CARDS)[number] }) {
   return (
-    <article
-      className="group relative flex flex-col gap-3 rounded-2xl p-6 transition-transform duration-200 ease-out hover:-translate-y-0.5"
+    <div
+      className="rounded-[14px] p-5"
       style={{
-        backgroundColor: "#272D3C",
-        border: "1px solid rgba(255,255,255,0.06)",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+        backgroundColor: C.slate,
+        border: `1px solid ${C.border}`,
+        borderLeft: `3px solid ${card.color}`,
+        opacity: card.opacity,
       }}
     >
-      <div
-        className="absolute top-0 left-0 h-full w-[3px] rounded-l-2xl opacity-70"
-        style={{ backgroundColor: item.color }}
-      />
-      <Badge type={item.type} color={item.color} />
-      <h3
-        className="text-[17px] leading-snug font-bold text-white"
-        style={{
-          fontFamily: "var(--font-inria-serif), 'Times New Roman', serif",
-        }}
-      >
-        {item.title}
-      </h3>
-      <p
-        className="text-[15px] leading-relaxed"
-        style={{ color: "rgba(255,255,255,0.72)" }}
-      >
-        {item.preview}
-      </p>
-      <div className="mt-1 flex items-center justify-between">
-        <span className="text-[13px]" style={{ color: "#8A8FA0" }}>
-          {item.meta}
-        </span>
-        <span className="text-[13px]" style={{ color: "#8A8FA0" }}>
-          {item.date}
+      <div className="mb-[10px] flex items-center justify-between">
+        <Badge type={card.type} color={card.color} />
+        <span className="text-[12px]" style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}>
+          {card.time}
         </span>
       </div>
-    </article>
+      <h3
+        className="mb-2 text-[1.1rem] font-normal leading-[1.35] text-white"
+        style={{ fontFamily: "var(--font-inria-serif), 'Times New Roman', serif" }}
+      >
+        {card.title}
+      </h3>
+      <p className="mb-[10px] text-[14px] leading-[1.5]" style={{ color: C.general }}>
+        {card.preview}
+      </p>
+      {card.meta && (
+        <p className="m-0 text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+          {card.meta}
+        </p>
+      )}
+    </div>
   );
 }
 
+// ── Page ─────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   return (
-    <main
-      className="min-h-screen"
-      style={{ backgroundColor: "#0E1530", color: "#FFFFFF" }}
-    >
-      {/* Nav */}
+    <main className="min-h-screen" style={{ backgroundColor: C.deepNavy, color: "#fff" }}>
+
+      {/* ── NAV ────────────────────────────────────────────────────── */}
       <nav
-        className="sticky top-0 z-50 flex items-center justify-between px-8 py-5"
-        style={{
-          backgroundColor: "rgba(14,21,48,0.92)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-        }}
+        className="flex items-center justify-between px-6 py-5"
+        style={{ maxWidth: 1120, margin: "0 auto" }}
       >
         <span
-          className="text-[22px] font-bold tracking-tight text-white"
+          className="text-[22px] font-bold tracking-[-0.02em] text-white"
           style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
         >
           Billion
         </span>
-        <div className="flex items-center gap-6">
-          <Link
-            href="#how-it-works"
-            className="text-[14px] font-medium transition-opacity duration-150 hover:opacity-100"
-            style={{
-              color: "rgba(255,255,255,0.6)",
-              fontFamily: "var(--font-albert-sans)",
-            }}
-          >
-            How it works
-          </Link>
-          <a
-            href="#early-access"
-            className="rounded-full px-5 py-2 text-[14px] font-medium text-black transition-opacity duration-150 hover:opacity-90"
-            style={{
-              backgroundColor: "#FFFFFF",
-              fontFamily: "var(--font-albert-sans)",
-            }}
-          >
-            Get early access
-          </a>
-        </div>
+        <Link
+          href="#waitlist"
+          className="text-[15px] font-medium transition-colors duration-150 hover:text-white"
+          style={{ color: "rgba(255,255,255,0.6)", fontFamily: "var(--font-albert-sans)", textDecoration: "none" }}
+        >
+          Get Early Access
+        </Link>
       </nav>
 
-      {/* Hero */}
+      {/* ── HERO ───────────────────────────────────────────────────── */}
       <section
-        className="relative overflow-hidden px-8 pt-24 pb-28 text-center"
-        style={{
-          background: "linear-gradient(180deg, #0E1530 0%, #141c3a 100%)",
-        }}
+        className="mx-auto grid grid-cols-1 gap-10 px-6 pb-[4.5rem] pt-12 md:grid-cols-[1.1fr_0.9fr] md:items-center md:pb-20 md:pt-14"
+        style={{ maxWidth: 1120, animation: "fadeUp 0.6s cubic-bezier(0.25,0.1,0.25,1) both" }}
       >
-        {/* Decorative rule */}
+        {/* Left — text */}
+        <div style={{ maxWidth: 580 }}>
+          <p
+            className="mb-[14px] text-[12px] font-medium uppercase tracking-[0.1em]"
+            style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
+          >
+            AI Civic Intelligence
+          </p>
+          <h1
+            className="mb-6 font-bold leading-[1.15] tracking-[-0.02em] text-white"
+            style={{
+              fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
+              fontSize: "clamp(2.2rem, 5vw, 3.75rem)",
+            }}
+          >
+            Know what government is doing before it changes your life.
+          </h1>
+          <p
+            className="mb-7 text-[18px] leading-[1.6]"
+            style={{ color: C.general, maxWidth: "52ch", fontFamily: "var(--font-albert-sans)" }}
+          >
+            Bills, court cases, and executive actions — explained clearly, linked to the source.
+          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link
+              href="#waitlist"
+              className="inline-flex h-[52px] cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-none bg-white px-7 text-[16px] font-medium text-black transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.98]"
+              style={{ fontFamily: "var(--font-albert-sans)", textDecoration: "none" }}
+            >
+              Get Early Access
+            </Link>
+            <Link
+              href="#approach"
+              className="inline-flex h-[52px] items-center justify-center px-1 text-[16px] font-medium transition-colors duration-150 hover:text-white"
+              style={{ color: "rgba(255,255,255,0.6)", fontFamily: "var(--font-albert-sans)", textDecoration: "none" }}
+            >
+              See How It Works
+            </Link>
+          </div>
+        </div>
+
+        {/* Right — cards */}
         <div
-          className="mx-auto mb-10 h-px w-16"
-          style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
-        />
-
-        <p
-          className="mb-4 text-[13px] font-medium tracking-[1.4px] uppercase"
-          style={{ color: "#8A8FA0", fontFamily: "var(--font-albert-sans)" }}
+          className="relative flex max-h-[480px] flex-col gap-3 overflow-hidden"
+          style={{ animation: "fadeUp 0.6s cubic-bezier(0.25,0.1,0.25,1) 0.15s both" }}
+          aria-label="Billion content preview"
         >
-          Civic intelligence for every American
+          {HERO_CARDS.map((card) => (
+            <HeroCard key={card.title} card={card} />
+          ))}
+          {/* fade mask */}
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[100px]"
+            style={{ background: `linear-gradient(to top, ${C.deepNavy}, transparent)` }}
+            aria-hidden="true"
+          />
+        </div>
+      </section>
+
+      {/* ── PROBLEM ────────────────────────────────────────────────── */}
+      <section
+        className="mx-auto grid grid-cols-1 gap-8 px-6 py-14 md:grid-cols-2 md:items-start md:gap-16 md:py-[4.5rem]"
+        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+      >
+        <div>
+          <p
+            className="mb-[14px] text-[12px] font-medium uppercase tracking-[0.1em]"
+            style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
+          >
+            The Problem
+          </p>
+          <h2
+            className="m-0 font-normal leading-[1.18] tracking-[-0.01em] text-white"
+            style={{
+              fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
+              fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)",
+            }}
+          >
+            Public information exists.<br />Public understanding doesn't.
+          </h2>
+        </div>
+        <p
+          className="m-0 pt-1 text-[18px] leading-[1.65] md:pt-2"
+          style={{ color: "rgba(255,255,255,0.75)", fontFamily: "var(--font-albert-sans)" }}
+        >
+          Most people hear about policy through headlines, not source material. Billion closes that gap.
         </p>
+      </section>
 
-        <h1
-          className="mx-auto max-w-3xl text-[clamp(2.6rem,5.5vw,4.2rem)] leading-[1.15] font-bold tracking-[-0.01em] text-white"
-          style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
-        >
-          Your government, <em>understood.</em>
-        </h1>
-
-        <p
-          className="mx-auto mt-6 max-w-xl text-[18px] leading-relaxed"
+      {/* ── APPROACH ───────────────────────────────────────────────── */}
+      <section
+        id="approach"
+        className="mx-auto px-6 py-14 md:py-[4.5rem]"
+        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+      >
+        <h2
+          className="m-0 text-center font-normal leading-[1.18] tracking-[-0.01em] text-white"
           style={{
-            color: "rgba(255,255,255,0.65)",
-            fontFamily: "var(--font-albert-sans)",
+            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
+            fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)",
           }}
         >
-          Bills. Executive orders. Court cases. Billion surfaces what your
-          government is doing — in plain language, from every angle.
-        </p>
+          One civic feed.<br />Three source systems.
+        </h2>
 
-        <div className="mt-10 flex flex-col items-center gap-4">
-          <WaitlistForm />
-          <a
-            href="#how-it-works"
-            className="text-[15px] font-medium transition-opacity duration-150 hover:opacity-100"
+        <div className="mt-10 grid grid-cols-1 gap-[14px] md:grid-cols-[1.5fr_1fr_1fr]">
+          {/* Bill */}
+          <div
+            className="rounded-[14px] p-7"
             style={{
-              color: "rgba(255,255,255,0.6)",
-              fontFamily: "var(--font-albert-sans)",
-              textDecoration: "underline",
-              textUnderlineOffset: "3px",
+              backgroundColor: C.slate,
+              border: `1px solid ${C.border}`,
+              borderTop: `2px solid ${C.bill}`,
             }}
           >
-            See how it works
-          </a>
-        </div>
-
-        <div
-          className="mx-auto mt-10 h-px w-16"
-          style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
-        />
-      </section>
-
-      {/* Sample feed */}
-      <section className="px-8 pb-24">
-        <div className="mx-auto max-w-2xl">
-          <p
-            className="mb-6 text-[12px] font-medium tracking-[1px] uppercase"
-            style={{ color: "#8A8FA0", fontFamily: "var(--font-albert-sans)" }}
-          >
-            Today's briefing — sample
-          </p>
-          <div className="flex flex-col gap-4">
-            {SAMPLE_ITEMS.map((item) => (
-              <ContentCard key={item.title} item={item} />
-            ))}
+            <Badge type="BILL" color={C.bill} />
+            <h3
+              className="mb-[10px] mt-[14px] text-[1.25rem] font-bold leading-[1.3] text-white"
+              style={{ fontFamily: "var(--font-inria-serif), 'Times New Roman', serif" }}
+            >
+              Congressional Legislation
+            </h3>
+            <p className="m-0 text-[15px] leading-[1.6]" style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}>
+              Tracks sponsorship, status, and text changes. Explainers generate when source content changes — not on a schedule.
+            </p>
+            <p
+              className="mb-0 mt-4 text-[12px] font-medium"
+              style={{ color: C.bill, opacity: 0.85, fontFamily: "var(--font-albert-sans)" }}
+            >
+              4,392 bills tracked in the current Congress
+            </p>
           </div>
-          <p
-            className="mt-6 text-center text-[14px]"
+
+          {/* Order */}
+          <div
+            className="rounded-[14px] p-7"
             style={{
-              color: "rgba(255,255,255,0.35)",
-              fontFamily: "var(--font-albert-sans)",
+              backgroundColor: C.slate,
+              border: `1px solid ${C.border}`,
+              borderTop: `2px solid ${C.executive}`,
             }}
           >
-            Updated continuously · Every piece links to the original source
-          </p>
-        </div>
-      </section>
+            <Badge type="ORDER" color={C.executive} />
+            <h3
+              className="mb-[10px] mt-[14px] text-[1.25rem] font-bold leading-[1.3] text-white"
+              style={{ fontFamily: "var(--font-inria-serif), 'Times New Roman', serif" }}
+            >
+              Executive Actions
+            </h3>
+            <p className="m-0 text-[15px] leading-[1.6]" style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}>
+              Orders, memoranda, and proclamations pulled directly from official White House publications.
+            </p>
+          </div>
 
-      {/* How it works */}
-      <section
-        id="how-it-works"
-        className="border-t px-8 py-24"
-        style={{ borderColor: "rgba(255,255,255,0.06)" }}
-      >
-        <div className="mx-auto max-w-3xl">
-          <h2
-            className="mb-16 text-[clamp(1.6rem,3vw,2.2rem)] leading-tight font-bold text-white"
-            style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
+          {/* Case */}
+          <div
+            className="rounded-[14px] p-7"
+            style={{
+              backgroundColor: C.slate,
+              border: `1px solid ${C.border}`,
+              borderTop: `2px solid ${C.case}`,
+            }}
           >
-            Information that exists.
-            <br />
-            <em className="opacity-60">Access that hasn't — until now.</em>
-          </h2>
-
-          <div className="grid gap-10 sm:grid-cols-3">
-            {[
-              {
-                label: "01",
-                heading: "We track the source",
-                body: "Bills from Congress.gov. Executive orders from the White House. Federal court filings. All updated the moment they change.",
-              },
-              {
-                label: "02",
-                heading: "AI makes it readable",
-                body: "Dense legal language becomes plain summaries, explainers, and dual-perspective analysis — with the original always one tap away.",
-              },
-              {
-                label: "03",
-                heading: "You stay informed",
-                body: "A daily briefing tailored to your interests. No algorithm gaming. No partisan spin. Just what's actually happening.",
-              },
-            ].map((step) => (
-              <div key={step.label} className="flex flex-col gap-3">
-                <span
-                  className="text-[12px] font-medium tracking-[1px]"
-                  style={{
-                    color: "#4A7CFF",
-                    fontFamily: "var(--font-albert-sans)",
-                  }}
-                >
-                  {step.label}
-                </span>
-                <h3
-                  className="text-[18px] font-bold text-white"
-                  style={{
-                    fontFamily:
-                      "var(--font-inria-serif), 'Times New Roman', serif",
-                  }}
-                >
-                  {step.heading}
-                </h3>
-                <p
-                  className="text-[15px] leading-relaxed"
-                  style={{
-                    color: "rgba(255,255,255,0.6)",
-                    fontFamily: "var(--font-albert-sans)",
-                  }}
-                >
-                  {step.body}
-                </p>
-              </div>
-            ))}
+            <Badge type="CASE" color={C.case} />
+            <h3
+              className="mb-[10px] mt-[14px] text-[1.25rem] font-bold leading-[1.3] text-white"
+              style={{ fontFamily: "var(--font-inria-serif), 'Times New Roman', serif" }}
+            >
+              Federal Court Cases
+            </h3>
+            <p className="m-0 text-[15px] leading-[1.6]" style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}>
+              Filings and decisions surfaced with plain-language analysis and timeline context.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* ── DUAL LENS ──────────────────────────────────────────────── */}
       <section
-        id="early-access"
-        className="border-t px-8 py-28 text-center"
-        style={{
-          borderColor: "rgba(255,255,255,0.06)",
-          background: "linear-gradient(180deg, #0E1530 0%, #272D3C 100%)",
-        }}
+        className="mx-auto px-6 py-14 md:py-[4.5rem]"
+        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
       >
-        <p
-          className="mb-3 text-[13px] font-medium tracking-[1.2px] uppercase"
-          style={{ color: "#8A8FA0", fontFamily: "var(--font-albert-sans)" }}
-        >
-          Early access
-        </p>
         <h2
-          className="mx-auto mb-6 max-w-lg text-[clamp(1.8rem,4vw,2.8rem)] leading-tight font-bold text-white"
-          style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
+          className="m-0 text-center font-normal leading-[1.18] tracking-[-0.01em] text-white"
+          style={{
+            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
+            fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)",
+          }}
         >
-          A well-informed people.
+          Two readings.<br />Every topic.
         </h2>
         <p
-          className="mx-auto mb-10 max-w-sm text-[16px] leading-relaxed"
+          className="mx-auto mb-0 mt-[14px] text-center text-[18px] leading-[1.6]"
+          style={{ color: C.general, maxWidth: "52ch", fontFamily: "var(--font-albert-sans)" }}
+        >
+          Billion surfaces analysis from across the political spectrum — side by side, transparently labeled, never merged into a false middle.
+        </p>
+
+        <div className="mt-8 grid grid-cols-1 gap-[14px] md:grid-cols-2">
+          {/* Institutional Lens */}
+          <div
+            className="relative rounded-[14px] p-8"
+            style={{
+              backgroundColor: C.slate,
+              border: `1px solid ${C.border}`,
+              borderTop: `2px solid ${C.executive}`,
+            }}
+          >
+            <p
+              className="m-0 mb-[18px] text-[11px] font-medium uppercase tracking-[0.1em]"
+              style={{ color: C.executive, fontFamily: "var(--font-albert-sans)" }}
+            >
+              Institutional Lens
+            </p>
+            <blockquote
+              className="m-0 mb-4 border-none p-0 text-[1.15rem] font-normal leading-[1.45] text-white"
+              style={{ fontFamily: "var(--font-inria-serif), 'Times New Roman', serif" }}
+            >
+              "Expanding federal housing mandates risks crowding out private investment and local zoning authority."
+            </blockquote>
+            <p className="mb-5 m-0 text-[15px] leading-[1.6]" style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}>
+              Frames policy around institutional stability, federalism, and legal precedent established by prior congresses.
+            </p>
+            <p className="m-0 text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-albert-sans)" }}>
+              Re: H.R. 4312 · Institute for Housing Policy Research
+            </p>
+          </div>
+
+          {/* Impact Lens */}
+          <div
+            className="relative rounded-[14px] p-8"
+            style={{
+              backgroundColor: "rgba(74,124,255,0.05)",
+              border: `1px solid ${C.border}`,
+              borderTop: `2px solid ${C.bill}`,
+            }}
+          >
+            <p
+              className="m-0 mb-[18px] text-[11px] font-medium uppercase tracking-[0.1em]"
+              style={{ color: C.bill, fontFamily: "var(--font-albert-sans)" }}
+            >
+              Impact Lens
+            </p>
+            <blockquote
+              className="m-0 mb-4 border-none p-0 text-[1.15rem] font-normal leading-[1.45] text-white"
+              style={{ fontFamily: "var(--font-inria-serif), 'Times New Roman', serif" }}
+            >
+              "40 million Americans lack stable housing — federal intervention is the only mechanism at scale."
+            </blockquote>
+            <p className="mb-5 m-0 text-[15px] leading-[1.6]" style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}>
+              Frames policy around impact on households, local economies, and the civil liberties of renters and low-income communities.
+            </p>
+            <p className="m-0 text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-albert-sans)" }}>
+              Re: H.R. 4312 · National Housing Justice Coalition
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── BRADBURY ───────────────────────────────────────────────── */}
+      <section
+        className="mx-auto px-6 py-14 text-center md:py-[4.5rem]"
+        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+      >
+        <h2
+          className="mx-auto mb-5 font-normal leading-[1.2] tracking-[-0.01em] text-white"
           style={{
-            color: "rgba(255,255,255,0.55)",
-            fontFamily: "var(--font-albert-sans)",
+            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
+            fontSize: "clamp(2rem, 4vw, 3.5rem)",
+            maxWidth: "18ch",
           }}
         >
-          Join the waitlist. We're launching on iOS and Android.
+          Every summary should lead to{" "}
+          <em className="italic">deeper reading.</em>
+        </h2>
+        <p
+          className="mx-auto mb-7 text-[18px] leading-[1.7]"
+          style={{ color: C.general, maxWidth: "48ch", fontFamily: "var(--font-albert-sans)" }}
+        >
+          We are not a summarization engine.<br /><br />
+          Every piece of content Billion produces functions as an invitation — to the bill text, the filing, the full decision. If you finish reading and feel like you've got the gist, we've failed.
+        </p>
+        <Link
+          href="#waitlist"
+          className="inline-flex h-[52px] cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-none bg-white px-7 text-[16px] font-medium text-black transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.98]"
+          style={{ fontFamily: "var(--font-albert-sans)", textDecoration: "none" }}
+        >
+          Explore the source
+        </Link>
+      </section>
+
+      {/* ── WAITLIST ───────────────────────────────────────────────── */}
+      <section
+        id="waitlist"
+        className="mx-auto px-6 py-14 text-center md:py-[4.5rem]"
+        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+      >
+        <p
+          className="mb-[14px] text-center text-[12px] font-medium uppercase tracking-[0.1em]"
+          style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
+        >
+          Early Access
+        </p>
+        <h2
+          className="mb-4 font-bold leading-[1.2] tracking-[-0.02em] text-white"
+          style={{
+            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
+            fontSize: "clamp(2rem, 4vw, 3.2rem)",
+          }}
+        >
+          Be first when Billion opens.
+        </h2>
+        <p
+          className="mx-auto mb-7 text-[18px] leading-[1.6]"
+          style={{ color: C.general, maxWidth: "44ch", fontFamily: "var(--font-albert-sans)" }}
+        >
+          Early access, updates, and pilot invites.
         </p>
         <WaitlistForm size="large" />
       </section>
 
-      {/* Footer */}
+      {/* ── FOOTER ─────────────────────────────────────────────────── */}
       <footer
-        className="border-t px-8 py-8"
-        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+        className="mx-auto flex items-center justify-between px-6 py-8"
+        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
       >
-        <div className="flex items-center justify-between">
-          <span
-            className="text-[15px] font-bold text-white"
-            style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
-          >
-            Billion
-          </span>
-          <p
-            className="text-[13px]"
-            style={{ color: "#8A8FA0", fontFamily: "var(--font-albert-sans)" }}
-          >
-            © 2026 Billion · All source links preserved
-          </p>
-        </div>
+        <span
+          className="text-[18px] font-bold"
+          style={{ color: "rgba(255,255,255,0.4)", fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
+        >
+          Billion
+        </span>
+        <p className="m-0 text-[13px]" style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-albert-sans)" }}>
+          © 2026 Billion. All rights reserved.
+        </p>
       </footer>
+
     </main>
   );
 }
