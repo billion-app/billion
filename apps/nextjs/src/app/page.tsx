@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WaitlistForm } from "./_components/waitlist-form";
 
 const SAMPLE_ITEMS = [
   {
@@ -115,7 +116,7 @@ export default function LandingPage() {
             How it works
           </Link>
           <a
-            href="#"
+            href="#early-access"
             className="rounded-full px-5 py-2 text-[14px] font-medium text-black transition-opacity duration-150 hover:opacity-90"
             style={{
               backgroundColor: "#FFFFFF",
@@ -165,17 +166,8 @@ export default function LandingPage() {
           government is doing — in plain language, from every angle.
         </p>
 
-        <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-          <a
-            href="#"
-            className="rounded-full px-8 py-3.5 text-[15px] font-medium text-black transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
-            style={{
-              backgroundColor: "#FFFFFF",
-              fontFamily: "var(--font-albert-sans)",
-            }}
-          >
-            Download the app
-          </a>
+        <div className="mt-10 flex flex-col items-center gap-4">
+          <WaitlistForm />
           <a
             href="#how-it-works"
             className="text-[15px] font-medium transition-opacity duration-150 hover:opacity-100"
@@ -292,6 +284,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section
+        id="early-access"
         className="border-t px-8 py-28 text-center"
         style={{
           borderColor: "rgba(255,255,255,0.06)",
@@ -319,16 +312,7 @@ export default function LandingPage() {
         >
           Join the waitlist. We're launching on iOS and Android.
         </p>
-        <a
-          href="#"
-          className="inline-block rounded-full px-10 py-4 text-[15px] font-medium text-black transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
-          style={{
-            backgroundColor: "#FFFFFF",
-            fontFamily: "var(--font-albert-sans)",
-          }}
-        >
-          Join the waitlist
-        </a>
+        <WaitlistForm size="large" />
       </section>
 
       {/* Footer */}
