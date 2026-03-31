@@ -2,9 +2,15 @@
 
 import { useState } from "react";
 
-export function WaitlistForm({ size = "default" }: { size?: "default" | "large" }) {
+export function WaitlistForm({
+  size = "default",
+}: {
+  size?: "default" | "large";
+}) {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,7 +51,13 @@ export function WaitlistForm({ size = "default" }: { size?: "default" | "large" 
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <circle cx="9" cy="9" r="9" fill="#4A7CFF" fillOpacity="0.2" />
-          <path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="#4A7CFF" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M5.5 9l2.5 2.5 4.5-4.5"
+            stroke="#4A7CFF"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
         <span
           className="text-[15px] font-medium"
@@ -58,7 +70,10 @@ export function WaitlistForm({ size = "default" }: { size?: "default" | "large" 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
+    >
       <div className="relative w-full sm:w-auto">
         <input
           type="email"
@@ -67,7 +82,7 @@ export function WaitlistForm({ size = "default" }: { size?: "default" | "large" 
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={status === "loading"}
-          className="w-full rounded-full border-0 px-5 outline-none transition-all duration-150 sm:w-72"
+          className="w-full rounded-full border-0 px-5 transition-all duration-150 outline-none sm:w-72"
           style={{
             backgroundColor: "rgba(255,255,255,0.08)",
             color: "#FFFFFF",
