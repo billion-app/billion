@@ -130,9 +130,9 @@ Next.js at port 3000 serves both the web frontend and the tRPC API. The Expo app
 | `govtrack.ts` | govtrack.us | Bills |
 | `congress.ts` | congress.gov | Bills |
 | `whitehouse.ts` | whitehouse.gov | Government content (EOs, memoranda, briefings) |
-| `scotus.ts` | Supreme Court | Court cases |
+| `scotus.ts` | CourtListener API (courtlistener.com) | Court cases |
 
-All scrapers use [Crawlee](https://crawlee.dev/) for HTTP crawling. Scrapers are run individually or all at once via CLI: `pnpm scrape [govtrack|whitehouse|congress|scotus|all]`.
+govtrack.ts and whitehouse.ts use Crawlee for HTML scraping. congress.ts uses the Congress.gov REST API directly via fetch(), and scotus.ts uses the CourtListener REST API - no HTML scraping for either. Scrapers are run individually or all at once via CLI: `pnpm scrape [govtrack|whitehouse|congress|scotus|all]`.
 
 ### Upsert + Change Detection
 
