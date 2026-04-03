@@ -42,3 +42,9 @@ export interface ExistingRecordCheck {
   hasArticle: boolean;
   hasThumbnail: boolean;
 }
+
+// Scraper interface for the runner
+export interface Scraper {
+  name: string;
+  scrape: () => Promise<void>;
+}
