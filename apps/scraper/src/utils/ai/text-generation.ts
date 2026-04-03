@@ -6,6 +6,26 @@
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
+export class AIRateLimitError extends Error {
+  constructor() {
+    super('Gemini rate limit hit — deferring AI generation to next run');
+    this.name = 'AIRateLimitError';
+  }
+}
+
+export let rateLimitHit = false;
+
+function isRateLimitError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes('429') ||
+    msg.includes('rate limit') ||
+    msg.includes('resource_exhausted') ||
+    msg.includes('quota')
+  );
+}
+
 /**
  * Generate a concise AI summary (max 100 characters)
  * @param title - Content title
@@ -16,6 +36,9 @@ export async function generateAISummary(
   title: string,
   content: string,
 ): Promise<string> {
+  if (rateLimitHit) {
+    throw new AIRateLimitError();
+  }
   try {
     const { text } = await generateText({
       model: google('gemini-2.5-flash'),
@@ -28,11 +51,13 @@ Content: ${content.substring(0, 2000)}
 Summary (max 100 characters):`,
     });
 
-    // Ensure it's under 100 characters
     return text.trim().substring(0, 100);
   } catch (error) {
+    if (isRateLimitError(error)) {
+      rateLimitHit = true;
+      throw new AIRateLimitError();
+    }
     console.error('Error generating AI summary:', error);
-    // Fallback to simple truncation
     return content.substring(0, 97) + '...';
   }
 }
@@ -51,6 +76,9 @@ export async function generateAIArticle(
   type: string,
   url: string,
 ): Promise<string> {
+  if (rateLimitHit) {
+    throw new AIRateLimitError();
+  }
   try {
     console.log(`Generating AI article for: ${title}`);
 
@@ -102,8 +130,11 @@ Write the article now using the 4-section structure above:`,
 
     return text.trim();
   } catch (error) {
+    if (isRateLimitError(error)) {
+      rateLimitHit = true;
+      throw new AIRateLimitError();
+    }
     console.error('Error generating AI article:', error);
-    // Return empty string on error - will fall back to fullText in UI
     return '';
   }
 }
