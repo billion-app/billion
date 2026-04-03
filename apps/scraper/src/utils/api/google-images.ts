@@ -52,14 +52,14 @@ export async function searchImages(
       return [];
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { items?: Array<{ link: string; title?: string; displayLink?: string; image?: { thumbnailLink?: string; contextLink?: string } }> };
 
     if (!data.items || data.items.length === 0) {
       console.log(`No images found for query: ${query}`);
       return [];
     }
 
-    return data.items.slice(0, count).map((item: any) => {
+    return data.items.slice(0, count).map((item) => {
       // Try to get the highest quality image available from Google's image object
       // Fall back to thumbnailLink if the original link doesn't work
       const imageUrl = item.image?.thumbnailLink || item.link;

@@ -1,44 +1,25 @@
-/**
- * Congress.gov Bill Scraper
- *
- * Uses the official Congress.gov REST API (api.congress.gov/v3/) instead of
- * HTML scraping. This gives us clean, structured JSON data for bills,
- * summaries, sponsors, and full-text links — no Cheerio, no CSS selectors,
- * no fragile DOM parsing.
- *
- * Requires: CONGRESS_API_KEY in your .env file.
- * Sign up free at: https://api.congress.gov/sign-up/
- */
-
+import { fetchWithRetry } from "../utils/fetch.js";
+import { log, logError } from "../utils/log.js";
 import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
-import { upsertBill } from "../utils/db/operations.js";
+import { upsertContent } from "../utils/db/operations.js";
+import type { Scraper } from "../utils/types.js";
 
 const BASE_URL = "https://api.congress.gov/v3";
-
-// ─── Config ──────────────────────────────────────────────────────────────────
+const NAME = "Congress.gov";
 
 interface CongressScraperConfig {
-  maxBills?: number;   // Default: 100
-  congress?: number;   // Default: 119
-  chamber?: "House" | "Senate"; // Default: "House"
-  /**
-   * @deprecated This option is ignored. Kept for backward compatibility with older callers.
-   */
-  maxRequests?: number;
+  maxBills?: number;
+  congress?: number;
+  chamber?: "House" | "Senate";
 }
 
-// ─── API response shapes (partial — only what we use) ────────────────────────
-
 interface ApiBillListItem {
-  number: string;           // e.g. "1234"
-  type: string;             // e.g. "HR", "S", "HJRES"
+  number: string;
+  type: string;
   title: string;
   congress: number;
-  url: string;              // Link back to this API resource
-  latestAction?: {
-    text: string;
-    actionDate: string;
-  };
+  url: string;
+  latestAction?: { text: string; actionDate: string };
 }
 
 interface ApiBillDetail {
@@ -55,37 +36,28 @@ interface ApiBillDetail {
       party: string;
       state: string;
     }>;
-    latestAction?: {
-      text: string;
-      actionDate: string;
-    };
+    latestAction?: { text: string; actionDate: string };
   };
 }
 
 interface ApiSummary {
   actionDate: string;
   actionDesc: string;
-  text: string;             // HTML-encoded summary text
+  text: string;
   updateDate: string;
 }
 
 interface ApiTextVersion {
-  type: string;             // e.g. "Introduced in House"
+  type: string;
   date: string | null;
-  formats: Array<{
-    type: string;           // "Formatted Text", "PDF", "Formatted XML"
-    url: string;
-  }>;
+  formats: Array<{ type: string; url: string }>;
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getApiKey(): string {
   const key = process.env.CONGRESS_API_KEY;
   if (!key) {
     throw new Error(
-      "CONGRESS_API_KEY is not set. Sign up at https://api.congress.gov/sign-up/ " +
-      "and add it to your .env file."
+      "CONGRESS_API_KEY is not set. Sign up at https://api.congress.gov/sign-up/",
     );
   }
   return key;
@@ -93,7 +65,7 @@ function getApiKey(): string {
 
 async function congressFetch<T>(
   path: string,
-  params: Record<string, string | number> = {}
+  params: Record<string, string | number> = {},
 ): Promise<T> {
   const apiKey = getApiKey();
   const url = new URL(`${BASE_URL}${path}`);
@@ -103,58 +75,10 @@ async function congressFetch<T>(
     url.searchParams.set(k, String(v));
   }
 
-  // Basic network hardening: per-request timeout + limited retries for transient errors.
-  const timeoutMs = 30_000; // 30 seconds
-  const maxRetries = 3;
-
-  let attempt = 0;
-  // Exponential backoff: 1s, 2s, 4s between retries (for 429/5xx only).
-  while (true) {
-    attempt += 1;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      const res = await fetch(url.toString(), { signal: controller.signal });
-
-      if (res.ok) {
-        return res.json() as Promise<T>;
-      }
-
-      // Retry on transient errors (rate limits / server errors) up to maxRetries.
-      const isRetriableStatus =
-        res.status === 429 || (res.status >= 500 && res.status < 600);
-
-      if (isRetriableStatus && attempt < maxRetries) {
-        const backoffMs = 1000 * Math.pow(2, attempt - 1);
-        await new Promise((resolve) => setTimeout(resolve, backoffMs));
-        continue;
-      }
-
-      // Non-retriable error or retries exhausted: surface full error text.
-      throw new Error(
-        `Congress API ${path} → HTTP ${res.status}: ${await res.text()}`
-      );
-    } catch (err: unknown) {
-      // If the request was aborted due to timeout, surface a clear message.
-      if (
-        err instanceof Error &&
-        (err.name === "AbortError" ||
-          // Some environments use a different error name/message for aborted fetches.
-          err.message.toLowerCase().includes("aborted"))
-      ) {
-        throw new Error(
-          `Congress API ${path} → request timed out after ${timeoutMs}ms`
-        );
-      }
-      throw err;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
+  const res = await fetchWithRetry(url.toString());
+  return res.json() as Promise<T>;
 }
 
-/** Return the correct ordinal suffix for a congress number (e.g. 1→"st", 2→"nd", 119→"th") */
 function ordinalSuffix(n: number): string {
   const mod100 = Math.abs(n) % 100;
   const mod10 = Math.abs(n) % 10;
@@ -165,11 +89,6 @@ function ordinalSuffix(n: number): string {
   return "th";
 }
 
-/**
- * Map API bill type codes to the congress.gov URL path segment.
- * congress.gov uses different slugs for each legislative measure type.
- * e.g. "HJRES" → "house-joint-resolution", not "house-bill"
- */
 function billTypeToUrlSlug(type: string): string {
   const slugMap: Record<string, string> = {
     HR: "house-bill",
@@ -184,7 +103,6 @@ function billTypeToUrlSlug(type: string): string {
   return slugMap[type.toUpperCase()] ?? `${type.toLowerCase()}-bill`;
 }
 
-/** Map API bill type codes to human-readable bill number format (e.g. "HR" → "H.R.") */
 function formatBillNumber(type: string, number: string): string {
   const prefixMap: Record<string, string> = {
     HR: "H.R.",
@@ -200,7 +118,6 @@ function formatBillNumber(type: string, number: string): string {
   return `${prefix} ${number}`;
 }
 
-/** Strip HTML tags from summary text returned by the API */
 function stripHtml(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
@@ -212,21 +129,16 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-/**
- * Fetch the latest summary text for a bill.
- * Returns undefined if no summaries exist.
- */
 async function fetchSummary(
   congress: number,
   billType: string,
-  billNumber: string
+  billNumber: string,
 ): Promise<string | undefined> {
   try {
     const data = await congressFetch<{ summaries: ApiSummary[] }>(
-      `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/summaries`
+      `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/summaries`,
     );
     if (!data.summaries?.length) return undefined;
-    // The last item is the most recent summary
     const latest = data.summaries[data.summaries.length - 1]!;
     return stripHtml(latest.text).slice(0, 5000);
   } catch {
@@ -234,41 +146,28 @@ async function fetchSummary(
   }
 }
 
-/**
- * Fetch full plain text for a bill.
- * Downloads the "Formatted Text" version if available, falls back to nothing.
- * Truncates to 1,000 words to match the govtrack scraper behaviour.
- */
 async function fetchFullText(
   congress: number,
   billType: string,
-  billNumber: string
+  billNumber: string,
 ): Promise<string | undefined> {
   try {
     const data = await congressFetch<{ textVersions: ApiTextVersion[] }>(
-      `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/text`
+      `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/text`,
     );
     if (!data.textVersions?.length) return undefined;
 
-    // Prefer the most recent text version with a plain-text format
     for (const version of [...data.textVersions].reverse()) {
-      const txtFormat = version.formats.find((f) => f.type === "Formatted Text");
+      const txtFormat = version.formats.find(
+        (f) => f.type === "Formatted Text",
+      );
       if (!txtFormat) continue;
 
-      const txtController = new AbortController();
-      const txtTimeoutId = setTimeout(() => txtController.abort(), 30_000);
-      let rawText: string | undefined;
-      try {
-        const res = await fetch(txtFormat.url, { signal: txtController.signal });
-        if (res.ok) {
-          rawText = await res.text();
-        }
-      } finally {
-        clearTimeout(txtTimeoutId);
-      }
+      const res = await fetchWithRetry(txtFormat.url);
+      const rawText = await res.text();
       if (!rawText) continue;
+
       let text = stripHtml(rawText);
-      // Truncate to 1,000 words
       const words = text.split(/\s+/);
       if (words.length > 1000) {
         text = words.slice(0, 1000).join(" ");
@@ -276,32 +175,22 @@ async function fetchFullText(
       return text.trim() || undefined;
     }
   } catch {
-    // Full text is optional — continue without it
+    // Full text is optional
   }
   return undefined;
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+async function scrape(config: CongressScraperConfig = {}) {
+  const { maxBills = 100, congress = 119, chamber = "House" } = config;
 
-export async function scrapeCongress(config: CongressScraperConfig = {}) {
-  const {
-    maxBills = 100,
-    congress = 119,
-    chamber = "House",
-  } = config;
-
-  console.log(
-    `Starting Congress.gov API scraper (congress=${congress}, chamber=${chamber})...`
-  );
+  log(NAME, `Starting (congress=${congress}, chamber=${chamber})...`);
   resetMetrics();
 
-  // The API uses lowercase chamber strings for filtering
   const chamberParam = chamber === "House" ? "house" : "senate";
 
-  // ── Step 1: fetch bill listing (paginated — API max 250 per page) ──────────
   const allBills: ApiBillListItem[] = [];
   let offset = 0;
-  const pageSize = 250; // API maximum per page
+  const pageSize = 250;
 
   while (allBills.length < maxBills) {
     const remaining = maxBills - allBills.length;
@@ -309,86 +198,84 @@ export async function scrapeCongress(config: CongressScraperConfig = {}) {
 
     const pageData = await congressFetch<{ bills: ApiBillListItem[] }>(
       `/bill/${congress}`,
-      {
-        chamber: chamberParam,
-        limit,
-        offset,
-        sort: "updateDate+desc",
-      }
+      { chamber: chamberParam, limit, offset, sort: "updateDate+desc" },
     );
 
     const page = pageData.bills ?? [];
     allBills.push(...page);
-
-    // Stop early if the API returned fewer items than requested (last page)
     if (page.length < limit) break;
-
     offset += page.length;
   }
 
   const bills = allBills.slice(0, maxBills);
-  console.log(`Fetched ${bills.length} bills from Congress API.`);
+  log(NAME, `Fetched ${bills.length} bills`);
 
-  // ── Step 2: enrich each bill with detail, summary, and full text ───────────
   for (const item of bills) {
     try {
-      const billType = item.type.toLowerCase(); // e.g. "hr", "s"
-      const billNumber = item.number;           // e.g. "1234"
+      const billType = item.type.toLowerCase();
+      const billNumber = item.number;
 
-      // Detail endpoint
       const detailData = await congressFetch<ApiBillDetail>(
-        `/bill/${congress}/${billType}/${billNumber}`
+        `/bill/${congress}/${billType}/${billNumber}`,
       );
       const detail = detailData.bill;
 
       const formattedBillNumber = formatBillNumber(detail.type, detail.number);
       const title = (detail.title ?? "Unknown").slice(0, 250);
 
-      // Sponsor — use the first (primary) sponsor
       const primarySponsor = detail.sponsors?.[0];
       const sponsor = primarySponsor
-        ? `${primarySponsor.firstName} ${primarySponsor.lastName} (${primarySponsor.party}-${primarySponsor.state})`.slice(0, 250)
+        ? `${primarySponsor.firstName} ${primarySponsor.lastName} (${primarySponsor.party}-${primarySponsor.state})`.slice(
+            0,
+            250,
+          )
         : undefined;
 
-      // Status: most recent legislative action text
       const status = (detail.latestAction?.text ?? "Unknown").slice(0, 250);
-
       const introducedDate = detail.introducedDate
         ? new Date(detail.introducedDate)
         : undefined;
-
-      const chamberValue = (detail.originChamber ?? chamber) as "House" | "Senate";
-
-      // Canonical congress.gov bill page URL — path segment varies by bill type
+      const chamberValue = (detail.originChamber ?? chamber) as
+        | "House"
+        | "Senate";
       const billUrl = `https://www.congress.gov/bill/${congress}${ordinalSuffix(congress)}-congress/${billTypeToUrlSlug(detail.type)}/${billNumber}`;
 
-      // Summary from CRS — replaces the need to AI-generate a summary in most cases
       const summary = await fetchSummary(congress, billType, billNumber);
-
-      // Full text — used downstream for AI article generation
       const fullText = await fetchFullText(congress, billType, billNumber);
 
-      await upsertBill({
-        billNumber: formattedBillNumber,
-        title,
-        description: summary,
-        sponsor,
-        status,
-        introducedDate,
-        congress,
-        chamber: chamberValue,
-        summary,
-        fullText,
-        url: billUrl,
-        sourceWebsite: "congress.gov",
+      await upsertContent({
+        type: "bill",
+        data: {
+          billNumber: formattedBillNumber,
+          title,
+          description: summary,
+          sponsor,
+          status,
+          introducedDate,
+          congress,
+          chamber: chamberValue,
+          summary,
+          fullText,
+          url: billUrl,
+          sourceWebsite: "congress.gov",
+        },
       });
 
-      console.log(`Processed: ${formattedBillNumber} — ${title}`);
+      log(NAME, `Processed: ${formattedBillNumber} — ${title}`);
     } catch (error) {
-      console.error(`Error processing bill ${item.type}${item.number}:`, error);
+      logError(
+        NAME,
+        `Error processing bill ${item.type}${item.number}`,
+        error,
+      );
     }
   }
 
-  console.log("Congress.gov API scraper completed.");
-  printMetricsSummary("Congress.gov");
+  log(NAME, "Completed");
+  printMetricsSummary(NAME);
 }
+
+export const congress: Scraper = {
+  name: NAME,
+  scrape: () => scrape(),
+};
