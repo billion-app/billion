@@ -1,4 +1,5 @@
 import { db } from "@acme/db/client";
+import { eq } from "@acme/db";
 import { Bill, GovernmentContent, CourtCase } from "@acme/db/schema";
 import type {
   BillData,
@@ -6,7 +7,11 @@ import type {
   CourtCaseData,
 } from "../types.js";
 import { createContentHash } from "../hash.js";
-import { generateAISummary, generateAIArticle } from "../ai/text-generation.js";
+import {
+  generateAISummary,
+  generateAIArticle,
+  AIRateLimitError,
+} from "../ai/text-generation.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getThumbnailImage } from "../api/google-images.js";
 import {
@@ -97,6 +102,17 @@ async function checkExisting(input: ContentData) {
   }
 }
 
+function getUpdateTable(input: ContentData) {
+  switch (input.type) {
+    case "bill":
+      return { table: Bill, idCol: Bill.id };
+    case "government_content":
+      return { table: GovernmentContent, idCol: GovernmentContent.id };
+    case "court_case":
+      return { table: CourtCase, idCol: CourtCase.id };
+  }
+}
+
 export async function upsertContent(input: ContentData) {
   const newContentHash = createContentHash(hashFields(input));
   const existing = await checkExisting(input);
@@ -129,56 +145,7 @@ export async function upsertContent(input: ContentData) {
     console.log(`No changes for ${label}, skipping AI generation`);
   }
 
-  let description: string | undefined;
-  const existingDescription = input.data.description;
-
-  if (existingDescription) {
-    description = existingDescription;
-  } else if (shouldGenerateArticle && (fullText || (input.type === "bill" && input.data.summary))) {
-    const summarySource =
-      input.type === "bill"
-        ? input.data.summary || input.data.fullText || ""
-        : fullText!;
-    console.log(`Generating AI summary for ${label}`);
-    description = await generateAISummary(title, summarySource);
-  }
-
-  let aiGeneratedArticle: string | undefined;
-  const articleType =
-    input.type === "bill"
-      ? "bill"
-      : input.type === "government_content"
-        ? input.data.type
-        : "court case";
-
-  if (shouldGenerateArticle && hasUsableText) {
-    console.log(`Generating AI article for ${label}`);
-    aiGeneratedArticle = await generateAIArticle(title, fullText!, articleType, url);
-    incrementAIArticlesGenerated();
-  } else if (existing?.hasArticle) {
-    console.log(`Using existing AI article for ${label}`);
-  }
-
-  let thumbnailUrl: string | null | undefined;
-  if (shouldGenerateImage) {
-    try {
-      console.log(`Searching for thumbnail for ${label}`);
-      const searchQuery = await generateImageSearchKeywords(
-        title,
-        fullText || "",
-        articleType,
-      );
-      console.log(`Image search query: ${searchQuery}`);
-      thumbnailUrl = await getThumbnailImage(searchQuery);
-      incrementImagesSearched();
-    } catch (error) {
-      console.warn(`Failed to fetch thumbnail for ${label}:`, error);
-      thumbnailUrl = null;
-    }
-  } else if (existing?.hasThumbnail) {
-    console.log(`Using existing thumbnail for ${label}`);
-  }
-
+  // Phase 1: always persist raw content first (no AI fields)
   let result: { id: string; thumbnailUrl: string | null } | undefined;
 
   if (input.type === "bill") {
@@ -187,10 +154,6 @@ export async function upsertContent(input: ContentData) {
       .insert(Bill)
       .values({
         ...d,
-        description: description ?? d.description,
-        aiGeneratedArticle: aiGeneratedArticle || undefined,
-        thumbnailUrl:
-          thumbnailUrl === undefined ? undefined : thumbnailUrl || undefined,
         contentHash: newContentHash,
         versions: [],
       })
@@ -198,7 +161,7 @@ export async function upsertContent(input: ContentData) {
         target: [Bill.billNumber, Bill.sourceWebsite],
         set: {
           title: d.title,
-          description: description ?? d.description,
+          description: d.description,
           sponsor: d.sponsor,
           status: d.status,
           introducedDate: d.introducedDate,
@@ -206,10 +169,6 @@ export async function upsertContent(input: ContentData) {
           chamber: d.chamber,
           summary: d.summary,
           fullText: d.fullText,
-          ...(aiGeneratedArticle !== undefined && { aiGeneratedArticle }),
-          ...(thumbnailUrl !== undefined && {
-            thumbnailUrl: thumbnailUrl || undefined,
-          }),
           url: d.url,
           contentHash: newContentHash,
           updatedAt: new Date(),
@@ -223,10 +182,6 @@ export async function upsertContent(input: ContentData) {
       .insert(GovernmentContent)
       .values({
         ...d,
-        description: description ?? d.description,
-        aiGeneratedArticle: aiGeneratedArticle || undefined,
-        thumbnailUrl:
-          thumbnailUrl === undefined ? undefined : thumbnailUrl || undefined,
         contentHash: newContentHash,
         versions: [],
       })
@@ -236,12 +191,8 @@ export async function upsertContent(input: ContentData) {
           title: d.title,
           type: d.type,
           publishedDate: d.publishedDate,
-          description: description ?? d.description,
+          description: d.description,
           fullText: d.fullText,
-          ...(aiGeneratedArticle !== undefined && { aiGeneratedArticle }),
-          ...(thumbnailUrl !== undefined && {
-            thumbnailUrl: thumbnailUrl || undefined,
-          }),
           source: d.source,
           contentHash: newContentHash,
           updatedAt: new Date(),
@@ -255,10 +206,6 @@ export async function upsertContent(input: ContentData) {
       .insert(CourtCase)
       .values({
         ...d,
-        description: description ?? d.description,
-        aiGeneratedArticle: aiGeneratedArticle || undefined,
-        thumbnailUrl:
-          thumbnailUrl === undefined ? undefined : thumbnailUrl || undefined,
         contentHash: newContentHash,
         versions: [],
       })
@@ -268,13 +215,9 @@ export async function upsertContent(input: ContentData) {
           title: d.title,
           court: d.court,
           filedDate: d.filedDate,
-          description: description ?? d.description,
+          description: d.description,
           status: d.status,
           fullText: d.fullText,
-          ...(aiGeneratedArticle !== undefined && { aiGeneratedArticle }),
-          ...(thumbnailUrl !== undefined && {
-            thumbnailUrl: thumbnailUrl || undefined,
-          }),
           url: d.url,
           contentHash: newContentHash,
           updatedAt: new Date(),
@@ -284,9 +227,104 @@ export async function upsertContent(input: ContentData) {
     result = row;
   }
 
-  console.log(`${label} upserted`);
+  console.log(`${label} upserted (raw)`);
 
-  if (result && fullText) {
+  if (!result) return result;
+
+  // Phase 2: AI enrichment — skipped entirely if rate-limited
+  try {
+    let description: string | undefined;
+    const existingDescription = input.data.description;
+
+    if (existingDescription) {
+      description = existingDescription;
+    } else if (
+      shouldGenerateArticle &&
+      (fullText || (input.type === "bill" && input.data.summary))
+    ) {
+      const summarySource =
+        input.type === "bill"
+          ? input.data.summary || input.data.fullText || ""
+          : fullText!;
+      console.log(`Generating AI summary for ${label}`);
+      description = await generateAISummary(title, summarySource);
+    }
+
+    let aiGeneratedArticle: string | undefined;
+    const articleType =
+      input.type === "bill"
+        ? "bill"
+        : input.type === "government_content"
+          ? input.data.type
+          : "court case";
+
+    if (shouldGenerateArticle && hasUsableText) {
+      console.log(`Generating AI article for ${label}`);
+      aiGeneratedArticle = await generateAIArticle(
+        title,
+        fullText!,
+        articleType,
+        url,
+      );
+      incrementAIArticlesGenerated();
+    } else if (existing?.hasArticle) {
+      console.log(`Using existing AI article for ${label}`);
+    }
+
+    let thumbnailUrl: string | null | undefined;
+    if (shouldGenerateImage) {
+      try {
+        console.log(`Searching for thumbnail for ${label}`);
+        const searchQuery = await generateImageSearchKeywords(
+          title,
+          fullText || "",
+          articleType,
+        );
+        console.log(`Image search query: ${searchQuery}`);
+        thumbnailUrl = await getThumbnailImage(searchQuery);
+        incrementImagesSearched();
+      } catch (error) {
+        if (error instanceof AIRateLimitError) throw error;
+        console.warn(`Failed to fetch thumbnail for ${label}:`, error);
+        thumbnailUrl = null;
+      }
+    } else if (existing?.hasThumbnail) {
+      console.log(`Using existing thumbnail for ${label}`);
+    }
+
+    // Only UPDATE if something was generated
+    const hasNewDescription =
+      description !== undefined && description !== existingDescription;
+    if (
+      hasNewDescription ||
+      aiGeneratedArticle !== undefined ||
+      thumbnailUrl !== undefined
+    ) {
+      const { table, idCol } = getUpdateTable(input);
+      await db
+        .update(table)
+        .set({
+          ...(hasNewDescription && { description }),
+          ...(aiGeneratedArticle !== undefined && { aiGeneratedArticle }),
+          ...(thumbnailUrl !== undefined && {
+            thumbnailUrl: thumbnailUrl || undefined,
+          }),
+          updatedAt: new Date(),
+        })
+        .where(eq(idCol, result.id));
+      console.log(`${label} enriched with AI content`);
+    }
+  } catch (error) {
+    if (error instanceof AIRateLimitError) {
+      console.warn(
+        `AI rate limit hit — ${label} saved without AI content, will retry next run`,
+      );
+    } else {
+      throw error;
+    }
+  }
+
+  if (fullText) {
     const videoSource =
       input.type === "bill"
         ? input.data.sourceWebsite
