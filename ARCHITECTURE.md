@@ -130,7 +130,7 @@ Next.js at port 3000 serves both the web frontend and the tRPC API. The Expo app
 | `govtrack.ts` | govtrack.us | Bills |
 | `congress.ts` | congress.gov | Bills |
 | `whitehouse.ts` | whitehouse.gov | Government content (EOs, memoranda, briefings) |
-| `scotus.ts` | Supreme Court | Court cases |
+| `scotus.ts` | CourtListener API (courtlistener.com) | Court cases |
 
 The HTML scrapers (govtrack, whitehouse) use `fetch` + [cheerio](https://cheerio.js.org/) for page fetching and DOM parsing. The API scrapers (congress, scotus) use `fetch` against official REST APIs. All four share a `fetchWithRetry()` utility with exponential backoff, `Retry-After` support, and configurable timeout. A unified `upsertContent(type, data)` function handles the DB write + AI generation pipeline for all content types via a discriminated union.
 

@@ -17,13 +17,29 @@
   }
 }
 
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
   body {
+    margin: 0;
+    background: #0e1530;
+    color: #ffffff;
     letter-spacing: var(--tracking-normal);
     font-family: var(--font-albert-sans), "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
   h1 {
     font-family: var(--font-ibm-plex-serif), Georgia, serif;
@@ -31,5 +47,9 @@
   h2,
   h3 {
     font-family: var(--font-inria-serif), "Times New Roman", serif;
+  }
+  :focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.3);
+    outline-offset: 3px;
   }
 }
