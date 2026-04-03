@@ -15,6 +15,10 @@ export class AIRateLimitError extends Error {
 
 export let rateLimitHit = false;
 
+export function setRateLimitHit(v: boolean) {
+  rateLimitHit = v;
+}
+
 function isRateLimitError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const msg = error.message.toLowerCase();

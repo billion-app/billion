@@ -6,6 +6,19 @@
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
+import { AIRateLimitError, rateLimitHit, setRateLimitHit } from './text-generation.js';
+
+function isRateLimitError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes('429') ||
+    msg.includes('rate limit') ||
+    msg.includes('resource_exhausted') ||
+    msg.includes('quota')
+  );
+}
+
 /**
  * Generate search keywords from article title and content
  * Uses AI to extract the most relevant visual concepts
@@ -19,6 +32,9 @@ export async function generateImageSearchKeywords(
   content: string,
   type: string,
 ): Promise<string> {
+  if (rateLimitHit) {
+    throw new AIRateLimitError();
+  }
   try {
     const { text } = await generateText({
       model: google('gemini-2.5-flash'),
@@ -43,10 +59,13 @@ Content: ${content.substring(0, 500)}
 Return ONLY 2-4 specific visual keywords separated by spaces. No quotes, no explanation:`,
     });
 
-    return text.trim().replace(/['"]/g, ''); // Remove any quotes
+    return text.trim().replace(/['"]/g, '');
   } catch (error) {
+    if (isRateLimitError(error)) {
+      setRateLimitHit(true);
+      throw new AIRateLimitError();
+    }
     console.error('Error generating image search keywords:', error);
-    // Fallback: use simple keyword extraction from title
     return title
       .toLowerCase()
       .replace(/[^\w\s]/g, '')
