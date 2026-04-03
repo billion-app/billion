@@ -80,6 +80,8 @@ The `video` table is a derived feed layer — one row per content item, with a p
 
 The API is implemented as a [tRPC v11](https://trpc.io/) router in `packages/api/`, served by Next.js at `/api/trpc`.
 
+Because the mobile app can't access the database directly (no TCP sockets in React Native — see [why below](#expo-mobile)), tRPC serves as the RPC layer that lets the phone call server-side database operations over HTTP.
+
 tRPC was chosen because:
 
 - **End-to-end type safety without a schema file.** The router's input/output types flow directly to both the Next.js server components and the Expo client. There's no OpenAPI spec to maintain, no codegen to run, no type drift between client and server.
@@ -94,12 +96,21 @@ tRPC was chosen because:
 | `video` | `getInfinite` (paginated feed) |
 | `post` | `all`, `byId`, `create`, `delete` |
 
+### Why Next.js
+
+Next.js was chosen for several reasons:
+
+- **Industry standard.** Next.js is the most widely adopted React framework, which means better ecosystem support, more community resources, and easier hiring.
+- **Vercel integration.** Next.js deploys to Vercel with zero configuration — automatic previews, edge functions, and production deployments out of the box.
+- **T3 stack foundation.** The project was bootstrapped from [create-t3-turbo](https://github.com/t3-oss/create-t3-turbo), which uses Next.js as the web/API host alongside tRPC, Drizzle, and Expo. Starting from a battle-tested template saved weeks of boilerplate.
+- **Full-stack in one process.** Next.js handles server-side rendering, API routes (hosting tRPC), and static pages in a single deployment — no separate backend server needed.
+
 ### Why Next.js is the Single API Host
 
-Next.js at port 3000 serves both the web frontend and the tRPC API. The Expo app points at this same server. This means:
+Next.js at port 3000 serves both the web frontend and the tRPC API. The Expo app points at this same server. Since Next.js is already deployed as a full web server, we also use it to serve the marketing/landing page — no need for a separate static site or hosting setup. This means:
 
 - One auth implementation (better-auth) handles cookies for web and passes them through headers for mobile
-- One deployment to maintain in production
+- One deployment to maintain for the API, web app, and landing page
 - The DB is never exposed outside the server process
 
 ---
