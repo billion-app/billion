@@ -6,6 +6,7 @@
 import OpenAI from 'openai';
 import { createLogger } from '../log.js';
 import { trackDalle3Image } from '../costs.js';
+import { AIRateLimitError, setRateLimitHit } from './text-generation.js';
 
 const logger = createLogger("image");
 
@@ -104,6 +105,10 @@ export async function generateImage(
 
       // If it's the last attempt or not a rate limit error, break
       if (attempt === maxRetries) {
+        if (isRateLimitError) {
+          setRateLimitHit(true);
+          throw new AIRateLimitError();
+        }
         logger.error(`Image generation failed after ${maxRetries} retries`, lastError);
         return null;
       }
