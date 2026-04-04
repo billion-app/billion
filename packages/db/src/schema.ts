@@ -176,7 +176,7 @@ export const Video = pgTable(
     title: t.varchar({ length: 25 }).notNull(), // Max 25 chars
     description: t.text().notNull(), // 50-word catchy headline
 
-    // Image storage: source thumbnail URL (scraped)
+    // Image storage: uploaded image URL and source thumbnail URL (scraped)
     imageUrl: t.text(), // Public URL of uploaded image
     thumbnailUrl: t.text(), // URL from source content (scraped)
 
