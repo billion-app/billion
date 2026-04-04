@@ -7,7 +7,6 @@ import { Video } from "@acme/db/schema";
 
 import { publicProcedure } from "../trpc";
 
-// Schema for video/feed post (from Video table) - Hybrid image support
 export const VideoPostSchema = z.object({
   id: z.string(),
   title: z.string().max(100),
@@ -18,10 +17,9 @@ export const VideoPostSchema = z.object({
   shares: z.number(),
   type: z.enum(["bill", "government_content", "court_case", "general"]),
   articlePreview: z.string(),
-  // Hybrid image support - use whichever is available
-  imageUri: z.string().optional(), // Data URI from Video.imageData (AI-generated)
-  thumbnailUrl: z.string().optional(), // URL from source content (scraped)
-  originalContentId: z.string(), // Reference to source content
+  imageUrl: z.string().optional(),
+  thumbnailUrl: z.string().optional(),
+  originalContentId: z.string(),
 });
 
 export type VideoPost = z.infer<typeof VideoPostSchema>;
@@ -45,15 +43,8 @@ export const videoRouter = {
         .limit(limit)
         .offset(cursor);
 
-      // Transform to feed format with hybrid image support
+      // Transform to feed format
       const feedPosts = videos.map((video) => {
-        // Handle AI-generated binary images (convert to data URI)
-        let imageUri: string | undefined;
-        if (video.imageData && video.imageMimeType) {
-          const base64 = video.imageData.toString("base64");
-          imageUri = `data:${video.imageMimeType};base64,${base64}`;
-        }
-
         const metrics = video.engagementMetrics as {
           likes: number;
           comments: number;
@@ -80,10 +71,10 @@ export const videoRouter = {
           comments: metrics.comments,
           shares: metrics.shares,
           type,
-          articlePreview: video.description, // Marketing description as preview
-          imageUri, // AI-generated data URI (if exists)
-          thumbnailUrl: video.thumbnailUrl ?? undefined, // URL-based thumbnail (if exists)
-          originalContentId: video.contentId, // For "Read Full Article" navigation
+          articlePreview: video.description,
+          imageUrl: video.imageUrl ?? undefined,
+          thumbnailUrl: video.thumbnailUrl ?? undefined,
+          originalContentId: video.contentId,
         };
       });
 

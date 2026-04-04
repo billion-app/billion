@@ -5,6 +5,7 @@
 
 import { db } from '@acme/db/client';
 import { Video } from '@acme/db/schema';
+import { uploadImage } from '@acme/db/storage';
 import { and, eq } from '@acme/db';
 import { generateMarketingCopy } from '../ai/marketing-generation.js';
 import { generateImage, convertToJpeg } from '../ai/image-generation.js';
@@ -68,12 +69,14 @@ export async function generateVideoForContent(
   // Generate marketing copy
   const marketingCopy = await generateMarketingCopy(title, fullText, contentType);
 
-  // Generate and convert image
-  let imageData: Buffer | null = null;
-  let imageMimeType = 'image/jpeg';
+  // Generate, convert, and upload image
+  let imageUrl: string | null = null;
   const generatedImage = await generateImage(marketingCopy.imagePrompt);
   if (generatedImage) {
-    imageData = await convertToJpeg(generatedImage.data);
+    const jpegData = await convertToJpeg(generatedImage.data);
+    const storagePath = `videos/${contentType}/${contentId}.jpg`;
+    imageUrl = await uploadImage(storagePath, jpegData);
+    logger.debug(`Uploaded image to ${storagePath}`);
   }
 
   // Random engagement metrics (same as current video.ts)
@@ -83,7 +86,7 @@ export async function generateVideoForContent(
     shares: Math.floor(Math.random() * 1000) + 10,
   };
 
-  // Upsert video with hybrid image support
+  // Upsert video
   try {
     await db
       .insert(Video)
@@ -92,11 +95,8 @@ export async function generateVideoForContent(
         contentId,
         title: marketingCopy.title,
         description: marketingCopy.description,
-        imageData,
-        imageMimeType,
-        imageWidth: imageData ? 1024 : null,
-        imageHeight: imageData ? 1024 : null,
-        thumbnailUrl: thumbnailUrl ?? undefined, // Add URL-based thumbnail support
+        imageUrl,
+        thumbnailUrl: thumbnailUrl ?? undefined,
         author,
         engagementMetrics,
         sourceContentHash: contentHash,
@@ -106,11 +106,8 @@ export async function generateVideoForContent(
         set: {
           title: marketingCopy.title,
           description: marketingCopy.description,
-          imageData,
-          imageMimeType,
-          imageWidth: imageData ? 1024 : null,
-          imageHeight: imageData ? 1024 : null,
-          thumbnailUrl: thumbnailUrl ?? undefined, // Update thumbnail URL on conflict
+          imageUrl,
+          thumbnailUrl: thumbnailUrl ?? undefined,
           sourceContentHash: contentHash,
           updatedAt: new Date(),
         },
