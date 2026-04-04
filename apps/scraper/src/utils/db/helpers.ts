@@ -7,6 +7,9 @@ import { eq, and, isNull } from '@acme/db';
 import { db } from '@acme/db/client';
 import { Bill, GovernmentContent, CourtCase, Video } from '@acme/db/schema';
 import type { ExistingRecordCheck } from '../types.js';
+import { createLogger } from '../log.js';
+
+const logger = createLogger("db");
 
 /**
  * Check if a bill already exists and retrieve its metadata
@@ -40,7 +43,7 @@ export async function checkExistingBill(
       hasThumbnail: !!existing.thumbnailUrl,
     };
   } catch (error) {
-    console.error('Error checking existing bill:', error);
+    logger.error('Error checking existing bill', error);
     return null;
   }
 }
@@ -75,7 +78,7 @@ export async function checkExistingGovernmentContent(
       hasThumbnail: !!existing.thumbnailUrl,
     };
   } catch (error) {
-    console.error('Error checking existing government content:', error);
+    logger.error('Error checking existing government content', error);
     return null;
   }
 }
@@ -110,7 +113,7 @@ export async function checkExistingCourtCase(
       hasThumbnail: !!existing.thumbnailUrl,
     };
   } catch (error) {
-    console.error('Error checking existing court case:', error);
+    logger.error('Error checking existing court case', error);
     return null;
   }
 }
@@ -175,7 +178,7 @@ export async function findArticlesWithoutVideos(
       return casesWithoutVideos.map(c => ({ ...c, source: 'court' }));
     }
   } catch (error) {
-    console.error(`Error finding ${contentType} articles without videos:`, error);
+    logger.error(`Error finding ${contentType} articles without videos`, error);
     return [];
   }
 }

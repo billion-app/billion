@@ -9,6 +9,9 @@ import { and, eq } from '@acme/db';
 import { generateMarketingCopy } from '../ai/marketing-generation.js';
 import { generateImage, convertToJpeg } from '../ai/image-generation.js';
 import { incrementVideosGenerated, incrementVideosSkipped } from './metrics.js';
+import { createLogger } from '../log.js';
+
+const logger = createLogger("video");
 
 /**
  * Check if a video entry exists and needs regeneration
@@ -55,12 +58,12 @@ export async function generateVideoForContent(
 
   // Skip if exists and unchanged
   if (existing && !existing.needsRegeneration) {
-    console.log(`Video unchanged for ${contentType}:${contentId}, skipping`);
+    logger.dim(`Video unchanged for ${contentType}:${contentId}, skipping`);
     incrementVideosSkipped();
     return;
   }
 
-  console.log(`Generating video for ${contentType}:${contentId}`);
+  logger.step(`Generating video for ${contentType}:${contentId}`);
 
   // Generate marketing copy
   const marketingCopy = await generateMarketingCopy(title, fullText, contentType);
@@ -114,13 +117,13 @@ export async function generateVideoForContent(
       });
 
     incrementVideosGenerated();
-    console.log(`Video generated for ${contentType}:${contentId}`);
+    logger.success(`Video generated for ${contentType}:${contentId}`);
   } catch (error) {
     // Sanitize error to avoid logging raw image data
     const sanitizedError = error instanceof Error
       ? `${error.name}: ${error.message.replace(/image_data[^,]*,/g, 'image_data=<REDACTED>,')}`
       : 'Unknown database error';
-    console.error(`Failed to insert video for ${contentType}:${contentId}:`, sanitizedError);
+    logger.error(`Failed to insert video for ${contentType}:${contentId}: ${sanitizedError}`);
     throw error;
   }
 }

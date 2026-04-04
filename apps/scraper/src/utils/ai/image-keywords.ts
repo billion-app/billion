@@ -7,6 +7,9 @@ import { google } from '@ai-sdk/google';
 import { generateText, APICallError, RetryError } from 'ai';
 
 import { AIRateLimitError, rateLimitHit, setRateLimitHit } from './text-generation.js';
+import { createLogger } from '../log.js';
+
+const logger = createLogger("ai");
 
 function isRateLimitError(error: unknown): boolean {
   if (error instanceof APICallError) return error.statusCode === 429;
@@ -68,7 +71,7 @@ Return ONLY 2-4 specific visual keywords separated by spaces. No quotes, no expl
       setRateLimitHit(true);
       throw new AIRateLimitError();
     }
-    console.error('Error generating image search keywords:', error);
+    logger.error('Error generating image search keywords', error);
     return title
       .toLowerCase()
       .replace(/[^\w\s]/g, '')

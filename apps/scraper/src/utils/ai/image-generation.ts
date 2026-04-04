@@ -4,6 +4,9 @@
  */
 
 import OpenAI from 'openai';
+import { createLogger } from '../log.js';
+
+const logger = createLogger("image");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -36,9 +39,9 @@ export async function generateImage(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       if (attempt > 0) {
-        console.log(`Retry attempt ${attempt}/${maxRetries} for image generation`);
+        logger.warn(`Retry attempt ${attempt}/${maxRetries} for image generation`);
       } else {
-        console.log(`Generating image with DALL-E 3: ${prompt.substring(0, 50)}...`);
+        logger.step(`Generating image with DALL-E 3: ${prompt.substring(0, 50)}...`);
       }
 
       // DALL-E 3 for quality
@@ -51,7 +54,7 @@ export async function generateImage(
       });
 
       if (!response.data?.[0]?.url) {
-        console.error('No image URL returned from DALL-E');
+        logger.error('No image URL returned from DALL-E');
         return null;
       }
 
@@ -60,13 +63,13 @@ export async function generateImage(
       // Download image to buffer (URLs expire after 1 hour, need to store permanently)
       const imageResponse = await fetch(imageUrl);
       if (!imageResponse.ok) {
-        console.error(`Failed to download image: ${imageResponse.status}`);
+        logger.error(`Failed to download image: ${imageResponse.status}`);
         return null;
       }
 
       const buffer = Buffer.from(await imageResponse.arrayBuffer());
 
-      console.log(`Image generated successfully: ${buffer.length} bytes`);
+      logger.success(`Image generated: ${buffer.length} bytes`);
 
       return {
         data: buffer,
@@ -79,7 +82,7 @@ export async function generateImage(
 
       // Check if error is due to content policy violation (don't retry)
       if (lastError.message.includes('content_policy_violation')) {
-        console.warn(`Image generation blocked by content filter for prompt: ${prompt.substring(0, 100)}...`);
+        logger.warn(`Image generation blocked by content filter for prompt: ${prompt.substring(0, 100)}...`);
         return null;
       }
 
@@ -92,27 +95,27 @@ export async function generateImage(
       if (isRateLimitError && attempt < maxRetries) {
         // Exponential backoff: 2^attempt * 1000ms (1s, 2s, 4s, 8s...)
         const delayMs = Math.pow(2, attempt) * 1000;
-        console.warn(`Rate limit hit, waiting ${delayMs}ms before retry (attempt ${attempt + 1}/${maxRetries})...`);
+        logger.warn(`Rate limit hit, waiting ${delayMs}ms before retry (attempt ${attempt + 1}/${maxRetries})...`);
         await sleep(delayMs);
         continue;
       }
 
       // If it's the last attempt or not a rate limit error, break
       if (attempt === maxRetries) {
-        console.error(`Image generation failed after ${maxRetries} retries:`, lastError);
+        logger.error(`Image generation failed after ${maxRetries} retries`, lastError);
         return null;
       }
 
       // For other errors, don't retry
       if (!isRateLimitError) {
-        console.error('Image generation failed:', lastError);
+        logger.error('Image generation failed', lastError);
         return null;
       }
     }
   }
 
   // Should not reach here, but handle it gracefully
-  console.error('Image generation failed:', lastError);
+  logger.error('Image generation failed', lastError);
   return null;
 }
 
@@ -133,13 +136,11 @@ export async function convertToJpeg(
       .jpeg({ quality })
       .toBuffer();
 
-    console.log(
-      `Converted PNG to JPEG: ${pngBuffer.length} -> ${jpegBuffer.length} bytes`,
-    );
+    logger.dim(`Converted PNG to JPEG: ${pngBuffer.length} -> ${jpegBuffer.length} bytes`);
 
     return jpegBuffer;
   } catch (error) {
-    console.error('JPEG conversion failed:', error);
+    logger.error('JPEG conversion failed', error);
     // Return original buffer if conversion fails
     return pngBuffer;
   }

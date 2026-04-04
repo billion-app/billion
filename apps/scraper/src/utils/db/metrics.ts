@@ -4,6 +4,7 @@
  */
 
 import type { ScraperMetrics } from '../types.js';
+import { printHeader, printKeyValue, printFooter } from '../log.js';
 
 // Global metrics object for the current run
 let currentMetrics: ScraperMetrics = {
@@ -104,17 +105,15 @@ export function incrementVideosSkipped(): void {
 export function printMetricsSummary(scraperName: string): void {
   const apiCallsSaved = currentMetrics.existingUnchanged * 4; // 3 OpenAI + 1 Google per unchanged item
 
-  console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`${scraperName} Metrics Summary`);
-  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`Total Processed:      ${currentMetrics.totalProcessed}`);
-  console.log(`New Entries:          ${currentMetrics.newEntries}`);
-  console.log(`Existing (Unchanged): ${currentMetrics.existingUnchanged}`);
-  console.log(`Existing (Changed):   ${currentMetrics.existingChanged}`);
-  console.log(`AI Articles Generated: ${currentMetrics.aiArticlesGenerated}`);
-  console.log(`Images Searched:      ${currentMetrics.imagesSearched}`);
-  console.log(`Videos Generated:     ${currentMetrics.videosGenerated}`);
-  console.log(`Videos Skipped:       ${currentMetrics.videosSkipped}`);
-  console.log(`API Calls Saved:      ~${apiCallsSaved} (from skipping unchanged content)`);
-  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+  printHeader(`${scraperName} Results`);
+  printKeyValue("Total Processed", currentMetrics.totalProcessed);
+  printKeyValue("New Entries", currentMetrics.newEntries);
+  printKeyValue("Existing (Unchanged)", currentMetrics.existingUnchanged);
+  printKeyValue("Existing (Changed)", currentMetrics.existingChanged);
+  printKeyValue("AI Articles Generated", currentMetrics.aiArticlesGenerated);
+  printKeyValue("Images Searched", currentMetrics.imagesSearched);
+  printKeyValue("Videos Generated", currentMetrics.videosGenerated);
+  printKeyValue("Videos Skipped", currentMetrics.videosSkipped);
+  printKeyValue("API Calls Saved", `~${apiCallsSaved}`);
+  printFooter();
 }

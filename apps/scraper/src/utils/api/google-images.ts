@@ -4,6 +4,9 @@
  */
 
 import type { ImageResult } from '../types.js';
+import { createLogger } from '../log.js';
+
+const logger = createLogger("images");
 
 /**
  * Search for relevant images based on keywords using Google Custom Search
@@ -19,9 +22,7 @@ export async function searchImages(
   const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
 
   if (!apiKey || !searchEngineId) {
-    console.warn(
-      'GOOGLE_API_KEY or GOOGLE_SEARCH_ENGINE_ID not set, skipping image search',
-    );
+    logger.warn('GOOGLE_API_KEY or GOOGLE_SEARCH_ENGINE_ID not set, skipping image search');
     return [];
   }
 
@@ -40,14 +41,9 @@ export async function searchImages(
 
       // Check for quota exceeded error (403)
       if (response.status === 403 || response.status === 429) {
-        console.warn(
-          `⚠️  Google Image Search quota exceeded or rate limited (${response.status}). Skipping image search.`
-        );
+        logger.warn(`Google Image Search quota exceeded or rate limited (${response.status}), skipping`);
       } else {
-        console.error(
-          `Google Custom Search API error: ${response.status} ${response.statusText}`,
-        );
-        console.error('Error details:', errorData);
+        logger.error(`Google Custom Search API error: ${response.status} ${response.statusText}`);
       }
       return [];
     }
@@ -55,7 +51,7 @@ export async function searchImages(
     const data = (await response.json()) as { items?: Array<{ link: string; title?: string; displayLink?: string; image?: { thumbnailLink?: string; contextLink?: string } }> };
 
     if (!data.items || data.items.length === 0) {
-      console.log(`No images found for query: ${query}`);
+      logger.dim(`No images found for query: ${query}`);
       return [];
     }
 
@@ -72,7 +68,7 @@ export async function searchImages(
       };
     });
   } catch (error) {
-    console.error('Error searching for images:', error);
+    logger.error('Error searching for images', error);
     return [];
   }
 }

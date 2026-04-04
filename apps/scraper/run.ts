@@ -7,25 +7,28 @@
 import { config } from 'dotenv';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createLogger, printHeader, printKeyValue, printFooter } from './src/utils/log.js';
+
+const logger = createLogger("env");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load .env from project root
 const envPath = join(__dirname, '../../.env');
-console.log(`Loading environment from: ${envPath}`);
 const result = config({ path: envPath });
 
 if (result.error) {
-  console.error('Error loading .env:', result.error);
+  logger.error('Error loading .env', result.error);
   process.exit(1);
 }
 
-console.log('✅ Environment loaded');
-console.log(`  POSTGRES_URL: ${process.env.POSTGRES_URL ? '✓ Set' : '✗ Missing'}`);
-console.log(`  PEXELS_API_KEY: ${process.env.PEXELS_API_KEY ? '✓ Set' : '✗ Missing'}`);
-console.log(`  OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '✓ Set' : '✗ Missing'}`);
-console.log('');
+const check = (v: string | undefined) => v ? 'Set' : 'Missing';
+printHeader("Environment");
+printKeyValue("POSTGRES_URL", check(process.env.POSTGRES_URL));
+printKeyValue("PEXELS_API_KEY", check(process.env.PEXELS_API_KEY));
+printKeyValue("OPENAI_API_KEY", check(process.env.OPENAI_API_KEY));
+printFooter();
 
 // Now import and run main
 const { default: main } = await import('./src/main.js');

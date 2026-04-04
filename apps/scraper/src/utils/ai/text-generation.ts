@@ -5,6 +5,9 @@
 
 import { google } from '@ai-sdk/google';
 import { generateText, APICallError, RetryError } from 'ai';
+import { createLogger } from '../log.js';
+
+const logger = createLogger("ai");
 
 export class AIRateLimitError extends Error {
   constructor() {
@@ -65,7 +68,7 @@ Summary (max 100 characters):`,
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
-    console.error('Error generating AI summary:', error);
+    logger.error('Error generating AI summary', error);
     return content.substring(0, 97) + '...';
   }
 }
@@ -88,7 +91,7 @@ export async function generateAIArticle(
     throw new AIRateLimitError();
   }
   try {
-    console.log(`Generating AI article for: ${title}`);
+    logger.step(`Generating AI article for: ${title}`);
 
     const { text } = await generateText({
       model: google('gemini-2.5-flash'),
@@ -142,7 +145,7 @@ Write the article now using the 4-section structure above:`,
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
-    console.error('Error generating AI article:', error);
+    logger.error('Error generating AI article', error);
     return '';
   }
 }

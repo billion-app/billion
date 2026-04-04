@@ -2,13 +2,14 @@ import * as cheerio from "cheerio";
 import TurndownService from "turndown";
 
 import { fetchWithRetry } from "../utils/fetch.js";
-import { log, logError } from "../utils/log.js";
+import { createLogger } from "../utils/log.js";
 import { upsertContent } from "../utils/db/operations.js";
 import { generateAISummary } from "../utils/ai/text-generation.js";
 import { resetMetrics, printMetricsSummary } from "../utils/db/metrics.js";
 import type { Scraper } from "../utils/types.js";
 
 const NAME = "White House";
+const logger = createLogger(NAME);
 
 function toTitleCase(text: string): string {
   const uppercaseCount = (text.match(/[A-Z]/g) || []).length;
@@ -30,7 +31,7 @@ function toTitleCase(text: string): string {
 }
 
 async function scrape() {
-  log(NAME, "Starting...");
+  logger.info("Starting...");
   resetMetrics();
 
   const maxArticles = 20;
@@ -54,7 +55,7 @@ async function scrape() {
       }
     });
 
-    log(NAME, `Found ${collectedLinks.length} article links so far`);
+    logger.dim(`Found ${collectedLinks.length} article links so far`);
 
     if (collectedLinks.length < maxArticles) {
       nextPageUrl = $(".wp-block-query-pagination-next").attr("href") || null;
@@ -63,7 +64,7 @@ async function scrape() {
     }
   }
 
-  log(NAME, `Collected ${collectedLinks.length} articles, now scraping...`);
+  logger.info(`Collected ${collectedLinks.length} articles, now scraping...`);
 
   for (const articleUrl of collectedLinks.slice(0, maxArticles)) {
     try {
@@ -124,7 +125,7 @@ async function scrape() {
         contentType = "Presidential Action";
       }
 
-      log(NAME, `Generating AI summary for: ${headline}`);
+      logger.step(`Generating AI summary for: ${headline}`);
       const aiSummary = await generateAISummary(headline, fullTextMarkdown);
 
       await upsertContent({
@@ -140,13 +141,13 @@ async function scrape() {
         },
       });
 
-      log(NAME, `Scraped ${contentType}: ${headline}`);
+      logger.success(`Scraped ${contentType}: ${headline}`);
     } catch (error) {
-      logError(NAME, `Error scraping ${articleUrl}`, error);
+      logger.error(`Error scraping ${articleUrl}`, error);
     }
   }
 
-  log(NAME, "Completed");
+  logger.success("Completed");
   printMetricsSummary(NAME);
 }
 

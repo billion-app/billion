@@ -15,6 +15,9 @@ dotenv.config({ path: join(__dirname, '../../../.env') });
 // Import utilities AFTER env is loaded
 import { generateVideoForContent } from './utils/db/video-operations.js';
 import { findArticlesWithoutVideos } from './utils/db/helpers.js';
+import { createLogger, printHeader, printKeyValue, printFooter } from './utils/log.js';
+
+const logger = createLogger("retro-video");
 
 interface RetroactiveOptions {
   contentType?: 'bill' | 'government_content' | 'court_case' | 'all';
@@ -38,14 +41,14 @@ async function processArticles(
     errors: 0,
   };
 
-  console.log(`\nProcessing ${contentType} articles...`);
+  logger.info(`Processing ${contentType} articles...`);
 
   const articles = await findArticlesWithoutVideos(contentType, options.limit);
 
-  console.log(`Found ${articles.length} ${contentType} articles without videos`);
+  logger.info(`Found ${articles.length} ${contentType} articles without videos`);
 
   if (options.dryRun) {
-    console.log(`[DRY RUN] Would generate videos for ${articles.length} articles`);
+    logger.dim(`[DRY RUN] Would generate videos for ${articles.length} articles`);
     return stats;
   }
 
@@ -70,10 +73,10 @@ async function processArticles(
       );
 
       stats.videosGenerated++;
-      console.log(`✓ Generated video for: ${article.title.substring(0, 60)}...`);
+      logger.success(`Generated video for: ${article.title.substring(0, 60)}...`);
     } catch (error) {
       stats.errors++;
-      console.error(`✗ Error generating video for ${article.id}:`, error instanceof Error ? error.message : error);
+      logger.error(`Error generating video for ${article.id}`, error);
     }
   }
 
@@ -81,7 +84,7 @@ async function processArticles(
 }
 
 async function main() {
-  console.log('Starting retroactive video generation...\n');
+  logger.info('Starting retroactive video generation...');
 
   const args = process.argv.slice(2);
 
@@ -123,11 +126,11 @@ Examples:
     }
   }
 
-  console.log('Configuration:');
-  console.log(`  Content Type: ${options.contentType}`);
-  console.log(`  Limit: ${options.limit || 'No limit (max 1000 per type)'}`);
-  console.log(`  Dry Run: ${options.dryRun ? 'Yes' : 'No'}`);
-  console.log('');
+  printHeader("Configuration");
+  printKeyValue("Content Type", options.contentType ?? "all");
+  printKeyValue("Limit", options.limit ?? "No limit (max 1000/type)");
+  printKeyValue("Dry Run", options.dryRun ? "Yes" : "No");
+  printFooter();
 
   try {
     const totalStats: Stats = {
@@ -157,13 +160,15 @@ Examples:
       totalStats.errors += caseStats.errors;
     }
 
-    console.log('\n=== Summary ===');
-    console.log(`Total articles processed: ${totalStats.totalProcessed}`);
-    console.log(`Videos generated: ${totalStats.videosGenerated}`);
-    console.log(`Errors: ${totalStats.errors}`);
-    console.log('\nRetroactive video generation completed!');
+    printHeader("Summary");
+    printKeyValue("Total Processed", totalStats.totalProcessed);
+    printKeyValue("Videos Generated", totalStats.videosGenerated);
+    printKeyValue("Errors", totalStats.errors);
+    printFooter();
+
+    logger.success("Retroactive video generation completed!");
   } catch (error) {
-    console.error('Error running retroactive video generation:', error);
+    logger.error('Error running retroactive video generation', error);
     process.exit(1);
   }
 }

@@ -6,6 +6,9 @@
 import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { createLogger } from "../log.js";
+
+const logger = createLogger("ai");
 
 const MarketingCopySchema = z.object({
   title: z.string().max(100),
@@ -28,7 +31,7 @@ export async function generateMarketingCopy(
   contentType: string,
 ): Promise<MarketingCopy> {
   try {
-    console.log(`Generating marketing copy for: ${articleTitle}`);
+    logger.step(`Generating marketing copy for: ${articleTitle}`);
 
     const { object } = await generateObject({
       model: google("gemini-2.5-flash"),
@@ -48,7 +51,7 @@ Content Preview: ${articleContent.substring(0, 1000)}`,
 
     return object;
   } catch (error) {
-    console.error("Marketing copy generation failed:", error);
+    logger.error("Marketing copy generation failed", error);
 
     // Fallback to simple extraction
     return {

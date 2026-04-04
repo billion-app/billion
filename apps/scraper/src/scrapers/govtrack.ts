@@ -1,12 +1,13 @@
 import * as cheerio from "cheerio";
 
 import { fetchWithRetry } from "../utils/fetch.js";
-import { log, logError } from "../utils/log.js";
+import { createLogger } from "../utils/log.js";
 import { upsertContent } from "../utils/db/operations.js";
 import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
 import type { Scraper } from "../utils/types.js";
 
 const NAME = "GovTrack";
+const logger = createLogger(NAME);
 
 interface GovTrackConfig {
   maxBills?: number;
@@ -15,7 +16,7 @@ interface GovTrackConfig {
 
 async function scrape(config: GovTrackConfig = {}) {
   const { maxBills = 100, congress = 119 } = config;
-  log(NAME, "Starting...");
+  logger.info("Starting...");
   resetMetrics();
 
   const listingUrl = "https://www.govtrack.us/congress/bills/#docket";
@@ -38,10 +39,10 @@ async function scrape(config: GovTrackConfig = {}) {
     },
   );
 
-  log(NAME, `Found ${collectedLinks.length} bill links`);
+  logger.info(`Found ${collectedLinks.length} bill links`);
 
   const textUrls = collectedLinks.slice(0, maxBills).map((url) => `${url}/text`);
-  log(NAME, `Scraping ${textUrls.length} text pages...`);
+  logger.info(`Scraping ${textUrls.length} text pages...`);
 
   for (const textUrl of textUrls) {
     try {
@@ -57,7 +58,7 @@ async function scrape(config: GovTrackConfig = {}) {
         fullText.startsWith("Examples:") ||
         fullText.startsWith("IB ")
       ) {
-        log(NAME, `Rejecting garbage text for ${textUrl}`);
+        logger.warn(`Rejecting garbage text for ${textUrl}`);
         fullText = "";
       }
 
@@ -118,13 +119,13 @@ async function scrape(config: GovTrackConfig = {}) {
         });
       }
 
-      log(NAME, `Scraped: ${billNumber} — ${title}`);
+      logger.success(`Scraped: ${billNumber} — ${title}`);
     } catch (error) {
-      logError(NAME, `Error scraping ${textUrl}`, error);
+      logger.error(`Error scraping ${textUrl}`, error);
     }
   }
 
-  log(NAME, "Completed");
+  logger.success("Completed");
   printMetricsSummary(NAME);
 }
 

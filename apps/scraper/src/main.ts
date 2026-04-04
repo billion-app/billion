@@ -16,6 +16,9 @@ import { govtrack } from "./scrapers/govtrack.js";
 import { scotus } from "./scrapers/scotus.js";
 import { whitehouse } from "./scrapers/whitehouse.js";
 import type { Scraper } from "./utils/types.js";
+import { createLogger } from "./utils/log.js";
+
+const logger = createLogger("main");
 
 const scrapers: Scraper[] = [govtrack, whitehouse, congress, scotus];
 const scraperNames = scrapers.map((s) => s.name);
@@ -35,18 +38,17 @@ const arg = argv.scraper as string;
 
 async function main() {
   if (arg === "all") {
-    console.log("Running all scrapers...\n");
+    logger.info("Running all scrapers...");
     for (const scraper of scrapers) {
       await scraper.scrape();
-      console.log("\n---\n");
     }
-    console.log("All scrapers completed.");
+    logger.success("All scrapers completed.");
   } else {
     const scraper = scrapers.find(
       (s) => s.name.toLowerCase().replace(/[.\s]/g, "") === arg,
     );
     if (!scraper) {
-      console.error(`Unknown scraper: "${arg}"`);
+      logger.error(`Unknown scraper: "${arg}"`);
       process.exit(1);
     }
     await scraper.scrape();
@@ -54,6 +56,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Error running scrapers:", error);
+  logger.error("Error running scrapers", error);
   process.exit(1);
 });

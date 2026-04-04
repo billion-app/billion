@@ -1,5 +1,5 @@
 import { fetchWithRetry } from "../utils/fetch.js";
-import { log, logError } from "../utils/log.js";
+import { createLogger } from "../utils/log.js";
 import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
 import type { Scraper } from "../utils/types.js";
@@ -137,7 +137,8 @@ async function scrape(config: ScotusScraperConfig = {}) {
   const { maxCases = 50, court = "scotus" } = config;
 
   const displayName = court === "scotus" ? "SCOTUS" : court.toUpperCase();
-  log(displayName, `Starting (court=${court}, maxCases=${maxCases})...`);
+  const logger = createLogger(displayName);
+  logger.info(`Starting (court=${court}, maxCases=${maxCases})...`);
   resetMetrics();
 
   const allClusters: ClCluster[] = [];
@@ -162,7 +163,7 @@ async function scrape(config: ScotusScraperConfig = {}) {
   }
 
   const clusters = allClusters.slice(0, maxCases);
-  log(displayName, `Fetched ${clusters.length} opinion clusters`);
+  logger.info(`Fetched ${clusters.length} opinion clusters`);
 
   for (const cluster of clusters) {
     try {
@@ -200,13 +201,13 @@ async function scrape(config: ScotusScraperConfig = {}) {
         },
       });
 
-      log(displayName, `Processed: ${docketNumber} — ${title}`);
+      logger.success(`Processed: ${docketNumber} — ${title}`);
     } catch (error) {
-      logError(displayName, `Error processing cluster ${cluster.id}`, error);
+      logger.error(`Error processing cluster ${cluster.id}`, error);
     }
   }
 
-  log(displayName, "Completed");
+  logger.success("Completed");
   printMetricsSummary(displayName);
 }
 

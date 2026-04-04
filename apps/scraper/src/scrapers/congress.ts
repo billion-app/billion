@@ -1,11 +1,12 @@
 import { fetchWithRetry } from "../utils/fetch.js";
-import { log, logError } from "../utils/log.js";
+import { createLogger } from "../utils/log.js";
 import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
 import type { Scraper } from "../utils/types.js";
 
 const BASE_URL = "https://api.congress.gov/v3";
 const NAME = "Congress.gov";
+const logger = createLogger(NAME);
 
 interface CongressScraperConfig {
   maxBills?: number;
@@ -183,7 +184,7 @@ async function fetchFullText(
 async function scrape(config: CongressScraperConfig = {}) {
   const { maxBills = 100, congress = 119, chamber = "House" } = config;
 
-  log(NAME, `Starting (congress=${congress}, chamber=${chamber})...`);
+  logger.info(`Starting (congress=${congress}, chamber=${chamber})...`);
   resetMetrics();
 
   const chamberParam = chamber === "House" ? "house" : "senate";
@@ -208,7 +209,7 @@ async function scrape(config: CongressScraperConfig = {}) {
   }
 
   const bills = allBills.slice(0, maxBills);
-  log(NAME, `Fetched ${bills.length} bills`);
+  logger.info(`Fetched ${bills.length} bills`);
 
   for (const item of bills) {
     try {
@@ -261,17 +262,13 @@ async function scrape(config: CongressScraperConfig = {}) {
         },
       });
 
-      log(NAME, `Processed: ${formattedBillNumber} — ${title}`);
+      logger.success(`Processed: ${formattedBillNumber} — ${title}`);
     } catch (error) {
-      logError(
-        NAME,
-        `Error processing bill ${item.type}${item.number}`,
-        error,
-      );
+      logger.error(`Error processing bill ${item.type}${item.number}`, error);
     }
   }
 
-  log(NAME, "Completed");
+  logger.success("Completed");
   printMetricsSummary(NAME);
 }
 

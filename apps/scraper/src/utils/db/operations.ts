@@ -28,6 +28,9 @@ import {
   incrementImagesSearched,
 } from "./metrics.js";
 import { generateVideoForContent } from "./video-operations.js";
+import { createLogger } from "../log.js";
+
+const logger = createLogger("db");
 
 function isUsableText(text: string | undefined | null): text is string {
   if (!text || text.length < 200) return false;
@@ -132,17 +135,17 @@ export async function upsertContent(input: ContentData) {
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = hasUsableText;
     incrementNewEntries();
-    console.log(`New ${label} detected`);
+    logger.info(`New ${label} detected`);
   } else if (existing.contentHash !== newContentHash) {
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
     incrementExistingChanged();
-    console.log(`Content changed for ${label}`);
+    logger.info(`Content changed for ${label}`);
   } else {
     shouldGenerateArticle = false;
     shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
     incrementExistingUnchanged();
-    console.log(`No changes for ${label}, skipping AI generation`);
+    logger.dim(`No changes for ${label}, skipping AI generation`);
   }
 
   // Phase 1: always persist raw content first (no AI fields)
@@ -227,7 +230,7 @@ export async function upsertContent(input: ContentData) {
     result = row;
   }
 
-  console.log(`${label} upserted (raw)`);
+  logger.dim(`${label} upserted (raw)`);
 
   if (!result) return result;
 
@@ -246,7 +249,7 @@ export async function upsertContent(input: ContentData) {
         input.type === "bill"
           ? input.data.summary || input.data.fullText || ""
           : fullText!;
-      console.log(`Generating AI summary for ${label}`);
+      logger.step(`Generating AI summary for ${label}`);
       description = await generateAISummary(title, summarySource);
     }
 
@@ -259,7 +262,7 @@ export async function upsertContent(input: ContentData) {
           : "court case";
 
     if (shouldGenerateArticle && hasUsableText) {
-      console.log(`Generating AI article for ${label}`);
+      logger.step(`Generating AI article for ${label}`);
       aiGeneratedArticle = await generateAIArticle(
         title,
         fullText!,
@@ -268,28 +271,28 @@ export async function upsertContent(input: ContentData) {
       );
       incrementAIArticlesGenerated();
     } else if (existing?.hasArticle) {
-      console.log(`Using existing AI article for ${label}`);
+      logger.dim(`Using existing AI article for ${label}`);
     }
 
     let thumbnailUrl: string | null | undefined;
     if (shouldGenerateImage) {
       try {
-        console.log(`Searching for thumbnail for ${label}`);
+        logger.step(`Searching for thumbnail for ${label}`);
         const searchQuery = await generateImageSearchKeywords(
           title,
           fullText || "",
           articleType,
         );
-        console.log(`Image search query: ${searchQuery}`);
+        logger.dim(`Image search query: ${searchQuery}`);
         thumbnailUrl = await getThumbnailImage(searchQuery);
         incrementImagesSearched();
       } catch (error) {
         if (error instanceof AIRateLimitError) throw error;
-        console.warn(`Failed to fetch thumbnail for ${label}:`, error);
+        logger.warn(`Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`);
         thumbnailUrl = null;
       }
     } else if (existing?.hasThumbnail) {
-      console.log(`Using existing thumbnail for ${label}`);
+      logger.dim(`Using existing thumbnail for ${label}`);
     }
 
     // Only UPDATE if something was generated
@@ -312,13 +315,11 @@ export async function upsertContent(input: ContentData) {
           updatedAt: new Date(),
         })
         .where(eq(idCol, result.id));
-      console.log(`${label} enriched with AI content`);
+      logger.success(`${label} enriched with AI content`);
     }
   } catch (error) {
     if (error instanceof AIRateLimitError) {
-      console.warn(
-        `AI rate limit hit — ${label} saved without AI content, will retry next run`,
-      );
+      logger.warn(`AI rate limit hit — ${label} saved without AI content, will retry next run`);
     } else {
       throw error;
     }
