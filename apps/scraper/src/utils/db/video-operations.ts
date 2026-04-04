@@ -5,7 +5,7 @@
 
 import { db } from '@acme/db/client';
 import { Video } from '@acme/db/schema';
-import { uploadImage } from '@acme/db/storage';
+import { uploadImage, deleteImage } from '@acme/db/storage';
 import { and, eq } from '@acme/db';
 import { generateMarketingCopy } from '../ai/marketing-generation.js';
 import { generateImage, convertToJpeg } from '../ai/image-generation.js';
@@ -69,14 +69,11 @@ export async function generateVideoForContent(
   // Generate marketing copy
   const marketingCopy = await generateMarketingCopy(title, fullText, contentType);
 
-  // Generate, convert, and upload image
-  let imageUrl: string | null = null;
+  // Generate and convert image (upload happens after DB write to avoid orphans)
+  let jpegData: Buffer | null = null;
   const generatedImage = await generateImage(marketingCopy.imagePrompt);
   if (generatedImage) {
-    const jpegData = await convertToJpeg(generatedImage.data);
-    const storagePath = `videos/${contentType}/${contentId}.jpg`;
-    imageUrl = await uploadImage(storagePath, jpegData);
-    logger.debug(`Uploaded image to ${storagePath}`);
+    jpegData = await convertToJpeg(generatedImage.data);
   }
 
   // Random engagement metrics (same as current video.ts)
@@ -86,7 +83,7 @@ export async function generateVideoForContent(
     shares: Math.floor(Math.random() * 1000) + 10,
   };
 
-  // Upsert video
+  // Upsert video first (without image URL)
   try {
     await db
       .insert(Video)
@@ -95,7 +92,6 @@ export async function generateVideoForContent(
         contentId,
         title: marketingCopy.title,
         description: marketingCopy.description,
-        imageUrl,
         thumbnailUrl: thumbnailUrl ?? undefined,
         author,
         engagementMetrics,
@@ -106,15 +102,11 @@ export async function generateVideoForContent(
         set: {
           title: marketingCopy.title,
           description: marketingCopy.description,
-          imageUrl,
           thumbnailUrl: thumbnailUrl ?? undefined,
           sourceContentHash: contentHash,
           updatedAt: new Date(),
         },
       });
-
-    incrementVideosGenerated();
-    logger.success(`Video generated for ${contentType}:${contentId}`);
   } catch (error) {
     // Sanitize error to avoid logging raw image data
     const sanitizedError = error instanceof Error
@@ -123,4 +115,24 @@ export async function generateVideoForContent(
     logger.error(`Failed to insert video for ${contentType}:${contentId}: ${sanitizedError}`);
     throw error;
   }
+
+  // Upload image after successful DB write, then update the row
+  if (jpegData) {
+    const storagePath = `videos/${contentType}/${contentId}.jpg`;
+    try {
+      const imageUrl = await uploadImage(storagePath, jpegData);
+      await db
+        .update(Video)
+        .set({ imageUrl })
+        .where(and(eq(Video.contentType, contentType), eq(Video.contentId, contentId)));
+      logger.debug(`Uploaded image to ${storagePath}`);
+    } catch (error) {
+      // Best-effort cleanup of orphaned upload
+      try { await deleteImage(storagePath); } catch { /* ignore */ }
+      logger.warn(`Image upload/update failed for ${contentType}:${contentId}, video saved without image`);
+    }
+  }
+
+  incrementVideosGenerated();
+  logger.success(`Video generated for ${contentType}:${contentId}`);
 }

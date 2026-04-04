@@ -19,95 +19,80 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
 import pg from "pg";
-import { createClient } from "@supabase/supabase-js";
+import { uploadImage } from "./src/storage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 config({ path: join(__dirname, "../../.env") });
 
-const BUCKET = process.env.SUPABASE_STORAGE_BUCKET ?? "images";
+const BATCH_SIZE = 50;
 const dryRun = process.argv.includes("--dry-run");
-
-function getSupabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  }
-  return createClient(url, key);
-}
 
 async function migrate() {
   const pool = new pg.Pool({ connectionString: process.env.POSTGRES_URL });
-  const supabase = getSupabase();
 
   console.log(dryRun ? "[DRY RUN] " : "", "Starting image migration...\n");
 
   const client = await pool.connect();
 
   try {
-    // Find all videos with binary data but no storage URL
-    const { rows } = await client.query<{
-      id: string;
-      content_type: string;
-      content_id: string;
-      image_data: Buffer;
-      image_mime_type: string | null;
-    }>(
-      `SELECT id, content_type, content_id, image_data, image_mime_type
-       FROM video
-       WHERE image_data IS NOT NULL AND image_url IS NULL`,
-    );
-
-    console.log(`Found ${rows.length} videos to migrate\n`);
-
     let migrated = 0;
     let errors = 0;
+    let lastId: string | null = null;
 
-    for (const row of rows) {
-      const storagePath = `videos/${row.content_type}/${row.content_id}.jpg`;
-      const mimeType = row.image_mime_type ?? "image/jpeg";
+    // Migrate in batches using an ID cursor to keep memory bounded
+    while (true) {
+      const { rows } = await client.query<{
+        id: string;
+        content_type: string;
+        content_id: string;
+        image_data: Buffer;
+        image_mime_type: string | null;
+      }>(
+        `SELECT id, content_type, content_id, image_data, image_mime_type
+         FROM video
+         WHERE image_data IS NOT NULL AND image_url IS NULL
+           ${lastId ? "AND id > $2" : ""}
+         ORDER BY id
+         LIMIT $1`,
+        lastId ? [BATCH_SIZE, lastId] : [BATCH_SIZE],
+      );
 
-      try {
-        if (dryRun) {
-          console.log(`  [DRY RUN] Would upload ${storagePath} (${row.image_data.length} bytes)`);
+      if (rows.length === 0) break;
+
+      for (const row of rows) {
+        const storagePath = `videos/${row.content_type}/${row.content_id}.jpg`;
+        const mimeType = row.image_mime_type ?? "image/jpeg";
+
+        try {
+          if (dryRun) {
+            console.log(`  [DRY RUN] Would upload ${storagePath} (${row.image_data.length} bytes)`);
+            migrated++;
+            continue;
+          }
+
+          // Upload via shared storage abstraction
+          const publicUrl = await uploadImage(storagePath, row.image_data, mimeType);
+
+          // Write URL back and clear blob
+          await client.query(
+            `UPDATE video
+             SET image_url = $1, image_data = NULL, image_mime_type = NULL,
+                 image_width = NULL, image_height = NULL
+             WHERE id = $2`,
+            [publicUrl, row.id],
+          );
+
           migrated++;
-          continue;
+          console.log(`  Migrated: ${storagePath}`);
+        } catch (err) {
+          errors++;
+          console.error(`  Failed: ${storagePath} — ${err instanceof Error ? err.message : err}`);
         }
-
-        // Upload to storage
-        const { error: uploadError } = await supabase.storage
-          .from(BUCKET)
-          .upload(storagePath, row.image_data, {
-            contentType: mimeType,
-            upsert: true,
-          });
-
-        if (uploadError) {
-          throw new Error(uploadError.message);
-        }
-
-        // Get public URL
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
-
-        // Write URL back and clear blob
-        await client.query(
-          `UPDATE video
-           SET image_url = $1, image_data = NULL, image_mime_type = NULL,
-               image_width = NULL, image_height = NULL
-           WHERE id = $2`,
-          [publicUrl, row.id],
-        );
-
-        migrated++;
-        console.log(`  Migrated: ${storagePath}`);
-      } catch (err) {
-        errors++;
-        console.error(`  Failed: ${storagePath} — ${err instanceof Error ? err.message : err}`);
       }
+
+      lastId = rows[rows.length - 1]!.id;
     }
 
     console.log(`\nDone: ${migrated} migrated, ${errors} errors`);
