@@ -5,7 +5,7 @@
 
 import { db } from '@acme/db/client';
 import { Video } from '@acme/db/schema';
-import { uploadImage, deleteImage } from '@acme/db/storage';
+import { uploadImage } from '@acme/db/storage';
 import { and, eq } from '@acme/db';
 import { generateMarketingCopy } from '../ai/marketing-generation.js';
 import { generateImage, convertToJpeg } from '../ai/image-generation.js';
@@ -129,7 +129,13 @@ export async function generateVideoForContent(
       try {
         await db
           .update(Video)
-          .set({ imageUrl })
+          .set({
+            imageUrl,
+            imageData: null,
+            imageMimeType: null,
+            imageWidth: null,
+            imageHeight: null,
+          })
           .where(and(eq(Video.contentType, contentType), eq(Video.contentId, contentId)));
         logger.debug(`Uploaded image to ${storagePath}`);
       } catch (error) {
