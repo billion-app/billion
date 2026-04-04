@@ -3,7 +3,6 @@ import * as cheerio from "cheerio";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { upsertContent } from "../utils/db/operations.js";
-import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import type { Scraper } from "../utils/types.js";
 
@@ -18,7 +17,6 @@ interface GovTrackConfig {
 async function scrape(config: GovTrackConfig = {}) {
   const { maxBills = 100, congress = 119 } = config;
   logger.info("Starting...");
-  resetMetrics();
 
   const listingUrl = "https://www.govtrack.us/congress/bills/#docket";
   const listingRes = await fetchWithRetry(listingUrl);
@@ -132,7 +130,6 @@ async function scrape(config: GovTrackConfig = {}) {
   );
 
   logger.success("Completed");
-  printMetricsSummary(NAME);
 }
 
 export const govtrack: Scraper = {
