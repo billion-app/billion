@@ -17,6 +17,7 @@ import { scotus } from "./scrapers/scotus.js";
 import { whitehouse } from "./scrapers/whitehouse.js";
 import type { Scraper } from "./utils/types.js";
 import { createLogger } from "./utils/log.js";
+import { setConcurrency } from "./utils/concurrency.js";
 
 const logger = createLogger("main");
 
@@ -31,18 +32,38 @@ const argv = await yargs(hideBin(process.argv))
       default: "all" as const,
     }),
   )
+  .option("concurrency", {
+    alias: "c",
+    type: "number",
+    default: 3,
+    describe: "Number of items to process concurrently within each scraper",
+  })
   .help()
   .parse();
 
 const arg = argv.scraper as string;
+const concurrency = (argv as { concurrency: number }).concurrency;
+
+setConcurrency(concurrency);
 
 async function main() {
   if (arg === "all") {
     logger.info("Running all scrapers...");
-    for (const scraper of scrapers) {
-      await scraper.scrape();
+    const results = await Promise.allSettled(scrapers.map((s) => s.scrape()));
+    const failed = results
+      .map((result, i) => ({ result, scraper: scrapers[i] }))
+      .filter(({ result }) => result.status === "rejected");
+    for (const { result, scraper } of failed) {
+      logger.error(
+        `Scraper "${scraper!.name}" failed:`,
+        (result as PromiseRejectedResult).reason,
+      );
     }
-    logger.success("All scrapers completed.");
+    if (failed.length === 0) {
+      logger.success("All scrapers completed.");
+    } else {
+      logger.warn(`${failed.length} scraper(s) failed.`);
+    }
   } else {
     const scraper = scrapers.find(
       (s) => s.name.toLowerCase().replace(/[.\s]/g, "") === arg,
