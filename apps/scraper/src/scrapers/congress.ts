@@ -1,3 +1,6 @@
+import { eq, max } from "@acme/db";
+import { db } from "@acme/db/client";
+import { Bill } from "@acme/db/schema";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
@@ -20,6 +23,7 @@ interface ApiBillListItem {
   title: string;
   congress: number;
   url: string;
+  updateDate: string;
   latestAction?: { text: string; actionDate: string };
 }
 
@@ -187,7 +191,25 @@ async function scrape(config: CongressScraperConfig = {}) {
   logger.info(`Starting (congress=${congress}, chamber=${chamber})...`);
   resetMetrics();
 
+  // Query the last time we successfully scraped a congress.gov bill
+  const [lastScrape] = await db
+    .select({ lastUpdated: max(Bill.updatedAt) })
+    .from(Bill)
+    .where(eq(Bill.sourceWebsite, "congress.gov"));
+
   const chamberParam = chamber === "House" ? "house" : "senate";
+
+  const fetchParams: Record<string, string | number> = {
+    chamber: chamberParam,
+    sort: "updateDate+desc",
+  };
+
+  if (lastScrape?.lastUpdated) {
+    // Congress.gov API expects ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
+    const fromDate = lastScrape.lastUpdated.toISOString().replace(/\.\d{3}Z$/, "Z");
+    fetchParams.fromDateTime = fromDate;
+    logger.info(`Fetching bills updated since ${fromDate}`);
+  }
 
   const allBills: ApiBillListItem[] = [];
   let offset = 0;
@@ -199,7 +221,7 @@ async function scrape(config: CongressScraperConfig = {}) {
 
     const pageData = await congressFetch<{ bills: ApiBillListItem[] }>(
       `/bill/${congress}`,
-      { chamber: chamberParam, limit, offset, sort: "updateDate+desc" },
+      { ...fetchParams, limit, offset },
     );
 
     const page = pageData.bills ?? [];
@@ -209,7 +231,13 @@ async function scrape(config: CongressScraperConfig = {}) {
   }
 
   const bills = allBills.slice(0, maxBills);
-  logger.info(`Fetched ${bills.length} bills`);
+  logger.info(`Fetched ${bills.length} bills${lastScrape?.lastUpdated ? " (incremental)" : " (full)"}`);
+
+  if (bills.length === 0) {
+    logger.success("No new or updated bills since last scrape");
+    printMetricsSummary(NAME);
+    return;
+  }
 
   for (const item of bills) {
     try {
