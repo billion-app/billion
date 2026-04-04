@@ -236,24 +236,7 @@ export async function upsertContent(input: ContentData) {
 
   // Phase 2: AI enrichment — skipped entirely if rate-limited
   try {
-    let description: string | undefined;
     const existingDescription = input.data.description;
-
-    if (existingDescription) {
-      description = existingDescription;
-    } else if (
-      shouldGenerateArticle &&
-      (fullText || (input.type === "bill" && input.data.summary))
-    ) {
-      const summarySource =
-        input.type === "bill"
-          ? input.data.summary || input.data.fullText || ""
-          : fullText!;
-      logger.start(`Generating AI summary for ${label}`);
-      description = await generateAISummary(title, summarySource);
-    }
-
-    let aiGeneratedArticle: string | undefined;
     const articleType =
       input.type === "bill"
         ? "bill"
@@ -261,39 +244,68 @@ export async function upsertContent(input: ContentData) {
           ? input.data.type
           : "court case";
 
-    if (shouldGenerateArticle && hasUsableText) {
-      logger.start(`Generating AI article for ${label}`);
-      aiGeneratedArticle = await generateAIArticle(
-        title,
-        fullText!,
-        articleType,
-        url,
-      );
-      incrementAIArticlesGenerated();
-    } else if (existing?.hasArticle) {
-      logger.debug(`Using existing AI article for ${label}`);
-    }
+    const [description, aiGeneratedArticle, thumbnailUrl] = await Promise.all([
+      // Summary generation
+      (async (): Promise<string | undefined> => {
+        if (existingDescription) {
+          return existingDescription;
+        } else if (
+          shouldGenerateArticle &&
+          (fullText || (input.type === "bill" && input.data.summary))
+        ) {
+          const summarySource =
+            input.type === "bill"
+              ? input.data.summary || input.data.fullText || ""
+              : fullText!;
+          logger.start(`Generating AI summary for ${label}`);
+          return generateAISummary(title, summarySource);
+        }
+        return undefined;
+      })(),
 
-    let thumbnailUrl: string | null | undefined;
-    if (shouldGenerateImage) {
-      try {
-        logger.start(`Searching for thumbnail for ${label}`);
-        const searchQuery = await generateImageSearchKeywords(
-          title,
-          fullText || "",
-          articleType,
-        );
-        logger.debug(`Image search query: ${searchQuery}`);
-        thumbnailUrl = await getThumbnailImage(searchQuery);
-        incrementImagesSearched();
-      } catch (error) {
-        if (error instanceof AIRateLimitError) throw error;
-        logger.warn(`Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`);
-        thumbnailUrl = null;
-      }
-    } else if (existing?.hasThumbnail) {
-      logger.debug(`Using existing thumbnail for ${label}`);
-    }
+      // Article generation
+      (async (): Promise<string | undefined> => {
+        if (shouldGenerateArticle && hasUsableText) {
+          logger.start(`Generating AI article for ${label}`);
+          const article = await generateAIArticle(
+            title,
+            fullText!,
+            articleType,
+            url,
+          );
+          incrementAIArticlesGenerated();
+          return article;
+        } else if (existing?.hasArticle) {
+          logger.debug(`Using existing AI article for ${label}`);
+        }
+        return undefined;
+      })(),
+
+      // Thumbnail image search
+      (async (): Promise<string | null | undefined> => {
+        if (shouldGenerateImage) {
+          try {
+            logger.start(`Searching for thumbnail for ${label}`);
+            const searchQuery = await generateImageSearchKeywords(
+              title,
+              fullText || "",
+              articleType,
+            );
+            logger.debug(`Image search query: ${searchQuery}`);
+            const url = await getThumbnailImage(searchQuery);
+            incrementImagesSearched();
+            return url;
+          } catch (error) {
+            if (error instanceof AIRateLimitError) throw error;
+            logger.warn(`Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`);
+            return null;
+          }
+        } else if (existing?.hasThumbnail) {
+          logger.debug(`Using existing thumbnail for ${label}`);
+        }
+        return undefined;
+      })(),
+    ]);
 
     // Only UPDATE if something was generated
     const hasNewDescription =
