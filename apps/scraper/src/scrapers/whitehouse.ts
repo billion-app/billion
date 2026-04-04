@@ -4,6 +4,7 @@ import TurndownService from "turndown";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { upsertContent } from "../utils/db/operations.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import type { Scraper } from "../utils/types.js";
 
@@ -62,11 +63,13 @@ async function scrape() {
     }
   }
 
+  const items = collectedLinks.slice(0, maxArticles);
   logger.info(`Collected ${collectedLinks.length} articles, now scraping...`);
+  setExpectedTotal(items.length);
 
   const limit = getItemLimit();
   await Promise.allSettled(
-    collectedLinks.slice(0, maxArticles).map((articleUrl) =>
+    items.map((articleUrl) =>
       limit(async () => {
         try {
           const res = await fetchWithRetry(articleUrl, { timeoutMs: 60_000 });

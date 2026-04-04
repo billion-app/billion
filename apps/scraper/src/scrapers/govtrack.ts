@@ -3,6 +3,7 @@ import * as cheerio from "cheerio";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { upsertContent } from "../utils/db/operations.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import type { Scraper } from "../utils/types.js";
 
@@ -42,6 +43,7 @@ async function scrape(config: GovTrackConfig = {}) {
 
   const textUrls = collectedLinks.slice(0, maxBills).map((url) => `${url}/text`);
   logger.info(`Scraping ${textUrls.length} text pages...`);
+  setExpectedTotal(textUrls.length);
 
   const limit = getItemLimit();
   await Promise.allSettled(

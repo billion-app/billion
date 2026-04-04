@@ -2,6 +2,7 @@ import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import { upsertContent } from "../utils/db/operations.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
 import type { Scraper } from "../utils/types.js";
 
 const CL_BASE = "https://www.courtlistener.com/api/rest/v4";
@@ -163,6 +164,7 @@ async function scrape(config: ScotusScraperConfig = {}) {
 
   const clusters = allClusters.slice(0, maxCases);
   logger.info(`Fetched ${clusters.length} opinion clusters`);
+  setExpectedTotal(clusters.length);
 
   const limit = getItemLimit();
   await Promise.allSettled(

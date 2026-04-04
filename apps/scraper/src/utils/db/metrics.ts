@@ -6,6 +6,9 @@
 import type { ScraperMetrics } from '../types.js';
 import { printHeader, printKeyValue, printFooter } from '../log.js';
 import { getCostSummary, resetCosts } from '../costs.js';
+import { stopProgress, resetProgress, tickAI } from '../progress.js';
+
+export { addExpectedTotal as setExpectedTotal } from '../progress.js';
 
 // Global metrics object for the current run
 let currentMetrics: ScraperMetrics = {
@@ -33,6 +36,7 @@ export function resetMetrics(): void {
     videosGenerated: 0,
     videosSkipped: 0,
   };
+  resetProgress();
   resetCosts();
 }
 
@@ -77,6 +81,7 @@ export function incrementExistingChanged(): void {
  */
 export function incrementAIArticlesGenerated(): void {
   currentMetrics.aiArticlesGenerated++;
+  tickAI();
 }
 
 /**
@@ -111,6 +116,7 @@ function formatUsd(amount: number): string {
 }
 
 export function printMetricsSummary(scraperName: string): void {
+  stopProgress();
   const apiCallsSaved = currentMetrics.existingUnchanged * 4; // 3 OpenAI + 1 Google per unchanged item
   const costs = getCostSummary();
 

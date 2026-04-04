@@ -5,6 +5,7 @@ import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import { upsertContent } from "../utils/db/operations.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
 import type { Scraper } from "../utils/types.js";
 
 const BASE_URL = "https://api.congress.gov/v3";
@@ -236,6 +237,8 @@ async function scrape(config: CongressScraperConfig = {}) {
     logger.success("No new or updated bills since last scrape");
     return;
   }
+
+  setExpectedTotal(bills.length);
 
   const limit = getItemLimit();
   await Promise.allSettled(
