@@ -292,9 +292,9 @@ export async function upsertContent(input: ContentData) {
               articleType,
             );
             logger.debug(`Image search query: ${searchQuery}`);
-            const url = await getThumbnailImage(searchQuery);
+            const thumbnailResult = await getThumbnailImage(searchQuery);
             incrementImagesSearched();
-            return url;
+            return thumbnailResult;
           } catch (error) {
             if (error instanceof AIRateLimitError) throw error;
             logger.warn(`Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`);
