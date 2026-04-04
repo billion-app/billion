@@ -119,17 +119,25 @@ export async function generateVideoForContent(
   // Upload image after successful DB write, then update the row
   if (jpegData) {
     const storagePath = `videos/${contentType}/${contentId}.jpg`;
+    let imageUrl: string | undefined;
     try {
-      const imageUrl = await uploadImage(storagePath, jpegData);
-      await db
-        .update(Video)
-        .set({ imageUrl })
-        .where(and(eq(Video.contentType, contentType), eq(Video.contentId, contentId)));
-      logger.debug(`Uploaded image to ${storagePath}`);
+      imageUrl = await uploadImage(storagePath, jpegData);
     } catch (error) {
-      // Best-effort cleanup of orphaned upload
-      try { await deleteImage(storagePath); } catch { /* ignore */ }
-      logger.warn(`Image upload/update failed for ${contentType}:${contentId}, video saved without image`);
+      logger.warn(`Image upload failed for ${contentType}:${contentId}, video saved without image`);
+    }
+    if (imageUrl) {
+      try {
+        await db
+          .update(Video)
+          .set({ imageUrl })
+          .where(and(eq(Video.contentType, contentType), eq(Video.contentId, contentId)));
+        logger.debug(`Uploaded image to ${storagePath}`);
+      } catch (error) {
+        // Don't delete the uploaded file — it lives at a deterministic path that
+        // may already be referenced by a previous imageUrl, and will be
+        // overwritten on the next successful run.
+        logger.warn(`DB update for imageUrl failed for ${contentType}:${contentId}, image uploaded but URL not saved`);
+      }
     }
   }
 
