@@ -39,7 +39,7 @@ interface ContentCard {
   type: "bill" | "government_content" | "court_case" | "general";
   isAIGenerated: boolean;
   thumbnailUrl?: string;
-  imageUri?: string;
+  imageUrl?: string;
 }
 
 const _TYPE_LABELS: Record<ContentCard["type"], string> = {
@@ -137,10 +137,10 @@ const ContentCardComponent = ({
       </View>
 
       {/* Thumbnail */}
-      {(item.imageUri ?? item.thumbnailUrl) ? (
+      {(item.imageUrl ?? item.thumbnailUrl) ? (
         <Image
           style={styles.thumbnail}
-          source={{ uri: item.imageUri ?? item.thumbnailUrl }}
+          source={{ uri: item.imageUrl ?? item.thumbnailUrl }}
           contentFit="cover"
           transition={300}
         />
