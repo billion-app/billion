@@ -263,6 +263,20 @@ AUTH_REDIRECT_PROXY_URL=https://your-production-url.com
 
 ### Troubleshooting
 
+#### Issue: TypeScript errors about missing `.js` extensions in `packages/db`
+
+**Symptoms**: `tsc` in `apps/scraper` reports errors like:
+```
+../../packages/db/src/client.ts(4,25): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'.
+```
+
+**Cause**: The scraper uses `moduleResolution: "NodeNext"` which requires `.js` extensions on relative imports. When `packages/db/dist/` exists (with compiled `.d.ts` files), TypeScript resolves from those and everything is fine. When `dist/` is missing (e.g. in a fresh clone or git worktree), TypeScript falls back to the source `.ts` files and complains.
+
+**Solution**: Build the db package first:
+```bash
+pnpm -F @acme/db build
+```
+
 #### Issue: Expo app can't connect to localtunnel
 
 **Symptoms**: Network errors, timeout, or "Failed to fetch" errors
