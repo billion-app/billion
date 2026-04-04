@@ -1,3 +1,7 @@
+import { createLogger } from "./log.js";
+
+const logger = createLogger("fetch");
+
 export interface FetchWithRetryOptions extends RequestInit {
   maxRetries?: number;
   timeoutMs?: number;
@@ -15,6 +19,7 @@ function getHost(url: string): string {
 async function applyBackoff(host: string): Promise<void> {
   const delay = hostBackoff.get(host);
   if (delay && delay > 0) {
+    logger.info(`Backing off ${host} for ${(delay / 1000).toFixed(1)}s`);
     await new Promise((r) => setTimeout(r, delay));
   }
 }
@@ -79,6 +84,7 @@ export async function fetchWithRetry(
           }
         }
 
+        logger.warn(`HTTP ${res.status} from ${host}, retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`);
         await new Promise((r) => setTimeout(r, delayMs));
         continue;
       }
@@ -87,13 +93,17 @@ export async function fetchWithRetry(
     } catch (err: any) {
       if (err?.name === "AbortError") {
         if (attempt < maxRetries) {
-          await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+          const delayMs = 1000 * Math.pow(2, attempt);
+          logger.warn(`Timeout for ${host}, retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise((r) => setTimeout(r, delayMs));
           continue;
         }
         throw new Error(`Request timed out after ${timeoutMs}ms: ${url}`);
       }
       if (attempt < maxRetries && (err?.code === "ECONNRESET" || err?.code === "ECONNREFUSED")) {
-        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        const delayMs = 1000 * Math.pow(2, attempt);
+        logger.warn(`${err.code} from ${host}, retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise((r) => setTimeout(r, delayMs));
         continue;
       }
       throw err;
