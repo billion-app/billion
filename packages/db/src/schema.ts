@@ -176,12 +176,15 @@ export const Video = pgTable(
     title: t.varchar({ length: 25 }).notNull(), // Max 25 chars
     description: t.text().notNull(), // 50-word catchy headline
 
-    // Hybrid image storage: Binary AI-generated images OR URL-based scraped thumbnails
-    imageData: bytea("image_data"), // Raw JPEG bytes (AI-generated)
-    imageMimeType: t.varchar("image_mime_type", { length: 50 }), // "image/jpeg"
+    // Image storage: URL to object storage (Supabase Storage / S3)
+    imageUrl: t.text(), // Public URL of uploaded image
+    thumbnailUrl: t.text(), // URL from source content (scraped)
+
+    // Deprecated: binary image storage (pending migration removal)
+    imageData: bytea("image_data"),
+    imageMimeType: t.varchar("image_mime_type", { length: 50 }),
     imageWidth: t.integer("image_width"),
     imageHeight: t.integer("image_height"),
-    thumbnailUrl: t.text(), // URL from source content (scraped)
 
     // Metadata
     author: t.varchar({ length: 100 }), // "govtrack.com", "whitehouse.gov", etc.
