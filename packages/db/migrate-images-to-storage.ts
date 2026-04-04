@@ -19,6 +19,7 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
 import pg from "pg";
+
 import { uploadImage } from "./src/storage.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -67,13 +68,19 @@ async function migrate() {
 
         try {
           if (dryRun) {
-            console.log(`  [DRY RUN] Would upload ${storagePath} (${row.image_data.length} bytes)`);
+            console.log(
+              `  [DRY RUN] Would upload ${storagePath} (${row.image_data.length} bytes)`,
+            );
             migrated++;
             continue;
           }
 
           // Upload via shared storage abstraction
-          const publicUrl = await uploadImage(storagePath, row.image_data, mimeType);
+          const publicUrl = await uploadImage(
+            storagePath,
+            row.image_data,
+            mimeType,
+          );
 
           // Write URL back and clear blob
           await client.query(
@@ -88,7 +95,9 @@ async function migrate() {
           console.log(`  Migrated: ${storagePath}`);
         } catch (err) {
           errors++;
-          console.error(`  Failed: ${storagePath} — ${err instanceof Error ? err.message : err}`);
+          console.error(
+            `  Failed: ${storagePath} — ${err instanceof Error ? err.message : err}`,
+          );
         }
       }
 

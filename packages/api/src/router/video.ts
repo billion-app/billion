@@ -72,9 +72,10 @@ export const videoRouter = {
           shares: metrics.shares,
           type,
           articlePreview: video.description,
-          imageUrl: video.imageUrl
+          imageUrl:
+            video.imageUrl ??
             // Fallback: serve legacy imageData as data-URI until migration completes
-            ?? (video.imageData
+            (video.imageData
               ? `data:${video.imageMimeType ?? "image/jpeg"};base64,${Buffer.from(video.imageData).toString("base64")}`
               : undefined),
           thumbnailUrl: video.thumbnailUrl ?? undefined,
