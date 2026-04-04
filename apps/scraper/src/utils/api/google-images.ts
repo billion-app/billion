@@ -5,6 +5,7 @@
 
 import type { ImageResult } from '../types.js';
 import { createLogger } from '../log.js';
+import { trackGoogleSearch } from '../costs.js';
 
 const logger = createLogger("images");
 
@@ -35,6 +36,7 @@ export async function searchImages(
     url.searchParams.set('num', Math.min(count, 10).toString());
 
     const response = await fetch(url.toString());
+    trackGoogleSearch();
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -51,7 +53,7 @@ export async function searchImages(
     const data = (await response.json()) as { items?: Array<{ link: string; title?: string; displayLink?: string; image?: { thumbnailLink?: string; contextLink?: string } }> };
 
     if (!data.items || data.items.length === 0) {
-      logger.dim(`No images found for query: ${query}`);
+      logger.debug(`No images found for query: ${query}`);
       return [];
     }
 

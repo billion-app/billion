@@ -58,12 +58,12 @@ export async function generateVideoForContent(
 
   // Skip if exists and unchanged
   if (existing && !existing.needsRegeneration) {
-    logger.dim(`Video unchanged for ${contentType}:${contentId}, skipping`);
+    logger.debug(`Video unchanged for ${contentType}:${contentId}, skipping`);
     incrementVideosSkipped();
     return;
   }
 
-  logger.step(`Generating video for ${contentType}:${contentId}`);
+  logger.start(`Generating video for ${contentType}:${contentId}`);
 
   // Generate marketing copy
   const marketingCopy = await generateMarketingCopy(title, fullText, contentType);

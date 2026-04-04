@@ -55,7 +55,7 @@ async function scrape() {
       }
     });
 
-    logger.dim(`Found ${collectedLinks.length} article links so far`);
+    logger.debug(`Found ${collectedLinks.length} article links so far`);
 
     if (collectedLinks.length < maxArticles) {
       nextPageUrl = $(".wp-block-query-pagination-next").attr("href") || null;
@@ -125,7 +125,7 @@ async function scrape() {
         contentType = "Presidential Action";
       }
 
-      logger.step(`Generating AI summary for: ${headline}`);
+      logger.start(`Generating AI summary for: ${headline}`);
       const aiSummary = await generateAISummary(headline, fullTextMarkdown);
 
       await upsertContent({

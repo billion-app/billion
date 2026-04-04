@@ -6,6 +6,7 @@
 import { google } from '@ai-sdk/google';
 import { generateText, APICallError, RetryError } from 'ai';
 import { createLogger } from '../log.js';
+import { trackGeminiUsage } from '../costs.js';
 
 const logger = createLogger("ai");
 
@@ -51,7 +52,7 @@ export async function generateAISummary(
     throw new AIRateLimitError();
   }
   try {
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model: google('gemini-2.5-flash'),
       prompt: `Generate a concise, engaging summary (max 100 characters) for this government content. Focus on the key action or impact.
 
@@ -61,6 +62,7 @@ Content: ${content.substring(0, 2000)}
 
 Summary (max 100 characters):`,
     });
+    trackGeminiUsage(usage.inputTokens, usage.outputTokens);
 
     return text.trim().substring(0, 100);
   } catch (error) {
@@ -91,9 +93,9 @@ export async function generateAIArticle(
     throw new AIRateLimitError();
   }
   try {
-    logger.step(`Generating AI article for: ${title}`);
+    logger.start(`Generating AI article for: ${title}`);
 
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model: google('gemini-2.5-flash'),
       prompt: `You are an expert at making government and legal content accessible and engaging for everyday people. Transform the following ${type} into a well-structured, markdown-formatted article.
 
@@ -138,6 +140,7 @@ ${fullText}
 
 Write the article now using the 4-section structure above:`,
     });
+    trackGeminiUsage(usage.inputTokens, usage.outputTokens);
 
     return text.trim();
   } catch (error) {

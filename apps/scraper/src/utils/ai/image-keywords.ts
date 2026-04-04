@@ -8,6 +8,7 @@ import { generateText, APICallError, RetryError } from 'ai';
 
 import { AIRateLimitError, rateLimitHit, setRateLimitHit } from './text-generation.js';
 import { createLogger } from '../log.js';
+import { trackGeminiUsage } from '../costs.js';
 
 const logger = createLogger("ai");
 
@@ -42,7 +43,7 @@ export async function generateImageSearchKeywords(
     throw new AIRateLimitError();
   }
   try {
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model: google('gemini-2.5-flash'),
       prompt: `Given this ${type} title and content, generate 2-4 search keywords for finding relevant stock photos. Focus on concrete, visual, photographic concepts that would actually appear in news photography or documentary images.
 
@@ -64,6 +65,7 @@ Content: ${content.substring(0, 500)}
 
 Return ONLY 2-4 specific visual keywords separated by spaces. No quotes, no explanation:`,
     });
+    trackGeminiUsage(usage.inputTokens, usage.outputTokens);
 
     return text.trim().replace(/['"]/g, '');
   } catch (error) {

@@ -5,6 +5,7 @@
 
 import OpenAI from 'openai';
 import { createLogger } from '../log.js';
+import { trackDalle3Image } from '../costs.js';
 
 const logger = createLogger("image");
 
@@ -41,7 +42,7 @@ export async function generateImage(
       if (attempt > 0) {
         logger.warn(`Retry attempt ${attempt}/${maxRetries} for image generation`);
       } else {
-        logger.step(`Generating image with DALL-E 3: ${prompt.substring(0, 50)}...`);
+        logger.start(`Generating image with DALL-E 3: ${prompt.substring(0, 50)}...`);
       }
 
       // DALL-E 3 for quality
@@ -69,6 +70,7 @@ export async function generateImage(
 
       const buffer = Buffer.from(await imageResponse.arrayBuffer());
 
+      trackDalle3Image();
       logger.success(`Image generated: ${buffer.length} bytes`);
 
       return {
@@ -136,7 +138,7 @@ export async function convertToJpeg(
       .jpeg({ quality })
       .toBuffer();
 
-    logger.dim(`Converted PNG to JPEG: ${pngBuffer.length} -> ${jpegBuffer.length} bytes`);
+    logger.debug(`Converted PNG to JPEG: ${pngBuffer.length} -> ${jpegBuffer.length} bytes`);
 
     return jpegBuffer;
   } catch (error) {

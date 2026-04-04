@@ -145,7 +145,7 @@ export async function upsertContent(input: ContentData) {
     shouldGenerateArticle = false;
     shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
     incrementExistingUnchanged();
-    logger.dim(`No changes for ${label}, skipping AI generation`);
+    logger.debug(`No changes for ${label}, skipping AI generation`);
   }
 
   // Phase 1: always persist raw content first (no AI fields)
@@ -230,7 +230,7 @@ export async function upsertContent(input: ContentData) {
     result = row;
   }
 
-  logger.dim(`${label} upserted (raw)`);
+  logger.debug(`${label} upserted (raw)`);
 
   if (!result) return result;
 
@@ -249,7 +249,7 @@ export async function upsertContent(input: ContentData) {
         input.type === "bill"
           ? input.data.summary || input.data.fullText || ""
           : fullText!;
-      logger.step(`Generating AI summary for ${label}`);
+      logger.start(`Generating AI summary for ${label}`);
       description = await generateAISummary(title, summarySource);
     }
 
@@ -262,7 +262,7 @@ export async function upsertContent(input: ContentData) {
           : "court case";
 
     if (shouldGenerateArticle && hasUsableText) {
-      logger.step(`Generating AI article for ${label}`);
+      logger.start(`Generating AI article for ${label}`);
       aiGeneratedArticle = await generateAIArticle(
         title,
         fullText!,
@@ -271,19 +271,19 @@ export async function upsertContent(input: ContentData) {
       );
       incrementAIArticlesGenerated();
     } else if (existing?.hasArticle) {
-      logger.dim(`Using existing AI article for ${label}`);
+      logger.debug(`Using existing AI article for ${label}`);
     }
 
     let thumbnailUrl: string | null | undefined;
     if (shouldGenerateImage) {
       try {
-        logger.step(`Searching for thumbnail for ${label}`);
+        logger.start(`Searching for thumbnail for ${label}`);
         const searchQuery = await generateImageSearchKeywords(
           title,
           fullText || "",
           articleType,
         );
-        logger.dim(`Image search query: ${searchQuery}`);
+        logger.debug(`Image search query: ${searchQuery}`);
         thumbnailUrl = await getThumbnailImage(searchQuery);
         incrementImagesSearched();
       } catch (error) {
@@ -292,7 +292,7 @@ export async function upsertContent(input: ContentData) {
         thumbnailUrl = null;
       }
     } else if (existing?.hasThumbnail) {
-      logger.dim(`Using existing thumbnail for ${label}`);
+      logger.debug(`Using existing thumbnail for ${label}`);
     }
 
     // Only UPDATE if something was generated
@@ -326,21 +326,29 @@ export async function upsertContent(input: ContentData) {
   }
 
   if (fullText) {
-    const videoSource =
-      input.type === "bill"
-        ? input.data.sourceWebsite
-        : input.type === "government_content"
-          ? (input.data.source ?? "whitehouse.gov")
-          : input.data.court;
-    await generateVideoForContent(
-      input.type,
-      result.id,
-      title,
-      fullText,
-      newContentHash,
-      videoSource,
-      result.thumbnailUrl,
-    );
+    try {
+      const videoSource =
+        input.type === "bill"
+          ? input.data.sourceWebsite
+          : input.type === "government_content"
+            ? (input.data.source ?? "whitehouse.gov")
+            : input.data.court;
+      await generateVideoForContent(
+        input.type,
+        result.id,
+        title,
+        fullText,
+        newContentHash,
+        videoSource,
+        result.thumbnailUrl,
+      );
+    } catch (error) {
+      if (error instanceof AIRateLimitError) {
+        logger.warn(`AI rate limit hit — ${label} saved without video, will retry next run`);
+      } else {
+        throw error;
+      }
+    }
   }
 
   return result;

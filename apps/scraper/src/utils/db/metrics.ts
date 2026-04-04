@@ -5,6 +5,7 @@
 
 import type { ScraperMetrics } from '../types.js';
 import { printHeader, printKeyValue, printFooter } from '../log.js';
+import { getCostSummary, resetCosts } from '../costs.js';
 
 // Global metrics object for the current run
 let currentMetrics: ScraperMetrics = {
@@ -32,6 +33,7 @@ export function resetMetrics(): void {
     videosGenerated: 0,
     videosSkipped: 0,
   };
+  resetCosts();
 }
 
 /**
@@ -102,8 +104,15 @@ export function incrementVideosSkipped(): void {
  * Print formatted metrics summary
  * @param scraperName - Name of the scraper (for display)
  */
+function formatUsd(amount: number): string {
+  return amount < 0.01 && amount > 0
+    ? `<$0.01`
+    : `$${amount.toFixed(2)}`;
+}
+
 export function printMetricsSummary(scraperName: string): void {
   const apiCallsSaved = currentMetrics.existingUnchanged * 4; // 3 OpenAI + 1 Google per unchanged item
+  const costs = getCostSummary();
 
   printHeader(`${scraperName} Results`);
   printKeyValue("Total Processed", currentMetrics.totalProcessed);
@@ -116,4 +125,20 @@ export function printMetricsSummary(scraperName: string): void {
   printKeyValue("Videos Skipped", currentMetrics.videosSkipped);
   printKeyValue("API Calls Saved", `~${apiCallsSaved}`);
   printFooter();
+
+  if (costs.totalCost > 0) {
+    printHeader("Estimated Costs");
+    if (costs.geminiInputTokens > 0 || costs.geminiOutputTokens > 0) {
+      const totalTokens = costs.geminiInputTokens + costs.geminiOutputTokens;
+      printKeyValue("Gemini tokens", `${totalTokens.toLocaleString()} (${formatUsd(costs.geminiCost)})`);
+    }
+    if (costs.dalle3Images > 0) {
+      printKeyValue("DALL-E 3 images", `${costs.dalle3Images} (${formatUsd(costs.dalle3Cost)})`);
+    }
+    if (costs.googleSearches > 0) {
+      printKeyValue("Google searches", `${costs.googleSearches} (${formatUsd(costs.googleSearchCost)})`);
+    }
+    printKeyValue("Total (estimated)", formatUsd(costs.totalCost));
+    printFooter();
+  }
 }

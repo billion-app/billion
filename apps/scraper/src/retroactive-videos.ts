@@ -48,7 +48,7 @@ async function processArticles(
   logger.info(`Found ${articles.length} ${contentType} articles without videos`);
 
   if (options.dryRun) {
-    logger.dim(`[DRY RUN] Would generate videos for ${articles.length} articles`);
+    logger.debug(`[DRY RUN] Would generate videos for ${articles.length} articles`);
     return stats;
   }
 

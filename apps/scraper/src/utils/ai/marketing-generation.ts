@@ -4,9 +4,19 @@
  */
 
 import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
+import { generateObject, APICallError, RetryError } from "ai";
 import { z } from "zod";
 import { createLogger } from "../log.js";
+import { trackGeminiUsage } from "../costs.js";
+import { AIRateLimitError, rateLimitHit, setRateLimitHit } from "./text-generation.js";
+
+function isRateLimitError(error: unknown): boolean {
+  if (error instanceof APICallError) return error.statusCode === 429;
+  if (error instanceof RetryError) return isRateLimitError(error.lastError);
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return msg.includes('429') || msg.includes('rate limit') || msg.includes('resource_exhausted') || msg.includes('quota');
+}
 
 const logger = createLogger("ai");
 
@@ -30,10 +40,13 @@ export async function generateMarketingCopy(
   articleContent: string,
   contentType: string,
 ): Promise<MarketingCopy> {
+  if (rateLimitHit) {
+    throw new AIRateLimitError();
+  }
   try {
-    logger.step(`Generating marketing copy for: ${articleTitle}`);
+    logger.start(`Generating marketing copy for: ${articleTitle}`);
 
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: google("gemini-2.5-flash"),
       schema: MarketingCopySchema,
       prompt: `You are a professional marketing copywriter creating engaging social media content.
@@ -48,9 +61,14 @@ Requirements:
 Article Title: ${articleTitle}
 Content Preview: ${articleContent.substring(0, 1000)}`,
     });
+    trackGeminiUsage(usage.inputTokens, usage.outputTokens);
 
     return object;
   } catch (error) {
+    if (isRateLimitError(error)) {
+      setRateLimitHit(true);
+      throw new AIRateLimitError();
+    }
     logger.error("Marketing copy generation failed", error);
 
     // Fallback to simple extraction
