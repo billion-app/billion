@@ -4,7 +4,7 @@
  */
 
 import { google } from '@ai-sdk/google';
-import { generateText } from 'ai';
+import { generateText, APICallError, RetryError } from 'ai';
 
 export class AIRateLimitError extends Error {
   constructor() {
@@ -20,6 +20,10 @@ export function setRateLimitHit(v: boolean) {
 }
 
 function isRateLimitError(error: unknown): boolean {
+  // Vercel AI SDK: APICallError has statusCode, RetryError wraps it in lastError
+  if (error instanceof APICallError) return error.statusCode === 429;
+  if (error instanceof RetryError) return isRateLimitError(error.lastError);
+
   if (!(error instanceof Error)) return false;
   const msg = error.message.toLowerCase();
   return (

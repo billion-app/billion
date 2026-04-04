@@ -4,11 +4,14 @@
  */
 
 import { google } from '@ai-sdk/google';
-import { generateText } from 'ai';
+import { generateText, APICallError, RetryError } from 'ai';
 
 import { AIRateLimitError, rateLimitHit, setRateLimitHit } from './text-generation.js';
 
 function isRateLimitError(error: unknown): boolean {
+  if (error instanceof APICallError) return error.statusCode === 429;
+  if (error instanceof RetryError) return isRateLimitError(error.lastError);
+
   if (!(error instanceof Error)) return false;
   const msg = error.message.toLowerCase();
   return (
