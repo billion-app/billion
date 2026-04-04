@@ -1,6 +1,7 @@
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
+import { getItemLimit } from "../utils/concurrency.js";
 import { upsertContent } from "../utils/db/operations.js";
 import type { Scraper } from "../utils/types.js";
 
@@ -165,47 +166,52 @@ async function scrape(config: ScotusScraperConfig = {}) {
   const clusters = allClusters.slice(0, maxCases);
   logger.info(`Fetched ${clusters.length} opinion clusters`);
 
-  for (const cluster of clusters) {
-    try {
-      const docket = await clFetch<ClDocket>(
-        `/dockets/${cluster.docket_id}/`,
-      );
-      const docketNumber = docket.docket_number || `CL-${cluster.id}`;
-      const filedDate = docket.date_filed
-        ? new Date(docket.date_filed)
-        : undefined;
-      const courtCode = docket.court ?? court;
-      const courtName = COURT_NAMES[courtCode] ?? courtCode.toUpperCase();
+  const limit = getItemLimit();
+  await Promise.allSettled(
+    clusters.map((cluster) =>
+      limit(async () => {
+        try {
+          const docket = await clFetch<ClDocket>(
+            `/dockets/${cluster.docket_id}/`,
+          );
+          const docketNumber = docket.docket_number || `CL-${cluster.id}`;
+          const filedDate = docket.date_filed
+            ? new Date(docket.date_filed)
+            : undefined;
+          const courtCode = docket.court ?? court;
+          const courtName = COURT_NAMES[courtCode] ?? courtCode.toUpperCase();
 
-      const title = cluster.case_name?.slice(0, 250) || "Unknown Case";
-      const status = cluster.precedential_status || "Unknown";
-      const caseUrl = `https://www.courtlistener.com${cluster.absolute_url}`;
+          const title = cluster.case_name?.slice(0, 250) || "Unknown Case";
+          const status = cluster.precedential_status || "Unknown";
+          const caseUrl = `https://www.courtlistener.com${cluster.absolute_url}`;
 
-      const fullText = await fetchOpinionText(cluster.sub_opinions ?? []);
+          const fullText = await fetchOpinionText(cluster.sub_opinions ?? []);
 
-      const description = cluster.syllabus
-        ? stripHtml(cluster.syllabus).slice(0, 1000) || undefined
-        : undefined;
+          const description = cluster.syllabus
+            ? stripHtml(cluster.syllabus).slice(0, 1000) || undefined
+            : undefined;
 
-      await upsertContent({
-        type: "court_case",
-        data: {
-          caseNumber: docketNumber,
-          title,
-          court: courtName,
-          filedDate,
-          description,
-          status,
-          fullText,
-          url: caseUrl,
-        },
-      });
+          await upsertContent({
+            type: "court_case",
+            data: {
+              caseNumber: docketNumber,
+              title,
+              court: courtName,
+              filedDate,
+              description,
+              status,
+              fullText,
+              url: caseUrl,
+            },
+          });
 
-      logger.success(`Processed: ${docketNumber} — ${title}`);
-    } catch (error) {
-      logger.error(`Error processing cluster ${cluster.id}`, error);
-    }
-  }
+          logger.success(`Processed: ${docketNumber} — ${title}`);
+        } catch (error) {
+          logger.error(`Error processing cluster ${cluster.id}`, error);
+        }
+      }),
+    ),
+  );
 
   logger.success("Completed");
   printMetricsSummary(displayName);
