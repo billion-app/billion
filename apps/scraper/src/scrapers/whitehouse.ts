@@ -5,7 +5,6 @@ import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { upsertContent } from "../utils/db/operations.js";
 import { getItemLimit } from "../utils/concurrency.js";
-import { resetMetrics, printMetricsSummary } from "../utils/db/metrics.js";
 import type { Scraper } from "../utils/types.js";
 
 const NAME = "White House";
@@ -32,7 +31,6 @@ function toTitleCase(text: string): string {
 
 async function scrape() {
   logger.info("Starting...");
-  resetMetrics();
 
   const maxArticles = 20;
   const turndownService = new TurndownService({
@@ -150,7 +148,6 @@ async function scrape() {
   );
 
   logger.success("Completed");
-  printMetricsSummary(NAME);
 }
 
 export const whitehouse: Scraper = {

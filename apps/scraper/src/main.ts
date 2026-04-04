@@ -18,6 +18,7 @@ import { whitehouse } from "./scrapers/whitehouse.js";
 import type { Scraper } from "./utils/types.js";
 import { createLogger } from "./utils/log.js";
 import { setConcurrency } from "./utils/concurrency.js";
+import { resetMetrics, printMetricsSummary } from "./utils/db/metrics.js";
 
 const logger = createLogger("main");
 
@@ -47,6 +48,7 @@ const concurrency = (argv as { concurrency: number }).concurrency;
 setConcurrency(concurrency);
 
 async function main() {
+  resetMetrics();
   if (arg === "all") {
     logger.info("Running all scrapers...");
     const results = await Promise.allSettled(scrapers.map((s) => s.scrape()));
@@ -64,6 +66,7 @@ async function main() {
     } else {
       logger.warn(`${failed.length} scraper(s) failed.`);
     }
+    printMetricsSummary("All Scrapers");
   } else {
     const scraper = scrapers.find(
       (s) => s.name.toLowerCase().replace(/[.\s]/g, "") === arg,
@@ -73,6 +76,7 @@ async function main() {
       process.exit(1);
     }
     await scraper.scrape();
+    printMetricsSummary(scraper.name);
   }
 }
 

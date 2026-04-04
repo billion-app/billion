@@ -1,6 +1,5 @@
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
-import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import { upsertContent } from "../utils/db/operations.js";
 import type { Scraper } from "../utils/types.js";
@@ -140,7 +139,6 @@ async function scrape(config: ScotusScraperConfig = {}) {
   const displayName = court === "scotus" ? "SCOTUS" : court.toUpperCase();
   const logger = createLogger(displayName);
   logger.info(`Starting (court=${court}, maxCases=${maxCases})...`);
-  resetMetrics();
 
   const allClusters: ClCluster[] = [];
   let page = 1;
@@ -214,7 +212,6 @@ async function scrape(config: ScotusScraperConfig = {}) {
   );
 
   logger.success("Completed");
-  printMetricsSummary(displayName);
 }
 
 export const scotus: Scraper = {

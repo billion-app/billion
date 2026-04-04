@@ -3,7 +3,6 @@ import { db } from "@acme/db/client";
 import { Bill } from "@acme/db/schema";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
-import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import { upsertContent } from "../utils/db/operations.js";
 import type { Scraper } from "../utils/types.js";
@@ -190,7 +189,6 @@ async function scrape(config: CongressScraperConfig = {}) {
   const { maxBills = 100, congress = 119, chamber = "House" } = config;
 
   logger.info(`Starting (congress=${congress}, chamber=${chamber})...`);
-  resetMetrics();
 
   // Query the last time we successfully scraped a congress.gov bill
   const [lastScrape] = await db
@@ -236,7 +234,6 @@ async function scrape(config: CongressScraperConfig = {}) {
 
   if (bills.length === 0) {
     logger.success("No new or updated bills since last scrape");
-    printMetricsSummary(NAME);
     return;
   }
 
@@ -303,7 +300,6 @@ async function scrape(config: CongressScraperConfig = {}) {
   );
 
   logger.success("Completed");
-  printMetricsSummary(NAME);
 }
 
 export const congress: Scraper = {
