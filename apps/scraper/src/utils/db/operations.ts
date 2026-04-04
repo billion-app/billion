@@ -28,6 +28,7 @@ import {
   incrementImagesSearched,
 } from "./metrics.js";
 import { generateVideoForContent } from "./video-operations.js";
+import { tickProgress } from "../progress.js";
 import { createLogger } from "../log.js";
 
 const logger = createLogger("db");
@@ -131,20 +132,24 @@ export async function upsertContent(input: ContentData) {
   let shouldGenerateArticle = false;
   let shouldGenerateImage = false;
 
+  let progressKind: "new" | "changed" | "unchanged";
   if (!existing) {
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = hasUsableText;
     incrementNewEntries();
+    progressKind = "new";
     logger.info(`New ${label} detected`);
   } else if (existing.contentHash !== newContentHash) {
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
     incrementExistingChanged();
+    progressKind = "changed";
     logger.info(`Content changed for ${label}`);
   } else {
     shouldGenerateArticle = false;
     shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
     incrementExistingUnchanged();
+    progressKind = "unchanged";
     logger.debug(`No changes for ${label}, skipping AI generation`);
   }
 
@@ -232,28 +237,18 @@ export async function upsertContent(input: ContentData) {
 
   logger.debug(`${label} upserted (raw)`);
 
-  if (!result) return result;
+  if (!result) {
+    tickProgress({
+      newEntries: progressKind === "new" ? 1 : 0,
+      unchanged: progressKind === "unchanged" ? 1 : 0,
+      changed: progressKind === "changed" ? 1 : 0,
+    });
+    return result;
+  }
 
   // Phase 2: AI enrichment — skipped entirely if rate-limited
   try {
-    let description: string | undefined;
     const existingDescription = input.data.description;
-
-    if (existingDescription) {
-      description = existingDescription;
-    } else if (
-      shouldGenerateArticle &&
-      (fullText || (input.type === "bill" && input.data.summary))
-    ) {
-      const summarySource =
-        input.type === "bill"
-          ? input.data.summary || input.data.fullText || ""
-          : fullText!;
-      logger.start(`Generating AI summary for ${label}`);
-      description = await generateAISummary(title, summarySource);
-    }
-
-    let aiGeneratedArticle: string | undefined;
     const articleType =
       input.type === "bill"
         ? "bill"
@@ -261,39 +256,68 @@ export async function upsertContent(input: ContentData) {
           ? input.data.type
           : "court case";
 
-    if (shouldGenerateArticle && hasUsableText) {
-      logger.start(`Generating AI article for ${label}`);
-      aiGeneratedArticle = await generateAIArticle(
-        title,
-        fullText!,
-        articleType,
-        url,
-      );
-      incrementAIArticlesGenerated();
-    } else if (existing?.hasArticle) {
-      logger.debug(`Using existing AI article for ${label}`);
-    }
+    const [description, aiGeneratedArticle, thumbnailUrl] = await Promise.all([
+      // Summary generation
+      (async (): Promise<string | undefined> => {
+        if (existingDescription) {
+          return existingDescription;
+        } else if (
+          shouldGenerateArticle &&
+          (fullText || (input.type === "bill" && input.data.summary))
+        ) {
+          const summarySource =
+            input.type === "bill"
+              ? input.data.summary || input.data.fullText || ""
+              : fullText!;
+          logger.start(`Generating AI summary for ${label}`);
+          return generateAISummary(title, summarySource);
+        }
+        return undefined;
+      })(),
 
-    let thumbnailUrl: string | null | undefined;
-    if (shouldGenerateImage) {
-      try {
-        logger.start(`Searching for thumbnail for ${label}`);
-        const searchQuery = await generateImageSearchKeywords(
-          title,
-          fullText || "",
-          articleType,
-        );
-        logger.debug(`Image search query: ${searchQuery}`);
-        thumbnailUrl = await getThumbnailImage(searchQuery);
-        incrementImagesSearched();
-      } catch (error) {
-        if (error instanceof AIRateLimitError) throw error;
-        logger.warn(`Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`);
-        thumbnailUrl = null;
-      }
-    } else if (existing?.hasThumbnail) {
-      logger.debug(`Using existing thumbnail for ${label}`);
-    }
+      // Article generation
+      (async (): Promise<string | undefined> => {
+        if (shouldGenerateArticle && hasUsableText) {
+          logger.start(`Generating AI article for ${label}`);
+          const article = await generateAIArticle(
+            title,
+            fullText!,
+            articleType,
+            url,
+          );
+          incrementAIArticlesGenerated();
+          return article;
+        } else if (existing?.hasArticle) {
+          logger.debug(`Using existing AI article for ${label}`);
+        }
+        return undefined;
+      })(),
+
+      // Thumbnail image search
+      (async (): Promise<string | null | undefined> => {
+        if (shouldGenerateImage) {
+          try {
+            logger.start(`Searching for thumbnail for ${label}`);
+            const searchQuery = await generateImageSearchKeywords(
+              title,
+              fullText || "",
+              articleType,
+            );
+            logger.debug(`Image search query: ${searchQuery}`);
+            const thumbnailResult = await getThumbnailImage(searchQuery);
+            incrementImagesSearched();
+            return thumbnailResult;
+          } catch (error) {
+            if (error instanceof AIRateLimitError) throw error;
+            logger.warn(`Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`);
+            return null;
+          }
+        } else if (existing?.hasThumbnail) {
+          logger.debug(`Using existing thumbnail for ${label}`);
+        }
+        return undefined;
+      })(),
+    ]);
 
     // Only UPDATE if something was generated
     const hasNewDescription =
@@ -350,6 +374,12 @@ export async function upsertContent(input: ContentData) {
       }
     }
   }
+
+  tickProgress({
+    newEntries: progressKind === "new" ? 1 : 0,
+    unchanged: progressKind === "unchanged" ? 1 : 0,
+    changed: progressKind === "changed" ? 1 : 0,
+  });
 
   return result;
 }

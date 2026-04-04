@@ -3,8 +3,9 @@ import { db } from "@acme/db/client";
 import { Bill } from "@acme/db/schema";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
-import { printMetricsSummary, resetMetrics } from "../utils/db/metrics.js";
+import { getItemLimit } from "../utils/concurrency.js";
 import { upsertContent } from "../utils/db/operations.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
 import type { Scraper } from "../utils/types.js";
 
 const BASE_URL = "https://api.congress.gov/v3";
@@ -189,7 +190,6 @@ async function scrape(config: CongressScraperConfig = {}) {
   const { maxBills = 100, congress = 119, chamber = "House" } = config;
 
   logger.info(`Starting (congress=${congress}, chamber=${chamber})...`);
-  resetMetrics();
 
   // Query the last time we successfully scraped a congress.gov bill
   const [lastScrape] = await db
@@ -235,69 +235,74 @@ async function scrape(config: CongressScraperConfig = {}) {
 
   if (bills.length === 0) {
     logger.success("No new or updated bills since last scrape");
-    printMetricsSummary(NAME);
     return;
   }
 
-  for (const item of bills) {
-    try {
-      const billType = item.type.toLowerCase();
-      const billNumber = item.number;
+  setExpectedTotal(bills.length);
 
-      const detailData = await congressFetch<ApiBillDetail>(
-        `/bill/${congress}/${billType}/${billNumber}`,
-      );
-      const detail = detailData.bill;
+  const limit = getItemLimit();
+  await Promise.allSettled(
+    bills.map((item) =>
+      limit(async () => {
+        try {
+          const billType = item.type.toLowerCase();
+          const billNumber = item.number;
 
-      const formattedBillNumber = formatBillNumber(detail.type, detail.number);
-      const title = (detail.title ?? "Unknown").slice(0, 250);
+          const detailData = await congressFetch<ApiBillDetail>(
+            `/bill/${congress}/${billType}/${billNumber}`,
+          );
+          const detail = detailData.bill;
 
-      const primarySponsor = detail.sponsors?.[0];
-      const sponsor = primarySponsor
-        ? `${primarySponsor.firstName} ${primarySponsor.lastName} (${primarySponsor.party}-${primarySponsor.state})`.slice(
-            0,
-            250,
-          )
-        : undefined;
+          const formattedBillNumber = formatBillNumber(detail.type, detail.number);
+          const title = (detail.title ?? "Unknown").slice(0, 250);
 
-      const status = (detail.latestAction?.text ?? "Unknown").slice(0, 250);
-      const introducedDate = detail.introducedDate
-        ? new Date(detail.introducedDate)
-        : undefined;
-      const chamberValue = (detail.originChamber ?? chamber) as
-        | "House"
-        | "Senate";
-      const billUrl = `https://www.congress.gov/bill/${congress}${ordinalSuffix(congress)}-congress/${billTypeToUrlSlug(detail.type)}/${billNumber}`;
+          const primarySponsor = detail.sponsors?.[0];
+          const sponsor = primarySponsor
+            ? `${primarySponsor.firstName} ${primarySponsor.lastName} (${primarySponsor.party}-${primarySponsor.state})`.slice(
+                0,
+                250,
+              )
+            : undefined;
 
-      const summary = await fetchSummary(congress, billType, billNumber);
-      const fullText = await fetchFullText(congress, billType, billNumber);
+          const status = (detail.latestAction?.text ?? "Unknown").slice(0, 250);
+          const introducedDate = detail.introducedDate
+            ? new Date(detail.introducedDate)
+            : undefined;
+          const chamberValue = (detail.originChamber ?? chamber) as
+            | "House"
+            | "Senate";
+          const billUrl = `https://www.congress.gov/bill/${congress}${ordinalSuffix(congress)}-congress/${billTypeToUrlSlug(detail.type)}/${billNumber}`;
 
-      await upsertContent({
-        type: "bill",
-        data: {
-          billNumber: formattedBillNumber,
-          title,
-          description: summary,
-          sponsor,
-          status,
-          introducedDate,
-          congress,
-          chamber: chamberValue,
-          summary,
-          fullText,
-          url: billUrl,
-          sourceWebsite: "congress.gov",
-        },
-      });
+          const summary = await fetchSummary(congress, billType, billNumber);
+          const fullText = await fetchFullText(congress, billType, billNumber);
 
-      logger.success(`Processed: ${formattedBillNumber} — ${title}`);
-    } catch (error) {
-      logger.error(`Error processing bill ${item.type}${item.number}`, error);
-    }
-  }
+          await upsertContent({
+            type: "bill",
+            data: {
+              billNumber: formattedBillNumber,
+              title,
+              description: summary,
+              sponsor,
+              status,
+              introducedDate,
+              congress,
+              chamber: chamberValue,
+              summary,
+              fullText,
+              url: billUrl,
+              sourceWebsite: "congress.gov",
+            },
+          });
+
+          logger.success(`Processed: ${formattedBillNumber} — ${title}`);
+        } catch (error) {
+          logger.error(`Error processing bill ${item.type}${item.number}`, error);
+        }
+      }),
+    ),
+  );
 
   logger.success("Completed");
-  printMetricsSummary(NAME);
 }
 
 export const congress: Scraper = {
