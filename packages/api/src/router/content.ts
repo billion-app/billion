@@ -49,7 +49,7 @@ const ContentCardSchema = z.object({
   type: z.enum(["bill", "government_content", "court_case", "general"]),
   isAIGenerated: z.boolean(),
   thumbnailUrl: z.string().optional(),
-  imageUri: z.string().optional(), // Add support for AI-generated data URIs
+  imageUrl: z.string().optional(),
 });
 
 export type ContentCard = z.infer<typeof ContentCardSchema>;
