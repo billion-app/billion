@@ -28,6 +28,7 @@ import {
   incrementImagesSearched,
 } from "./metrics.js";
 import { generateVideoForContent } from "./video-operations.js";
+import { tickProgress } from "../progress.js";
 import { createLogger } from "../log.js";
 
 const logger = createLogger("db");
@@ -131,20 +132,24 @@ export async function upsertContent(input: ContentData) {
   let shouldGenerateArticle = false;
   let shouldGenerateImage = false;
 
+  let progressKind: "new" | "changed" | "unchanged";
   if (!existing) {
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = hasUsableText;
     incrementNewEntries();
+    progressKind = "new";
     logger.info(`New ${label} detected`);
   } else if (existing.contentHash !== newContentHash) {
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
     incrementExistingChanged();
+    progressKind = "changed";
     logger.info(`Content changed for ${label}`);
   } else {
     shouldGenerateArticle = false;
     shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
     incrementExistingUnchanged();
+    progressKind = "unchanged";
     logger.debug(`No changes for ${label}, skipping AI generation`);
   }
 
@@ -232,7 +237,14 @@ export async function upsertContent(input: ContentData) {
 
   logger.debug(`${label} upserted (raw)`);
 
-  if (!result) return result;
+  if (!result) {
+    tickProgress({
+      newEntries: progressKind === "new" ? 1 : 0,
+      unchanged: progressKind === "unchanged" ? 1 : 0,
+      changed: progressKind === "changed" ? 1 : 0,
+    });
+    return result;
+  }
 
   // Phase 2: AI enrichment — skipped entirely if rate-limited
   try {
@@ -362,6 +374,12 @@ export async function upsertContent(input: ContentData) {
       }
     }
   }
+
+  tickProgress({
+    newEntries: progressKind === "new" ? 1 : 0,
+    unchanged: progressKind === "unchanged" ? 1 : 0,
+    changed: progressKind === "changed" ? 1 : 0,
+  });
 
   return result;
 }
