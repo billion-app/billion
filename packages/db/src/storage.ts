@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
-const BUCKET = process.env.SUPABASE_STORAGE_BUCKET ?? "images";
+function getBucket() {
+  return process.env.SUPABASE_STORAGE_BUCKET ?? "images";
+}
 
 function getClient() {
   const url = process.env.SUPABASE_URL;
@@ -27,7 +29,7 @@ export async function uploadImage(
 ): Promise<string> {
   const supabase = getClient();
 
-  const { error } = await supabase.storage.from(BUCKET).upload(path, data, {
+  const { error } = await supabase.storage.from(getBucket()).upload(path, data, {
     contentType: mimeType,
     upsert: true,
   });
@@ -38,7 +40,7 @@ export async function uploadImage(
 
   const {
     data: { publicUrl },
-  } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  } = supabase.storage.from(getBucket()).getPublicUrl(path);
 
   return publicUrl;
 }
@@ -49,7 +51,7 @@ export async function uploadImage(
  */
 export async function deleteImage(path: string): Promise<void> {
   const supabase = getClient();
-  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  const { error } = await supabase.storage.from(getBucket()).remove([path]);
   if (error) {
     throw new Error(`Storage delete failed for ${path}: ${error.message}`);
   }
