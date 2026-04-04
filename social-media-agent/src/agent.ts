@@ -36,7 +36,7 @@ export interface ContentItem {
   type: string;
   isAIGenerated?: boolean;
   thumbnailUrl?: string;
-  imageUri?: string;
+  imageUrl?: string;
 }
 
 export class SocialMediaAgent {

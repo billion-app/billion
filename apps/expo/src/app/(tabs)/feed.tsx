@@ -120,11 +120,11 @@ export default function FeedScreen() {
           {item.title}
         </Text>
 
-        {/* Hybrid Image Display - prioritize AI-generated imageUri */}
-        {item.imageUri ? (
+        {/* Image display - prioritize AI-generated imageUrl */}
+        {item.imageUrl ? (
           <Image
             style={{ width: "100%", height: 200, borderRadius: rd.xl }}
-            source={{ uri: item.imageUri }}
+            source={{ uri: item.imageUrl }}
             contentFit="cover"
             transition={300}
           />
