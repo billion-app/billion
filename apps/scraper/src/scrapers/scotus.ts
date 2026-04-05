@@ -150,7 +150,7 @@ async function scrape(config: ScotusScraperConfig = {}) {
       results: ClCluster[];
       next: string | null;
     }>("/clusters/", {
-      court,
+      docket__court: court,
       order_by: "-date_filed",
       page_size: pageSize,
       page,
