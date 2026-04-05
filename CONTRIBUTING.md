@@ -119,6 +119,86 @@ radius.lg = 0.75  // 0.75rem
 rd("lg") = 0.75 * 16 = 12  // 12px
 ```
 
+## Building for iOS Locally (Without EAS)
+
+You can build and archive the app entirely on your Mac using Xcode — no EAS build minutes needed.
+
+### Prerequisites
+
+- Xcode 16+ installed
+- Apple Developer account with a valid distribution certificate and provisioning profile
+- CocoaPods: `sudo gem install cocoapods`
+
+### Environment Variables
+
+`EXPO_PUBLIC_API_URL` must be set to your production server URL **before** building — it gets baked into the binary at build time and cannot be changed after.
+
+```bash
+# .env (project root)
+EXPO_PUBLIC_API_URL=https://your-production-domain.com
+```
+
+For EAS builds, set this in your EAS environment variables dashboard or via:
+
+```bash
+eas env:create --name EXPO_PUBLIC_API_URL --value https://your-production-domain.com
+```
+
+### Steps
+
+#### 1. Prebuild (generate native project)
+
+Set `EXPO_PUBLIC_API_URL` first — it gets baked in during prebuild and can't be changed after:
+
+```bash
+export EXPO_PUBLIC_API_URL=https://your-production-domain.com
+```
+
+Then from `apps/expo/`:
+
+```bash
+pnpm expo prebuild --platform ios --clean
+```
+
+This generates/updates the `ios/` directory from your `app.config.ts`.
+
+#### 2. Install pods
+
+```bash
+cd ios && pod install && cd ..
+```
+
+#### 3. Open in Xcode
+
+```bash
+open ios/billion.xcworkspace
+```
+
+#### 4. Configure signing
+
+In Xcode → select the `billion` target → **Signing & Capabilities**:
+- Check **Automatically manage signing**
+- Select your Apple Developer team
+
+#### 5. Archive
+
+**Product → Archive** — this produces a `.xcarchive` in Xcode's Organizer.
+
+#### 6. Distribute
+
+In the Organizer, click **Distribute App** → **App Store Connect** → follow the wizard. This uploads to App Store Connect where it appears in TestFlight.
+
+### When to use EAS vs local
+
+| Situation | Use |
+|---|---|
+| Quick TestFlight build | EAS (`eas build --platform ios --profile production`) |
+| Debugging a native build error | Local Xcode |
+| No EAS build minutes left | Local Xcode |
+| CI/CD | EAS |
+
+---
+
 ## Architecture
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for a full breakdown of the system design, data layer, API layer, scraper pipeline, and architectural decisions.
