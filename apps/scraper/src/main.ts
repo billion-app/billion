@@ -12,7 +12,6 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
 import { congress } from "./scrapers/congress.js";
-import { govtrack } from "./scrapers/govtrack.js";
 import { scotus } from "./scrapers/scotus.js";
 import { whitehouse } from "./scrapers/whitehouse.js";
 import type { Scraper } from "./utils/types.js";
@@ -22,7 +21,7 @@ import { resetMetrics, printMetricsSummary } from "./utils/db/metrics.js";
 
 const logger = createLogger("main");
 
-const scrapers: Scraper[] = [govtrack, whitehouse, congress, scotus];
+const scrapers: Scraper[] = [whitehouse, congress, scotus];
 const scraperNames = scrapers.map((s) => s.name);
 
 const argv = await yargs(hideBin(process.argv))

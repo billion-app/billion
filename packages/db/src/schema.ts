@@ -59,7 +59,7 @@ export const Bill = pgTable(
       >()
       .default([]), // Array of relevant images for the article
     url: t.text().notNull(),
-    sourceWebsite: t.varchar({ length: 50 }).notNull(), // "govtrack", "congress.gov"
+    sourceWebsite: t.varchar({ length: 50 }).notNull(), // "congress.gov"
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
     versions: t
       .jsonb()
