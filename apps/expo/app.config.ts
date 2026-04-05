@@ -1,6 +1,6 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
 
-// Type cast needed because @expo/config-types@55 doesn't yet include
+// Type cast needed because @expo/config-types doesn't yet include
 // newArchEnabled or android.edgeToEdgeEnabled.
 type ExpoConfigExtended = ExpoConfig & {
   newArchEnabled?: boolean;
