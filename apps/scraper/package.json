@@ -28,7 +28,7 @@
     "dev": "pnpm run start:dev",
     "start": "pnpm run start:dev",
     "start:prod": "node dist/main.js",
-    "start:dev": "tsx src/main.ts",
+    "start:dev": "tsx --env-file=.env --env-file=../../.env src/main.ts",
     "build": "tsc",
     "test": "echo \"Error: oops, the actor has no tests yet, sad!\" && exit 1",
     "retroactive-videos": "tsx src/retroactive-videos.ts"
