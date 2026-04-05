@@ -12,6 +12,20 @@ pnpm ui-add
 
 When the component(s) has been installed, you should be good to go and start using it in your app.
 
+### 5c. When it's time to add a new native module
+
+After installing a package that includes native code (e.g. `expo-camera`, `expo-blur`), you need to rebuild the native project to link it. The easiest way is:
+
+```bash
+# From apps/expo — rebuilds and launches on iOS simulator
+pnpm ios
+
+# Or for Android
+pnpm android
+```
+
+`expo run:ios` / `expo run:android` automatically runs prebuild and links native modules before launching. If you're only running the JS bundler (`pnpm dev`) without rebuilding, new native modules won't be available and you'll see `Cannot find native module` errors.
+
 ### 5b. When it's time to add a new package
 
 To add a new package, simply run `pnpm turbo gen init` in the monorepo root. This will prompt you for a package name as well as if you want to install any dependencies to the new package (of course you can also do this yourself later).
