@@ -18,7 +18,7 @@ A well-informed people is the foundation of democracy. The current information g
 
 Billion addresses this by scraping, processing, and repackaging three categories of public political content:
 
-- **Bills** — Congressional legislation from GovTrack and Congress.gov, including sponsor, status, full text, and AI-generated accessible articles
+- **Bills** — Congressional legislation from Congress.gov, including sponsor, status, full text, and AI-generated accessible articles
 - **Government Content** — Executive orders, memoranda, proclamations, fact sheets, and briefings from whitehouse.gov
 - **Court Cases** — Federal cases including Supreme Court and circuit court decisions, with status tracking and plain-language analysis
 
