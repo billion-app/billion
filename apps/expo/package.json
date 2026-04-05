@@ -70,7 +70,7 @@
     "eslint": "catalog:",
     "prettier": "catalog:",
     "tailwindcss": "catalog:",
-    "typescript": "~5.9.3"
+    "typescript": "~6.0.2"
   },
   "overrides": {
     "lightningcss": "1.30.1"
