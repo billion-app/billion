@@ -25,10 +25,11 @@
     "typescript": "~6.0.2"
   },
   "scripts": {
+    "with-env": "dotenv -e .env -e ../../.env --",
     "dev": "pnpm run start:dev",
     "start": "pnpm run start:dev",
     "start:prod": "node dist/main.js",
-    "start:dev": "tsx --env-file=.env --env-file=../../.env src/main.ts",
+    "start:dev": "pnpm with-env tsx src/main.ts",
     "build": "tsc",
     "test": "echo \"Error: oops, the actor has no tests yet, sad!\" && exit 1",
     "retroactive-videos": "tsx src/retroactive-videos.ts"
