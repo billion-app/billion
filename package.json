@@ -24,7 +24,8 @@
     "typecheck": "turbo run typecheck",
     "ui-add": "turbo run ui-add",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "bump": "node scripts/bump.mjs"
   },
   "devDependencies": {
     "@acme/prettier-config": "workspace:*",
