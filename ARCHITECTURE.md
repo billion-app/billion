@@ -57,7 +57,7 @@ The client uses `drizzle-orm/node-postgres` (native TCP connection). This is why
 
 | Table | Purpose |
 |---|---|
-| `bill` | Congressional legislation scraped from GovTrack and congress.gov |
+| `bill` | Congressional legislation scraped from congress.gov |
 | `government_content` | Executive orders, memoranda, proclamations, press briefings from whitehouse.gov |
 | `court_case` | SCOTUS and federal court cases |
 | `video` | AI-generated feed posts derived from the above content |
@@ -127,16 +127,15 @@ Next.js at port 3000 serves both the web frontend and the tRPC API. The Expo app
 
 | Scraper | Source | Content Type |
 |---|---|---|
-| `govtrack.ts` | govtrack.us | Bills |
 | `congress.ts` | congress.gov | Bills |
 | `whitehouse.ts` | whitehouse.gov | Government content (EOs, memoranda, briefings) |
 | `scotus.ts` | CourtListener API (courtlistener.com) | Court cases |
 
-The HTML scrapers (govtrack, whitehouse) use `fetch` + [cheerio](https://cheerio.js.org/) for page fetching and DOM parsing. The API scrapers (congress, scotus) use `fetch` against official REST APIs. All four share a `fetchWithRetry()` utility with exponential backoff, `Retry-After` support, and configurable timeout. A unified `upsertContent(type, data)` function handles the DB write + AI generation pipeline for all content types via a discriminated union.
+The HTML scrapers (whitehouse) use `fetch` + [cheerio](https://cheerio.js.org/) for page fetching and DOM parsing. The API scrapers (congress, scotus) use `fetch` against official REST APIs. All three share a `fetchWithRetry()` utility with exponential backoff, `Retry-After` support, and configurable timeout. A unified `upsertContent(type, data)` function handles the DB write + AI generation pipeline for all content types via a discriminated union.
 
-Scrapers are run individually or all at once via CLI: `pnpm start:dev [govtrack|whitehouse|congressgov|scotus|all]`.
+Scrapers are run individually or all at once via CLI: `pnpm start:dev [whitehouse|congressgov|scotus|all]`.
 
-**Why custom fetch+cheerio instead of Crawlee?** Crawlee pulled in Playwright and Apify's storage layer — heavy dependencies for what amounted to "fetch HTML, parse with CSS selectors, follow some links." Two of four scrapers used REST APIs directly and didn't need Crawlee at all. The retry logic, which is the only non-trivial part, is ~60 lines in `fetchWithRetry()`. Less to learn, less to debug, unified patterns across all scrapers.
+**Why custom fetch+cheerio instead of Crawlee?** Crawlee pulled in Playwright and Apify's storage layer — heavy dependencies for what amounted to "fetch HTML, parse with CSS selectors, follow some links." Two of three scrapers used REST APIs directly and didn't need Crawlee at all. The retry logic, which is the only non-trivial part, is ~60 lines in `fetchWithRetry()`. Less to learn, less to debug, unified patterns across all scrapers.
 
 ### Upsert + Change Detection
 

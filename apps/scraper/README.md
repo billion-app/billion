@@ -7,7 +7,6 @@ Pulls in government content like bills, court cases, and White House content and
 | File | Where data comes from | How |
 |---|---|---|
 | `congress.ts` | Congress.gov bills | Official REST API |
-| `govtrack.ts` | GovTrack bills | HTML scraping |
 | `whitehouse.ts` | Whitehouse.gov | HTML scraping |
 | `scotus.ts` | Court opinions | CourtListener REST API |
 
