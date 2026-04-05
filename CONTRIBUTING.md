@@ -357,6 +357,20 @@ AUTH_REDIRECT_PROXY_URL=https://your-production-url.com
 
 ### Troubleshooting
 
+#### Issue: "Cannot find native module 'X'" / version mismatch warnings
+
+**Symptoms**: Errors like `Cannot find native module 'ExpoGlassEffect'` or `Mismatch between C++ code version and JavaScript code version`
+
+**Cause**: A native module is installed but the native binary hasn't been rebuilt to include it. This happens after adding a package with native code, upgrading Expo SDK, or running `pnpm install` without rebuilding.
+
+**Solution**: Do a full native rebuild from `apps/expo/`:
+
+```bash
+pnpm ios   # or pnpm android
+```
+
+This runs prebuild + pod install + compiles the native project automatically. `expo start --clear` alone is not enough for native module errors.
+
 #### Issue: TypeScript errors about missing `.js` extensions in `packages/db`
 
 **Symptoms**: `tsc` in `apps/scraper` reports errors like:
