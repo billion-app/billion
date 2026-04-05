@@ -55,3 +55,21 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+
+  bundle-expo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Copy env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Bundle iOS
+        run: cd apps/expo && npx expo export --platform ios --output-dir /tmp/expo-out
+
+      - name: Bundle Android
+        run: cd apps/expo && npx expo export --platform android --output-dir /tmp/expo-out
