@@ -23,26 +23,27 @@ export default ({ config }: ConfigContext): ExpoConfig =>
     newArchEnabled: true,
     assetBundlePatterns: ["**/*"],
     ios: {
-      bundleIdentifier: "dev.thatxliner.billion",
+      bundleIdentifier: "app.billion-news.billion",
       supportsTablet: true,
       icon: {
         light: "./assets/icon-light.png",
         dark: "./assets/icon-dark.png",
       },
+      infoPlist: { ITSAppUsesNonExemptEncryption: false },
     },
     android: {
-      package: "dev.thatxliner.billion",
+      package: "app.billion-news.billion",
       adaptiveIcon: {
         foregroundImage: "./assets/icon-light.png",
         backgroundColor: "#0E1530",
       },
       edgeToEdgeEnabled: true,
     },
-    // extra: {
-    //   eas: {
-    //     projectId: "your-eas-project-id",
-    //   },
-    // },
+    extra: {
+      eas: {
+        projectId: "c38bc8f8-f82c-4a45-b819-d62bd366ac8b",
+      },
+    },
     experiments: {
       tsconfigPaths: true,
       typedRoutes: true,
