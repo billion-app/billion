@@ -20,6 +20,7 @@ export const metadata: Metadata = {
       ? "https://billion.app"
       : "http://localhost:3000",
   ),
+  icons: { icon: "/billion-logo.png", apple: "/billion-logo.png" },
   title: "Billion — Civic Intelligence for Every American",
   description:
     "Bills, executive orders, and court cases — in plain language, from every angle. AI-powered civic information for the people.",
