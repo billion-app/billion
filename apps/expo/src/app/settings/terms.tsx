@@ -1,93 +1,120 @@
-/**
- * Terms & Privacy screen — settings sub-page
- *
- * STATUS:
- * - Terms text updated with generic legal text (to be replaced with legally reviewed copy before launch)
- * - Last updated date hardcoded to March 17, 2026 (should be fetched from CMS in future)
- * - Privacy Policy URL updated to https://billion.app/privacy (non-clickable text)
- * - Acceptance tracking not yet implemented (can be added later with AsyncStorage and backend sync)
- *
- * BACKEND INTEGRATION FUTURE:
- * - Fetch terms content from CMS or remote config for updates without app release
- * - Track terms acceptance with version timestamp via trpc.user.acceptTerms
- * - Last updated date should come from CMS metadata
- */
-
 import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, rd, sp, useTheme } from "~/styles";
+import { colors, fonts, sp, useTheme } from "~/styles";
 
-// Terms version for future acceptance tracking
-const _TERMS_VERSION = "1.0.0";
+const LAST_UPDATED = "April 5, 2026";
 
-const SECTIONS = [
+const TERMS_SECTIONS = [
   {
     title: "1. Acceptance of Terms",
-    body: "By accessing or using the Billion application ('the Service'), you acknowledge that you have read, understood, and agree to be bound by these Terms of Service ('Terms') and our Privacy Policy. If you do not agree to these Terms, you may not access or use the Service.",
+    body: "By accessing our website, joining our waitlist, or downloading and using the Billion application ('the App'), you agree to be bound by these Terms of Service. If you do not agree, do not use our services.",
   },
   {
     title: "2. Description of Service",
-    body: "Billion provides AI-powered summaries and analyses of publicly available government documents for informational and educational purposes only. The Service is not intended to provide legal, financial, political, or professional advice. Users are solely responsible for verifying information through primary sources and consulting qualified professionals where appropriate.",
+    body: "Billion provides AI-generated summaries and analyses of publicly available government documents for informational and civic-education purposes only. This is not legal, financial, or professional advice. Always verify information through primary sources.",
   },
   {
-    title: "3. User Responsibilities",
-    body: "You agree to use the Service in compliance with all applicable laws and regulations. You shall not misuse the Service, including but not limited to: attempting to reverse engineer, decompile, or disassemble any portion of the Service; interfering with the operation of the Service; or using the Service to generate harmful, misleading, or illegal content.",
+    title: "3. Eligibility",
+    body: "You must be at least 13 years of age to use our services. If you are under 18, you represent that you have obtained parental or guardian consent.",
   },
   {
-    title: "4. Intellectual Property Rights",
-    body: "All content, design, graphics, compilation, and other materials created by Billion, Inc. are the proprietary property of Billion, Inc. and are protected by copyright and other intellectual property laws. Government documents reproduced within the Service are in the public domain. AI-generated summaries and analyses are the intellectual property of Billion, Inc. You are granted a limited, non-exclusive, non-transferable license to access and use the Service for personal, non-commercial purposes.",
+    title: "4. Prohibited Conduct",
+    body: "You agree not to: (a) reverse-engineer or decompile any part of the App; (b) interfere with or disrupt our infrastructure; (c) scrape or harvest data using automated means; or (d) use the App to distribute misleading or unlawful content.",
   },
   {
-    title: "5. Privacy and Data Collection",
-    body: "We collect and process personal data as described in our Privacy Policy. By using the Service, you consent to the collection, use, and sharing of your information as outlined therein. We implement reasonable security measures to protect your data, but we cannot guarantee absolute security.",
+    title: "5. Intellectual Property",
+    body: "All original content, design, and software are the property of Billion and protected by applicable intellectual property laws. Government documents are in the public domain. You receive a limited, non-exclusive, non-transferable license for personal, non-commercial use only.",
   },
   {
-    title: "6. Disclaimers and Limitation of Liability",
-    body: "THE SERVICE IS PROVIDED 'AS IS' AND 'AS AVAILABLE' WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. TO THE FULLEST EXTENT PERMITTED BY LAW, BILLION, INC. DISCLAIMS ALL WARRANTIES, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE ARE NOT LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF THE SERVICE.",
+    title: "6. AI-Generated Content Disclaimer",
+    body: "Summaries are generated by automated AI and may contain errors or omissions. Billion is not liable for decisions made in reliance on AI-generated content.",
   },
   {
-    title: "7. Indemnification",
-    body: "You agree to indemnify, defend, and hold harmless Billion, Inc., its affiliates, officers, directors, employees, and agents from any claims, liabilities, damages, losses, or expenses arising out of or in any way connected with your access to or use of the Service.",
+    title: "7. Disclaimer of Warranties",
+    body: "THE APP IS PROVIDED 'AS IS' WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.",
   },
   {
-    title: "8. Termination",
-    body: "We reserve the right to suspend or terminate your access to the Service at our sole discretion, without notice, for conduct that we believe violates these Terms or is harmful to other users, us, or third parties, or for any other reason.",
+    title: "8. Limitation of Liability",
+    body: "TO THE FULLEST EXTENT PERMITTED BY LAW, BILLION SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF OUR SERVICES.",
   },
   {
-    title: "9. Modifications to Terms",
-    body: "We may modify these Terms at any time. We will provide notice of material changes via the Service or through other communication methods. Your continued use of the Service after such modifications constitutes your acceptance of the updated Terms.",
+    title: "9. Governing Law",
+    body: "These Terms are governed by the laws of the State of California, without regard to conflict-of-law principles.",
   },
   {
-    title: "10. Governing Law and Dispute Resolution",
-    body: "These Terms shall be governed by the laws of the State of Delaware, without regard to its conflict of law principles. Any disputes arising under these Terms shall be resolved exclusively in the state or federal courts located in Delaware.",
+    title: "10. Changes to These Terms",
+    body: "We may update these Terms at any time. Material changes will be communicated via in-app notice or email. Continued use of our services after changes constitutes acceptance.",
   },
   {
-    title: "11. Contact Information",
-    body: "If you have any questions about these Terms, please contact us at legal@billion.app.",
+    title: "11. Contact",
+    body: "Questions about these Terms? Email us at thatxliner@gmail.com.",
   },
 ];
+
+const PRIVACY_SECTIONS = [
+  {
+    title: "1. Information We Collect",
+    body: "We collect information you provide directly, including your email address when you join our waitlist or create an account, and any preferences or profile information you submit. We also collect information automatically when you use our services, such as usage data, device type, and app interactions.",
+  },
+  {
+    title: "2. Waitlist and Landing Page",
+    body: "When you sign up for our waitlist, we collect your email address to notify you when the App becomes available and to send updates about Billion. You can unsubscribe at any time by emailing thatxliner@gmail.com.",
+  },
+  {
+    title: "3. How We Use Your Information",
+    body: "We use collected information to operate and improve our services, personalize your experience, send service-related and waitlist communications, and comply with legal obligations. We do not sell your personal information.",
+  },
+  {
+    title: "4. Data Sharing",
+    body: "We may share your information with service providers who assist us in operating our services (e.g. hosting, analytics, email delivery). We require all third parties to respect the security of your data and not use it for their own marketing purposes.",
+  },
+  {
+    title: "5. Your Choices",
+    body: "You can control certain data uses — including analytics and personalized content — through Privacy Settings in the app. You may request access to or deletion of your personal data at any time by emailing thatxliner@gmail.com.",
+  },
+  {
+    title: "6. Data Retention",
+    body: "We retain your information for as long as your account is active or as needed to provide our services. Waitlist email addresses are retained until you unsubscribe or request deletion.",
+  },
+  {
+    title: "7. Security",
+    body: "We implement commercially reasonable security measures to protect your data. No internet transmission or electronic storage is 100% secure.",
+  },
+  {
+    title: "8. Children's Privacy",
+    body: "Our services are not directed at children under 13. We do not knowingly collect personal information from children under 13. If we become aware we have done so, we will delete it promptly.",
+  },
+  {
+    title: "9. Changes to This Policy",
+    body: "We may update this Privacy Policy from time to time. We will notify you of material changes via in-app notice or email.",
+  },
+  {
+    title: "10. Contact",
+    body: "Questions about this Privacy Policy or your data? Email us at thatxliner@gmail.com.",
+  },
+];
+
+function DocSection({ title, body, theme }: { title: string; body: string; theme: any }) {
+  return (
+    <View style={styles.section} lightColor="transparent" darkColor="transparent">
+      <Text style={[styles.sectionTitle, { color: theme.foreground }]}>{title}</Text>
+      <Text style={[styles.sectionBody, { color: theme.textSecondary }]}>{body}</Text>
+    </View>
+  );
+}
 
 export default function TermsScreen() {
   const router = useRouter();
   const { theme } = useTheme();
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={["top"]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
       <View
-        style={[
-          styles.header,
-          {
-            borderBottomColor: theme.border,
-            backgroundColor: theme.background,
-          },
-        ]}
+        style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}
       >
         <TouchableOpacity
           onPress={() => router.back()}
@@ -96,59 +123,28 @@ export default function TermsScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>
-          Terms & Privacy
-        </Text>
-        <View
-          style={{ width: 44 }}
-          lightColor="transparent"
-          darkColor="transparent"
-        />
+        <Text style={[styles.title, { color: theme.foreground }]}>Terms & Privacy</Text>
+        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.lastUpdated, { color: theme.mutedForeground }]}>
-          Last updated March 17, 2026
+          Last updated {LAST_UPDATED}
         </Text>
 
-        {SECTIONS.map((section) => (
-          <View
-            key={section.title}
-            style={styles.section}
-            lightColor="transparent"
-            darkColor="transparent"
-          >
-            <Text style={[styles.sectionTitle, { color: theme.foreground }]}>
-              {section.title}
-            </Text>
-            <Text style={[styles.sectionBody, { color: theme.textSecondary }]}>
-              {section.body}
-            </Text>
-          </View>
+        <Text style={[styles.docTitle, { color: theme.foreground }]}>Terms of Service</Text>
+        {TERMS_SECTIONS.map((s) => (
+          <DocSection key={s.title} {...s} theme={theme} />
         ))}
 
-        <View
-          style={[
-            styles.privacyCard,
-            {
-              backgroundColor: colors.civicBlue + "18",
-              borderColor: colors.civicBlue + "44",
-            },
-          ]}
-          lightColor="transparent"
-          darkColor="transparent"
-        >
-          <Text style={[styles.privacyCardTitle, { color: theme.foreground }]}>
-            Privacy Policy
-          </Text>
-          <Text
-            style={[styles.privacyCardBody, { color: theme.textSecondary }]}
-          >
-            Our full Privacy Policy is available at https://billion.app/privacy
-            and governs all data collection, storage, and processing activities
-            associated with the Service.
-          </Text>
-        </View>
+        <View style={[styles.divider, { backgroundColor: theme.border }]} lightColor={theme.border} darkColor={theme.border} />
+
+        <Text style={[styles.docTitle, { color: theme.foreground }]}>Privacy Policy</Text>
+        {PRIVACY_SECTIONS.map((s) => (
+          <DocSection key={s.title} {...s} theme={theme} />
+        ))}
+
+        <View style={{ height: sp[10] }} lightColor="transparent" darkColor="transparent" />
       </ScrollView>
     </SafeAreaView>
   );
@@ -182,33 +178,26 @@ const styles = StyleSheet.create({
     marginTop: sp[5],
     marginBottom: sp[6],
   },
+  docTitle: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 20,
+    marginBottom: sp[5],
+  },
+  divider: {
+    height: 1,
+    marginVertical: sp[8],
+  },
   section: {
     marginBottom: sp[6],
   },
   sectionTitle: {
     fontFamily: fonts.bodySemibold,
-    fontSize: 15,
+    fontSize: 14,
     marginBottom: sp[2],
   },
   sectionBody: {
     fontFamily: fonts.body,
     fontSize: 14,
     lineHeight: 21,
-  },
-  privacyCard: {
-    borderRadius: rd.lg,
-    borderWidth: 1,
-    padding: sp[5],
-    marginBottom: sp[10],
-    gap: sp[2],
-  },
-  privacyCardTitle: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 14,
-  },
-  privacyCardBody: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    lineHeight: 19,
   },
 });
