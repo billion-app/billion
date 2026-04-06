@@ -56,7 +56,7 @@ const SECTIONS = [
   },
   {
     title: "11. Contact",
-    body: "Questions about these Terms? Email us at thatxliner@gmail.com.",
+    body: "Questions about these Terms? Email us at Thatxliner@gmail.com.",
   },
 ];
 

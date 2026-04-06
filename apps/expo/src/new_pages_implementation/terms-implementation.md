@@ -23,7 +23,7 @@ The Terms & Privacy page exists at `apps/expo/src/app/settings/terms.tsx` with p
    - Hardcode a realistic date (e.g., release date) or use current date via `new Date().toLocaleDateString()`.
 
 3. **Update Privacy Policy URL**:
-   - Replace placeholder `billion.app/privacy` with actual URL (could be a web page).
+   - Replace placeholder `billion-news.app/privacy` with actual URL (could be a web page).
 
 4. **Local acceptance tracking**:
    - Use `AsyncStorage` to store acceptance status and version.

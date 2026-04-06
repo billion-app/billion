@@ -9,7 +9,7 @@ The About page exists at `apps/expo/src/app/settings/about.tsx` with placeholder
 - **Version info**: Requires `expo-constants` for real version number
 - **Build channel**: Requires `expo-updates` for build channel
 - **Platform**: Requires `Platform.OS` from React Native
-- **Legal URLs**: Need real URLs (billion.app/privacy, etc.)
+- **Legal URLs**: Need real URLs (billion-news.app/privacy, etc.)
 
 ## Implementation Without Backend
 

@@ -25,7 +25,7 @@ The Help & Support page exists at `apps/expo/src/app/settings/help.tsx` with sta
    - Filter the `FAQS` array based on query string.
 
 3. **Chat button action**:
-   - Replace with `Linking.openURL` to open email (`mailto:support@billion.app`) or external helpdesk URL.
+   - Replace with `Linking.openURL` to open email (`mailto:Thatxliner@gmail.com`) or external helpdesk URL.
    - Alternatively, use `Linking.openURL` to open a web-based chat widget.
 
 4. **Bug report shortcut**:
