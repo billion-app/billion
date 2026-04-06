@@ -2,7 +2,6 @@
  * About screen — settings sub-page
  *
  * TODO:
- * - Legal URLs (billion.app/privacy etc.) are placeholder — update with real URLs before launch
  * - "Open Source Licenses" should use a real OSS license screen (e.g. react-native-oss-licenses)
  */
 
@@ -22,24 +21,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text, View } from "~/components/Themed";
 import { colors, fonts, rd, sp, useTheme } from "~/styles";
 
-// TODO: Update URLs before launch
 const LINKS = [
   {
     id: "privacy",
     label: "Privacy Policy",
-    url: "https://billion.app/privacy",
+    url: "https://billion-news.app/privacy",
     icon: "shield-outline" as const,
   },
   {
     id: "terms",
     label: "Terms of Service",
-    url: "https://billion.app/terms",
+    url: "https://billion-news.app/terms",
     icon: "document-text-outline" as const,
   },
   {
     id: "oss",
     label: "Open Source Licenses",
-    url: "https://billion.app/licenses",
+    url: "https://billion-news.app/licenses",
     icon: "code-slash-outline" as const,
   },
 ];
