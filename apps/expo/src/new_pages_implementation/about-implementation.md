@@ -9,7 +9,7 @@ The About page exists at `apps/expo/src/app/settings/about.tsx` with placeholder
 - **Version info**: Requires `expo-constants` for real version number
 - **Build channel**: Requires `expo-updates` for build channel
 - **Platform**: Requires `Platform.OS` from React Native
-- **Legal URLs**: Need real URLs (billion.app/privacy, etc.)
+- **Legal URLs**: Use `https://billion-news.app/privacy`, `https://billion-news.app/terms`, etc.
 
 ## Implementation Without Backend
 
@@ -39,7 +39,7 @@ import * as Updates from "expo-updates";
 // Use: Updates.channel ?? 'release'
 ```
 
-4. **Update legal URLs** (still requires real URLs but no backend):
+4. **Legal URLs** (no backend required):
 
 - Update `LINKS` array with correct production URLs
 
@@ -55,4 +55,4 @@ import * as Updates from "expo-updates";
 ## Priority: 🟢 High (Legal requirement for app stores)
 
 **Can ship with**: Updated version/build info using expo packages
-**Blockers**: Need real legal URLs before production
+**Blockers**: None — legal pages are live at `billion-news.app`.
