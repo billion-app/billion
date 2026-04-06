@@ -584,15 +584,14 @@ export default function LandingPage() {
         >
           Billion
         </span>
-        <p
-          className="m-0 text-[13px]"
-          style={{
-            color: "rgba(255,255,255,0.25)",
-            fontFamily: "var(--font-albert-sans)",
-          }}
+        <div
+          className="flex items-center gap-5 text-[13px]"
+          style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-albert-sans)" }}
         >
-          © 2026 Billion. All rights reserved.
-        </p>
+          <Link href="/terms" className="transition-colors duration-150 hover:text-white" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>Terms</Link>
+          <Link href="/privacy" className="transition-colors duration-150 hover:text-white" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>Privacy</Link>
+          <span>© 2026 Billion. All rights reserved.</span>
+        </div>
       </footer>
     </main>
   );
