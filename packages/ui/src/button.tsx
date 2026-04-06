@@ -35,22 +35,19 @@ export const buttonVariants = cva(
   },
 );
 
-export function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-  }) {
+type ButtonVariants = VariantProps<typeof buttonVariants>;
+
+type ButtonProps =
+  | ({ asChild: true } & React.ComponentProps<typeof SlotPrimitive.Slot> & ButtonVariants)
+  | ({ asChild?: false } & React.ComponentProps<"button"> & ButtonVariants);
+
+export function Button({ className, variant, size, asChild, ...props }: ButtonProps) {
   if (asChild) {
     return (
       <SlotPrimitive.Slot
         data-slot="button"
         className={cn(buttonVariants({ variant, size, className }))}
-        {...(props as React.ComponentProps<typeof SlotPrimitive.Slot>)}
+        {...props}
       />
     );
   }
