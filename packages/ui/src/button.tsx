@@ -35,23 +35,35 @@ export const buttonVariants = cva(
   },
 );
 
-export function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-  }) {
-  const Comp = asChild ? SlotPrimitive.Slot : "button";
+type ButtonVariants = VariantProps<typeof buttonVariants>;
+
+type SlotProps = React.ComponentProps<typeof SlotPrimitive.Slot>;
+type NativeButtonProps = Omit<React.ComponentProps<"button">, "ref"> & {
+  ref?: React.Ref<HTMLButtonElement>;
+};
+
+type ButtonProps = ButtonVariants &
+  (
+    | ({ asChild: true } & SlotProps)
+    | ({ asChild?: false } & NativeButtonProps)
+  );
+
+export function Button({ className, variant, size, asChild, ...props }: ButtonProps) {
+  if (asChild) {
+    return (
+      <SlotPrimitive.Slot
+        data-slot="button"
+        className={cn(buttonVariants({ variant, size, className }))}
+        {...(props as SlotProps)}
+      />
+    );
+  }
 
   return (
-    <Comp
+    <button
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
+      {...(props as NativeButtonProps)}
     />
   );
 }
