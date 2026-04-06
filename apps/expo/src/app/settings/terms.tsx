@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, useTheme } from "~/styles";
+import { colors, fonts, sp, useTheme, type Theme } from "~/styles";
 
 const LAST_UPDATED = "April 5, 2026";
 
@@ -98,7 +98,7 @@ const PRIVACY_SECTIONS = [
   },
 ];
 
-function DocSection({ title, body, theme }: { title: string; body: string; theme: any }) {
+function DocSection({ title, body, theme }: { title: string; body: string; theme: Theme }) {
   return (
     <View style={styles.section} lightColor="transparent" darkColor="transparent">
       <Text style={[styles.sectionTitle, { color: theme.foreground }]}>{title}</Text>
