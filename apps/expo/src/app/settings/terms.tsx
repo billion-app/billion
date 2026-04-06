@@ -51,7 +51,7 @@ const TERMS_SECTIONS = [
   },
   {
     title: "11. Contact",
-    body: "Questions about these Terms? Email us at Thatxliner@gmail.com.",
+    body: "Questions about these Terms? Email us at thatxliner@gmail.com.",
   },
 ];
 
@@ -62,7 +62,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     title: "2. Waitlist and Landing Page",
-    body: "When you sign up for our waitlist, we collect your email address to notify you when the App becomes available and to send updates about Billion. You can unsubscribe at any time by emailing Thatxliner@gmail.com.",
+    body: "When you sign up for our waitlist, we collect your email address to notify you when the App becomes available and to send updates about Billion. You can unsubscribe at any time by emailing thatxliner@gmail.com.",
   },
   {
     title: "3. How We Use Your Information",
@@ -74,7 +74,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     title: "5. Your Choices",
-    body: "You can control certain data uses — including analytics and personalized content — through Privacy Settings in the app. You may request access to or deletion of your personal data at any time by emailing Thatxliner@gmail.com.",
+    body: "You can control certain data uses — including analytics and personalized content — through Privacy Settings in the app. You may request access to or deletion of your personal data at any time by emailing thatxliner@gmail.com.",
   },
   {
     title: "6. Data Retention",
@@ -94,7 +94,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     title: "10. Contact",
-    body: "Questions about this Privacy Policy or your data? Email us at Thatxliner@gmail.com.",
+    body: "Questions about this Privacy Policy or your data? Email us at thatxliner@gmail.com.",
   },
 ];
 

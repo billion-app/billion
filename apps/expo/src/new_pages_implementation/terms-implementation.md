@@ -9,7 +9,7 @@ The Terms & Privacy page exists at `apps/expo/src/app/settings/terms.tsx` with p
 - **Terms text**: Currently hardcoded placeholder. Could be fetched from CMS for updates without app release.
 - **Last updated date**: Hardcoded. Should be fetched from terms document.
 - **Acceptance tracking**: Need to record user acceptance with version timestamp in user preferences (`trpc.user.acceptTerms`).
-- **Privacy Policy URL**: Placeholder URL needs real link.
+- **Privacy Policy URL**: Use `https://billion-news.app/privacy`.
 
 ## Implementation Without Backend
 
@@ -23,7 +23,7 @@ The Terms & Privacy page exists at `apps/expo/src/app/settings/terms.tsx` with p
    - Hardcode a realistic date (e.g., release date) or use current date via `new Date().toLocaleDateString()`.
 
 3. **Update Privacy Policy URL**:
-   - Replace placeholder `billion-news.app/privacy` with actual URL (could be a web page).
+   - Use the official URL `https://billion-news.app/privacy`.
 
 4. **Local acceptance tracking**:
    - Use `AsyncStorage` to store acceptance status and version.

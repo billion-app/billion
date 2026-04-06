@@ -137,7 +137,7 @@ export default function HelpScreen() {
           </View>
           <TouchableOpacity
             style={[styles.contactBtn, { backgroundColor: colors.civicBlue }]}
-            onPress={() => Linking.openURL("mailto:Thatxliner@gmail.com")}
+            onPress={() => Linking.openURL("mailto:thatxliner@gmail.com")}
           >
             <Text style={[styles.contactBtnText, { color: colors.white }]}>
               Email
