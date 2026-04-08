@@ -82,4 +82,6 @@ All scrapers call into `src/utils/db/operations.ts`. Each time a bill or case is
 
 - If it's **new** → saves it and generates an AI article + thumbnail
 - If the **content changed** → regenerates the article
-- If **nothing changed** → skips AI generation entirely (saves API costs)
+- If **nothing changed** → backfills any missing AI summary/article/thumbnail fields, otherwise skips AI generation
+
+Set `SCRAPER_FORCE_AI_REGEN=1` to force a full AI refresh even when the record already has AI content.
