@@ -32,6 +32,7 @@ import { tickProgress } from "../progress.js";
 import { createLogger } from "../log.js";
 
 const logger = createLogger("db");
+const forceAIRegeneration = process.env.SCRAPER_FORCE_AI_REGEN === "1";
 
 function isUsableText(text: string | undefined | null): text is string {
   if (!text || text.length < 200) return false;
@@ -127,30 +128,57 @@ export async function upsertContent(input: ContentData) {
   const fullText = input.data.fullText;
   const title = input.data.title;
   const url = input.data.url;
+  const sourceDescription = input.data.description;
 
   const hasUsableText = isUsableText(fullText);
+  const hasSummarySource = Boolean(
+    fullText || (input.type === "bill" && input.data.summary),
+  );
+  const persistedDescription = existing?.description;
+  const hasPersistedSummary = Boolean(
+    (sourceDescription && sourceDescription.trim()) ||
+      (persistedDescription && persistedDescription.trim()),
+  );
+  let shouldGenerateSummary = false;
   let shouldGenerateArticle = false;
   let shouldGenerateImage = false;
 
   let progressKind: "new" | "changed" | "unchanged";
   if (!existing) {
+    shouldGenerateSummary = !sourceDescription && hasSummarySource;
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = hasUsableText;
     incrementNewEntries();
     progressKind = "new";
     logger.info(`New ${label} detected`);
   } else if (existing.contentHash !== newContentHash) {
-    shouldGenerateArticle = hasUsableText;
-    shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
+    shouldGenerateSummary = forceAIRegeneration
+      ? !sourceDescription && hasSummarySource
+      : !hasPersistedSummary && !sourceDescription && hasSummarySource;
+    shouldGenerateArticle = forceAIRegeneration
+      ? hasUsableText
+      : hasUsableText && !existing.hasArticle;
+    shouldGenerateImage =
+      (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     incrementExistingChanged();
     progressKind = "changed";
     logger.info(`Content changed for ${label}`);
   } else {
-    shouldGenerateArticle = false;
-    shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
+    shouldGenerateSummary = forceAIRegeneration
+      ? !sourceDescription && hasSummarySource
+      : !hasPersistedSummary && !sourceDescription && hasSummarySource;
+    shouldGenerateArticle = forceAIRegeneration
+      ? hasUsableText
+      : hasUsableText && !existing.hasArticle;
+    shouldGenerateImage =
+      (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     incrementExistingUnchanged();
     progressKind = "unchanged";
-    logger.debug(`No changes for ${label}, skipping AI generation`);
+    logger.debug(
+      shouldGenerateSummary || shouldGenerateArticle || shouldGenerateImage
+        ? `No raw changes for ${label}, backfilling missing AI content`
+        : `No changes for ${label}, skipping AI generation`,
+    );
   }
 
   // Phase 1: always persist raw content first (no AI fields)
@@ -248,7 +276,7 @@ export async function upsertContent(input: ContentData) {
 
   // Phase 2: AI enrichment — skipped entirely if rate-limited
   try {
-    const existingDescription = input.data.description;
+    const existingDescription = sourceDescription || persistedDescription;
     const articleType =
       input.type === "bill"
         ? "bill"
@@ -261,10 +289,7 @@ export async function upsertContent(input: ContentData) {
       (async (): Promise<string | undefined> => {
         if (existingDescription) {
           return existingDescription;
-        } else if (
-          shouldGenerateArticle &&
-          (fullText || (input.type === "bill" && input.data.summary))
-        ) {
+        } else if (shouldGenerateSummary) {
           const summarySource =
             input.type === "bill"
               ? input.data.summary || input.data.fullText || ""

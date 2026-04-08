@@ -39,6 +39,7 @@ export interface ScraperMetrics {
 export interface ExistingRecordCheck {
   exists: boolean;
   contentHash?: string;
+  description?: string | null;
   hasArticle: boolean;
   hasThumbnail: boolean;
 }

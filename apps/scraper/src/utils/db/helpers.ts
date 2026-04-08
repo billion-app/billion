@@ -25,6 +25,7 @@ export async function checkExistingBill(
     const [existing] = await db
       .select({
         contentHash: Bill.contentHash,
+        description: Bill.description,
         aiGeneratedArticle: Bill.aiGeneratedArticle,
         thumbnailUrl: Bill.thumbnailUrl,
       })
@@ -39,6 +40,7 @@ export async function checkExistingBill(
     return {
       exists: true,
       contentHash: existing.contentHash,
+      description: existing.description,
       hasArticle: !!existing.aiGeneratedArticle,
       hasThumbnail: !!existing.thumbnailUrl,
     };
@@ -60,6 +62,7 @@ export async function checkExistingGovernmentContent(
     const [existing] = await db
       .select({
         contentHash: GovernmentContent.contentHash,
+        description: GovernmentContent.description,
         aiGeneratedArticle: GovernmentContent.aiGeneratedArticle,
         thumbnailUrl: GovernmentContent.thumbnailUrl,
       })
@@ -74,6 +77,7 @@ export async function checkExistingGovernmentContent(
     return {
       exists: true,
       contentHash: existing.contentHash,
+      description: existing.description,
       hasArticle: !!existing.aiGeneratedArticle,
       hasThumbnail: !!existing.thumbnailUrl,
     };
@@ -95,6 +99,7 @@ export async function checkExistingCourtCase(
     const [existing] = await db
       .select({
         contentHash: CourtCase.contentHash,
+        description: CourtCase.description,
         aiGeneratedArticle: CourtCase.aiGeneratedArticle,
         thumbnailUrl: CourtCase.thumbnailUrl,
       })
@@ -109,6 +114,7 @@ export async function checkExistingCourtCase(
     return {
       exists: true,
       contentHash: existing.contentHash,
+      description: existing.description,
       hasArticle: !!existing.aiGeneratedArticle,
       hasThumbnail: !!existing.thumbnailUrl,
     };
