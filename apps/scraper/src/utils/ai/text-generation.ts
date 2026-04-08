@@ -1,12 +1,12 @@
 /**
- * AI text generation utilities using OpenAI
+ * AI text generation utilities using Google Vertex AI
  * Generates summaries and full articles from government content
  */
 
-import { google } from '@ai-sdk/google';
 import { generateText, APICallError, RetryError } from 'ai';
 import { createLogger } from '../log.js';
 import { trackGeminiUsage } from '../costs.js';
+import { vertexProvider } from './provider.js';
 
 const logger = createLogger("ai");
 
@@ -53,7 +53,7 @@ export async function generateAISummary(
   }
   try {
     const { text, usage } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: vertexProvider('gemini-2.5-flash'),
       prompt: `Generate a concise, engaging summary (max 100 characters) for this government content. Focus on the key action or impact.
 
 Title: ${title}
@@ -96,7 +96,7 @@ export async function generateAIArticle(
     logger.start(`Generating AI article for: ${title}`);
 
     const { text, usage } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: vertexProvider('gemini-2.5-flash'),
       prompt: `You are an expert at making government and legal content accessible and engaging for everyday people. Transform the following ${type} into a well-structured, markdown-formatted article.
 
 **Structure your article with these 4 sections:**

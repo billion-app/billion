@@ -6,6 +6,7 @@
   "dependencies": {
     "@acme/db": "workspace:*",
     "@ai-sdk/google": "^3.0.53",
+    "@ai-sdk/google-vertex": "^4.0.105",
     "ai": "^6.0.141",
     "cheerio": "^1.2.0",
     "consola": "^3.4.2",

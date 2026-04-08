@@ -28,6 +28,9 @@ printHeader("Environment");
 printKeyValue("POSTGRES_URL", check(process.env.POSTGRES_URL));
 printKeyValue("PEXELS_API_KEY", check(process.env.PEXELS_API_KEY));
 printKeyValue("OPENAI_API_KEY", check(process.env.OPENAI_API_KEY));
+printKeyValue("GOOGLE_VERTEX_PROJECT", check(process.env.GOOGLE_VERTEX_PROJECT));
+printKeyValue("GOOGLE_VERTEX_LOCATION", check(process.env.GOOGLE_VERTEX_LOCATION));
+printKeyValue("GOOGLE_VERTEX_API_KEY", check(process.env.GOOGLE_VERTEX_API_KEY));
 printFooter();
 
 // Now import and run main

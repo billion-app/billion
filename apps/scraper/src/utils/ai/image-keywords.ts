@@ -1,14 +1,14 @@
 /**
  * AI-powered image keyword generation
- * Uses OpenAI to extract visual concepts for image search
+ * Uses Google Vertex AI to extract visual concepts for image search
  */
 
-import { google } from '@ai-sdk/google';
 import { generateText, APICallError, RetryError } from 'ai';
 
 import { AIRateLimitError, rateLimitHit, setRateLimitHit } from './text-generation.js';
 import { createLogger } from '../log.js';
 import { trackGeminiUsage } from '../costs.js';
+import { vertexProvider } from './provider.js';
 
 const logger = createLogger("ai");
 
@@ -44,7 +44,7 @@ export async function generateImageSearchKeywords(
   }
   try {
     const { text, usage } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: vertexProvider('gemini-2.5-flash'),
       prompt: `Given this ${type} title and content, generate 2-4 search keywords for finding relevant stock photos. Focus on concrete, visual, photographic concepts that would actually appear in news photography or documentary images.
 
 GOOD examples (specific, visual, photographic):
