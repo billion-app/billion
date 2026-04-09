@@ -84,13 +84,17 @@ export async function generateVideoForContent(
   };
 
   // Upsert video with hybrid image support
+  // Hard-truncate title to DB constraint (varchar 25) as a safety net in case
+  // the AI schema validation ever drifts from the DB schema again
+  const safeTitle = marketingCopy.title.substring(0, 25);
+
   try {
     await db
       .insert(Video)
       .values({
         contentType,
         contentId,
-        title: marketingCopy.title,
+        title: safeTitle,
         description: marketingCopy.description,
         imageData,
         imageMimeType,
@@ -104,7 +108,7 @@ export async function generateVideoForContent(
       .onConflictDoUpdate({
         target: [Video.contentType, Video.contentId],
         set: {
-          title: marketingCopy.title,
+          title: safeTitle,
           description: marketingCopy.description,
           imageData,
           imageMimeType,
@@ -119,11 +123,16 @@ export async function generateVideoForContent(
     incrementVideosGenerated();
     logger.success(`Video generated for ${contentType}:${contentId}`);
   } catch (error) {
-    // Sanitize error to avoid logging raw image data
-    const sanitizedError = error instanceof Error
-      ? `${error.name}: ${error.message.replace(/image_data[^,]*,/g, 'image_data=<REDACTED>,')}`
-      : 'Unknown database error';
-    logger.error(`Failed to insert video for ${contentType}:${contentId}: ${sanitizedError}`);
-    throw error;
+    // Build a sanitized error message — the raw DB error embeds binary image
+    // data as SQL parameter values which floods logs with unicode gibberish
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    const sanitizedMessage = rawMessage
+      // Remove the full query dump (contains binary data as parameter values)
+      .replace(/Failed query:[\s\S]*/i, 'Failed query: <redacted — contains binary image data>')
+      // Belt-and-suspenders: also strip any remaining base64/binary blobs
+      .replace(/\\x[0-9a-fA-F]{20,}/g, '<binary blob>');
+    logger.error(`Failed to upsert video for ${contentType}:${contentId}: ${sanitizedMessage}`);
+    // Throw a clean error so callers don't re-log the raw binary payload
+    throw new Error(`Video upsert failed for ${contentType}:${contentId}: ${sanitizedMessage}`);
   }
 }

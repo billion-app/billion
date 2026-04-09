@@ -407,7 +407,10 @@ export async function upsertContent(input: ContentData) {
       if (error instanceof AIRateLimitError) {
         logger.warn(`AI rate limit hit — ${label} saved without video, will retry next run`);
       } else {
-        throw error;
+        // Video generation is supplementary — a failure here must not abort
+        // content processing or propagate the raw DB error (which can contain
+        // binary image data) up to the scraper's generic error handler
+        logger.warn(`Video generation failed for ${label} — content was saved successfully: ${error instanceof Error ? error.message : error}`);
       }
     }
   }

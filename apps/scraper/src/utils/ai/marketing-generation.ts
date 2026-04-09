@@ -21,7 +21,7 @@ function isRateLimitError(error: unknown): boolean {
 const logger = createLogger("ai");
 
 const MarketingCopySchema = z.object({
-  title: z.string().max(100),
+  title: z.string().max(25), // Must match Video.title varchar(25) DB constraint
   description: z.string(),
   imagePrompt: z.string(),
 });
