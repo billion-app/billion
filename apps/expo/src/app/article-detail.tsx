@@ -6,19 +6,21 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
-import Markdown from "@ronradtke/react-native-markdown-display";
+import Markdown, {
+  type RenderRules,
+} from "@ronradtke/react-native-markdown-display";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-
-import { Button } from "@acme/ui/button-native";
+import { Image } from "expo-image";
 
 import { AIDisclaimerBanner } from "~/components/AIDisclaimerBanner";
 import { Text, View } from "~/components/Themed";
 // import { WireframeWave } from "~/components/WireframeWave";
 import {
   badges,
+  buttons,
   cards,
   colors,
   createTabContainerStyles,
@@ -41,20 +43,33 @@ const TabButton = ({
   active: boolean;
   onPress: () => void;
 }) => (
-  <Button
-    variant={active ? "default" : "ghost"}
-    size="sm"
-    style={localStyles.tabButton}
+  <TouchableOpacity
+    style={[
+      buttons.tab,
+      localStyles.tabButton,
+      active
+        ? { backgroundColor: colors.white }
+        : { backgroundColor: "transparent" },
+    ]}
     onPress={onPress}
+    activeOpacity={0.85}
   >
-    {title}
-  </Button>
+    <Text
+      style={[
+        localStyles.tabButtonText,
+        { color: active ? colors.black : colors.white },
+      ]}
+    >
+      {title}
+    </Text>
+  </TouchableOpacity>
 );
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
   const { theme } = useTheme();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [selectedTab, setSelectedTab] = useState<"article" | "original">(
     "article",
@@ -67,8 +82,8 @@ export default function ArticleDetailScreen() {
     isLoading,
     error,
   } = useQuery({
-    ...trpc.content.getById.queryOptions({ id }),
-    enabled: !!id,
+    ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
+    enabled: !!articleId,
   });
 
   // Handle loading state
@@ -138,6 +153,39 @@ export default function ArticleDetailScreen() {
 
   const tabContainerStyles = createTabContainerStyles(theme);
   const markdownStyles = getMarkdownStyles(theme);
+  const markdownRules: RenderRules = {
+    image: (
+      node,
+      _children,
+      _parent,
+      styles,
+      allowedImageHandlers,
+      defaultImageHandler,
+    ) => {
+      const { src, alt } = node.attributes;
+      const show = allowedImageHandlers.some((value) =>
+        src.toLowerCase().startsWith(value.toLowerCase()),
+      );
+
+      if (!show && defaultImageHandler === null) {
+        return null;
+      }
+
+      const imageUri = show ? src : `${defaultImageHandler}${src}`;
+
+      return (
+        <Image
+          key={node.key}
+          source={{ uri: imageUri }}
+          style={[styles._VIEW_SAFE_image, localStyles.markdownImage]}
+          contentFit="contain"
+          transition={200}
+          accessible={!!alt}
+          accessibilityLabel={alt}
+        />
+      );
+    },
+  };
 
   const handleOpenOriginal = async () => {
     if (content.url) {
@@ -151,6 +199,18 @@ export default function ArticleDetailScreen() {
       }
     }
   };
+
+  const activeContent =
+    selectedTab === "article" ? content.articleContent : content.originalContent;
+  const looksLikeMarkdown =
+    /^#{1,6}\s/m.test(activeContent) ||
+    /\[[^\]]+\]\((https?:\/\/|\/)/.test(activeContent) ||
+    /(^|\n)([-*+]|\d+\.)\s/m.test(activeContent) ||
+    /(^|\n)>\s/m.test(activeContent) ||
+    /!\[[^\]]*\]\(/.test(activeContent) ||
+    /```/.test(activeContent);
+  const shouldRenderMarkdown =
+    activeContent.length <= 20000 && (content.isAIGenerated || looksLikeMarkdown);
 
   return (
     <>
@@ -284,11 +344,21 @@ export default function ArticleDetailScreen() {
               },
             ]}
           >
-            <Markdown style={markdownStyles}>
-              {selectedTab === "article"
-                ? content.articleContent
-                : content.originalContent}
-            </Markdown>
+            {shouldRenderMarkdown ? (
+              <Markdown style={markdownStyles} rules={markdownRules}>
+                {activeContent}
+              </Markdown>
+            ) : (
+              <Text
+                style={[
+                  typography.body,
+                  localStyles.plainTextContent,
+                  { color: theme.foreground },
+                ]}
+              >
+                {activeContent}
+              </Text>
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -320,6 +390,11 @@ const localStyles = StyleSheet.create({
   tabButton: {
     borderRadius: rd.full,
   },
+  tabButtonText: {
+    fontFamily: "AlbertSans_500Medium",
+    fontSize: 16,
+    textAlign: "center",
+  },
   scrollViewContent: {
     padding: sp[5],
     paddingBottom: sp[10],
@@ -330,6 +405,16 @@ const localStyles = StyleSheet.create({
   },
   articleDescription: {
     marginBottom: sp[4],
+  },
+  plainTextContent: {
+    lineHeight: sp[6],
+  },
+  markdownImage: {
+    width: "100%",
+    minHeight: 180,
+    maxHeight: 320,
+    marginVertical: sp[3],
+    alignSelf: "center",
   },
   // White pill button — brand signature for primary CTAs
   viewOriginalButton: {

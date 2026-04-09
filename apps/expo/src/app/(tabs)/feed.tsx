@@ -5,13 +5,13 @@ import {
   FlatList,
   StatusBar,
   StyleSheet,
+  TouchableOpacity,
 } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 
 import type { VideoPost } from "@acme/api";
-import { Button } from "@acme/ui/button-native";
 
 import { Text, View } from "~/components/Themed";
 import {
@@ -46,7 +46,7 @@ export default function FeedScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    status,
+    isPending,
     error,
   } = useInfiniteQuery(
     trpc.video.getInfinite.infiniteQueryOptions(
@@ -57,11 +57,13 @@ export default function FeedScreen() {
 
   // Flatten all pages into a single array of videos
 
-  const videos = useMemo(
-    () =>
-      data?.pages.flatMap((page: { videos: VideoPost[] }) => page.videos) ?? [],
-    [data],
-  );
+  const videos = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    return data.pages.flatMap((page: { videos: VideoPost[] }) => page.videos);
+  }, [data]);
 
   const loadMoreVideos = () => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -174,17 +176,27 @@ export default function FeedScreen() {
         </Text>
 
         {/* Read Full Article Button */}
-        <Button
-          variant="default"
-          size="lg"
-          style={styles.readButton}
+        <TouchableOpacity
+          style={[
+            styles.readButton,
+            styles.readButtonSurface,
+            { backgroundColor: theme.primary },
+          ]}
           onPress={() => {
             // Use originalContentId from video
             router.push(`/article-detail?id=${item.originalContentId}`);
           }}
+          activeOpacity={0.85}
         >
-          Read Full Article
-        </Button>
+          <Text
+            style={[
+              styles.readButtonText,
+              { color: theme.primaryForeground },
+            ]}
+          >
+            Read Full Article
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Action Buttons - Floating with no background */}
@@ -236,7 +248,7 @@ export default function FeedScreen() {
 
   // Show loading state while fetching initial videos
 
-  if (status === "pending") {
+  if (isPending) {
     return (
       <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>
         <StatusBar hidden />
@@ -339,6 +351,19 @@ const styles = StyleSheet.create({
   },
   readButton: {
     width: "100%",
+  },
+  readButtonSurface: {
+    alignItems: "center",
+    borderRadius: rd.full,
+    justifyContent: "center",
+    minHeight: 52,
+    paddingHorizontal: sp[6],
+    paddingVertical: sp[3],
+  },
+  readButtonText: {
+    fontFamily: "AlbertSans_500Medium",
+    fontSize: fontSize.base,
+    textAlign: "center",
   },
   bottomOverlay: {
     position: "absolute",
