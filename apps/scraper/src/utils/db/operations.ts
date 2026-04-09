@@ -41,15 +41,21 @@ function isUsableText(text: string | undefined | null): text is string {
   const lines = text.split("\n");
   const boilerplateLines = lines.filter((line) => {
     const trimmed = line.trim();
-    return (
-      trimmed === "" ||
-      trimmed.split(/\s+/).length === 1 ||
-      (/[a-zA-Z]/.test(trimmed) &&
-        trimmed === trimmed.toUpperCase() &&
-        trimmed.length > 2)
-    );
+    // Blank lines
+    if (trimmed === "") return true;
+    // Single-word lines (section numbers, lone tokens)
+    if (trimmed.split(/\s+/).length === 1) return true;
+    // Fully uppercase lines that are NOT legislative section headers
+    // (e.g. "SEC. 1." or "CHAPTER 2—" are expected in bill text — don't penalise them)
+    const isAllCaps =
+      /[a-zA-Z]/.test(trimmed) &&
+      trimmed === trimmed.toUpperCase() &&
+      trimmed.length > 2;
+    const isLegislativeHeader = /^(SEC\.|SECTION|CHAPTER|TITLE|PART|SUBPART|ART\.|ARTICLE)\s/i.test(trimmed);
+    return isAllCaps && !isLegislativeHeader;
   });
-  if (boilerplateLines.length / lines.length >= 0.3) return false;
+  // Raise threshold: bill/order text is legitimately header-heavy (50% instead of 30%)
+  if (boilerplateLines.length / lines.length >= 0.5) return false;
 
   return true;
 }
@@ -131,6 +137,9 @@ export async function upsertContent(input: ContentData) {
   const sourceDescription = input.data.description;
 
   const hasUsableText = isUsableText(fullText);
+  if (!hasUsableText && fullText) {
+    logger.debug(`${label} fullText failed usability check (too short or boilerplate-heavy) — AI article will be skipped`);
+  }
   const hasSummarySource = Boolean(
     fullText || (input.type === "bill" && input.data.summary),
   );
@@ -310,8 +319,11 @@ export async function upsertContent(input: ContentData) {
             articleType,
             url,
           );
-          incrementAIArticlesGenerated();
-          return article;
+          if (article) {
+            incrementAIArticlesGenerated();
+            return article;
+          }
+          logger.warn(`AI article generation returned empty result for ${label}`);
         } else if (existing?.hasArticle) {
           logger.debug(`Using existing AI article for ${label}`);
         }
