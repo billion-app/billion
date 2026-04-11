@@ -3,7 +3,6 @@
 // Bumps version in apps/expo/app.config.json and sets build numbers from git commit count.
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { execSync } from "node:child_process";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,17 +26,8 @@ if (bumpType === "major") next = `${maj + 1}.0.0`;
 else if (bumpType === "minor") next = `${maj}.${min + 1}.0`;
 else next = `${maj}.${min}.${pat + 1}`;
 
-const commitCount = parseInt(
-  execSync("git rev-list --count HEAD", { encoding: "utf8" }).trim(),
-  10,
-);
-
 config.version = next;
-config.ios ??= {};
-config.android ??= {};
-config.ios.buildNumber = String(commitCount);
-config.android.versionCode = commitCount;
 
 writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
 
-console.log(`Bumped ${current} → ${next} (build ${commitCount})`);
+console.log(`Bumped ${current} → ${next}`);
