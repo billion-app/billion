@@ -53,7 +53,17 @@ for (const platform of targets) {
   });
 }
 
-// 3. Commit app.config.json
+// 3. Patch MARKETING_VERSION in .pbxproj (Expo sets CFBundleShortVersionString in Info.plist
+//    but leaves MARKETING_VERSION in the pbxproj as a build setting that overrides it at build time)
+if (targets.includes("ios")) {
+  const pbxprojPath = resolve(EXPO_DIR, "ios/billion.xcodeproj/project.pbxproj");
+  const pbxproj = readFileSync(pbxprojPath, "utf8");
+  const patched = pbxproj.replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${next};`);
+  writeFileSync(pbxprojPath, patched, "utf8");
+  console.log(`Patched MARKETING_VERSION → ${next} in project.pbxproj`);
+}
+
+// 4. Commit app.config.json
 console.log("\nCommitting version bump...");
 execSync(`git add apps/expo/app.config.json`, { cwd: ROOT, stdio: "inherit" });
 execSync(`git commit -m "chore: bump version to ${next}"`, { cwd: ROOT, stdio: "inherit" });
