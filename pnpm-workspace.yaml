@@ -5,15 +5,15 @@ packages:
   - social-media-agent
 
 catalog:
-  '@better-auth/cli': 1.4.21
-  '@better-auth/expo': 1.5.6
-  '@eslint/js': ^10.0.1
-  '@tailwindcss/postcss': ^4.2.2
-  '@tanstack/react-form': ^1.28.5
-  '@tanstack/react-query': ^5.95.2
-  '@trpc/client': ^11.16.0
-  '@trpc/server': ^11.16.0
-  '@trpc/tanstack-react-query': ^11.16.0
+  "@better-auth/cli": 1.4.21
+  "@better-auth/expo": 1.5.6
+  "@eslint/js": ^10.0.1
+  "@tailwindcss/postcss": ^4.2.2
+  "@tanstack/react-form": ^1.28.5
+  "@tanstack/react-query": ^5.95.2
+  "@trpc/client": ^11.16.0
+  "@trpc/server": ^11.16.0
+  "@trpc/tanstack-react-query": ^11.16.0
   better-auth: 1.5.6
   eslint: ^10.1.0
   prettier: ^3.8.1
@@ -23,8 +23,8 @@ catalog:
 
 catalogs:
   react19:
-    '@types/react': ^19.2.14
-    '@types/react-dom': ^19.2.3
+    "@types/react": ^19.2.14
+    "@types/react-dom": ^19.2.3
     react: ^19.2.4
     react-dom: ^19.2.4
 
@@ -34,16 +34,28 @@ onlyBuiltDependencies:
   - esbuild
 
 overrides:
-  '@types/minimatch': 5.1.2
-  esbuild@<=0.24.2: '>=0.25.0'
-  file-type@>=13.0.0 <21.3.1: '>=21.3.1'
-  file-type@>=20.0.0 <=21.3.1: '>=21.3.2'
+  "@types/minimatch": 5.1.2
+  esbuild@<=0.24.2: ">=0.25.0"
+  file-type@>=13.0.0 <21.3.1: ">=21.3.1"
+  file-type@>=20.0.0 <=21.3.1: ">=21.3.2"
   lightningcss: 1.30.1
-  lodash@>=4.0.0 <=4.17.22: '>=4.17.23'
-  markdown-it@<12.3.2: '>=12.3.2'
-  yaml@>=2.0.0 <2.8.3: '>=2.8.3'
-
+  lodash@>=4.0.0 <=4.17.22: ">=4.17.23"
+  chalk: "4.1.2"
+  markdown-it@<12.3.2: ">=12.3.2"
+  yaml@>=2.0.0 <2.8.3: ">=2.8.3"
+  "@expo/metro": "~0.1.1"
+  "@expo/metro-config": "~0.20.18"
+  metro: "~0.82.5"
+  metro-cache: "~0.82.5"
+  metro-config: "~0.82.5"
+  metro-core: "~0.82.5"
+  metro-file-map: "~0.82.5"
+  metro-resolver: "~0.82.5"
+  metro-runtime: "~0.82.5"
+  metro-source-map: "~0.82.5"
+  metro-transform-plugins: "~0.82.5"
+  metro-transform-worker: "~0.82.5"
 
 publicHoistPattern:
-  - '@ianvs/prettier-plugin-sort-imports'
+  - "@ianvs/prettier-plugin-sort-imports"
   - prettier-plugin-tailwindcss
