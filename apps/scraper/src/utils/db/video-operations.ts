@@ -22,16 +22,25 @@ async function checkExistingVideo(
   currentContentHash: string,
 ): Promise<{ exists: boolean; needsRegeneration: boolean } | null> {
   const [existing] = await db
-    .select({ sourceContentHash: Video.sourceContentHash })
+    .select({
+      sourceContentHash: Video.sourceContentHash,
+      imageData: Video.imageData,
+      thumbnailUrl: Video.thumbnailUrl,
+    })
     .from(Video)
     .where(and(eq(Video.contentType, contentType), eq(Video.contentId, contentId)))
     .limit(1);
 
   if (!existing) return null;
 
+  // Record needs regeneration if content hash changed OR if it's missing image data entirely
+  // (neither AI generated nor a scraped fallback)
+  const isMissingImage = !existing.imageData && !existing.thumbnailUrl;
+  const needsRegeneration = existing.sourceContentHash !== currentContentHash || isMissingImage;
+
   return {
     exists: true,
-    needsRegeneration: existing.sourceContentHash !== currentContentHash,
+    needsRegeneration,
   };
 }
 

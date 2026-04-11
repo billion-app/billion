@@ -3,7 +3,7 @@
  * Check for existing records before performing expensive operations
  */
 
-import { eq, and, isNull } from '@acme/db';
+import { eq, and, isNull, or } from '@acme/db';
 import { db } from '@acme/db/client';
 import { Bill, GovernmentContent, CourtCase, Video } from '@acme/db/schema';
 import type { ExistingRecordCheck } from '../types.js';
@@ -147,7 +147,16 @@ export async function findArticlesWithoutVideos(
         })
         .from(Bill)
         .leftJoin(Video, and(eq(Video.contentType, 'bill'), eq(Video.contentId, Bill.id)))
-        .where(isNull(Video.id))
+        .where(
+          or(
+            isNull(Video.id),
+            and(
+              eq(Video.contentType, 'bill'),
+              isNull(Video.imageData),
+              isNull(Video.thumbnailUrl),
+            ),
+          ),
+        )
         .limit(limit);
 
       return billsWithoutVideos;
@@ -163,7 +172,16 @@ export async function findArticlesWithoutVideos(
         })
         .from(GovernmentContent)
         .leftJoin(Video, and(eq(Video.contentType, 'government_content'), eq(Video.contentId, GovernmentContent.id)))
-        .where(isNull(Video.id))
+        .where(
+          or(
+            isNull(Video.id),
+            and(
+              eq(Video.contentType, 'government_content'),
+              isNull(Video.imageData),
+              isNull(Video.thumbnailUrl),
+            ),
+          ),
+        )
         .limit(limit);
 
       return contentWithoutVideos;
@@ -178,7 +196,16 @@ export async function findArticlesWithoutVideos(
         })
         .from(CourtCase)
         .leftJoin(Video, and(eq(Video.contentType, 'court_case'), eq(Video.contentId, CourtCase.id)))
-        .where(isNull(Video.id))
+        .where(
+          or(
+            isNull(Video.id),
+            and(
+              eq(Video.contentType, 'court_case'),
+              isNull(Video.imageData),
+              isNull(Video.thumbnailUrl),
+            ),
+          ),
+        )
         .limit(limit);
 
       return casesWithoutVideos.map(c => ({ ...c, source: 'court' }));
