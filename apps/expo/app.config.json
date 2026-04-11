@@ -45,10 +45,10 @@
       "expo-splash-screen",
       {
         "backgroundColor": "#0E1530",
-        "image": "./assets/icon-dark.png",
+        "image": "./assets/billion-logo.png",
         "dark": {
           "backgroundColor": "#0E1530",
-          "image": "./assets/icon-dark.png"
+          "image": "./assets/billion-logo.png"
         }
       }
     ]

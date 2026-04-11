@@ -11,7 +11,9 @@
     "ios": "expo run:ios",
     "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .prettierignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:ios": "expo prebuild --platform ios",
+    "build:android": "expo prebuild --platform android"
   },
   "dependencies": {
     "@acme/ui": "workspace:*",
