@@ -32,7 +32,7 @@ export default ({ config }: ConfigContext): ExpoConfig =>
       infoPlist: { ITSAppUsesNonExemptEncryption: false },
     },
     android: {
-      package: "app.billion-news.billion",
+      package: "app.billionnews.billion",
       adaptiveIcon: {
         foregroundImage: "./assets/icon-light.png",
         backgroundColor: "#0E1530",
