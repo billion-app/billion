@@ -153,8 +153,6 @@ For EAS builds, set this in your EAS environment variables dashboard or via:
 eas env:create --name EXPO_PUBLIC_API_URL --value https://www.billion-news.app
 ```
 
-### Steps
-
 ### Releasing a new build
 
 From the **monorepo root**:
@@ -191,13 +189,13 @@ Then follow **Product → Archive → Distribute App** as described below.
 cd ios && pod install && cd ..
 ```
 
-#### 3. Open in Xcode
+#### 2. Open in Xcode
 
 ```bash
 open ios/billion.xcworkspace
 ```
 
-#### 4. Configure signing
+#### 3. Configure signing
 
 In Xcode → select the `billion` target → **Signing & Capabilities**:
 - Check **Automatically manage signing**
@@ -212,11 +210,11 @@ xcodebuild -workspace ios/billion.xcworkspace -scheme billion \
   DEVELOPMENT_TEAM=QKY5V6T98V CODE_SIGN_STYLE=Automatic
 ```
 
-#### 5. Archive
+#### 4. Archive
 
 **Product → Archive** — this produces a `.xcarchive` in Xcode's Organizer.
 
-#### 6. Distribute
+#### 5. Distribute
 
 In the Organizer, click **Distribute App** → **App Store Connect** → follow the wizard. This uploads to App Store Connect where it appears in TestFlight.
 
