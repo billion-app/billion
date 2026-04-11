@@ -45,6 +45,8 @@ yarn-error.log*
 .env*.local
 .env.*
 !.env.example
+# expo app .env is committed (production defaults)
+!apps/expo/.env
 
 # vercel
 .vercel

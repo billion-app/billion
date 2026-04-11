@@ -148,6 +148,12 @@ node-linker=hoisted
   
 In this case, `pnpm clean && pnpm install && cd apps/expo && pnpm ios` before you go back to root and run `pnpm dev`. Maybe open the Xcode project and build from there?
 
+#### Xcode build errors??
+
+Always open `ios/billion.xcworkspace`, never `ios/billion.xcodeproj`. If that doesn't help, re-create the ios directory with `pnpm expo prebuild --platform ios --clean` from `apps/expo/`.
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md#troubleshooting) for common `pnpm run ios` crash errors and their fixes.
+
 ## FAQ & Deployment
 
 Just see the original [here](https://github.com/t3-oss/create-t3-turbo#faq) (permalink [here](https://github.com/t3-oss/create-t3-turbo/tree/cf9aefdf46036df0b9a3bec4f08d0f4f2fe54e83?tab=readme-ov-file#faq)).

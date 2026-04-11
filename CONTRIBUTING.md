@@ -131,30 +131,33 @@ You can build and archive the app entirely on your Mac using Xcode — no EAS bu
 
 ### Environment Variables
 
-`EXPO_PUBLIC_API_URL` must be set to your production server URL **before** building — it gets baked into the binary at build time and cannot be changed after.
+`EXPO_PUBLIC_API_URL` is baked into the JS bundle at build time by the Xcode "Bundle React Native code and images" build phase. It is **not** set during prebuild.
+
+A default `.env` pointing to production is already committed at `apps/expo/.env`:
 
 ```bash
-# .env (project root)
-EXPO_PUBLIC_API_URL=https://your-production-domain.com
+# apps/expo/.env (committed — do not change for local dev)
+EXPO_PUBLIC_API_URL=https://www.billion-news.app
+```
+
+For local dev, create `apps/expo/.env.local` (gitignored) and override there:
+
+```bash
+# apps/expo/.env.local
+EXPO_PUBLIC_API_URL=http://192.168.x.x:3000
 ```
 
 For EAS builds, set this in your EAS environment variables dashboard or via:
 
 ```bash
-eas env:create --name EXPO_PUBLIC_API_URL --value https://your-production-domain.com
+eas env:create --name EXPO_PUBLIC_API_URL --value https://www.billion-news.app
 ```
 
 ### Steps
 
 #### 1. Prebuild (generate native project)
 
-Set `EXPO_PUBLIC_API_URL` first — it gets baked in during prebuild and can't be changed after:
-
-```bash
-export EXPO_PUBLIC_API_URL=https://your-production-domain.com
-```
-
-Then from `apps/expo/`:
+From `apps/expo/`:
 
 ```bash
 pnpm expo prebuild --platform ios --clean
@@ -178,7 +181,16 @@ open ios/billion.xcworkspace
 
 In Xcode → select the `billion` target → **Signing & Capabilities**:
 - Check **Automatically manage signing**
-- Select your Apple Developer team
+- Select the **QIONG CHEN** team (or your own if building for personal distribution)
+
+Alternatively, pass the team ID on the command line (avoids touching Xcode):
+
+```bash
+xcodebuild -workspace ios/billion.xcworkspace -scheme billion \
+  -configuration Release -destination generic/platform=iOS \
+  archive -archivePath /tmp/billion.xcarchive \
+  DEVELOPMENT_TEAM=QKY5V6T98V CODE_SIGN_STYLE=Automatic
+```
 
 #### 5. Archive
 
@@ -187,6 +199,22 @@ In Xcode → select the `billion` target → **Signing & Capabilities**:
 #### 6. Distribute
 
 In the Organizer, click **Distribute App** → **App Store Connect** → follow the wizard. This uploads to App Store Connect where it appears in TestFlight.
+
+### Troubleshooting
+
+#### `pnpm run ios` crashes immediately
+
+The monorepo has transitive peer deps (via `@better-auth/expo`) that pull in expo 55 packages, which can win pnpm's hoist election over expo 53's versions and cause crashes like:
+
+- `ERR_PACKAGE_PATH_NOT_EXPORTED` — metro 0.83 hoisted instead of 0.82
+- `Cannot read properties of undefined (reading 'push')` — `metro-core` 0.83 hoisted, breaking `Terminal` API
+- `Cannot read properties of undefined (reading 'transformFile')` — `@expo/metro` 55 hoisted
+
+These are fixed by the overrides in `pnpm-workspace.yaml` which pin `metro*`, `@expo/metro`, and `@expo/metro-config` to expo 53-compatible versions. If you ever see these errors after updating dependencies, check that the overrides haven't been removed.
+
+#### Always open the workspace, not the project
+
+Open `ios/billion.xcworkspace` — never `ios/billion.xcodeproj`. The `.xcodeproj` alone won't include CocoaPods dependencies and the build will fail to link.
 
 ### When to use EAS vs local
 
