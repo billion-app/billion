@@ -56,7 +56,7 @@ Create compelling marketing copy for this ${contentType} to be displayed in a so
 Requirements:
 1. "title": Compelling, attention-grabbing title (MUST be 25 characters or less)
 2. "description": A very short (max 25 words) summary for a mobile feed. Write in simple, plain English (8th-grade level). Focus on the "so what?"—why should a regular person care? No jargon.
-3. "imagePrompt": A visually striking, photorealistic image description (describe a scene that tells the story of this content at a glance). Avoid text, icons, or abstract concepts. 
+3. "imagePrompt": A creative, high-energy, and visually arresting scene description that captures the *essence* of the story. Instead of literal office buildings or meetings, focus on dramatic metaphors, intense human emotion, or dynamic action. Use vivid color descriptions and interesting perspectives (e.g., extreme close-ups, wide cinematic shots, or dramatic low angles). Avoid text, icons, or stereotypical stock photo tropes.
 
 Article Title: ${articleTitle}
 Content Preview: ${articleContent.substring(0, 1000)}`,
@@ -75,7 +75,7 @@ Content Preview: ${articleContent.substring(0, 1000)}`,
     return {
       title: articleTitle.substring(0, 25),
       description: articleContent.substring(0, 200) + "...",
-      imagePrompt: `professional news photography about ${articleTitle}`,
+      imagePrompt: `A dynamic, cinematic editorial photo about ${articleTitle}. Dramatic lighting, vivid colors.`,
     };
   }
 }

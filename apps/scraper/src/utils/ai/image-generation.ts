@@ -47,7 +47,7 @@ export async function generateImage(
 
       const result = await aiGenerateImage({
         model: vertexProvider.image('imagen-3.0-generate-001'),
-        prompt: `Professional news photography: ${prompt}. Photorealistic, high quality, journalistic style.`,
+        prompt: `Premium editorial photography: ${prompt}. Cinematic lighting, vibrant color palette, masterpiece composition, 8k resolution, highly detailed, expressive and dynamic.`,
         aspectRatio: '1:1',
         providerOptions: {
           vertex: { sampleCount: 1 },
