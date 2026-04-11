@@ -62,7 +62,7 @@ export async function generateImage(
 
       return {
         data: buffer,
-        mimeType: result.image.mimeType ?? 'image/png',
+        mimeType: (result.image as any).mimeType ?? 'image/png',
         width: 1024,
         height: 1024,
       };
