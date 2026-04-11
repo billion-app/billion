@@ -12,8 +12,8 @@ const PRICES = {
   // Gemini 2.5 Flash — $/1M tokens
   geminiFlashInput: Number(process.env.GEMINI_FLASH_INPUT_PRICE) || 0.15,
   geminiFlashOutput: Number(process.env.GEMINI_FLASH_OUTPUT_PRICE) || 0.60,
-  // DALL-E 3 — $/image (1024x1024, standard)
-  dalle3Image: Number(process.env.DALLE3_IMAGE_PRICE) || 0.04,
+  // Imagen 3 — $/image (1:1 aspect ratio)
+  imagenImage: Number(process.env.IMAGEN_IMAGE_PRICE) || 0.03,
   // Google Custom Search — $/query (after free tier)
   googleSearch: Number(process.env.GOOGLE_SEARCH_PRICE) || 0.005,
 };
@@ -21,14 +21,14 @@ const PRICES = {
 interface CostState {
   geminiInputTokens: number;
   geminiOutputTokens: number;
-  dalle3Images: number;
+  imagenImages: number;
   googleSearches: number;
 }
 
 let state: CostState = {
   geminiInputTokens: 0,
   geminiOutputTokens: 0,
-  dalle3Images: 0,
+  imagenImages: 0,
   googleSearches: 0,
 };
 
@@ -36,7 +36,7 @@ export function resetCosts(): void {
   state = {
     geminiInputTokens: 0,
     geminiOutputTokens: 0,
-    dalle3Images: 0,
+    imagenImages: 0,
     googleSearches: 0,
   };
 }
@@ -49,8 +49,8 @@ export function trackGeminiUsage(
   state.geminiOutputTokens += outputTokens ?? 0;
 }
 
-export function trackDalle3Image(): void {
-  state.dalle3Images++;
+export function trackImagenImage(): void {
+  state.imagenImages++;
 }
 
 export function trackGoogleSearch(): void {
@@ -60,10 +60,10 @@ export function trackGoogleSearch(): void {
 export interface CostSummary {
   geminiInputTokens: number;
   geminiOutputTokens: number;
-  dalle3Images: number;
+  imagenImages: number;
   googleSearches: number;
   geminiCost: number;
-  dalle3Cost: number;
+  imagenCost: number;
   googleSearchCost: number;
   totalCost: number;
 }
@@ -72,14 +72,14 @@ export function getCostSummary(): CostSummary {
   const geminiCost =
     (state.geminiInputTokens / 1_000_000) * PRICES.geminiFlashInput +
     (state.geminiOutputTokens / 1_000_000) * PRICES.geminiFlashOutput;
-  const dalle3Cost = state.dalle3Images * PRICES.dalle3Image;
+  const imagenCost = state.imagenImages * PRICES.imagenImage;
   const googleSearchCost = state.googleSearches * PRICES.googleSearch;
 
   return {
     ...state,
     geminiCost,
-    dalle3Cost,
+    imagenCost,
     googleSearchCost,
-    totalCost: geminiCost + dalle3Cost + googleSearchCost,
+    totalCost: geminiCost + imagenCost + googleSearchCost,
   };
 }

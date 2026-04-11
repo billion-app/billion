@@ -138,8 +138,8 @@ export function printMetricsSummary(scraperName: string): void {
       const totalTokens = costs.geminiInputTokens + costs.geminiOutputTokens;
       printKeyValue("Gemini tokens", `${totalTokens.toLocaleString()} (${formatUsd(costs.geminiCost)})`);
     }
-    if (costs.dalle3Images > 0) {
-      printKeyValue("DALL-E 3 images", `${costs.dalle3Images} (${formatUsd(costs.dalle3Cost)})`);
+    if (costs.imagenImages > 0) {
+      printKeyValue("Imagen 3 images", `${costs.imagenImages} (${formatUsd(costs.imagenCost)})`);
     }
     if (costs.googleSearches > 0) {
       printKeyValue("Google searches", `${costs.googleSearches} (${formatUsd(costs.googleSearchCost)})`);

@@ -1,3 +1,8 @@
+import type {
+  ASTNode,
+  RenderRules,
+} from "@ronradtke/react-native-markdown-display";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -6,14 +11,12 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
-import Markdown, {
-  type RenderRules,
-} from "@ronradtke/react-native-markdown-display";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import Markdown from "@ronradtke/react-native-markdown-display";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 
 import { AIDisclaimerBanner } from "~/components/AIDisclaimerBanner";
 import { Text, View } from "~/components/Themed";
@@ -155,14 +158,14 @@ export default function ArticleDetailScreen() {
   const markdownStyles = getMarkdownStyles(theme);
   const markdownRules: RenderRules = {
     image: (
-      node,
-      _children,
-      _parent,
-      styles,
-      allowedImageHandlers,
-      defaultImageHandler,
+      node: ASTNode,
+      _children: ReactNode[],
+      _parent: ASTNode[],
+      styles: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+      allowedImageHandlers: string[],
+      defaultImageHandler: string | null,
     ) => {
-      const { src, alt } = node.attributes;
+      const { src, alt } = node.attributes as { src: string; alt?: string };
       const show = allowedImageHandlers.some((value) =>
         src.toLowerCase().startsWith(value.toLowerCase()),
       );
@@ -177,7 +180,7 @@ export default function ArticleDetailScreen() {
         <Image
           key={node.key}
           source={{ uri: imageUri }}
-          style={[styles._VIEW_SAFE_image, localStyles.markdownImage]}
+          style={[styles._VIEW_SAFE_image, localStyles.markdownImage]} // eslint-disable-line @typescript-eslint/no-unsafe-member-access
           contentFit="contain"
           transition={200}
           accessible={!!alt}
@@ -201,16 +204,19 @@ export default function ArticleDetailScreen() {
   };
 
   const activeContent =
-    selectedTab === "article" ? content.articleContent : content.originalContent;
+    selectedTab === "article"
+      ? content.articleContent
+      : content.originalContent;
   const looksLikeMarkdown =
     /^#{1,6}\s/m.test(activeContent) ||
     /\[[^\]]+\]\((https?:\/\/|\/)/.test(activeContent) ||
     /(^|\n)([-*+]|\d+\.)\s/m.test(activeContent) ||
     /(^|\n)>\s/m.test(activeContent) ||
     /!\[[^\]]*\]\(/.test(activeContent) ||
-    /```/.test(activeContent);
+    activeContent.includes("```");
   const shouldRenderMarkdown =
-    activeContent.length <= 20000 && (content.isAIGenerated || looksLikeMarkdown);
+    activeContent.length <= 20000 &&
+    (content.isAIGenerated || looksLikeMarkdown);
 
   return (
     <>

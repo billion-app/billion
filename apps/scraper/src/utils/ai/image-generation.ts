@@ -1,16 +1,15 @@
 /**
- * AI image generation using OpenAI DALL-E
+ * AI image generation using Google Vertex AI Imagen 3
  * Generates images from text prompts and converts them to JPEG format
  */
 
-import OpenAI from 'openai';
+import { generateImage as aiGenerateImage } from 'ai';
+import { vertexProvider } from './provider.js';
 import { createLogger } from '../log.js';
-import { trackDalle3Image } from '../costs.js';
+import { trackImagenImage } from '../costs.js';
 import { AIRateLimitError, setRateLimitHit } from './text-generation.js';
 
 const logger = createLogger("image");
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface GeneratedImage {
   data: Buffer;
@@ -27,7 +26,7 @@ async function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Generate an image using DALL-E 3 with retry logic for rate limits
+ * Generate an image using Vertex AI Imagen 3 with retry logic for rate limits
  * @param prompt - Text description of desired image
  * @param maxRetries - Maximum number of retry attempts (default: 3)
  * @returns Generated image as Buffer with metadata, or null if generation fails
@@ -43,56 +42,48 @@ export async function generateImage(
       if (attempt > 0) {
         logger.warn(`Retry attempt ${attempt}/${maxRetries} for image generation`);
       } else {
-        logger.start(`Generating image with DALL-E 3: ${prompt.substring(0, 50)}...`);
+        logger.start(`Generating image with Imagen 3: ${prompt.substring(0, 50)}...`);
       }
 
-      // DALL-E 3 for quality
-      const response = await openai.images.generate({
-        model: 'dall-e-3',
+      const result = await aiGenerateImage({
+        model: vertexProvider.image('imagen-3.0-generate-001'),
         prompt: `Professional news photography: ${prompt}. Photorealistic, high quality, journalistic style.`,
-        size: '1024x1024',
-        quality: 'standard',
-        response_format: 'url',
+        aspectRatio: '1:1',
+        providerOptions: {
+          vertex: { sampleCount: 1 },
+        },
       });
 
-      if (!response.data?.[0]?.url) {
-        logger.error('No image URL returned from DALL-E');
-        return null;
-      }
+      // Imagen returns base64-encoded bytes directly — no URL download needed
+      const buffer = Buffer.from(result.image.base64, 'base64');
 
-      const imageUrl = response.data[0].url;
-
-      // Download image to buffer (URLs expire after 1 hour, need to store permanently)
-      const imageResponse = await fetch(imageUrl);
-      if (!imageResponse.ok) {
-        logger.error(`Failed to download image: ${imageResponse.status}`);
-        return null;
-      }
-
-      const buffer = Buffer.from(await imageResponse.arrayBuffer());
-
-      trackDalle3Image();
+      trackImagenImage();
       logger.success(`Image generated: ${buffer.length} bytes`);
 
       return {
         data: buffer,
-        mimeType: 'image/png', // DALL-E returns PNG
+        mimeType: result.image.mimeType ?? 'image/png',
         width: 1024,
         height: 1024,
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      // Check if error is due to content policy violation (don't retry)
-      if (lastError.message.includes('content_policy_violation')) {
-        logger.warn(`Image generation blocked by content filter for prompt: ${prompt.substring(0, 100)}...`);
+      // Imagen safety filter block (don't retry)
+      if (
+        lastError.message.includes('SAFETY') ||
+        lastError.message.includes('blocked') ||
+        lastError.message.includes('content_filter')
+      ) {
+        logger.warn(`Image generation blocked by safety filter for prompt: ${prompt.substring(0, 100)}...`);
         return null;
       }
 
-      // Check for rate limit errors (429 or rate_limit_exceeded)
+      // Check for rate limit errors (429 or RESOURCE_EXHAUSTED)
       const isRateLimitError =
-        lastError.message.includes('rate_limit_exceeded') ||
+        lastError.message.includes('RESOURCE_EXHAUSTED') ||
         lastError.message.includes('429') ||
+        lastError.message.includes('rate_limit_exceeded') ||
         lastError.message.includes('Rate limit');
 
       if (isRateLimitError && attempt < maxRetries) {
