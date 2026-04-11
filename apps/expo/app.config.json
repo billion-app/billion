@@ -2,7 +2,7 @@
   "name": "billion",
   "slug": "billion",
   "scheme": "billion",
-  "version": "0.1.2",
+  "version": "0.1.1",
   "orientation": "portrait",
   "icon": "./assets/billion-logo.png",
   "userInterfaceStyle": "dark",
@@ -10,9 +10,7 @@
     "fallbackToCacheTimeout": 0
   },
   "newArchEnabled": true,
-  "assetBundlePatterns": [
-    "**/*"
-  ],
+  "assetBundlePatterns": ["**/*"],
   "ios": {
     "bundleIdentifier": "app.billion-news.billion",
     "supportsTablet": true,
@@ -20,9 +18,7 @@
       "light": "./assets/billion-logo.png",
       "dark": "./assets/billion-logo.png"
     },
-    "infoPlist": {
-      "ITSAppUsesNonExemptEncryption": false
-    }
+    "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
   },
   "android": {
     "package": "app.billionnews.billion",
