@@ -155,27 +155,28 @@ eas env:create --name EXPO_PUBLIC_API_URL --value https://www.billion-news.app
 
 ### Releasing a new build
 
-From the **monorepo root**:
+From the **monorepo root** (requires `just` — `brew install just`):
 
 ```bash
-# patch bump (0.1.1 → 0.1.2), prebuild both platforms, commit + tag
-node scripts/release.mjs patch
+# Full release: bump patch version + prebuild iOS
+just release
 
-# or target a single platform
-node scripts/release.mjs patch ios
-node scripts/release.mjs minor android
+# Choose bump type and/or platform
+just release minor
+just release patch android
+just release major ios
 
-# major/minor bumps work the same way
-node scripts/release.mjs major
+# Or run steps separately:
+just bump patch        # bump version, commit, tag
+just build ios         # expo prebuild --clean + patch Xcode version
+just build android
 ```
 
-This script:
-1. Bumps `apps/expo/app.config.json` version
-2. Runs `expo prebuild --clean` (generates/regenerates `ios/` and/or `android/`)
-3. Commits `app.config.json` with message `chore: bump version to X.Y.Z`
-4. Creates a git tag `vX.Y.Z`
+`just bump` updates `apps/expo/app.config.json`, commits with `chore: bump version to X.Y.Z`, and creates a git tag `vX.Y.Z`.
 
-After running, open Xcode to archive and distribute:
+`just build` runs `expo prebuild --clean` and (for iOS) patches `MARKETING_VERSION` in the Xcode project so Xcode's UI shows the correct version.
+
+After building, open Xcode to archive and distribute:
 
 ```bash
 open apps/expo/ios/billion.xcworkspace
