@@ -13,8 +13,7 @@
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
     "typecheck": "tsc --noEmit",
     "build:ios": "expo prebuild --platform ios --clean",
-    "build:android": "expo prebuild --platform android --clean",
-    "release": "node ../../scripts/release.mjs"
+    "build:android": "expo prebuild --platform android --clean"
   },
   "dependencies": {
     "@acme/ui": "workspace:*",
