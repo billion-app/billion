@@ -12,8 +12,9 @@
     "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .prettierignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
     "typecheck": "tsc --noEmit",
-    "build:ios": "expo prebuild --platform ios",
-    "build:android": "expo prebuild --platform android"
+    "build:ios": "expo prebuild --platform ios --clean",
+    "build:android": "expo prebuild --platform android --clean",
+    "release": "node ../../scripts/release.mjs"
   },
   "dependencies": {
     "@acme/ui": "workspace:*",
