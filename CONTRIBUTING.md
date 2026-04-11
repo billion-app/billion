@@ -155,17 +155,37 @@ eas env:create --name EXPO_PUBLIC_API_URL --value https://www.billion-news.app
 
 ### Steps
 
-#### 1. Prebuild (generate native project)
+### Releasing a new build
 
-From `apps/expo/`:
+From the **monorepo root**:
 
 ```bash
-pnpm expo prebuild --platform ios --clean
+# patch bump (0.1.1 → 0.1.2), prebuild both platforms, commit + tag
+node scripts/release.mjs patch
+
+# or target a single platform
+node scripts/release.mjs patch ios
+node scripts/release.mjs minor android
+
+# major/minor bumps work the same way
+node scripts/release.mjs major
 ```
 
-This generates/updates the `ios/` directory from your `app.config.ts`.
+This script:
+1. Bumps `apps/expo/app.config.json` version
+2. Runs `expo prebuild --clean` (generates/regenerates `ios/` and/or `android/`)
+3. Commits `app.config.json` with message `chore: bump version to X.Y.Z`
+4. Creates a git tag `vX.Y.Z`
 
-#### 2. Install pods
+After running, open Xcode to archive and distribute:
+
+```bash
+open apps/expo/ios/billion.xcworkspace
+```
+
+Then follow **Product → Archive → Distribute App** as described below.
+
+#### 1. Install pods (if prebuild ran without release script)
 
 ```bash
 cd ios && pod install && cd ..
