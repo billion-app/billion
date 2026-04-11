@@ -55,8 +55,8 @@ Create compelling marketing copy for this ${contentType} to be displayed in a so
 
 Requirements:
 1. "title": Compelling, attention-grabbing title (MUST be 25 characters or less)
-2. "description": Engaging 50-word description that makes people want to learn more. Write in an accessible, conversational tone.
-3. "imagePrompt": Detailed prompt for AI image generation (describe a visually striking, photorealistic image that captures the essence of this content)
+2. "description": A very short (max 25 words) summary for a mobile feed. Write in simple, plain English (8th-grade level). Focus on the "so what?"—why should a regular person care? No jargon.
+3. "imagePrompt": A visually striking, photorealistic image description (describe a scene that tells the story of this content at a glance). Avoid text, icons, or abstract concepts. 
 
 Article Title: ${articleTitle}
 Content Preview: ${articleContent.substring(0, 1000)}`,
