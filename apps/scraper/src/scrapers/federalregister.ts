@@ -100,7 +100,7 @@ async function scrape() {
               title: doc.title,
               type: contentType,
               publishedDate,
-              description: doc.abstract ?? undefined,
+              description: fullText ? undefined : (doc.abstract ?? undefined),
               fullText,
               url: doc.html_url,
               source: "federalregister.gov",
