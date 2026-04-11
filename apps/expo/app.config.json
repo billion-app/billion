@@ -4,7 +4,7 @@
   "scheme": "billion",
   "version": "0.1.1",
   "orientation": "portrait",
-  "icon": "./assets/icon-light.png",
+  "icon": "./assets/billion-logo.png",
   "userInterfaceStyle": "dark",
   "updates": {
     "fallbackToCacheTimeout": 0
@@ -15,20 +15,18 @@
     "bundleIdentifier": "app.billion-news.billion",
     "supportsTablet": true,
     "icon": {
-      "light": "./assets/icon-light.png",
-      "dark": "./assets/icon-dark.png"
+      "light": "./assets/billion-logo.png",
+      "dark": "./assets/billion-logo.png"
     },
-    "infoPlist": { "ITSAppUsesNonExemptEncryption": false },
-    "buildNumber": "1"
+    "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
   },
   "android": {
     "package": "app.billionnews.billion",
     "adaptiveIcon": {
-      "foregroundImage": "./assets/icon-light.png",
+      "foregroundImage": "./assets/billion-logo.png",
       "backgroundColor": "#0E1530"
     },
-    "edgeToEdgeEnabled": true,
-    "versionCode": 1
+    "edgeToEdgeEnabled": true
   },
   "extra": {
     "eas": {
