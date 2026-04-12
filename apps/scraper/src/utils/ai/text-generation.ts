@@ -1,12 +1,12 @@
 /**
- * AI text generation utilities using OpenAI
+ * AI text generation utilities using Google Vertex AI
  * Generates summaries and full articles from government content
  */
 
-import { google } from '@ai-sdk/google';
 import { generateText, APICallError, RetryError } from 'ai';
 import { createLogger } from '../log.js';
 import { trackGeminiUsage } from '../costs.js';
+import { vertexProvider } from './provider.js';
 
 const logger = createLogger("ai");
 
@@ -53,8 +53,12 @@ export async function generateAISummary(
   }
   try {
     const { text, usage } = await generateText({
-      model: google('gemini-2.5-flash'),
-      prompt: `Generate a concise, engaging summary (max 100 characters) for this government content. Focus on the key action or impact.
+      model: vertexProvider('gemini-2.5-flash'),
+      prompt: `You are an expert at simplifying complex government and legal jargon for a general audience.
+Generate a very short, punchy summary (max 100 characters) for this content.
+
+Goal: Tell a regular person "what happened" or "what changed" in one quick sentence.
+Style: Use active voice, plain English (8th-grade level), and NO jargon. Focus on the direct impact.
 
 Title: ${title}
 
@@ -96,13 +100,13 @@ export async function generateAIArticle(
     logger.start(`Generating AI article for: ${title}`);
 
     const { text, usage } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: vertexProvider('gemini-2.5-flash'),
       prompt: `You are an expert at making government and legal content accessible and engaging for everyday people. Transform the following ${type} into a well-structured, markdown-formatted article.
 
 **Structure your article with these 4 sections:**
 
 ## What This Means For You
-Write 2-3 concise sentences (max 150 words) that immediately tell everyday people what this means for their lives. Use plain language, avoid jargon, and focus on direct impact. Make it relatable and concrete.
+Write 1-2 very short, punchy sentences (max 50 words) that immediately tell a regular person how this affects their life. Use 5th-8th grade reading level. Completely avoid legal or technical terms. Focus on the "so what?"—the direct, practical result for everyday people. Make it feel human and relevant.
 
 ## Overview
 Provide a balanced, neutral, and informative explanation of what this ${type} is about. Use engaging storytelling elements while remaining objective. Break down complex concepts, define technical terms, and provide context. Make it interesting to read while being thorough. Aim for 200-400 words.

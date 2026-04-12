@@ -1,14 +1,14 @@
 /**
  * AI-powered image keyword generation
- * Uses OpenAI to extract visual concepts for image search
+ * Uses Google Vertex AI to extract visual concepts for image search
  */
 
-import { google } from '@ai-sdk/google';
 import { generateText, APICallError, RetryError } from 'ai';
 
 import { AIRateLimitError, rateLimitHit, setRateLimitHit } from './text-generation.js';
 import { createLogger } from '../log.js';
 import { trackGeminiUsage } from '../costs.js';
+import { vertexProvider } from './provider.js';
 
 const logger = createLogger("ai");
 
@@ -44,20 +44,22 @@ export async function generateImageSearchKeywords(
   }
   try {
     const { text, usage } = await generateText({
-      model: google('gemini-2.5-flash'),
-      prompt: `Given this ${type} title and content, generate 2-4 search keywords for finding relevant stock photos. Focus on concrete, visual, photographic concepts that would actually appear in news photography or documentary images.
+      model: vertexProvider('gemini-2.5-flash'),
+      prompt: `Given this ${type} title and content, generate 2-4 search keywords for finding visually striking, high-end editorial stock photos. Focus on dramatic, cinematic, and photographic concepts that feel professional and modern.
 
-GOOD examples (specific, visual, photographic):
-- capitol building washington dc
-- hospital doctor medical equipment
-- construction workers infrastructure
-- classroom students education
-- solar panels renewable energy
+GOOD examples (specific, dynamic, visual):
+- dramatic capitol building sunset
+- surgical team intense motion
+- worker silhouette infrastructure
+- vibrant classroom activity
+- cinematic solar farm aerial
 
-BAD examples (too abstract, no clear visual):
-- government policy legislation
-- economic impact financial
-- social justice equality
+BAD examples (generic, static):
+- capitol building
+- doctor
+- construction site
+- students
+- solar panels
 
 Title: ${title}
 

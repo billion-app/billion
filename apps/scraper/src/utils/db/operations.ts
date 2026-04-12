@@ -32,6 +32,7 @@ import { tickProgress } from "../progress.js";
 import { createLogger } from "../log.js";
 
 const logger = createLogger("db");
+const forceAIRegeneration = process.env.SCRAPER_FORCE_AI_REGEN === "1";
 
 function isUsableText(text: string | undefined | null): text is string {
   if (!text || text.length < 200) return false;
@@ -40,15 +41,21 @@ function isUsableText(text: string | undefined | null): text is string {
   const lines = text.split("\n");
   const boilerplateLines = lines.filter((line) => {
     const trimmed = line.trim();
-    return (
-      trimmed === "" ||
-      trimmed.split(/\s+/).length === 1 ||
-      (/[a-zA-Z]/.test(trimmed) &&
-        trimmed === trimmed.toUpperCase() &&
-        trimmed.length > 2)
-    );
+    // Blank lines
+    if (trimmed === "") return true;
+    // Single-word lines (section numbers, lone tokens)
+    if (trimmed.split(/\s+/).length === 1) return true;
+    // Fully uppercase lines that are NOT legislative section headers
+    // (e.g. "SEC. 1." or "CHAPTER 2—" are expected in bill text — don't penalise them)
+    const isAllCaps =
+      /[a-zA-Z]/.test(trimmed) &&
+      trimmed === trimmed.toUpperCase() &&
+      trimmed.length > 2;
+    const isLegislativeHeader = /^(SEC\.|SECTION|CHAPTER|TITLE|PART|SUBPART|ART\.|ARTICLE)\s/i.test(trimmed);
+    return isAllCaps && !isLegislativeHeader;
   });
-  if (boilerplateLines.length / lines.length >= 0.3) return false;
+  // Raise threshold: bill/order text is legitimately header-heavy (50% instead of 30%)
+  if (boilerplateLines.length / lines.length >= 0.5) return false;
 
   return true;
 }
@@ -127,30 +134,60 @@ export async function upsertContent(input: ContentData) {
   const fullText = input.data.fullText;
   const title = input.data.title;
   const url = input.data.url;
+  const sourceDescription = input.data.description;
 
   const hasUsableText = isUsableText(fullText);
+  if (!hasUsableText && fullText) {
+    logger.debug(`${label} fullText failed usability check (too short or boilerplate-heavy) — AI article will be skipped`);
+  }
+  const hasSummarySource = Boolean(
+    fullText || (input.type === "bill" && input.data.summary),
+  );
+  const persistedDescription = existing?.description;
+  const hasPersistedSummary = Boolean(
+    (sourceDescription && sourceDescription.trim()) ||
+      (persistedDescription && persistedDescription.trim()),
+  );
+  let shouldGenerateSummary = false;
   let shouldGenerateArticle = false;
   let shouldGenerateImage = false;
 
   let progressKind: "new" | "changed" | "unchanged";
   if (!existing) {
+    shouldGenerateSummary = !sourceDescription && hasSummarySource;
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = hasUsableText;
     incrementNewEntries();
     progressKind = "new";
     logger.info(`New ${label} detected`);
   } else if (existing.contentHash !== newContentHash) {
-    shouldGenerateArticle = hasUsableText;
-    shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
+    shouldGenerateSummary = forceAIRegeneration
+      ? !sourceDescription && hasSummarySource
+      : !hasPersistedSummary && !sourceDescription && hasSummarySource;
+    shouldGenerateArticle = forceAIRegeneration
+      ? hasUsableText
+      : hasUsableText && !existing.hasArticle;
+    shouldGenerateImage =
+      (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     incrementExistingChanged();
     progressKind = "changed";
     logger.info(`Content changed for ${label}`);
   } else {
-    shouldGenerateArticle = false;
-    shouldGenerateImage = !existing.hasThumbnail && hasUsableText;
+    shouldGenerateSummary = forceAIRegeneration
+      ? !sourceDescription && hasSummarySource
+      : !hasPersistedSummary && !sourceDescription && hasSummarySource;
+    shouldGenerateArticle = forceAIRegeneration
+      ? hasUsableText
+      : hasUsableText && !existing.hasArticle;
+    shouldGenerateImage =
+      (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     incrementExistingUnchanged();
     progressKind = "unchanged";
-    logger.debug(`No changes for ${label}, skipping AI generation`);
+    logger.debug(
+      shouldGenerateSummary || shouldGenerateArticle || shouldGenerateImage
+        ? `No raw changes for ${label}, backfilling missing AI content`
+        : `No changes for ${label}, skipping AI generation`,
+    );
   }
 
   // Phase 1: always persist raw content first (no AI fields)
@@ -248,7 +285,7 @@ export async function upsertContent(input: ContentData) {
 
   // Phase 2: AI enrichment — skipped entirely if rate-limited
   try {
-    const existingDescription = input.data.description;
+    const existingDescription = sourceDescription || persistedDescription;
     const articleType =
       input.type === "bill"
         ? "bill"
@@ -261,10 +298,7 @@ export async function upsertContent(input: ContentData) {
       (async (): Promise<string | undefined> => {
         if (existingDescription) {
           return existingDescription;
-        } else if (
-          shouldGenerateArticle &&
-          (fullText || (input.type === "bill" && input.data.summary))
-        ) {
+        } else if (shouldGenerateSummary) {
           const summarySource =
             input.type === "bill"
               ? input.data.summary || input.data.fullText || ""
@@ -285,8 +319,11 @@ export async function upsertContent(input: ContentData) {
             articleType,
             url,
           );
-          incrementAIArticlesGenerated();
-          return article;
+          if (article) {
+            incrementAIArticlesGenerated();
+            return article;
+          }
+          logger.warn(`AI article generation returned empty result for ${label}`);
         } else if (existing?.hasArticle) {
           logger.debug(`Using existing AI article for ${label}`);
         }
@@ -370,7 +407,10 @@ export async function upsertContent(input: ContentData) {
       if (error instanceof AIRateLimitError) {
         logger.warn(`AI rate limit hit — ${label} saved without video, will retry next run`);
       } else {
-        throw error;
+        // Video generation is supplementary — a failure here must not abort
+        // content processing or propagate the raw DB error (which can contain
+        // binary image data) up to the scraper's generic error handler
+        logger.warn(`Video generation failed for ${label} — content was saved successfully: ${error instanceof Error ? error.message : error}`);
       }
     }
   }

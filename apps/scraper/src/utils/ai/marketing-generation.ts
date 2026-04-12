@@ -1,14 +1,14 @@
 /**
- * AI marketing content generation using OpenAI
+ * AI marketing content generation using Google Vertex AI
  * Generates compelling social media titles, descriptions, and image prompts
  */
 
-import { google } from "@ai-sdk/google";
 import { generateObject, APICallError, RetryError } from "ai";
 import { z } from "zod";
 import { createLogger } from "../log.js";
 import { trackGeminiUsage } from "../costs.js";
 import { AIRateLimitError, rateLimitHit, setRateLimitHit } from "./text-generation.js";
+import { vertexProvider } from "./provider.js";
 
 function isRateLimitError(error: unknown): boolean {
   if (error instanceof APICallError) return error.statusCode === 429;
@@ -21,7 +21,7 @@ function isRateLimitError(error: unknown): boolean {
 const logger = createLogger("ai");
 
 const MarketingCopySchema = z.object({
-  title: z.string().max(100),
+  title: z.string().max(25), // Must match Video.title varchar(25) DB constraint
   description: z.string(),
   imagePrompt: z.string(),
 });
@@ -47,7 +47,7 @@ export async function generateMarketingCopy(
     logger.start(`Generating marketing copy for: ${articleTitle}`);
 
     const { object, usage } = await generateObject({
-      model: google("gemini-2.5-flash"),
+      model: vertexProvider("gemini-2.5-flash"),
       schema: MarketingCopySchema,
       prompt: `You are a professional marketing copywriter creating engaging social media content.
 
@@ -55,8 +55,8 @@ Create compelling marketing copy for this ${contentType} to be displayed in a so
 
 Requirements:
 1. "title": Compelling, attention-grabbing title (MUST be 25 characters or less)
-2. "description": Engaging 50-word description that makes people want to learn more. Write in an accessible, conversational tone.
-3. "imagePrompt": Detailed prompt for AI image generation (describe a visually striking, photorealistic image that captures the essence of this content)
+2. "description": A very short (max 25 words) summary for a mobile feed. Write in simple, plain English (8th-grade level). Focus on the "so what?"—why should a regular person care? No jargon.
+3. "imagePrompt": A creative, high-energy, and visually arresting scene description that captures the *essence* of the story. Instead of literal office buildings or meetings, focus on dramatic metaphors, intense human emotion, or dynamic action. Use vivid color descriptions and interesting perspectives (e.g., extreme close-ups, wide cinematic shots, or dramatic low angles). Avoid text, icons, or stereotypical stock photo tropes.
 
 Article Title: ${articleTitle}
 Content Preview: ${articleContent.substring(0, 1000)}`,
@@ -75,7 +75,7 @@ Content Preview: ${articleContent.substring(0, 1000)}`,
     return {
       title: articleTitle.substring(0, 25),
       description: articleContent.substring(0, 200) + "...",
-      imagePrompt: `professional news photography about ${articleTitle}`,
+      imagePrompt: `A dynamic, cinematic editorial photo about ${articleTitle}. Dramatic lighting, vivid colors.`,
     };
   }
 }

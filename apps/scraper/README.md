@@ -25,6 +25,9 @@ Then fill in the values. The ones you need for scraping:
 | Variable | Required | Where to get it |
 |---|---|---|
 | `POSTGRES_URL` | ✅ | Your Supabase project settings |
+| `GOOGLE_VERTEX_PROJECT` | ✅ | Your Google Cloud project id for Vertex AI |
+| `GOOGLE_VERTEX_LOCATION` | ✅ | Your Vertex AI region, e.g. `us-central1` |
+| `GOOGLE_VERTEX_API_KEY` | Optional | Vertex AI Express Mode API key |
 | `OPENAI_API_KEY` | ✅ | [platform.openai.com](https://platform.openai.com) |
 | `CONGRESS_API_KEY` | ✅ | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/) |
 | `COURTLISTENER_API_KEY` | Optional | Free at [courtlistener.com](https://www.courtlistener.com/sign-in/) — only needed for higher rate limits |
@@ -82,4 +85,6 @@ All scrapers call into `src/utils/db/operations.ts`. Each time a bill or case is
 
 - If it's **new** → saves it and generates an AI article + thumbnail
 - If the **content changed** → regenerates the article
-- If **nothing changed** → skips AI generation entirely (saves API costs)
+- If **nothing changed** → backfills any missing AI summary/article/thumbnail fields, otherwise skips AI generation
+
+Set `SCRAPER_FORCE_AI_REGEN=1` to force a full AI refresh even when the record already has AI content.
