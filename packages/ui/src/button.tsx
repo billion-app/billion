@@ -43,12 +43,15 @@ type NativeButtonProps = Omit<React.ComponentProps<"button">, "ref"> & {
 };
 
 type ButtonProps = ButtonVariants &
-  (
-    | ({ asChild: true } & SlotProps)
-    | ({ asChild?: false } & NativeButtonProps)
-  );
+  (({ asChild: true } & SlotProps) | ({ asChild?: false } & NativeButtonProps));
 
-export function Button({ className, variant, size, asChild, ...props }: ButtonProps) {
+export function Button({
+  className,
+  variant,
+  size,
+  asChild,
+  ...props
+}: ButtonProps) {
   if (asChild) {
     return (
       <SlotPrimitive.Slot
