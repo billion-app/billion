@@ -586,25 +586,10 @@ export default function LandingPage() {
         </span>
         <div
           className="flex items-center gap-5 text-[13px]"
-          style={{
-            color: "rgba(255,255,255,0.25)",
-            fontFamily: "var(--font-albert-sans)",
-          }}
+          style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-albert-sans)" }}
         >
-          <Link
-            href="/terms"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
-          >
-            Terms
-          </Link>
-          <Link
-            href="/privacy"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
-          >
-            Privacy
-          </Link>
+          <Link href="/terms" className="transition-colors duration-150 hover:text-white" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>Terms</Link>
+          <Link href="/privacy" className="transition-colors duration-150 hover:text-white" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>Privacy</Link>
           <span>© 2026 Billion. All rights reserved.</span>
         </div>
       </footer>
