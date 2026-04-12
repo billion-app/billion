@@ -1,3 +1,4 @@
+import type { RenderRules } from "@ronradtke/react-native-markdown-display";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -6,14 +7,12 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
-import Markdown, {
-  type RenderRules,
-} from "@ronradtke/react-native-markdown-display";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import Markdown from "@ronradtke/react-native-markdown-display";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 
 import { AIDisclaimerBanner } from "~/components/AIDisclaimerBanner";
 import { Text, View } from "~/components/Themed";
@@ -162,17 +161,16 @@ export default function ArticleDetailScreen() {
       allowedImageHandlers,
       defaultImageHandler,
     ) => {
-      const { src, alt } = node.attributes;
-      const show = allowedImageHandlers.some((value) =>
+      /* eslint-disable */
+      const src = String(node.attributes.src ?? "");
+      const alt = node.attributes.alt ? String(node.attributes.alt) : undefined;
+      const show = allowedImageHandlers.some((value: string) =>
         src.toLowerCase().startsWith(value.toLowerCase()),
       );
-
       if (!show && defaultImageHandler === null) {
         return null;
       }
-
       const imageUri = show ? src : `${defaultImageHandler}${src}`;
-
       return (
         <Image
           key={node.key}
@@ -184,6 +182,7 @@ export default function ArticleDetailScreen() {
           accessibilityLabel={alt}
         />
       );
+      /* eslint-enable */
     },
   };
 
@@ -201,16 +200,19 @@ export default function ArticleDetailScreen() {
   };
 
   const activeContent =
-    selectedTab === "article" ? content.articleContent : content.originalContent;
+    selectedTab === "article"
+      ? content.articleContent
+      : content.originalContent;
   const looksLikeMarkdown =
     /^#{1,6}\s/m.test(activeContent) ||
     /\[[^\]]+\]\((https?:\/\/|\/)/.test(activeContent) ||
     /(^|\n)([-*+]|\d+\.)\s/m.test(activeContent) ||
     /(^|\n)>\s/m.test(activeContent) ||
     /!\[[^\]]*\]\(/.test(activeContent) ||
-    /```/.test(activeContent);
+    activeContent.includes("```");
   const shouldRenderMarkdown =
-    activeContent.length <= 20000 && (content.isAIGenerated || looksLikeMarkdown);
+    activeContent.length <= 20000 &&
+    (content.isAIGenerated || looksLikeMarkdown);
 
   return (
     <>

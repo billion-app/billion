@@ -1,0 +1,27 @@
+
+> @acme/expo@ lint /Users/lcai/Documents/GitHub/billion/apps/expo
+> eslint --flag unstable_native_nodejs_ts_config
+
+
+/Users/lcai/Documents/GitHub/billion/apps/expo/src/app/article-detail.tsx
+   10:3   error  Prefer using a top-level type-only import instead of inline type specifiers  import/consistent-type-specifier-style
+  167:9   error  Unsafe call of an `any` typed value                                          @typescript-eslint/no-unsafe-call
+  167:9   error  Unsafe call of an `any` typed value                                          @typescript-eslint/no-unsafe-call
+  167:13  error  Unsafe member access .toLowerCase on an `any` value                          @typescript-eslint/no-unsafe-member-access
+  167:27  error  Unsafe member access .startsWith on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  170:20  error  Unnecessary conditional, the types have no overlap                           @typescript-eslint/no-unnecessary-condition
+  174:13  error  Unsafe assignment of an `any` value                                          @typescript-eslint/no-unsafe-assignment
+  179:21  error  Unsafe assignment of an `any` value                                          @typescript-eslint/no-unsafe-assignment
+  180:26  error  Unsafe member access ._VIEW_SAFE_image on an `any` value                     @typescript-eslint/no-unsafe-member-access
+  184:31  error  Unsafe assignment of an `any` value                                          @typescript-eslint/no-unsafe-assignment
+  211:5   error  Use `String#includes()` method with a string instead                         @typescript-eslint/prefer-includes
+
+/Users/lcai/Documents/GitHub/billion/apps/expo/src/app/settings/terms.tsx
+  7:39  error  Prefer using a top-level type-only import instead of inline type specifiers  import/consistent-type-specifier-style
+
+✖ 12 problems (12 errors, 0 warnings)
+  3 errors and 0 warnings potentially fixable with the `--fix` option.
+
+/Users/lcai/Documents/GitHub/billion/apps/expo:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @acme/expo@ lint: `eslint --flag unstable_native_nodejs_ts_config`
+Exit status 1
