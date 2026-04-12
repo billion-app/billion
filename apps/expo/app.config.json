@@ -18,7 +18,7 @@
       "light": "./assets/billion-logo.png",
       "dark": "./assets/billion-logo.png"
     },
-    "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+    "infoPlist": { "ITSAppUsesNonExemptEncryption": false, "LSApplicationCategoryType": "public.app-category.news" }
   },
   "android": {
     "package": "app.billionnews.billion",
