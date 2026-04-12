@@ -23,8 +23,8 @@
     "postinstall": "pnpm lint:ws",
     "typecheck": "turbo run typecheck",
     "ui-add": "turbo run ui-add",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "android": "pnpm --dir apps/expo run android",
+    "ios": "pnpm --dir apps/expo run ios",
     "bump": "node scripts/bump.mjs"
   },
   "devDependencies": {
