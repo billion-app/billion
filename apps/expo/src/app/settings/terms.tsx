@@ -3,9 +3,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import type { Theme } from "~/styles";
 import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, useTheme } from "~/styles";
+import { colors, fonts, sp, useTheme, type Theme } from "~/styles";
 
 const LAST_UPDATED = "April 5, 2026";
 
@@ -99,27 +98,11 @@ const PRIVACY_SECTIONS = [
   },
 ];
 
-function DocSection({
-  title,
-  body,
-  theme,
-}: {
-  title: string;
-  body: string;
-  theme: Theme;
-}) {
+function DocSection({ title, body, theme }: { title: string; body: string; theme: Theme }) {
   return (
-    <View
-      style={styles.section}
-      lightColor="transparent"
-      darkColor="transparent"
-    >
-      <Text style={[styles.sectionTitle, { color: theme.foreground }]}>
-        {title}
-      </Text>
-      <Text style={[styles.sectionBody, { color: theme.textSecondary }]}>
-        {body}
-      </Text>
+    <View style={styles.section} lightColor="transparent" darkColor="transparent">
+      <Text style={[styles.sectionTitle, { color: theme.foreground }]}>{title}</Text>
+      <Text style={[styles.sectionBody, { color: theme.textSecondary }]}>{body}</Text>
     </View>
   );
 }
@@ -129,18 +112,9 @@ export default function TermsScreen() {
   const { theme } = useTheme();
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={["top"]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
       <View
-        style={[
-          styles.header,
-          {
-            borderBottomColor: theme.border,
-            backgroundColor: theme.background,
-          },
-        ]}
+        style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.background }]}
       >
         <TouchableOpacity
           onPress={() => router.back()}
@@ -149,14 +123,8 @@ export default function TermsScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>
-          Terms & Privacy
-        </Text>
-        <View
-          style={{ width: 44 }}
-          lightColor="transparent"
-          darkColor="transparent"
-        />
+        <Text style={[styles.title, { color: theme.foreground }]}>Terms & Privacy</Text>
+        <View style={{ width: 44 }} lightColor="transparent" darkColor="transparent" />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -164,31 +132,19 @@ export default function TermsScreen() {
           Last updated {LAST_UPDATED}
         </Text>
 
-        <Text style={[styles.docTitle, { color: theme.foreground }]}>
-          Terms of Service
-        </Text>
+        <Text style={[styles.docTitle, { color: theme.foreground }]}>Terms of Service</Text>
         {TERMS_SECTIONS.map((s) => (
           <DocSection key={s.title} {...s} theme={theme} />
         ))}
 
-        <View
-          style={[styles.divider, { backgroundColor: theme.border }]}
-          lightColor={theme.border}
-          darkColor={theme.border}
-        />
+        <View style={[styles.divider, { backgroundColor: theme.border }]} lightColor={theme.border} darkColor={theme.border} />
 
-        <Text style={[styles.docTitle, { color: theme.foreground }]}>
-          Privacy Policy
-        </Text>
+        <Text style={[styles.docTitle, { color: theme.foreground }]}>Privacy Policy</Text>
         {PRIVACY_SECTIONS.map((s) => (
           <DocSection key={s.title} {...s} theme={theme} />
         ))}
 
-        <View
-          style={{ height: sp[10] }}
-          lightColor="transparent"
-          darkColor="transparent"
-        />
+        <View style={{ height: sp[10] }} lightColor="transparent" darkColor="transparent" />
       </ScrollView>
     </SafeAreaView>
   );

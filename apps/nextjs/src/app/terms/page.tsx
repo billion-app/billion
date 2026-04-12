@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service — Billion",
@@ -62,10 +62,7 @@ const SECTIONS = [
 
 export default function TermsPage() {
   return (
-    <main
-      className="min-h-screen"
-      style={{ backgroundColor: C.deepNavy, color: "#fff" }}
-    >
+    <main className="min-h-screen" style={{ backgroundColor: C.deepNavy, color: "#fff" }}>
       <nav
         className="flex items-center justify-between px-6 py-5"
         style={{ maxWidth: 1120, margin: "0 auto" }}
@@ -73,30 +70,20 @@ export default function TermsPage() {
         <Link
           href="/"
           className="text-[22px] font-bold tracking-[-0.02em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            textDecoration: "none",
-          }}
+          style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif", textDecoration: "none" }}
         >
           Billion
         </Link>
         <Link
           href="/privacy"
           className="text-[15px] font-medium transition-colors duration-150 hover:text-white"
-          style={{
-            color: "rgba(255,255,255,0.6)",
-            fontFamily: "var(--font-albert-sans)",
-            textDecoration: "none",
-          }}
+          style={{ color: "rgba(255,255,255,0.6)", fontFamily: "var(--font-albert-sans)", textDecoration: "none" }}
         >
           Privacy Policy
         </Link>
       </nav>
 
-      <article
-        className="mx-auto px-6 py-12 md:py-16"
-        style={{ maxWidth: 720 }}
-      >
+      <article className="mx-auto px-6 py-12 md:py-16" style={{ maxWidth: 720 }}>
         <p
           className="mb-2 text-[12px] font-medium tracking-[0.1em] uppercase"
           style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
@@ -105,10 +92,7 @@ export default function TermsPage() {
         </p>
         <h1
           className="mb-10 leading-[1.15] font-bold tracking-[-0.02em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            fontSize: "clamp(2rem, 4vw, 3rem)",
-          }}
+          style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif", fontSize: "clamp(2rem, 4vw, 3rem)" }}
         >
           Terms of Service
         </h1>
@@ -124,10 +108,7 @@ export default function TermsPage() {
               </h2>
               <p
                 className="m-0 text-[16px] leading-[1.7]"
-                style={{
-                  color: "rgba(255,255,255,0.7)",
-                  fontFamily: "var(--font-albert-sans)",
-                }}
+                style={{ color: "rgba(255,255,255,0.7)", fontFamily: "var(--font-albert-sans)" }}
               >
                 {s.body}
               </p>
@@ -142,10 +123,7 @@ export default function TermsPage() {
       >
         <span
           className="text-[18px] font-bold"
-          style={{
-            color: "rgba(255,255,255,0.4)",
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-          }}
+          style={{ color: "rgba(255,255,255,0.4)", fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
         >
           Billion
         </span>
@@ -153,23 +131,9 @@ export default function TermsPage() {
           className="flex items-center gap-5 text-[13px]"
           style={{ fontFamily: "var(--font-albert-sans)" }}
         >
-          <Link
-            href="/terms"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
-          >
-            Terms
-          </Link>
-          <Link
-            href="/privacy"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
-          >
-            Privacy
-          </Link>
-          <span style={{ color: "rgba(255,255,255,0.25)" }}>
-            © 2026 Billion. All rights reserved.
-          </span>
+          <Link href="/terms" className="hover:text-white transition-colors duration-150" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>Terms</Link>
+          <Link href="/privacy" className="hover:text-white transition-colors duration-150" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>Privacy</Link>
+          <span style={{ color: "rgba(255,255,255,0.25)" }}>© 2026 Billion. All rights reserved.</span>
         </div>
       </footer>
     </main>

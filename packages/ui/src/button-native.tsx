@@ -3,8 +3,8 @@
  * Shared component for Expo app
  */
 
-import type { PressableProps, ViewStyle } from "react-native";
 import { useState } from "react";
+import type { PressableProps, ViewStyle } from "react-native";
 import { Pressable, StyleSheet, Text, useColorScheme } from "react-native";
 
 import {
@@ -144,7 +144,9 @@ export function Button({
         ) as ViewStyle[]
       }
     >
-      <Text style={[styles.text, { color: textColor, fontSize: textSize }]}>
+      <Text
+        style={[styles.text, { color: textColor, fontSize: textSize }]}
+      >
         {children}
       </Text>
     </Pressable>

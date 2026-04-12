@@ -189,7 +189,10 @@ export default function FeedScreen() {
           activeOpacity={0.85}
         >
           <Text
-            style={[styles.readButtonText, { color: theme.primaryForeground }]}
+            style={[
+              styles.readButtonText,
+              { color: theme.primaryForeground },
+            ]}
           >
             Read Full Article
           </Text>
