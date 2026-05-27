@@ -21,9 +21,7 @@ export const civicRouter = {
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch elections",
+          error instanceof Error ? error.message : "Failed to fetch elections",
         cause: error,
       });
     }

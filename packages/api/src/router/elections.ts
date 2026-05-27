@@ -1,7 +1,11 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import type { CASOSClientConfig, ContestType, CountyCode } from "../clients/ca-sos";
+import type {
+  CASOSClientConfig,
+  ContestType,
+  CountyCode,
+} from "../clients/ca-sos";
 import { CA_COUNTIES, createCASOSClient } from "../clients/ca-sos";
 import { publicProcedure } from "../trpc";
 
@@ -87,7 +91,9 @@ export const electionsRouter = {
   status: publicProcedure
     .input(z.object({ electionId: z.string() }))
     .query(async ({ input }) => {
-      return withConfigCheck(() => getClient().getElectionStatus(input.electionId));
+      return withConfigCheck(() =>
+        getClient().getElectionStatus(input.electionId),
+      );
     }),
 
   // ==========================================================================
@@ -121,14 +127,18 @@ export const electionsRouter = {
       }),
     )
     .query(async ({ input }) => {
-      return withConfigCheck(() => getClient().getContest(input.electionId, input.contestId));
+      return withConfigCheck(() =>
+        getClient().getContest(input.electionId, input.contestId),
+      );
     }),
 
   /** Get all propositions for an election */
   propositions: publicProcedure
     .input(z.object({ electionId: z.string() }))
     .query(async ({ input }) => {
-      return withConfigCheckArray(() => getClient().getPropositions(input.electionId));
+      return withConfigCheckArray(() =>
+        getClient().getPropositions(input.electionId),
+      );
     }),
 
   // ==========================================================================
@@ -139,7 +149,9 @@ export const electionsRouter = {
   allResults: publicProcedure
     .input(z.object({ electionId: z.string() }))
     .query(async ({ input }) => {
-      return withConfigCheckArray(() => getClient().getAllResults(input.electionId));
+      return withConfigCheckArray(() =>
+        getClient().getAllResults(input.electionId),
+      );
     }),
 
   /** Get results for a specific contest */
@@ -194,21 +206,27 @@ export const electionsRouter = {
   presidential: publicProcedure
     .input(z.object({ electionId: z.string() }))
     .query(async ({ input }) => {
-      return withConfigCheck(() => getClient().getPresidentialResults(input.electionId));
+      return withConfigCheck(() =>
+        getClient().getPresidentialResults(input.electionId),
+      );
     }),
 
   /** Get gubernatorial race results */
   governor: publicProcedure
     .input(z.object({ electionId: z.string() }))
     .query(async ({ input }) => {
-      return withConfigCheck(() => getClient().getGovernorResults(input.electionId));
+      return withConfigCheck(() =>
+        getClient().getGovernorResults(input.electionId),
+      );
     }),
 
   /** Get US Senate race results */
   usSenate: publicProcedure
     .input(z.object({ electionId: z.string() }))
     .query(async ({ input }) => {
-      return withConfigCheckArray(() => getClient().getUSSenateResults(input.electionId));
+      return withConfigCheckArray(() =>
+        getClient().getUSSenateResults(input.electionId),
+      );
     }),
 
   /** Get US House race results */
@@ -220,7 +238,9 @@ export const electionsRouter = {
       }),
     )
     .query(async ({ input }) => {
-      return withConfigCheckArray(() => getClient().getUSHouseResults(input.electionId, input.district));
+      return withConfigCheckArray(() =>
+        getClient().getUSHouseResults(input.electionId, input.district),
+      );
     }),
 
   /** Get proposition results */
@@ -232,10 +252,12 @@ export const electionsRouter = {
       }),
     )
     .query(async ({ input }) => {
-      return withConfigCheck(() => getClient().getPropositionResults(
-        input.electionId,
-        input.propositionNumber,
-      ));
+      return withConfigCheck(() =>
+        getClient().getPropositionResults(
+          input.electionId,
+          input.propositionNumber,
+        ),
+      );
     }),
 
   // ==========================================================================

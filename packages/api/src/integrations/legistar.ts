@@ -355,11 +355,10 @@ class LegistarClient {
     jurisdiction: Jurisdiction,
     meetingId: number,
   ): Promise<LegistarMeeting> {
-    return this.fetch<LegistarMeeting>(
-      jurisdiction,
-      `/Events/${meetingId}`,
-      { EventItems: "1", EventItemAttachments: "1" },
-    );
+    return this.fetch<LegistarMeeting>(jurisdiction, `/Events/${meetingId}`, {
+      EventItems: "1",
+      EventItemAttachments: "1",
+    });
   }
 
   /**
