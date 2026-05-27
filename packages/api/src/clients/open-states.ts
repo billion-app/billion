@@ -32,13 +32,13 @@ export interface OpenStatesPerson {
   family_name?: string;
   image?: string;
   email?: string;
-  links?: Array<{ url: string; note?: string }>;
-  offices?: Array<{
+  links?: { url: string; note?: string }[];
+  offices?: {
     name: string;
     address?: string;
     voice?: string;
     fax?: string;
-  }>;
+  }[];
 }
 
 export interface OpenStatesOrganization {
@@ -70,19 +70,19 @@ export interface OpenStatesBillSponsorship {
 export interface OpenStatesBillVersion {
   note: string;
   date: string;
-  links: Array<{
+  links: {
     url: string;
     media_type?: string;
-  }>;
+  }[];
 }
 
 export interface OpenStatesBillDocument {
   note: string;
   date?: string;
-  links: Array<{
+  links: {
     url: string;
     media_type?: string;
-  }>;
+  }[];
 }
 
 export interface OpenStatesVote {
@@ -92,15 +92,15 @@ export interface OpenStatesVote {
   start_date: string;
   result: string;
   organization?: OpenStatesOrganization;
-  counts: Array<{
+  counts: {
     option: string;
     value: number;
-  }>;
-  votes?: Array<{
+  }[];
+  votes?: {
     option: string;
     voter_name: string;
     voter?: OpenStatesPerson;
-  }>;
+  }[];
 }
 
 export interface OpenStatesBill {
@@ -179,9 +179,7 @@ async function openStatesFetch<T>(
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(
-      `Open States API error (${res.status}): ${errorText}`,
-    );
+    throw new Error(`Open States API error (${res.status}): ${errorText}`);
   }
 
   return res.json() as Promise<T>;
@@ -359,13 +357,13 @@ export async function getCurrentSessions(): Promise<string[]> {
   const jurisdiction = await openStatesFetch<{
     id: string;
     name: string;
-    legislative_sessions: Array<{
+    legislative_sessions: {
       identifier: string;
       name: string;
       classification: string;
       start_date?: string;
       end_date?: string;
-    }>;
+    }[];
   }>(`/jurisdictions/${encodeURIComponent(DEFAULT_JURISDICTION)}`);
 
   return jurisdiction.legislative_sessions

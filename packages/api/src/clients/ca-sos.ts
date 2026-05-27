@@ -229,10 +229,7 @@ export class CASOSClient {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      this.config.timeout,
-    );
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
       const response = await fetch(url, {
@@ -418,7 +415,9 @@ export class CASOSClient {
   /**
    * Get presidential race results
    */
-  async getPresidentialResults(electionId: string): Promise<ContestResult | null> {
+  async getPresidentialResults(
+    electionId: string,
+  ): Promise<ContestResult | null> {
     const contests = await this.getContestsByType(electionId, "president");
     const firstContest = contests[0];
     if (!firstContest) return null;
