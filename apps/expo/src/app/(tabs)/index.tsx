@@ -16,6 +16,7 @@ import type { VideoPost } from "@acme/api";
 
 import type { Theme } from "~/styles";
 import { Text, View } from "~/components/Themed";
+import { ElectionBanner } from "~/components/ElectionBanner";
 import {
   buttons,
   colors,
@@ -31,6 +32,7 @@ import {
   useTheme,
 } from "~/styles";
 import { trpc } from "~/utils/api";
+import { daysUntil, isWithinDays } from "~/utils/dates";
 
 interface ContentCard {
   id: string;
@@ -199,10 +201,17 @@ const TAB_CONFIG: { key: VideoPost["type"] | "all"; label: string }[] = [
 export default function BrowseScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const router = useRouter();
   const [selectedTab, setSelectedTab] = useState<VideoPost["type"] | "all">(
     "all",
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  const electionsQuery = trpc.civic.getElections.useQuery();
+  const upcomingElection = electionsQuery.data?.elections?.find((e) =>
+    isWithinDays(e.electionDay, 30),
+  );
 
   const {
     data: content,
@@ -264,6 +273,16 @@ export default function BrowseScreen() {
           />
         ))}
       </View>
+
+      {/* Election banner */}
+      {upcomingElection && !bannerDismissed && (
+        <ElectionBanner
+          daysUntil={daysUntil(upcomingElection.electionDay)}
+          electionName={upcomingElection.name}
+          onPress={() => router.push("/local-elections")}
+          onDismiss={() => setBannerDismissed(true)}
+        />
+      )}
 
       <ScrollView
         style={styles.scrollView}
