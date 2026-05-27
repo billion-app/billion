@@ -12,12 +12,14 @@ function expoPlugin(options?: { disableOriginOverride?: boolean }) {
     init: () => {
       return {
         options: {
-          trustedOrigins: process.env.NODE_ENV === "development" ? ["exp://"] : [],
+          trustedOrigins:
+            process.env.NODE_ENV === "development" ? ["exp://"] : [],
         },
       };
     },
     async onRequest(request: Request) {
-      if (options?.disableOriginOverride || request.headers.get("origin")) return;
+      if (options?.disableOriginOverride || request.headers.get("origin"))
+        return;
 
       // Expo native clients send their origin separately, so mirror it for Better Auth's origin check.
       const expoOrigin = request.headers.get("expo-origin");
