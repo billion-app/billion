@@ -1,14 +1,14 @@
 /**
- * AI marketing content generation using Google Vertex AI
+ * AI marketing content generation
  * Generates compelling social media titles, descriptions, and image prompts
  */
 
 import { generateObject, APICallError, RetryError } from "ai";
 import { z } from "zod";
 import { createLogger } from "../log.js";
-import { trackGeminiUsage } from "../costs.js";
+import { trackLLMUsage } from "../costs.js";
 import { AIRateLimitError, rateLimitHit, setRateLimitHit } from "./text-generation.js";
-import { vertexProvider } from "./provider.js";
+import { llm } from "./provider.js";
 
 function isRateLimitError(error: unknown): boolean {
   if (error instanceof APICallError) return error.statusCode === 429;
@@ -47,7 +47,7 @@ export async function generateMarketingCopy(
     logger.start(`Generating marketing copy for: ${articleTitle}`);
 
     const { object, usage } = await generateObject({
-      model: vertexProvider("gemini-2.5-flash"),
+      model: llm,
       schema: MarketingCopySchema,
       prompt: `You are a professional marketing copywriter creating engaging social media content.
 
@@ -61,7 +61,7 @@ Requirements:
 Article Title: ${articleTitle}
 Content Preview: ${articleContent.substring(0, 1000)}`,
     });
-    trackGeminiUsage(usage.inputTokens, usage.outputTokens);
+    trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
     return object;
   } catch (error) {

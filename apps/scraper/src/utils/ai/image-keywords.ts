@@ -1,14 +1,14 @@
 /**
  * AI-powered image keyword generation
- * Uses Google Vertex AI to extract visual concepts for image search
+ * Uses LLM to extract visual concepts for image search
  */
 
 import { generateText, APICallError, RetryError } from 'ai';
 
 import { AIRateLimitError, rateLimitHit, setRateLimitHit } from './text-generation.js';
 import { createLogger } from '../log.js';
-import { trackGeminiUsage } from '../costs.js';
-import { vertexProvider } from './provider.js';
+import { trackLLMUsage } from '../costs.js';
+import { llm } from './provider.js';
 
 const logger = createLogger("ai");
 
@@ -44,7 +44,7 @@ export async function generateImageSearchKeywords(
   }
   try {
     const { text, usage } = await generateText({
-      model: vertexProvider('gemini-2.5-flash'),
+      model: llm,
       prompt: `Given this ${type} title and content, generate 2-4 search keywords for finding visually striking, high-end editorial stock photos. Focus on dramatic, cinematic, and photographic concepts that feel professional and modern.
 
 GOOD examples (specific, dynamic, visual):
@@ -67,7 +67,7 @@ Content: ${content.substring(0, 500)}
 
 Return ONLY 2-4 specific visual keywords separated by spaces. No quotes, no explanation:`,
     });
-    trackGeminiUsage(usage.inputTokens, usage.outputTokens);
+    trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
     return text.trim().replace(/['"]/g, '');
   } catch (error) {
