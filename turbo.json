@@ -51,7 +51,9 @@
     "AUTH_DISCORD_SECRET",
     "AUTH_REDIRECT_PROXY_URL",
     "BETTER_AUTH_SECRET",
-    "PORT"
+    "PORT",
+    "GOOGLE_CIVIC_API_KEY",
+    "CA_SOS_API_KEY"
   ],
   "globalPassThroughEnv": [
     "NODE_ENV",

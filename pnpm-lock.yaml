@@ -406,6 +406,9 @@ importers:
       p-limit:
         specifier: ^7.3.0
         version: 7.3.0
+      playwright:
+        specifier: ^1.58.2
+        version: 1.58.2
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -9671,7 +9674,7 @@ snapshots:
       metro-babel-transformer: 0.83.1
       metro-cache: 0.82.5
       metro-cache-key: 0.83.1
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       metro-file-map: 0.82.5
       metro-resolver: 0.82.5
@@ -11230,7 +11233,7 @@ snapshots:
       debug: 2.6.9
       invariant: 2.2.4
       metro: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       semver: 7.7.4
     transitivePeerDependencies:
@@ -11244,7 +11247,7 @@ snapshots:
       debug: 4.4.3
       invariant: 2.2.4
       metro: 0.82.5(bufferutil@4.1.0)
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       semver: 7.7.4
     optionalDependencies:
@@ -11319,7 +11322,7 @@ snapshots:
     dependencies:
       '@react-native/js-polyfills': 0.84.1
       '@react-native/metro-babel-transformer': 0.84.1(@babel/core@7.29.0)
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-runtime: 0.82.5
     transitivePeerDependencies:
       - '@babel/core'
@@ -14530,13 +14533,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  metro-config@0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4):
+  metro-config@0.82.5(bufferutil@4.1.0):
     dependencies:
       connect: 3.7.0
       cosmiconfig: 5.2.1
       flow-enums-runtime: 0.0.6
       jest-validate: 29.7.0
-      metro: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro: 0.82.5(bufferutil@4.1.0)
       metro-cache: 0.82.5
       metro-core: 0.82.5
       metro-runtime: 0.82.5
@@ -14682,7 +14685,7 @@ snapshots:
       metro-babel-transformer: 0.82.5
       metro-cache: 0.82.5
       metro-cache-key: 0.82.5
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       metro-file-map: 0.82.5
       metro-resolver: 0.82.5
@@ -14729,7 +14732,7 @@ snapshots:
       metro-babel-transformer: 0.82.5
       metro-cache: 0.82.5
       metro-cache-key: 0.82.5
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       metro-file-map: 0.82.5
       metro-resolver: 0.82.5
