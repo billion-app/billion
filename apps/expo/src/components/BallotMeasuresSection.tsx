@@ -4,15 +4,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import type { Contest } from "@acme/api";
 
 import { Text, View } from "~/components/Themed";
-import {
-  colors,
-  fontBody,
-  fontEditorial,
-  fontSize,
-  rd,
-  sp,
-  useTheme,
-} from "~/styles";
+import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
 
 interface BallotMeasuresSectionProps {
   measures: Contest[];
@@ -50,7 +42,8 @@ export function BallotMeasuresSection({
               {measure.referendumSubtitle}
             </Text>
           )}
-          {(measure.referendumProStatement ?? measure.referendumConStatement) && (
+          {(measure.referendumProStatement ??
+            measure.referendumConStatement) && (
             <View style={styles.arguments}>
               {measure.referendumProStatement && (
                 <Text style={styles.argument} numberOfLines={1}>
@@ -78,29 +71,35 @@ export function BallotMeasuresSection({
   );
 }
 
+const colors = {
+  white: "#FFFFFF",
+  civicBlue: "#4A7CFF",
+  textMuted: "#8A8FA0",
+};
+
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: sp.md,
-    marginBottom: sp.lg,
+    marginHorizontal: sp[4],
+    marginBottom: sp[6],
   },
   sectionTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: fontSize.lg,
     color: colors.white,
-    marginBottom: sp.sm,
+    marginBottom: sp[3],
   },
   card: {
-    padding: sp.md,
+    padding: sp[4],
     borderRadius: rd.md,
-    marginBottom: sp.sm,
+    marginBottom: sp[3],
   },
   badge: {
     backgroundColor: colors.civicBlue,
     alignSelf: "flex-start",
     paddingVertical: 2,
-    paddingHorizontal: sp.sm,
-    borderRadius: rd.xs,
-    marginBottom: sp.sm,
+    paddingHorizontal: sp[3],
+    borderRadius: 4,
+    marginBottom: sp[3],
   },
   badgeText: {
     fontFamily: fontBody.semibold,
@@ -112,16 +111,16 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: fontSize.base,
     color: colors.white,
-    marginBottom: sp.xs,
+    marginBottom: sp[2],
   },
   subtitle: {
     fontFamily: fontBody.regular,
     fontSize: fontSize.sm,
     color: colors.textMuted,
-    marginBottom: sp.sm,
+    marginBottom: sp[3],
   },
   arguments: {
-    marginTop: sp.xs,
+    marginTop: sp[2],
   },
   argument: {
     fontFamily: fontBody.regular,
@@ -135,7 +134,7 @@ const styles = StyleSheet.create({
   },
   chevron: {
     position: "absolute",
-    right: sp.md,
+    right: sp[4],
     top: "50%",
   },
 });

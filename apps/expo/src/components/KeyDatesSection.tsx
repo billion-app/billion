@@ -1,15 +1,7 @@
 import { ScrollView, StyleSheet } from "react-native";
 
 import { Text, View } from "~/components/Themed";
-import {
-  colors,
-  fontBody,
-  fontEditorial,
-  fontSize,
-  rd,
-  sp,
-  useTheme,
-} from "~/styles";
+import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
 import { daysUntil, formatDate } from "~/utils/dates";
 
 interface KeyDate {
@@ -34,11 +26,11 @@ export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
   const dates: KeyDate[] = [
     {
       label: "Registration Deadline",
-      date: registrationDeadline.toISOString().split("T")[0]!,
+      date: registrationDeadline.toISOString().split("T")[0] ?? "",
     },
     {
       label: "Early Voting Starts",
-      date: earlyVotingStart.toISOString().split("T")[0]!,
+      date: earlyVotingStart.toISOString().split("T")[0] ?? "",
     },
     {
       label: "Election Day",
@@ -58,7 +50,8 @@ export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
           const days = daysUntil(item.date);
           const isPassed = days < 0;
           const isNext =
-            !isPassed && dates.findIndex((d) => daysUntil(d.date) >= 0) === index;
+            !isPassed &&
+            dates.findIndex((d) => daysUntil(d.date) >= 0) === index;
 
           return (
             <View
@@ -82,7 +75,11 @@ export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
                   isNext && styles.countdownHighlight,
                 ]}
               >
-                {isPassed ? "Passed" : days === 0 ? "Today!" : `in ${days} days`}
+                {isPassed
+                  ? "Passed"
+                  : days === 0
+                    ? "Today!"
+                    : `in ${days} days`}
               </Text>
             </View>
           );
@@ -92,23 +89,29 @@ export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
   );
 }
 
+const colors = {
+  white: "#FFFFFF",
+  civicBlue: "#4A7CFF",
+  textMuted: "#8A8FA0",
+};
+
 const styles = StyleSheet.create({
   container: {
-    marginBottom: sp.lg,
+    marginBottom: sp[6],
   },
   sectionTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: fontSize.lg,
     color: colors.white,
-    marginHorizontal: sp.md,
-    marginBottom: sp.sm,
+    marginHorizontal: sp[4],
+    marginBottom: sp[3],
   },
   scrollContent: {
-    paddingHorizontal: sp.md,
-    gap: sp.sm,
+    paddingHorizontal: sp[4],
+    gap: sp[3],
   },
   card: {
-    padding: sp.md,
+    padding: sp[4],
     borderRadius: rd.md,
     minWidth: 140,
   },
@@ -120,13 +123,13 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: fontSize.xs,
     color: colors.textMuted,
-    marginBottom: sp.xs,
+    marginBottom: sp[2],
   },
   date: {
     fontFamily: fontBody.semibold,
     fontSize: fontSize.sm,
     color: colors.white,
-    marginBottom: sp.xs,
+    marginBottom: sp[2],
   },
   countdown: {
     fontFamily: fontBody.regular,

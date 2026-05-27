@@ -6,18 +6,20 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
+
+import type { Contest } from "@acme/api";
 
 import { Text, View } from "~/components/Themed";
-import {
-  colors,
-  fontBody,
-  fontEditorial,
-  fontSize,
-  rd,
-  sp,
-  useTheme,
-} from "~/styles";
+import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
 import { trpc } from "~/utils/api";
+
+const colors = {
+  white: "#FFFFFF",
+  black: "#000000",
+  civicBlue: "#4A7CFF",
+  textMuted: "#8A8FA0",
+};
 
 interface MyBallotSectionProps {
   address: string | null;
@@ -33,10 +35,10 @@ export function MyBallotSection({
   const { theme } = useTheme();
   const [inputValue, setInputValue] = useState("");
 
-  const voterInfoQuery = trpc.civic.getVoterInfo.useQuery(
-    { address: address ?? "" },
-    { enabled: !!address },
-  );
+  const voterInfoQuery = useQuery({
+    ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
+    enabled: !!address,
+  });
 
   if (!address) {
     return (
@@ -81,7 +83,7 @@ export function MyBallotSection({
         <ActivityIndicator color={colors.civicBlue} style={styles.loader} />
       )}
 
-      {voterInfoQuery.data?.contests?.map((contest, index) => (
+      {voterInfoQuery.data?.contests?.map((contest: Contest, index: number) => (
         <TouchableOpacity
           key={index}
           style={[styles.contestCard, { backgroundColor: theme.background }]}
@@ -114,45 +116,45 @@ export function MyBallotSection({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: sp.md,
-    marginBottom: sp.lg,
-    padding: sp.md,
+    marginHorizontal: sp[4],
+    marginBottom: sp[6],
+    padding: sp[4],
     borderRadius: rd.md,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: sp.sm,
+    marginBottom: sp[3],
   },
   sectionTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: fontSize.lg,
     color: colors.white,
-    marginBottom: sp.xs,
+    marginBottom: sp[2],
   },
   hint: {
     fontFamily: fontBody.regular,
     fontSize: fontSize.sm,
     color: colors.textMuted,
-    marginBottom: sp.md,
+    marginBottom: sp[4],
   },
   inputRow: {
     flexDirection: "row",
-    gap: sp.sm,
+    gap: sp[3],
   },
   input: {
     flex: 1,
     fontFamily: fontBody.regular,
     fontSize: fontSize.sm,
     color: colors.white,
-    padding: sp.sm,
+    padding: sp[3],
     borderRadius: rd.sm,
   },
   button: {
     backgroundColor: colors.white,
-    paddingVertical: sp.sm,
-    paddingHorizontal: sp.md,
+    paddingVertical: sp[3],
+    paddingHorizontal: sp[4],
     borderRadius: 9999,
     justifyContent: "center",
   },
@@ -167,7 +169,7 @@ const styles = StyleSheet.create({
   editButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: sp.xs,
+    gap: sp[2],
   },
   editText: {
     fontFamily: fontBody.medium,
@@ -178,17 +180,17 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: fontSize.sm,
     color: colors.textMuted,
-    marginBottom: sp.md,
+    marginBottom: sp[4],
   },
   loader: {
-    marginVertical: sp.lg,
+    marginVertical: sp[6],
   },
   contestCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: sp.sm,
+    padding: sp[3],
     borderRadius: rd.sm,
-    marginBottom: sp.sm,
+    marginBottom: sp[3],
   },
   contestTitle: {
     flex: 1,
@@ -200,16 +202,16 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: fontSize.xs,
     color: colors.textMuted,
-    marginRight: sp.sm,
+    marginRight: sp[3],
   },
   chevron: {
-    marginLeft: sp.xs,
+    marginLeft: sp[2],
   },
   noData: {
     fontFamily: fontBody.regular,
     fontSize: fontSize.sm,
     color: colors.textMuted,
     textAlign: "center",
-    marginVertical: sp.lg,
+    marginVertical: sp[6],
   },
 });
