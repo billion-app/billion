@@ -2,7 +2,7 @@ import { StyleSheet, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { colors, fontBody, fontSize, rd, sp, useTheme } from "~/styles";
+import { fontBody, fontSize, rd, sp, useTheme } from "~/styles";
 
 interface ElectionBannerProps {
   daysUntil: number;
@@ -25,27 +25,39 @@ export function ElectionBanner({
       <View style={styles.content}>
         <View style={styles.textContainer}>
           <Text style={styles.headline}>
-            <Text style={styles.days}>{daysUntil} days</Text> until {electionName}
+            <Text style={styles.days}>{daysUntil} days</Text> until{" "}
+            {electionName}
           </Text>
           <Text style={styles.subtext}>Know what's on your ballot</Text>
         </View>
-        <TouchableOpacity style={styles.cta} onPress={onPress} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.cta}
+          onPress={onPress}
+          activeOpacity={0.8}
+        >
           <Text style={styles.ctaText}>See My Ballot</Text>
           <FontAwesome name="arrow-right" size={12} color={colors.black} />
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.dismiss} onPress={onDismiss}>
-        <FontAwesome name="times" size={16} color={colors.textMuted} />
+        <FontAwesome name="times" size={16} color="#8A8FA0" />
       </TouchableOpacity>
     </View>
   );
 }
 
+const colors = {
+  white: "#FFFFFF",
+  black: "#000000",
+  civicBlue: "#4A7CFF",
+  textMuted: "#8A8FA0",
+};
+
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    marginHorizontal: sp.md,
-    marginBottom: sp.md,
+    marginHorizontal: sp[4],
+    marginBottom: sp[4],
     borderRadius: rd.md,
     overflow: "hidden",
   },
@@ -58,17 +70,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: sp.md,
+    padding: sp[4],
   },
   textContainer: {
     flex: 1,
-    marginRight: sp.md,
+    marginRight: sp[4],
   },
   headline: {
     fontFamily: fontBody.medium,
     fontSize: fontSize.sm,
     color: colors.white,
-    marginBottom: sp.xs,
+    marginBottom: sp[2],
   },
   days: {
     fontFamily: fontBody.bold,
@@ -83,10 +95,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.white,
-    paddingVertical: sp.sm,
-    paddingHorizontal: sp.md,
+    paddingVertical: sp[3],
+    paddingHorizontal: sp[4],
     borderRadius: 9999,
-    gap: sp.xs,
+    gap: sp[2],
   },
   ctaText: {
     fontFamily: fontBody.semibold,
@@ -95,8 +107,8 @@ const styles = StyleSheet.create({
   },
   dismiss: {
     position: "absolute",
-    top: sp.sm,
-    right: sp.sm,
-    padding: sp.xs,
+    top: sp[3],
+    right: sp[3],
+    padding: sp[2],
   },
 });

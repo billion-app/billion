@@ -9,7 +9,7 @@ export function useUserAddress() {
 
   useEffect(() => {
     AsyncStorage.getItem(ADDRESS_KEY)
-      .then((value) => {
+      .then((value: string | null) => {
         setAddressState(value);
         setIsLoading(false);
       })

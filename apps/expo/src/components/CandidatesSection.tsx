@@ -5,15 +5,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import type { Contest } from "@acme/api";
 
 import { Text, View } from "~/components/Themed";
-import {
-  colors,
-  fontBody,
-  fontEditorial,
-  fontSize,
-  rd,
-  sp,
-  useTheme,
-} from "~/styles";
+import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
 
 interface CandidatesSectionProps {
   contests: Contest[];
@@ -82,46 +74,51 @@ export function CandidatesSection({
   );
 }
 
+const colors = {
+  white: "#FFFFFF",
+  textMuted: "#8A8FA0",
+};
+
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: sp.md,
-    marginBottom: sp.lg,
+    marginHorizontal: sp[4],
+    marginBottom: sp[6],
   },
   sectionTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: fontSize.lg,
     color: colors.white,
-    marginBottom: sp.sm,
+    marginBottom: sp[3],
   },
   raceGroup: {
-    marginBottom: sp.md,
+    marginBottom: sp[4],
   },
   raceTitle: {
     fontFamily: fontBody.semibold,
     fontSize: fontSize.sm,
     color: colors.textMuted,
-    marginBottom: sp.sm,
+    marginBottom: sp[3],
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   candidateCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: sp.sm,
+    padding: sp[3],
     borderRadius: rd.md,
-    marginBottom: sp.xs,
+    marginBottom: sp[2],
   },
   photo: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    marginRight: sp.sm,
+    marginRight: sp[3],
   },
   photoPlaceholder: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    marginRight: sp.sm,
+    marginRight: sp[3],
     justifyContent: "center",
     alignItems: "center",
   },

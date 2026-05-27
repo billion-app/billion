@@ -2,18 +2,11 @@ import { ActivityIndicator, StyleSheet, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 
-import { legistar, type LegistarMatter } from "@acme/api";
+import type { LegistarMatter } from "@acme/api";
+import { legistar } from "@acme/api";
 
 import { Text, View } from "~/components/Themed";
-import {
-  colors,
-  fontBody,
-  fontEditorial,
-  fontSize,
-  rd,
-  sp,
-  useTheme,
-} from "~/styles";
+import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
 
 interface LocalBillsSectionProps {
   onBillPress?: (bill: LegistarMatter) => void;
@@ -32,7 +25,10 @@ export function LocalBillsSection({ onBillPress }: LocalBillsSectionProps) {
 
       const allBills = [
         ...sanjose.map((b) => ({ ...b, jurisdiction: "San Jose" })),
-        ...santaclara.map((b) => ({ ...b, jurisdiction: "Santa Clara County" })),
+        ...santaclara.map((b) => ({
+          ...b,
+          jurisdiction: "Santa Clara County",
+        })),
       ];
 
       return allBills
@@ -65,7 +61,10 @@ export function LocalBillsSection({ onBillPress }: LocalBillsSectionProps) {
           <View style={styles.cardContent}>
             <View style={styles.meta}>
               <Text style={styles.jurisdiction}>
-                {(bill as LegistarMatter & { jurisdiction: string }).jurisdiction}
+                {
+                  (bill as LegistarMatter & { jurisdiction: string })
+                    .jurisdiction
+                }
               </Text>
               <Text style={styles.status}>{bill.MatterStatusName}</Text>
             </View>
@@ -74,7 +73,11 @@ export function LocalBillsSection({ onBillPress }: LocalBillsSectionProps) {
             </Text>
             <Text style={styles.file}>{bill.MatterFile}</Text>
           </View>
-          <FontAwesome name="chevron-right" size={12} color={colors.textMuted} />
+          <FontAwesome
+            name="chevron-right"
+            size={12}
+            color={colors.textMuted}
+          />
         </TouchableOpacity>
       ))}
 
@@ -85,25 +88,31 @@ export function LocalBillsSection({ onBillPress }: LocalBillsSectionProps) {
   );
 }
 
+const colors = {
+  white: "#FFFFFF",
+  civicBlue: "#4A7CFF",
+  textMuted: "#8A8FA0",
+};
+
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: sp.md,
-    marginBottom: sp.lg,
+    marginHorizontal: sp[4],
+    marginBottom: sp[6],
   },
   sectionTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: fontSize.lg,
     color: colors.white,
-    marginBottom: sp.sm,
+    marginBottom: sp[3],
   },
   loader: {
-    marginVertical: sp.lg,
+    marginVertical: sp[6],
   },
   card: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: rd.md,
-    marginBottom: sp.sm,
+    marginBottom: sp[3],
     overflow: "hidden",
   },
   cardAccent: {
@@ -113,12 +122,12 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     flex: 1,
-    padding: sp.md,
+    padding: sp[4],
   },
   meta: {
     flexDirection: "row",
-    gap: sp.sm,
-    marginBottom: sp.xs,
+    gap: sp[3],
+    marginBottom: sp[2],
   },
   jurisdiction: {
     fontFamily: fontBody.semibold,
@@ -135,7 +144,7 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: fontSize.sm,
     color: colors.white,
-    marginBottom: sp.xs,
+    marginBottom: sp[2],
   },
   file: {
     fontFamily: fontBody.regular,
@@ -147,6 +156,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textMuted,
     textAlign: "center",
-    marginVertical: sp.lg,
+    marginVertical: sp[6],
   },
 });

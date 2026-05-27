@@ -15,8 +15,8 @@ import Fuse from "fuse.js";
 import type { VideoPost } from "@acme/api";
 
 import type { Theme } from "~/styles";
-import { Text, View } from "~/components/Themed";
 import { ElectionBanner } from "~/components/ElectionBanner";
+import { Text, View } from "~/components/Themed";
 import {
   buttons,
   colors,
@@ -208,8 +208,8 @@ export default function BrowseScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
-  const electionsQuery = trpc.civic.getElections.useQuery();
-  const upcomingElection = electionsQuery.data?.elections?.find((e) =>
+  const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
+  const upcomingElection = electionsQuery.data?.find((e) =>
     isWithinDays(e.electionDay, 30),
   );
 

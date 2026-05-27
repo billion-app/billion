@@ -2,15 +2,16 @@ import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 
 import type { Contest } from "@acme/api";
 
-import { Text, View } from "~/components/Themed";
 import { BallotMeasuresSection } from "~/components/BallotMeasuresSection";
 import { CandidatesSection } from "~/components/CandidatesSection";
 import { KeyDatesSection } from "~/components/KeyDatesSection";
 import { LocalBillsSection } from "~/components/LocalBillsSection";
 import { MyBallotSection } from "~/components/MyBallotSection";
+import { Text, View } from "~/components/Themed";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontDisplay, fontSize, sp, useTheme } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -21,13 +22,13 @@ export default function LocalElectionsScreen() {
   const insets = useSafeAreaInsets();
   const { address, setAddress, clearAddress } = useUserAddress();
 
-  const electionsQuery = trpc.civic.getElections.useQuery();
-  const upcomingElection = electionsQuery.data?.elections?.[0];
+  const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
+  const upcomingElection = electionsQuery.data?.[0];
 
-  const voterInfoQuery = trpc.civic.getVoterInfo.useQuery(
-    { address: address ?? "" },
-    { enabled: !!address },
-  );
+  const voterInfoQuery = useQuery({
+    ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
+    enabled: !!address,
+  });
 
   const contests = voterInfoQuery.data?.contests ?? [];
   const measures = contests.filter((c: Contest) => c.referendumTitle);
@@ -37,8 +38,11 @@ export default function LocalElectionsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + sp.sm }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+      <View style={[styles.header, { paddingTop: insets.top + sp[3] }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <FontAwesome name="arrow-left" size={18} color={colors.white} />
         </TouchableOpacity>
         <Text style={styles.title}>Local Elections</Text>
@@ -78,12 +82,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: sp.md,
-    paddingBottom: sp.md,
+    paddingHorizontal: sp[4],
+    paddingBottom: sp[4],
   },
   backButton: {
-    padding: sp.sm,
-    marginLeft: -sp.sm,
+    padding: sp[3],
+    marginLeft: -sp[3],
   },
   title: {
     fontFamily: fontDisplay.bold,
@@ -97,6 +101,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: sp.xl,
+    paddingBottom: sp[5],
   },
 });
