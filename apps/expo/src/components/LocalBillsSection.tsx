@@ -2,8 +2,8 @@ import { ActivityIndicator, StyleSheet, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 
-import type { LegistarMatter } from "@acme/api";
-import { legistar } from "@acme/api";
+import type { LegistarMatter } from "@acme/api/integrations/legistar";
+import { legistar } from "@acme/api/integrations/legistar";
 
 import { Text, View } from "~/components/Themed";
 import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
