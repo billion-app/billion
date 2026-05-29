@@ -19,6 +19,7 @@ config.resolver.nodeModulesPaths = [
 
 // 3. Ensure Metro follows symlinks (required for pnpm workspaces)
 config.resolver.unstable_enableSymlinks = true;
+config.resolver.unstable_enablePackageExports = true;
 
 /** @type {import('expo/metro-config').MetroConfig} */
 module.exports = withNativewind(config);
