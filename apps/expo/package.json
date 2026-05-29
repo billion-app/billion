@@ -49,8 +49,8 @@
     "expo-web-browser": "~14.2.0",
     "fuse.js": "^7.1.0",
     "nativewind": "5.0.0-preview.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
     "react-native": "~0.79.6",
     "react-native-css": "3.0.6",
     "react-native-gesture-handler": "~2.24.0",
@@ -59,7 +59,8 @@
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
     "react-native-web": "~0.20.0",
-    "superjson": "2.2.6"
+    "superjson": "2.2.6",
+    "use-latest-callback": "^0.3.4"
   },
   "devDependencies": {
     "@acme/api": "workspace:*",
