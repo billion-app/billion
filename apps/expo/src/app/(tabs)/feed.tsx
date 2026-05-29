@@ -7,12 +7,14 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import type { VideoPost } from "@acme/api";
 
+import { ElectionBanner } from "~/components/ElectionBanner";
 import { Text, View } from "~/components/Themed";
 import {
   badges,
@@ -26,6 +28,7 @@ import {
   useTheme,
 } from "~/styles";
 import { trpc } from "~/utils/api";
+import { daysUntil, isWithinDays } from "~/utils/dates";
 import { getBaseUrl } from "~/utils/base-url";
 
 const { height: screenHeight } = Dimensions.get("window");
@@ -33,6 +36,12 @@ const { height: screenHeight } = Dimensions.get("window");
 export default function FeedScreen() {
   const router = useRouter();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
+  const upcomingElection = electionsQuery.data?.find((e) =>
+    isWithinDays(e.electionDay, 30),
+  );
 
   // Debug: log base URL
   useEffect(() => {
@@ -303,6 +312,20 @@ export default function FeedScreen() {
         maxToRenderPerBatch={3}
         windowSize={5}
       />
+      {upcomingElection && (
+        <View
+          style={[styles.bannerOverlay, { top: insets.top + sp[2] }]}
+          lightColor="transparent"
+          darkColor="transparent"
+          pointerEvents="box-none"
+        >
+          <ElectionBanner
+            daysUntil={daysUntil(upcomingElection.electionDay)}
+            electionName={upcomingElection.name}
+            onPress={() => router.push("/local-elections")}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -312,6 +335,12 @@ export default function FeedScreen() {
 // } from "@acme/ui/theme-tokens";
 // const sp = (key: keyof typeof spacing): number => spacing[key] * 16;
 const styles = StyleSheet.create({
+  bannerOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
   loadingText: {
     fontFamily: "AlbertSans_400Regular",
     marginTop: sp[4],

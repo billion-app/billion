@@ -246,6 +246,29 @@ Open `ios/billion.xcworkspace` — never `ios/billion.xcodeproj`. The `.xcodepro
 
 ---
 
+## Mock Data & Development Without API Keys
+
+The app can run without third-party API keys. When keys are missing, mock data is returned automatically — no configuration needed.
+
+### Automatic API Mocking
+
+| API | Env Var | Mock Trigger |
+|-----|---------|--------------|
+| **Google Civic** (elections, representatives, voter info) | `GOOGLE_CIVIC_API_KEY` | Not set → returns mock data |
+| **Legistar** (local legislation) | None (public API) | API request fails → returns mock data for San Jose and Santa Clara |
+
+Mock data includes realistic local government content (elections, bills, resolutions, representatives) so you can develop UI features without any API keys.
+
+### Database Seeding
+
+To populate your local database with sample data:
+
+```bash
+pnpm -F @acme/db seed
+```
+
+This runs `packages/db/seed.ts` and inserts representative content records. Requires `POSTGRES_URL` in your `.env`.
+
 ## Architecture
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for a full breakdown of the system design, data layer, API layer, scraper pipeline, and architectural decisions.

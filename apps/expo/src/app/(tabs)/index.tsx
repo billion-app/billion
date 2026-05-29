@@ -15,6 +15,7 @@ import Fuse from "fuse.js";
 import type { VideoPost } from "@acme/api";
 
 import type { Theme } from "~/styles";
+import { ElectionBanner } from "~/components/ElectionBanner";
 import { Text, View } from "~/components/Themed";
 import {
   buttons,
@@ -31,6 +32,7 @@ import {
   useTheme,
 } from "~/styles";
 import { trpc } from "~/utils/api";
+import { daysUntil, isWithinDays } from "~/utils/dates";
 
 interface ContentCard {
   id: string;
@@ -199,10 +201,16 @@ const TAB_CONFIG: { key: VideoPost["type"] | "all"; label: string }[] = [
 export default function BrowseScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const router = useRouter();
   const [selectedTab, setSelectedTab] = useState<VideoPost["type"] | "all">(
     "all",
   );
   const [searchQuery, setSearchQuery] = useState("");
+
+  const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
+  const upcomingElection = electionsQuery.data?.find((e) =>
+    isWithinDays(e.electionDay, 30),
+  );
 
   const {
     data: content,
@@ -264,6 +272,15 @@ export default function BrowseScreen() {
           />
         ))}
       </View>
+
+      {/* Election banner */}
+      {upcomingElection && (
+        <ElectionBanner
+          daysUntil={daysUntil(upcomingElection.electionDay)}
+          electionName={upcomingElection.name}
+          onPress={() => router.push("/local-elections")}
+        />
+      )}
 
       <ScrollView
         style={styles.scrollView}
