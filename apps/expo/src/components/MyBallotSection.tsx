@@ -54,7 +54,9 @@ export function MyBallotSection({
             placeholderTextColor={colors.textMuted}
             value={inputValue}
             onChangeText={setInputValue}
-            autoCapitalize="words"
+            autoCapitalize="none"
+            textContentType="fullStreetAddress"
+            autoComplete="street-address"
           />
           <TouchableOpacity
             style={[styles.button, !inputValue && styles.buttonDisabled]}
