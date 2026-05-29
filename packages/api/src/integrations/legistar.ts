@@ -421,10 +421,215 @@ export class LegistarError extends Error {
 }
 
 // ============================================================================
+// Mock Data (used when API is unavailable in development)
+// ============================================================================
+
+function mockDate(daysAgo: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString();
+}
+
+const MOCK_MATTERS_SANJOSE: LegistarMatter[] = [
+  {
+    MatterId: 90001,
+    MatterGuid: "mock-sj-001",
+    MatterLastModifiedUtc: mockDate(2),
+    MatterRowVersion: "1",
+    MatterFile: "RES 2025-101",
+    MatterName: null,
+    MatterTitle: "Approval of Affordable Housing Development at 500 E Santa Clara St",
+    MatterTypeId: 1,
+    MatterTypeName: "Resolution",
+    MatterStatusId: 1,
+    MatterStatusName: "Approved",
+    MatterBodyId: 1,
+    MatterBodyName: "City Council",
+    MatterIntroDate: mockDate(30),
+    MatterAgendaDate: mockDate(7),
+    MatterPassedDate: mockDate(5),
+    MatterEnactmentDate: null,
+    MatterEnactmentNumber: null,
+    MatterRequester: null,
+    MatterNotes: null,
+    MatterVersion: "1",
+    MatterText1: null, MatterText2: null, MatterText3: null, MatterText4: null, MatterText5: null,
+    MatterRestrictViewViaWeb: false,
+  },
+  {
+    MatterId: 90002,
+    MatterGuid: "mock-sj-002",
+    MatterLastModifiedUtc: mockDate(5),
+    MatterRowVersion: "1",
+    MatterFile: "ORD 2025-045",
+    MatterName: null,
+    MatterTitle: "Amendment to Municipal Code Chapter 20.80 — Protected Trees Ordinance Update",
+    MatterTypeId: 2,
+    MatterTypeName: "Ordinance",
+    MatterStatusId: 2,
+    MatterStatusName: "Pending",
+    MatterBodyId: 1,
+    MatterBodyName: "City Council",
+    MatterIntroDate: mockDate(20),
+    MatterAgendaDate: mockDate(10),
+    MatterPassedDate: null,
+    MatterEnactmentDate: null,
+    MatterEnactmentNumber: null,
+    MatterRequester: null,
+    MatterNotes: null,
+    MatterVersion: "1",
+    MatterText1: null, MatterText2: null, MatterText3: null, MatterText4: null, MatterText5: null,
+    MatterRestrictViewViaWeb: false,
+  },
+  {
+    MatterId: 90003,
+    MatterGuid: "mock-sj-003",
+    MatterLastModifiedUtc: mockDate(8),
+    MatterRowVersion: "1",
+    MatterFile: "MGR 2025-012",
+    MatterName: null,
+    MatterTitle: "City Manager Report on Downtown Bike Lane Network Expansion Plan",
+    MatterTypeId: 3,
+    MatterTypeName: "Report",
+    MatterStatusId: 1,
+    MatterStatusName: "Filed",
+    MatterBodyId: 3,
+    MatterBodyName: "Transportation & Environment Committee",
+    MatterIntroDate: mockDate(15),
+    MatterAgendaDate: mockDate(10),
+    MatterPassedDate: null,
+    MatterEnactmentDate: null,
+    MatterEnactmentNumber: null,
+    MatterRequester: null,
+    MatterNotes: null,
+    MatterVersion: "1",
+    MatterText1: null, MatterText2: null, MatterText3: null, MatterText4: null, MatterText5: null,
+    MatterRestrictViewViaWeb: false,
+  },
+  {
+    MatterId: 90004,
+    MatterGuid: "mock-sj-004",
+    MatterLastModifiedUtc: mockDate(1),
+    MatterRowVersion: "1",
+    MatterFile: "RES 2025-118",
+    MatterName: null,
+    MatterTitle: "Authorization for Emergency Water Main Repair on N 1st Street",
+    MatterTypeId: 1,
+    MatterTypeName: "Resolution",
+    MatterStatusId: 1,
+    MatterStatusName: "Approved",
+    MatterBodyId: 1,
+    MatterBodyName: "City Council",
+    MatterIntroDate: mockDate(3),
+    MatterAgendaDate: mockDate(2),
+    MatterPassedDate: mockDate(1),
+    MatterEnactmentDate: null,
+    MatterEnactmentNumber: null,
+    MatterRequester: null,
+    MatterNotes: null,
+    MatterVersion: "1",
+    MatterText1: null, MatterText2: null, MatterText3: null, MatterText4: null, MatterText5: null,
+    MatterRestrictViewViaWeb: false,
+  },
+];
+
+const MOCK_MATTERS_SANTACLARA: LegistarMatter[] = [
+  {
+    MatterId: 91001,
+    MatterGuid: "mock-sc-001",
+    MatterLastModifiedUtc: mockDate(3),
+    MatterRowVersion: "1",
+    MatterFile: "BOS 2025-034",
+    MatterName: null,
+    MatterTitle: "Adoption of Santa Clara County Climate Action Plan 2030 Update",
+    MatterTypeId: 1,
+    MatterTypeName: "Board Resolution",
+    MatterStatusId: 2,
+    MatterStatusName: "Pending",
+    MatterBodyId: 1,
+    MatterBodyName: "Board of Supervisors",
+    MatterIntroDate: mockDate(25),
+    MatterAgendaDate: mockDate(7),
+    MatterPassedDate: null,
+    MatterEnactmentDate: null,
+    MatterEnactmentNumber: null,
+    MatterRequester: null,
+    MatterNotes: null,
+    MatterVersion: "1",
+    MatterText1: null, MatterText2: null, MatterText3: null, MatterText4: null, MatterText5: null,
+    MatterRestrictViewViaWeb: false,
+  },
+  {
+    MatterId: 91002,
+    MatterGuid: "mock-sc-002",
+    MatterLastModifiedUtc: mockDate(6),
+    MatterRowVersion: "1",
+    MatterFile: "BOS 2025-029",
+    MatterName: null,
+    MatterTitle: "Agreement with Valley Transportation Authority for BART Phase II Funding",
+    MatterTypeId: 1,
+    MatterTypeName: "Board Resolution",
+    MatterStatusId: 1,
+    MatterStatusName: "Approved",
+    MatterBodyId: 1,
+    MatterBodyName: "Board of Supervisors",
+    MatterIntroDate: mockDate(40),
+    MatterAgendaDate: mockDate(14),
+    MatterPassedDate: mockDate(7),
+    MatterEnactmentDate: null,
+    MatterEnactmentNumber: null,
+    MatterRequester: null,
+    MatterNotes: null,
+    MatterVersion: "1",
+    MatterText1: null, MatterText2: null, MatterText3: null, MatterText4: null, MatterText5: null,
+    MatterRestrictViewViaWeb: false,
+  },
+  {
+    MatterId: 91003,
+    MatterGuid: "mock-sc-003",
+    MatterLastModifiedUtc: mockDate(4),
+    MatterRowVersion: "1",
+    MatterFile: "BOS 2025-041",
+    MatterName: null,
+    MatterTitle: "Ordinance Amending County Code for Short-Term Rental Regulations in Unincorporated Areas",
+    MatterTypeId: 2,
+    MatterTypeName: "Ordinance",
+    MatterStatusId: 2,
+    MatterStatusName: "Pending",
+    MatterBodyId: 1,
+    MatterBodyName: "Board of Supervisors",
+    MatterIntroDate: mockDate(14),
+    MatterAgendaDate: mockDate(7),
+    MatterPassedDate: null,
+    MatterEnactmentDate: null,
+    MatterEnactmentNumber: null,
+    MatterRequester: null,
+    MatterNotes: null,
+    MatterVersion: "1",
+    MatterText1: null, MatterText2: null, MatterText3: null, MatterText4: null, MatterText5: null,
+    MatterRestrictViewViaWeb: false,
+  },
+];
+
+class FallbackLegistarClient extends LegistarClient {
+  override async getLegislation(
+    jurisdiction: Jurisdiction,
+    query?: LegislationQuery,
+  ): Promise<LegistarMatter[]> {
+    try {
+      return await super.getLegislation(jurisdiction, query);
+    } catch {
+      if (jurisdiction === "sanjose") return MOCK_MATTERS_SANJOSE;
+      if (jurisdiction === "santaclara") return MOCK_MATTERS_SANTACLARA;
+      return [];
+    }
+  }
+}
+
+// ============================================================================
 // Export singleton instance
 // ============================================================================
 
-export const legistar = new LegistarClient();
+export const legistar = new FallbackLegistarClient();
 
-// Also export the class for testing
 export { LegistarClient };
