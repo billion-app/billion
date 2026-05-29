@@ -8,14 +8,12 @@ interface ElectionBannerProps {
   daysUntil: number;
   electionName: string;
   onPress: () => void;
-  onDismiss: () => void;
 }
 
 export function ElectionBanner({
   daysUntil,
   electionName,
   onPress,
-  onDismiss,
 }: ElectionBannerProps) {
   const { theme } = useTheme();
 
@@ -39,9 +37,6 @@ export function ElectionBanner({
           <FontAwesome name="arrow-right" size={12} color={colors.black} />
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.dismiss} onPress={onDismiss}>
-        <FontAwesome name="times" size={16} color="#8A8FA0" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -104,11 +99,5 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: fontSize.xs,
     color: colors.black,
-  },
-  dismiss: {
-    position: "absolute",
-    top: sp[3],
-    right: sp[3],
-    padding: sp[2],
   },
 });

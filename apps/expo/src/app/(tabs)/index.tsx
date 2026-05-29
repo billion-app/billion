@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -32,7 +32,6 @@ import {
   useTheme,
 } from "~/styles";
 import { trpc } from "~/utils/api";
-import { sessionStorage } from "~/utils/client-storage";
 import { daysUntil, isWithinDays } from "~/utils/dates";
 
 interface ContentCard {
@@ -207,30 +206,11 @@ export default function BrowseScreen() {
     "all",
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
   const upcomingElection = electionsQuery.data?.find((e) =>
     isWithinDays(e.electionDay, 30),
   );
-
-  const dismissalKey = upcomingElection
-    ? `banner_dismissed_${upcomingElection.id}`
-    : null;
-
-  useEffect(() => {
-    if (!dismissalKey) return;
-    sessionStorage.getItemAsync(dismissalKey).then((val) => {
-      if (val === "true") setBannerDismissed(true);
-    });
-  }, [dismissalKey]);
-
-  const handleDismissBanner = useCallback(() => {
-    setBannerDismissed(true);
-    if (dismissalKey) {
-      void sessionStorage.setItemAsync(dismissalKey, "true");
-    }
-  }, [dismissalKey]);
 
   const {
     data: content,
@@ -294,12 +274,11 @@ export default function BrowseScreen() {
       </View>
 
       {/* Election banner */}
-      {upcomingElection && !bannerDismissed && (
+      {upcomingElection && (
         <ElectionBanner
           daysUntil={daysUntil(upcomingElection.electionDay)}
           electionName={upcomingElection.name}
           onPress={() => router.push("/local-elections")}
-          onDismiss={handleDismissBanner}
         />
       )}
 
