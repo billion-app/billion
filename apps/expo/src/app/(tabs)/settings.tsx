@@ -1,183 +1,163 @@
-import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
-import { Text, View } from "~/components/Themed";
-import { layout, settings, sp, typography, useTheme } from "~/styles";
+import { Text } from "~/components/Themed";
+import {
+  Avatar,
+  Card,
+  GhostButton,
+  Icon,
+  Kicker,
+  SettingsRow,
+  TabScreen,
+} from "~/components/ui";
+import type { IconName } from "~/components/ui";
+import { colors, hair, planes } from "~/styles";
 
-interface SettingsSection {
-  title: string;
-  items: SettingsItem[];
+// TODO(backend): real profile from the better-auth session.
+const PROFILE = {
+  name: "Jordan Avery",
+  initials: "JA",
+  meta: "Member since 2024 · Sacramento, CA",
+};
+
+interface Item {
+  icon: IconName;
+  label: string;
+  sub?: string;
+  route: Href;
 }
 
-interface SettingsItem {
-  id: string;
-  title: string;
-  subtitle?: string;
-  icon?: React.ComponentProps<typeof Ionicons>["name"];
-  onPress?: () => void;
-}
+const GROUPS: { title: string; items: Item[] }[] = [
+  {
+    title: "Account",
+    items: [
+      {
+        icon: "user",
+        label: "Edit Profile",
+        sub: "jordan@email.com",
+        route: "/settings/edit-profile",
+      },
+      {
+        icon: "sliders",
+        label: "Content Interests",
+        sub: "6 topics followed",
+        route: "/settings/content-interests",
+      },
+    ],
+  },
+  {
+    title: "Your library",
+    items: [
+      {
+        icon: "bookmark",
+        label: "Saved Articles",
+        sub: "Read later",
+        route: "/settings/saved-articles",
+      },
+      {
+        icon: "block",
+        label: "Blocked Content",
+        sub: "Sources & topics hidden",
+        route: "/settings/blocked-content",
+      },
+    ],
+  },
+  {
+    title: "Privacy & data",
+    items: [
+      {
+        icon: "shield",
+        label: "Privacy",
+        sub: "Location, analytics, downloads",
+        route: "/settings/privacy",
+      },
+    ],
+  },
+  {
+    title: "Support",
+    items: [
+      { icon: "help", label: "Help & FAQ", route: "/settings/help" },
+      { icon: "message", label: "Send Feedback", route: "/settings/feedback" },
+      {
+        icon: "info",
+        label: "About Billion",
+        sub: "Version 2.4.0",
+        route: "/settings/about",
+      },
+    ],
+  },
+];
 
 export default function SettingsScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { theme } = useTheme();
-
-  const settingsSections: SettingsSection[] = [
-    {
-      title: "Account",
-      items: [
-        {
-          id: "about",
-          title: "About",
-          subtitle: "App version and information",
-          icon: "information-circle-outline",
-          onPress: () => router.push("/settings/about"),
-        },
-      ],
-    },
-    {
-      title: "Support",
-      items: [
-        {
-          id: "help",
-          title: "Help & Support",
-          subtitle: "Get help with the app",
-          icon: "help-circle-outline",
-          onPress: () => router.push("/settings/help"),
-        },
-        {
-          id: "feedback",
-          title: "Send Feedback",
-          subtitle: "Report issues or suggest improvements",
-          icon: "chatbubble-outline",
-          onPress: () => router.push("/settings/feedback"),
-        },
-        {
-          id: "terms",
-          title: "Terms & Privacy",
-          subtitle: "Read our terms of service and privacy policy",
-          icon: "document-text-outline",
-          onPress: () => router.push("/settings/terms"),
-        },
-      ],
-    },
-  ];
-
-  const renderSettingsItem = (item: SettingsItem) => (
-    <TouchableOpacity
-      key={item.id}
-      style={[settings.item, { borderBottomColor: theme.border }]}
-      onPress={item.onPress}
-      activeOpacity={0.7}
-    >
-      {item.icon && (
-        <Ionicons
-          name={item.icon}
-          size={18}
-          color={theme.mutedForeground}
-          style={localStyles.itemIcon}
-        />
-      )}
-      <View
-        style={settings.itemTextContainer}
-        lightColor="transparent"
-        darkColor="transparent"
-      >
-        <Text style={[settings.itemTitle, { color: theme.foreground }]}>
-          {item.title}
-        </Text>
-        {item.subtitle && (
-          <Text style={[settings.itemSubtitle, { color: theme.textSecondary }]}>
-            {item.subtitle}
-          </Text>
-        )}
-      </View>
-      <Ionicons
-        name="chevron-forward"
-        size={16}
-        color={theme.mutedForeground}
-      />
-    </TouchableOpacity>
-  );
 
   return (
-    <View style={[layout.container, { backgroundColor: theme.background }]}>
-      <View
-        style={[
-          localStyles.header,
-          {
-            paddingTop: insets.top + 20,
-            borderBottomColor: theme.border,
-            backgroundColor: theme.card,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            typography.h2,
-            { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" },
-          ]}
+    <TabScreen title="Settings" contentStyle={{ gap: 22 }}>
+      {/* profile card */}
+      <View style={s.section}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => router.push("/settings/edit-profile")}
         >
-          Settings
-        </Text>
+          <Card style={s.profileCard}>
+            <Avatar name={PROFILE.initials} size={54} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.profileName}>{PROFILE.name}</Text>
+              <Text style={s.profileMeta}>{PROFILE.meta}</Text>
+            </View>
+            <Icon name="chevR" size={18} color="#5B6172" />
+          </Card>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={layout.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        {settingsSections.map((section) => (
-          <View
-            key={section.title}
-            style={settings.section}
-            lightColor="transparent"
-            darkColor="transparent"
-          >
-            <Text
-              style={[settings.sectionTitle, { color: theme.textSecondary }]}
-            >
-              {section.title}
-            </Text>
-            <View
-              style={[
-                settings.sectionContent,
-                { borderColor: theme.border, backgroundColor: theme.card },
-              ]}
-              lightColor={theme.card}
-              darkColor={theme.card}
-            >
-              {section.items.map(renderSettingsItem)}
-            </View>
-          </View>
-        ))}
-
-        <View
-          style={localStyles.versionContainer}
-          lightColor="transparent"
-          darkColor="transparent"
-        >
-          <Text style={[typography.caption, { color: theme.mutedForeground }]}>
-            Version 1.0.0
-          </Text>
+      {GROUPS.map((g) => (
+        <View key={g.title} style={s.section}>
+          <Kicker style={{ paddingLeft: 4 }}>{g.title}</Kicker>
+          <Card flush>
+            {g.items.map((it, i) => (
+              <SettingsRow
+                key={it.label}
+                icon={it.icon}
+                label={it.label}
+                sub={it.sub}
+                last={i === g.items.length - 1}
+                onPress={() => router.push(it.route)}
+              />
+            ))}
+          </Card>
         </View>
-      </ScrollView>
-    </View>
+      ))}
+
+      <GhostButton
+        label="Sign out"
+        color={colors.red[500]}
+        style={{ alignSelf: "center" }}
+      />
+    </TabScreen>
   );
 }
 
-const localStyles = StyleSheet.create({
-  header: {
-    borderBottomWidth: 1,
-    paddingHorizontal: sp[5],
-    paddingBottom: sp[5],
-  },
-  itemIcon: {
-    marginRight: sp[3],
-  },
-  versionContainer: {
+const s = StyleSheet.create({
+  section: { paddingHorizontal: 20 },
+  profileCard: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: sp[10],
+    gap: 14,
+    padding: 18,
+    borderColor: hair[1],
+    backgroundColor: planes.slate,
+  },
+  profileName: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 18,
+    color: colors.white,
+  },
+  profileMeta: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 });
