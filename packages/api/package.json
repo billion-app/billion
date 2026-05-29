@@ -6,6 +6,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
+    },
+    "./integrations/legistar": {
+      "types": "./dist/integrations/legistar.d.ts",
+      "default": "./src/integrations/legistar.ts"
+    },
+    "./lib/civic": {
+      "types": "./dist/lib/civic.d.ts",
+      "default": "./src/lib/civic.ts"
+    },
+    "./clients/open-states": {
+      "types": "./dist/clients/open-states.d.ts",
+      "default": "./src/clients/open-states.ts"
+    },
+    "./clients/ca-sos": {
+      "types": "./dist/clients/ca-sos.d.ts",
+      "default": "./src/clients/ca-sos.ts"
     }
   },
   "license": "MIT",
