@@ -3,10 +3,10 @@ import { FontAwesome } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 
 import type { LegistarMatter } from "@acme/api/integrations/legistar";
-import { legistar } from "@acme/api/integrations/legistar";
 
 import { Text, View } from "~/components/Themed";
 import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
+import { trpc } from "~/utils/api";
 
 interface LocalBillsSectionProps {
   onBillPress?: (bill: LegistarMatter) => void;
@@ -15,32 +15,7 @@ interface LocalBillsSectionProps {
 export function LocalBillsSection({ onBillPress }: LocalBillsSectionProps) {
   const { theme } = useTheme();
 
-  const billsQuery = useQuery({
-    queryKey: ["localBills"],
-    queryFn: async () => {
-      const [sanjose, santaclara] = await Promise.all([
-        legistar.getLegislation("sanjose", {}).catch(() => []),
-        legistar.getLegislation("santaclara", {}).catch(() => []),
-      ]);
-
-      const allBills = [
-        ...sanjose.map((b) => ({ ...b, jurisdiction: "San Jose" })),
-        ...santaclara.map((b) => ({
-          ...b,
-          jurisdiction: "Santa Clara County",
-        })),
-      ];
-
-      return allBills
-        .sort(
-          (a, b) =>
-            new Date(b.MatterLastModifiedUtc).getTime() -
-            new Date(a.MatterLastModifiedUtc).getTime(),
-        )
-        .slice(0, 10);
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const billsQuery = useQuery(trpc.legistar.getLocalBills.queryOptions());
 
   return (
     <View style={styles.container}>
@@ -60,12 +35,7 @@ export function LocalBillsSection({ onBillPress }: LocalBillsSectionProps) {
           <View style={styles.cardAccent} />
           <View style={styles.cardContent}>
             <View style={styles.meta}>
-              <Text style={styles.jurisdiction}>
-                {
-                  (bill as LegistarMatter & { jurisdiction: string })
-                    .jurisdiction
-                }
-              </Text>
+              <Text style={styles.jurisdiction}>{bill.jurisdiction}</Text>
               <Text style={styles.status}>{bill.MatterStatusName}</Text>
             </View>
             <Text style={styles.title} numberOfLines={2}>
