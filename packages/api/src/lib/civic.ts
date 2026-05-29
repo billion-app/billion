@@ -402,8 +402,16 @@ const MOCK_REPRESENTATIVES: Representative[] = [
  */
 export async function getElections(): Promise<Election[]> {
   if (!getApiKey()) return MOCK_ELECTIONS;
-  const response = await fetchCivicApi<ElectionsResponse>("elections");
-  return response.elections;
+  // Google sunset the Civic API election endpoints, so a configured key can
+  // still come back empty or error. Fall back to mock data so the app always
+  // has an upcoming election to show.
+  try {
+    const response = await fetchCivicApi<ElectionsResponse>("elections");
+    return response.elections.length > 0 ? response.elections : MOCK_ELECTIONS;
+  } catch (error) {
+    console.warn("[civic] getElections failed, using mock data:", error);
+    return MOCK_ELECTIONS;
+  }
 }
 
 /**
@@ -425,7 +433,14 @@ export async function getVoterInfo(
     params.electionId = electionId;
   }
 
-  return fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+  // The voterinfo endpoint is part of the same sunset Civic API; fall back to
+  // mock ballot data on error so the ballot screen still renders.
+  try {
+    return await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+  } catch (error) {
+    console.warn("[civic] getVoterInfo failed, using mock data:", error);
+    return getMockVoterInfo(address);
+  }
 }
 
 /**
