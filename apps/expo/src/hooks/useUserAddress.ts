@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { sessionStorage } from "~/utils/client-storage";
 
 const ADDRESS_KEY = "user_address";
 
@@ -8,7 +9,8 @@ export function useUserAddress() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem(ADDRESS_KEY)
+    sessionStorage
+      .getItemAsync(ADDRESS_KEY)
       .then((value: string | null) => {
         setAddressState(value);
         setIsLoading(false);
@@ -19,12 +21,12 @@ export function useUserAddress() {
   }, []);
 
   const setAddress = useCallback(async (newAddress: string) => {
-    await AsyncStorage.setItem(ADDRESS_KEY, newAddress);
+    await sessionStorage.setItemAsync(ADDRESS_KEY, newAddress);
     setAddressState(newAddress);
   }, []);
 
   const clearAddress = useCallback(async () => {
-    await AsyncStorage.removeItem(ADDRESS_KEY);
+    await sessionStorage.deleteItemAsync(ADDRESS_KEY);
     setAddressState(null);
   }, []);
 
