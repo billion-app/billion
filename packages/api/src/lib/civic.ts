@@ -6,15 +6,8 @@
 
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
-function getApiKey(): string {
-  const apiKey = process.env.GOOGLE_CIVIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "GOOGLE_CIVIC_API_KEY environment variable is not set. " +
-        "Get an API key from https://console.cloud.google.com/apis/credentials",
-    );
-  }
-  return apiKey;
+function getApiKey(): string | null {
+  return process.env.GOOGLE_CIVIC_API_KEY ?? null;
 }
 
 // ============================================================================
@@ -200,6 +193,9 @@ async function fetchCivicApi<T>(
   params: Record<string, string> = {},
 ): Promise<T> {
   const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("GOOGLE_CIVIC_API_KEY not configured");
+  }
   const url = new URL(`${CIVIC_API_BASE}/${endpoint}`);
   url.searchParams.set("key", apiKey);
 
@@ -219,12 +215,193 @@ async function fetchCivicApi<T>(
   return response.json() as Promise<T>;
 }
 
+// ============================================================================
+// Mock Data (used when GOOGLE_CIVIC_API_KEY is not configured)
+// ============================================================================
+
+function futureDate(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().split("T")[0]!;
+}
+
+const MOCK_ELECTIONS: Election[] = [
+  {
+    id: "9000",
+    name: "California Primary Election",
+    electionDay: futureDate(45),
+    ocdDivisionId: "ocd-division/country:us/state:ca",
+  },
+  {
+    id: "9001",
+    name: "San Jose City Council Special Election",
+    electionDay: futureDate(90),
+    ocdDivisionId: "ocd-division/country:us/state:ca/place:san_jose",
+  },
+];
+
+function getMockVoterInfo(address: string): VoterInfoResponse {
+  return {
+    kind: "civicinfo#voterInfoResponse",
+    election: MOCK_ELECTIONS[0]!,
+    normalizedInput: {
+      line1: address.split(",")[0] ?? address,
+      city: "San Jose",
+      state: "CA",
+      zip: "95112",
+    },
+    pollingLocations: [
+      {
+        address: {
+          locationName: "Washington Elementary School",
+          line1: "100 Oak St",
+          city: "San Jose",
+          state: "CA",
+          zip: "95112",
+        },
+        pollingHours: "7:00 AM - 8:00 PM",
+        name: "Washington Elementary School",
+      },
+    ],
+    earlyVoteSites: [
+      {
+        address: {
+          locationName: "Santa Clara County Registrar",
+          line1: "1555 Berger Dr",
+          city: "San Jose",
+          state: "CA",
+          zip: "95112",
+        },
+        pollingHours: "Mon-Fri 8:00 AM - 5:00 PM",
+        name: "Santa Clara County Registrar of Voters",
+        startDate: futureDate(-14),
+        endDate: futureDate(44),
+      },
+    ],
+    contests: [
+      {
+        type: "General",
+        office: "U.S. Representative, District 17",
+        level: ["country"],
+        roles: ["legislatorLowerBody"],
+        district: { name: "California's 17th Congressional District", scope: "congressional" },
+        candidates: [
+          { name: "Ro Khanna", party: "Democratic", candidateUrl: "https://example.com" },
+          { name: "Anita Chen", party: "Republican" },
+        ],
+      },
+      {
+        type: "General",
+        office: "State Senator, District 15",
+        level: ["administrativeArea1"],
+        roles: ["legislatorUpperBody"],
+        district: { name: "California State Senate District 15", scope: "stateUpper" },
+        candidates: [
+          { name: "Dave Cortese", party: "Democratic" },
+          { name: "Robert Singh", party: "Republican" },
+        ],
+      },
+      {
+        type: "General",
+        office: "Mayor, City of San Jose",
+        level: ["locality"],
+        roles: ["headOfGovernment"],
+        district: { name: "City of San Jose", scope: "citywide" },
+        candidates: [
+          { name: "Maria Gonzalez", party: "Nonpartisan" },
+          { name: "Kevin Park", party: "Nonpartisan" },
+          { name: "Lisa Tran", party: "Nonpartisan" },
+        ],
+      },
+      {
+        type: "General",
+        office: "City Council, District 3",
+        level: ["locality"],
+        roles: ["legislatorLowerBody"],
+        district: { name: "San Jose City Council District 3", scope: "cityCouncil" },
+        candidates: [
+          { name: "Omar Hernandez", party: "Nonpartisan" },
+          { name: "Jennifer Wu", party: "Nonpartisan" },
+        ],
+      },
+      {
+        type: "Referendum",
+        referendumTitle: "Measure A — Affordable Housing Bond",
+        referendumSubtitle: "Shall the City of San Jose issue $450 million in general obligation bonds to fund affordable housing construction and rehabilitation?",
+        referendumProStatement: "Addresses critical housing shortage. Creates thousands of affordable units for working families, seniors, and veterans.",
+        referendumConStatement: "Increases property taxes by approximately $19.60 per $100,000 of assessed value. Adds to existing city debt obligations.",
+      },
+      {
+        type: "Referendum",
+        referendumTitle: "Measure B — Parks and Recreation Funding",
+        referendumSubtitle: "Shall the City authorize a 1/8-cent sales tax increase to fund park maintenance, recreational programs, and new green spaces?",
+        referendumProStatement: "Invests in neighborhood parks and youth programs. All funds stay local with independent oversight.",
+        referendumConStatement: "Sales tax increases disproportionately affect lower-income residents. City should prioritize existing revenue for parks.",
+      },
+      {
+        type: "Referendum",
+        referendumTitle: "Measure C — Police Oversight Commission",
+        referendumSubtitle: "Shall the City Charter be amended to establish an independent Police Oversight Commission with subpoena power?",
+        referendumProStatement: "Creates accountability and transparency in policing. Commission would have independent investigative authority.",
+        referendumConStatement: "Duplicates existing oversight structures. Could interfere with active investigations and officer due process rights.",
+      },
+    ],
+    state: [
+      {
+        name: "California",
+        electionAdministrationBody: {
+          name: "Santa Clara County Registrar of Voters",
+          electionInfoUrl: "https://www.sccgov.org/rov",
+          electionRegistrationUrl: "https://registertovote.ca.gov",
+          absenteeVotingInfoUrl: "https://www.sccgov.org/rov/vbm",
+        },
+      },
+    ],
+  };
+}
+
+const MOCK_REPRESENTATIVES: Representative[] = [
+  {
+    name: "Ro Khanna",
+    office: "U.S. Representative, CA-17",
+    party: "Democratic Party",
+    divisionId: "ocd-division/country:us/state:ca/cd:17",
+    levels: ["country"],
+    roles: ["legislatorLowerBody"],
+    urls: ["https://example.com"],
+    phones: ["(202) 555-0117"],
+  },
+  {
+    name: "Alex Padilla",
+    office: "U.S. Senator",
+    party: "Democratic Party",
+    divisionId: "ocd-division/country:us/state:ca",
+    levels: ["country"],
+    roles: ["legislatorUpperBody"],
+    phones: ["(202) 555-0100"],
+  },
+  {
+    name: "Matt Mahan",
+    office: "Mayor of San Jose",
+    party: "Nonpartisan",
+    divisionId: "ocd-division/country:us/state:ca/place:san_jose",
+    levels: ["locality"],
+    roles: ["headOfGovernment"],
+    phones: ["(408) 555-0199"],
+  },
+];
+
+// ============================================================================
+// API Functions
+// ============================================================================
+
 /**
  * Get a list of upcoming elections
  *
  * @returns List of elections visible to the API
  */
 export async function getElections(): Promise<Election[]> {
+  if (!getApiKey()) return MOCK_ELECTIONS;
   const response = await fetchCivicApi<ElectionsResponse>("elections");
   return response.elections;
 }
@@ -241,6 +418,7 @@ export async function getVoterInfo(
   address: string,
   electionId?: string,
 ): Promise<VoterInfoResponse> {
+  if (!getApiKey()) return getMockVoterInfo(address);
   const params: Record<string, string> = { address };
 
   if (electionId) {
@@ -269,6 +447,26 @@ export async function getRepresentatives(
     includeOffices?: boolean;
   },
 ): Promise<RepresentativesResponse> {
+  if (!getApiKey()) {
+    return {
+      kind: "civicinfo#representativeInfoResponse",
+      normalizedInput: { line1: address, city: "San Jose", state: "CA", zip: "95112" },
+      divisions: {},
+      offices: MOCK_REPRESENTATIVES.map((r, i) => ({
+        name: r.office,
+        divisionId: r.divisionId,
+        levels: r.levels,
+        roles: r.roles,
+        officialIndices: [i],
+      })),
+      officials: MOCK_REPRESENTATIVES.map((r) => ({
+        name: r.name,
+        party: r.party,
+        phones: r.phones,
+        urls: r.urls,
+      })),
+    };
+  }
   const params: Record<string, string> = { address };
 
   if (options?.levels?.length) {
@@ -299,6 +497,7 @@ export async function getRepresentativesEnriched(
     roles?: string[];
   },
 ): Promise<Representative[]> {
+  if (!getApiKey()) return MOCK_REPRESENTATIVES;
   const response = await getRepresentatives(address, options);
 
   const representatives: Representative[] = [];
