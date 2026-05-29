@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -32,6 +32,7 @@ import {
   useTheme,
 } from "~/styles";
 import { trpc } from "~/utils/api";
+import { sessionStorage } from "~/utils/client-storage";
 import { daysUntil, isWithinDays } from "~/utils/dates";
 
 interface ContentCard {
@@ -213,6 +214,24 @@ export default function BrowseScreen() {
     isWithinDays(e.electionDay, 30),
   );
 
+  const dismissalKey = upcomingElection
+    ? `banner_dismissed_${upcomingElection.id}`
+    : null;
+
+  useEffect(() => {
+    if (!dismissalKey) return;
+    sessionStorage.getItemAsync(dismissalKey).then((val) => {
+      if (val === "true") setBannerDismissed(true);
+    });
+  }, [dismissalKey]);
+
+  const handleDismissBanner = useCallback(() => {
+    setBannerDismissed(true);
+    if (dismissalKey) {
+      void sessionStorage.setItemAsync(dismissalKey, "true");
+    }
+  }, [dismissalKey]);
+
   const {
     data: content,
     isLoading,
@@ -280,7 +299,7 @@ export default function BrowseScreen() {
           daysUntil={daysUntil(upcomingElection.electionDay)}
           electionName={upcomingElection.name}
           onPress={() => router.push("/local-elections")}
-          onDismiss={() => setBannerDismissed(true)}
+          onDismiss={handleDismissBanner}
         />
       )}
 
