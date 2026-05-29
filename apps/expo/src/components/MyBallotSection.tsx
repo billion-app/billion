@@ -6,13 +6,11 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
 
 import type { Contest } from "@acme/api";
 
 import { Text, View } from "~/components/Themed";
 import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
-import { trpc } from "~/utils/api";
 
 const colors = {
   white: "#FFFFFF",
@@ -25,20 +23,19 @@ interface MyBallotSectionProps {
   address: string | null;
   onAddressSubmit: (address: string) => void;
   onEditAddress: () => void;
+  contests?: Contest[];
+  isLoadingContests?: boolean;
 }
 
 export function MyBallotSection({
   address,
   onAddressSubmit,
   onEditAddress,
+  contests,
+  isLoadingContests,
 }: MyBallotSectionProps) {
   const { theme } = useTheme();
   const [inputValue, setInputValue] = useState("");
-
-  const voterInfoQuery = useQuery({
-    ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
-    enabled: !!address,
-  });
 
   if (!address) {
     return (
@@ -81,11 +78,11 @@ export function MyBallotSection({
       </View>
       <Text style={styles.address}>{address}</Text>
 
-      {voterInfoQuery.isLoading && (
+      {isLoadingContests && (
         <ActivityIndicator color={colors.civicBlue} style={styles.loader} />
       )}
 
-      {voterInfoQuery.data?.contests?.map((contest: Contest, index: number) => (
+      {contests?.map((contest: Contest, index: number) => (
         <TouchableOpacity
           key={index}
           style={[styles.contestCard, { backgroundColor: theme.background }]}
@@ -109,7 +106,7 @@ export function MyBallotSection({
         </TouchableOpacity>
       ))}
 
-      {voterInfoQuery.data?.contests?.length === 0 && (
+      {contests?.length === 0 && (
         <Text style={styles.noData}>No ballot information available yet</Text>
       )}
     </View>
