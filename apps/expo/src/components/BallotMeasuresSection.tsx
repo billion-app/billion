@@ -136,5 +136,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: sp[4],
     top: "50%",
+    marginTop: -7,
   },
 });
