@@ -15,6 +15,7 @@ import { Text, View } from "~/components/Themed";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontDisplay, fontSize, sp, useTheme } from "~/styles";
 import { trpc } from "~/utils/api";
+import { daysUntil } from "~/utils/dates";
 
 export default function LocalElectionsScreen() {
   const { theme } = useTheme();
@@ -23,7 +24,9 @@ export default function LocalElectionsScreen() {
   const { address, setAddress, clearAddress } = useUserAddress();
 
   const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
-  const upcomingElection = electionsQuery.data?.[0];
+  const upcomingElection = electionsQuery.data
+    ?.filter((e) => daysUntil(e.electionDay) >= 0)
+    .sort((a, b) => a.electionDay.localeCompare(b.electionDay))[0];
 
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
@@ -58,6 +61,8 @@ export default function LocalElectionsScreen() {
           address={address}
           onAddressSubmit={setAddress}
           onEditAddress={clearAddress}
+          contests={voterInfoQuery.data?.contests}
+          isLoadingContests={voterInfoQuery.isLoading}
         />
 
         {upcomingElection && (
