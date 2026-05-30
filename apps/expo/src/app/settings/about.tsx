@@ -1,307 +1,147 @@
-/**
- * About screen — settings sub-page
- *
- * TODO:
- * - "Open Source Licenses" should use a real OSS license screen (e.g. react-native-oss-licenses)
- */
-
-import {
-  Linking,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import Constants from "expo-constants";
+import { Linking, StyleSheet, TouchableOpacity, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import * as Updates from "expo-updates";
-import { Ionicons } from "@expo/vector-icons";
 
-import { Text, View } from "~/components/Themed";
-import { colors, fonts, rd, sp, useTheme } from "~/styles";
-
-const LINKS = [
-  {
-    id: "privacy",
-    label: "Privacy Policy",
-    url: "https://billion-news.app/privacy",
-    icon: "shield-outline" as const,
-  },
-  {
-    id: "terms",
-    label: "Terms of Service",
-    url: "https://billion-news.app/terms",
-    icon: "document-text-outline" as const,
-  },
-  {
-    id: "oss",
-    label: "Open Source Licenses",
-    url: "https://billion-news.app/licenses",
-    icon: "code-slash-outline" as const,
-  },
-];
+import { Text } from "~/components/Themed";
+import { Card, Icon, ScreenShell } from "~/components/ui";
+import type { IconName } from "~/components/ui";
+import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 
 export default function AboutScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
 
-  // Compute version info
-  const version = Constants.expoConfig?.version ?? "1.0.0";
-  const buildNumber =
-    Platform.OS === "ios"
-      ? Constants.expoConfig?.ios?.buildNumber
-      : Constants.expoConfig?.android?.versionCode;
-  const versionText = buildNumber ? `${version} (${buildNumber})` : version;
-
-  const buildChannel: string = Updates.channel ?? "release";
-
-  const VERSION_ROWS = [
-    { label: "Version", value: versionText, icon: "layers-outline" as const },
-    { label: "Build", value: buildChannel, icon: "construct-outline" as const },
+  const rows: { icon: IconName; label: string; onPress: () => void }[] = [
     {
-      label: "Platform",
-      value: Platform.OS,
-      icon: "phone-portrait-outline" as const,
+      icon: "globe",
+      label: "Visit billion.app",
+      onPress: () => void Linking.openURL("https://billion.app"),
+    },
+    {
+      icon: "doc",
+      label: "Open-source licenses",
+      onPress: () => router.push("/settings/terms"),
+    },
+    {
+      icon: "shield",
+      label: "Privacy policy",
+      onPress: () => router.push("/settings/privacy"),
+    },
+    {
+      icon: "doc",
+      label: "Terms of service",
+      onPress: () => router.push("/settings/terms"),
     },
   ];
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={["top"]}
-    >
-      <View
-        style={[
-          styles.header,
-          {
-            borderBottomColor: theme.border,
-            backgroundColor: theme.background,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>About</Text>
-        <View
-          style={{ width: 44 }}
-          lightColor="transparent"
-          darkColor="transparent"
-        />
+    <ScreenShell title="About">
+      <View style={s.hero}>
+        <LinearGradient colors={[planes.slate, planes.navy]} style={s.logo}>
+          <Text style={s.logoText}>B</Text>
+        </LinearGradient>
+        <Text style={s.name}>Billion</Text>
+        <Text style={s.version}>Version 2.4.0 (build 1182)</Text>
+        <View style={s.upToDate}>
+          <Icon name="check" size={14} color={colors.green[500]} />
+          <Text style={s.upToDateText}>You&apos;re up to date</Text>
+        </View>
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Wordmark / logo block */}
-        <View
-          style={styles.logoBlock}
-          lightColor="transparent"
-          darkColor="transparent"
-        >
-          <Text style={[styles.wordmark, { color: colors.white }]}>
-            Billion
-          </Text>
-          <Text style={[styles.tagline, { color: theme.textSecondary }]}>
-            Civic intelligence for everyone.
-          </Text>
-        </View>
+      <Text style={s.blurb}>
+        Turning the public record into something{" "}
+        <Text style={s.blurbEm}>worth reading</Text> — so being an informed
+        citizen doesn&apos;t feel like homework.
+      </Text>
 
-        {/* Version info */}
-        <View
-          style={[
-            styles.section,
-            { backgroundColor: theme.card, borderColor: theme.border },
-          ]}
-          lightColor={theme.card}
-          darkColor={theme.card}
-        >
-          {VERSION_ROWS.map((row, i, arr) => (
-            <View
-              key={row.label}
-              style={[
-                styles.infoRow,
-                i < arr.length - 1 && {
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.border,
-                },
-              ]}
-              lightColor="transparent"
-              darkColor="transparent"
-            >
-              <View
-                style={styles.infoLeft}
-                lightColor="transparent"
-                darkColor="transparent"
-              >
-                <Ionicons
-                  name={row.icon}
-                  size={16}
-                  color={theme.mutedForeground}
-                />
-                <Text
-                  style={[styles.infoLabel, { color: theme.textSecondary }]}
-                >
-                  {row.label}
-                </Text>
-              </View>
-              <Text style={[styles.infoValue, { color: theme.foreground }]}>
-                {row.value}
-              </Text>
-            </View>
-          ))}
-        </View>
+      <Card flush style={{ marginBottom: 22 }}>
+        {rows.map((r, i) => (
+          <TouchableOpacity
+            key={r.label}
+            style={[s.row, i < rows.length - 1 && s.divider]}
+            onPress={r.onPress}
+            activeOpacity={0.7}
+          >
+            <Icon name={r.icon} size={18} color={colors.white} />
+            <Text style={s.rowLabel}>{r.label}</Text>
+            <Icon name="external" size={16} color="#5B6172" />
+          </TouchableOpacity>
+        ))}
+      </Card>
 
-        {/* Links */}
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-          LEGAL
-        </Text>
-        <View
-          style={[
-            styles.section,
-            { backgroundColor: theme.card, borderColor: theme.border },
-          ]}
-          lightColor={theme.card}
-          darkColor={theme.card}
-        >
-          {LINKS.map((link, i) => (
-            <TouchableOpacity
-              key={link.id}
-              style={[
-                styles.linkRow,
-                i < LINKS.length - 1 && {
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.border,
-                },
-              ]}
-              onPress={() => Linking.openURL(link.url).catch(() => null)}
-              activeOpacity={0.7}
-            >
-              <View
-                style={styles.linkLeft}
-                lightColor="transparent"
-                darkColor="transparent"
-              >
-                <Ionicons
-                  name={link.icon}
-                  size={16}
-                  color={theme.mutedForeground}
-                />
-                <Text style={[styles.linkLabel, { color: theme.foreground }]}>
-                  {link.label}
-                </Text>
-              </View>
-              <Ionicons
-                name="open-outline"
-                size={16}
-                color={theme.mutedForeground}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={[styles.credit, { color: theme.mutedForeground }]}>
-          Made with care in the United States.{"\n"}© 2026 Billion, Inc.
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
+      <Text style={s.footer}>Built for the public record · © 2026 Billion</Text>
+    </ScreenShell>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[4],
-    borderBottomWidth: 1,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
+const s = StyleSheet.create({
+  hero: { alignItems: "center", paddingTop: 12, paddingBottom: 26 },
+  logo: {
+    width: 76,
+    height: 76,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: hair[2],
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 16,
   },
-  title: {
-    flex: 1,
-    textAlign: "center",
-    fontFamily: fonts.bodySemibold,
-    fontSize: 16,
+  logoText: { fontFamily: fontDisplay.bold, fontSize: 40, color: colors.white },
+  name: { fontFamily: "IBMPlexSerif-Bold", fontSize: 26, color: colors.white },
+  version: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
-  scroll: { flex: 1, paddingHorizontal: sp[5] },
-  logoBlock: {
+  upToDate: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingTop: sp[10],
-    paddingBottom: sp[8],
-    gap: sp[2],
-  },
-  wordmark: {
-    fontFamily: "IBMPlexSerif_700Bold",
-    fontSize: 40,
-    letterSpacing: -1,
-  },
-  tagline: {
-    fontFamily: fonts.editorialRegular,
-    fontSize: 15,
-  },
-  sectionLabel: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    marginBottom: sp[2],
-    marginTop: sp[2],
-  },
-  section: {
-    borderRadius: rd.lg,
+    gap: 7,
+    marginTop: 12,
+    backgroundColor: "rgba(16,185,129,0.12)",
     borderWidth: 1,
-    marginBottom: sp[6],
-    overflow: "hidden",
+    borderColor: "rgba(16,185,129,0.3)",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 13,
   },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[4],
+  upToDateText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12.5,
+    color: colors.green[500],
   },
-  infoLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: sp[3],
-  },
-  infoLabel: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-  },
-  infoValue: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 14,
-  },
-  linkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[4],
-  },
-  linkLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: sp[3],
-  },
-  linkLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 14,
-  },
-  credit: {
-    fontFamily: fonts.body,
-    fontSize: 12,
+  blurb: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 15,
+    lineHeight: 23,
+    color: "rgba(255,255,255,0.78)",
     textAlign: "center",
-    lineHeight: 18,
-    paddingBottom: sp[10],
+    marginBottom: 26,
+    paddingHorizontal: 6,
+  },
+  blurbEm: {
+    fontFamily: fontDisplay.italic,
+    fontStyle: "italic",
+    color: colors.white,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  divider: { borderBottomWidth: 1, borderBottomColor: hair[1] },
+  rowLabel: {
+    flex: 1,
+    fontFamily: fontBody.semibold,
+    fontSize: 14.5,
+    color: colors.white,
+  },
+  footer: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: "center",
   },
 });

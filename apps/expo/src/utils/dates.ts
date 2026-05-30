@@ -19,3 +19,18 @@ export function isWithinDays(dateString: string, days: number): boolean {
   const daysRemaining = daysUntil(dateString);
   return daysRemaining > 0 && daysRemaining <= days;
 }
+
+/** Short "Nov 4" style label. */
+export function monthDay(dateString: string): string {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** ISO date string `days` before/after the given date. */
+export function shiftDays(dateString: string, days: number): string {
+  const d = new Date(dateString);
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
