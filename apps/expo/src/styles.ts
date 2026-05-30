@@ -33,6 +33,56 @@ export {
 } from "@acme/ui/theme-tokens";
 
 // ============================================================================
+// SURFACE PLANES + HAIRLINES — depth through layered planes, not color
+// (mirrors new-design/billion.css :root)
+// ============================================================================
+
+/** Layered surface planes on top of the navy base */
+export const planes = {
+  navy: "#0E1530", // primary canvas / app chrome
+  slate: "#272D3C", // cards, elevated containers
+  surface: "#323848", // popovers, nested elements, icon tiles
+  hi: "#3C4356", // highest plane — pressed / hover
+  ink: "#0A0F22", // text on light surfaces / verbatim panel bg
+} as const;
+
+/** Hairline border tiers */
+export const hair = {
+  1: "rgba(255,255,255,0.06)",
+  2: "rgba(255,255,255,0.10)",
+  3: "rgba(255,255,255,0.16)",
+} as const;
+
+/** Content-type color + tint lookup (bill/exec/court/news/local) */
+export const contentType = {
+  bill: { color: "#4A7CFF", label: "BILL" },
+  exec: { color: "#6366F1", label: "ORDER" },
+  court: { color: "#0891B2", label: "CASE" },
+  news: { color: "#8A8FA0", label: "NEWS" },
+  local: { color: "#4A7CFF", label: "LOCAL" },
+} as const;
+
+export type ContentTypeKey = keyof typeof contentType;
+
+/** Map a backend content type onto a contentType key */
+export function resolveType(type: string): ContentTypeKey {
+  switch (type) {
+    case "bill":
+      return "bill";
+    case "government_content":
+    case "exec":
+      return "exec";
+    case "court_case":
+    case "court":
+      return "court";
+    case "local":
+      return "local";
+    default:
+      return "news";
+  }
+}
+
+// ============================================================================
 // BRAND FONT FAMILIES
 // ============================================================================
 
