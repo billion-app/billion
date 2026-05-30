@@ -16,6 +16,7 @@ import {
 import type { IconName } from "~/components/ui";
 import { colors, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
+import { authClient } from "~/utils/auth";
 
 function getInitials(name: string): string {
   return name
@@ -155,6 +156,9 @@ export default function SettingsScreen() {
         label="Sign out"
         color={colors.red[500]}
         style={{ alignSelf: "center" }}
+        onPress={() => {
+          void authClient.signOut();
+        }}
       />
     </TabScreen>
   );
