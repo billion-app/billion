@@ -10,6 +10,14 @@
  * so we primarily rely on aggregated state/federal APIs.
  */
 
+import { db } from "@acme/db/client";
+import {
+  ElectionRecord,
+  ContestRecord,
+  CandidateRecord,
+  PollingLocationRecord,
+} from "@acme/db/schema";
+
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { getItemLimit } from "../utils/concurrency.js";
@@ -659,16 +667,121 @@ async function scrape(config: SantaClaraROVConfig = {}): Promise<void> {
     );
   }
 
-  // Summary
+  // Persist to database
+  const SOURCE = "google-civic";
+
+  if (results.elections?.length) {
+    for (const election of results.elections) {
+      const [row] = await db
+        .insert(ElectionRecord)
+        .values({
+          externalId: election.id,
+          name: election.name,
+          date: election.date,
+          electionType: election.electionType,
+          source: SOURCE,
+          deadlines: election.deadlines.map((d) => ({
+            date: d.date,
+            description: d.description,
+            type: d.type,
+          })),
+        })
+        .onConflictDoUpdate({
+          target: [ElectionRecord.externalId, ElectionRecord.source],
+          set: {
+            name: election.name,
+            date: election.date,
+            electionType: election.electionType,
+            deadlines: election.deadlines.map((d) => ({
+              date: d.date,
+              description: d.description,
+              type: d.type,
+            })),
+          },
+        })
+        .returning({ id: ElectionRecord.id });
+
+      if (!row) continue;
+
+      // Persist ballot contests and candidates for this election
+      const { ballot } = await getVoterInfo(
+        "70 W Hedding St, San Jose, CA 95110",
+        election.id,
+      );
+
+      if (ballot) {
+        for (const contest of ballot.contests) {
+          const [contestRow] = await db
+            .insert(ContestRecord)
+            .values({
+              electionId: row.id,
+              office: contest.office,
+              districtName: contest.district,
+              numberElected: contest.votesAllowed,
+              type: "candidate",
+              source: SOURCE,
+            })
+            .returning({ id: ContestRecord.id });
+
+          if (contestRow) {
+            for (const cand of contest.candidates) {
+              await db.insert(CandidateRecord).values({
+                contestId: contestRow.id,
+                name: cand.name,
+                party: cand.party,
+                candidateUrl: cand.url,
+                incumbent: cand.incumbent ?? false,
+              });
+            }
+          }
+        }
+
+        for (const measure of ballot.measures) {
+          await db.insert(ContestRecord).values({
+            electionId: row.id,
+            referendumTitle: measure.title,
+            referendumText: measure.description,
+            referendumUrl: measure.fullTextUrl,
+            type: "referendum",
+            source: SOURCE,
+          });
+        }
+      }
+    }
+    logger.success(`Persisted ${results.elections.length} elections to DB`);
+  }
+
+  if (results.pollingLocations?.length) {
+    for (const loc of results.pollingLocations) {
+      await db
+        .insert(PollingLocationRecord)
+        .values({
+          name: loc.name,
+          addressLine1: loc.address.line1,
+          addressLine2: loc.address.line2,
+          city: loc.address.city,
+          state: loc.address.state,
+          zip: loc.address.zip,
+          hours: loc.hours,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          locationType: loc.locationType,
+          voterServices: loc.voterServices ?? [],
+          startDate: loc.startDate,
+          endDate: loc.endDate,
+          source: SOURCE,
+        })
+        .onConflictDoNothing();
+    }
+    logger.success(
+      `Persisted ${results.pollingLocations.length} polling locations to DB`,
+    );
+  }
+
   logger.success("Santa Clara County ROV scraper completed");
   logger.info(`Elections: ${results.elections?.length ?? 0}`);
   logger.info(`Polling locations: ${results.pollingLocations?.length ?? 0}`);
   logger.info(`Candidate filings: ${results.candidateFilings?.length ?? 0}`);
-
-  // Note: This scraper currently returns data but doesn't persist to DB
-  // because the database schema would need new tables for local election data.
-  // The exported functions can be used by other parts of the app to fetch
-  // fresh data on demand.
 }
 
 export const santaClaraROV: Scraper = {
