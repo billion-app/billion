@@ -58,6 +58,10 @@ export const Bill = pgTable(
         { url: string; alt: string; source: string; sourceUrl: string }[]
       >()
       .default([]), // Array of relevant images for the article
+    actions: t
+      .jsonb()
+      .$type<{ date: string; text: string; type?: string }[]>()
+      .default([]),
     url: t.text().notNull(),
     sourceWebsite: t.varchar({ length: 50 }).notNull(), // "congress.gov"
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
@@ -313,6 +317,22 @@ export const PollingLocationRecord = pgTable(
   }),
   (table) => ({
     electionIdx: index("polling_location_election_id_idx").on(table.electionId),
+  }),
+);
+
+// Saved/bookmarked articles per user
+export const SavedArticle = pgTable(
+  "saved_article",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text().notNull(),
+    contentId: t.uuid().notNull(),
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueSave: unique().on(table.userId, table.contentId),
+    userIdx: index("saved_article_user_id_idx").on(table.userId),
   }),
 );
 
