@@ -215,6 +215,107 @@ export const CreateVideoSchema = createInsertSchema(Video).omit({
   updatedAt: true,
 });
 
+// Elections table — persists scraped election data from Google Civic, VOTE411, etc.
+export const ElectionRecord = pgTable(
+  "election",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    externalId: t.varchar({ length: 100 }),
+    name: t.text().notNull(),
+    date: t.varchar({ length: 20 }).notNull(),
+    electionType: t.varchar({ length: 20 }).notNull(),
+    ocdDivisionId: t.text(),
+    source: t.varchar({ length: 50 }).notNull(),
+    deadlines: t
+      .jsonb()
+      .$type<
+        { date: string; description: string; type: string }[]
+      >()
+      .default([]),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueElection: unique().on(table.externalId, table.source),
+  }),
+);
+
+// Contests / races within an election
+export const ContestRecord = pgTable(
+  "contest",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    electionId: t.uuid().notNull(),
+    office: t.text(),
+    districtName: t.text(),
+    districtScope: t.varchar({ length: 50 }),
+    numberElected: t.integer().default(1),
+    // Referendum fields (for ballot measures)
+    referendumTitle: t.text(),
+    referendumSubtitle: t.text(),
+    referendumText: t.text(),
+    referendumProStatement: t.text(),
+    referendumConStatement: t.text(),
+    referendumUrl: t.text(),
+    type: t.varchar({ length: 20 }).notNull(), // "candidate" | "referendum"
+    source: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    electionIdx: index("contest_election_id_idx").on(table.electionId),
+  }),
+);
+
+// Candidates within a contest
+export const CandidateRecord = pgTable(
+  "candidate",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contestId: t.uuid().notNull(),
+    name: t.text().notNull(),
+    party: t.varchar({ length: 100 }),
+    candidateUrl: t.text(),
+    photoUrl: t.text(),
+    email: t.text(),
+    phone: t.varchar({ length: 50 }),
+    incumbent: t.boolean().default(false),
+    biography: t.text(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    contestIdx: index("candidate_contest_id_idx").on(table.contestId),
+  }),
+);
+
+// Polling locations / drop boxes / early vote sites
+export const PollingLocationRecord = pgTable(
+  "polling_location",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    electionId: t.uuid(),
+    name: t.text(),
+    addressLine1: t.text().notNull(),
+    addressLine2: t.text(),
+    city: t.text().notNull(),
+    state: t.varchar({ length: 2 }).notNull(),
+    zip: t.varchar({ length: 10 }).notNull(),
+    hours: t.text(),
+    latitude: t.doublePrecision(),
+    longitude: t.doublePrecision(),
+    locationType: t.varchar({ length: 20 }).notNull(), // "polling_place" | "early_vote" | "drop_box"
+    voterServices: t.jsonb().$type<string[]>().default([]),
+    startDate: t.varchar({ length: 20 }),
+    endDate: t.varchar({ length: 20 }),
+    source: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    electionIdx: index("polling_location_election_id_idx").on(table.electionId),
+  }),
+);
+
 // User preferences for content interests (topics + content types)
 export const UserPreference = pgTable(
   "user_preference",
