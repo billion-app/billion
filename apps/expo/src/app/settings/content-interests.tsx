@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Badge, Card, Kicker, Pill, ScreenShell, Toggle } from "~/components/ui";
 import type { ContentTypeKey } from "~/styles";
 import { colors, fontBody, hair } from "~/styles";
+import { queryClient, trpc } from "~/utils/api";
 
 const TOPICS = [
   "Healthcare",
@@ -28,20 +30,35 @@ const CATS: { id: ContentTypeKey; label: string }[] = [
   { id: "local", label: "Local & state" },
 ];
 
-// TODO(backend): persist interests per user.
 export default function ContentInterestsScreen() {
-  const [topics, setTopics] = useState(
-    new Set([
-      "Healthcare",
-      "Climate",
-      "Technology",
-      "Housing",
-      "Economy",
-      "Civil rights",
-    ]),
-  );
-  const [cats, setCats] = useState(
-    new Set<ContentTypeKey>(["bill", "exec", "court", "local"]),
+  const prefsQuery = useQuery(trpc.user.getPreferences.queryOptions());
+  const saveMutation = useMutation({
+    ...trpc.user.setPreferences.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.getPreferences.queryKey(),
+      });
+    },
+  });
+
+  const [topics, setTopics] = useState(new Set<string>());
+  const [cats, setCats] = useState(new Set<ContentTypeKey>());
+
+  useEffect(() => {
+    if (prefsQuery.data) {
+      setTopics(new Set(prefsQuery.data.topics));
+      setCats(new Set(prefsQuery.data.contentTypes as ContentTypeKey[]));
+    }
+  }, [prefsQuery.data]);
+
+  const save = useCallback(
+    (newTopics: Set<string>, newCats: Set<ContentTypeKey>) => {
+      saveMutation.mutate({
+        topics: [...newTopics],
+        contentTypes: [...newCats],
+      });
+    },
+    [saveMutation],
   );
 
   const toggleTopic = (x: string) =>
@@ -49,6 +66,7 @@ export default function ContentInterestsScreen() {
       const n = new Set(prev);
       if (n.has(x)) n.delete(x);
       else n.add(x);
+      save(n, cats);
       return n;
     });
   const toggleCat = (id: ContentTypeKey) =>
@@ -56,6 +74,7 @@ export default function ContentInterestsScreen() {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id);
       else n.add(id);
+      save(topics, n);
       return n;
     });
 
