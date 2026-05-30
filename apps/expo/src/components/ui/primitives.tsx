@@ -13,10 +13,16 @@ import {
   View,
 } from "react-native";
 
-import type { ContentTypeKey } from "~/styles";
-import { colors, contentType, fontBody, fontSize, hair, planes } from "~/styles";
-
 import type { IconName } from "./Icon";
+import type { ContentTypeKey } from "~/styles";
+import {
+  colors,
+  contentType,
+  fontBody,
+  fontSize,
+  hair,
+  planes,
+} from "~/styles";
 import { Icon } from "./Icon";
 
 /* ---------- Badge — content-type uppercase pill ---------- */
@@ -54,10 +60,7 @@ export function Avatar({
 }) {
   return (
     <View
-      style={[
-        s.avatar,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}
+      style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }]}
     >
       <Text
         style={{

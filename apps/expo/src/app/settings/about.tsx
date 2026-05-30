@@ -2,9 +2,9 @@ import { Linking, StyleSheet, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 
+import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import { Card, Icon, ScreenShell } from "~/components/ui";
-import type { IconName } from "~/components/ui";
 import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 
 export default function AboutScreen() {

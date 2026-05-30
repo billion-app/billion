@@ -4,7 +4,6 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { planes } from "~/styles";
-
 import { NavHeader } from "./NavHeader";
 
 export function ScreenShell({

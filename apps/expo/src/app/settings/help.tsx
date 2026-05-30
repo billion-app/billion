@@ -72,7 +72,12 @@ export default function HelpScreen() {
 const s = StyleSheet.create({
   faqCard: { paddingVertical: 16, paddingHorizontal: 18 },
   cardHead: { flexDirection: "row", alignItems: "center", gap: 12 },
-  q: { flex: 1, fontFamily: "InriaSerif-Bold", fontSize: 15.5, color: colors.white },
+  q: {
+    flex: 1,
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 15.5,
+    color: colors.white,
+  },
   chevOpen: { transform: [{ rotate: "180deg" }] },
   a: {
     fontFamily: "AlbertSans-Regular",
@@ -81,8 +86,17 @@ const s = StyleSheet.create({
     marginTop: 12,
     lineHeight: 22,
   },
-  contactRow: { flexDirection: "row", alignItems: "center", gap: 13, marginTop: 18 },
-  contactTitle: { fontFamily: fontBody.semibold, fontSize: 14.5, color: colors.white },
+  contactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+    marginTop: 18,
+  },
+  contactTitle: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14.5,
+    color: colors.white,
+  },
   contactSub: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 12.5,

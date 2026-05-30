@@ -65,7 +65,11 @@ export default function ArticleDetailScreen() {
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
 
-  const { data: content, isLoading, error } = useQuery({
+  const {
+    data: content,
+    isLoading,
+    error,
+  } = useQuery({
     ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
     enabled: !!articleId,
   });
@@ -80,7 +84,9 @@ export default function ArticleDetailScreen() {
     ...trpc.user.saveArticle.mutationOptions(),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: trpc.user.isArticleSaved.queryKey({ contentId: articleId ?? "" }),
+        queryKey: trpc.user.isArticleSaved.queryKey({
+          contentId: articleId ?? "",
+        }),
       });
     },
   });
@@ -88,7 +94,9 @@ export default function ArticleDetailScreen() {
     ...trpc.user.unsaveArticle.mutationOptions(),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: trpc.user.isArticleSaved.queryKey({ contentId: articleId ?? "" }),
+        queryKey: trpc.user.isArticleSaved.queryKey({
+          contentId: articleId ?? "",
+        }),
       });
     },
   });
@@ -182,10 +190,13 @@ export default function ArticleDetailScreen() {
     /!\[[^\]]*\]\(/.test(activeContent) ||
     activeContent.includes("```");
   const renderMarkdown =
-    activeContent.length <= 20000 && (content.isAIGenerated || looksLikeMarkdown);
+    activeContent.length <= 20000 &&
+    (content.isAIGenerated || looksLikeMarkdown);
 
   const actions =
-    "actions" in content ? (content.actions as { date: string; text: string }[]) : [];
+    "actions" in content
+      ? (content.actions as { date: string; text: string }[])
+      : [];
   const timeline =
     actions.length > 0
       ? actions
@@ -353,16 +364,30 @@ export default function ArticleDetailScreen() {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: planes.navy },
-  fullCenter: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20 },
+  fullCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
   loadingText: {
     fontFamily: "AlbertSans-Regular",
     marginTop: 16,
     color: colors.textSecondary,
   },
-  errorTitle: { fontFamily: "InriaSerif-Bold", fontSize: 18, color: colors.red[500] },
+  errorTitle: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 18,
+    color: colors.red[500],
+  },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  badgeRow: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 14 },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    marginBottom: 14,
+  },
   title: {
     fontFamily: fontDisplay.bold,
     fontSize: 30,

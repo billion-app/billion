@@ -1,9 +1,8 @@
 /** SettingsRow — icon tile + label + optional subtitle + chevron. */
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-import { colors, fontBody, hair, planes } from "~/styles";
-
 import type { IconName } from "./Icon";
+import { colors, fontBody, hair, planes } from "~/styles";
 import { Icon } from "./Icon";
 
 export function SettingsRow({

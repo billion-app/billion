@@ -4,7 +4,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, fontDisplay, hair, planes } from "~/styles";
-
 import { Icon } from "./Icon";
 
 export function NavHeader({

@@ -15,7 +15,6 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
-
 import { Icon } from "./Icon";
 
 /** Uppercase, letter-spaced section label. */

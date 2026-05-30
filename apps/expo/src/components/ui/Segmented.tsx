@@ -1,9 +1,8 @@
 /** Segmented — pill segmented control (e.g. Plain explainer / Original text). */
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-import { colors, fontBody, hair, planes } from "~/styles";
-
 import type { IconName } from "./Icon";
+import { colors, fontBody, hair, planes } from "~/styles";
 import { Icon } from "./Icon";
 
 export interface SegmentOption<T extends string> {

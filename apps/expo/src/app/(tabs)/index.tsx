@@ -1,12 +1,13 @@
+import type { Href } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import Fuse from "fuse.js";
 
 import type { VideoPost } from "@acme/api";
 
+import type { ContentItem } from "~/utils/content";
 import { ElectionBanner } from "~/components/ElectionBanner";
 import { Text } from "~/components/Themed";
 import {
@@ -18,7 +19,6 @@ import {
 } from "~/components/ui";
 import { colors, fontBody, fontDisplay } from "~/styles";
 import { trpc } from "~/utils/api";
-import type { ContentItem } from "~/utils/content";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
 

@@ -77,7 +77,7 @@ function FeedCard({
       </View>
 
       {/* hero */}
-      {item.imageUri ?? item.thumbnailUrl ? (
+      {(item.imageUri ?? item.thumbnailUrl) ? (
         <Image
           style={s.hero}
           source={{ uri: item.imageUri ?? item.thumbnailUrl }}
@@ -151,22 +151,26 @@ export default function FeedScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending, error } =
-    useInfiniteQuery(
-      trpc.video.getInfinite.infiniteQueryOptions(
-        { limit: 10 },
-        {
-          initialCursor: 0,
-          getNextPageParam: (lastPage) => lastPage.nextCursor,
-        },
-      ),
-    );
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isPending,
+    error,
+  } = useInfiniteQuery(
+    trpc.video.getInfinite.infiniteQueryOptions(
+      { limit: 10 },
+      {
+        initialCursor: 0,
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+      },
+    ),
+  );
 
   const videos = useMemo(
     () =>
-      data
-        ? data.pages.flatMap((p: { videos: VideoPost[] }) => p.videos)
-        : [],
+      data ? data.pages.flatMap((p: { videos: VideoPost[] }) => p.videos) : [],
     [data],
   );
 
@@ -238,7 +242,11 @@ const s = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
   },
-  errorTitle: { fontFamily: "InriaSerif-Bold", fontSize: 18, color: colors.red[500] },
+  errorTitle: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 18,
+    color: colors.red[500],
+  },
   errorSub: {
     fontFamily: "AlbertSans-Regular",
     fontSize: 14,
@@ -246,8 +254,17 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   card: { width: SCREEN_W, paddingHorizontal: 22 },
-  meta: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 16 },
-  tag: { fontFamily: fontBody.semibold, fontSize: 12.5, color: colors.textSecondary },
+  meta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    marginBottom: 16,
+  },
+  tag: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12.5,
+    color: colors.textSecondary,
+  },
   time: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 12.5,
@@ -279,14 +296,23 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
   },
   chipStat: { fontFamily: "IBMPlexSerif-Bold", fontSize: 20 },
-  chipStatus: { fontFamily: fontBody.semibold, fontSize: 13.5, color: colors.white },
+  chipStatus: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13.5,
+    color: colors.white,
+  },
   chipLabel: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 11.5,
     color: colors.textSecondary,
     marginTop: 3,
   },
-  actions: { flexDirection: "row", gap: 10, alignItems: "center", marginTop: 18 },
+  actions: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    marginTop: 18,
+  },
   cta: {
     flex: 1,
     height: 50,

@@ -1,4 +1,9 @@
-import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
