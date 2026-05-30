@@ -215,4 +215,67 @@ export const CreateVideoSchema = createInsertSchema(Video).omit({
   updatedAt: true,
 });
 
+// User preferences for content interests (topics + content types)
+export const UserPreference = pgTable(
+  "user_preference",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text().notNull(),
+    topics: t
+      .jsonb()
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+    contentTypes: t
+      .jsonb()
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueUser: unique().on(table.userId),
+  }),
+);
+
+// Blocked content (sources and topics hidden from feed)
+export const BlockedContent = pgTable(
+  "blocked_content",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text().notNull(),
+    name: t.text().notNull(),
+    type: t.varchar({ length: 20 }).notNull(), // "source" | "topic"
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueBlock: unique().on(table.userId, table.name, table.type),
+    userIdIndex: index("blocked_content_user_id_idx").on(table.userId),
+  }),
+);
+
+// User privacy/app settings
+export const UserSettings = pgTable(
+  "user_settings",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text().notNull(),
+    location: t.boolean().notNull().default(true),
+    personalize: t.boolean().notNull().default(true),
+    analytics: t.boolean().notNull().default(false),
+    crash: t.boolean().notNull().default(true),
+    offline: t.boolean().notNull().default(true),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueUser: unique().on(table.userId),
+  }),
+);
+
 export * from "./auth-schema";
