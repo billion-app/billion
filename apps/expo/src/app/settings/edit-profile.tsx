@@ -1,34 +1,67 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Avatar, GhostButton, Icon, ScreenShell } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
+import { queryClient, trpc } from "~/utils/api";
 
-// TODO(backend): load/save real profile via the better-auth session.
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 export default function EditProfileScreen() {
-  const [name, setName] = useState("Jordan Avery");
-  const [username, setUsername] = useState("@jordan_civic");
-  const [email, setEmail] = useState("jordan@email.com");
+  const sessionQuery = useQuery(trpc.auth.getSession.queryOptions());
+  const sessionUser = sessionQuery.data?.user;
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (sessionUser) {
+      setName(sessionUser.name ?? "");
+      setEmail(sessionUser.email ?? "");
+    }
+  }, [sessionUser]);
+
+  const updateProfile = useMutation({
+    ...trpc.user.updateProfile.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: trpc.auth.getSession.queryKey() });
+    },
+  });
 
   const fields = [
     { label: "DISPLAY NAME", value: name, set: setName },
-    { label: "USERNAME", value: username, set: setUsername },
-    { label: "EMAIL", value: email, set: setEmail },
+    { label: "EMAIL", value: email, set: undefined as undefined },
   ];
+
+  const handleSave = () => {
+    if (name && name !== sessionUser?.name) {
+      updateProfile.mutate({ name });
+    }
+  };
 
   return (
     <ScreenShell
       title="Edit Profile"
       action={
-        <TouchableOpacity hitSlop={8}>
-          <Text style={s.save}>Save</Text>
+        <TouchableOpacity hitSlop={8} onPress={handleSave}>
+          <Text style={s.save}>
+            {updateProfile.isPending ? "Saving…" : "Save"}
+          </Text>
         </TouchableOpacity>
       }
     >
       <View style={s.avatarWrap}>
         <View>
-          <Avatar name="JA" size={92} />
+          <Avatar name={getInitials(name || "?")} size={92} />
           <View style={s.editBadge}>
             <Icon name="edit" size={15} color={planes.ink} />
           </View>
@@ -44,9 +77,10 @@ export default function EditProfileScreen() {
         <View key={f.label} style={{ marginBottom: 18 }}>
           <Text style={s.label}>{f.label}</Text>
           <TextInput
-            style={s.input}
+            style={[s.input, !f.set && { opacity: 0.5 }]}
             value={f.value}
             onChangeText={f.set}
+            editable={!!f.set}
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="none"
           />

@@ -1,30 +1,23 @@
-import { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Card, Icon, ScreenShell } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
-
-interface BlockedItem {
-  id: number;
-  name: string;
-  type: "Source" | "Topic";
-  blocked: boolean;
-}
-
-// TODO(backend): real blocked sources/topics per user.
-const SEED: BlockedItem[] = [
-  { id: 1, name: "PartisanPost.com", type: "Source", blocked: true },
-  { id: 2, name: "Gun policy", type: "Topic", blocked: true },
-  { id: 3, name: "DailyOutrage", type: "Source", blocked: true },
-];
+import { queryClient, trpc } from "~/utils/api";
 
 export default function BlockedContentScreen() {
-  const [items, setItems] = useState<BlockedItem[]>(SEED);
-  const toggle = (id: number) =>
-    setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, blocked: !i.blocked } : i)),
-    );
+  const blockedQuery = useQuery(trpc.user.getBlocked.queryOptions());
+  const items = blockedQuery.data ?? [];
+
+  const removeMutation = useMutation({
+    ...trpc.user.removeBlocked.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.getBlocked.queryKey(),
+      });
+    },
+  });
 
   return (
     <ScreenShell title="Blocked Content">
@@ -33,48 +26,40 @@ export default function BlockedContentScreen() {
         out until you change your mind.
       </Text>
 
-      <View style={{ gap: 10 }}>
-        {items.map((it) => (
-          <Card
-            key={it.id}
-            style={[s.blockedCard, { opacity: it.blocked ? 1 : 0.5 }]}
-          >
-            <View style={s.tile}>
-              <Icon
-                name={it.type === "Source" ? "globe" : "filter"}
-                size={18}
-                color={colors.textSecondary}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.name}>{it.name}</Text>
-              <Text style={s.type}>
-                {it.type}
-                {!it.blocked && " · restored"}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => toggle(it.id)}
-              activeOpacity={0.8}
-              style={[
-                s.pill,
-                it.blocked
-                  ? { borderColor: hair[2] }
-                  : { backgroundColor: colors.white, borderColor: colors.white },
-              ]}
-            >
-              {it.blocked ? (
+      {blockedQuery.isLoading ? (
+        <ActivityIndicator color={colors.white} style={{ marginTop: 24 }} />
+      ) : items.length === 0 ? (
+        <Card>
+          <Text style={s.emptyText}>No blocked content yet.</Text>
+        </Card>
+      ) : (
+        <View style={{ gap: 10 }}>
+          {items.map((it) => (
+            <Card key={it.id} style={s.blockedCard}>
+              <View style={s.tile}>
+                <Icon
+                  name={it.type === "source" ? "globe" : "filter"}
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.name}>{it.name}</Text>
+                <Text style={s.type}>
+                  {it.type === "source" ? "Source" : "Topic"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => removeMutation.mutate({ id: it.id })}
+                activeOpacity={0.8}
+                style={[s.pill, { borderColor: hair[2] }]}
+              >
                 <Text style={s.pillText}>Unblock</Text>
-              ) : (
-                <View style={s.undoRow}>
-                  <Icon name="undo" size={14} color={planes.ink} />
-                  <Text style={[s.pillText, { color: planes.ink }]}>Undo</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </Card>
-        ))}
-      </View>
+              </TouchableOpacity>
+            </Card>
+          ))}
+        </View>
+      )}
     </ScreenShell>
   );
 }
@@ -120,5 +105,10 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.85)",
   },
-  undoRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  emptyText: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
 });

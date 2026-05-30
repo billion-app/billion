@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Card, GhostButton, Icon, ScreenShell, Toggle } from "~/components/ui";
 import type { IconName } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
+import { queryClient, trpc } from "~/utils/api";
 
 type Key = "location" | "personalize" | "analytics" | "crash" | "offline";
 
@@ -41,16 +43,44 @@ const ROWS: { k: Key; icon: IconName; label: string; sub: string }[] = [
   },
 ];
 
-// TODO(backend): persist privacy preferences.
+const DEFAULTS: Record<Key, boolean> = {
+  location: true,
+  personalize: true,
+  analytics: false,
+  crash: true,
+  offline: true,
+};
+
 export default function PrivacyScreen() {
-  const [state, setState] = useState<Record<Key, boolean>>({
-    location: true,
-    personalize: true,
-    analytics: false,
-    crash: true,
-    offline: true,
+  const settingsQuery = useQuery(trpc.user.getSettings.queryOptions());
+  const updateMutation = useMutation({
+    ...trpc.user.updateSettings.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.getSettings.queryKey(),
+      });
+    },
   });
-  const toggle = (k: Key) => setState((p) => ({ ...p, [k]: !p[k] }));
+
+  const [state, setState] = useState<Record<Key, boolean>>(DEFAULTS);
+
+  useEffect(() => {
+    if (settingsQuery.data) {
+      setState({
+        location: settingsQuery.data.location ?? DEFAULTS.location,
+        personalize: settingsQuery.data.personalize ?? DEFAULTS.personalize,
+        analytics: settingsQuery.data.analytics ?? DEFAULTS.analytics,
+        crash: settingsQuery.data.crash ?? DEFAULTS.crash,
+        offline: settingsQuery.data.offline ?? DEFAULTS.offline,
+      });
+    }
+  }, [settingsQuery.data]);
+
+  const toggle = (k: Key) => {
+    const newVal = !state[k];
+    setState((p) => ({ ...p, [k]: newVal }));
+    updateMutation.mutate({ [k]: newVal });
+  };
 
   return (
     <ScreenShell title="Privacy">
