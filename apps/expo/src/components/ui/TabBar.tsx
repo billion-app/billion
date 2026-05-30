@@ -1,13 +1,18 @@
 /** TabBar — blurred translucent bottom bar matching new-design. */
+import type { Tabs } from "expo-router";
 import type { ComponentProps } from "react";
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
-import type { Tabs } from "expo-router";
-
-import { colors, fontBody, hair } from "~/styles";
 
 import type { IconName } from "./Icon";
+import { colors, fontBody, hair } from "~/styles";
 import { Icon } from "./Icon";
 
 // expo-router's Tabs accepts a custom `tabBar` render prop; derive its props
@@ -59,7 +64,11 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
               onPress={onPress}
               activeOpacity={0.7}
             >
-              <Icon name={ICONS[route.name] ?? "home"} size={23} color={color} />
+              <Icon
+                name={ICONS[route.name] ?? "home"}
+                size={23}
+                color={color}
+              />
               <Text style={[s.label, { color }]}>{label}</Text>
             </TouchableOpacity>
           );

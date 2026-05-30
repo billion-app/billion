@@ -1,7 +1,7 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { eq, and, desc } from "@acme/db";
+import { and, desc, eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -9,9 +9,9 @@ import {
   CourtCase,
   GovernmentContent,
   SavedArticle,
+  user,
   UserPreference,
   UserSettings,
-  user,
 } from "@acme/db/schema";
 
 import { protectedProcedure } from "../trpc";
@@ -101,7 +101,10 @@ export const userRouter = {
       await db
         .delete(BlockedContent)
         .where(
-          and(eq(BlockedContent.id, input.id), eq(BlockedContent.userId, userId)),
+          and(
+            eq(BlockedContent.id, input.id),
+            eq(BlockedContent.userId, userId),
+          ),
         );
       return { success: true };
     }),
@@ -182,26 +185,48 @@ export const userRouter = {
       saved.map(async (s) => {
         if (s.contentType === "bill") {
           const [row] = await db
-            .select({ id: Bill.id, title: Bill.title, description: Bill.description })
+            .select({
+              id: Bill.id,
+              title: Bill.title,
+              description: Bill.description,
+            })
             .from(Bill)
             .where(eq(Bill.id, s.contentId))
             .limit(1);
-          return row ? { ...row, type: "bill" as const, savedAt: s.createdAt } : null;
+          return row
+            ? { ...row, type: "bill" as const, savedAt: s.createdAt }
+            : null;
         }
         if (s.contentType === "government_content") {
           const [row] = await db
-            .select({ id: GovernmentContent.id, title: GovernmentContent.title, description: GovernmentContent.description })
+            .select({
+              id: GovernmentContent.id,
+              title: GovernmentContent.title,
+              description: GovernmentContent.description,
+            })
             .from(GovernmentContent)
             .where(eq(GovernmentContent.id, s.contentId))
             .limit(1);
-          return row ? { ...row, type: "government_content" as const, savedAt: s.createdAt } : null;
+          return row
+            ? {
+                ...row,
+                type: "government_content" as const,
+                savedAt: s.createdAt,
+              }
+            : null;
         }
         const [row] = await db
-          .select({ id: CourtCase.id, title: CourtCase.title, description: CourtCase.description })
+          .select({
+            id: CourtCase.id,
+            title: CourtCase.title,
+            description: CourtCase.description,
+          })
           .from(CourtCase)
           .where(eq(CourtCase.id, s.contentId))
           .limit(1);
-        return row ? { ...row, type: "court_case" as const, savedAt: s.createdAt } : null;
+        return row
+          ? { ...row, type: "court_case" as const, savedAt: s.createdAt }
+          : null;
       }),
     );
 
@@ -219,7 +244,11 @@ export const userRouter = {
       const userId = ctx.session.user.id;
       await db
         .insert(SavedArticle)
-        .values({ userId, contentId: input.contentId, contentType: input.contentType })
+        .values({
+          userId,
+          contentId: input.contentId,
+          contentType: input.contentType,
+        })
         .onConflictDoNothing();
       return { success: true };
     }),

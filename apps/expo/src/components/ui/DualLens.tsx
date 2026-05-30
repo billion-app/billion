@@ -6,7 +6,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { colors, fontBody, hair, planes } from "~/styles";
-
 import { Icon } from "./Icon";
 
 export interface LensData {
@@ -37,7 +36,9 @@ export function LensStrip({
             {label}
           </Text>
         </View>
-        {onExpand && <Icon name="chevR" size={15} color={colors.textSecondary} />}
+        {onExpand && (
+          <Icon name="chevR" size={15} color={colors.textSecondary} />
+        )}
       </View>
       <View style={s.track}>
         <View style={[s.node, { left: "8%", backgroundColor: "#9aa0b3" }]} />
@@ -119,7 +120,12 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  stripHeadLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  stripHeadLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
   stripLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 12.5,
@@ -141,7 +147,11 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderColor: planes.navy,
   },
-  poles: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
+  poles: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
   pole: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 9.5,
@@ -155,7 +165,12 @@ const s = StyleSheet.create({
     borderRadius: 16,
     padding: 18,
   },
-  panelHead: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 14 },
+  panelHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    marginBottom: 14,
+  },
   panelIcon: {
     width: 32,
     height: 32,
@@ -164,7 +179,11 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  panelTitle: { fontFamily: "InriaSerif-Bold", fontSize: 17, color: colors.white },
+  panelTitle: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 17,
+    color: colors.white,
+  },
   panelSub: {
     fontFamily: "AlbertSans-Regular",
     fontSize: 12,

@@ -232,9 +232,7 @@ export const ElectionRecord = pgTable(
     source: t.varchar({ length: 50 }).notNull(),
     deadlines: t
       .jsonb()
-      .$type<
-        { date: string; description: string; type: string }[]
-      >()
+      .$type<{ date: string; description: string; type: string }[]>()
       .default([]),
     createdAt: t.timestamp().defaultNow().notNull(),
     updatedAt: t
@@ -342,16 +340,8 @@ export const UserPreference = pgTable(
   (t) => ({
     id: t.uuid().notNull().primaryKey().defaultRandom(),
     userId: t.text().notNull(),
-    topics: t
-      .jsonb()
-      .$type<string[]>()
-      .default([])
-      .notNull(),
-    contentTypes: t
-      .jsonb()
-      .$type<string[]>()
-      .default([])
-      .notNull(),
+    topics: t.jsonb().$type<string[]>().default([]).notNull(),
+    contentTypes: t.jsonb().$type<string[]>().default([]).notNull(),
     createdAt: t.timestamp().defaultNow().notNull(),
     updatedAt: t
       .timestamp({ mode: "date", withTimezone: true })

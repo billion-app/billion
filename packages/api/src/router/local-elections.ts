@@ -4,9 +4,9 @@ import { z } from "zod/v4";
 import { desc, eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
-  ElectionRecord,
-  ContestRecord,
   CandidateRecord,
+  ContestRecord,
+  ElectionRecord,
   PollingLocationRecord,
 } from "@acme/db/schema";
 
@@ -38,12 +38,13 @@ export const localElectionsRouter = {
 
       const contestsWithCandidates = await Promise.all(
         contests.map(async (contest) => {
-          const candidates = contest.type === "candidate"
-            ? await db
-                .select()
-                .from(CandidateRecord)
-                .where(eq(CandidateRecord.contestId, contest.id))
-            : [];
+          const candidates =
+            contest.type === "candidate"
+              ? await db
+                  .select()
+                  .from(CandidateRecord)
+                  .where(eq(CandidateRecord.contestId, contest.id))
+              : [];
           return { ...contest, candidates };
         }),
       );
@@ -55,9 +56,7 @@ export const localElectionsRouter = {
     .input(
       z.object({
         electionId: z.string().uuid().optional(),
-        type: z
-          .enum(["polling_place", "early_vote", "drop_box"])
-          .optional(),
+        type: z.enum(["polling_place", "early_vote", "drop_box"]).optional(),
       }),
     )
     .query(async ({ input }) => {

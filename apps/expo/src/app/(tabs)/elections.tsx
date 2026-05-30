@@ -51,7 +51,10 @@ export default function ElectionsScreen() {
   );
 
   const toggleSet = useCallback(
-    (setter: React.Dispatch<React.SetStateAction<Set<number>>>, idx: number) => {
+    (
+      setter: React.Dispatch<React.SetStateAction<Set<number>>>,
+      idx: number,
+    ) => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setter((prev) => {
         const next = new Set(prev);
@@ -410,7 +413,9 @@ export default function ElectionsScreen() {
                     onPress={() => toggleMeasure(i)}
                     style={s.measureHeader}
                   >
-                    <Text style={[s.measureTitle, { marginBottom: 0, flex: 1 }]}>
+                    <Text
+                      style={[s.measureTitle, { marginBottom: 0, flex: 1 }]}
+                    >
                       {m.referendumTitle}
                     </Text>
                     <Icon
@@ -491,8 +496,8 @@ export default function ElectionsScreen() {
         <View style={s.section}>
           <Card>
             <Text style={s.empty}>
-              No ballot information for this address yet. Tap Edit above to try a
-              different registered address.
+              No ballot information for this address yet. Tap Edit above to try
+              a different registered address.
             </Text>
           </Card>
         </View>

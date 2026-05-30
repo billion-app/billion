@@ -6,7 +6,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import type { ContentTypeKey } from "~/styles";
 import { colors, contentType, fontBody, hair, planes } from "~/styles";
-
 import { Icon } from "./Icon";
 import { Badge, Spine } from "./primitives";
 
@@ -59,7 +58,11 @@ export function ContentCard({
         {item.title}
       </Text>
       {item.gist ? (
-        <Text style={s.gist} numberOfLines={3} testID="content-card-description">
+        <Text
+          style={s.gist}
+          numberOfLines={3}
+          testID="content-card-description"
+        >
           {item.gist}
         </Text>
       ) : null}

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 
+import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker, PrimaryButton, ScreenShell } from "~/components/ui";
-import type { IconName } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
 
 const CATS: { id: string; label: string; icon: IconName }[] = [
@@ -84,7 +84,12 @@ export default function FeedbackScreen() {
 }
 
 const s = StyleSheet.create({
-  title: { fontFamily: "InriaSerif-Bold", fontSize: 19, color: colors.white, marginBottom: 6 },
+  title: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 19,
+    color: colors.white,
+    marginBottom: 6,
+  },
   intro: {
     fontFamily: "AlbertSans-Regular",
     fontSize: 14,
@@ -109,7 +114,12 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.white },
+  radioDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.white,
+  },
   textarea: {
     minHeight: 130,
     backgroundColor: planes.slate,
