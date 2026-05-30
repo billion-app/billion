@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  LayoutAnimation,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -12,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Contest } from "@acme/api";
 
 import { Text } from "~/components/Themed";
-import { Card, Icon, Kicker, LensStrip, TabScreen } from "~/components/ui";
+import { Card, Icon, Kicker, TabScreen } from "~/components/ui";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -42,6 +43,34 @@ export default function ElectionsScreen() {
   const { address: storedAddress, setAddress } = useUserAddress();
   const [input, setInput] = useState("");
   const [editing, setEditing] = useState(false);
+  const [expandedMeasures, setExpandedMeasures] = useState<Set<number>>(
+    new Set(),
+  );
+  const [expandedContests, setExpandedContests] = useState<Set<number>>(
+    new Set(),
+  );
+
+  const toggleSet = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<Set<number>>>, idx: number) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setter((prev) => {
+        const next = new Set(prev);
+        if (next.has(idx)) next.delete(idx);
+        else next.add(idx);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const toggleMeasure = useCallback(
+    (idx: number) => toggleSet(setExpandedMeasures, idx),
+    [toggleSet],
+  );
+  const toggleContest = useCallback(
+    (idx: number) => toggleSet(setExpandedContests, idx),
+    [toggleSet],
+  );
 
   // Fall back to the mock address until the user sets their own.
   const address = storedAddress ?? MOCK_ADDRESS;
@@ -164,35 +193,204 @@ export default function ElectionsScreen() {
         <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />
       )}
 
+      {/* ballot summary */}
+      {contests.length > 0 && (
+        <View style={s.section}>
+          <Kicker>What&apos;s on your ballot</Kicker>
+          <Card>
+            <Text style={s.summaryCount}>
+              {candidateContests.length} contest
+              {candidateContests.length !== 1 ? "s" : ""} · {measures.length}{" "}
+              measure{measures.length !== 1 ? "s" : ""}
+            </Text>
+            <View style={{ gap: 6, marginTop: 10 }}>
+              {candidateContests.map((c: Contest, ci: number) => {
+                const open = expandedContests.has(ci);
+                return (
+                  <View key={`c-${ci}`}>
+                    <TouchableOpacity
+                      style={s.summaryRow}
+                      activeOpacity={0.7}
+                      onPress={() => toggleContest(ci)}
+                    >
+                      <Icon name="vote" size={14} color={colors.bill} />
+                      <Text style={s.summaryText} numberOfLines={1}>
+                        {c.office}
+                      </Text>
+                      <Icon
+                        name={open ? "chevD" : "chevR"}
+                        size={12}
+                        color="#5B6172"
+                      />
+                    </TouchableOpacity>
+                    {open && (
+                      <View style={s.summaryNested}>
+                        {c.candidates?.map((cand, j) => (
+                          <View key={j} style={s.summaryNestedRow}>
+                            <View style={s.partyTile}>
+                              <Text
+                                style={[
+                                  s.partyText,
+                                  { color: partyColor(cand.party) },
+                                ]}
+                              >
+                                {partyInitial(cand.party)}
+                              </Text>
+                            </View>
+                            <Text style={s.summaryText} numberOfLines={1}>
+                              {cand.name}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+              {measures.map((m: Contest, mi: number) => {
+                const mOpen = expandedMeasures.has(mi);
+                return (
+                  <View key={`m-${mi}`}>
+                    <TouchableOpacity
+                      style={s.summaryRow}
+                      activeOpacity={0.7}
+                      onPress={() => toggleMeasure(mi)}
+                    >
+                      <Icon name="scale" size={14} color={colors.yellow[500]} />
+                      <Text style={s.summaryText} numberOfLines={1}>
+                        {m.referendumTitle}
+                      </Text>
+                      <Icon
+                        name={mOpen ? "chevD" : "chevR"}
+                        size={12}
+                        color="#5B6172"
+                      />
+                    </TouchableOpacity>
+                    {mOpen && (
+                      <View style={s.summaryNested}>
+                        {m.referendumSubtitle ? (
+                          <Text style={s.measureSub}>
+                            {m.referendumSubtitle}
+                          </Text>
+                        ) : null}
+                        {m.referendumProStatement ? (
+                          <View style={s.stanceRow}>
+                            <View
+                              style={[
+                                s.stanceDot,
+                                { backgroundColor: colors.green[500] },
+                              ]}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.stanceLabel}>YES</Text>
+                              <Text style={s.stanceText}>
+                                {m.referendumProStatement}
+                              </Text>
+                            </View>
+                          </View>
+                        ) : null}
+                        {m.referendumConStatement ? (
+                          <View style={s.stanceRow}>
+                            <View
+                              style={[
+                                s.stanceDot,
+                                { backgroundColor: colors.red[500] },
+                              ]}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.stanceLabel}>NO</Text>
+                              <Text style={s.stanceText}>
+                                {m.referendumConStatement}
+                              </Text>
+                            </View>
+                          </View>
+                        ) : null}
+                        <TouchableOpacity
+                          style={s.readMoreBtn}
+                          activeOpacity={0.8}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/measure-detail",
+                              params: {
+                                referendumTitle: m.referendumTitle ?? "",
+                                referendumSubtitle: m.referendumSubtitle ?? "",
+                                referendumProStatement:
+                                  m.referendumProStatement ?? "",
+                                referendumConStatement:
+                                  m.referendumConStatement ?? "",
+                                referendumText: m.referendumText ?? "",
+                                referendumUrl: m.referendumUrl ?? "",
+                              },
+                            })
+                          }
+                        >
+                          <Icon name="doc" size={15} color={colors.bill} />
+                          <Text style={s.readMoreText}>Read full measure</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </Card>
+        </View>
+      )}
+
       {/* contests */}
       {candidateContests.length > 0 && (
         <View style={s.section}>
           <Kicker>Contests on your ballot</Kicker>
           <View style={{ gap: 14 }}>
             {candidateContests.map((c: Contest, i: number) => (
-              <Card key={i}>
-                <Text style={s.contestOffice}>{c.office}</Text>
-                <View style={{ gap: 10 }}>
-                  {c.candidates?.map((cand, j) => (
-                    <View key={j} style={s.candRow}>
-                      <View style={s.partyTile}>
-                        <Text
-                          style={[s.partyText, { color: partyColor(cand.party) }]}
-                        >
-                          {partyInitial(cand.party)}
-                        </Text>
+              <TouchableOpacity
+                key={i}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: "/contest-detail",
+                    params: {
+                      office: c.office ?? "",
+                      roles: JSON.stringify(c.roles ?? []),
+                      levels: JSON.stringify(c.level ?? []),
+                      candidates: JSON.stringify(c.candidates ?? []),
+                      districtName: c.district?.name ?? "",
+                    },
+                  })
+                }
+              >
+                <Card>
+                  <Text style={s.contestOffice}>{c.office}</Text>
+                  <View style={{ gap: 10 }}>
+                    {c.candidates?.map((cand, j) => (
+                      <View key={j} style={s.candRow}>
+                        <View style={s.partyTile}>
+                          <Text
+                            style={[
+                              s.partyText,
+                              { color: partyColor(cand.party) },
+                            ]}
+                          >
+                            {partyInitial(cand.party)}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.candName}>{cand.name}</Text>
+                          {cand.party ? (
+                            <Text style={s.candNote}>{cand.party}</Text>
+                          ) : null}
+                        </View>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.candName}>{cand.name}</Text>
-                        {cand.party ? (
-                          <Text style={s.candNote}>{cand.party}</Text>
-                        ) : null}
-                      </View>
-                      <Icon name="chevR" size={16} color="#5B6172" />
-                    </View>
-                  ))}
-                </View>
-              </Card>
+                    ))}
+                  </View>
+                  <Icon
+                    name="chevR"
+                    size={16}
+                    color="#5B6172"
+                    style={{ position: "absolute", right: 16, top: 18 }}
+                  />
+                </Card>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -203,13 +401,88 @@ export default function ElectionsScreen() {
         <View style={s.section}>
           <Kicker>Ballot measures</Kicker>
           <View style={{ gap: 14 }}>
-            {measures.map((m: Contest, i: number) => (
-              <Card key={i} style={{ padding: 18 }}>
-                <Text style={s.measureTitle}>{m.referendumTitle}</Text>
-                {/* TODO(backend): real per-side framing for the measure. */}
-                <LensStrip label="A YES vote vs. a NO vote" />
-              </Card>
-            ))}
+            {measures.map((m: Contest, i: number) => {
+              const expanded = expandedMeasures.has(i);
+              return (
+                <Card key={i} style={{ padding: 18 }}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => toggleMeasure(i)}
+                    style={s.measureHeader}
+                  >
+                    <Text style={[s.measureTitle, { marginBottom: 0, flex: 1 }]}>
+                      {m.referendumTitle}
+                    </Text>
+                    <Icon
+                      name={expanded ? "chevD" : "chevR"}
+                      size={16}
+                      color="#5B6172"
+                    />
+                  </TouchableOpacity>
+                  {expanded && (
+                    <View style={s.measureBody}>
+                      {m.referendumSubtitle ? (
+                        <Text style={s.measureSub}>{m.referendumSubtitle}</Text>
+                      ) : null}
+                      {m.referendumProStatement ? (
+                        <View style={s.stanceRow}>
+                          <View
+                            style={[
+                              s.stanceDot,
+                              { backgroundColor: colors.green[500] },
+                            ]}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.stanceLabel}>A YES vote means</Text>
+                            <Text style={s.stanceText}>
+                              {m.referendumProStatement}
+                            </Text>
+                          </View>
+                        </View>
+                      ) : null}
+                      {m.referendumConStatement ? (
+                        <View style={s.stanceRow}>
+                          <View
+                            style={[
+                              s.stanceDot,
+                              { backgroundColor: colors.red[500] },
+                            ]}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.stanceLabel}>A NO vote means</Text>
+                            <Text style={s.stanceText}>
+                              {m.referendumConStatement}
+                            </Text>
+                          </View>
+                        </View>
+                      ) : null}
+                      <TouchableOpacity
+                        style={s.readMoreBtn}
+                        activeOpacity={0.8}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/measure-detail",
+                            params: {
+                              referendumTitle: m.referendumTitle ?? "",
+                              referendumSubtitle: m.referendumSubtitle ?? "",
+                              referendumProStatement:
+                                m.referendumProStatement ?? "",
+                              referendumConStatement:
+                                m.referendumConStatement ?? "",
+                              referendumText: m.referendumText ?? "",
+                              referendumUrl: m.referendumUrl ?? "",
+                            },
+                          })
+                        }
+                      >
+                        <Icon name="doc" size={15} color={colors.bill} />
+                        <Text style={s.readMoreText}>Read full measure</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </Card>
+              );
+            })}
           </View>
         </View>
       )}
@@ -360,11 +633,80 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
+  summaryCount: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  summaryText: {
+    fontFamily: fontBody.medium,
+    fontSize: 13.5,
+    color: colors.white,
+    flex: 1,
+  },
+  summaryNested: {
+    marginLeft: 22,
+    marginTop: 4,
+    gap: 4,
+  },
+  summaryNestedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  measureHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   measureTitle: {
     fontFamily: "InriaSerif-Bold",
     fontSize: 17,
     color: colors.white,
     marginBottom: 12,
+  },
+  measureBody: { marginTop: 14, gap: 12 },
+  measureSub: {
+    fontFamily: fontBody.regular,
+    fontSize: 13.5,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  stanceRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
+  stanceDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
+  stanceLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12.5,
+    color: colors.white,
+    marginBottom: 3,
+  },
+  stanceText: {
+    fontFamily: fontBody.regular,
+    fontSize: 13.5,
+    color: "rgba(255,255,255,0.8)",
+    lineHeight: 20,
+  },
+  readMoreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    alignSelf: "flex-start",
+    backgroundColor: planes.surface,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 4,
+  },
+  readMoreText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13.5,
+    color: colors.bill,
   },
   empty: {
     fontFamily: "AlbertSans-Regular",
