@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import { Card, GhostButton, Icon, ScreenShell, Toggle } from "~/components/ui";
-import type { IconName } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 
@@ -63,18 +63,18 @@ export default function PrivacyScreen() {
   });
 
   const [state, setState] = useState<Record<Key, boolean>>(DEFAULTS);
+  const [synced, setSynced] = useState(false);
 
-  useEffect(() => {
-    if (settingsQuery.data) {
-      setState({
-        location: settingsQuery.data.location ?? DEFAULTS.location,
-        personalize: settingsQuery.data.personalize ?? DEFAULTS.personalize,
-        analytics: settingsQuery.data.analytics ?? DEFAULTS.analytics,
-        crash: settingsQuery.data.crash ?? DEFAULTS.crash,
-        offline: settingsQuery.data.offline ?? DEFAULTS.offline,
-      });
-    }
-  }, [settingsQuery.data]);
+  if (settingsQuery.data && !synced) {
+    setState({
+      location: settingsQuery.data.location,
+      personalize: settingsQuery.data.personalize,
+      analytics: settingsQuery.data.analytics,
+      crash: settingsQuery.data.crash,
+      offline: settingsQuery.data.offline,
+    });
+    setSynced(true);
+  }
 
   const toggle = (k: Key) => {
     const newVal = !state[k];

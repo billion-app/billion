@@ -2,8 +2,8 @@ import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { Text } from "~/components/Themed";
-import { Card, Icon, Kicker, NavHeader, PrimaryButton } from "~/components/ui";
-import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
+import { Card, Kicker, NavHeader, PrimaryButton } from "~/components/ui";
+import { colors, fontBody, fontDisplay, planes } from "~/styles";
 
 export default function MeasureDetailScreen() {
   const router = useRouter();
@@ -42,7 +42,12 @@ export default function MeasureDetailScreen() {
               {params.referendumProStatement ? (
                 <Card>
                   <View style={s.stanceHeader}>
-                    <View style={[s.stanceDot, { backgroundColor: colors.green[500] }]} />
+                    <View
+                      style={[
+                        s.stanceDot,
+                        { backgroundColor: colors.green[500] },
+                      ]}
+                    />
                     <Text style={s.stanceLabel}>A YES vote means</Text>
                   </View>
                   <Text style={s.stanceText}>
@@ -53,7 +58,12 @@ export default function MeasureDetailScreen() {
               {params.referendumConStatement ? (
                 <Card>
                   <View style={s.stanceHeader}>
-                    <View style={[s.stanceDot, { backgroundColor: colors.red[500] }]} />
+                    <View
+                      style={[
+                        s.stanceDot,
+                        { backgroundColor: colors.red[500] },
+                      ]}
+                    />
                     <Text style={s.stanceLabel}>A NO vote means</Text>
                   </View>
                   <Text style={s.stanceText}>
@@ -81,7 +91,7 @@ export default function MeasureDetailScreen() {
             <PrimaryButton
               label="View official source"
               icon="external"
-              onPress={() => void Linking.openURL(params.referendumUrl!)}
+              onPress={() => void Linking.openURL(params.referendumUrl)}
             />
           </View>
         ) : null}

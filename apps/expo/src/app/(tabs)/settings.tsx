@@ -1,8 +1,9 @@
-import { StyleSheet, TouchableOpacity, View } from "react-native";
 import type { Href } from "expo-router";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import {
   Avatar,
@@ -13,7 +14,6 @@ import {
   SettingsRow,
   TabScreen,
 } from "~/components/ui";
-import type { IconName } from "~/components/ui";
 import { colors, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -38,7 +38,10 @@ interface Item {
   route: Href;
 }
 
-function buildGroups(email: string, topicCount: number): { title: string; items: Item[] }[] {
+function buildGroups(
+  email: string,
+  topicCount: number,
+): { title: string; items: Item[] }[] {
   return [
     {
       title: "Account",
@@ -89,7 +92,11 @@ function buildGroups(email: string, topicCount: number): { title: string; items:
       title: "Support",
       items: [
         { icon: "help", label: "Help & FAQ", route: "/settings/help" },
-        { icon: "message", label: "Send Feedback", route: "/settings/feedback" },
+        {
+          icon: "message",
+          label: "Send Feedback",
+          route: "/settings/feedback",
+        },
         {
           icon: "info",
           label: "About Billion",
@@ -113,7 +120,7 @@ export default function SettingsScreen() {
     ? formatMemberSince(new Date(sessionUser.createdAt))
     : "";
   const profileEmail = sessionUser?.email ?? "";
-  const topicCount = prefsQuery.data?.topics?.length ?? 0;
+  const topicCount = prefsQuery.data?.topics.length ?? 0;
 
   return (
     <TabScreen title="Settings" contentStyle={{ gap: 22 }}>

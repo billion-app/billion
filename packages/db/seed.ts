@@ -205,8 +205,7 @@ Cybersecurity experts broadly support the order, though some question whether th
     source: "whitehouse.gov",
   },
   {
-    title:
-      "Memorandum on Modernizing Federal Student Loan Servicing",
+    title: "Memorandum on Modernizing Federal Student Loan Servicing",
     type: "Memorandum",
     publishedDate: daysAgo(8),
     description:
@@ -258,8 +257,7 @@ Fire scientists and emergency managers applaud the attention but say preparednes
     source: "whitehouse.gov",
   },
   {
-    title:
-      "Statement on the Federal Reserve Interest Rate Decision",
+    title: "Statement on the Federal Reserve Interest Rate Decision",
     type: "News Article",
     publishedDate: daysAgo(3),
     description:
@@ -384,7 +382,11 @@ async function seed() {
     .insert(Bill)
     .values(bills)
     .onConflictDoNothing()
-    .returning({ id: Bill.id, title: Bill.title, contentHash: Bill.contentHash });
+    .returning({
+      id: Bill.id,
+      title: Bill.title,
+      contentHash: Bill.contentHash,
+    });
   console.log(`  ${insertedBills.length} bills inserted`);
 
   console.log("Inserting government content...");

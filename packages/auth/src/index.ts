@@ -13,10 +13,12 @@ function expoPlugin(options?: { disableOriginOverride?: boolean }) {
       return {
         options: {
           trustedOrigins:
+            // eslint-disable-next-line no-restricted-properties
             process.env.NODE_ENV === "development" ? ["exp://"] : [],
         },
       };
     },
+    // eslint-disable-next-line @typescript-eslint/require-await
     async onRequest(request: Request) {
       if (options?.disableOriginOverride || request.headers.get("origin"))
         return;
@@ -38,13 +40,16 @@ function expoPlugin(options?: { disableOriginOverride?: boolean }) {
       after: [
         {
           matcher(context: { path?: string | null }) {
+            /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
             return !!(
               context.path?.startsWith("/callback") ||
               context.path?.startsWith("/oauth2/callback") ||
               context.path?.startsWith("/magic-link/verify") ||
               context.path?.startsWith("/verify-email")
             );
+            /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
           },
+          // eslint-disable-next-line @typescript-eslint/require-await
           handler: createAuthMiddleware(async (ctx) => {
             const headers = ctx.context.responseHeaders;
             const location = headers?.get("location");

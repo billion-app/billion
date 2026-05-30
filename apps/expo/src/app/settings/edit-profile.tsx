@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
@@ -22,24 +22,26 @@ export default function EditProfileScreen() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [synced, setSynced] = useState(false);
 
-  useEffect(() => {
-    if (sessionUser) {
-      setName(sessionUser.name ?? "");
-      setEmail(sessionUser.email ?? "");
-    }
-  }, [sessionUser]);
+  if (sessionUser && !synced) {
+    setName(sessionUser.name);
+    setEmail(sessionUser.email);
+    setSynced(true);
+  }
 
   const updateProfile = useMutation({
     ...trpc.user.updateProfile.mutationOptions(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: trpc.auth.getSession.queryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: trpc.auth.getSession.queryKey(),
+      });
     },
   });
 
   const fields = [
     { label: "DISPLAY NAME", value: name, set: setName },
-    { label: "EMAIL", value: email, set: undefined as undefined },
+    { label: "EMAIL", value: email, set: undefined },
   ];
 
   const handleSave = () => {
