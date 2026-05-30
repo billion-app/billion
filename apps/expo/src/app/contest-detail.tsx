@@ -71,10 +71,14 @@ export default function ContestDetailScreen() {
   }>();
 
   const candidates: CandidateParam[] = params.candidates
-    ? JSON.parse(params.candidates)
+    ? (JSON.parse(params.candidates) as CandidateParam[])
     : [];
-  const roles = params.roles ? JSON.parse(params.roles) : undefined;
-  const levels = params.levels ? JSON.parse(params.levels) : undefined;
+  const roles: string[] | undefined = params.roles
+    ? (JSON.parse(params.roles) as string[])
+    : undefined;
+  const levels: string[] | undefined = params.levels
+    ? (JSON.parse(params.levels) as string[])
+    : undefined;
   const description = getOfficeDescription(roles, levels);
 
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -113,7 +117,7 @@ export default function ContestDetailScreen() {
 
         <View style={s.section}>
           <Kicker>
-            {candidates.length} candidate{candidates.length !== 1 ? "s" : ""}
+            {`${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
           </Kicker>
           <View style={{ gap: 12 }}>
             {candidates.map((cand, i) => {
@@ -123,6 +127,7 @@ export default function ContestDetailScreen() {
                   icon: "globe" as const,
                   label: "Website",
                   value: cand.candidateUrl,
+                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                   onPress: () => void Linking.openURL(cand.candidateUrl!),
                 },
                 cand.phone && {
@@ -206,7 +211,10 @@ export default function ContestDetailScreen() {
                       {cand.channels && cand.channels.length > 0 && (
                         <View style={s.channelsWrap}>
                           {cand.channels.map((ch) => (
-                            <View key={`${ch.type}-${ch.id}`} style={s.contactRow}>
+                            <View
+                              key={`${ch.type}-${ch.id}`}
+                              style={s.contactRow}
+                            >
                               <Icon
                                 name="globe"
                                 size={16}

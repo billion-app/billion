@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { Text } from "~/components/Themed";
-import { Badge, Card, Kicker, Pill, ScreenShell, Toggle } from "~/components/ui";
 import type { ContentTypeKey } from "~/styles";
+import { Text } from "~/components/Themed";
+import {
+  Badge,
+  Card,
+  Kicker,
+  Pill,
+  ScreenShell,
+  Toggle,
+} from "~/components/ui";
 import { colors, fontBody, hair } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 
@@ -43,13 +50,13 @@ export default function ContentInterestsScreen() {
 
   const [topics, setTopics] = useState(new Set<string>());
   const [cats, setCats] = useState(new Set<ContentTypeKey>());
+  const [synced, setSynced] = useState(false);
 
-  useEffect(() => {
-    if (prefsQuery.data) {
-      setTopics(new Set(prefsQuery.data.topics));
-      setCats(new Set(prefsQuery.data.contentTypes as ContentTypeKey[]));
-    }
-  }, [prefsQuery.data]);
+  if (prefsQuery.data && !synced) {
+    setTopics(new Set(prefsQuery.data.topics));
+    setCats(new Set(prefsQuery.data.contentTypes as ContentTypeKey[]));
+    setSynced(true);
+  }
 
   const save = useCallback(
     (newTopics: Set<string>, newCats: Set<ContentTypeKey>) => {
@@ -101,10 +108,7 @@ export default function ContentInterestsScreen() {
       <Kicker>Content types</Kicker>
       <Card flush>
         {CATS.map((c, i) => (
-          <View
-            key={c.id}
-            style={[s.catRow, i < CATS.length - 1 && s.divider]}
-          >
+          <View key={c.id} style={[s.catRow, i < CATS.length - 1 && s.divider]}>
             <Badge type={c.id} />
             <Text style={s.catLabel}>{c.label}</Text>
             <Toggle on={cats.has(c.id)} onChange={() => toggleCat(c.id)} />

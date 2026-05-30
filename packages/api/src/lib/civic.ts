@@ -222,6 +222,7 @@ async function fetchCivicApi<T>(
 function futureDate(daysFromNow: number): string {
   const d = new Date();
   d.setDate(d.getDate() + daysFromNow);
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return d.toISOString().split("T")[0]!;
 }
 
@@ -243,6 +244,7 @@ const MOCK_ELECTIONS: Election[] = [
 function getMockVoterInfo(address: string): VoterInfoResponse {
   return {
     kind: "civicinfo#voterInfoResponse",
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     election: MOCK_ELECTIONS[0]!,
     normalizedInput: {
       line1: address.split(",")[0] ?? address,
@@ -284,9 +286,16 @@ function getMockVoterInfo(address: string): VoterInfoResponse {
         office: "U.S. Representative, District 17",
         level: ["country"],
         roles: ["legislatorLowerBody"],
-        district: { name: "California's 17th Congressional District", scope: "congressional" },
+        district: {
+          name: "California's 17th Congressional District",
+          scope: "congressional",
+        },
         candidates: [
-          { name: "Ro Khanna", party: "Democratic", candidateUrl: "https://example.com" },
+          {
+            name: "Ro Khanna",
+            party: "Democratic",
+            candidateUrl: "https://example.com",
+          },
           { name: "Anita Chen", party: "Republican" },
         ],
       },
@@ -295,7 +304,10 @@ function getMockVoterInfo(address: string): VoterInfoResponse {
         office: "State Senator, District 15",
         level: ["administrativeArea1"],
         roles: ["legislatorUpperBody"],
-        district: { name: "California State Senate District 15", scope: "stateUpper" },
+        district: {
+          name: "California State Senate District 15",
+          scope: "stateUpper",
+        },
         candidates: [
           { name: "Dave Cortese", party: "Democratic" },
           { name: "Robert Singh", party: "Republican" },
@@ -318,7 +330,10 @@ function getMockVoterInfo(address: string): VoterInfoResponse {
         office: "City Council, District 3",
         level: ["locality"],
         roles: ["legislatorLowerBody"],
-        district: { name: "San Jose City Council District 3", scope: "cityCouncil" },
+        district: {
+          name: "San Jose City Council District 3",
+          scope: "cityCouncil",
+        },
         candidates: [
           { name: "Omar Hernandez", party: "Nonpartisan" },
           { name: "Jennifer Wu", party: "Nonpartisan" },
@@ -327,23 +342,32 @@ function getMockVoterInfo(address: string): VoterInfoResponse {
       {
         type: "Referendum",
         referendumTitle: "Measure A — Affordable Housing Bond",
-        referendumSubtitle: "Shall the City of San Jose issue $450 million in general obligation bonds to fund affordable housing construction and rehabilitation?",
-        referendumProStatement: "Addresses critical housing shortage. Creates thousands of affordable units for working families, seniors, and veterans.",
-        referendumConStatement: "Increases property taxes by approximately $19.60 per $100,000 of assessed value. Adds to existing city debt obligations.",
+        referendumSubtitle:
+          "Shall the City of San Jose issue $450 million in general obligation bonds to fund affordable housing construction and rehabilitation?",
+        referendumProStatement:
+          "Addresses critical housing shortage. Creates thousands of affordable units for working families, seniors, and veterans.",
+        referendumConStatement:
+          "Increases property taxes by approximately $19.60 per $100,000 of assessed value. Adds to existing city debt obligations.",
       },
       {
         type: "Referendum",
         referendumTitle: "Measure B — Parks and Recreation Funding",
-        referendumSubtitle: "Shall the City authorize a 1/8-cent sales tax increase to fund park maintenance, recreational programs, and new green spaces?",
-        referendumProStatement: "Invests in neighborhood parks and youth programs. All funds stay local with independent oversight.",
-        referendumConStatement: "Sales tax increases disproportionately affect lower-income residents. City should prioritize existing revenue for parks.",
+        referendumSubtitle:
+          "Shall the City authorize a 1/8-cent sales tax increase to fund park maintenance, recreational programs, and new green spaces?",
+        referendumProStatement:
+          "Invests in neighborhood parks and youth programs. All funds stay local with independent oversight.",
+        referendumConStatement:
+          "Sales tax increases disproportionately affect lower-income residents. City should prioritize existing revenue for parks.",
       },
       {
         type: "Referendum",
         referendumTitle: "Measure C — Police Oversight Commission",
-        referendumSubtitle: "Shall the City Charter be amended to establish an independent Police Oversight Commission with subpoena power?",
-        referendumProStatement: "Creates accountability and transparency in policing. Commission would have independent investigative authority.",
-        referendumConStatement: "Duplicates existing oversight structures. Could interfere with active investigations and officer due process rights.",
+        referendumSubtitle:
+          "Shall the City Charter be amended to establish an independent Police Oversight Commission with subpoena power?",
+        referendumProStatement:
+          "Creates accountability and transparency in policing. Commission would have independent investigative authority.",
+        referendumConStatement:
+          "Duplicates existing oversight structures. Could interfere with active investigations and officer due process rights.",
       },
     ],
     state: [
@@ -465,7 +489,12 @@ export async function getRepresentatives(
   if (!getApiKey()) {
     return {
       kind: "civicinfo#representativeInfoResponse",
-      normalizedInput: { line1: address, city: "San Jose", state: "CA", zip: "95112" },
+      normalizedInput: {
+        line1: address,
+        city: "San Jose",
+        state: "CA",
+        zip: "95112",
+      },
       divisions: {},
       offices: MOCK_REPRESENTATIVES.map((r, i) => ({
         name: r.office,
