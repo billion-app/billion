@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -7,21 +6,20 @@ import { Text } from "~/components/Themed";
 import { ContentCard, Icon, ScreenShell } from "~/components/ui";
 import { colors } from "~/styles";
 import { trpc } from "~/utils/api";
-import type { ContentItem } from "~/utils/content";
 import { toCardItem } from "~/utils/content";
 
-// TODO(backend): real saved-articles list per user. For now we show a sample
-// drawn from live content so the screen is representative.
 export default function SavedArticlesScreen() {
   const router = useRouter();
-  const { data, isLoading } = useQuery(
-    trpc.content.getByType.queryOptions({ type: "all" }),
-  );
+  const { data, isLoading } = useQuery(trpc.user.getSaved.queryOptions());
 
-  const list = useMemo<ContentItem[]>(
-    () => ((data as ContentItem[] | undefined) ?? []).slice(0, 3),
-    [data],
-  );
+  const list = (data ?? [])
+    .filter((item): item is NonNullable<typeof item> => item != null)
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      description: item.description ?? "",
+      type: item.type,
+    }));
 
   return (
     <ScreenShell

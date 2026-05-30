@@ -11,7 +11,7 @@ import {
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "@ronradtke/react-native-markdown-display";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import {
@@ -37,7 +37,7 @@ import {
   resolveType,
   useTheme,
 } from "~/styles";
-import { trpc } from "~/utils/api";
+import { queryClient, trpc } from "~/utils/api";
 
 // TODO(backend): real per-side framing per content item.
 const PLACEHOLDER_LENS = {
@@ -64,12 +64,43 @@ export default function ArticleDetailScreen() {
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
-  const [saved, setSaved] = useState(false);
 
   const { data: content, isLoading, error } = useQuery({
     ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
     enabled: !!articleId,
   });
+
+  const savedQuery = useQuery({
+    ...trpc.user.isArticleSaved.queryOptions({ contentId: articleId ?? "" }),
+    enabled: !!articleId,
+  });
+  const saved = savedQuery.data?.saved ?? false;
+
+  const saveMutation = useMutation({
+    ...trpc.user.saveArticle.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.isArticleSaved.queryKey({ contentId: articleId ?? "" }),
+      });
+    },
+  });
+  const unsaveMutation = useMutation({
+    ...trpc.user.unsaveArticle.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.isArticleSaved.queryKey({ contentId: articleId ?? "" }),
+      });
+    },
+  });
+
+  const toggleSave = () => {
+    if (!articleId || !content) return;
+    if (saved) {
+      unsaveMutation.mutate({ contentId: articleId });
+    } else {
+      saveMutation.mutate({ contentId: articleId, contentType: content.type });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -153,13 +184,24 @@ export default function ArticleDetailScreen() {
   const renderMarkdown =
     activeContent.length <= 20000 && (content.isAIGenerated || looksLikeMarkdown);
 
-  // TODO(backend): real status timeline per content item.
-  const timeline = [
-    { label: "Introduced", done: true },
-    { label: "Committee review", done: true },
-    { label: "Latest action", done: true, current: true },
-    { label: "Becomes law", done: false },
-  ];
+  const actions =
+    "actions" in content ? (content.actions as { date: string; text: string }[]) : [];
+  const timeline =
+    actions.length > 0
+      ? actions
+          .slice()
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .map((a, i, arr) => ({
+            label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
+            done: true,
+            current: i === arr.length - 1,
+          }))
+      : [
+          { label: "Introduced", done: true, current: false },
+          { label: "Committee review", done: true, current: false },
+          { label: "Latest action", done: true, current: true },
+          { label: "Becomes law", done: false, current: false },
+        ];
 
   return (
     <View style={s.screen}>
@@ -167,7 +209,7 @@ export default function ArticleDetailScreen() {
         title={t.label}
         onBack={() => router.back()}
         action={
-          <TouchableOpacity onPress={() => setSaved((v) => !v)} hitSlop={8}>
+          <TouchableOpacity onPress={toggleSave} hitSlop={8}>
             <Icon
               name={saved ? "bookmarkFill" : "bookmark"}
               size={21}
