@@ -186,6 +186,33 @@ async function fetchFullText(
   return undefined;
 }
 
+interface ApiAction {
+  actionDate: string;
+  text: string;
+  type?: string;
+  actionCode?: string;
+}
+
+async function fetchActions(
+  congress: number,
+  billType: string,
+  billNumber: string,
+): Promise<{ date: string; text: string; type?: string }[]> {
+  try {
+    const data = await congressFetch<{ actions: ApiAction[] }>(
+      `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/actions`,
+    );
+    if (!data.actions?.length) return [];
+    return data.actions.map((a) => ({
+      date: a.actionDate,
+      text: a.text,
+      type: a.type,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 async function scrape(config: CongressScraperConfig = {}) {
   const { maxBills = 100, congress = 119, chamber = "House" } = config;
 
@@ -275,6 +302,7 @@ async function scrape(config: CongressScraperConfig = {}) {
 
           const summary = await fetchSummary(congress, billType, billNumber);
           const fullText = await fetchFullText(congress, billType, billNumber);
+          const actions = await fetchActions(congress, billType, billNumber);
 
           await upsertContent({
             type: "bill",
@@ -289,6 +317,7 @@ async function scrape(config: CongressScraperConfig = {}) {
               chamber: chamberValue,
               summary,
               fullText,
+              actions,
               url: billUrl,
               sourceWebsite: "congress.gov",
             },
