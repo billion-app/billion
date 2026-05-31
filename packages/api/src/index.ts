@@ -75,28 +75,6 @@ export type {
   LegislationQuery,
 } from "./integrations/legistar";
 
-// California Secretary of State Election Results API
-export {
-  CASOSClient,
-  CASOSError,
-  CA_COUNTIES,
-  getCASOSClient,
-  createCASOSClient,
-} from "./clients/ca-sos";
-export type {
-  Election as CAElection,
-  Contest as CAContest,
-  Candidate as CACandidate,
-  ContestResult,
-  ContestResultWithCounties,
-  CountyResult,
-  VoteTotal,
-  ElectionStatus,
-  ElectionType,
-  ContestType as CAContestType,
-  CountyCode,
-  CASOSClientConfig,
-} from "./clients/ca-sos";
 
 /**
  * Inference helpers for input types
