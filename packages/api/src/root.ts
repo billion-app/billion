@@ -1,7 +1,6 @@
 import { authRouter } from "./router/auth";
 import { civicRouter } from "./router/civic";
 import { contentRouter } from "./router/content";
-import { electionsRouter } from "./router/elections";
 import { legistarRouter } from "./router/legistar";
 import { postRouter } from "./router/post";
 import { userRouter } from "./router/user";
@@ -15,7 +14,6 @@ export const appRouter = createTRPCRouter({
   post: postRouter,
   content: contentRouter,
   video: videoRouter,
-  caElections: electionsRouter,
   user: userRouter,
 });
 
