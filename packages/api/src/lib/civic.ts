@@ -4,10 +4,94 @@
  * API Reference: https://developers.google.com/civic-information/docs/v2
  */
 
+import { createHash } from "crypto";
+
+import { and, eq, gt } from "@acme/db";
+import { db } from "@acme/db/client";
+import { CivicApiCache } from "@acme/db/schema";
+
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
 function getApiKey(): string | null {
   return process.env.GOOGLE_CIVIC_API_KEY ?? null;
+}
+
+// ============================================================================
+// DB Cache Helpers
+// ============================================================================
+
+const CACHE_TTL = {
+  elections: 7 * 24 * 60 * 60 * 1000,
+  voterinfo: 24 * 60 * 60 * 1000,
+  representatives: 30 * 24 * 60 * 60 * 1000,
+  representativesEnriched: 30 * 24 * 60 * 60 * 1000,
+} as const;
+
+function hashAddress(address: string): string {
+  return createHash("sha256").update(address.toLowerCase().trim()).digest("hex");
+}
+
+function stableStringify(obj: Record<string, unknown>): string {
+  return JSON.stringify(obj, Object.keys(obj).sort());
+}
+
+async function getCached<T>(
+  addressOrGlobal: string,
+  endpoint: string,
+  params: Record<string, unknown> = {},
+): Promise<T | null> {
+  const hash =
+    addressOrGlobal === "__global__"
+      ? "__global__"
+      : hashAddress(addressOrGlobal);
+  const paramsStr = stableStringify(params);
+  const [row] = await db
+    .select()
+    .from(CivicApiCache)
+    .where(
+      and(
+        eq(CivicApiCache.addressHash, hash),
+        eq(CivicApiCache.endpoint, endpoint),
+        eq(CivicApiCache.params, paramsStr),
+        gt(CivicApiCache.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  return row ? (row.responseData as T) : null;
+}
+
+async function setCache(
+  addressOrGlobal: string,
+  endpoint: string,
+  params: Record<string, unknown>,
+  data: unknown,
+  ttlMs: number,
+): Promise<void> {
+  const hash =
+    addressOrGlobal === "__global__"
+      ? "__global__"
+      : hashAddress(addressOrGlobal);
+  const paramsStr = stableStringify(params);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + ttlMs);
+  await db
+    .insert(CivicApiCache)
+    .values({
+      addressHash: hash,
+      endpoint,
+      params: paramsStr,
+      responseData: data,
+      fetchedAt: now,
+      expiresAt,
+    })
+    .onConflictDoUpdate({
+      target: [
+        CivicApiCache.addressHash,
+        CivicApiCache.endpoint,
+        CivicApiCache.params,
+      ],
+      set: { responseData: data, fetchedAt: now, expiresAt },
+    });
 }
 
 // ============================================================================
@@ -425,13 +509,16 @@ const MOCK_REPRESENTATIVES: Representative[] = [
  * @returns List of elections visible to the API
  */
 export async function getElections(): Promise<Election[]> {
+  const cached = await getCached<Election[]>("__global__", "elections");
+  if (cached) return cached;
+
   if (!getApiKey()) return MOCK_ELECTIONS;
-  // Google sunset the Civic API election endpoints, so a configured key can
-  // still come back empty or error. Fall back to mock data so the app always
-  // has an upcoming election to show.
   try {
     const response = await fetchCivicApi<ElectionsResponse>("elections");
-    return response.elections.length > 0 ? response.elections : MOCK_ELECTIONS;
+    const result =
+      response.elections.length > 0 ? response.elections : MOCK_ELECTIONS;
+    await setCache("__global__", "elections", {}, result, CACHE_TTL.elections);
+    return result;
   } catch (error) {
     console.warn("[civic] getElections failed, using mock data:", error);
     return MOCK_ELECTIONS;
@@ -450,6 +537,16 @@ export async function getVoterInfo(
   address: string,
   electionId?: string,
 ): Promise<VoterInfoResponse> {
+  const cacheParams: Record<string, unknown> = electionId
+    ? { electionId }
+    : {};
+  const cached = await getCached<VoterInfoResponse>(
+    address,
+    "voterinfo",
+    cacheParams,
+  );
+  if (cached) return cached;
+
   if (!getApiKey()) return getMockVoterInfo(address);
   const params: Record<string, string> = { address };
 
@@ -457,10 +554,16 @@ export async function getVoterInfo(
     params.electionId = electionId;
   }
 
-  // The voterinfo endpoint is part of the same sunset Civic API; fall back to
-  // mock ballot data on error so the ballot screen still renders.
   try {
-    return await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+    const result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+    await setCache(
+      address,
+      "voterinfo",
+      cacheParams,
+      result,
+      CACHE_TTL.voterinfo,
+    );
+    return result;
   } catch (error) {
     console.warn("[civic] getVoterInfo failed, using mock data:", error);
     return getMockVoterInfo(address);
@@ -486,6 +589,17 @@ export async function getRepresentatives(
     includeOffices?: boolean;
   },
 ): Promise<RepresentativesResponse> {
+  const cacheParams: Record<string, unknown> = {
+    ...(options?.levels?.length ? { levels: options.levels } : {}),
+    ...(options?.roles?.length ? { roles: options.roles } : {}),
+  };
+  const cached = await getCached<RepresentativesResponse>(
+    address,
+    "representatives",
+    cacheParams,
+  );
+  if (cached) return cached;
+
   if (!getApiKey()) {
     return {
       kind: "civicinfo#representativeInfoResponse",
@@ -525,7 +639,18 @@ export async function getRepresentatives(
     params.includeOffices = "false";
   }
 
-  return fetchCivicApi<RepresentativesResponse>("representatives", params);
+  const result = await fetchCivicApi<RepresentativesResponse>(
+    "representatives",
+    params,
+  );
+  await setCache(
+    address,
+    "representatives",
+    cacheParams,
+    result,
+    CACHE_TTL.representatives,
+  );
+  return result;
 }
 
 /**
@@ -541,6 +666,17 @@ export async function getRepresentativesEnriched(
     roles?: string[];
   },
 ): Promise<Representative[]> {
+  const cacheParams: Record<string, unknown> = {
+    ...(options?.levels?.length ? { levels: options.levels } : {}),
+    ...(options?.roles?.length ? { roles: options.roles } : {}),
+  };
+  const cached = await getCached<Representative[]>(
+    address,
+    "representativesEnriched",
+    cacheParams,
+  );
+  if (cached) return cached;
+
   if (!getApiKey()) return MOCK_REPRESENTATIVES;
   const response = await getRepresentatives(address, options);
 
@@ -561,5 +697,12 @@ export async function getRepresentativesEnriched(
     }
   }
 
+  await setCache(
+    address,
+    "representativesEnriched",
+    cacheParams,
+    representatives,
+    CACHE_TTL.representativesEnriched,
+  );
   return representatives;
 }
