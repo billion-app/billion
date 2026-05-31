@@ -11,6 +11,7 @@ import { CandidatesSection } from "~/components/CandidatesSection";
 import { KeyDatesSection } from "~/components/KeyDatesSection";
 import { LocalBillsSection } from "~/components/LocalBillsSection";
 import { MyBallotSection } from "~/components/MyBallotSection";
+import { UpcomingMeetingsSection } from "~/components/UpcomingMeetingsSection";
 import { Text, View } from "~/components/Themed";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontDisplay, fontSize, sp, useTheme } from "~/styles";
@@ -74,6 +75,8 @@ export default function LocalElectionsScreen() {
         <CandidatesSection contests={candidateContests} />
 
         <LocalBillsSection />
+
+        <UpcomingMeetingsSection />
       </ScrollView>
     </View>
   );
