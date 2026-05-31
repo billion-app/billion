@@ -369,36 +369,15 @@ export default function ElectionsScreen() {
                   })
                 }
               >
-                <Card>
+                <Card
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <Text style={s.contestOffice}>{c.office}</Text>
-                  <View style={{ gap: 10 }}>
-                    {c.candidates?.map((cand, j) => (
-                      <View key={j} style={s.candRow}>
-                        <View style={s.partyTile}>
-                          <Text
-                            style={[
-                              s.partyText,
-                              { color: partyColor(cand.party) },
-                            ]}
-                          >
-                            {partyInitial(cand.party)}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.candName}>{cand.name}</Text>
-                          {cand.party ? (
-                            <Text style={s.candNote}>{cand.party}</Text>
-                          ) : null}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                  <Icon
-                    name="chevR"
-                    size={16}
-                    color="#5B6172"
-                    style={{ position: "absolute", right: 16, top: 18 }}
-                  />
+                  <Icon name="chevR" size={16} color="#5B6172" />
                 </Card>
               </TouchableOpacity>
             ))}
