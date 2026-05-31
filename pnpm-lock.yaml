@@ -87,13 +87,6 @@ overrides:
 importers:
 
   .:
-    dependencies:
-      '@acme/api':
-        specifier: ''
-        version: link:packages/api
-      '@google/generative-ai':
-        specifier: ''
-        version: 0.24.1
     devDependencies:
       '@acme/prettier-config':
         specifier: workspace:*
