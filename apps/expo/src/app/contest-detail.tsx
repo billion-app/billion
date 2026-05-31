@@ -23,29 +23,6 @@ interface CandidateParam {
   channels?: { type: string; id: string }[];
 }
 
-const OFFICE_DESCRIPTIONS: Record<string, string> = {
-  "legislatorLowerBody-country":
-    "U.S. Representatives serve in the House of Representatives. They represent a congressional district, propose and vote on federal legislation, and serve two-year terms.",
-  "legislatorUpperBody-country":
-    "U.S. Senators represent their entire state in the Senate. They confirm federal judges and cabinet members, ratify treaties, and serve six-year terms.",
-  "headOfGovernment-locality":
-    "The Mayor is the chief executive of the city, responsible for city operations, setting policy priorities, proposing the city budget, and representing the city externally.",
-  "legislatorLowerBody-locality":
-    "City Council members represent their district on the city council. They pass local ordinances, approve the city budget, and oversee city departments.",
-  "legislatorUpperBody-administrativeArea1":
-    "State Senators represent their district in the state legislature's upper chamber. They vote on state laws, confirm appointments, and approve the state budget.",
-};
-
-function getOfficeDescription(
-  roles?: string[],
-  levels?: string[],
-): string | null {
-  const role = roles?.[0];
-  const level = levels?.[0];
-  if (!role || !level) return null;
-  return OFFICE_DESCRIPTIONS[`${role}-${level}`] ?? null;
-}
-
 function partyColor(party?: string): string {
   const p = (party ?? "").toLowerCase();
   if (p.startsWith("d")) return "#7BA0FF";
@@ -68,18 +45,13 @@ export default function ContestDetailScreen() {
     levels: string;
     candidates: string;
     districtName: string;
+    roleDescription: string;
   }>();
 
   const candidates: CandidateParam[] = params.candidates
     ? (JSON.parse(params.candidates) as CandidateParam[])
     : [];
-  const roles: string[] | undefined = params.roles
-    ? (JSON.parse(params.roles) as string[])
-    : undefined;
-  const levels: string[] | undefined = params.levels
-    ? (JSON.parse(params.levels) as string[])
-    : undefined;
-  const description = getOfficeDescription(roles, levels);
+  const description = params.roleDescription || null;
 
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 

@@ -14,6 +14,7 @@ export default function MeasureDetailScreen() {
     referendumConStatement: string;
     referendumText: string;
     referendumUrl: string;
+    summary: string;
   }>();
 
   return (
@@ -30,7 +31,9 @@ export default function MeasureDetailScreen() {
 
         <Text style={s.title}>{params.referendumTitle}</Text>
 
-        {params.referendumSubtitle ? (
+        {params.summary ? (
+          <Text style={s.subtitle}>{params.summary}</Text>
+        ) : params.referendumSubtitle ? (
           <Text style={s.subtitle}>{params.referendumSubtitle}</Text>
         ) : null}
 

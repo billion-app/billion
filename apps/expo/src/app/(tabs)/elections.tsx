@@ -228,6 +228,9 @@ export default function ElectionsScreen() {
                     </TouchableOpacity>
                     {open && (
                       <View style={s.summaryNested}>
+                        {c.roleDescription && (
+                          <Text style={s.roleDesc}>{c.roleDescription}</Text>
+                        )}
                         {c.candidates?.map((cand, j) => (
                           <View key={j} style={s.summaryNestedRow}>
                             <View style={s.partyTile}>
@@ -271,7 +274,9 @@ export default function ElectionsScreen() {
                     </TouchableOpacity>
                     {mOpen && (
                       <View style={s.summaryNested}>
-                        {m.referendumSubtitle ? (
+                        {m.summary ? (
+                          <Text style={s.measureSub}>{m.summary}</Text>
+                        ) : m.referendumSubtitle ? (
                           <Text style={s.measureSub}>
                             {m.referendumSubtitle}
                           </Text>
@@ -323,6 +328,7 @@ export default function ElectionsScreen() {
                                   m.referendumConStatement ?? "",
                                 referendumText: m.referendumText ?? "",
                                 referendumUrl: m.referendumUrl ?? "",
+                                summary: m.summary ?? "",
                               },
                             })
                           }
@@ -358,6 +364,7 @@ export default function ElectionsScreen() {
                       levels: JSON.stringify(c.level ?? []),
                       candidates: JSON.stringify(c.candidates ?? []),
                       districtName: c.district?.name ?? "",
+                      roleDescription: c.roleDescription ?? "",
                     },
                   })
                 }
@@ -476,6 +483,7 @@ export default function ElectionsScreen() {
                                 m.referendumConStatement ?? "",
                               referendumText: m.referendumText ?? "",
                               referendumUrl: m.referendumUrl ?? "",
+                              summary: m.summary ?? "",
                             },
                           })
                         }
@@ -658,6 +666,13 @@ const s = StyleSheet.create({
     marginLeft: 22,
     marginTop: 4,
     gap: 4,
+  },
+  roleDesc: {
+    fontFamily: fontBody.regular,
+    fontSize: 12,
+    color: "#8A8FA0",
+    lineHeight: 17,
+    marginBottom: 4,
   },
   summaryNestedRow: {
     flexDirection: "row",

@@ -37,7 +37,10 @@ export function BallotMeasuresSection({
           <Text style={styles.title} numberOfLines={2}>
             {measure.referendumTitle ?? "Ballot Measure"}
           </Text>
-          {measure.referendumSubtitle && (
+          {measure.summary && (
+            <Text style={styles.summary}>{measure.summary}</Text>
+          )}
+          {!measure.summary && measure.referendumSubtitle && (
             <Text style={styles.subtitle} numberOfLines={2}>
               {measure.referendumSubtitle}
             </Text>
@@ -112,6 +115,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: colors.white,
     marginBottom: sp[2],
+  },
+  summary: {
+    fontFamily: fontBody.regular,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    marginBottom: sp[3],
+    lineHeight: 20,
   },
   subtitle: {
     fontFamily: fontBody.regular,
