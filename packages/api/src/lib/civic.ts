@@ -10,6 +10,15 @@ import { and, eq, gt } from "@acme/db";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
+import {
+  generateMeasureSummary,
+  generateRoleDescription,
+} from "./civic-ai";
+import {
+  getRoleDescription,
+  saveRoleDescription,
+} from "./civic-descriptions";
+
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
 function getApiKey(): string | null {
@@ -160,6 +169,8 @@ export interface Contest {
   referendumPassageThreshold?: string;
   referendumEffectOfAbstain?: string;
   sources?: Source[];
+  roleDescription?: string;
+  summary?: string;
 }
 
 export interface Candidate {
@@ -500,6 +511,141 @@ const MOCK_REPRESENTATIVES: Representative[] = [
 ];
 
 // ============================================================================
+// Role/Level Inference from office name
+// ============================================================================
+
+function inferRole(office: string): string | undefined {
+  const o = office.toLowerCase();
+  if (o.includes("governor") && !o.includes("lieutenant"))
+    return "headOfGovernment";
+  if (o.includes("lieutenant governor")) return "deputyHeadOfGovernment";
+  if (o.includes("president")) return "headOfState";
+  if (o.includes("mayor")) return "headOfGovernment";
+  if (
+    o.includes("senator") ||
+    o.includes("state senate") ||
+    o.includes("upper")
+  )
+    return "legislatorUpperBody";
+  if (
+    o.includes("representative") ||
+    o.includes("assembly") ||
+    o.includes("house") ||
+    o.includes("council") ||
+    o.includes("delegate")
+  )
+    return "legislatorLowerBody";
+  if (o.includes("judge") || o.includes("justice")) return "judge";
+  if (o.includes("school board")) return "schoolBoard";
+  if (
+    o.includes("secretary of state") ||
+    o.includes("attorney general") ||
+    o.includes("treasurer") ||
+    o.includes("controller") ||
+    o.includes("comptroller") ||
+    o.includes("superintendent") ||
+    o.includes("commissioner") ||
+    o.includes("auditor")
+  )
+    return "governmentOfficer";
+  return undefined;
+}
+
+function inferLevel(office: string): string | undefined {
+  const o = office.toLowerCase();
+  if (
+    o.includes("us ") ||
+    o.includes("u.s.") ||
+    o.includes("united states") ||
+    o.includes("president")
+  )
+    return "country";
+  if (
+    o.includes("state ") ||
+    o.includes("governor") ||
+    o.includes("lieutenant governor") ||
+    o.includes("secretary of state") ||
+    o.includes("attorney general") ||
+    o.includes("state treasurer") ||
+    o.includes("state controller") ||
+    o.includes("state comptroller") ||
+    o.includes("state superintendent") ||
+    o.includes("assembly")
+  )
+    return "administrativeArea1";
+  if (o.includes("county") || o.includes("supervisor"))
+    return "administrativeArea2";
+  if (
+    o.includes("mayor") ||
+    o.includes("city council") ||
+    o.includes("city ") ||
+    o.includes("town ")
+  )
+    return "locality";
+  return undefined;
+}
+
+// ============================================================================
+// Contest Enrichment
+// ============================================================================
+
+async function enrichContest(contest: Contest): Promise<Contest> {
+  if (contest.referendumTitle) {
+    if (!contest.summary) {
+      try {
+        contest.summary = await generateMeasureSummary(
+          contest.referendumTitle,
+          contest.referendumSubtitle,
+          contest.referendumText,
+          contest.referendumProStatement,
+          contest.referendumConStatement,
+        );
+      } catch {
+        // AI generation failed
+      }
+    }
+    return contest;
+  }
+
+  if (contest.office && !contest.roleDescription) {
+    const role = contest.roles?.[0] ?? inferRole(contest.office);
+    const level = contest.level?.[0] ?? inferLevel(contest.office);
+
+    const dbDesc = await getRoleDescription(role, level);
+    if (dbDesc) {
+      contest.roleDescription = dbDesc;
+      return contest;
+    }
+
+    try {
+      const generated = await generateRoleDescription(
+        contest.office,
+        role,
+        level,
+        contest.district?.name,
+      );
+      contest.roleDescription = generated;
+      if (role) {
+        await saveRoleDescription(role, level ?? null, generated, "ai").catch(
+          () => {},
+        );
+      }
+    } catch {
+      // AI generation failed
+    }
+  }
+
+  return contest;
+}
+
+async function enrichContests(
+  contests?: Contest[],
+): Promise<Contest[] | undefined> {
+  if (!contests?.length) return contests;
+  return Promise.all(contests.map(enrichContest));
+}
+
+// ============================================================================
 // API Functions
 // ============================================================================
 
@@ -547,7 +693,11 @@ export async function getVoterInfo(
   );
   if (cached) return cached;
 
-  if (!getApiKey()) return getMockVoterInfo(address);
+  if (!getApiKey()) {
+    const mock = getMockVoterInfo(address);
+    mock.contests = await enrichContests(mock.contests);
+    return mock;
+  }
   const params: Record<string, string> = { address };
 
   if (electionId) {
@@ -556,6 +706,7 @@ export async function getVoterInfo(
 
   try {
     const result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+    result.contests = await enrichContests(result.contests);
     await setCache(
       address,
       "voterinfo",
@@ -566,7 +717,9 @@ export async function getVoterInfo(
     return result;
   } catch (error) {
     console.warn("[civic] getVoterInfo failed, using mock data:", error);
-    return getMockVoterInfo(address);
+    const mock = getMockVoterInfo(address);
+    mock.contests = await enrichContests(mock.contests);
+    return mock;
   }
 }
 
