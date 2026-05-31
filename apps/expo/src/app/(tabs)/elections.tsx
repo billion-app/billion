@@ -603,7 +603,7 @@ const s = StyleSheet.create({
     fontFamily: "InriaSerif-Bold",
     fontSize: 16,
     color: colors.white,
-    marginBottom: 12,
+    flex: 1,
   },
   candRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   partyTile: {
