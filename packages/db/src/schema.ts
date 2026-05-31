@@ -244,6 +244,25 @@ export const ElectionRecord = pgTable(
   }),
 );
 
+// Role descriptions — reusable across elections, keyed by (role, level)
+export const RoleDescriptionRecord = pgTable(
+  "role_description",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    role: t.varchar({ length: 50 }).notNull(),
+    level: t.varchar({ length: 50 }),
+    description: t.text().notNull(),
+    source: t.varchar({ length: 20 }).notNull().default("seed"),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueRoleLevel: unique().on(table.role, table.level),
+  }),
+);
+
 // Contests / races within an election
 export const ContestRecord = pgTable(
   "contest",
@@ -262,6 +281,8 @@ export const ContestRecord = pgTable(
     referendumConStatement: t.text(),
     referendumUrl: t.text(),
     type: t.varchar({ length: 20 }).notNull(), // "candidate" | "referendum"
+    roleDescription: t.text(),
+    summary: t.text(),
     source: t.varchar({ length: 50 }).notNull(),
     createdAt: t.timestamp().defaultNow().notNull(),
   }),
