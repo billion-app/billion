@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -11,7 +11,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+} from "@tanstack/react-query";
 
 import type { VideoPost } from "@acme/api";
 
@@ -26,7 +30,7 @@ import {
   planes,
   resolveType,
 } from "~/styles";
-import { trpc } from "~/utils/api";
+import { queryClient, trpc } from "~/utils/api";
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 
@@ -39,6 +43,8 @@ const TYPE_TAG: Record<string, string> = {
 
 // Bottom tab bar height (see TabBar) so the CTA clears it.
 const TAB_BAR_HEIGHT = 74;
+
+const SAVEABLE_TYPES = new Set(["bill", "government_content", "court_case"]);
 
 function FeedCard({
   item,
@@ -53,7 +59,45 @@ function FeedCard({
   bottomInset: number;
   onOpen: () => void;
 }) {
-  const [saved, setSaved] = useState(false);
+  const canSave = SAVEABLE_TYPES.has(item.type);
+  const contentId = item.originalContentId;
+
+  const savedQuery = useQuery({
+    ...trpc.user.isArticleSaved.queryOptions({ contentId }),
+    enabled: canSave,
+    staleTime: 5 * 60 * 1000,
+  });
+  const saved = savedQuery.data?.saved ?? false;
+
+  const saveMutation = useMutation({
+    ...trpc.user.saveArticle.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.isArticleSaved.queryKey({ contentId }),
+      });
+    },
+  });
+  const unsaveMutation = useMutation({
+    ...trpc.user.unsaveArticle.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.isArticleSaved.queryKey({ contentId }),
+      });
+    },
+  });
+
+  const toggleSave = () => {
+    if (!canSave) return;
+    if (saved) {
+      unsaveMutation.mutate({ contentId });
+    } else {
+      saveMutation.mutate({
+        contentId,
+        contentType: item.type as "bill" | "government_content" | "court_case",
+      });
+    }
+  };
+
   const typeKey = resolveType(item.type);
   const t = contentType[typeKey];
 
@@ -131,17 +175,19 @@ function FeedCard({
           <Text style={s.ctaText}>Dig into the source</Text>
           <Icon name="external" size={17} color={planes.ink} />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={s.saveBtn}
-          onPress={() => setSaved((v) => !v)}
-          activeOpacity={0.8}
-        >
-          <Icon
-            name={saved ? "bookmarkFill" : "bookmark"}
-            size={20}
-            color={saved ? colors.white : "rgba(255,255,255,0.7)"}
-          />
-        </TouchableOpacity>
+        {canSave && (
+          <TouchableOpacity
+            style={s.saveBtn}
+            onPress={toggleSave}
+            activeOpacity={0.8}
+          >
+            <Icon
+              name={saved ? "bookmarkFill" : "bookmark"}
+              size={20}
+              color={saved ? colors.white : "rgba(255,255,255,0.7)"}
+            />
+          </TouchableOpacity>
+        )}
       </View>
     </LinearGradient>
   );
