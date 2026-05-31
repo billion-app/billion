@@ -662,9 +662,515 @@ class FallbackLegistarClient extends LegistarClient {
 }
 
 // ============================================================================
+// Cached Client — DB-backed cache with 24h TTL
+// ============================================================================
+
+import { and, eq, gt } from "@acme/db";
+import { db } from "@acme/db/client";
+import {
+  LegistarAgendaItem as LegistarAgendaItemRow,
+  LegistarBody as LegistarBodyRow,
+  LegistarMatter as LegistarMatterRow,
+  LegistarMeeting as LegistarMeetingRow,
+  LegistarVote as LegistarVoteRow,
+} from "@acme/db/schema";
+
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function parseDate(s: string | null | undefined): Date | null {
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+class CachedLegistarClient extends FallbackLegistarClient {
+  override async getLegislation(
+    jurisdiction: Jurisdiction,
+    query?: LegislationQuery,
+  ): Promise<LegistarMatter[]> {
+    if (!query?.text && !query?.matterType && !query?.status && !query?.bodyId) {
+      const cached = await db
+        .select()
+        .from(LegistarMatterRow)
+        .where(
+          and(
+            eq(LegistarMatterRow.jurisdiction, jurisdiction),
+            gt(LegistarMatterRow.fetchedAt, new Date(Date.now() - CACHE_TTL_MS)),
+          ),
+        )
+        .orderBy(LegistarMatterRow.lastModifiedUtc)
+        .limit(100);
+
+      if (cached.length > 0) {
+        return cached.map(rowToMatter);
+      }
+    }
+
+    const matters = await super.getLegislation(jurisdiction, query);
+    await this.upsertMatters(jurisdiction, matters);
+    return matters;
+  }
+
+  override async getMeetings(
+    jurisdiction: Jurisdiction,
+    dateRange?: DateRange,
+  ): Promise<LegistarMeeting[]> {
+    const cached = await db
+      .select()
+      .from(LegistarMeetingRow)
+      .where(
+        and(
+          eq(LegistarMeetingRow.jurisdiction, jurisdiction),
+          gt(LegistarMeetingRow.fetchedAt, new Date(Date.now() - CACHE_TTL_MS)),
+        ),
+      )
+      .orderBy(LegistarMeetingRow.date);
+
+    const filtered = dateRange
+      ? cached.filter((m) => {
+          const d = m.date.getTime();
+          return d >= dateRange.start.getTime() && d <= dateRange.end.getTime();
+        })
+      : cached;
+
+    if (filtered.length > 0) return filtered.map(rowToMeeting);
+
+    const meetings = await super.getMeetings(jurisdiction, dateRange);
+    await this.upsertMeetings(jurisdiction, meetings);
+    return meetings;
+  }
+
+  override async getBodies(
+    jurisdiction: Jurisdiction,
+  ): Promise<LegistarBody[]> {
+    const cached = await db
+      .select()
+      .from(LegistarBodyRow)
+      .where(
+        and(
+          eq(LegistarBodyRow.jurisdiction, jurisdiction),
+          gt(LegistarBodyRow.fetchedAt, new Date(Date.now() - CACHE_TTL_MS)),
+        ),
+      );
+
+    if (cached.length > 0) return cached.map(rowToBody);
+
+    const bodies = await super.getBodies(jurisdiction);
+    await this.upsertBodies(jurisdiction, bodies);
+    return bodies;
+  }
+
+  override async getAgendas(
+    jurisdiction: Jurisdiction,
+    meetingId: number,
+  ): Promise<LegistarAgendaItem[]> {
+    const cached = await db
+      .select()
+      .from(LegistarAgendaItemRow)
+      .where(
+        and(
+          eq(LegistarAgendaItemRow.jurisdiction, jurisdiction),
+          eq(LegistarAgendaItemRow.eventId, meetingId),
+          gt(
+            LegistarAgendaItemRow.fetchedAt,
+            new Date(Date.now() - CACHE_TTL_MS),
+          ),
+        ),
+      )
+      .orderBy(LegistarAgendaItemRow.agendaSequence);
+
+    if (cached.length > 0) return cached.map(rowToAgendaItem);
+
+    const items = await super.getAgendas(jurisdiction, meetingId);
+    await this.upsertAgendaItems(jurisdiction, items);
+    return items;
+  }
+
+  override async getVotes(
+    jurisdiction: Jurisdiction,
+    eventItemId: number,
+  ): Promise<LegistarVote[]> {
+    const cached = await db
+      .select()
+      .from(LegistarVoteRow)
+      .where(
+        and(
+          eq(LegistarVoteRow.jurisdiction, jurisdiction),
+          eq(LegistarVoteRow.eventItemId, eventItemId),
+          gt(LegistarVoteRow.fetchedAt, new Date(Date.now() - CACHE_TTL_MS)),
+        ),
+      )
+      .orderBy(LegistarVoteRow.sort);
+
+    if (cached.length > 0) return cached.map(rowToVote);
+
+    const votes = await super.getVotes(jurisdiction, eventItemId);
+    await this.upsertVotes(jurisdiction, votes);
+    return votes;
+  }
+
+  override async getMeetingVotes(
+    jurisdiction: Jurisdiction,
+    meetingId: number,
+  ): Promise<LegistarAgendaItem[]> {
+    const items = await super.getMeetingVotes(jurisdiction, meetingId);
+    await this.upsertAgendaItems(jurisdiction, items);
+    return items;
+  }
+
+  // --- Upsert helpers ---
+
+  private async upsertMatters(
+    jurisdiction: Jurisdiction,
+    matters: LegistarMatter[],
+  ) {
+    if (matters.length === 0) return;
+    const now = new Date();
+    for (const m of matters) {
+      await db
+        .insert(LegistarMatterRow)
+        .values({
+          jurisdiction,
+          matterId: m.MatterId,
+          matterGuid: m.MatterGuid,
+          matterFile: m.MatterFile,
+          title: m.MatterTitle,
+          name: m.MatterName,
+          typeName: m.MatterTypeName,
+          statusName: m.MatterStatusName,
+          bodyName: m.MatterBodyName,
+          bodyId: m.MatterBodyId,
+          introDate: parseDate(m.MatterIntroDate),
+          agendaDate: parseDate(m.MatterAgendaDate),
+          passedDate: parseDate(m.MatterPassedDate),
+          enactmentDate: parseDate(m.MatterEnactmentDate),
+          enactmentNumber: m.MatterEnactmentNumber,
+          requester: m.MatterRequester,
+          notes: m.MatterNotes,
+          lastModifiedUtc: new Date(m.MatterLastModifiedUtc),
+          fetchedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [LegistarMatterRow.jurisdiction, LegistarMatterRow.matterId],
+          set: {
+            title: m.MatterTitle,
+            statusName: m.MatterStatusName,
+            lastModifiedUtc: new Date(m.MatterLastModifiedUtc),
+            fetchedAt: now,
+          },
+        });
+    }
+  }
+
+  private async upsertMeetings(
+    jurisdiction: Jurisdiction,
+    meetings: LegistarMeeting[],
+  ) {
+    if (meetings.length === 0) return;
+    const now = new Date();
+    for (const m of meetings) {
+      await db
+        .insert(LegistarMeetingRow)
+        .values({
+          jurisdiction,
+          eventId: m.EventId,
+          eventGuid: m.EventGuid,
+          bodyId: m.EventBodyId,
+          bodyName: m.EventBodyName,
+          date: new Date(m.EventDate),
+          time: m.EventTime,
+          location: m.EventLocation,
+          agendaFile: m.EventAgendaFile,
+          minutesFile: m.EventMinutesFile,
+          videoPath: m.EventVideoPath,
+          agendaStatusName: m.EventAgendaStatusName,
+          minutesStatusName: m.EventMinutesStatusName,
+          comment: m.EventComment,
+          inSiteUrl: m.EventInSiteURL,
+          lastModifiedUtc: new Date(m.EventLastModifiedUtc),
+          fetchedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [LegistarMeetingRow.jurisdiction, LegistarMeetingRow.eventId],
+          set: {
+            agendaFile: m.EventAgendaFile,
+            minutesFile: m.EventMinutesFile,
+            videoPath: m.EventVideoPath,
+            lastModifiedUtc: new Date(m.EventLastModifiedUtc),
+            fetchedAt: now,
+          },
+        });
+    }
+  }
+
+  private async upsertBodies(
+    jurisdiction: Jurisdiction,
+    bodies: LegistarBody[],
+  ) {
+    if (bodies.length === 0) return;
+    const now = new Date();
+    for (const b of bodies) {
+      await db
+        .insert(LegistarBodyRow)
+        .values({
+          jurisdiction,
+          bodyId: b.BodyId,
+          bodyGuid: b.BodyGuid,
+          name: b.BodyName,
+          typeName: b.BodyTypeName,
+          activeFlag: b.BodyActiveFlag === 1,
+          numberOfMembers: b.BodyNumberOfMembers,
+          description: b.BodyDescription,
+          contactName: b.BodyContactFullName,
+          contactEmail: b.BodyContactEmail,
+          contactPhone: b.BodyContactPhone,
+          fetchedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [LegistarBodyRow.jurisdiction, LegistarBodyRow.bodyId],
+          set: {
+            name: b.BodyName,
+            activeFlag: b.BodyActiveFlag === 1,
+            fetchedAt: now,
+          },
+        });
+    }
+  }
+
+  private async upsertAgendaItems(
+    jurisdiction: Jurisdiction,
+    items: LegistarAgendaItem[],
+  ) {
+    if (items.length === 0) return;
+    const now = new Date();
+    for (const i of items) {
+      await db
+        .insert(LegistarAgendaItemRow)
+        .values({
+          jurisdiction,
+          eventItemId: i.EventItemId,
+          eventId: i.EventItemEventId,
+          agendaSequence: i.EventItemAgendaSequence,
+          agendaNumber: i.EventItemAgendaNumber,
+          title: i.EventItemTitle,
+          actionName: i.EventItemActionName,
+          passedFlagName: i.EventItemPassedFlagName,
+          tally: i.EventItemTally,
+          moverName: i.EventItemMover,
+          seconderName: i.EventItemSeconder,
+          matterId: i.EventItemMatterId,
+          matterFile: i.EventItemMatterFile,
+          matterName: i.EventItemMatterName,
+          matterType: i.EventItemMatterType,
+          matterStatus: i.EventItemMatterStatus,
+          consent: i.EventItemConsent === 1,
+          agendaNote: i.EventItemAgendaNote,
+          minutesNote: i.EventItemMinutesNote,
+          lastModifiedUtc: new Date(i.EventItemLastModifiedUtc),
+          fetchedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [
+            LegistarAgendaItemRow.jurisdiction,
+            LegistarAgendaItemRow.eventItemId,
+          ],
+          set: {
+            actionName: i.EventItemActionName,
+            passedFlagName: i.EventItemPassedFlagName,
+            tally: i.EventItemTally,
+            fetchedAt: now,
+          },
+        });
+    }
+  }
+
+  private async upsertVotes(
+    jurisdiction: Jurisdiction,
+    votes: LegistarVote[],
+  ) {
+    if (votes.length === 0) return;
+    const now = new Date();
+    for (const v of votes) {
+      await db
+        .insert(LegistarVoteRow)
+        .values({
+          jurisdiction,
+          voteId: v.VoteId,
+          eventItemId: v.VoteEventItemId,
+          personId: v.VotePersonId,
+          personName: v.VotePersonName,
+          valueName: v.VoteValueName,
+          sort: v.VoteSort,
+          lastModifiedUtc: new Date(v.VoteLastModifiedUtc),
+          fetchedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [LegistarVoteRow.jurisdiction, LegistarVoteRow.voteId],
+          set: {
+            valueName: v.VoteValueName,
+            fetchedAt: now,
+          },
+        });
+    }
+  }
+}
+
+// --- Row-to-API-type mappers (for cache reads) ---
+
+function rowToMatter(
+  r: typeof LegistarMatterRow.$inferSelect,
+): LegistarMatter {
+  return {
+    MatterId: r.matterId,
+    MatterGuid: r.matterGuid ?? "",
+    MatterLastModifiedUtc: r.lastModifiedUtc.toISOString(),
+    MatterRowVersion: "1",
+    MatterFile: r.matterFile ?? "",
+    MatterName: r.name,
+    MatterTitle: r.title,
+    MatterTypeId: 0,
+    MatterTypeName: r.typeName ?? "",
+    MatterStatusId: 0,
+    MatterStatusName: r.statusName ?? "",
+    MatterBodyId: r.bodyId ?? 0,
+    MatterBodyName: r.bodyName ?? "",
+    MatterIntroDate: r.introDate?.toISOString() ?? null,
+    MatterAgendaDate: r.agendaDate?.toISOString() ?? null,
+    MatterPassedDate: r.passedDate?.toISOString() ?? null,
+    MatterEnactmentDate: r.enactmentDate?.toISOString() ?? null,
+    MatterEnactmentNumber: r.enactmentNumber,
+    MatterRequester: r.requester,
+    MatterNotes: r.notes,
+    MatterVersion: "1",
+    MatterText1: null,
+    MatterText2: null,
+    MatterText3: null,
+    MatterText4: null,
+    MatterText5: null,
+    MatterRestrictViewViaWeb: false,
+  };
+}
+
+function rowToMeeting(
+  r: typeof LegistarMeetingRow.$inferSelect,
+): LegistarMeeting {
+  return {
+    EventId: r.eventId,
+    EventGuid: r.eventGuid ?? "",
+    EventLastModifiedUtc: r.lastModifiedUtc.toISOString(),
+    EventRowVersion: "1",
+    EventBodyId: r.bodyId ?? 0,
+    EventBodyName: r.bodyName ?? "",
+    EventDate: r.date.toISOString(),
+    EventTime: r.time,
+    EventVideoStatus: null,
+    EventAgendaStatusId: 0,
+    EventAgendaStatusName: r.agendaStatusName ?? "",
+    EventMinutesStatusId: 0,
+    EventMinutesStatusName: r.minutesStatusName ?? "",
+    EventLocation: r.location,
+    EventAgendaFile: r.agendaFile,
+    EventMinutesFile: r.minutesFile,
+    EventAgendaLastPublishedUTC: null,
+    EventMinutesLastPublishedUTC: null,
+    EventComment: r.comment,
+    EventVideoPath: r.videoPath,
+    EventInSiteURL: r.inSiteUrl,
+    EventItems: null,
+  };
+}
+
+function rowToBody(
+  r: typeof LegistarBodyRow.$inferSelect,
+): LegistarBody {
+  return {
+    BodyId: r.bodyId,
+    BodyGuid: r.bodyGuid ?? "",
+    BodyLastModifiedUtc: r.fetchedAt.toISOString(),
+    BodyRowVersion: "1",
+    BodyName: r.name,
+    BodyTypeId: 0,
+    BodyTypeName: r.typeName ?? "",
+    BodyMeetFlag: 0,
+    BodyActiveFlag: r.activeFlag ? 1 : 0,
+    BodySort: 0,
+    BodyDescription: r.description,
+    BodyContactNameId: null,
+    BodyContactFullName: r.contactName,
+    BodyContactPhone: r.contactPhone,
+    BodyContactEmail: r.contactEmail,
+    BodyUsedControlFlag: 0,
+    BodyNumberOfMembers: r.numberOfMembers ?? 0,
+    BodyUsedActingFlag: 0,
+    BodyUsedTargetFlag: 0,
+    BodyUsedSponsorFlag: 0,
+  };
+}
+
+function rowToAgendaItem(
+  r: typeof LegistarAgendaItemRow.$inferSelect,
+): LegistarAgendaItem {
+  return {
+    EventItemId: r.eventItemId,
+    EventItemGuid: "",
+    EventItemLastModifiedUtc: r.lastModifiedUtc.toISOString(),
+    EventItemRowVersion: "1",
+    EventItemEventId: r.eventId,
+    EventItemAgendaSequence: r.agendaSequence ?? 0,
+    EventItemMinutesSequence: null,
+    EventItemAgendaNumber: r.agendaNumber,
+    EventItemVideo: null,
+    EventItemVideoIndex: null,
+    EventItemVersion: "1",
+    EventItemAgendaNote: r.agendaNote,
+    EventItemMinutesNote: r.minutesNote,
+    EventItemActionId: null,
+    EventItemActionName: r.actionName,
+    EventItemActionText: null,
+    EventItemPassedFlag: null,
+    EventItemPassedFlagName: r.passedFlagName,
+    EventItemRollCallFlag: null,
+    EventItemFlagExtra: null,
+    EventItemTitle: r.title,
+    EventItemTally: r.tally,
+    EventItemAccelaRecordId: null,
+    EventItemConsent: r.consent ? 1 : 0,
+    EventItemMoverId: null,
+    EventItemMover: r.moverName,
+    EventItemSeconderId: null,
+    EventItemSeconder: r.seconderName,
+    EventItemMatterId: r.matterId,
+    EventItemMatterGuid: null,
+    EventItemMatterFile: r.matterFile,
+    EventItemMatterName: r.matterName,
+    EventItemMatterType: r.matterType,
+    EventItemMatterStatus: r.matterStatus,
+    EventItemMatterAttachments: null,
+  };
+}
+
+function rowToVote(
+  r: typeof LegistarVoteRow.$inferSelect,
+): LegistarVote {
+  return {
+    VoteId: r.voteId,
+    VoteGuid: "",
+    VoteLastModifiedUtc: r.lastModifiedUtc.toISOString(),
+    VoteRowVersion: "1",
+    VotePersonId: r.personId,
+    VotePersonName: r.personName,
+    VoteValueId: 0,
+    VoteValueName: r.valueName,
+    VoteSort: r.sort ?? 0,
+    VoteResult: null,
+    VoteEventItemId: r.eventItemId,
+  };
+}
+
+// ============================================================================
 // Export singleton instance
 // ============================================================================
 
-export const legistar = new FallbackLegistarClient();
+export const legistar = new CachedLegistarClient();
 
 export { LegistarClient };
