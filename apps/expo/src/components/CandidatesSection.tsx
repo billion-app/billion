@@ -32,6 +32,11 @@ export function CandidatesSection({
       {candidateContests.map((contest, contestIndex) => (
         <View key={contestIndex} style={styles.raceGroup}>
           <Text style={styles.raceTitle}>{contest.office ?? "Race"}</Text>
+          {contest.roleDescription && (
+            <Text style={styles.raceDescription}>
+              {contest.roleDescription}
+            </Text>
+          )}
           {contest.candidates?.map((candidate, candidateIndex) => (
             <TouchableOpacity
               key={candidateIndex}
@@ -97,9 +102,16 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: fontSize.sm,
     color: colors.textMuted,
-    marginBottom: sp[3],
+    marginBottom: sp[1],
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+  raceDescription: {
+    fontFamily: fontBody.regular,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginBottom: sp[3],
+    lineHeight: 18,
   },
   candidateCard: {
     flexDirection: "row",
