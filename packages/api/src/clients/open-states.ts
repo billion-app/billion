@@ -8,6 +8,15 @@
 const BASE_URL = "https://v3.openstates.org";
 const DEFAULT_JURISDICTION = "ocd-jurisdiction/country:us/state:ca/government";
 
+function buildJurisdiction(stateCode?: string): string {
+  if (!stateCode) return DEFAULT_JURISDICTION;
+  const code = stateCode.toLowerCase();
+  if (code === "dc") {
+    return "ocd-jurisdiction/country:us/district:dc/government";
+  }
+  return `ocd-jurisdiction/country:us/state:${code}/government`;
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -190,6 +199,7 @@ async function openStatesFetch<T>(
 // ============================================================================
 
 export interface GetBillsOptions {
+  stateCode?: string;
   query?: string;
   session?: string;
   page?: number;
@@ -212,6 +222,7 @@ export async function getBills(
   options: GetBillsOptions = {},
 ): Promise<OpenStatesBillSearchResult> {
   const {
+    stateCode,
     query,
     session,
     page = 1,
@@ -234,7 +245,7 @@ export async function getBills(
   if (includeActions) include.push("actions");
 
   return openStatesFetch<OpenStatesBillSearchResult>("/bills", {
-    jurisdiction: DEFAULT_JURISDICTION,
+    jurisdiction: buildJurisdiction(stateCode),
     q: query,
     session,
     page,
@@ -291,6 +302,7 @@ export async function getBillDetails(
 }
 
 export interface GetLegislatorsOptions {
+  stateCode?: string;
   district?: string;
   name?: string;
   party?: string;
@@ -308,6 +320,7 @@ export async function getLegislators(
   options: GetLegislatorsOptions = {},
 ): Promise<OpenStatesPersonSearchResult> {
   const {
+    stateCode,
     district,
     name,
     party,
@@ -317,7 +330,7 @@ export async function getLegislators(
   } = options;
 
   return openStatesFetch<OpenStatesPersonSearchResult>("/people", {
-    jurisdiction: DEFAULT_JURISDICTION,
+    jurisdiction: buildJurisdiction(stateCode),
     district,
     name,
     party,
@@ -352,8 +365,10 @@ export async function getVotes(billId: string): Promise<OpenStatesVote[]> {
 /**
  * Get all current sessions for California
  */
-export async function getCurrentSessions(): Promise<string[]> {
-  // The jurisdiction endpoint provides session info
+export async function getCurrentSessions(
+  stateCode?: string,
+): Promise<string[]> {
+  const jurisdictionId = buildJurisdiction(stateCode);
   const jurisdiction = await openStatesFetch<{
     id: string;
     name: string;
@@ -364,7 +379,7 @@ export async function getCurrentSessions(): Promise<string[]> {
       start_date?: string;
       end_date?: string;
     }[];
-  }>(`/jurisdictions/${encodeURIComponent(DEFAULT_JURISDICTION)}`);
+  }>(`/jurisdictions/${encodeURIComponent(jurisdictionId)}`);
 
   return jurisdiction.legislative_sessions
     .filter((s) => s.classification === "primary" || !s.end_date)
