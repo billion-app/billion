@@ -19,9 +19,9 @@
       "types": "./dist/clients/open-states.d.ts",
       "default": "./src/clients/open-states.ts"
     },
-    "./clients/ca-sos": {
-      "types": "./dist/clients/ca-sos.d.ts",
-      "default": "./src/clients/ca-sos.ts"
+    "./lib/civic-ai": {
+      "types": "./dist/lib/civic-ai.d.ts",
+      "default": "./src/lib/civic-ai.ts"
     }
   },
   "license": "MIT",
@@ -37,6 +37,7 @@
     "@acme/auth": "workspace:*",
     "@acme/db": "workspace:*",
     "@acme/validators": "workspace:*",
+    "@google/generative-ai": "^0.24.1",
     "@trpc/server": "catalog:",
     "superjson": "2.2.6",
     "zod": "catalog:"
