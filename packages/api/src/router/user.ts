@@ -171,6 +171,20 @@ export const userRouter = {
       return { success: true };
     }),
 
+  // --- Account Deletion ---
+
+  deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+    await db.transaction(async (tx) => {
+      await tx.delete(SavedArticle).where(eq(SavedArticle.userId, userId));
+      await tx.delete(BlockedContent).where(eq(BlockedContent.userId, userId));
+      await tx.delete(UserPreference).where(eq(UserPreference.userId, userId));
+      await tx.delete(UserSettings).where(eq(UserSettings.userId, userId));
+      await tx.delete(user).where(eq(user.id, userId));
+    });
+    return { success: true };
+  }),
+
   // --- Saved Articles ---
 
   getSaved: protectedProcedure.query(async ({ ctx }) => {
