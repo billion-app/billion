@@ -256,7 +256,10 @@ export async function crossValidateMeasure(
     }
 
     try {
-      const summaries = await generateMeasureSummary(input.title, groundingText);
+      const summaries = await generateMeasureSummary(
+        input.title,
+        groundingText,
+      );
       summary = summaries.long;
       summaryShort = summaries.short;
       summaryLong = summaries.long;
@@ -300,12 +303,16 @@ export async function crossValidateMeasure(
               sourceName: gsource?.name ?? "Source",
               sourceUrl: gsource?.url,
             });
+          // These come from the grounding fallback (e.g. SPUR), a party-
+          // independent but position-taking advocacy source — NOT the
+          // nonpartisan League ("lwv") tier. Cite at the same low tier as the
+          // grounded summary so advocacy content is never ranked as neutral.
           if (realPros.length)
             citations.push({
               field: "proArguments",
               sourceName: gsource?.name ?? "Source",
               sourceUrl: gsource?.url,
-              tier: "lwv",
+              tier: "ai_generated",
               official: false,
             });
           if (realCons.length)
@@ -313,7 +320,7 @@ export async function crossValidateMeasure(
               field: "conArguments",
               sourceName: gsource?.name ?? "Source",
               sourceUrl: gsource?.url,
-              tier: "lwv",
+              tier: "ai_generated",
               official: false,
             });
         } else {
