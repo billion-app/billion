@@ -3,15 +3,15 @@
  *
  * Prices are approximate and may drift as providers update pricing.
  * Override via env vars if needed:
- *   GEMINI_FLASH_INPUT_PRICE, GEMINI_FLASH_OUTPUT_PRICE,
- *   DALLE3_IMAGE_PRICE, GOOGLE_SEARCH_PRICE
+ *   LLM_INPUT_PRICE, LLM_OUTPUT_PRICE,
+ *   IMAGEN_IMAGE_PRICE, GOOGLE_SEARCH_PRICE
  */
 
 // Prices per unit (USD)
 const PRICES = {
-  // Gemini 2.5 Flash — $/1M tokens
-  geminiFlashInput: Number(process.env.GEMINI_FLASH_INPUT_PRICE) || 0.15,
-  geminiFlashOutput: Number(process.env.GEMINI_FLASH_OUTPUT_PRICE) || 0.60,
+  // LLM — $/1M tokens (default: DeepSeek V4 Flash pricing)
+  llmInput: Number(process.env.LLM_INPUT_PRICE) || 0.10,
+  llmOutput: Number(process.env.LLM_OUTPUT_PRICE) || 0.30,
   // Imagen 3 — $/image (1:1 aspect ratio)
   imagenImage: Number(process.env.IMAGEN_IMAGE_PRICE) || 0.03,
   // Google Custom Search — $/query (after free tier)
@@ -19,34 +19,34 @@ const PRICES = {
 };
 
 interface CostState {
-  geminiInputTokens: number;
-  geminiOutputTokens: number;
+  llmInputTokens: number;
+  llmOutputTokens: number;
   imagenImages: number;
   googleSearches: number;
 }
 
 let state: CostState = {
-  geminiInputTokens: 0,
-  geminiOutputTokens: 0,
+  llmInputTokens: 0,
+  llmOutputTokens: 0,
   imagenImages: 0,
   googleSearches: 0,
 };
 
 export function resetCosts(): void {
   state = {
-    geminiInputTokens: 0,
-    geminiOutputTokens: 0,
+    llmInputTokens: 0,
+    llmOutputTokens: 0,
     imagenImages: 0,
     googleSearches: 0,
   };
 }
 
-export function trackGeminiUsage(
+export function trackLLMUsage(
   inputTokens: number | undefined,
   outputTokens: number | undefined,
 ): void {
-  state.geminiInputTokens += inputTokens ?? 0;
-  state.geminiOutputTokens += outputTokens ?? 0;
+  state.llmInputTokens += inputTokens ?? 0;
+  state.llmOutputTokens += outputTokens ?? 0;
 }
 
 export function trackImagenImage(): void {
@@ -58,28 +58,28 @@ export function trackGoogleSearch(): void {
 }
 
 export interface CostSummary {
-  geminiInputTokens: number;
-  geminiOutputTokens: number;
+  llmInputTokens: number;
+  llmOutputTokens: number;
   imagenImages: number;
   googleSearches: number;
-  geminiCost: number;
+  llmCost: number;
   imagenCost: number;
   googleSearchCost: number;
   totalCost: number;
 }
 
 export function getCostSummary(): CostSummary {
-  const geminiCost =
-    (state.geminiInputTokens / 1_000_000) * PRICES.geminiFlashInput +
-    (state.geminiOutputTokens / 1_000_000) * PRICES.geminiFlashOutput;
+  const llmCost =
+    (state.llmInputTokens / 1_000_000) * PRICES.llmInput +
+    (state.llmOutputTokens / 1_000_000) * PRICES.llmOutput;
   const imagenCost = state.imagenImages * PRICES.imagenImage;
   const googleSearchCost = state.googleSearches * PRICES.googleSearch;
 
   return {
     ...state,
-    geminiCost,
+    llmCost,
     imagenCost,
     googleSearchCost,
-    totalCost: geminiCost + imagenCost + googleSearchCost,
+    totalCost: llmCost + imagenCost + googleSearchCost,
   };
 }
