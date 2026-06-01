@@ -63,8 +63,11 @@ export interface MeasureSummaries {
  * Summarize a ballot measure **from fetched source text only**, at two lengths.
  *
  * @param title         The measure title (for orientation, NOT a content source).
- * @param groundingText Real text fetched from authoritative/nonpartisan sources.
- *                      Must be substantive — we refuse to summarize from a title.
+ * @param groundingText Real text fetched from public sources. May include
+ *                      advocacy material (e.g. SPUR); callers strip any explicit
+ *                      endorsement first, and the prompt instructs the model to
+ *                      ignore persuasive framing. Must be substantive — we refuse
+ *                      to summarize from a title.
  * @throws if no AI provider is configured, the grounding text is too thin, or
  *         the model judges the source insufficient (so the UI shows "No
  *         information available" rather than a guess).
@@ -85,6 +88,7 @@ Summarize what this ballot measure does, using ONLY the SOURCE TEXT below. The s
 Hard rules:
 - Use ONLY facts present in the SOURCE TEXT. Do not use any outside knowledge.
 - If the SOURCE TEXT does not actually describe what the measure does (e.g. it is only a title, navigation, or boilerplate), reply with exactly: ${INSUFFICIENT}
+- The SOURCE TEXT may come from an advocacy or endorsement group. IGNORE any "we recommend", "vote YES/NO", "endorse", or persuasive concluding language; never adopt or reproduce the source's stance. Describe what the measure does, not what anyone thinks of it.
 - Stay neutral — present facts, not opinions. Do not advocate for or against.
 - Plain English, no legal jargon. Do not repeat the title verbatim.
 
@@ -138,6 +142,7 @@ Using ONLY the SOURCE TEXT below, list the strongest arguments FOR and AGAINST t
 Hard rules:
 - Use ONLY points supported by the SOURCE TEXT. Do not invent arguments.
 - If the SOURCE TEXT contains no usable arguments, reply with exactly: ${INSUFFICIENT}
+- The SOURCE TEXT may come from an advocacy or endorsement group that argues one side harder than the other. Represent both sides proportionally and neutrally; do not inherit the source's lean or reproduce "we recommend / vote YES/NO" language.
 - Neutral phrasing. 1-3 concise bullets per side.
 
 Return a JSON object on one line: {"pros": ["..."], "cons": ["..."]}
