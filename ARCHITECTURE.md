@@ -216,12 +216,13 @@ The API is a [tRPC v11](https://trpc.io/) router in `packages/api/`, served by N
 
 ### Router Structure
 
-The root router (`packages/api/src/root.ts`) composes **eight** sub-routers:
+The root router (`packages/api/src/root.ts`) composes **nine** sub-routers:
 
 | Router       | Procedures (Q = query, M = mutation, 🔒 = protected)                                                                 |
 | ------------ | -------------------------------------------------------------------------------------------------------------------- |
 | `auth`       | `getSession` (Q), `getSecretMessage` (Q 🔒)                                                                           |
 | `civic`      | `getElections`, `getVoterInfo`, `getRepresentatives`, `getRepresentativesEnriched` (all Q) — Google Civic + measure/candidate cross-validation |
+| `places`     | `autocomplete` (Q), `details` (M) — Google Places address autocomplete for the ballot lookup                        |
 | `legistar`   | `getLocalBills`, `getMeetings`, `getAgenda`, `getVotes`, `getBodies`, `getMeetingVotes` (all Q) — local councils     |
 | `openStates` | `searchBills`, `getBillDetails`, `getLegislators`, `getBillVotes` (all Q) — CA state legislature (Open States v3)    |
 | `content`    | `getAll`, `getByType`, `getById` (all Q) — aggregates bill / government_content / court_case                         |
@@ -237,6 +238,7 @@ Other live civic integrations:
 
 - **`legistar`** — scrapes Legistar instances for San Jose, Santa Clara County, and Sunnyvale (no key required).
 - **`openStates`** — California bills, legislators, and votes via the Open States v3 API (`OPEN_STATES_API_KEY`).
+- **`places`** — Google **Places Autocomplete (New)** for the ballot address entry (`packages/api/src/lib/places.ts`). `autocomplete` returns US street-address predictions (biased `includedRegionCodes: ["us"]`, `includedPrimaryTypes: street_address/premise/subpremise`) for queries ≥3 chars; `details` resolves a `placeId` to its full `formattedAddress` (the ZIP the prediction omits, which Civic wants). A **session token** (UUID stable across one address entry) bundles all keystroke calls plus the closing `details` into a single billed unit. Reuses `GOOGLE_PLACES_API_KEY` → `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`; with no key it serves a small mock list so the dropdown still works in dev (same fallback pattern as `civic`).
 
 ### Ballot-Measure Cross-Validation
 
@@ -296,6 +298,7 @@ Source adapters live in `packages/api/src/lib/candidate-sources/` (sharing the m
 
 | Source      | Adapter         | Contributes                                              | Scope / gate                                   |
 | ----------- | --------------- | ------------------------------------------------------- | ---------------------------------------------- |
+| CA SOS Voter Guide | `ca-sos-voterguide.ts` | candidate statement (biography), email, phone, website, socials | **CA statewide offices only** — gates on `stateAbbrev === "CA"` + office→slug map; tier `state_sos`, official |
 | Open States | `open-states.ts`| incumbent flag, photo, email, phone, website, socials   | **State legislators only** (gates on level/roles) |
 | Vote Smart  | `votesmart.ts`  | biography, photo, office phone, website/email           | resolve `candidateId` by name+state (`VOTE_SMART_API_KEY`) |
 | Ballotpedia | `ballotpedia.ts`| biography, photo                                        | slugify name → article HTML; disambiguation guard |
@@ -460,7 +463,7 @@ A PostgREST-style HTTP API (Supabase anon key + RLS) would solve both, but our b
 
 **tRPC client** (`apps/expo/src/utils/api.tsx`) uses `httpBatchLink`. The base URL (`utils/base-url.ts`) prefers `EXPO_PUBLIC_API_URL`, else auto-detects the dev machine's IP from the Expo debugger host, else `localhost:3000`. Requests carry `x-trpc-source: expo-react` and the auth cookie.
 
-**Screens** (Expo Router): four tabs — Browse (`index`, content + search + an election banner for the signed-in user's own election), Feed (`feed`, swipeable video cards), Elections (`elections`, address-based voter info), Settings. Detail routes include `article-detail`, `contest-detail`, `measure-detail`, and `local-elections`. The measure-detail screen renders the short summary on the card and the long summary on detail, the `summaryIsAiGenerated` label, structured pro/con arguments, fiscal impact, and per-field source citations linking back to origin. The contest-detail screen renders the enriched candidate fields — photo, biography, incumbent badge, contact link, social channels — alongside the same per-field source citations.
+**Screens** (Expo Router): four tabs — Browse (`index`, content + search + an election banner for the signed-in user's own election), Feed (`feed`, swipeable video cards), Elections (`elections`, address-based voter info — a Places-backed address autocomplete resolves the registered address, then a **Candidates / Measures** segmented control splits the resolved ballot into the two contest types), Settings. Detail routes include `article-detail`, `contest-detail`, `measure-detail`, and `local-elections`. The measure-detail screen renders the short summary on the card and the long summary on detail, the `summaryIsAiGenerated` label, structured pro/con arguments, fiscal impact, and per-field source citations linking back to origin. The contest-detail screen renders the enriched candidate fields — photo, biography, incumbent badge, contact link, social channels — alongside the same per-field source citations.
 
 **Styling:** NativeWind v5. All Expo styles are consolidated in `apps/expo/src/styles.ts`, which re-exports shared tokens from `@acme/ui/theme-tokens` and adds RN-specific layers (`planes` for surface depth, `hair` hairline borders, content-type colors) plus the `sp`/`rd` rem-to-px helpers and a `useTheme()` hook. Brand fonts (IBM Plex Serif, Inria Serif, Albert Sans) load via `expo-font`. See CONTRIBUTING.md for the full style API.
 
