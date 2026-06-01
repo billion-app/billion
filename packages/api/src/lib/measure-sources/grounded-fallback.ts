@@ -23,6 +23,50 @@ const SPUR_NAME = "SPUR Voter Guide";
 export interface GroundingResult {
   text: string;
   sources: { name: string; url: string }[];
+  /** Real, human-written pro/con bullets parsed from the source, if any. */
+  pros?: string[];
+  cons?: string[];
+}
+
+/**
+ * Extract SPUR's "Pros" and "Cons" bullet lists from the page's plaintext.
+ * SPUR lays them out as a "Pros" heading, a few sentences, then "Cons", then
+ * "SPUR's Recommendation". We slice between those markers and split sentences.
+ */
+function extractSpurProsCons(text: string): {
+  pros: string[];
+  cons: string[];
+} {
+  const slice = (start: RegExp, stops: RegExp[]): string | undefined => {
+    const m = start.exec(text);
+    if (!m) return undefined;
+    const from = m.index + m[0].length;
+    let to = text.length;
+    for (const stop of stops) {
+      const sm = stop.exec(text.slice(from));
+      if (sm && from + sm.index < to) to = from + sm.index;
+    }
+    const out = text.slice(from, to).trim();
+    return out.length >= 20 ? out : undefined;
+  };
+
+  const toBullets = (block: string | undefined): string[] => {
+    if (!block) return [];
+    return block
+      .split(/\n+/)
+      .flatMap((line) => line.split(/(?<=[.!?])\s+(?=[A-Z])/))
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 25)
+      .slice(0, 4);
+  };
+
+  const proRe = /\bpros\b/i;
+  const conRe = /\bcons\b/i;
+  const recRe = /\bspur.?s?\s+recommendation\b/i;
+  return {
+    pros: toBullets(slice(proRe, [conRe, recRe])),
+    cons: toBullets(slice(conRe, [recRe])),
+  };
 }
 
 /**
@@ -32,7 +76,7 @@ export interface GroundingResult {
 async function resolveSpurArticle(
   title: string,
   year: number,
-): Promise<{ url: string; text: string } | null> {
+): Promise<{ url: string; text: string; pros: string[]; cons: string[] } | null> {
   const codes = parseMeasureCodes(title).map((c) => c.toLowerCase());
   if (!codes.length) return null;
 
@@ -57,9 +101,12 @@ async function resolveSpurArticle(
         if (!html) continue;
         const text = htmlToText(html);
         if (text.length >= MIN_TEXT) {
+          const { pros, cons } = extractSpurProsCons(text);
           return {
             url: `https://www.spur.org${href}`,
             text: text.slice(0, 4000),
+            pros,
+            cons,
           };
         }
       }
@@ -83,6 +130,8 @@ export async function collectGroundingText(
     return {
       text: `From ${SPUR_NAME} (${spur.url}):\n${spur.text}`,
       sources: [{ name: SPUR_NAME, url: spur.url }],
+      pros: spur.pros.length ? spur.pros : undefined,
+      cons: spur.cons.length ? spur.cons : undefined,
     };
   }
   return null;

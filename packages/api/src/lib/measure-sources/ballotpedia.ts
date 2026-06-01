@@ -33,7 +33,7 @@ const BASE = "https://ballotpedia.org";
 export function parseMeasureCodes(title: string): string[] {
   // "D D" (same letter, spaced) → ["D", "DD"]; single → ["D"].
   const dup = /\bmeasure\s+([a-z])\s+([a-z])\b/i.exec(title);
-  if (dup && dup[1] && dup[2] && dup[1].toUpperCase() === dup[2].toUpperCase()) {
+  if (dup?.[1] && dup[2] && dup[1].toUpperCase() === dup[2].toUpperCase()) {
     const l = dup[1].toUpperCase();
     return [l, l + l];
   }

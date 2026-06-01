@@ -17,7 +17,7 @@ import type {
   MeasureCitation,
   MeasureSourceData,
 } from "./measure-sources/types";
-import { generateMeasureSummary } from "./civic-ai";
+import { generateMeasureSummary, generateProConFromText } from "./civic-ai";
 import { enrichFromBallotpedia } from "./measure-sources/ballotpedia";
 import { enrichFromCaSos } from "./measure-sources/ca-sos-voterguide";
 import { enrichFromCaVotes } from "./measure-sources/cavotes";
@@ -268,8 +268,77 @@ export async function crossValidateMeasure(
           official: false,
         });
       }
-      if (!fullTextUrl && groundingSources[0]?.url) {
-        fullTextUrl = groundingSources[0].url;
+      if (!fullTextUrl && gsource?.url) fullTextUrl = gsource.url;
+
+      // Pro/con: prefer real human-written arguments parsed from the source
+      // (e.g. SPUR's Pros/Cons). Only AI-generate when none were found.
+      if (proArguments.length === 0 && conArguments.length === 0) {
+        const realPros = fetchedProsCons?.pros ?? [];
+        const realCons = fetchedProsCons?.cons ?? [];
+        if (realPros.length || realCons.length) {
+          for (const t of realPros)
+            proArguments.push({
+              text: t,
+              sourceName: gsource?.name ?? "Source",
+              sourceUrl: gsource?.url,
+            });
+          for (const t of realCons)
+            conArguments.push({
+              text: t,
+              sourceName: gsource?.name ?? "Source",
+              sourceUrl: gsource?.url,
+            });
+          if (realPros.length)
+            citations.push({
+              field: "proArguments",
+              sourceName: gsource?.name ?? "Source",
+              sourceUrl: gsource?.url,
+              tier: "lwv",
+              official: false,
+            });
+          if (realCons.length)
+            citations.push({
+              field: "conArguments",
+              sourceName: gsource?.name ?? "Source",
+              sourceUrl: gsource?.url,
+              tier: "lwv",
+              official: false,
+            });
+        } else {
+          // No real arguments anywhere — AI-generate from the grounded text.
+          const ai = await generateProConFromText(
+            input.title,
+            groundingText,
+          ).catch(() => null);
+          if (ai) {
+            for (const t of ai.pros)
+              proArguments.push({
+                text: t,
+                sourceName: "AI — from cited sources",
+                sourceUrl: gsource?.url,
+              });
+            for (const t of ai.cons)
+              conArguments.push({
+                text: t,
+                sourceName: "AI — from cited sources",
+                sourceUrl: gsource?.url,
+              });
+            if (ai.pros.length)
+              citations.push({
+                field: "proArguments",
+                sourceName: "AI — generated from cited source text",
+                tier: "ai_generated",
+                official: false,
+              });
+            if (ai.cons.length)
+              citations.push({
+                field: "conArguments",
+                sourceName: "AI — generated from cited source text",
+                tier: "ai_generated",
+                official: false,
+              });
+          }
+        }
       }
     } catch {
       // Not enough real source text → leave summary undefined; the UI shows
