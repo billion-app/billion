@@ -23,6 +23,7 @@ import type {
   MeasureCitation,
 } from "./candidate-sources/types";
 import { enrichCandidateFromBallotpedia } from "./candidate-sources/ballotpedia";
+import { enrichCandidateFromCaSos } from "./candidate-sources/ca-sos-voterguide";
 import { enrichCandidateFromOpenStates } from "./candidate-sources/open-states";
 import { byTierDesc, candidateCite } from "./candidate-sources/types";
 import { enrichCandidateFromVoteSmart } from "./candidate-sources/votesmart";
@@ -38,33 +39,40 @@ export async function crossValidateCandidate(
   input: CandidateInput,
   ctx: CandidateCrossValidateContext,
 ): Promise<CanonicalCandidate> {
-  const [openStates, voteSmart, ballotpedia, wikipedia] = await Promise.all([
-    enrichCandidateFromOpenStates(input.name, {
-      office: input.office,
-      district: input.district,
-      roles: input.roles,
-      level: input.level,
-      stateAbbrev: ctx.stateAbbrev,
-    }).catch(() => null),
-    enrichCandidateFromVoteSmart(input.name, {
-      office: input.office,
-      stateAbbrev: ctx.stateAbbrev,
-      electionYear: ctx.electionYear,
-    }).catch(() => null),
-    enrichCandidateFromBallotpedia(input.name, {
-      office: input.office,
-      county: ctx.county,
-      stateAbbrev: ctx.stateAbbrev,
-      electionYear: ctx.electionYear,
-    }).catch(() => null),
-    enrichCandidateFromWikipedia(input.name, {
-      office: input.office,
-      stateAbbrev: ctx.stateAbbrev,
-      electionYear: ctx.electionYear,
-    }).catch(() => null),
-  ]);
+  const [caSos, openStates, voteSmart, ballotpedia, wikipedia] =
+    await Promise.all([
+      enrichCandidateFromCaSos(input.name, {
+        office: input.office,
+        stateAbbrev: ctx.stateAbbrev,
+        electionYear: ctx.electionYear,
+      }).catch(() => null),
+      enrichCandidateFromOpenStates(input.name, {
+        office: input.office,
+        district: input.district,
+        roles: input.roles,
+        level: input.level,
+        stateAbbrev: ctx.stateAbbrev,
+      }).catch(() => null),
+      enrichCandidateFromVoteSmart(input.name, {
+        office: input.office,
+        stateAbbrev: ctx.stateAbbrev,
+        electionYear: ctx.electionYear,
+      }).catch(() => null),
+      enrichCandidateFromBallotpedia(input.name, {
+        office: input.office,
+        county: ctx.county,
+        stateAbbrev: ctx.stateAbbrev,
+        electionYear: ctx.electionYear,
+      }).catch(() => null),
+      enrichCandidateFromWikipedia(input.name, {
+        office: input.office,
+        stateAbbrev: ctx.stateAbbrev,
+        electionYear: ctx.electionYear,
+      }).catch(() => null),
+    ]);
 
   const sources: CandidateSourceData[] = [
+    caSos,
     openStates,
     voteSmart,
     ballotpedia,
