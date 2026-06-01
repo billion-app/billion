@@ -3,9 +3,10 @@
  *
  * Debounces the typed query, fetches US-address predictions from
  * places.autocomplete, and lets the user tap a suggestion to commit it. Picking
- * a suggestion (or pressing Look Up with text) calls onSubmit with the chosen
- * address, which then feeds Civic's getVoterInfo. Replaces the bare text field
- * so users can't submit malformed addresses.
+ * a suggestion resolves its full formatted address via places.details (which
+ * also closes the Places billing session — see the session-token note below),
+ * then calls onSubmit with that address to feed Civic's getVoterInfo. Replaces
+ * the bare text field so users can't submit malformed addresses.
  */
 import { useEffect, useState } from "react";
 import {
@@ -16,7 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
@@ -40,6 +41,19 @@ function useDebounced<T>(value: T, delay: number): T {
   return debounced;
 }
 
+/**
+ * RFC-4122 v4 UUID, used as a Places session token to bundle one address
+ * entry's autocomplete calls (+ the closing details call) into a single
+ * billed session. Inline to avoid a uuid/crypto dependency.
+ */
+function uuidv4(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export function AddressAutocomplete({
   initialValue = "",
   onSubmit,
@@ -48,24 +62,49 @@ export function AddressAutocomplete({
   // Closed right after a pick so the dropdown doesn't reopen on the
   // programmatic setInput; reopened as soon as the user types again.
   const [open, setOpen] = useState(false);
+  // One token per address-entry; regenerated after each committed pick.
+  const [sessionToken, setSessionToken] = useState(uuidv4);
   const debouncedQuery = useDebounced(input, 250);
 
   const suggestionsQuery = useQuery({
-    ...trpc.places.autocomplete.queryOptions({ query: debouncedQuery }),
+    ...trpc.places.autocomplete.queryOptions({
+      query: debouncedQuery,
+      sessionToken,
+    }),
     enabled: open && debouncedQuery.trim().length >= 3,
   });
+
+  // Closes the billing session and returns the full formatted address (with
+  // ZIP, which the prediction omits). Null on the mock path → use the raw text.
+  const detailsMutation = useMutation(trpc.places.details.mutationOptions());
 
   const suggestions = suggestionsQuery.data ?? [];
   const showDropdown =
     open &&
+    !detailsMutation.isPending &&
     input.trim().length >= 3 &&
     (suggestions.length > 0 || suggestionsQuery.isFetching);
 
-  const pick = (address: string) => {
+  const commit = (address: string) => {
     setOpen(false);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setInput(address);
+    setSessionToken(uuidv4()); // fresh token for the next entry
     onSubmit(address);
+  };
+
+  const pick = async (sug: { description: string; placeId: string }) => {
+    setOpen(false);
+    try {
+      const full = await detailsMutation.mutateAsync({
+        placeId: sug.placeId,
+        sessionToken,
+      });
+      commit(full ?? sug.description);
+    } catch {
+      // Details failed (e.g. network) — fall back to the prediction text.
+      commit(sug.description);
+    }
   };
 
   return (
@@ -89,12 +128,21 @@ export function AddressAutocomplete({
         />
         <TouchableOpacity
           style={[s.btn, !input.trim() && s.btnOff]}
-          disabled={!input.trim()}
-          onPress={() => input.trim() && onSubmit(input.trim())}
+          disabled={!input.trim() || detailsMutation.isPending}
+          onPress={() => input.trim() && commit(input.trim())}
         >
           <Text style={s.btnText}>Look Up</Text>
         </TouchableOpacity>
       </View>
+
+      {detailsMutation.isPending && (
+        <View style={s.dropdown}>
+          <View style={s.suggestion}>
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+            <Text style={s.suggestionText}>Confirming address…</Text>
+          </View>
+        </View>
+      )}
 
       {showDropdown && (
         <View style={s.dropdown}>
@@ -103,7 +151,7 @@ export function AddressAutocomplete({
               key={sug.placeId}
               style={[s.suggestion, i > 0 && s.suggestionBorder]}
               activeOpacity={0.7}
-              onPress={() => pick(sug.description)}
+              onPress={() => void pick(sug)}
             >
               <Icon name="pin" size={14} color={colors.textSecondary} />
               <Text style={s.suggestionText} numberOfLines={1}>

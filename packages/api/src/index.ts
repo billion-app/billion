@@ -33,7 +33,7 @@ export {
 
 // Google Places address autocomplete
 export type { AddressSuggestion } from "./lib/places";
-export { getAddressSuggestions } from "./lib/places";
+export { getAddressSuggestions, getPlaceDetails } from "./lib/places";
 
 // Open States API types
 export type {

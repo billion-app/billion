@@ -12,6 +12,7 @@
  */
 
 const AUTOCOMPLETE_URL = "https://places.googleapis.com/v1/places:autocomplete";
+const DETAILS_URL = "https://places.googleapis.com/v1/places";
 
 function getApiKey(): string | null {
   return (
@@ -59,9 +60,14 @@ const MOCK_SUGGESTIONS: AddressSuggestion[] = [
  * Return US-address suggestions for a partial query string. Empty/short
  * queries short-circuit to an empty list (no point hitting the API for one
  * character). Throws on a non-OK API response so the tRPC layer can surface it.
+ *
+ * Pass a `sessionToken` (a UUID stable across one address-entry) to bundle all
+ * the keystroke calls into a single billed session; the matching getPlaceDetails
+ * call closes it. See https://developers.google.com/maps/documentation/places/web-service/using-session-tokens
  */
 export async function getAddressSuggestions(
   query: string,
+  sessionToken?: string,
 ): Promise<AddressSuggestion[]> {
   const input = query.trim();
   if (input.length < 3) return [];
@@ -89,6 +95,7 @@ export async function getAddressSuggestions(
       includedRegionCodes: ["us"],
       // Street addresses + ranges; excludes businesses/landmarks/cities-only.
       includedPrimaryTypes: ["street_address", "premise", "subpremise"],
+      ...(sessionToken ? { sessionToken } : {}),
     }),
   });
 
@@ -111,4 +118,47 @@ export async function getAddressSuggestions(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       placeId: p.placeId!,
     }));
+}
+
+interface PlaceDetailsResponse {
+  formattedAddress?: string;
+}
+
+/**
+ * Resolve a placeId to its full formatted address (incl. ZIP, which the
+ * autocomplete prediction omits — and which Civic wants). Passing the same
+ * `sessionToken` used for the autocomplete calls closes that billing session,
+ * so the keystroke requests are charged as one unit rather than individually.
+ *
+ * Returns null when no key is configured (local-dev mock path): callers fall
+ * back to the suggestion's own description string.
+ */
+export async function getPlaceDetails(
+  placeId: string,
+  sessionToken?: string,
+): Promise<string | null> {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
+  const url = new URL(`${DETAILS_URL}/${encodeURIComponent(placeId)}`);
+  if (sessionToken) url.searchParams.set("sessionToken", sessionToken);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "formattedAddress",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text().catch(() => "");
+    throw new Error(
+      `Place Details error: ${response.status} ${response.statusText} - ${error}`,
+    );
+  }
+
+  const data = (await response.json()) as PlaceDetailsResponse;
+  return data.formattedAddress ?? null;
 }
