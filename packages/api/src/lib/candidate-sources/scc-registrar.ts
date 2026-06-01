@@ -23,13 +23,13 @@ import { and, eq, gt } from "@acme/db";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
+import type { SccCvigPayload, SccCvigStatement } from "./scc-cvig-cache";
 import type { CandidateSourceData } from "./types";
 import {
   SCC_CVIG_ADDRESS_HASH,
   SCC_CVIG_ENDPOINT,
   sccCvigCacheParams,
 } from "./scc-cvig-cache";
-import type { SccCvigPayload, SccCvigStatement } from "./scc-cvig-cache";
 import { candidateNameSimilarity, clamp, dropInitials } from "./types";
 
 const SOURCE_NAME =

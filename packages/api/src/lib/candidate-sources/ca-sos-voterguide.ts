@@ -313,7 +313,9 @@ export async function enrichCandidateFromCaSos(
   const contactHtml = contactIdx !== undefined ? (paras[contactIdx] ?? "") : "";
   const contactText = htmlToText(contactHtml);
 
-  const statementParas = paras.filter((_, i) => i !== contactIdx).map(htmlToText);
+  const statementParas = paras
+    .filter((_, i) => i !== contactIdx)
+    .map(htmlToText);
   const statement = clamp(statementParas.join("\n\n"), MAX_BIO_CHARS);
   if (!statement || statement.length < 40) return null;
 

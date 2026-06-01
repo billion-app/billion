@@ -24,12 +24,12 @@ import type {
 } from "./candidate-sources/types";
 import { enrichCandidateFromBallotpedia } from "./candidate-sources/ballotpedia";
 import { enrichCandidateFromCaSos } from "./candidate-sources/ca-sos-voterguide";
-import { generateCandidateStatementSummary } from "./civic-ai";
 import { enrichCandidateFromOpenStates } from "./candidate-sources/open-states";
 import { enrichCandidateFromScc } from "./candidate-sources/scc-registrar";
 import { byTierDesc, candidateCite } from "./candidate-sources/types";
 import { enrichCandidateFromVoteSmart } from "./candidate-sources/votesmart";
 import { enrichCandidateFromWikipedia } from "./candidate-sources/wikipedia";
+import { generateCandidateStatementSummary } from "./civic-ai";
 
 /**
  * Collect from all candidate sources and merge into a canonical, source-

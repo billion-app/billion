@@ -840,7 +840,10 @@ async function enrichContest(
               ["phone", candidate.phone],
               ["email", candidate.email],
               ["photoUrl", candidate.photoUrl],
-              ["channels", candidate.channels?.length ? candidate.channels : undefined],
+              [
+                "channels",
+                candidate.channels?.length ? candidate.channels : undefined,
+              ],
             ];
             for (const [field, value] of rawCivicFields) {
               if (value && !cited.has(field)) {
