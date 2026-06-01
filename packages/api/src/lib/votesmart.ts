@@ -9,7 +9,7 @@
 
 const VOTESMART_API_BASE = "https://api.votesmart.org";
 
-function getApiKey(): string | null {
+export function getApiKey(): string | null {
   return process.env.VOTE_SMART_API_KEY ?? null;
 }
 
@@ -32,7 +32,7 @@ export interface VoteSmartMeasure {
   no?: string;
 }
 
-async function fetchVoteSmart<T>(
+export async function fetchVoteSmart<T>(
   className: string,
   method: string,
   params: Record<string, string>,
@@ -81,7 +81,7 @@ const STATE_ABBREVS: Record<string, string> = {
   wisconsin: "WI", wyoming: "WY", "district of columbia": "DC",
 };
 
-function stateNameToAbbrev(name: string): string | null {
+export function stateNameToAbbrev(name: string): string | null {
   return STATE_ABBREVS[name.toLowerCase().trim()] ?? null;
 }
 
@@ -140,7 +140,7 @@ function normalizeMeasureTitle(title: string): string {
     .trim();
 }
 
-function titleSimilarity(a: string, b: string): number {
+export function titleSimilarity(a: string, b: string): number {
   const wordsA = new Set(normalizeMeasureTitle(a).split(/\s+/));
   const wordsB = new Set(normalizeMeasureTitle(b).split(/\s+/));
   if (wordsA.size === 0 || wordsB.size === 0) return 0;
