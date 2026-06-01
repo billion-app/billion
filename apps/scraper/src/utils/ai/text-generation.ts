@@ -1,18 +1,18 @@
 /**
- * AI text generation utilities using Google Vertex AI
+ * AI text generation utilities
  * Generates summaries and full articles from government content
  */
 
 import { generateText, APICallError, RetryError } from 'ai';
 import { createLogger } from '../log.js';
-import { trackGeminiUsage } from '../costs.js';
-import { vertexProvider } from './provider.js';
+import { trackLLMUsage } from '../costs.js';
+import { llm } from './provider.js';
 
 const logger = createLogger("ai");
 
 export class AIRateLimitError extends Error {
   constructor() {
-    super('Gemini rate limit hit — deferring AI generation to next run');
+    super('LLM rate limit hit — deferring AI generation to next run');
     this.name = 'AIRateLimitError';
   }
 }
@@ -53,7 +53,7 @@ export async function generateAISummary(
   }
   try {
     const { text, usage } = await generateText({
-      model: vertexProvider('gemini-2.5-flash'),
+      model: llm,
       prompt: `You are an expert at simplifying complex government and legal jargon for a general audience.
 Generate a very short, punchy summary (max 100 characters) for this content.
 
@@ -66,7 +66,7 @@ Content: ${content.substring(0, 2000)}
 
 Summary (max 100 characters):`,
     });
-    trackGeminiUsage(usage.inputTokens, usage.outputTokens);
+    trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
     return text.trim().substring(0, 100);
   } catch (error) {
@@ -100,7 +100,7 @@ export async function generateAIArticle(
     logger.start(`Generating AI article for: ${title}`);
 
     const { text, usage } = await generateText({
-      model: vertexProvider('gemini-2.5-flash'),
+      model: llm,
       prompt: `You are an expert at making government and legal content accessible and engaging for everyday people. Transform the following ${type} into a well-structured, markdown-formatted article.
 
 **Structure your article with these 4 sections:**
@@ -144,7 +144,7 @@ ${fullText}
 
 Write the article now using the 4-section structure above:`,
     });
-    trackGeminiUsage(usage.inputTokens, usage.outputTokens);
+    trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
     return text.trim();
   } catch (error) {

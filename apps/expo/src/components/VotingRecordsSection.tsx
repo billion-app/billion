@@ -96,10 +96,14 @@ export function VotingRecordsSection({
                     <PassFailBadge status={item.EventItemPassedFlagName} />
                   </View>
                   <Text style={styles.title} numberOfLines={2}>
-                    {item.EventItemTitle ?? item.EventItemMatterName ?? "Untitled"}
+                    {item.EventItemTitle ??
+                      item.EventItemMatterName ??
+                      "Untitled"}
                   </Text>
                   {item.EventItemTally && (
-                    <Text style={styles.tally}>Tally: {item.EventItemTally}</Text>
+                    <Text style={styles.tally}>
+                      Tally: {item.EventItemTally}
+                    </Text>
                   )}
                 </View>
                 <FontAwesome
@@ -122,7 +126,9 @@ export function VotingRecordsSection({
                   )}
                   {votesQuery.data?.map((vote) => (
                     <View key={vote.VoteId} style={styles.voteRow}>
-                      <Text style={styles.voterName}>{vote.VotePersonName}</Text>
+                      <Text style={styles.voterName}>
+                        {vote.VotePersonName}
+                      </Text>
                       <Text
                         style={[
                           styles.voteValue,
@@ -141,7 +147,9 @@ export function VotingRecordsSection({
                     </View>
                   ))}
                   {votesQuery.data?.length === 0 && (
-                    <Text style={styles.noVotes}>No individual votes recorded</Text>
+                    <Text style={styles.noVotes}>
+                      No individual votes recorded
+                    </Text>
                   )}
                 </View>
               )}

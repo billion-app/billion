@@ -10,15 +10,12 @@ import { and, eq, gt } from "@acme/db";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
-import {
-  generateMeasureSummary,
-  generateRoleDescription,
-} from "./civic-ai";
-import {
-  getRoleDescription,
-  saveRoleDescription,
-} from "./civic-descriptions";
-import { enrichFromVoteSmart } from "./votesmart";
+import type { CrossValidateContext } from "./measure-crossvalidate";
+import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
+import { crossValidateCandidate } from "./candidate-crossvalidate";
+import { generateRoleDescription } from "./civic-ai";
+import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
+import { crossValidateMeasure } from "./measure-crossvalidate";
 
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
@@ -38,7 +35,9 @@ const CACHE_TTL = {
 } as const;
 
 function hashAddress(address: string): string {
-  return createHash("sha256").update(address.toLowerCase().trim()).digest("hex");
+  return createHash("sha256")
+    .update(address.toLowerCase().trim())
+    .digest("hex");
 }
 
 function stableStringify(obj: Record<string, unknown>): string {
@@ -144,6 +143,26 @@ export interface PollingLocation {
 export interface Source {
   name: string;
   official: boolean;
+  url?: string;
+  /** Trust tier of this source (county_registrar > state_sos > … > ai). */
+  tier?: string;
+}
+
+/** Which source supplied a particular measure field, for UI attribution. */
+export interface MeasureCitationRef {
+  field: string;
+  sourceName: string;
+  sourceUrl?: string;
+  tier: string;
+  official: boolean;
+}
+
+/** A single pro/con argument with attribution. */
+export interface MeasureArgumentRef {
+  text: string;
+  author?: string;
+  sourceName: string;
+  sourceUrl?: string;
 }
 
 export interface Contest {
@@ -172,6 +191,20 @@ export interface Contest {
   sources?: Source[];
   roleDescription?: string;
   summary?: string;
+  /** One-sentence summary for the ballot card preview. */
+  summaryShort?: string;
+  /** Fuller plain-language summary for the measure detail screen. */
+  summaryLong?: string;
+  /** True when `summary` was AI-generated rather than from an official source. */
+  summaryIsAiGenerated?: boolean;
+  /** Official fiscal impact analysis (e.g. from the LAO or county). */
+  fiscalImpact?: string;
+  /** Structured, attributed pro arguments (preferred over referendumProStatement). */
+  proArguments?: MeasureArgumentRef[];
+  /** Structured, attributed con arguments. */
+  conArguments?: MeasureArgumentRef[];
+  /** Per-field source attribution for everything above. */
+  citations?: MeasureCitationRef[];
 }
 
 export interface Candidate {
@@ -183,6 +216,12 @@ export interface Candidate {
   email?: string;
   orderOnBallot?: string;
   channels?: Channel[];
+  /** Biography merged from candidate sources (Ballotpedia/Wikipedia/Vote Smart). */
+  biography?: string;
+  /** True when the candidate currently holds the office (per Open States / Vote Smart). */
+  incumbent?: boolean;
+  /** Per-field source attribution for the enriched fields above. */
+  citations?: MeasureCitationRef[];
 }
 
 export interface Channel {
@@ -590,9 +629,61 @@ function inferLevel(office: string): string | undefined {
 // Contest Enrichment
 // ============================================================================
 
+/**
+ * Bound outbound enrichment fan-out for a whole voterinfo request. Contests are
+ * enriched concurrently and each contest fans out per candidate × multiple
+ * sources, so a cold ballot could otherwise burst hundreds of simultaneous
+ * fetches. This module-level limiter caps in-flight enrichments GLOBALLY (not
+ * per-contest) so N contests can't multiply the cap.
+ */
+const ENRICH_CONCURRENCY = 5;
+let enrichInFlight = 0;
+const enrichQueue: (() => void)[] = [];
+
+function withEnrichLimit<T>(thunk: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const run = () => {
+      enrichInFlight++;
+      thunk()
+        .then(resolve, reject)
+        .finally(() => {
+          enrichInFlight--;
+          enrichQueue.shift()?.();
+        });
+    };
+    if (enrichInFlight < ENRICH_CONCURRENCY) run();
+    else enrichQueue.push(run);
+  });
+}
+
 interface EnrichmentContext {
   stateAbbrev?: string;
+  county?: string;
   electionYear?: number;
+}
+
+/**
+ * Best-effort county extraction from a voter-info response. The Civic API has
+ * no explicit county field, so we scan the places it tends to appear — the
+ * election administration region/jurisdiction names and contest district
+ * names — for a "<Name> County" string. Used to scope local measure sources.
+ */
+function deriveCounty(resp: VoterInfoResponse): string | undefined {
+  const haystacks: (string | undefined)[] = [];
+  for (const region of resp.state ?? []) {
+    haystacks.push(region.name);
+    haystacks.push(region.electionAdministrationBody?.name);
+    haystacks.push(region.localJurisdiction?.name);
+    haystacks.push(region.localJurisdiction?.electionAdministrationBody?.name);
+  }
+  for (const c of resp.contests ?? []) {
+    haystacks.push(c.district?.name);
+  }
+  for (const h of haystacks) {
+    const m = /([A-Z][A-Za-z.\s]+?)\s+County\b/.exec(h ?? "");
+    if (m?.[1]) return `${m[1].trim()} County`;
+  }
+  return undefined;
 }
 
 async function enrichContest(
@@ -600,48 +691,136 @@ async function enrichContest(
   ctx?: EnrichmentContext,
 ): Promise<Contest> {
   if (contest.referendumTitle) {
-    // Try Vote Smart for state-level measures
-    if (ctx?.stateAbbrev && ctx.electionYear) {
-      try {
-        const vs = await enrichFromVoteSmart(
-          contest.referendumTitle,
-          ctx.stateAbbrev,
-          ctx.electionYear,
-        );
-        if (vs) {
-          if (vs.summary && !contest.referendumSubtitle) {
-            contest.referendumSubtitle = vs.summary;
-          }
-          if (vs.measureText && !contest.referendumText) {
-            contest.referendumText = vs.measureText;
-          }
-          if (vs.textUrl && !contest.referendumUrl) {
-            contest.referendumUrl = vs.textUrl;
-          }
-          contest.sources = [
-            ...(contest.sources ?? []),
-            { name: vs.source, official: false },
-          ];
-        }
-      } catch {
-        // Vote Smart enrichment failed
-      }
-    }
+    // Cross-validate across all measure sources (county registrar, state SOS,
+    // Vote Smart, Google Civic) and merge by trust tier with source
+    // attribution. AI is only used as a clearly-labeled last resort.
+    const cvCtx: CrossValidateContext = {
+      stateAbbrev: ctx?.stateAbbrev,
+      county: ctx?.county,
+      electionYear: ctx?.electionYear ?? new Date().getFullYear(),
+    };
 
-    if (!contest.summary) {
-      try {
-        contest.summary = await generateMeasureSummary(
-          contest.referendumTitle,
-          contest.referendumSubtitle,
-          contest.referendumText,
-          contest.referendumProStatement,
-          contest.referendumConStatement,
-        );
-      } catch {
-        // AI generation failed
+    try {
+      const merged = await crossValidateMeasure(
+        {
+          title: contest.referendumTitle,
+          subtitle: contest.referendumSubtitle,
+          text: contest.referendumText,
+          url: contest.referendumUrl,
+          proStatement: contest.referendumProStatement,
+          conStatement: contest.referendumConStatement,
+        },
+        cvCtx,
+      );
+
+      contest.summary = merged.summary ?? contest.summary;
+      contest.summaryShort = merged.summaryShort ?? merged.summary;
+      contest.summaryLong = merged.summaryLong ?? merged.summary;
+      contest.summaryIsAiGenerated = merged.summaryIsAiGenerated;
+      contest.fiscalImpact = merged.fiscalImpact;
+      contest.proArguments = merged.proArguments.length
+        ? merged.proArguments
+        : undefined;
+      contest.conArguments = merged.conArguments.length
+        ? merged.conArguments
+        : undefined;
+      contest.citations = merged.citations.length
+        ? merged.citations
+        : undefined;
+
+      // Back-fill the legacy single-field shape so existing UI keeps working.
+      if (!contest.referendumText && merged.fullText) {
+        contest.referendumText = merged.fullText;
       }
+      if (!contest.referendumUrl && merged.fullTextUrl) {
+        contest.referendumUrl = merged.fullTextUrl;
+      }
+      if (!contest.referendumProStatement && merged.proArguments[0]) {
+        contest.referendumProStatement = merged.proArguments[0].text;
+      }
+      if (!contest.referendumConStatement && merged.conArguments[0]) {
+        contest.referendumConStatement = merged.conArguments[0].text;
+      }
+
+      // Expose each citation as a Source entry for attribution UIs.
+      contest.sources = merged.citations.map((c) => ({
+        name: c.sourceName,
+        official: c.official,
+        url: c.sourceUrl,
+        tier: c.tier,
+      }));
+    } catch {
+      // Enrichment failed entirely — leave the raw Google Civic data intact.
     }
     return contest;
+  }
+
+  // Candidate branch: a non-referendum contest with candidates. Mirror the
+  // referendum branch — fan out to candidate sources, merge by trust tier, and
+  // attribute every surfaced field — but cache-only per candidate (no DB rows).
+  if (contest.candidates?.length) {
+    const electionYear = ctx?.electionYear ?? new Date().getFullYear();
+    const office = contest.office ?? "";
+    const district = contest.district?.name;
+    await Promise.all(
+      contest.candidates.map((candidate) =>
+        withEnrichLimit(async () => {
+          try {
+            let merged = await getCachedCandidate(
+              candidate.name,
+              office,
+              electionYear,
+              ctx?.stateAbbrev,
+              district,
+              ctx?.county,
+            );
+            if (!merged) {
+              merged = await crossValidateCandidate(
+                {
+                  name: candidate.name,
+                  party: candidate.party,
+                  office: contest.office,
+                  district,
+                  roles: contest.roles,
+                  level: contest.level,
+                },
+                {
+                  stateAbbrev: ctx?.stateAbbrev,
+                  county: ctx?.county,
+                  electionYear,
+                },
+              );
+              await setCachedCandidate(
+                candidate.name,
+                office,
+                electionYear,
+                merged,
+                ctx?.stateAbbrev,
+                district,
+                ctx?.county,
+              );
+            }
+
+            // Merge canonical fields back onto the candidate, preferring enriched
+            // values but never clobbering existing Google Civic data with empties.
+            candidate.biography = merged.biography ?? candidate.biography;
+            candidate.incumbent = merged.incumbent ?? candidate.incumbent;
+            candidate.photoUrl = merged.photoUrl ?? candidate.photoUrl;
+            candidate.candidateUrl =
+              merged.candidateUrl ?? candidate.candidateUrl;
+            candidate.email = merged.email ?? candidate.email;
+            candidate.phone = merged.phone ?? candidate.phone;
+            candidate.channels = merged.channels ?? candidate.channels;
+            candidate.citations = merged.citations.length
+              ? merged.citations
+              : candidate.citations;
+          } catch {
+            // Best-effort per candidate: one failure must not break the contest
+            // or the other candidates — leave the raw Google Civic data intact.
+          }
+        }),
+      ),
+    );
   }
 
   if (contest.office && !contest.roleDescription) {
@@ -664,7 +843,9 @@ async function enrichContest(
       contest.roleDescription = generated;
       if (role) {
         await saveRoleDescription(role, level ?? null, generated, "ai").catch(
-          () => {},
+          () => {
+            // best-effort cache write; ignore failures
+          },
         );
       }
     } catch {
@@ -721,9 +902,7 @@ export async function getVoterInfo(
   address: string,
   electionId?: string,
 ): Promise<VoterInfoResponse> {
-  const cacheParams: Record<string, unknown> = electionId
-    ? { electionId }
-    : {};
+  const cacheParams: Record<string, unknown> = electionId ? { electionId } : {};
   const cached = await getCached<VoterInfoResponse>(
     address,
     "voterinfo",
@@ -732,8 +911,9 @@ export async function getVoterInfo(
   if (cached) return cached;
 
   const enrichCtx = (resp: VoterInfoResponse): EnrichmentContext => ({
-    stateAbbrev: resp.normalizedInput?.state,
-    electionYear: resp.election?.electionDay
+    stateAbbrev: resp.normalizedInput.state,
+    county: deriveCounty(resp),
+    electionYear: resp.election.electionDay
       ? new Date(resp.election.electionDay).getFullYear()
       : new Date().getFullYear(),
   });
@@ -750,7 +930,23 @@ export async function getVoterInfo(
   }
 
   try {
-    const result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+    let result: VoterInfoResponse;
+    try {
+      result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+    } catch (err) {
+      // A stale/invalid electionId yields "Election unknown" (400). Retry
+      // without it so Civic resolves the relevant upcoming election itself.
+      if (electionId && /election unknown/i.test(String(err))) {
+        console.warn(
+          "[civic] electionId rejected, retrying without it:",
+          electionId,
+        );
+        delete params.electionId;
+        result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+      } else {
+        throw err;
+      }
+    }
     result.contests = await enrichContests(result.contests, enrichCtx(result));
     await setCache(
       address,

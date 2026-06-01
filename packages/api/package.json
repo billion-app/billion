@@ -37,8 +37,10 @@
     "@acme/auth": "workspace:*",
     "@acme/db": "workspace:*",
     "@acme/validators": "workspace:*",
-    "@google/generative-ai": "^0.24.1",
+    "@ai-sdk/deepseek": "^1.0.0",
+    "@ai-sdk/openai": "^2.0.0",
     "@trpc/server": "catalog:",
+    "ai": "^6.0.141",
     "superjson": "2.2.6",
     "zod": "catalog:"
   },

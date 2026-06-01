@@ -4,16 +4,23 @@ This document explains how to set up API keys and access for all civic data inte
 
 ## Quick Reference
 
-| Source | Key Required | Cost | Env Variable |
-|--------|--------------|------|--------------|
-| Google Civic API | Yes | Free (25k/day) | `GOOGLE_CIVIC_API_KEY` |
-| Open States API | Yes | Free | `OPEN_STATES_API_KEY` |
-| CA Secretary of State | Yes | Free | `CA_SOS_API_KEY` |
-| Legistar (local councils) | No | Free | — |
-| VOTE411 (scraper) | No | Free | — |
-| Santa Clara ROV (scraper) | No* | Free | — |
+| Source                                 | Key Required | Cost           | Env Variable           |
+| -------------------------------------- | ------------ | -------------- | ---------------------- |
+| Google Civic API                       | Yes          | Free (25k/day) | `GOOGLE_CIVIC_API_KEY` |
+| Open States API                        | Yes          | Free           | `OPEN_STATES_API_KEY`  |
+| CA Secretary of State                  | Yes          | Free           | `CA_SOS_API_KEY`       |
+| Legistar (local councils)              | No           | Free           | —                      |
+| VOTE411 (scraper)                      | No           | Free           | —                      |
+| Santa Clara ROV (scraper)              | No\*         | Free           | —                      |
+| CA SOS Voter Guide (scraper)           | No           | Free           | —                      |
+| Santa Clara measure pipeline (scraper) | No           | Free           | —                      |
 
-*Uses Google Civic API internally
+\*Uses Google Civic API internally
+
+> **Ballot measure enrichment.** The CA SOS Voter Guide and Santa Clara measure
+> scrapers feed a cross-validation engine that fills in measure summaries,
+> fiscal impact, and pro/con arguments with per-field source attribution. See
+> [`MEASURE_ENRICHMENT.md`](./MEASURE_ENRICHMENT.md).
 
 ---
 
@@ -43,6 +50,7 @@ GOOGLE_CIVIC_API_KEY=AIza...your_key_here
 ### Optional: Restrict Key
 
 For production, restrict the key:
+
 - **Application restrictions:** HTTP referrers or IP addresses
 - **API restrictions:** Google Civic Information API only
 
@@ -110,6 +118,44 @@ CA_SOS_API_KEY=your_subscription_key_here
 
 ---
 
+## CA SOS Official Voter Guide (scraper)
+
+**Provides:** Official statewide proposition summaries (Attorney General), LAO
+fiscal-impact analyses, arguments in favor / against, full-text links.
+
+**No API key required** (scraper). Source: `https://voterguide.sos.ca.gov`.
+
+This is distinct from the CA SOS _Election Results_ API above — the voter guide
+carries the human-written, official measure content. It feeds the ballot-measure
+cross-validation engine (`packages/api/src/lib/measure-sources/ca-sos-voterguide.ts`).
+
+### Notes
+
+- California statewide propositions only (local measures use the county pipelines).
+- Matched by proposition number parsed from the Google Civic measure title.
+- Defensive: failures fall back cleanly without breaking the request.
+
+---
+
+## Santa Clara Measure Pipeline (scraper)
+
+**Provides:** Local (lettered) measure summaries and fiscal impact for Santa
+Clara County — the proving ground for the county-level pipeline.
+
+**No API key required** (scraper).
+
+### Sources
+
+1. Santa Clara County Registrar of Voters (`vote.santaclaracounty.gov`) —
+   official, but Cloudflare-protected, so it may be unavailable.
+2. League of Women Voters Easy Voter Guide (`easyvoterguide.org`) — nonpartisan
+   fallback.
+
+Implemented in `packages/api/src/lib/measure-sources/santa-clara.ts`. See
+[`MEASURE_ENRICHMENT.md`](./MEASURE_ENRICHMENT.md) for the full pipeline.
+
+---
+
 ## Legistar Web API
 
 **Provides:** Local city council meetings, legislation, votes, agendas
@@ -120,11 +166,11 @@ CA_SOS_API_KEY=your_subscription_key_here
 
 ### Supported Jurisdictions
 
-| Jurisdiction | Legistar Client ID | Website |
-|--------------|-------------------|---------|
-| San Jose | `sanjose` | sanjose.legistar.com |
-| Santa Clara County | `santaclara` | sccgov.legistar.com |
-| Sunnyvale | `sunnyvale` | sunnyvaleca.legistar.com |
+| Jurisdiction       | Legistar Client ID | Website                  |
+| ------------------ | ------------------ | ------------------------ |
+| San Jose           | `sanjose`          | sanjose.legistar.com     |
+| Santa Clara County | `santaclara`       | sccgov.legistar.com      |
+| Sunnyvale          | `sunnyvale`        | sunnyvaleca.legistar.com |
 
 ### Usage
 
@@ -223,18 +269,22 @@ For local development, copy `.env.example` to `.env` and fill in your keys.
 These provide more comprehensive data but require paid subscriptions:
 
 ### BallotReady
+
 - Full ballot data + endorsements
 - Contact: https://organizations.ballotready.org/ballotready-api
 
 ### Ballotpedia
+
 - Candidate bios, detailed election coverage
 - Contact: https://developer.ballotpedia.org/
 
 ### Democracy Works
+
 - Comprehensive election data
 - Contact: https://www.democracy.works/elections-api
 
 ### Vote Smart
+
 - Free for research/nonprofit use
 - Voting records, interest group ratings
 - Register: https://votesmart.org/share/api

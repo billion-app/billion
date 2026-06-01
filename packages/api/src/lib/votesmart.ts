@@ -9,7 +9,7 @@
 
 const VOTESMART_API_BASE = "https://api.votesmart.org";
 
-function getApiKey(): string | null {
+export function getApiKey(): string | null {
   return process.env.VOTE_SMART_API_KEY ?? null;
 }
 
@@ -32,7 +32,7 @@ export interface VoteSmartMeasure {
   no?: string;
 }
 
-async function fetchVoteSmart<T>(
+export async function fetchVoteSmart<T>(
   className: string,
   method: string,
   params: Record<string, string>,
@@ -65,29 +65,68 @@ async function fetchVoteSmart<T>(
 
 // US state name → two-letter abbreviation
 const STATE_ABBREVS: Record<string, string> = {
-  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR",
-  california: "CA", colorado: "CO", connecticut: "CT", delaware: "DE",
-  florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID",
-  illinois: "IL", indiana: "IN", iowa: "IA", kansas: "KS",
-  kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD",
-  massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS",
-  missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV",
-  "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM",
-  "new york": "NY", "north carolina": "NC", "north dakota": "ND",
-  ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA",
-  "rhode island": "RI", "south carolina": "SC", "south dakota": "SD",
-  tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT",
-  virginia: "VA", washington: "WA", "west virginia": "WV",
-  wisconsin: "WI", wyoming: "WY", "district of columbia": "DC",
+  alabama: "AL",
+  alaska: "AK",
+  arizona: "AZ",
+  arkansas: "AR",
+  california: "CA",
+  colorado: "CO",
+  connecticut: "CT",
+  delaware: "DE",
+  florida: "FL",
+  georgia: "GA",
+  hawaii: "HI",
+  idaho: "ID",
+  illinois: "IL",
+  indiana: "IN",
+  iowa: "IA",
+  kansas: "KS",
+  kentucky: "KY",
+  louisiana: "LA",
+  maine: "ME",
+  maryland: "MD",
+  massachusetts: "MA",
+  michigan: "MI",
+  minnesota: "MN",
+  mississippi: "MS",
+  missouri: "MO",
+  montana: "MT",
+  nebraska: "NE",
+  nevada: "NV",
+  "new hampshire": "NH",
+  "new jersey": "NJ",
+  "new mexico": "NM",
+  "new york": "NY",
+  "north carolina": "NC",
+  "north dakota": "ND",
+  ohio: "OH",
+  oklahoma: "OK",
+  oregon: "OR",
+  pennsylvania: "PA",
+  "rhode island": "RI",
+  "south carolina": "SC",
+  "south dakota": "SD",
+  tennessee: "TN",
+  texas: "TX",
+  utah: "UT",
+  vermont: "VT",
+  virginia: "VA",
+  washington: "WA",
+  "west virginia": "WV",
+  wisconsin: "WI",
+  wyoming: "WY",
+  "district of columbia": "DC",
 };
 
-function stateNameToAbbrev(name: string): string | null {
+export function stateNameToAbbrev(name: string): string | null {
   return STATE_ABBREVS[name.toLowerCase().trim()] ?? null;
 }
 
 interface MeasureListResponse {
-  measures: {
-    measure: VoteSmartMeasure | VoteSmartMeasure[];
+  // Vote Smart omits `measure` entirely when a year/state has no measures, so it
+  // is genuinely optional at runtime despite the API docs.
+  measures?: {
+    measure?: VoteSmartMeasure | VoteSmartMeasure[];
   };
 }
 
@@ -135,12 +174,15 @@ export async function getMeasureDetail(
 function normalizeMeasureTitle(title: string): string {
   return title
     .toLowerCase()
-    .replace(/^(proposition|prop|measure|amendment|question|initiative)\s+[a-z0-9]+\s*[-–—:.]?\s*/i, "")
+    .replace(
+      /^(proposition|prop|measure|amendment|question|initiative)\s+[a-z0-9]+\s*[-–—:.]?\s*/i,
+      "",
+    )
     .replace(/[^a-z0-9\s]/g, "")
     .trim();
 }
 
-function titleSimilarity(a: string, b: string): number {
+export function titleSimilarity(a: string, b: string): number {
   const wordsA = new Set(normalizeMeasureTitle(a).split(/\s+/));
   const wordsB = new Set(normalizeMeasureTitle(b).split(/\s+/));
   if (wordsA.size === 0 || wordsB.size === 0) return 0;
@@ -159,6 +201,12 @@ export interface VoteSmartEnrichment {
   conUrl?: string;
   source: string;
   voteSmartUrl?: string;
+}
+
+/** Treat Vote Smart's empty-string fields as absent (it returns "" for "none"). */
+function cleanField(s: string | undefined): string | undefined {
+  const t = s?.trim();
+  return t && t.length > 0 ? t : undefined;
 }
 
 /**
@@ -202,13 +250,13 @@ export async function enrichFromVoteSmart(
     const detail = await getMeasureDetail(best.measureId);
 
     return {
-      summary: detail.summary || undefined,
-      measureText: detail.measureText || undefined,
-      textUrl: detail.textUrl || undefined,
-      proUrl: detail.proUrl || undefined,
-      conUrl: detail.conUrl || undefined,
-      source: detail.source || "Vote Smart",
-      voteSmartUrl: detail.url || undefined,
+      summary: cleanField(detail.summary),
+      measureText: cleanField(detail.measureText),
+      textUrl: cleanField(detail.textUrl),
+      proUrl: cleanField(detail.proUrl),
+      conUrl: cleanField(detail.conUrl),
+      source: cleanField(detail.source) ?? "Vote Smart",
+      voteSmartUrl: cleanField(detail.url),
     };
   } catch {
     return null;
