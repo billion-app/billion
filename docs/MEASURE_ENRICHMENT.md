@@ -97,13 +97,18 @@ that uses a browser User-Agent and turns any failure into `null`.
 ### Grounded AI fallback (`grounded-fallback.ts`)
 
 - **When:** no human/aggregator source had a summary.
-- **What:** resolves the measure on SPUR's nonpartisan Bay Area voter guide
+- **What:** resolves the measure on SPUR's Bay Area voter guide
   (`spur.org/voter-guide/<YYYY>-<MM>`) by its letter and fetches the real page
   text. That text — never the title alone — is what the AI summarizes. The
   summary is flagged AI-generated and cites the SPUR page it was built from.
-- **Pro/con:** SPUR pages carry real "Pros"/"Cons" lists; those are parsed and
-  surfaced directly (preferred, cited to SPUR). AI pro/con is generated only
-  when no source supplied any.
+- **Bias control:** SPUR is party-independent but takes an explicit YES/NO
+  position on every measure. We strip its "SPUR's Recommendation" section
+  before grounding, and the AI prompt is instructed to ignore advocacy framing,
+  so the endorsement never leaks into the neutral summary.
+- **Pro/con:** SPUR pages carry "Pros"/"Cons" lists; those are parsed and
+  surfaced directly, cited to SPUR at the AI-generated (last-resort) tier — they
+  are SPUR's framing, not the nonpartisan League tier. AI pro/con is generated
+  only when no source supplied any.
 
 ## AI's role (explicitly scoped)
 
