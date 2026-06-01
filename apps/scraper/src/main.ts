@@ -6,6 +6,7 @@ import { scotus } from "./scrapers/scotus.js";
 import { federalregister } from "./scrapers/federalregister.js";
 import { vote411 } from "./scrapers/vote411.js";
 import { sccCvig } from "./scrapers/scc-cvig.js";
+import { caSosStatements } from "./scrapers/ca-sos-statements.js";
 import type { Scraper } from "./utils/types.js";
 import { createLogger } from "./utils/log.js";
 import { setConcurrency } from "./utils/concurrency.js";
@@ -13,7 +14,7 @@ import { resetMetrics, printMetricsSummary } from "./utils/db/metrics.js";
 
 const logger = createLogger("main");
 
-const scrapers: Scraper[] = [federalregister, congress, scotus, vote411, sccCvig];
+const scrapers: Scraper[] = [federalregister, congress, scotus, vote411, sccCvig, caSosStatements];
 const scraperNames = scrapers.map((s) => s.name);
 
 const argv = await yargs(hideBin(process.argv))
