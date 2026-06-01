@@ -3,6 +3,7 @@ import { civicRouter } from "./router/civic";
 import { contentRouter } from "./router/content";
 import { legistarRouter } from "./router/legistar";
 import { openStatesRouter } from "./router/open-states";
+import { placesRouter } from "./router/places";
 import { postRouter } from "./router/post";
 import { userRouter } from "./router/user";
 import { videoRouter } from "./router/video";
@@ -13,6 +14,7 @@ export const appRouter = createTRPCRouter({
   civic: civicRouter,
   legistar: legistarRouter,
   openStates: openStatesRouter,
+  places: placesRouter,
   post: postRouter,
   content: contentRouter,
   video: videoRouter,
