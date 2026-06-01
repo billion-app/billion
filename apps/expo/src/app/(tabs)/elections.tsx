@@ -18,7 +18,6 @@ import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
-import { daysUntil } from "~/utils/dates";
 import { groupContestsByLevel, measureIsStatewide } from "~/utils/elections";
 
 type BallotTab = "candidates" | "measures";
@@ -159,9 +158,6 @@ export default function ElectionsScreen() {
     new Set(),
   );
   const [tab, setTab] = useState<BallotTab>("candidates");
-  const [selectedElectionId, setSelectedElectionId] = useState<string | null>(
-    null,
-  );
 
   const toggleSet = useCallback(
     (
@@ -187,22 +183,15 @@ export default function ElectionsScreen() {
   // Fall back to the mock address until the user sets their own.
   const address = storedAddress ?? MOCK_ADDRESS;
 
-  const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
-  // All not-yet-passed elections, soonest first. Usually one; occasionally a
-  // special election overlaps the regular cycle.
-  const activeElections = (electionsQuery.data ?? [])
-    .filter((e) => daysUntil(e.electionDay) >= 0)
-    .sort((a, b) => a.electionDay.localeCompare(b.electionDay));
-  const selected =
-    activeElections.find((e) => e.id === selectedElectionId) ??
-    activeElections[0];
-
+  // Let Civic resolve the election for THIS address — getElections returns a
+  // nationwide list, so picking the soonest from it surfaces the wrong
+  // (e.g. out-of-state) election and breaks the ballot lookup.
   const voterInfoQuery = useQuery(
-    trpc.civic.getVoterInfo.queryOptions({
-      address,
-      electionId: selected?.id,
-    }),
+    trpc.civic.getVoterInfo.queryOptions({ address }),
   );
+
+  // The address-specific election the ballot belongs to.
+  const selected = voterInfoQuery.data?.election;
 
   const contests = voterInfoQuery.data?.contests ?? [];
   const measures = contests.filter((c: Contest) => c.referendumTitle);
@@ -243,13 +232,7 @@ export default function ElectionsScreen() {
       }
     >
       {/* election hero — what election is happening, what it means */}
-      {selected && (
-        <ElectionHero
-          elections={activeElections}
-          selected={selected}
-          onSelect={setSelectedElectionId}
-        />
-      )}
+      {selected && <ElectionHero election={selected} />}
 
       {voterInfoQuery.isLoading && (
         <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />

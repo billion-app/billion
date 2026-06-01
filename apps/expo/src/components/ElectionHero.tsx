@@ -1,12 +1,11 @@
 /**
  * ElectionHero — the "what election is happening" zone of the Elections tab.
  *
- * Names the single active election, explains in plain language what that kind
- * of election decides, and lays out the key dates. When more than one election
- * is currently active (rare — e.g. a special election overlapping the regular
- * cycle), a switcher lets the voter flip between them.
+ * Names the address-resolved election (from getVoterInfo, not the nationwide
+ * getElections list), explains in plain language what that kind of election
+ * decides, and lays out the key dates.
  */
-import { LayoutAnimation, StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import type { Election } from "@acme/api";
 
@@ -21,22 +20,13 @@ import {
 } from "~/utils/elections";
 
 interface ElectionHeroProps {
-  /** All currently-active (not-yet-passed) elections, soonest first. */
-  elections: Election[];
-  /** The election the ballot is currently showing. */
-  selected: Election;
-  /** Switch to a different active election (only used when >1 is active). */
-  onSelect: (id: string) => void;
+  /** The election the ballot belongs to, as resolved for the user's address. */
+  election: Election;
 }
 
-export function ElectionHero({
-  elections,
-  selected,
-  onSelect,
-}: ElectionHeroProps) {
-  const type = electionType(selected.name);
-  const days = daysUntil(selected.electionDay);
-  const hasAlternatives = elections.length > 1;
+export function ElectionHero({ election }: ElectionHeroProps) {
+  const type = electionType(election.name);
+  const days = daysUntil(election.electionDay);
 
   // Key dates. TODO(backend): exact per-jurisdiction registration / VBM dates;
   // these offsets approximate a typical California timeline.
@@ -44,19 +34,19 @@ export function ElectionHero({
     {
       icon: "clock" as const,
       label: "Registration closes",
-      value: monthDay(shiftDays(selected.electionDay, -15)),
+      value: monthDay(shiftDays(election.electionDay, -15)),
       accent: colors.yellow[500],
     },
     {
       icon: "calendar" as const,
       label: "Ballots mailed",
-      value: monthDay(shiftDays(selected.electionDay, -8)),
+      value: monthDay(shiftDays(election.electionDay, -8)),
       accent: colors.textSecondary,
     },
     {
       icon: "flag" as const,
       label: "Election Day",
-      value: monthDay(selected.electionDay),
+      value: monthDay(election.electionDay),
       accent: colors.green[500],
       countdown:
         days > 0 ? `${days} day${days !== 1 ? "s" : ""} left` : "Today",
@@ -65,21 +55,12 @@ export function ElectionHero({
 
   return (
     <View style={s.card}>
-      <View style={s.topRow}>
-        <View style={s.badge}>
-          <Text style={s.badgeText}>{electionTypeLabel(type)}</Text>
-        </View>
-        {hasAlternatives && (
-          <ElectionSwitcher
-            elections={elections}
-            selected={selected}
-            onSelect={onSelect}
-          />
-        )}
+      <View style={s.badge}>
+        <Text style={s.badgeText}>{electionTypeLabel(type)}</Text>
       </View>
 
-      <Text style={s.name}>{selected.name}</Text>
-      <Text style={s.date}>{monthDay(selected.electionDay)}</Text>
+      <Text style={s.name}>{election.name}</Text>
+      <Text style={s.date}>{monthDay(election.electionDay)}</Text>
 
       <View style={s.divider} />
 
@@ -99,37 +80,6 @@ export function ElectionHero({
   );
 }
 
-/** Inline dropdown of the other active elections. */
-function ElectionSwitcher({
-  elections,
-  selected,
-  onSelect,
-}: ElectionHeroProps) {
-  const others = elections.filter((e) => e.id !== selected.id);
-  return (
-    <View>
-      {others.slice(0, 1).map((e) => (
-        <TouchableOpacity
-          key={e.id}
-          style={s.switchChip}
-          activeOpacity={0.8}
-          onPress={() => {
-            LayoutAnimation.configureNext(
-              LayoutAnimation.Presets.easeInEaseOut,
-            );
-            onSelect(e.id);
-          }}
-        >
-          <Icon name="undo" size={12} color={colors.bill} />
-          <Text style={s.switchText} numberOfLines={1}>
-            {e.name} · {monthDay(e.electionDay)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
   card: {
     marginHorizontal: 20,
@@ -138,11 +88,6 @@ const s = StyleSheet.create({
     borderColor: hair[2],
     borderRadius: 16,
     padding: 18,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
   },
   badge: {
     alignSelf: "flex-start",
@@ -157,18 +102,6 @@ const s = StyleSheet.create({
     color: colors.bill,
     letterSpacing: 0.4,
     textTransform: "uppercase",
-  },
-  switchChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    maxWidth: 180,
-  },
-  switchText: {
-    fontFamily: fontBody.medium,
-    fontSize: 12,
-    color: colors.bill,
-    flexShrink: 1,
   },
   name: {
     fontFamily: "InriaSerif-Bold",
