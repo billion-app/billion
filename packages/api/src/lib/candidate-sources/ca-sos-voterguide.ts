@@ -51,7 +51,10 @@ const MAX_BIO_CHARS = 2500;
  */
 const OFFICE_SLUGS: { match: RegExp; slug: string }[] = [
   { match: /lieutenant\s+governor|lt\.?\s+governor/i, slug: "lt-governor" },
-  { match: /superintendent\s+of\s+public\s+instruction/i, slug: "superintendent" },
+  {
+    match: /superintendent\s+of\s+public\s+instruction/i,
+    slug: "superintendent",
+  },
   { match: /insurance\s+commissioner/i, slug: "insurance-commissioner" },
   { match: /attorney\s+general/i, slug: "attorney-general" },
   { match: /secretary\s+of\s+state/i, slug: "sos" },
@@ -118,9 +121,7 @@ function splitSections(html: string): RawSection[] {
   const matches: { heading: string; from: number; headingEnd: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = headingRe.exec(html)) !== null) {
-    const heading = decodeEntities(
-      (m[1] ?? "").replace(/<[^>]+>/g, " "),
-    )
+    const heading = decodeEntities((m[1] ?? "").replace(/<[^>]+>/g, " "))
       .replace(/\s+/g, " ")
       .trim();
     matches.push({ heading, from: m.index, headingEnd: headingRe.lastIndex });
@@ -130,15 +131,16 @@ function splitSections(html: string): RawSection[] {
     const cur = matches[i];
     if (!cur) continue;
     const end = matches[i + 1]?.from ?? html.length;
-    sections.push({ heading: cur.heading, body: html.slice(cur.headingEnd, end) });
+    sections.push({
+      heading: cur.heading,
+      body: html.slice(cur.headingEnd, end),
+    });
   }
   return sections;
 }
 
 /** Parse "Name | PARTY" into its parts; null when there's no party separator. */
-function parseHeading(
-  heading: string,
-): { name: string; party: string } | null {
+function parseHeading(heading: string): { name: string; party: string } | null {
   const idx = heading.indexOf("|");
   if (idx === -1) return null;
   const name = heading.slice(0, idx).trim();
@@ -183,7 +185,10 @@ function findPhotoByAlt(html: string, name: string): string | undefined {
     const alt = altM?.[1] && decodeEntities(altM[1]).trim();
     const src = srcM?.[1];
     if (!alt || !src) continue;
-    const score = candidateNameSimilarity(dropInitials(name), dropInitials(alt));
+    const score = candidateNameSimilarity(
+      dropInitials(name),
+      dropInitials(alt),
+    );
     if (score >= NAME_MATCH_THRESHOLD && (!best || score > best.score)) {
       best = { src, score };
     }
@@ -198,7 +203,7 @@ function findPhotoByAlt(html: string, name: string): string | undefined {
 /** Extract a mailto: email from the contact block, if present. */
 function extractEmail(contactHtml: string): string | undefined {
   const m = /href\s*=\s*["']mailto:([^"'?]+)["']?/i.exec(contactHtml);
-  return m?.[1]?.trim() || undefined;
+  return m?.[1]?.trim();
 }
 
 /** Extract a phone number following a "Tel:" label. */
@@ -319,7 +324,7 @@ export async function enrichCandidateFromCaSos(
     .map(({ i }) => i)
     .pop();
 
-  const contactHtml = contactIdx !== undefined ? paras[contactIdx] ?? "" : "";
+  const contactHtml = contactIdx !== undefined ? (paras[contactIdx] ?? "") : "";
   const contactText = htmlToText(contactHtml);
 
   const bioParas = paras.filter((_, i) => i !== contactIdx).map(htmlToText);

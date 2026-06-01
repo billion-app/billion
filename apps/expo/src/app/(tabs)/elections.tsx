@@ -130,7 +130,9 @@ function MeasureCard({
           {topSourceLabel(m) ? (
             <View style={s.sourceChip}>
               <Icon
-                name={m.sources?.some((src) => src.official) ? "shield" : "info"}
+                name={
+                  m.sources?.some((src) => src.official) ? "shield" : "info"
+                }
                 size={11}
                 color={colors.textSecondary}
               />
@@ -265,9 +267,7 @@ export default function ElectionsScreen() {
         <View style={[s.section, { gap: 20 }]}>
           {candidateGroups.length === 0 && (
             <Card>
-              <Text style={s.empty}>
-                No candidate contests on this ballot.
-              </Text>
+              <Text style={s.empty}>No candidate contests on this ballot.</Text>
             </Card>
           )}
           {candidateGroups.map((group) => (

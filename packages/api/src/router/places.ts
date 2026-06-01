@@ -33,7 +33,9 @@ export const placesRouter = {
    * billing session. Returns null when running on the mock (no API key).
    */
   details: publicProcedure
-    .input(z.object({ placeId: z.string(), sessionToken: z.string().optional() }))
+    .input(
+      z.object({ placeId: z.string(), sessionToken: z.string().optional() }),
+    )
     .mutation(async ({ input }) => {
       try {
         return await getPlaceDetails(input.placeId, input.sessionToken);

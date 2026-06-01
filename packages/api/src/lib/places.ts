@@ -109,8 +109,8 @@ export async function getAddressSuggestions(
   const data = (await response.json()) as AutocompleteResponse;
   return (data.suggestions ?? [])
     .map((s) => s.placePrediction)
-    .filter(
-      (p): p is NonNullable<typeof p> => Boolean(p?.text?.text && p.placeId),
+    .filter((p): p is NonNullable<typeof p> =>
+      Boolean(p?.text?.text && p.placeId),
     )
     .map((p) => ({
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

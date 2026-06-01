@@ -145,7 +145,7 @@ interface ExtractResponse {
  */
 function hasAbbrev(haystack: string, stateAbbrev: string | undefined): boolean {
   const a = stateAbbrev?.toLowerCase().trim();
-  if (!a || a.length !== 2) return false;
+  if (a?.length !== 2) return false;
   return new RegExp(`\\b${a}\\b`).test(haystack);
 }
 
@@ -274,7 +274,7 @@ export async function enrichCandidateFromWikipedia(
     // same-name politician in another state and pass the name-token + political
     // checks; only state corroboration rejects that namesake. A real candidate's
     // own article almost always names their state.
-    const requireContest = Boolean(stateName || stateAbbrev);
+    const requireContest = Boolean(stateName ?? stateAbbrev);
     const title = page.title ?? trimmed;
 
     // Gate on the intro. The state must appear in the LEAD — the subject's own
@@ -284,9 +284,7 @@ export async function enrichCandidateFromWikipedia(
     // its postal abbreviation as a standalone token, which is the safe widening:
     // it rescues candidates whose lead writes "CA" instead of "California"
     // without admitting a namesake (whose lead names a different state).
-    if (
-      !looksLikePolitician(extract, stateName, stateAbbrev, requireContest)
-    ) {
+    if (!looksLikePolitician(extract, stateName, stateAbbrev, requireContest)) {
       continue;
     }
 
