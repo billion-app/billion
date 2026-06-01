@@ -1,4 +1,10 @@
-import { Linking, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import type { MeasureArgumentRef, MeasureCitationRef } from "@acme/api";
@@ -21,6 +27,9 @@ function parseJson<T>(raw: string | undefined, fallback: T): T {
 const TIER_LABEL: Record<string, string> = {
   county_registrar: "County Registrar",
   state_sos: "Secretary of State",
+  lwv: "League of Women Voters",
+  ballotpedia: "Ballotpedia",
+  wikipedia: "Wikipedia",
   vote_smart: "Vote Smart",
   google_civic: "Google Civic",
   ai_generated: "AI-generated",
@@ -167,33 +176,47 @@ export default function MeasureDetailScreen() {
           </View>
         ) : null}
 
-        {/* Sources / citations */}
+        {/* Sources / citations — every source points back to its original. */}
         {sources.length > 0 && (
           <View style={s.section}>
             <Kicker>Sources</Kicker>
             <Card>
-              {sources.map((src, i) => (
-                <View
-                  key={`src-${i}`}
-                  style={[s.sourceRow, i > 0 && s.sourceRowBorder]}
-                >
-                  <Icon
-                    name={src.official ? "shield" : "info"}
-                    size={14}
-                    color={
-                      src.official ? colors.green[500] : colors.textSecondary
-                    }
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.sourceName}>{src.sourceName}</Text>
-                    <Text style={s.sourceMeta}>
-                      {src.official ? "Official · " : ""}
-                      {TIER_LABEL[src.tier] ?? src.tier} · for{" "}
-                      {src.fields.join(", ")}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+              {sources.map((src, i) => {
+                const open = src.sourceUrl
+                  ? () => void Linking.openURL(src.sourceUrl!)
+                  : undefined;
+                return (
+                  <Pressable
+                    key={`src-${i}`}
+                    onPress={open}
+                    disabled={!open}
+                    style={[s.sourceRow, i > 0 && s.sourceRowBorder]}
+                  >
+                    <Icon
+                      name={src.official ? "shield" : "info"}
+                      size={14}
+                      color={
+                        src.official ? colors.green[500] : colors.textSecondary
+                      }
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.sourceName}>{src.sourceName}</Text>
+                      <Text style={s.sourceMeta}>
+                        {src.official ? "Official · " : ""}
+                        {TIER_LABEL[src.tier] ?? src.tier} · for{" "}
+                        {src.fields.join(", ")}
+                      </Text>
+                    </View>
+                    {open ? (
+                      <Icon
+                        name="external"
+                        size={14}
+                        color={colors.textSecondary}
+                      />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
             </Card>
           </View>
         )}
