@@ -164,7 +164,7 @@ export default function ContestDetailScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Contest" onBack={() => router.back()} />
+      <NavHeader title={params.office} onBack={() => router.back()} />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
