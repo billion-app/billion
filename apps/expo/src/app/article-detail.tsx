@@ -2,6 +2,7 @@ import type { RenderRules } from "@ronradtke/react-native-markdown-display";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Linking,
   ScrollView,
   StyleSheet,
@@ -38,6 +39,7 @@ import {
   useTheme,
 } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
+import { authClient } from "~/utils/auth";
 
 // TODO(backend): real per-side framing per content item.
 const PLACEHOLDER_LENS = {
@@ -74,9 +76,14 @@ export default function ArticleDetailScreen() {
     enabled: !!articleId,
   });
 
+  // isArticleSaved is a protected procedure — only query it when signed in,
+  // otherwise it throws UNAUTHORIZED.
+  const { data: session } = authClient.useSession();
+  const isSignedIn = !!session?.user;
+
   const savedQuery = useQuery({
     ...trpc.user.isArticleSaved.queryOptions({ contentId: articleId ?? "" }),
-    enabled: !!articleId,
+    enabled: !!articleId && isSignedIn,
   });
   const saved = savedQuery.data?.saved ?? false;
 
@@ -103,6 +110,13 @@ export default function ArticleDetailScreen() {
 
   const toggleSave = () => {
     if (!articleId || !content) return;
+    if (!isSignedIn) {
+      Alert.alert(
+        "Sign in to save",
+        "Sign in to bookmark and revisit content.",
+      );
+      return;
+    }
     if (saved) {
       unsaveMutation.mutate({ contentId: articleId });
     } else {

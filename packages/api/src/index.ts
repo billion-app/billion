@@ -18,6 +18,9 @@ export type {
   PollingLocation,
   Contest,
   Candidate,
+  Source,
+  MeasureCitationRef,
+  MeasureArgumentRef,
 } from "./lib/civic";
 
 // Google Civic API client functions (for direct use outside tRPC)
@@ -74,7 +77,6 @@ export type {
   DateRange,
   LegislationQuery,
 } from "./integrations/legistar";
-
 
 /**
  * Inference helpers for input types

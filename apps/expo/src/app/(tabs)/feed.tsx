@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   FlatList,
   StyleSheet,
@@ -11,11 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 
 import type { VideoPost } from "@acme/api";
 
@@ -31,6 +28,7 @@ import {
   resolveType,
 } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
+import { authClient } from "~/utils/auth";
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 
@@ -62,9 +60,14 @@ function FeedCard({
   const canSave = SAVEABLE_TYPES.has(item.type);
   const contentId = item.originalContentId;
 
+  // isArticleSaved is a protected procedure — only query it when signed in,
+  // otherwise it throws UNAUTHORIZED.
+  const { data: session } = authClient.useSession();
+  const isSignedIn = !!session?.user;
+
   const savedQuery = useQuery({
     ...trpc.user.isArticleSaved.queryOptions({ contentId }),
-    enabled: canSave,
+    enabled: canSave && isSignedIn,
     staleTime: 5 * 60 * 1000,
   });
   const saved = savedQuery.data?.saved ?? false;
@@ -88,6 +91,13 @@ function FeedCard({
 
   const toggleSave = () => {
     if (!canSave) return;
+    if (!isSignedIn) {
+      Alert.alert(
+        "Sign in to save",
+        "Sign in to bookmark and revisit content.",
+      );
+      return;
+    }
     if (saved) {
       unsaveMutation.mutate({ contentId });
     } else {

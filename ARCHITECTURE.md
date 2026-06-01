@@ -55,15 +55,16 @@ The client uses `drizzle-orm/node-postgres` (native TCP connection). This is why
 
 ### Schema Overview
 
-| Table | Purpose |
-|---|---|
-| `bill` | Congressional legislation scraped from congress.gov |
+| Table                | Purpose                                                                         |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `bill`               | Congressional legislation scraped from congress.gov                             |
 | `government_content` | Executive orders, memoranda, proclamations, press briefings from whitehouse.gov |
-| `court_case` | SCOTUS and federal court cases |
-| `video` | AI-generated feed posts derived from the above content |
-| auth tables | better-auth managed session/user tables (see `auth-schema.ts`) |
+| `court_case`         | SCOTUS and federal court cases                                                  |
+| `video`              | AI-generated feed posts derived from the above content                          |
+| auth tables          | better-auth managed session/user tables (see `auth-schema.ts`)                  |
 
 All content tables share a common pattern:
+
 - `content_hash` (SHA-256) — used to detect changes between scrape runs and avoid redundant AI generation
 - `versions` (JSONB array) — append-only log of `{ hash, updatedAt, changes }` for every update
 - `ai_generated_article` — the AI-enriched markdown article stored directly on the row
@@ -89,12 +90,40 @@ tRPC was chosen because:
 
 ### Router Structure
 
-| Router | Procedures |
-|---|---|
-| `auth` | `getSession`, `getSecretMessage` |
-| `content` | `getAll`, `getByType`, `getById` |
-| `video` | `getInfinite` (paginated feed) |
-| `post` | `all`, `byId`, `create`, `delete` |
+| Router    | Procedures                                                                         |
+| --------- | ---------------------------------------------------------------------------------- |
+| `auth`    | `getSession`, `getSecretMessage`                                                   |
+| `content` | `getAll`, `getByType`, `getById`                                                   |
+| `video`   | `getInfinite` (paginated feed)                                                     |
+| `post`    | `all`, `byId`, `create`, `delete`                                                  |
+| `civic`   | `getElections`, `getVoterInfo`, `getRepresentatives`, `getRepresentativesEnriched` |
+
+### Ballot Measure Enrichment
+
+Google Civic returns ballot-measure _titles_ but rarely the summary, fiscal
+impact, pro/con arguments, or full text — especially for local measures. To
+fill these gaps, `civic.getVoterInfo` runs each measure through a
+**cross-validation engine** (`packages/api/src/lib/measure-crossvalidate.ts`)
+that pulls from multiple public-record sources and merges them by trust tier:
+
+```
+County registrar > State SOS > Vote Smart > Google Civic > AI summary (last resort)
+```
+
+Source adapters live in `packages/api/src/lib/measure-sources/`:
+
+| Source                       | Adapter                | Scope                                                                      |
+| ---------------------------- | ---------------------- | -------------------------------------------------------------------------- |
+| CA SOS Official Voter Guide  | `ca-sos-voterguide.ts` | CA statewide propositions (official summary + LAO fiscal impact + pro/con) |
+| Santa Clara County ROV / LWV | `santa-clara.ts`       | Local lettered measures (the proving ground)                               |
+| Vote Smart                   | `votesmart.ts`         | State-level measures                                                       |
+| Google Civic                 | (the input itself)     | Whatever the API returned                                                  |
+
+Principles: **AI structures, it never authors.** Official sources win field
+conflicts. Every surfaced field carries a citation (`Contest.citations`), and
+AI-only summaries are flagged (`Contest.summaryIsAiGenerated`) so the UI can
+label them. Results are cached transitively inside the `CivicApiCache`
+voter-info response (24h TTL). See `docs/MEASURE_ENRICHMENT.md`.
 
 ### Why Next.js
 
@@ -125,11 +154,11 @@ Next.js at port 3000 serves both the web frontend and the tRPC API. The Expo app
 
 ### Scrapers
 
-| Scraper | Source | Content Type |
-|---|---|---|
-| `congress.ts` | congress.gov | Bills |
-| `whitehouse.ts` | whitehouse.gov | Government content (EOs, memoranda, briefings) |
-| `scotus.ts` | CourtListener API (courtlistener.com) | Court cases |
+| Scraper         | Source                                | Content Type                                   |
+| --------------- | ------------------------------------- | ---------------------------------------------- |
+| `congress.ts`   | congress.gov                          | Bills                                          |
+| `whitehouse.ts` | whitehouse.gov                        | Government content (EOs, memoranda, briefings) |
+| `scotus.ts`     | CourtListener API (courtlistener.com) | Court cases                                    |
 
 The HTML scrapers (whitehouse) use `fetch` + [cheerio](https://cheerio.js.org/) for page fetching and DOM parsing. The API scrapers (congress, scotus) use `fetch` against official REST APIs. All three share a `fetchWithRetry()` utility with exponential backoff, `Retry-After` support, and configurable timeout. A unified `upsertContent(type, data)` function handles the DB write + AI generation pipeline for all content types via a discriminated union.
 
@@ -153,21 +182,23 @@ This is the main cost-control mechanism. AI generation is expensive; hashing ens
 Each piece of content goes through three AI steps before being stored:
 
 **1. Article generation** (`utils/ai/text-generation.ts`)
+
 - Model: Gemini 2.5 Flash via Vercel AI SDK (`@ai-sdk/google`)
 - Produces a structured 4-section markdown article: "What This Means For You", "Overview", "Impact & Implications", "The Debate"
 - Written at an 8th-grade reading level, balanced across political perspectives
 - Stored in `ai_generated_article` on the content row
 
 **2. Marketing copy generation** (`utils/ai/marketing-generation.ts`)
+
 - Model: Gemini 2.5 Flash with structured output (`generateObject`)
 - Produces: title (≤25 chars), description (~50 words), image prompt
 - Stored on the `video` row
 
 **3. Image acquisition** (two paths)
 
-*Path A — Scraped thumbnail:* If the source page has a usable image, it's stored as a URL in `thumbnail_url`. This is preferred — no API cost, no generation latency.
+_Path A — Scraped thumbnail:_ If the source page has a usable image, it's stored as a URL in `thumbnail_url`. This is preferred — no API cost, no generation latency.
 
-*Path B — DALL-E generation* (`utils/ai/image-generation.ts`): If no scraped image is available, DALL-E 3 generates a 1024×1024 photorealistic image from the marketing copy's image prompt. The PNG is downloaded immediately (DALL-E URLs expire after 1 hour), converted to JPEG via `sharp`, and stored as raw bytes in the `image_data` bytea column. Exponential backoff handles rate limits (1s, 2s, 4s).
+_Path B — DALL-E generation_ (`utils/ai/image-generation.ts`): If no scraped image is available, DALL-E 3 generates a 1024×1024 photorealistic image from the marketing copy's image prompt. The PNG is downloaded immediately (DALL-E URLs expire after 1 hour), converted to JPEG via `sharp`, and stored as raw bytes in the `image_data` bytea column. Exponential backoff handles rate limits (1s, 2s, 4s).
 
 ---
 
@@ -199,12 +230,12 @@ Both apps share design tokens from `tooling/tailwind/theme.css` and `packages/ui
 
 ## Considered Alternatives
 
-| Decision | What we chose | What we considered | Why we didn't |
-|---|---|---|---|
-| ORM | Drizzle | Supabase client, Prisma | Supabase types are too loose; Prisma requires codegen and has more overhead |
-| API protocol | tRPC | REST, GraphQL | REST requires manual type maintenance; GraphQL is heavy for this scale |
-| Mobile DB access | tRPC over HTTP | Supabase PostgREST + RLS | Would require migrating auth and business logic out of the API layer |
-| AI text model | Gemini 2.5 Flash | GPT-4o, Claude | Cost/quality ratio; structured output support via Vercel AI SDK |
-| Image storage | bytea in Postgres | S3/R2 object storage | Simpler for now; object storage is the right move at scale |
-| Scraper DB access | Direct Drizzle | tRPC mutations | No benefit to HTTP overhead for a trusted server process |
-| Scraper framework | Custom fetch+cheerio | Crawlee | Crawlee pulled in Playwright + Apify storage for a pattern that's ~60 lines of fetch+retry. Two of four scrapers use REST APIs and didn't need it at all |
+| Decision          | What we chose        | What we considered       | Why we didn't                                                                                                                                            |
+| ----------------- | -------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ORM               | Drizzle              | Supabase client, Prisma  | Supabase types are too loose; Prisma requires codegen and has more overhead                                                                              |
+| API protocol      | tRPC                 | REST, GraphQL            | REST requires manual type maintenance; GraphQL is heavy for this scale                                                                                   |
+| Mobile DB access  | tRPC over HTTP       | Supabase PostgREST + RLS | Would require migrating auth and business logic out of the API layer                                                                                     |
+| AI text model     | Gemini 2.5 Flash     | GPT-4o, Claude           | Cost/quality ratio; structured output support via Vercel AI SDK                                                                                          |
+| Image storage     | bytea in Postgres    | S3/R2 object storage     | Simpler for now; object storage is the right move at scale                                                                                               |
+| Scraper DB access | Direct Drizzle       | tRPC mutations           | No benefit to HTTP overhead for a trusted server process                                                                                                 |
+| Scraper framework | Custom fetch+cheerio | Crawlee                  | Crawlee pulled in Playwright + Apify storage for a pattern that's ~60 lines of fetch+retry. Two of four scrapers use REST APIs and didn't need it at all |

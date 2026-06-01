@@ -17,6 +17,7 @@ import {
   SearchInput,
   TabScreen,
 } from "~/components/ui";
+import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, fontDisplay } from "~/styles";
 import { trpc } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
@@ -35,10 +36,19 @@ export default function BrowseScreen() {
   const [filter, setFilter] = useState<VideoPost["type"] | "all">("all");
   const [query, setQuery] = useState("");
 
-  const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
-  const upcomingElection = electionsQuery.data?.find((e) =>
-    isWithinDays(e.electionDay, 30),
-  );
+  // Derive the banner from the user's actual location, not the nationwide
+  // election list (which surfaced out-of-state elections like "North Dakota
+  // Primary"). Use the address they set on the Elections tab — getVoterInfo
+  // returns the election relevant to that address. Banner stays hidden until
+  // an address is set.
+  const { address } = useUserAddress();
+  const voterInfoQuery = useQuery({
+    ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
+    enabled: !!address,
+  });
+  const election = voterInfoQuery.data?.election;
+  const upcomingElection =
+    election && isWithinDays(election.electionDay, 30) ? election : undefined;
 
   const { data, isLoading, error } = useQuery(
     trpc.content.getByType.queryOptions({ type: filter }),
