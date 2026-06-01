@@ -31,6 +31,10 @@ export {
   getRepresentativesEnriched,
 } from "./lib/civic";
 
+// Google Places address autocomplete
+export type { AddressSuggestion } from "./lib/places";
+export { getAddressSuggestions } from "./lib/places";
+
 // Open States API types
 export type {
   OpenStatesBill,

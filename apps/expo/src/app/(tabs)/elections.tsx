@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   LayoutAnimation,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -12,26 +11,17 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { Contest } from "@acme/api";
 
+import { AddressAutocomplete } from "~/components/AddressAutocomplete";
+import { ElectionHero } from "~/components/ElectionHero";
 import { Text } from "~/components/Themed";
-import { Card, Icon, Kicker, TabScreen } from "~/components/ui";
+import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
-import { daysUntil, monthDay, shiftDays } from "~/utils/dates";
+import { daysUntil } from "~/utils/dates";
+import { groupContestsByLevel, measureIsStatewide } from "~/utils/elections";
 
-function partyColor(party?: string): string {
-  const p = (party ?? "").toLowerCase();
-  if (p.startsWith("d")) return "#7BA0FF";
-  if (p.startsWith("r")) return "#C9CDDA";
-  return colors.textSecondary;
-}
-
-function partyInitial(party?: string): string {
-  const p = (party ?? "").toLowerCase();
-  if (p.startsWith("d")) return "D";
-  if (p.startsWith("r")) return "R";
-  return "NP";
-}
+type BallotTab = "candidates" | "measures";
 
 /** Build the /measure-detail route params for a measure contest. */
 function measureRoute(m: Contest) {
@@ -63,6 +53,99 @@ function topSourceLabel(m: Contest): string | null {
   return src.official ? `Official · ${src.name}` : src.name;
 }
 
+/** Expandable card for a single ballot measure (statewide or local). */
+function MeasureCard({
+  measure: m,
+  expanded,
+  onToggle,
+  onReadMore,
+}: {
+  measure: Contest;
+  expanded: boolean;
+  onToggle: () => void;
+  onReadMore: () => void;
+}) {
+  return (
+    <Card style={{ padding: 18 }}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onToggle}
+        style={s.measureHeader}
+      >
+        <Text style={[s.measureTitle, { marginBottom: 0, flex: 1 }]}>
+          {m.referendumTitle}
+        </Text>
+        <Icon name={expanded ? "chevD" : "chevR"} size={16} color="#5B6172" />
+      </TouchableOpacity>
+      {expanded && (
+        <View style={s.measureBody}>
+          {m.summaryShort || m.summary || m.referendumSubtitle ? (
+            <Text style={s.measureSub}>
+              {m.summaryShort ?? m.summary ?? m.referendumSubtitle}
+            </Text>
+          ) : null}
+          {m.summaryIsAiGenerated && (
+            <View style={s.aiChip}>
+              <Icon name="sparkle" size={11} color={colors.yellow[500]} />
+              <Text style={s.aiChipText}>AI-generated summary</Text>
+            </View>
+          )}
+          {m.fiscalImpact ? (
+            <View style={s.fiscalRow}>
+              <Text style={s.fiscalLabel}>Fiscal impact</Text>
+              <Text style={s.fiscalValue} numberOfLines={3}>
+                {m.fiscalImpact}
+              </Text>
+            </View>
+          ) : null}
+          {m.referendumProStatement ? (
+            <View style={s.stanceRow}>
+              <View
+                style={[s.stanceDot, { backgroundColor: colors.green[500] }]}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={s.stanceLabel}>A YES vote means</Text>
+                <Text style={s.stanceText}>{m.referendumProStatement}</Text>
+              </View>
+            </View>
+          ) : null}
+          {m.referendumConStatement ? (
+            <View style={s.stanceRow}>
+              <View
+                style={[s.stanceDot, { backgroundColor: colors.red[500] }]}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={s.stanceLabel}>A NO vote means</Text>
+                <Text style={s.stanceText}>{m.referendumConStatement}</Text>
+              </View>
+            </View>
+          ) : null}
+          <TouchableOpacity
+            style={s.readMoreBtn}
+            activeOpacity={0.8}
+            onPress={onReadMore}
+          >
+            <Icon name="doc" size={15} color={colors.bill} />
+            <Text style={s.readMoreText}>Read full measure</Text>
+          </TouchableOpacity>
+          {topSourceLabel(m) ? (
+            <View style={s.sourceChip}>
+              <Icon
+                name={m.sources?.some((src) => src.official) ? "shield" : "info"}
+                size={11}
+                color={colors.textSecondary}
+              />
+              <Text style={s.sourceChipText} numberOfLines={1}>
+                {topSourceLabel(m)}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      )}
+    </Card>
+  );
+}
+
 // TODO(backend): default to the signed-in user's registered address. We mock
 // one (matching the mocked profile in Sacramento) so the ballot populates by
 // default; the user can still edit it.
@@ -71,16 +154,13 @@ const MOCK_ADDRESS = "1414 K Street, Sacramento, CA 95814";
 export default function ElectionsScreen() {
   const router = useRouter();
   const { address: storedAddress, setAddress } = useUserAddress();
-  const [input, setInput] = useState("");
   const [editing, setEditing] = useState(false);
   const [expandedMeasures, setExpandedMeasures] = useState<Set<number>>(
     new Set(),
   );
-  const [expandedSummaryMeasures, setExpandedSummaryMeasures] = useState<
-    Set<number>
-  >(new Set());
-  const [expandedContests, setExpandedContests] = useState<Set<number>>(
-    new Set(),
+  const [tab, setTab] = useState<BallotTab>("candidates");
+  const [selectedElectionId, setSelectedElectionId] = useState<string | null>(
+    null,
   );
 
   const toggleSet = useCallback(
@@ -103,25 +183,25 @@ export default function ElectionsScreen() {
     (idx: number) => toggleSet(setExpandedMeasures, idx),
     [toggleSet],
   );
-  const toggleSummaryMeasure = useCallback(
-    (idx: number) => toggleSet(setExpandedSummaryMeasures, idx),
-    [toggleSet],
-  );
-  const toggleContest = useCallback(
-    (idx: number) => toggleSet(setExpandedContests, idx),
-    [toggleSet],
-  );
 
   // Fall back to the mock address until the user sets their own.
   const address = storedAddress ?? MOCK_ADDRESS;
 
   const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
-  const upcoming = electionsQuery.data
-    ?.filter((e) => daysUntil(e.electionDay) >= 0)
-    .sort((a, b) => a.electionDay.localeCompare(b.electionDay))[0];
+  // All not-yet-passed elections, soonest first. Usually one; occasionally a
+  // special election overlaps the regular cycle.
+  const activeElections = (electionsQuery.data ?? [])
+    .filter((e) => daysUntil(e.electionDay) >= 0)
+    .sort((a, b) => a.electionDay.localeCompare(b.electionDay));
+  const selected =
+    activeElections.find((e) => e.id === selectedElectionId) ??
+    activeElections[0];
 
   const voterInfoQuery = useQuery(
-    trpc.civic.getVoterInfo.queryOptions({ address }),
+    trpc.civic.getVoterInfo.queryOptions({
+      address,
+      electionId: selected?.id,
+    }),
   );
 
   const contests = voterInfoQuery.data?.contests ?? [];
@@ -129,30 +209,9 @@ export default function ElectionsScreen() {
   const candidateContests = contests.filter(
     (c: Contest) => c.candidates && c.candidates.length > 0,
   );
-
-  // Key dates derived from the election day.
-  // TODO(backend): exact registration / vote-by-mail dates per jurisdiction;
-  // these offsets approximate a typical CA timeline.
-  const dates = upcoming
-    ? [
-        {
-          d: monthDay(shiftDays(upcoming.electionDay, -15)),
-          label: "Voter registration deadline",
-          accent: colors.yellow[500],
-        },
-        {
-          d: monthDay(shiftDays(upcoming.electionDay, -8)),
-          label: "Vote-by-mail ballots sent",
-          accent: colors.textSecondary,
-        },
-        {
-          d: monthDay(upcoming.electionDay),
-          label: "Election Day",
-          accent: colors.green[500],
-          big: true,
-        },
-      ]
-    : [];
+  const candidateGroups = groupContestsByLevel(candidateContests);
+  const statewideMeasures = measures.filter(measureIsStatewide);
+  const localMeasures = measures.filter((m) => !measureIsStatewide(m));
 
   return (
     <TabScreen
@@ -160,34 +219,13 @@ export default function ElectionsScreen() {
       contentStyle={{ gap: 24 }}
       headerExtra={
         editing ? (
-          <View style={s.lookupCard}>
-            <Text style={s.lookupHint}>
-              Enter your address to see what&apos;s on your ballot.
-            </Text>
-            <View style={s.lookupRow}>
-              <TextInput
-                style={s.lookupInput}
-                placeholder="Your registered address"
-                placeholderTextColor={colors.textSecondary}
-                value={input}
-                onChangeText={setInput}
-                autoComplete="street-address"
-                textContentType="fullStreetAddress"
-                autoFocus
-              />
-              <TouchableOpacity
-                style={[s.lookupBtn, !input && s.lookupBtnOff]}
-                disabled={!input}
-                onPress={() => {
-                  if (!input) return;
-                  void setAddress(input);
-                  setEditing(false);
-                }}
-              >
-                <Text style={s.lookupBtnText}>Look Up</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <AddressAutocomplete
+            initialValue={storedAddress ?? ""}
+            onSubmit={(addr) => {
+              void setAddress(addr);
+              setEditing(false);
+            }}
+          />
         ) : (
           <View style={s.addrCard}>
             <Icon name="pin" size={19} color={colors.bill} />
@@ -197,329 +235,153 @@ export default function ElectionsScreen() {
                 {address}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => {
-                setInput(storedAddress ?? "");
-                setEditing(true);
-              }}
-            >
+            <TouchableOpacity onPress={() => setEditing(true)}>
               <Text style={s.addrEdit}>Edit</Text>
             </TouchableOpacity>
           </View>
         )
       }
     >
-      {/* key dates */}
-      {dates.length > 0 && (
-        <View style={s.section}>
-          <Kicker>Key dates</Kicker>
-          <View style={s.datesRow}>
-            {dates.map((d) => (
-              <View
-                key={d.label}
-                style={[s.dateCard, { borderColor: d.big ? hair[3] : hair[1] }]}
-              >
-                <Text style={[s.dateBig, { color: d.accent }]}>{d.d}</Text>
-                <Text style={s.dateLabel} numberOfLines={2}>
-                  {d.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
+      {/* election hero — what election is happening, what it means */}
+      {selected && (
+        <ElectionHero
+          elections={activeElections}
+          selected={selected}
+          onSelect={setSelectedElectionId}
+        />
       )}
 
       {voterInfoQuery.isLoading && (
         <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />
       )}
 
-      {/* ballot summary */}
+      {/* ballot section tabs */}
       {contests.length > 0 && (
         <View style={s.section}>
-          <Kicker>What&apos;s on your ballot</Kicker>
-          <Card>
-            <Text style={s.summaryCount}>
-              {candidateContests.length} contest
-              {candidateContests.length !== 1 ? "s" : ""} · {measures.length}{" "}
-              measure{measures.length !== 1 ? "s" : ""}
-            </Text>
-            <View style={{ gap: 6, marginTop: 10 }}>
-              {candidateContests.map((c: Contest, ci: number) => {
-                const open = expandedContests.has(ci);
-                return (
-                  <View key={`c-${ci}`}>
-                    <TouchableOpacity
-                      style={s.summaryRow}
-                      activeOpacity={0.7}
-                      onPress={() => toggleContest(ci)}
-                    >
-                      <Icon name="vote" size={14} color={colors.bill} />
-                      <Text style={s.summaryText} numberOfLines={1}>
-                        {c.office}
-                      </Text>
-                      <Icon
-                        name={open ? "chevD" : "chevR"}
-                        size={12}
-                        color="#5B6172"
-                      />
-                    </TouchableOpacity>
-                    {open && (
-                      <View style={s.summaryNested}>
-                        {c.roleDescription && (
-                          <Text style={s.roleDesc}>{c.roleDescription}</Text>
-                        )}
-                        {c.candidates?.map((cand, j) => (
-                          <View key={j} style={s.summaryNestedRow}>
-                            <View style={s.partyTile}>
-                              <Text
-                                style={[
-                                  s.partyText,
-                                  { color: partyColor(cand.party) },
-                                ]}
-                              >
-                                {partyInitial(cand.party)}
-                              </Text>
-                            </View>
-                            <Text style={s.summaryText} numberOfLines={1}>
-                              {cand.name}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-              {measures.map((m: Contest, mi: number) => {
-                const mOpen = expandedSummaryMeasures.has(mi);
-                return (
-                  <View key={`m-${mi}`}>
-                    <TouchableOpacity
-                      style={s.summaryRow}
-                      activeOpacity={0.7}
-                      onPress={() => toggleSummaryMeasure(mi)}
-                    >
-                      <Icon name="scale" size={14} color={colors.yellow[500]} />
-                      <Text style={s.summaryText} numberOfLines={1}>
-                        {m.referendumTitle}
-                      </Text>
-                      <Icon
-                        name={mOpen ? "chevD" : "chevR"}
-                        size={12}
-                        color="#5B6172"
-                      />
-                    </TouchableOpacity>
-                    {mOpen && (
-                      <View style={s.summaryNested}>
-                        {(m.summaryShort ??
-                        m.summary ??
-                        m.referendumSubtitle) ? (
-                          <Text style={s.measureSub} numberOfLines={2}>
-                            {m.summaryShort ??
-                              m.summary ??
-                              m.referendumSubtitle}
-                          </Text>
-                        ) : null}
-                        {m.referendumProStatement ? (
-                          <View style={s.stanceRow}>
-                            <View
-                              style={[
-                                s.stanceDot,
-                                { backgroundColor: colors.green[500] },
-                              ]}
-                            />
-                            <View style={{ flex: 1 }}>
-                              <Text style={s.stanceLabel}>YES</Text>
-                              <Text style={s.stanceText}>
-                                {m.referendumProStatement}
-                              </Text>
-                            </View>
-                          </View>
-                        ) : null}
-                        {m.referendumConStatement ? (
-                          <View style={s.stanceRow}>
-                            <View
-                              style={[
-                                s.stanceDot,
-                                { backgroundColor: colors.red[500] },
-                              ]}
-                            />
-                            <View style={{ flex: 1 }}>
-                              <Text style={s.stanceLabel}>NO</Text>
-                              <Text style={s.stanceText}>
-                                {m.referendumConStatement}
-                              </Text>
-                            </View>
-                          </View>
-                        ) : null}
-                        <TouchableOpacity
-                          style={s.readMoreBtn}
-                          activeOpacity={0.8}
-                          onPress={() => router.push(measureRoute(m))}
-                        >
-                          <Icon name="doc" size={15} color={colors.bill} />
-                          <Text style={s.readMoreText}>Read full measure</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          </Card>
+          <Segmented<BallotTab>
+            value={tab}
+            onChange={setTab}
+            options={[
+              {
+                id: "candidates",
+                label: `Candidates ${candidateContests.length}`,
+                icon: "vote",
+              },
+              {
+                id: "measures",
+                label: `Measures ${measures.length}`,
+                icon: "scale",
+              },
+            ]}
+          />
         </View>
       )}
 
-      {/* contests */}
-      {candidateContests.length > 0 && (
-        <View style={s.section}>
-          <Kicker>Contests on your ballot</Kicker>
-          <View style={{ gap: 14 }}>
-            {candidateContests.map((c: Contest, i: number) => (
-              <TouchableOpacity
-                key={i}
-                activeOpacity={0.85}
-                onPress={() =>
-                  router.push({
-                    pathname: "/contest-detail",
-                    params: {
-                      office: c.office ?? "",
-                      roles: JSON.stringify(c.roles ?? []),
-                      levels: JSON.stringify(c.level ?? []),
-                      candidates: JSON.stringify(c.candidates ?? []),
-                      districtName: c.district?.name ?? "",
-                      roleDescription: c.roleDescription ?? "",
-                    },
-                  })
-                }
-              >
-                <Card
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Text style={s.contestOffice}>{c.office}</Text>
-                  <Icon name="chevR" size={16} color="#5B6172" />
-                </Card>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* ballot measures */}
-      {measures.length > 0 && (
-        <View style={s.section}>
-          <Kicker>Ballot measures</Kicker>
-          <View style={{ gap: 14 }}>
-            {measures.map((m: Contest, i: number) => {
-              const expanded = expandedMeasures.has(i);
-              return (
-                <Card key={i} style={{ padding: 18 }}>
+      {/* CANDIDATES TAB — contests grouped by government level */}
+      {contests.length > 0 && tab === "candidates" && (
+        <View style={[s.section, { gap: 20 }]}>
+          {candidateGroups.length === 0 && (
+            <Card>
+              <Text style={s.empty}>
+                No candidate contests on this ballot.
+              </Text>
+            </Card>
+          )}
+          {candidateGroups.map((group) => (
+            <View key={group.key} style={{ gap: 12 }}>
+              <Kicker>{group.label}</Kicker>
+              <View style={{ gap: 14 }}>
+                {group.contests.map((c: Contest, i: number) => (
                   <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => toggleMeasure(i)}
-                    style={s.measureHeader}
+                    key={`${group.key}-${i}`}
+                    activeOpacity={0.85}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/contest-detail",
+                        params: {
+                          office: c.office ?? "",
+                          roles: JSON.stringify(c.roles ?? []),
+                          levels: JSON.stringify(c.level ?? []),
+                          candidates: JSON.stringify(c.candidates ?? []),
+                          districtName: c.district?.name ?? "",
+                          roleDescription: c.roleDescription ?? "",
+                        },
+                      })
+                    }
                   >
-                    <Text
-                      style={[s.measureTitle, { marginBottom: 0, flex: 1 }]}
+                    <Card
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
                     >
-                      {m.referendumTitle}
-                    </Text>
-                    <Icon
-                      name={expanded ? "chevD" : "chevR"}
-                      size={16}
-                      color="#5B6172"
-                    />
-                  </TouchableOpacity>
-                  {expanded && (
-                    <View style={s.measureBody}>
-                      {m.summaryShort || m.summary || m.referendumSubtitle ? (
-                        <Text style={s.measureSub}>
-                          {m.summaryShort ?? m.summary ?? m.referendumSubtitle}
+                      <View style={{ flex: 1, marginRight: 10 }}>
+                        <Text style={s.contestOffice} numberOfLines={2}>
+                          {c.office}
                         </Text>
-                      ) : null}
-                      {m.summaryIsAiGenerated && (
-                        <View style={s.aiChip}>
-                          <Icon
-                            name="sparkle"
-                            size={11}
-                            color={colors.yellow[500]}
-                          />
-                          <Text style={s.aiChipText}>AI-generated summary</Text>
-                        </View>
-                      )}
-                      {m.fiscalImpact ? (
-                        <View style={s.fiscalRow}>
-                          <Text style={s.fiscalLabel}>Fiscal impact</Text>
-                          <Text style={s.fiscalValue} numberOfLines={3}>
-                            {m.fiscalImpact}
+                        {c.candidates && c.candidates.length > 0 && (
+                          <Text style={s.contestMeta}>
+                            {c.candidates.length} candidate
+                            {c.candidates.length !== 1 ? "s" : ""}
                           </Text>
-                        </View>
-                      ) : null}
-                      {m.referendumProStatement ? (
-                        <View style={s.stanceRow}>
-                          <View
-                            style={[
-                              s.stanceDot,
-                              { backgroundColor: colors.green[500] },
-                            ]}
-                          />
-                          <View style={{ flex: 1 }}>
-                            <Text style={s.stanceLabel}>A YES vote means</Text>
-                            <Text style={s.stanceText}>
-                              {m.referendumProStatement}
-                            </Text>
-                          </View>
-                        </View>
-                      ) : null}
-                      {m.referendumConStatement ? (
-                        <View style={s.stanceRow}>
-                          <View
-                            style={[
-                              s.stanceDot,
-                              { backgroundColor: colors.red[500] },
-                            ]}
-                          />
-                          <View style={{ flex: 1 }}>
-                            <Text style={s.stanceLabel}>A NO vote means</Text>
-                            <Text style={s.stanceText}>
-                              {m.referendumConStatement}
-                            </Text>
-                          </View>
-                        </View>
-                      ) : null}
-                      <TouchableOpacity
-                        style={s.readMoreBtn}
-                        activeOpacity={0.8}
-                        onPress={() => router.push(measureRoute(m))}
-                      >
-                        <Icon name="doc" size={15} color={colors.bill} />
-                        <Text style={s.readMoreText}>Read full measure</Text>
-                      </TouchableOpacity>
-                      {topSourceLabel(m) ? (
-                        <View style={s.sourceChip}>
-                          <Icon
-                            name={
-                              m.sources?.some((src) => src.official)
-                                ? "shield"
-                                : "info"
-                            }
-                            size={11}
-                            color={colors.textSecondary}
-                          />
-                          <Text style={s.sourceChipText} numberOfLines={1}>
-                            {topSourceLabel(m)}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  )}
-                </Card>
-              );
-            })}
+                        )}
+                      </View>
+                      <Icon name="chevR" size={16} color="#5B6172" />
+                    </Card>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* MEASURES TAB — statewide propositions + local measures */}
+      {contests.length > 0 && tab === "measures" && (
+        <View style={[s.section, { gap: 20 }]}>
+          <View style={{ gap: 12 }}>
+            <Kicker>Statewide propositions</Kicker>
+            {statewideMeasures.length === 0 ? (
+              <Card>
+                <Text style={s.empty}>
+                  No statewide propositions on this ballot.
+                </Text>
+              </Card>
+            ) : (
+              <View style={{ gap: 14 }}>
+                {statewideMeasures.map((m) => (
+                  <MeasureCard
+                    key={`sw-${measures.indexOf(m)}`}
+                    measure={m}
+                    expanded={expandedMeasures.has(measures.indexOf(m))}
+                    onToggle={() => toggleMeasure(measures.indexOf(m))}
+                    onReadMore={() => router.push(measureRoute(m))}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+
+          <View style={{ gap: 12 }}>
+            <Kicker>Local measures</Kicker>
+            {localMeasures.length === 0 ? (
+              <Card>
+                <Text style={s.empty}>No local measures on this ballot.</Text>
+              </Card>
+            ) : (
+              <View style={{ gap: 14 }}>
+                {localMeasures.map((m) => (
+                  <MeasureCard
+                    key={`lo-${measures.indexOf(m)}`}
+                    measure={m}
+                    expanded={expandedMeasures.has(measures.indexOf(m))}
+                    onToggle={() => toggleMeasure(measures.indexOf(m))}
+                    onReadMore={() => router.push(measureRoute(m))}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         </View>
       )}
@@ -584,125 +446,17 @@ const s = StyleSheet.create({
     marginTop: 1,
   },
   addrEdit: { fontFamily: fontBody.semibold, fontSize: 13, color: colors.bill },
-  lookupCard: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 12,
-  },
-  lookupHint: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  lookupRow: { flexDirection: "row", gap: 10 },
-  lookupInput: {
-    flex: 1,
-    height: 48,
-    backgroundColor: planes.navy,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    color: colors.white,
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 15,
-  },
-  lookupBtn: {
-    backgroundColor: colors.white,
-    borderRadius: 9999,
-    paddingHorizontal: 18,
-    justifyContent: "center",
-  },
-  lookupBtnOff: { opacity: 0.5 },
-  lookupBtnText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 14,
-    color: planes.ink,
-  },
   section: { paddingHorizontal: 20 },
-  datesRow: { flexDirection: "row", gap: 10 },
-  dateCard: {
-    flex: 1,
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 13,
-    paddingHorizontal: 12,
-    alignItems: "center",
-  },
-  dateBig: { fontFamily: "InriaSerif-Bold", fontSize: 17 },
-  dateLabel: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 10.5,
-    color: colors.textSecondary,
-    marginTop: 5,
-    textAlign: "center",
-    lineHeight: 14,
-  },
   contestOffice: {
     fontFamily: "InriaSerif-Bold",
     fontSize: 16,
     color: colors.white,
-    flex: 1,
   },
-  candRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  partyTile: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: planes.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  partyText: { fontFamily: fontBody.bold, fontSize: 12 },
-  candName: {
-    fontFamily: fontBody.semibold,
-    fontSize: 14.5,
-    color: colors.white,
-  },
-  candNote: {
+  contestMeta: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 12,
     color: colors.textSecondary,
-  },
-  summaryCount: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  summaryText: {
-    fontFamily: fontBody.medium,
-    fontSize: 13.5,
-    color: colors.white,
-    flex: 1,
-  },
-  summaryNested: {
-    marginLeft: 22,
-    marginTop: 4,
-    gap: 4,
-  },
-  roleDesc: {
-    fontFamily: fontBody.regular,
-    fontSize: 12,
-    color: "#8A8FA0",
-    lineHeight: 17,
-    marginBottom: 4,
-  },
-  summaryNestedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 4,
+    marginTop: 3,
   },
   measureHeader: {
     flexDirection: "row",
