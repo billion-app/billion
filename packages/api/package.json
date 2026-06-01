@@ -22,6 +22,10 @@
     "./lib/civic-ai": {
       "types": "./dist/lib/civic-ai.d.ts",
       "default": "./src/lib/civic-ai.ts"
+    },
+    "./lib/candidate-sources/scc-cvig-cache": {
+      "types": "./dist/lib/candidate-sources/scc-cvig-cache.d.ts",
+      "default": "./src/lib/candidate-sources/scc-cvig-cache.ts"
     }
   },
   "license": "MIT",

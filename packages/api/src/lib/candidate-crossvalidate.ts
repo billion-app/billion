@@ -26,6 +26,7 @@ import { enrichCandidateFromBallotpedia } from "./candidate-sources/ballotpedia"
 import { enrichCandidateFromCaSos } from "./candidate-sources/ca-sos-voterguide";
 import { generateCandidateStatementSummary } from "./civic-ai";
 import { enrichCandidateFromOpenStates } from "./candidate-sources/open-states";
+import { enrichCandidateFromScc } from "./candidate-sources/scc-registrar";
 import { byTierDesc, candidateCite } from "./candidate-sources/types";
 import { enrichCandidateFromVoteSmart } from "./candidate-sources/votesmart";
 import { enrichCandidateFromWikipedia } from "./candidate-sources/wikipedia";
@@ -40,8 +41,14 @@ export async function crossValidateCandidate(
   input: CandidateInput,
   ctx: CandidateCrossValidateContext,
 ): Promise<CanonicalCandidate> {
-  const [caSos, openStates, voteSmart, ballotpedia, wikipedia] =
+  const [scc, caSos, openStates, voteSmart, ballotpedia, wikipedia] =
     await Promise.all([
+      enrichCandidateFromScc(input.name, {
+        office: input.office,
+        stateAbbrev: ctx.stateAbbrev,
+        county: ctx.county,
+        electionYear: ctx.electionYear,
+      }).catch(() => null),
       enrichCandidateFromCaSos(input.name, {
         office: input.office,
         stateAbbrev: ctx.stateAbbrev,
@@ -73,6 +80,7 @@ export async function crossValidateCandidate(
     ]);
 
   const sources: CandidateSourceData[] = [
+    scc,
     caSos,
     openStates,
     voteSmart,
