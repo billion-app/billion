@@ -51,6 +51,12 @@ export interface CandidateSourceData {
   matchedName?: string;
 
   biography?: string;
+  /**
+   * Verbatim candidate-authored statement of qualifications (e.g. §13307, as
+   * printed in an official voter information guide). Distinct from `biography`,
+   * which is neutral third-party prose.
+   */
+  statement?: string;
   photoUrl?: string;
   website?: string;
   email?: string;
@@ -69,6 +75,12 @@ export interface CanonicalCandidate {
   name: string;
   party?: string;
   biography?: string;
+  /** Verbatim candidate-authored statement (county registrar / state SOS guide). */
+  statement?: string;
+  /** Citizen-friendly summary of `statement` (AI-generated from the statement). */
+  statementSummary?: string;
+  /** True when `statementSummary` was produced by AI, not an official source. */
+  statementSummaryIsAiGenerated?: boolean;
   photoUrl?: string;
   candidateUrl?: string;
   email?: string;

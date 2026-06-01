@@ -303,7 +303,7 @@ export async function enrichCandidateFromCaSos(
   if (paras.length === 0) return null;
 
   // Separate the contact paragraph (last one matching contact markers) from the
-  // statement prose. Everything that isn't the contact block is the biography.
+  // statement prose. Everything that isn't the contact block is the statement.
   const contactIdx = paras
     .map((p, i) => ({ p: htmlToText(p), i }))
     .filter(({ p }) => CONTACT_MARKERS.test(p))
@@ -313,9 +313,9 @@ export async function enrichCandidateFromCaSos(
   const contactHtml = contactIdx !== undefined ? (paras[contactIdx] ?? "") : "";
   const contactText = htmlToText(contactHtml);
 
-  const bioParas = paras.filter((_, i) => i !== contactIdx).map(htmlToText);
-  const biography = clamp(bioParas.join("\n\n"), MAX_BIO_CHARS);
-  if (!biography || biography.length < 40) return null;
+  const statementParas = paras.filter((_, i) => i !== contactIdx).map(htmlToText);
+  const statement = clamp(statementParas.join("\n\n"), MAX_BIO_CHARS);
+  if (!statement || statement.length < 40) return null;
 
   const data: CandidateSourceData = {
     tier: "state_sos",
@@ -323,15 +323,15 @@ export async function enrichCandidateFromCaSos(
     sourceUrl: url,
     official: true,
     matchedName: parseHeading(best.section.heading)?.name,
-    biography,
+    statement,
     photoUrl: findPhotoByAlt(html, name),
-    website: extractWebsite(biography),
+    website: extractWebsite(statement),
     email: extractEmail(contactHtml),
     phone: extractPhone(contactText),
     channels: extractChannels(contactText),
   };
 
-  // Surface only if we actually captured a real statement — the biography gate
+  // Surface only if we actually captured a real statement — the statement gate
   // above already guarantees that, so the source always contributes here.
   return data;
 }

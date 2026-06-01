@@ -219,6 +219,12 @@ export interface Candidate {
   channels?: Channel[];
   /** Biography merged from candidate sources (Ballotpedia/Wikipedia/Vote Smart). */
   biography?: string;
+  /** Verbatim candidate statement (county registrar / state SOS voter guide). */
+  statement?: string;
+  /** Citizen-friendly summary of `statement`. */
+  statementSummary?: string;
+  /** True when `statementSummary` was AI-generated, not from an official source. */
+  statementSummaryIsAiGenerated?: boolean;
   /** True when the candidate currently holds the office (per Open States / Vote Smart). */
   incumbent?: boolean;
   /** Per-field source attribution for the enriched fields above. */
@@ -809,6 +815,12 @@ async function enrichContest(
             // Merge canonical fields back onto the candidate, preferring enriched
             // values but never clobbering existing Google Civic data with empties.
             candidate.biography = merged.biography ?? candidate.biography;
+            candidate.statement = merged.statement ?? candidate.statement;
+            candidate.statementSummary =
+              merged.statementSummary ?? candidate.statementSummary;
+            candidate.statementSummaryIsAiGenerated =
+              merged.statementSummaryIsAiGenerated ??
+              candidate.statementSummaryIsAiGenerated;
             candidate.incumbent = merged.incumbent ?? candidate.incumbent;
             candidate.photoUrl = merged.photoUrl ?? candidate.photoUrl;
             candidate.candidateUrl =
