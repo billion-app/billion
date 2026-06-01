@@ -118,17 +118,20 @@ export function PrimaryButton({
   onPress,
   icon,
   style,
+  disabled,
 }: {
   label: string;
   onPress?: () => void;
   icon?: IconName;
   style?: ViewStyle;
+  disabled?: boolean;
 }) {
   return (
     <TouchableOpacity
-      style={[s.primaryBtn, style]}
+      style={[s.primaryBtn, disabled && { opacity: 0.5 }, style]}
       onPress={onPress}
       activeOpacity={0.85}
+      disabled={disabled}
     >
       <Text style={s.primaryBtnText}>{label}</Text>
       {icon && <Icon name={icon} size={18} color={planes.ink} />}

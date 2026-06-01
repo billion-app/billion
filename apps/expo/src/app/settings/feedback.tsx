@@ -1,18 +1,20 @@
 import { useState } from "react";
 import {
-  Linking,
+  Alert,
+  Platform,
   StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import Constants from "expo-constants";
+import { useMutation } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker, PrimaryButton, ScreenShell } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
-
-const SUPPORT_EMAIL = "hello@billion.app";
+import { trpc } from "~/utils/api";
 
 const CATS: { id: string; label: string; icon: IconName }[] = [
   { id: "bug", label: "Bug report", icon: "flag" },
@@ -24,14 +26,26 @@ export default function FeedbackScreen() {
   const [cat, setCat] = useState("bug");
   const [text, setText] = useState("");
 
+  const submitFeedback = useMutation(trpc.user.submitFeedback.mutationOptions());
+
   const handleSubmit = () => {
-    const label = CATS.find((c) => c.id === cat)?.label ?? cat;
-    const subject = `Billion feedback: ${label}`;
-    const body = `${text}\n\nApp version: 0.1.1`;
-    void Linking.openURL(
-      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-        subject,
-      )}&body=${encodeURIComponent(body)}`,
+    if (!text.trim()) return;
+    submitFeedback.mutate(
+      {
+        category: cat as "bug" | "idea" | "content",
+        message: text,
+        os: Platform.OS,
+        appVersion: Constants.expoConfig?.version ?? "0.1.1",
+      },
+      {
+        onSuccess: () => {
+          setText("");
+          Alert.alert("Thanks!", "Your feedback was sent to the team.");
+        },
+        onError: () => {
+          Alert.alert("Couldn't send", "Please try again.");
+        },
+      },
     );
   };
 
@@ -95,9 +109,16 @@ export default function FeedbackScreen() {
         multiline
         textAlignVertical="top"
       />
-      <Text style={s.attached}>App version 0.1.1 attached automatically.</Text>
+      <Text style={s.attached}>
+        App version {Constants.expoConfig?.version ?? "0.1.1"} attached
+        automatically.
+      </Text>
 
-      <PrimaryButton label="Submit feedback" onPress={handleSubmit} />
+      <PrimaryButton
+        label={submitFeedback.isPending ? "Sending…" : "Submit feedback"}
+        onPress={handleSubmit}
+        disabled={submitFeedback.isPending || !text.trim()}
+      />
     </ScreenShell>
   );
 }
