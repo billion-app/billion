@@ -17,12 +17,13 @@ several free, official sources and cross-validate them.
 ## Architecture
 
 ```
-County Registrar (Santa Clara) ─┐
-CA SOS Official Voter Guide  ────┤
-Vote Smart API               ────┼──▶ Cross-Validation Engine ──▶ Canonical Measure ──▶ Cache (CivicApiCache) ──▶ App
-Google Civic API             ────┘        │ merge by trust tier        │ citation on every field
-                                          │ AI structures, never authors
-                                          └── flags discrepancies for review
+CA SOS Official Voter Guide  ─┐
+LWV CaVotes (Pros & Cons)    ─┤
+Ballotpedia (statewide+local)─┤
+Wikipedia (statewide props)  ─┼──▶ Cross-Validation Engine ──▶ Canonical Measure ──▶ Cache (CivicApiCache) ──▶ App
+Vote Smart API               ─┤        │ merge by trust tier        │ citation on every field
+Google Civic API             ─┤        │ AI structures, never authors
+SPUR + AI (grounded fallback)─┘        └── flags discrepancies for review
 ```
 
 - **Engine:** `packages/api/src/lib/measure-crossvalidate.ts`
@@ -35,12 +36,15 @@ Google Civic API             ────┘        │ merge by trust tier     
 When more than one source covers the same field, the higher tier wins:
 
 ```
-county_registrar > state_sos > vote_smart > google_civic > ai_generated
+county_registrar > state_sos > lwv > ballotpedia > wikipedia > vote_smart > google_civic > ai_generated
 ```
 
 Defined in `measure-sources/types.ts` (`SOURCE_TIER_RANK`).
 
 ## Source adapters
+
+Each adapter fetches over a shared, defensive helper (`measure-sources/fetch.ts`)
+that uses a browser User-Agent and turns any failure into `null`.
 
 ### CA Secretary of State — Official Voter Guide (`ca-sos-voterguide.ts`)
 
@@ -50,15 +54,34 @@ Defined in `measure-sources/types.ts` (`SOURCE_TIER_RANK`).
   fiscal impact, arguments in favor / against, full-text URL.
 - These are **real, official** texts — not AI-generated.
 - Matches on the proposition number parsed from the title ("Proposition 36").
+- _Note:_ the guide is rebuilt each cycle and only serves the active election,
+  so it yields nothing between proposition cycles.
 
-### Santa Clara County (`santa-clara.ts`) — the proving ground
+### League of Women Voters — CaVotes (`cavotes.ts`)
 
-- **Scope:** local lettered measures ("Measure A").
-- **Primary source:** Santa Clara County Registrar of Voters
-  (`vote.santaclaracounty.gov`). The county site sits behind Cloudflare, so this
-  can fail; when it does we fall back to the **League of Women Voters Easy Voter
-  Guide** (nonpartisan).
-- Matches on the measure letter parsed from the title.
+- **Scope:** California statewide propositions only.
+- **Source:** CaVotes WordPress REST API (`cavotes.org/wp-json/wp/v2/ballots`).
+- **Extracts:** nonpartisan "Pros & Cons" summary, fiscal effects, supporter and
+  opponent arguments. Real, human-written analysis. Slugs are inconsistent
+  across years, so it enumerates the list and matches by prop number + year.
+
+### Ballotpedia (`ballotpedia.ts`)
+
+- **Scope:** **statewide _and_ local** (city / county / special-district)
+  measures — the main source for local lettered measures.
+- **Source:** rendered article HTML (the MediaWiki API is disabled), resolved
+  from a year/county index page since titles aren't constructable.
+- **Extracts:** ballot summary / question, fiscal impact / impartial analysis,
+  arguments for and against. Year-gated for local measures so a same-letter
+  measure from another cycle isn't surfaced.
+
+### Wikipedia (`wikipedia.ts`)
+
+- **Scope:** California statewide propositions only — gated on a parsed
+  proposition number (local titles like "Measure Q" collide with unrelated
+  articles).
+- **Source:** the MediaWiki action API extract for `<year> California
+  Proposition <n>`. A neutral encyclopedic overview; carries the article URL.
 
 ### Vote Smart (`votesmart.ts`)
 
@@ -71,15 +94,27 @@ Defined in `measure-sources/types.ts` (`SOURCE_TIER_RANK`).
 - The measure as the API returned it — treated as the lowest-trust source so
   its subtitle/text/statements still surface when nothing better exists.
 
+### Grounded AI fallback (`grounded-fallback.ts`)
+
+- **When:** no human/aggregator source had a summary.
+- **What:** resolves the measure on SPUR's nonpartisan Bay Area voter guide
+  (`spur.org/voter-guide/<YYYY>-<MM>`) by its letter and fetches the real page
+  text. That text — never the title alone — is what the AI summarizes. The
+  summary is flagged AI-generated and cites the SPUR page it was built from.
+
 ## AI's role (explicitly scoped)
 
 - **YES** — summarize official fiscal-impact analyses into plain language;
   reconcile and structure existing source text.
 - **NO** — generate pro/con arguments from scratch; invent a summary when no
   source material exists (the UI shows "No information available" instead).
-- **Fallback only** — when there _is_ source material but no human summary, an
-  AI summary is generated and **flagged** (`Contest.summaryIsAiGenerated`) so
-  the app labels it "AI-generated — not from an official source".
+- **Fallback only** — when there _is_ fetched source text but no human summary,
+  an AI summary is generated and **flagged** (`Contest.summaryIsAiGenerated`) so
+  the app labels it "AI-generated — not from an official source". The model is
+  given the real source text and told to return `INSUFFICIENT` (→ no summary)
+  if that text doesn't actually describe the measure, so it can't fabricate
+  from a title. Generation goes through the generic `llm` provider
+  (`ai-provider.ts`): DeepSeek by default, OpenAI fallback.
 
 ## Output shape
 
