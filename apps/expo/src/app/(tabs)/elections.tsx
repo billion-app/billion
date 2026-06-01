@@ -427,9 +427,9 @@ export default function ElectionsScreen() {
                   </TouchableOpacity>
                   {expanded && (
                     <View style={s.measureBody}>
-                      {m.summary || m.referendumSubtitle ? (
+                      {m.summaryShort || m.summary || m.referendumSubtitle ? (
                         <Text style={s.measureSub}>
-                          {m.summary ?? m.referendumSubtitle}
+                          {m.summaryShort ?? m.summary ?? m.referendumSubtitle}
                         </Text>
                       ) : null}
                       {m.summaryIsAiGenerated && (
