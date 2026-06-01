@@ -816,9 +816,32 @@ async function enrichContest(
             candidate.email = merged.email ?? candidate.email;
             candidate.phone = merged.phone ?? candidate.phone;
             candidate.channels = merged.channels ?? candidate.channels;
-            candidate.citations = merged.citations.length
-              ? merged.citations
-              : candidate.citations;
+
+            // Cite raw Google Civic fields that survived onto the candidate but
+            // no higher-tier source claimed. Better a cited official-ish link
+            // than a blank card; each field is cited once (enriched citation
+            // wins; google_civic only fills the gaps).
+            const citations: MeasureCitationRef[] = [...merged.citations];
+            const cited = new Set(citations.map((c) => c.field));
+            const rawCivicFields: [string, unknown][] = [
+              ["candidateUrl", candidate.candidateUrl],
+              ["phone", candidate.phone],
+              ["email", candidate.email],
+              ["photoUrl", candidate.photoUrl],
+              ["channels", candidate.channels?.length ? candidate.channels : undefined],
+            ];
+            for (const [field, value] of rawCivicFields) {
+              if (value && !cited.has(field)) {
+                citations.push({
+                  field,
+                  sourceName: "Google Civic Information API",
+                  tier: "google_civic",
+                  official: false,
+                });
+                cited.add(field);
+              }
+            }
+            candidate.citations = citations.length ? citations : undefined;
           } catch {
             // Best-effort per candidate: one failure must not break the contest
             // or the other candidates — leave the raw Google Civic data intact.
