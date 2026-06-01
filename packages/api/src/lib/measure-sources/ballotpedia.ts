@@ -11,6 +11,10 @@
  * or a county measures index) by matching on the measure letter/number, then
  * fetch and parse that article by its stable `mw-headline` section anchors.
  *
+ * For local lettered measures the County Counsel / City Attorney "Impartial
+ * Analysis" section is the authoritative NEUTRAL description; we extract it as
+ * the summary so it outranks the advocacy/AI grounding fallback (SPUR).
+ *
  * Every field is attributed back to the Ballotpedia article URL.
  */
 
@@ -170,26 +174,51 @@ async function parseArticle(
   const html = await fetchText(url);
   if (!html || html.length < 1000) return null;
 
+  // The County Counsel / City Attorney "Impartial Analysis" is the authoritative
+  // NEUTRAL per-measure description for local measures (CA Elec. Code §§9160/
+  // 9280/9500) — preferred over the bare ballot question and far preferred over
+  // the advocacy/AI fallback that runs when no official summary exists. Extract
+  // it on its own so it can win the summary slot, not be buried in fiscal.
+  const impartial = sectionByAnchors(
+    html,
+    ["Impartial_analysis", "Reports_and_analyses"],
+    [
+      "Fiscal_impact",
+      "Text_of_measure",
+      "Support",
+      "Opposition",
+      "See_also",
+      "Path_to_the_ballot",
+    ],
+  );
   // Statewide props expose a "Ballot_summary"/"Measure_design"; local measures
   // instead carry the official wording under "Ballot_question" within
-  // "Text_of_measure". Try the richer summary first, then the ballot question.
+  // "Text_of_measure". Prefer the richer summary, then the neutral impartial
+  // analysis, then the bare ballot question.
   const summary =
     sectionByAnchors(
       html,
       ["Ballot_summary", "Overview", "Measure_design"],
       ["Fiscal_impact", "Text_of_measure", "Support", "Opposition"],
     ) ??
+    impartial ??
     sectionByAnchors(
       html,
       ["Ballot_question", "Text_of_measure"],
       ["Support", "Opposition", "Priority_actions", "Election_results"],
     );
-  // Local measures often label their fiscal/analysis content "Impartial_analysis"
-  // under "Reports_and_analyses" rather than "Fiscal_impact".
+  // Fiscal impact proper. The impartial analysis is no longer used as a fiscal
+  // fallback — it now feeds the summary above.
   const fiscal = sectionByAnchors(
     html,
-    ["Fiscal_impact", "Tax_rate", "Impartial_analysis", "Reports_and_analyses"],
-    ["Text_of_measure", "Support", "Opposition", "See_also", "Path_to_the_ballot"],
+    ["Fiscal_impact", "Tax_rate"],
+    [
+      "Text_of_measure",
+      "Support",
+      "Opposition",
+      "See_also",
+      "Path_to_the_ballot",
+    ],
   );
   const proText = sectionByAnchors(
     html,
@@ -210,7 +239,7 @@ async function parseArticle(
   let cleanSummary = summary;
   if (cleanSummary) {
     const noise =
-      /^\s*(?:ballot question|text of measure|the (?:ballot )?question(?: on the ballot)?(?: was)?(?: as follows)?:?|\[\d+\]|[“”"])\s*/i;
+      /^\s*(?:impartial analysis|reports and analyses|the following impartial analysis[^:]*:|ballot question|text of measure|the (?:ballot )?question(?: on the ballot)?(?: was)?(?: as follows)?:?|\[\d+\]|[“”"])\s*/i;
     let prev: string;
     do {
       prev = cleanSummary;
