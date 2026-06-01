@@ -12,7 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { Text } from "~/components/Themed";
-import { Card, Icon, Kicker, NavHeader } from "~/components/ui";
+import { Card, Icon, Kicker, NavHeader, Segmented } from "~/components/ui";
 import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 
 interface CandidateCitation {
@@ -32,6 +32,9 @@ interface CandidateParam {
   photoUrl?: string;
   channels?: { type: string; id: string }[];
   biography?: string;
+  statement?: string;
+  statementSummary?: string;
+  statementSummaryIsAiGenerated?: boolean;
   incumbent?: boolean;
   citations?: CandidateCitation[];
 }
@@ -86,6 +89,51 @@ function partyInitial(party?: string): string {
   return "NP";
 }
 
+/**
+ * A candidate's statement of qualifications. When an AI summary exists alongside
+ * the verbatim statement, show a two-tab control (AI summary first, then the
+ * verbatim text) mirroring the measure detail screen. With only one of the two,
+ * render it directly without tabs.
+ */
+function CandidateStatement({ cand }: { cand: CandidateParam }) {
+  const hasSummary = !!cand.statementSummary?.trim();
+  const hasVerbatim = !!cand.statement?.trim();
+  const [mode, setMode] = useState<"summary" | "verbatim">(
+    hasSummary ? "summary" : "verbatim",
+  );
+  if (!hasSummary && !hasVerbatim) return null;
+
+  const showTabs = hasSummary && hasVerbatim;
+  const showingSummary = hasSummary && (mode === "summary" || !hasVerbatim);
+
+  return (
+    <View style={s.statementWrap}>
+      {showTabs && (
+        <Segmented
+          value={mode}
+          onChange={setMode}
+          options={[
+            { id: "summary", label: "Plain summary", icon: "sparkle" },
+            { id: "verbatim", label: "Statement", icon: "doc" },
+          ]}
+        />
+      )}
+      {showingSummary && cand.statementSummaryIsAiGenerated && (
+        <View style={s.aiNotice}>
+          <Icon name="sparkle" size={13} color={colors.yellow[500]} />
+          <Text style={s.aiNoticeText}>
+            AI summary of the candidate&apos;s own statement — not an official
+            source. Read the full statement for their exact words.
+          </Text>
+        </View>
+      )}
+      <Text style={s.candBio}>
+        {showingSummary ? cand.statementSummary : cand.statement}
+      </Text>
+    </View>
+  );
+}
+
 export default function ContestDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -116,7 +164,7 @@ export default function ContestDetailScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Contest" onBack={() => router.back()} />
+      <NavHeader title={params.office} onBack={() => router.back()} />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
@@ -173,10 +221,14 @@ export default function ContestDetailScreen() {
               const sources = cand.citations
                 ? dedupeSources(cand.citations)
                 : [];
+              const hasStatement =
+                !!cand.statement?.trim() || !!cand.statementSummary?.trim();
+              const hasContact =
+                contactRows.length > 0 || (cand.channels?.length ?? 0) > 0;
               const hasBody =
-                contactRows.length > 0 ||
+                hasContact ||
                 !!cand.biography ||
-                (cand.channels?.length ?? 0) > 0 ||
+                hasStatement ||
                 sources.length > 0;
 
               return (
@@ -227,6 +279,19 @@ export default function ContestDetailScreen() {
                     <View style={s.candBody}>
                       {cand.biography ? (
                         <Text style={s.candBio}>{cand.biography}</Text>
+                      ) : null}
+                      <CandidateStatement cand={cand} />
+                      {!hasStatement ? (
+                        <View style={s.emptyNote}>
+                          <Icon
+                            name="doc"
+                            size={13}
+                            color={colors.textSecondary}
+                          />
+                          <Text style={s.noContact}>
+                            No statement submitted to the official voter guide.
+                          </Text>
+                        </View>
                       ) : null}
                       {!hasBody ? (
                         <Text style={s.noContact}>
@@ -420,6 +485,26 @@ const s = StyleSheet.create({
     paddingTop: 12,
     gap: 8,
   },
+  statementWrap: {
+    gap: 10,
+  },
+  aiNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "rgba(245, 200, 66, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 200, 66, 0.25)",
+    borderRadius: 10,
+    padding: 12,
+  },
+  aiNoticeText: {
+    flex: 1,
+    fontFamily: fontBody.regular,
+    fontSize: 12.5,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
   contactRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -436,6 +521,11 @@ const s = StyleSheet.create({
     fontSize: 13.5,
     color: colors.white,
     marginTop: 1,
+  },
+  emptyNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   noContact: {
     fontFamily: fontBody.regular,

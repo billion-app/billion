@@ -22,6 +22,18 @@
     "./lib/civic-ai": {
       "types": "./dist/lib/civic-ai.d.ts",
       "default": "./src/lib/civic-ai.ts"
+    },
+    "./lib/candidate-sources/scc-cvig-cache": {
+      "types": "./dist/lib/candidate-sources/scc-cvig-cache.d.ts",
+      "default": "./src/lib/candidate-sources/scc-cvig-cache.ts"
+    },
+    "./lib/candidate-sources/ca-sos-cache": {
+      "types": "./dist/lib/candidate-sources/ca-sos-cache.d.ts",
+      "default": "./src/lib/candidate-sources/ca-sos-cache.ts"
+    },
+    "./lib/candidate-sources/ca-sos-voterguide": {
+      "types": "./dist/lib/candidate-sources/ca-sos-voterguide.d.ts",
+      "default": "./src/lib/candidate-sources/ca-sos-voterguide.ts"
     }
   },
   "license": "MIT",

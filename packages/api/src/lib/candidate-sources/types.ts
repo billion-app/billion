@@ -51,6 +51,12 @@ export interface CandidateSourceData {
   matchedName?: string;
 
   biography?: string;
+  /**
+   * Verbatim candidate-authored statement of qualifications (e.g. §13307, as
+   * printed in an official voter information guide). Distinct from `biography`,
+   * which is neutral third-party prose.
+   */
+  statement?: string;
   photoUrl?: string;
   website?: string;
   email?: string;
@@ -69,6 +75,12 @@ export interface CanonicalCandidate {
   name: string;
   party?: string;
   biography?: string;
+  /** Verbatim candidate-authored statement (county registrar / state SOS guide). */
+  statement?: string;
+  /** Citizen-friendly summary of `statement` (AI-generated from the statement). */
+  statementSummary?: string;
+  /** True when `statementSummary` was produced by AI, not an official source. */
+  statementSummaryIsAiGenerated?: boolean;
   photoUrl?: string;
   candidateUrl?: string;
   email?: string;
@@ -157,4 +169,28 @@ export function candidateNameSimilarity(a: string, b: string): number {
   for (const t of wa) if (wb.has(t)) intersection += 1;
   const union = wa.size + wb.size - intersection;
   return union === 0 ? 0 : intersection / union;
+}
+
+/** Drop single-letter tokens (middle initials) so "Tony K. Thurmond" ≈ "Tony Thurmond". */
+export function dropInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter((t) => t.replace(/[^A-Za-z0-9]/g, "").length > 1)
+    .join(" ");
+}
+
+/** Clamp prose to a max length, adding an ellipsis when truncated. */
+export function clamp(s: string, max: number): string {
+  const t = s.trim();
+  return t.length > max ? t.slice(0, max).trimEnd() + "…" : t;
+}
+
+/**
+ * Deterministic JSON string for cache keys (sorted keys). Shared by the
+ * candidate cache, the scraper handoff write, and the registrar adapter read so
+ * a written `params` byte-matches the read `params` — a mismatch is a silent
+ * cache miss.
+ */
+export function stableStringify(obj: Record<string, unknown>): string {
+  return JSON.stringify(obj, Object.keys(obj).sort());
 }

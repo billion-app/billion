@@ -219,6 +219,12 @@ export interface Candidate {
   channels?: Channel[];
   /** Biography merged from candidate sources (Ballotpedia/Wikipedia/Vote Smart). */
   biography?: string;
+  /** Verbatim candidate statement (county registrar / state SOS voter guide). */
+  statement?: string;
+  /** Citizen-friendly summary of `statement`. */
+  statementSummary?: string;
+  /** True when `statementSummary` was AI-generated, not from an official source. */
+  statementSummaryIsAiGenerated?: boolean;
   /** True when the candidate currently holds the office (per Open States / Vote Smart). */
   incumbent?: boolean;
   /** Per-field source attribution for the enriched fields above. */
@@ -809,6 +815,12 @@ async function enrichContest(
             // Merge canonical fields back onto the candidate, preferring enriched
             // values but never clobbering existing Google Civic data with empties.
             candidate.biography = merged.biography ?? candidate.biography;
+            candidate.statement = merged.statement ?? candidate.statement;
+            candidate.statementSummary =
+              merged.statementSummary ?? candidate.statementSummary;
+            candidate.statementSummaryIsAiGenerated =
+              merged.statementSummaryIsAiGenerated ??
+              candidate.statementSummaryIsAiGenerated;
             candidate.incumbent = merged.incumbent ?? candidate.incumbent;
             candidate.photoUrl = merged.photoUrl ?? candidate.photoUrl;
             candidate.candidateUrl =
@@ -816,9 +828,35 @@ async function enrichContest(
             candidate.email = merged.email ?? candidate.email;
             candidate.phone = merged.phone ?? candidate.phone;
             candidate.channels = merged.channels ?? candidate.channels;
-            candidate.citations = merged.citations.length
-              ? merged.citations
-              : candidate.citations;
+
+            // Cite raw Google Civic fields that survived onto the candidate but
+            // no higher-tier source claimed. Better a cited official-ish link
+            // than a blank card; each field is cited once (enriched citation
+            // wins; google_civic only fills the gaps).
+            const citations: MeasureCitationRef[] = [...merged.citations];
+            const cited = new Set(citations.map((c) => c.field));
+            const rawCivicFields: [string, unknown][] = [
+              ["candidateUrl", candidate.candidateUrl],
+              ["phone", candidate.phone],
+              ["email", candidate.email],
+              ["photoUrl", candidate.photoUrl],
+              [
+                "channels",
+                candidate.channels?.length ? candidate.channels : undefined,
+              ],
+            ];
+            for (const [field, value] of rawCivicFields) {
+              if (value && !cited.has(field)) {
+                citations.push({
+                  field,
+                  sourceName: "Google Civic Information API",
+                  tier: "google_civic",
+                  official: false,
+                });
+                cited.add(field);
+              }
+            }
+            candidate.citations = citations.length ? citations : undefined;
           } catch {
             // Best-effort per candidate: one failure must not break the contest
             // or the other candidates — leave the raw Google Civic data intact.
