@@ -24,11 +24,21 @@
  * registrar.
  */
 
+import { and, eq, gt } from "@acme/db";
+import { db } from "@acme/db/client";
+import { CivicApiCache } from "@acme/db/schema";
+
 import type { CandidateChannel, CandidateSourceData } from "./types";
+import type { CaSosStatement } from "./ca-sos-cache";
 import { decodeEntities, htmlToText } from "../measure-sources/html";
 import { candidateNameSimilarity, clamp, dropInitials } from "./types";
+import {
+  CA_SOS_ADDRESS_HASH,
+  CA_SOS_ENDPOINT,
+  caSosCacheParams,
+} from "./ca-sos-cache";
 
-const GUIDE_BASE = "https://voterguide.sos.ca.gov";
+export const GUIDE_BASE = "https://voterguide.sos.ca.gov";
 const FETCH_TIMEOUT_MS = 12_000;
 const SOURCE_NAME =
   "California Secretary of State — Official Voter Information Guide";
@@ -49,7 +59,7 @@ const MAX_BIO_CHARS = 2500;
  * Only the nine statewide offices the guide publishes are here; an unmatched
  * office yields null (the adapter returns no data, never a wrong page).
  */
-const OFFICE_SLUGS: { match: RegExp; slug: string }[] = [
+export const OFFICE_SLUGS: { match: RegExp; slug: string }[] = [
   { match: /lieutenant\s+governor|lt\.?\s+governor/i, slug: "lt-governor" },
   {
     match: /superintendent\s+of\s+public\s+instruction/i,
@@ -67,7 +77,7 @@ const OFFICE_SLUGS: { match: RegExp; slug: string }[] = [
   { match: /\bgovernor\b/i, slug: "governor" },
 ];
 
-function officeSlug(office: string | undefined): string | null {
+export function officeSlug(office: string | undefined): string | null {
   if (!office) return null;
   for (const { match, slug } of OFFICE_SLUGS) {
     if (match.test(office)) return slug;
@@ -75,7 +85,12 @@ function officeSlug(office: string | undefined): string | null {
   return null;
 }
 
-async function fetchText(url: string): Promise<string | null> {
+/** Build the office page URL for a slug. */
+export function officeUrl(slug: string): string {
+  return `${GUIDE_BASE}/candidates/${slug}-candidate-statements.htm`;
+}
+
+export async function fetchText(url: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -264,12 +279,116 @@ function extractChannels(contactText: string): CandidateChannel[] | undefined {
 }
 
 /**
+ * Parse one fetched SOS office page into per-candidate statement records.
+ *
+ * Pure: takes the page HTML and its slug, returns every candidate with a real
+ * statement (>= 40 chars). Shared by the live adapter path below and the cron
+ * scraper (apps/scraper) so both extract identically from one source of truth.
+ */
+export function parseOfficePage(
+  html: string,
+  slug: string,
+): CaSosStatement[] {
+  if (!html || html.length < 500) return [];
+  const url = officeUrl(slug);
+  const out: CaSosStatement[] = [];
+
+  for (const section of splitSections(html)) {
+    const parsed = parseHeading(section.heading);
+    if (!parsed) continue;
+
+    const paras = paragraphs(section.body);
+    if (paras.length === 0) continue;
+
+    // Separate the contact paragraph (last one matching contact markers) from
+    // the statement prose. Everything that isn't the contact block is the
+    // statement.
+    const contactIdx = paras
+      .map((p, i) => ({ p: htmlToText(p), i }))
+      .filter(({ p }) => CONTACT_MARKERS.test(p))
+      .map(({ i }) => i)
+      .pop();
+
+    const contactHtml = contactIdx !== undefined ? (paras[contactIdx] ?? "") : "";
+    const contactText = htmlToText(contactHtml);
+
+    const statementParas = paras
+      .filter((_, i) => i !== contactIdx)
+      .map(htmlToText);
+    const statement = clamp(statementParas.join("\n\n"), MAX_BIO_CHARS);
+    if (!statement || statement.length < 40) continue;
+
+    out.push({
+      name: parsed.name,
+      officeSlug: slug,
+      statement,
+      sourceUrl: url,
+      photoUrl: findPhotoByAlt(html, parsed.name),
+      website: extractWebsite(statement),
+      email: extractEmail(contactHtml),
+      phone: extractPhone(contactText),
+      channels: extractChannels(contactText),
+    });
+  }
+  return out;
+}
+
+/**
+ * Read the scraper's handoff cache row for an election year, or null on miss /
+ * expiry / DB error. Best-effort: never throws.
+ */
+async function readCachedStatements(
+  electionYear: number,
+): Promise<CaSosStatement[] | null> {
+  try {
+    const [row] = await db
+      .select()
+      .from(CivicApiCache)
+      .where(
+        and(
+          eq(CivicApiCache.addressHash, CA_SOS_ADDRESS_HASH),
+          eq(CivicApiCache.endpoint, CA_SOS_ENDPOINT),
+          eq(CivicApiCache.params, caSosCacheParams(electionYear)),
+          gt(CivicApiCache.expiresAt, new Date()),
+        ),
+      )
+      .limit(1);
+    if (!row) return null;
+    const payload = row.responseData as { statements?: CaSosStatement[] };
+    return Array.isArray(payload.statements) ? payload.statements : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best name match among candidates for a slug, at/above the threshold. */
+function matchCandidate(
+  statements: CaSosStatement[],
+  slug: string,
+  name: string,
+): CaSosStatement | null {
+  const query = dropInitials(name);
+  let best: { s: CaSosStatement; score: number } | null = null;
+  for (const s of statements) {
+    if (s.officeSlug !== slug) continue;
+    const score = candidateNameSimilarity(query, dropInitials(s.name));
+    if (score >= NAME_MATCH_THRESHOLD && (!best || score > best.score)) {
+      best = { s, score };
+    }
+  }
+  return best?.s ?? null;
+}
+
+/**
  * Enrich a candidate from the CA SOS Official Voter Information Guide.
  *
- * Returns the verbatim candidate statement (as `statement`) plus any contact
- * fields the guide lists, all attributed to the official SOS office page — or
- * `null` when the state isn't CA, the office isn't a statewide one in the guide,
- * the page can't be fetched, or no heading matches the candidate's name.
+ * Prefers the scraper's handoff cache (the cron pre-fetches and parses all nine
+ * office pages into one row per election), falling back to a live page fetch +
+ * parse when the cache is cold so the adapter still works before the first cron
+ * run. Returns the verbatim statement plus any contact fields the guide lists,
+ * attributed to the official SOS office page — or `null` when the state isn't
+ * CA, the office isn't a statewide one in the guide, nothing can be fetched, or
+ * no candidate matches by name.
  */
 export async function enrichCandidateFromCaSos(
   name: string,
@@ -281,59 +400,27 @@ export async function enrichCandidateFromCaSos(
   const slug = officeSlug(ctx.office);
   if (!slug) return null;
 
-  const url = `${GUIDE_BASE}/candidates/${slug}-candidate-statements.htm`;
-  const html = await fetchText(url);
-  if (!html || html.length < 500) return null;
-
-  // Find the section whose heading name best matches the candidate. Compare
-  // with middle initials dropped so "Tony K. Thurmond" matches "Tony Thurmond".
-  const queryName = dropInitials(name);
-  let best: { section: RawSection; party: string; score: number } | null = null;
-  for (const section of splitSections(html)) {
-    const parsed = parseHeading(section.heading);
-    if (!parsed) continue;
-    const score = candidateNameSimilarity(queryName, dropInitials(parsed.name));
-    if (score >= NAME_MATCH_THRESHOLD && (!best || score > best.score)) {
-      best = { section, party: parsed.party, score };
-    }
+  // Cache-first (scraper handoff), then live fetch fallback for this one page.
+  let statements = await readCachedStatements(ctx.electionYear);
+  if (!statements) {
+    const html = await fetchText(officeUrl(slug));
+    statements = html ? parseOfficePage(html, slug) : [];
   }
-  if (!best) return null;
 
-  const paras = paragraphs(best.section.body);
-  if (paras.length === 0) return null;
+  const match = matchCandidate(statements, slug, name);
+  if (!match) return null;
 
-  // Separate the contact paragraph (last one matching contact markers) from the
-  // statement prose. Everything that isn't the contact block is the statement.
-  const contactIdx = paras
-    .map((p, i) => ({ p: htmlToText(p), i }))
-    .filter(({ p }) => CONTACT_MARKERS.test(p))
-    .map(({ i }) => i)
-    .pop();
-
-  const contactHtml = contactIdx !== undefined ? (paras[contactIdx] ?? "") : "";
-  const contactText = htmlToText(contactHtml);
-
-  const statementParas = paras
-    .filter((_, i) => i !== contactIdx)
-    .map(htmlToText);
-  const statement = clamp(statementParas.join("\n\n"), MAX_BIO_CHARS);
-  if (!statement || statement.length < 40) return null;
-
-  const data: CandidateSourceData = {
+  return {
     tier: "state_sos",
     sourceName: SOURCE_NAME,
-    sourceUrl: url,
+    sourceUrl: match.sourceUrl,
     official: true,
-    matchedName: parseHeading(best.section.heading)?.name,
-    statement,
-    photoUrl: findPhotoByAlt(html, name),
-    website: extractWebsite(statement),
-    email: extractEmail(contactHtml),
-    phone: extractPhone(contactText),
-    channels: extractChannels(contactText),
+    matchedName: match.name,
+    statement: match.statement,
+    photoUrl: match.photoUrl,
+    website: match.website,
+    email: match.email,
+    phone: match.phone,
+    channels: match.channels,
   };
-
-  // Surface only if we actually captured a real statement — the statement gate
-  // above already guarantees that, so the source always contributes here.
-  return data;
 }
