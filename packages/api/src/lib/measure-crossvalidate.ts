@@ -18,9 +18,12 @@ import type {
   MeasureSourceData,
 } from "./measure-sources/types";
 import { generateMeasureSummary } from "./civic-ai";
+import { enrichFromBallotpedia } from "./measure-sources/ballotpedia";
 import { enrichFromCaSos } from "./measure-sources/ca-sos-voterguide";
-import { enrichFromSantaClara } from "./measure-sources/santa-clara";
+import { enrichFromCaVotes } from "./measure-sources/cavotes";
+import { collectGroundingText } from "./measure-sources/grounded-fallback";
 import { SOURCE_TIER_RANK } from "./measure-sources/types";
+import { enrichFromWikipedia } from "./measure-sources/wikipedia";
 import { enrichFromVoteSmart } from "./votesmart";
 
 export interface CrossValidateContext {
@@ -138,17 +141,29 @@ export async function crossValidateMeasure(
   input: CivicMeasureInput,
   ctx: CrossValidateContext,
 ): Promise<CanonicalMeasure> {
-  const [sos, scc, vs] = await Promise.all([
+  const [sos, lwv, bp, wiki, vs] = await Promise.all([
     enrichFromCaSos(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
       () => null,
     ),
-    enrichFromSantaClara(input.title, ctx.county).catch(() => null),
+    enrichFromCaVotes(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
+      () => null,
+    ),
+    enrichFromBallotpedia(input.title, {
+      stateAbbrev: ctx.stateAbbrev,
+      county: ctx.county,
+      electionYear: ctx.electionYear,
+    }).catch(() => null),
+    enrichFromWikipedia(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
+      () => null,
+    ),
     collectVoteSmart(input.title, ctx),
   ]);
 
   const sources: MeasureSourceData[] = [
-    scc,
     sos,
+    lwv,
+    bp,
+    wiki,
     vs,
     civicAsSource(input),
   ].filter((s): s is MeasureSourceData => s !== null);
@@ -201,32 +216,64 @@ export async function crossValidateMeasure(
   const proArguments = collectArguments(sources, "pro", citations);
   const conArguments = collectArguments(sources, "con", citations);
 
-  // --- AI fallback (last resort), only when there is real source material. ---
+  // --- AI fallback (last resort): summarize REAL fetched source text only. ---
+  // No human/aggregator source had a summary. Rather than show a blank card, we
+  // gather real text about the measure (Google Civic's own fields, else fetched
+  // from nonpartisan sources) and let the AI summarize THAT — never the title
+  // alone. The summary is labeled AI-generated and cites the text it came from,
+  // staying true to the principle: always point back to the original source.
   if (!summary) {
-    const hasMaterial =
-      !!input.subtitle ||
-      !!input.text ||
-      !!input.proStatement ||
-      !!input.conStatement;
-    if (hasMaterial) {
-      try {
-        summary = await generateMeasureSummary(
-          input.title,
-          input.subtitle,
-          input.text,
-          input.proStatement,
-          input.conStatement,
-        );
-        summaryIsAiGenerated = true;
+    const civicMaterial = [
+      input.subtitle,
+      input.text,
+      input.proStatement,
+      input.conStatement,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    let groundingText = civicMaterial;
+    let groundingSources: { name: string; url: string }[] = input.url
+      ? [{ name: "Google Civic Information API", url: input.url }]
+      : [];
+
+    if (groundingText.trim().length < 250) {
+      const fetched = await collectGroundingText(input.title, {
+        electionYear: ctx.electionYear,
+        county: ctx.county,
+      }).catch(() => null);
+      if (fetched) {
+        groundingText = fetched.text;
+        groundingSources = fetched.sources;
+      }
+    }
+
+    try {
+      summary = await generateMeasureSummary(input.title, groundingText);
+      summaryIsAiGenerated = true;
+      // Cite the AI step itself, plus the real sources it was grounded on, so
+      // the reader can follow the summary back to the underlying material.
+      citations.push({
+        field: "summary",
+        sourceName: "AI summary — grounded on the sources below, not an official source",
+        tier: "ai_generated",
+        official: false,
+      });
+      for (const gs of groundingSources) {
         citations.push({
           field: "summary",
-          sourceName: "AI summary (Gemini) — not an official source",
+          sourceName: gs.name,
+          sourceUrl: gs.url,
           tier: "ai_generated",
           official: false,
         });
-      } catch {
-        // leave summary undefined → UI shows "No information available"
       }
+      if (!fullTextUrl && groundingSources[0]?.url) {
+        fullTextUrl = groundingSources[0].url;
+      }
+    } catch {
+      // Not enough real source text → leave summary undefined; the UI shows
+      // "No information available" rather than a hallucinated guess.
     }
   }
 

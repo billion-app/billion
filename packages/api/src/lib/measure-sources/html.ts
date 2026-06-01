@@ -39,6 +39,11 @@ const ENTITIES: Record<string, string> = {
   "&lsquo;": "'",
   "&ldquo;": '"',
   "&rdquo;": '"',
+  "&#91;": "[",
+  "&#93;": "]",
+  "&#8220;": '"',
+  "&#8221;": '"',
+  "&#8217;": "'",
 };
 
 export function decodeEntities(s: string): string {
