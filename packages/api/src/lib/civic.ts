@@ -821,7 +821,23 @@ export async function getVoterInfo(
   }
 
   try {
-    const result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+    let result: VoterInfoResponse;
+    try {
+      result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+    } catch (err) {
+      // A stale/invalid electionId yields "Election unknown" (400). Retry
+      // without it so Civic resolves the relevant upcoming election itself.
+      if (electionId && /election unknown/i.test(String(err))) {
+        console.warn(
+          "[civic] electionId rejected, retrying without it:",
+          electionId,
+        );
+        delete params.electionId;
+        result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
+      } else {
+        throw err;
+      }
+    }
     result.contests = await enrichContests(result.contests, enrichCtx(result));
     await setCache(
       address,
