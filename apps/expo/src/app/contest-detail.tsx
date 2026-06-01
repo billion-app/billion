@@ -221,13 +221,12 @@ export default function ContestDetailScreen() {
               const sources = cand.citations
                 ? dedupeSources(cand.citations)
                 : [];
+              const hasStatement =
+                !!cand.statement?.trim() || !!cand.statementSummary?.trim();
+              const hasContact =
+                contactRows.length > 0 || (cand.channels?.length ?? 0) > 0;
               const hasBody =
-                contactRows.length > 0 ||
-                !!cand.biography ||
-                !!cand.statement ||
-                !!cand.statementSummary ||
-                (cand.channels?.length ?? 0) > 0 ||
-                sources.length > 0;
+                hasContact || !!cand.biography || hasStatement || sources.length > 0;
 
               return (
                 <Card key={i}>
@@ -279,6 +278,18 @@ export default function ContestDetailScreen() {
                         <Text style={s.candBio}>{cand.biography}</Text>
                       ) : null}
                       <CandidateStatement cand={cand} />
+                      {!hasStatement ? (
+                        <View style={s.emptyNote}>
+                          <Icon
+                            name="doc"
+                            size={13}
+                            color={colors.textSecondary}
+                          />
+                          <Text style={s.noContact}>
+                            No statement submitted to the official voter guide.
+                          </Text>
+                        </View>
+                      ) : null}
                       {!hasBody ? (
                         <Text style={s.noContact}>
                           No contact information available.
@@ -507,6 +518,11 @@ const s = StyleSheet.create({
     fontSize: 13.5,
     color: colors.white,
     marginTop: 1,
+  },
+  emptyNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   noContact: {
     fontFamily: fontBody.regular,
