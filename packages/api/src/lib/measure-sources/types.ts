@@ -11,18 +11,26 @@
  * Trust tiers, highest to lowest. The cross-validation engine prefers data
  * from a higher tier when multiple sources cover the same field.
  *
- * County registrar > State SOS > Vote Smart > Google Civic > AI (last resort).
+ * County registrar / State SOS (official) > League of Women Voters
+ * (nonpartisan) > Ballotpedia (aggregator) > Wikipedia (encyclopedic) >
+ * Vote Smart > Google Civic > AI grounded on fetched text (last resort).
  */
 export type SourceTier =
   | "county_registrar"
   | "state_sos"
+  | "lwv"
+  | "ballotpedia"
+  | "wikipedia"
   | "vote_smart"
   | "google_civic"
   | "ai_generated";
 
 export const SOURCE_TIER_RANK: Record<SourceTier, number> = {
-  county_registrar: 5,
-  state_sos: 4,
+  county_registrar: 8,
+  state_sos: 7,
+  lwv: 6,
+  ballotpedia: 5,
+  wikipedia: 4,
   vote_smart: 3,
   google_civic: 2,
   ai_generated: 1,

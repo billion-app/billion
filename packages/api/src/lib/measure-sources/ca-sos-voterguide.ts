@@ -7,7 +7,7 @@
  * structure them; we never author measure content here.
  *
  * Scope: California statewide propositions only. Local measures are handled by
- * the county pipelines (see santa-clara.ts).
+ * the Ballotpedia adapter (see ballotpedia.ts).
  *
  * Everything is best-effort: network failures, timeouts, or markup changes
  * yield `null`/empty, never a throw. The cross-validation engine treats a
