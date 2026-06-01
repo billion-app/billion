@@ -76,6 +76,9 @@ export default function ElectionsScreen() {
   const [expandedMeasures, setExpandedMeasures] = useState<Set<number>>(
     new Set(),
   );
+  const [expandedSummaryMeasures, setExpandedSummaryMeasures] = useState<
+    Set<number>
+  >(new Set());
   const [expandedContests, setExpandedContests] = useState<Set<number>>(
     new Set(),
   );
@@ -98,6 +101,10 @@ export default function ElectionsScreen() {
 
   const toggleMeasure = useCallback(
     (idx: number) => toggleSet(setExpandedMeasures, idx),
+    [toggleSet],
+  );
+  const toggleSummaryMeasure = useCallback(
+    (idx: number) => toggleSet(setExpandedSummaryMeasures, idx),
     [toggleSet],
   );
   const toggleContest = useCallback(
@@ -284,13 +291,13 @@ export default function ElectionsScreen() {
                 );
               })}
               {measures.map((m: Contest, mi: number) => {
-                const mOpen = expandedMeasures.has(mi);
+                const mOpen = expandedSummaryMeasures.has(mi);
                 return (
                   <View key={`m-${mi}`}>
                     <TouchableOpacity
                       style={s.summaryRow}
                       activeOpacity={0.7}
-                      onPress={() => toggleMeasure(mi)}
+                      onPress={() => toggleSummaryMeasure(mi)}
                     >
                       <Icon name="scale" size={14} color={colors.yellow[500]} />
                       <Text style={s.summaryText} numberOfLines={1}>
