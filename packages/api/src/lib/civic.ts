@@ -18,6 +18,7 @@ import {
   getRoleDescription,
   saveRoleDescription,
 } from "./civic-descriptions";
+import { enrichFromVoteSmart } from "./votesmart";
 
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
@@ -589,8 +590,44 @@ function inferLevel(office: string): string | undefined {
 // Contest Enrichment
 // ============================================================================
 
-async function enrichContest(contest: Contest): Promise<Contest> {
+interface EnrichmentContext {
+  stateAbbrev?: string;
+  electionYear?: number;
+}
+
+async function enrichContest(
+  contest: Contest,
+  ctx?: EnrichmentContext,
+): Promise<Contest> {
   if (contest.referendumTitle) {
+    // Try Vote Smart for state-level measures
+    if (ctx?.stateAbbrev && ctx.electionYear) {
+      try {
+        const vs = await enrichFromVoteSmart(
+          contest.referendumTitle,
+          ctx.stateAbbrev,
+          ctx.electionYear,
+        );
+        if (vs) {
+          if (vs.summary && !contest.referendumSubtitle) {
+            contest.referendumSubtitle = vs.summary;
+          }
+          if (vs.measureText && !contest.referendumText) {
+            contest.referendumText = vs.measureText;
+          }
+          if (vs.textUrl && !contest.referendumUrl) {
+            contest.referendumUrl = vs.textUrl;
+          }
+          contest.sources = [
+            ...(contest.sources ?? []),
+            { name: vs.source, official: false },
+          ];
+        }
+      } catch {
+        // Vote Smart enrichment failed
+      }
+    }
+
     if (!contest.summary) {
       try {
         contest.summary = await generateMeasureSummary(
@@ -640,9 +677,10 @@ async function enrichContest(contest: Contest): Promise<Contest> {
 
 async function enrichContests(
   contests?: Contest[],
+  ctx?: EnrichmentContext,
 ): Promise<Contest[] | undefined> {
   if (!contests?.length) return contests;
-  return Promise.all(contests.map(enrichContest));
+  return Promise.all(contests.map((c) => enrichContest(c, ctx)));
 }
 
 // ============================================================================
@@ -693,9 +731,16 @@ export async function getVoterInfo(
   );
   if (cached) return cached;
 
+  const enrichCtx = (resp: VoterInfoResponse): EnrichmentContext => ({
+    stateAbbrev: resp.normalizedInput?.state,
+    electionYear: resp.election?.electionDay
+      ? new Date(resp.election.electionDay).getFullYear()
+      : new Date().getFullYear(),
+  });
+
   if (!getApiKey()) {
     const mock = getMockVoterInfo(address);
-    mock.contests = await enrichContests(mock.contests);
+    mock.contests = await enrichContests(mock.contests, enrichCtx(mock));
     return mock;
   }
   const params: Record<string, string> = { address };
@@ -706,7 +751,7 @@ export async function getVoterInfo(
 
   try {
     const result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
-    result.contests = await enrichContests(result.contests);
+    result.contests = await enrichContests(result.contests, enrichCtx(result));
     await setCache(
       address,
       "voterinfo",
@@ -718,7 +763,7 @@ export async function getVoterInfo(
   } catch (error) {
     console.warn("[civic] getVoterInfo failed, using mock data:", error);
     const mock = getMockVoterInfo(address);
-    mock.contests = await enrichContests(mock.contests);
+    mock.contests = await enrichContests(mock.contests, enrichCtx(mock));
     return mock;
   }
 }
