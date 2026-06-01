@@ -1,11 +1,19 @@
 import { useState } from "react";
-import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Avatar, GhostButton, Icon, ScreenShell } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
+import { authClient } from "~/utils/auth";
 
 function getInitials(name: string): string {
   return name
@@ -38,6 +46,49 @@ export default function EditProfileScreen() {
       });
     },
   });
+
+  const deleteAccount = useMutation(trpc.user.deleteAccount.mutationOptions());
+
+  const handleChangePhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        "Permission needed",
+        "Allow photo library access to change your profile photo.",
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+    const asset = result.assets?.[0];
+    if (!result.canceled && asset?.base64) {
+      const dataUri = `data:image/jpeg;base64,${asset.base64}`;
+      updateProfile.mutate({ image: dataUri });
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete account",
+      "This permanently deletes your account and all your data. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () =>
+            deleteAccount.mutate(undefined, {
+              onSuccess: () => void authClient.signOut(),
+            }),
+        },
+      ],
+    );
+  };
 
   const fields = [
     { label: "DISPLAY NAME", value: name, set: setName },
@@ -72,6 +123,7 @@ export default function EditProfileScreen() {
           label="Change photo"
           color={colors.bill}
           style={{ marginTop: 10, height: 32 }}
+          onPress={handleChangePhoto}
         />
       </View>
 
@@ -90,9 +142,10 @@ export default function EditProfileScreen() {
       ))}
 
       <GhostButton
-        label="Delete account"
+        label={deleteAccount.isPending ? "Deleting…" : "Delete account"}
         color={colors.red[500]}
         style={{ marginTop: 8, alignSelf: "flex-start" }}
+        onPress={handleDeleteAccount}
       />
     </ScreenShell>
   );

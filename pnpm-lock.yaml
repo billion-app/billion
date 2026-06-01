@@ -181,6 +181,9 @@ importers:
       expo-image:
         specifier: ~2.4.1
         version: 2.4.1(expo@53.0.27)(react-native-web@0.20.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-native@0.79.6(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.0.0)(utf-8-validate@6.0.4))(react@19.0.0)
+      expo-image-picker:
+        specifier: ~16.0.6
+        version: 16.0.6(expo@53.0.27)
       expo-linear-gradient:
         specifier: ~14.1.5
         version: 14.1.5(expo@53.0.27)(react-native@0.79.6(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.0.0)(utf-8-validate@6.0.4))(react@19.0.0)
@@ -5387,6 +5390,16 @@ packages:
     peerDependencies:
       expo: '*'
       react: 19.0.0
+
+  expo-image-loader@5.0.0:
+    resolution: {integrity: sha512-Eg+5FHtyzv3Jjw9dHwu2pWy4xjf8fu3V0Asyy42kO+t/FbvW/vjUixpTjPtgKQLQh+2/9Nk4JjFDV6FwCnF2ZA==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-picker@16.0.6:
+    resolution: {integrity: sha512-HN4xZirFjsFDIsWFb12AZh19fRzuvZjj2ll17cGr19VNRP06S/VPQU3Tdccn5vwUzQhOBlLu704CnNm278boiQ==}
+    peerDependencies:
+      expo: '*'
 
   expo-image@2.4.1:
     resolution: {integrity: sha512-yHp0Cy4ylOYyLR21CcH6i70DeRyLRPc0yAIPFPn4BT/BpkJNaX5QMXDppcHa58t4WI3Bb8QRJRLuAQaeCtDF8A==}
@@ -13375,6 +13388,15 @@ snapshots:
       expo: 53.0.27(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@6.1.1)(babel-plugin-react-compiler@1.0.0)(bufferutil@4.1.0)(react-native@0.79.6(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.0.0)(utf-8-validate@6.0.4))(react@19.0.0)(utf-8-validate@6.0.4)
       fontfaceobserver: 2.3.0
       react: 19.0.0
+
+  expo-image-loader@5.0.0(expo@53.0.27):
+    dependencies:
+      expo: 53.0.27(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@6.1.1)(babel-plugin-react-compiler@1.0.0)(bufferutil@4.1.0)(react-native@0.79.6(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.0.0)(utf-8-validate@6.0.4))(react@19.0.0)(utf-8-validate@6.0.4)
+
+  expo-image-picker@16.0.6(expo@53.0.27):
+    dependencies:
+      expo: 53.0.27(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@6.1.1)(babel-plugin-react-compiler@1.0.0)(bufferutil@4.1.0)(react-native@0.79.6(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.0.0)(utf-8-validate@6.0.4))(react@19.0.0)(utf-8-validate@6.0.4)
+      expo-image-loader: 5.0.0(expo@53.0.27)
 
   expo-image@2.4.1(expo@53.0.27)(react-native-web@0.20.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-native@0.79.6(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.0.0)(utf-8-validate@6.0.4))(react@19.0.0):
     dependencies:
