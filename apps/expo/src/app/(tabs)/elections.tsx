@@ -412,8 +412,10 @@ export default function ElectionsScreen() {
                   </TouchableOpacity>
                   {expanded && (
                     <View style={s.measureBody}>
-                      {m.referendumSubtitle ? (
-                        <Text style={s.measureSub}>{m.referendumSubtitle}</Text>
+                      {(m.referendumSubtitle || m.summary) ? (
+                        <Text style={s.measureSub}>
+                          {m.referendumSubtitle ?? m.summary}
+                        </Text>
                       ) : null}
                       {m.referendumProStatement ? (
                         <View style={s.stanceRow}>
