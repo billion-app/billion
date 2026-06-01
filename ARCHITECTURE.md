@@ -137,6 +137,18 @@ Scrapers are run individually or all at once via CLI: `pnpm start:dev [whitehous
 
 **Why custom fetch+cheerio instead of Crawlee?** Crawlee pulled in Playwright and Apify's storage layer — heavy dependencies for what amounted to "fetch HTML, parse with CSS selectors, follow some links." Two of three scrapers used REST APIs directly and didn't need Crawlee at all. The retry logic, which is the only non-trivial part, is ~60 lines in `fetchWithRetry()`. Less to learn, less to debug, unified patterns across all scrapers.
 
+### Civic Voter Info Enrichment
+
+`packages/api/src/lib/civic.ts` handles address-based voter information through Google Civic and caches enriched responses in `civic_api_cache`. Ballot-measure enrichment is intentionally source-first:
+
+1. California county registrar sources, currently Santa Clara County local measures
+2. California SOS Official Voter Information Guide for statewide propositions
+3. Vote Smart for state-level fallbacks
+4. Google Civic fields
+5. AI summaries only when official/source text already exists
+
+Official source parsers live in `packages/api/src/lib/california-measures.ts`. They append source metadata to each contest so the Expo UI can link users back to the public record rather than presenting untraceable summaries.
+
 ### Upsert + Change Detection
 
 Every scrape run computes a SHA-256 hash of the content's key fields. Before running AI generation:

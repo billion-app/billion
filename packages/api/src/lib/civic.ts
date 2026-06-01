@@ -10,14 +10,9 @@ import { and, eq, gt } from "@acme/db";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
-import {
-  generateMeasureSummary,
-  generateRoleDescription,
-} from "./civic-ai";
-import {
-  getRoleDescription,
-  saveRoleDescription,
-} from "./civic-descriptions";
+import { enrichFromCaliforniaOfficialSources } from "./california-measures";
+import { generateMeasureSummary, generateRoleDescription } from "./civic-ai";
+import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
 import { enrichFromVoteSmart } from "./votesmart";
 
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
@@ -38,7 +33,9 @@ const CACHE_TTL = {
 } as const;
 
 function hashAddress(address: string): string {
-  return createHash("sha256").update(address.toLowerCase().trim()).digest("hex");
+  return createHash("sha256")
+    .update(address.toLowerCase().trim())
+    .digest("hex");
 }
 
 function stableStringify(obj: Record<string, unknown>): string {
@@ -144,6 +141,8 @@ export interface PollingLocation {
 export interface Source {
   name: string;
   official: boolean;
+  url?: string;
+  fields?: string[];
 }
 
 export interface Contest {
@@ -593,18 +592,34 @@ function inferLevel(office: string): string | undefined {
 interface EnrichmentContext {
   stateAbbrev?: string;
   electionYear?: number;
+  electionDate?: string;
+  jurisdictionText?: string;
+}
+
+function hasMeasureSourceMaterial(contest: Contest): boolean {
+  return [
+    contest.referendumSubtitle,
+    contest.referendumText,
+    contest.referendumProStatement,
+    contest.referendumConStatement,
+  ].some((value) => value !== undefined && value.trim().length > 0);
 }
 
 async function enrichContest(
   contest: Contest,
   ctx?: EnrichmentContext,
 ): Promise<Contest> {
-  if (contest.referendumTitle) {
+  const referendumTitle = contest.referendumTitle;
+  if (referendumTitle) {
+    if (ctx?.stateAbbrev?.toUpperCase() === "CA") {
+      contest = await enrichFromCaliforniaOfficialSources(contest, ctx);
+    }
+
     // Try Vote Smart for state-level measures
     if (ctx?.stateAbbrev && ctx.electionYear) {
       try {
         const vs = await enrichFromVoteSmart(
-          contest.referendumTitle,
+          contest.referendumTitle ?? referendumTitle,
           ctx.stateAbbrev,
           ctx.electionYear,
         );
@@ -620,7 +635,12 @@ async function enrichContest(
           }
           contest.sources = [
             ...(contest.sources ?? []),
-            { name: vs.source, official: false },
+            {
+              name: vs.source,
+              official: false,
+              url: vs.voteSmartUrl,
+              fields: ["referendumSubtitle", "referendumText", "referendumUrl"],
+            },
           ];
         }
       } catch {
@@ -628,15 +648,23 @@ async function enrichContest(
       }
     }
 
-    if (!contest.summary) {
+    if (!contest.summary && hasMeasureSourceMaterial(contest)) {
       try {
         contest.summary = await generateMeasureSummary(
-          contest.referendumTitle,
+          contest.referendumTitle ?? referendumTitle,
           contest.referendumSubtitle,
           contest.referendumText,
           contest.referendumProStatement,
           contest.referendumConStatement,
         );
+        contest.sources = [
+          ...(contest.sources ?? []),
+          {
+            name: "Billion AI summary from source material",
+            official: false,
+            fields: ["summary"],
+          },
+        ];
       } catch {
         // AI generation failed
       }
@@ -664,7 +692,9 @@ async function enrichContest(
       contest.roleDescription = generated;
       if (role) {
         await saveRoleDescription(role, level ?? null, generated, "ai").catch(
-          () => {},
+          (error: unknown) => {
+            console.warn("[civic] saveRoleDescription failed:", error);
+          },
         );
       }
     } catch {
@@ -721,9 +751,7 @@ export async function getVoterInfo(
   address: string,
   electionId?: string,
 ): Promise<VoterInfoResponse> {
-  const cacheParams: Record<string, unknown> = electionId
-    ? { electionId }
-    : {};
+  const cacheParams: Record<string, unknown> = electionId ? { electionId } : {};
   const cached = await getCached<VoterInfoResponse>(
     address,
     "voterinfo",
@@ -732,10 +760,18 @@ export async function getVoterInfo(
   if (cached) return cached;
 
   const enrichCtx = (resp: VoterInfoResponse): EnrichmentContext => ({
-    stateAbbrev: resp.normalizedInput?.state,
-    electionYear: resp.election?.electionDay
+    stateAbbrev: resp.normalizedInput.state,
+    electionYear: resp.election.electionDay
       ? new Date(resp.election.electionDay).getFullYear()
       : new Date().getFullYear(),
+    electionDate: resp.election.electionDay,
+    jurisdictionText: [
+      resp.normalizedInput.city,
+      resp.normalizedInput.state,
+      ...(resp.state?.map((region) => JSON.stringify(region)) ?? []),
+    ]
+      .filter(Boolean)
+      .join(" "),
   });
 
   if (!getApiKey()) {

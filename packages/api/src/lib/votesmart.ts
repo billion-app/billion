@@ -13,6 +13,10 @@ function getApiKey(): string | null {
   return process.env.VOTE_SMART_API_KEY ?? null;
 }
 
+function nonEmpty(value: string | undefined): string | undefined {
+  return value?.trim() ? value : undefined;
+}
+
 export interface VoteSmartMeasure {
   measureId: string;
   measureCode: string;
@@ -86,8 +90,8 @@ function stateNameToAbbrev(name: string): string | null {
 }
 
 interface MeasureListResponse {
-  measures: {
-    measure: VoteSmartMeasure | VoteSmartMeasure[];
+  measures?: {
+    measure?: VoteSmartMeasure | VoteSmartMeasure[];
   };
 }
 
@@ -202,13 +206,13 @@ export async function enrichFromVoteSmart(
     const detail = await getMeasureDetail(best.measureId);
 
     return {
-      summary: detail.summary || undefined,
-      measureText: detail.measureText || undefined,
-      textUrl: detail.textUrl || undefined,
-      proUrl: detail.proUrl || undefined,
-      conUrl: detail.conUrl || undefined,
-      source: detail.source || "Vote Smart",
-      voteSmartUrl: detail.url || undefined,
+      summary: nonEmpty(detail.summary),
+      measureText: nonEmpty(detail.measureText),
+      textUrl: nonEmpty(detail.textUrl),
+      proUrl: nonEmpty(detail.proUrl),
+      conUrl: nonEmpty(detail.conUrl),
+      source: nonEmpty(detail.source) ?? "Vote Smart",
+      voteSmartUrl: nonEmpty(detail.url),
     };
   } catch {
     return null;
