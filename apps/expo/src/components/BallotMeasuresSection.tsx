@@ -1,7 +1,7 @@
 import { StyleSheet, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 
-import type { Contest } from "@acme/api";
+import type { Contest, Source } from "@acme/api";
 
 import { Text, View } from "~/components/Themed";
 import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
@@ -9,6 +9,13 @@ import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
 interface BallotMeasuresSectionProps {
   measures: Contest[];
   onMeasurePress?: (measure: Contest) => void;
+}
+
+/** Short attribution label for the most authoritative source. */
+function sourceLabel(sources: Source[]): string | null {
+  const src = sources.find((s) => s.official) ?? sources[0];
+  if (!src) return null;
+  return src.official ? `Official · ${src.name}` : src.name;
 }
 
 export function BallotMeasuresSection({
@@ -45,6 +52,15 @@ export function BallotMeasuresSection({
               {measure.referendumSubtitle}
             </Text>
           )}
+          {measure.summaryIsAiGenerated && (
+            <Text style={styles.aiLabel}>AI-generated summary</Text>
+          )}
+          {measure.fiscalImpact && (
+            <Text style={styles.fiscal} numberOfLines={2}>
+              <Text style={styles.argumentLabel}>Fiscal impact: </Text>
+              {measure.fiscalImpact}
+            </Text>
+          )}
           {(measure.referendumProStatement ??
             measure.referendumConStatement) && (
             <View style={styles.arguments}>
@@ -60,6 +76,22 @@ export function BallotMeasuresSection({
                   {measure.referendumConStatement}
                 </Text>
               )}
+            </View>
+          )}
+          {measure.sources && measure.sources.length > 0 && (
+            <View style={styles.sourceRow}>
+              <FontAwesome
+                name={
+                  measure.sources.some((s) => s.official)
+                    ? "shield"
+                    : "info-circle"
+                }
+                size={11}
+                color={colors.textMuted}
+              />
+              <Text style={styles.sourceText} numberOfLines={1}>
+                {sourceLabel(measure.sources)}
+              </Text>
             </View>
           )}
           <FontAwesome
@@ -122,6 +154,31 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: sp[3],
     lineHeight: 20,
+  },
+  aiLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11,
+    color: "#F5C842",
+    marginBottom: sp[2],
+  },
+  fiscal: {
+    fontFamily: fontBody.regular,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginBottom: sp[3],
+    lineHeight: 18,
+  },
+  sourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: sp[2],
+  },
+  sourceText: {
+    fontFamily: fontBody.medium,
+    fontSize: 11,
+    color: colors.textMuted,
+    flex: 1,
   },
   subtitle: {
     fontFamily: fontBody.regular,
