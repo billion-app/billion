@@ -134,9 +134,9 @@ export function printMetricsSummary(scraperName: string): void {
 
   if (costs.totalCost > 0) {
     printHeader("Estimated Costs");
-    if (costs.geminiInputTokens > 0 || costs.geminiOutputTokens > 0) {
-      const totalTokens = costs.geminiInputTokens + costs.geminiOutputTokens;
-      printKeyValue("Gemini tokens", `${totalTokens.toLocaleString()} (${formatUsd(costs.geminiCost)})`);
+    if (costs.llmInputTokens > 0 || costs.llmOutputTokens > 0) {
+      const totalTokens = costs.llmInputTokens + costs.llmOutputTokens;
+      printKeyValue("LLM tokens", `${totalTokens.toLocaleString()} (${formatUsd(costs.llmCost)})`);
     }
     if (costs.imagenImages > 0) {
       printKeyValue("Imagen 3 images", `${costs.imagenImages} (${formatUsd(costs.imagenCost)})`);
