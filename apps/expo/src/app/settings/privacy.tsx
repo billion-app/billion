@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
@@ -7,6 +7,8 @@ import { Text } from "~/components/Themed";
 import { Card, GhostButton, Icon, ScreenShell, Toggle } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
+
+const SUPPORT_EMAIL = "hello@billion.app";
 
 type Key = "location" | "personalize" | "analytics" | "crash" | "offline";
 
@@ -110,6 +112,15 @@ export default function PrivacyScreen() {
       <GhostButton
         label="Download my data"
         style={{ marginTop: 20, alignSelf: "flex-start" }}
+        onPress={() =>
+          void Linking.openURL(
+            `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+              "Data export request",
+            )}&body=${encodeURIComponent(
+              "I'd like to request an export of my Billion account data.",
+            )}`,
+          )
+        }
       />
     </ScreenShell>
   );
