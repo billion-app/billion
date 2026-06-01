@@ -26,7 +26,7 @@
 
 import type { CandidateChannel, CandidateSourceData } from "./types";
 import { decodeEntities, htmlToText } from "../measure-sources/html";
-import { candidateNameSimilarity } from "./types";
+import { candidateNameSimilarity, clamp, dropInitials } from "./types";
 
 const GUIDE_BASE = "https://voterguide.sos.ca.gov";
 const FETCH_TIMEOUT_MS = 12_000;
@@ -263,27 +263,13 @@ function extractChannels(contactText: string): CandidateChannel[] | undefined {
   return channels.length ? channels : undefined;
 }
 
-/** Drop single-letter tokens (middle initials) so "Tony K. Thurmond" ≈ "Tony Thurmond". */
-function dropInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter((t) => t.replace(/[^A-Za-z0-9]/g, "").length > 1)
-    .join(" ");
-}
-
-/** Clamp prose to a max length, adding an ellipsis when truncated. */
-function clamp(s: string, max: number): string {
-  const t = s.trim();
-  return t.length > max ? t.slice(0, max).trimEnd() + "…" : t;
-}
-
 /**
  * Enrich a candidate from the CA SOS Official Voter Information Guide.
  *
- * Returns the statement (as `biography`) plus any contact fields the guide
- * lists, all attributed to the official SOS office page — or `null` when the
- * state isn't CA, the office isn't a statewide one in the guide, the page can't
- * be fetched, or no heading matches the candidate's name.
+ * Returns the verbatim candidate statement (as `statement`) plus any contact
+ * fields the guide lists, all attributed to the official SOS office page — or
+ * `null` when the state isn't CA, the office isn't a statewide one in the guide,
+ * the page can't be fetched, or no heading matches the candidate's name.
  */
 export async function enrichCandidateFromCaSos(
   name: string,

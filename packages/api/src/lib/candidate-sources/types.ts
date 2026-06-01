@@ -158,3 +158,27 @@ export function candidateNameSimilarity(a: string, b: string): number {
   const union = wa.size + wb.size - intersection;
   return union === 0 ? 0 : intersection / union;
 }
+
+/** Drop single-letter tokens (middle initials) so "Tony K. Thurmond" ≈ "Tony Thurmond". */
+export function dropInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter((t) => t.replace(/[^A-Za-z0-9]/g, "").length > 1)
+    .join(" ");
+}
+
+/** Clamp prose to a max length, adding an ellipsis when truncated. */
+export function clamp(s: string, max: number): string {
+  const t = s.trim();
+  return t.length > max ? t.slice(0, max).trimEnd() + "…" : t;
+}
+
+/**
+ * Deterministic JSON string for cache keys (sorted keys). Shared by the
+ * candidate cache, the scraper handoff write, and the registrar adapter read so
+ * a written `params` byte-matches the read `params` — a mismatch is a silent
+ * cache miss.
+ */
+export function stableStringify(obj: Record<string, unknown>): string {
+  return JSON.stringify(obj, Object.keys(obj).sort());
+}

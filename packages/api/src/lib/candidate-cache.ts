@@ -19,16 +19,13 @@ import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
 import type { CanonicalCandidate } from "./candidate-sources/types";
+import { stableStringify } from "./candidate-sources/types";
 
 const ENDPOINT = "candidate-enrich";
 /** Candidate cache is keyed globally (not per-address) — same as other global caches. */
 const ADDRESS_HASH = "__global__";
 /** Bios are slow-changing; cache for 7 days (>= the 24h voterinfo TTL). */
 const CANDIDATE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
-
-function stableStringify(obj: Record<string, unknown>): string {
-  return JSON.stringify(obj, Object.keys(obj).sort());
-}
 
 /** Normalize an optional disambiguator: lowercased/trimmed, or undefined when absent. */
 function normOpt(v: string | undefined): string | undefined {
