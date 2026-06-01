@@ -138,6 +138,18 @@ interface ExtractResponse {
 }
 
 /**
+ * Test whether a state postal abbreviation appears as a standalone token in
+ * lowercased `haystack` — e.g. ", ca " or "(ca)" — but never inside a word like
+ * "candidate" / "campaign". A bare `includes("ca")` would false-positive on
+ * those, so we require word boundaries around the 2-letter code.
+ */
+function hasAbbrev(haystack: string, stateAbbrev: string | undefined): boolean {
+  const a = stateAbbrev?.toLowerCase().trim();
+  if (a?.length !== 2) return false;
+  return new RegExp(`\\b${a}\\b`).test(haystack);
+}
+
+/**
  * Does the extract read like the biography of a political figure, and (when we
  * know the contest) does it actually corroborate THIS candidate's state? This
  * is the core defense against namesake / disambiguation collisions. We require:
@@ -151,6 +163,7 @@ interface ExtractResponse {
 function looksLikePolitician(
   extract: string,
   stateName: string | undefined,
+  stateAbbrev: string | undefined,
   requireContest: boolean,
 ): boolean {
   if (extract.length < MIN_EXTRACT_CHARS) return false;
@@ -165,14 +178,24 @@ function looksLikePolitician(
   const hasPolitical = POLITICAL_KEYWORDS.some((k) => lower.includes(k));
   if (!hasPolitical) return false;
 
-  // When we know the state, require the STATE NAME to appear so we don't surface
-  // a same-name politician from another state. A generic office keyword
-  // ("representative", "council") is deliberately NOT enough on its own — a
-  // wrong-state namesake in the same kind of office would pass it; the state name
-  // is the only strong per-candidate signal. A real candidate's own article
-  // almost always names their state.
-  if (stateName && requireContest) {
-    const stateHit = lower.includes(stateName.toLowerCase());
+  // When we know the state, require it to appear so we don't surface a same-name
+  // politician from another state. A generic office keyword ("representative",
+  // "council") is deliberately NOT enough on its own — a wrong-state namesake in
+  // the same kind of office would pass it; the state is the only strong
+  // per-candidate signal.
+  //
+  // We accept the full state NAME ("California") or its postal ABBREVIATION
+  // ("CA", boundary-matched so it can't hit "candidate"/"campaign"). Adding the
+  // abbreviation is the safe widening — it rescues a real candidate whose lead
+  // writes "CA" without admitting an out-of-state namesake, whose lead still
+  // names a different state. We deliberately check only the intro (not the full
+  // article): an incidental mention of this state deep in another politician's
+  // article would otherwise defeat the namesake defense.
+  if (requireContest && (stateName || stateAbbrev)) {
+    const nameNeedle = stateName?.toLowerCase();
+    const stateHit =
+      (nameNeedle ? lower.includes(nameNeedle) : false) ||
+      hasAbbrev(lower, stateAbbrev);
     if (!stateHit) return false;
   }
 
@@ -251,10 +274,19 @@ export async function enrichCandidateFromWikipedia(
     // same-name politician in another state and pass the name-token + political
     // checks; only state corroboration rejects that namesake. A real candidate's
     // own article almost always names their state.
-    const requireContest = Boolean(stateName);
-    if (!looksLikePolitician(extract, stateName, requireContest)) continue;
-
+    const requireContest = Boolean(stateName ?? stateAbbrev);
     const title = page.title ?? trimmed;
+
+    // Gate on the intro. The state must appear in the LEAD — the subject's own
+    // state is named there in virtually every real politician's article, and
+    // requiring it in the lead (not just anywhere in the body) is what rejects a
+    // same-name politician from another state. We accept the full state name OR
+    // its postal abbreviation as a standalone token, which is the safe widening:
+    // it rescues candidates whose lead writes "CA" instead of "California"
+    // without admitting a namesake (whose lead names a different state).
+    if (!looksLikePolitician(extract, stateName, stateAbbrev, requireContest)) {
+      continue;
+    }
 
     // Defense in depth: the resolved article title should still be the
     // candidate's name (redirects can land on an unrelated subject). We accept
