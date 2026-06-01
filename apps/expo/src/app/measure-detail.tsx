@@ -120,49 +120,25 @@ export default function MeasureDetailScreen() {
           </View>
         ) : null}
 
-        {/* Yes / No arguments */}
+        {/* Yes / No arguments — one card per side, arguments as bullets. */}
         {(pros.length > 0 || cons.length > 0) && (
           <View style={s.section}>
             <Kicker>A YES vote vs. a NO vote</Kicker>
             <View style={{ gap: 12 }}>
-              {pros.map((arg, i) => (
-                <Card key={`pro-${i}`}>
-                  <View style={s.stanceHeader}>
-                    <View
-                      style={[
-                        s.stanceDot,
-                        { backgroundColor: colors.green[500] },
-                      ]}
-                    />
-                    <Text style={s.stanceLabel}>A YES vote means</Text>
-                  </View>
-                  <Text style={s.stanceText}>{arg.text}</Text>
-                  {(arg.author ?? arg.sourceName) ? (
-                    <Text style={s.argAttribution}>
-                      — {arg.author ?? arg.sourceName}
-                    </Text>
-                  ) : null}
-                </Card>
-              ))}
-              {cons.map((arg, i) => (
-                <Card key={`con-${i}`}>
-                  <View style={s.stanceHeader}>
-                    <View
-                      style={[
-                        s.stanceDot,
-                        { backgroundColor: colors.red[500] },
-                      ]}
-                    />
-                    <Text style={s.stanceLabel}>A NO vote means</Text>
-                  </View>
-                  <Text style={s.stanceText}>{arg.text}</Text>
-                  {(arg.author ?? arg.sourceName) ? (
-                    <Text style={s.argAttribution}>
-                      — {arg.author ?? arg.sourceName}
-                    </Text>
-                  ) : null}
-                </Card>
-              ))}
+              {pros.length > 0 && (
+                <StanceCard
+                  label="A YES vote means"
+                  color={colors.green[500]}
+                  args={pros}
+                />
+              )}
+              {cons.length > 0 && (
+                <StanceCard
+                  label="A NO vote means"
+                  color={colors.red[500]}
+                  args={cons}
+                />
+              )}
             </View>
           </View>
         )}
@@ -234,6 +210,43 @@ export default function MeasureDetailScreen() {
         ) : null}
       </ScrollView>
     </View>
+  );
+}
+
+/** One stance card (YES or NO) listing all of that side's arguments as bullets. */
+function StanceCard({
+  label,
+  color,
+  args,
+}: {
+  label: string;
+  color: string;
+  args: MeasureArgumentRef[];
+}) {
+  // Attribute once per card from the distinct sources of its arguments.
+  const attribution = [
+    ...new Set(
+      args.map((a) => a.author ?? a.sourceName).filter((x): x is string => !!x),
+    ),
+  ].join(", ");
+  return (
+    <Card>
+      <View style={s.stanceHeader}>
+        <View style={[s.stanceDot, { backgroundColor: color }]} />
+        <Text style={s.stanceLabel}>{label}</Text>
+      </View>
+      <View style={{ gap: 8 }}>
+        {args.map((arg, i) => (
+          <View key={i} style={s.bulletRow}>
+            <Text style={[s.bulletDot, { color }]}>•</Text>
+            <Text style={s.stanceText}>{arg.text}</Text>
+          </View>
+        ))}
+      </View>
+      {attribution ? (
+        <Text style={s.argAttribution}>— {attribution}</Text>
+      ) : null}
+    </Card>
   );
 }
 
@@ -338,9 +351,19 @@ const s = StyleSheet.create({
     color: colors.white,
   },
   stanceText: {
+    flex: 1,
     fontFamily: fontBody.regular,
     fontSize: 14.5,
     color: "rgba(255,255,255,0.85)",
+    lineHeight: 22,
+  },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  bulletDot: {
+    fontSize: 15,
     lineHeight: 22,
   },
   argAttribution: {
