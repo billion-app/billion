@@ -410,6 +410,23 @@ export const UserSettings = pgTable(
   }),
 );
 
+// User-submitted feedback
+export const Feedback = pgTable(
+  "feedback",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text().notNull(),
+    category: t.varchar({ length: 20 }).notNull(), // "bug" | "idea" | "content"
+    message: t.text().notNull(),
+    os: t.varchar({ length: 20 }), // device OS, e.g. "ios" | "android"
+    appVersion: t.varchar({ length: 20 }),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    userIdx: index("feedback_user_id_idx").on(table.userId),
+  }),
+);
+
 // Legistar local government data cache tables
 
 export const LegistarBody = pgTable(

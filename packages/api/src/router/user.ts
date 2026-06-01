@@ -1,12 +1,13 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, desc, eq } from "@acme/db";
+import { and, desc, eq, gte } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
   BlockedContent,
   CourtCase,
+  Feedback,
   GovernmentContent,
   SavedArticle,
   user,
@@ -298,4 +299,99 @@ export const userRouter = {
         .limit(1);
       return { saved: !!row };
     }),
+
+  // --- Feedback ---
+
+  submitFeedback: protectedProcedure
+    .input(
+      z.object({
+        category: z.enum(["bug", "idea", "content"]),
+        message: z.string().min(1).max(5000),
+        os: z.string().max(20).optional(),
+        appVersion: z.string().max(20).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Dedup: skip if the same user submitted an identical message
+      // within the last 60 seconds.
+      const cutoff = new Date(Date.now() - 60_000);
+      const [recent] = await db
+        .select({ id: Feedback.id })
+        .from(Feedback)
+        .where(
+          and(
+            eq(Feedback.userId, userId),
+            eq(Feedback.message, input.message),
+            gte(Feedback.createdAt, cutoff),
+          ),
+        )
+        .limit(1);
+      if (recent) {
+        return { success: true, deduped: true };
+      }
+
+      await db.insert(Feedback).values({
+        userId,
+        category: input.category,
+        message: input.message,
+        os: input.os,
+        appVersion: input.appVersion,
+      });
+      return { success: true, deduped: false };
+    }),
+
+  // --- Data Export ---
+
+  requestDataExport: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+
+    const [profileRow] = await db
+      .select({
+        name: user.name,
+        email: user.email,
+        createdAt: user.createdAt,
+      })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    const [preferences] = await db
+      .select()
+      .from(UserPreference)
+      .where(eq(UserPreference.userId, userId))
+      .limit(1);
+
+    const [settings] = await db
+      .select()
+      .from(UserSettings)
+      .where(eq(UserSettings.userId, userId))
+      .limit(1);
+
+    const blocked = await db
+      .select()
+      .from(BlockedContent)
+      .where(eq(BlockedContent.userId, userId));
+
+    const savedArticles = await db
+      .select()
+      .from(SavedArticle)
+      .where(eq(SavedArticle.userId, userId));
+
+    const feedback = await db
+      .select()
+      .from(Feedback)
+      .where(eq(Feedback.userId, userId));
+
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: profileRow ?? null,
+      preferences: preferences ?? null,
+      settings: settings ?? null,
+      blocked,
+      savedArticles,
+      feedback,
+    };
+  }),
 } satisfies TRPCRouterRecord;
