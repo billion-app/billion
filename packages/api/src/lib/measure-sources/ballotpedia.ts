@@ -51,6 +51,22 @@ export function parseMeasureLetter(title: string): string | null {
   return parseMeasureCodes(title)[0] ?? null;
 }
 
+/**
+ * Collapse the doubled-letter artifact Google Civic emits in measure titles
+ * ("Measure A A — ..." → "Measure A — ..."). Only same-letter, spaced pairs are
+ * collapsed; genuinely double-lettered measures ("Measure AA") are contiguous
+ * and left untouched. Used for display so cards don't show "Measure A A".
+ */
+export function normalizeMeasureTitle(title: string): string {
+  return title.replace(
+    /\b(measure\s+)([a-z])\s+([a-z])\b/gi,
+    (match, prefix: string, first: string, second: string) =>
+      first.toUpperCase() === second.toUpperCase()
+        ? `${prefix}${first}`
+        : match,
+  );
+}
+
 function parsePropositionNumber(title: string): string | null {
   const m = /\b(?:proposition|prop\.?)\s*#?\s*([0-9]+[a-z]?)\b/i.exec(title);
   return m?.[1] ? m[1].toUpperCase() : null;

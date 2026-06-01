@@ -16,6 +16,7 @@ import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
 import { crossValidateMeasure } from "./measure-crossvalidate";
+import { normalizeMeasureTitle } from "./measure-sources/ballotpedia";
 
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
@@ -691,6 +692,10 @@ async function enrichContest(
   ctx?: EnrichmentContext,
 ): Promise<Contest> {
   if (contest.referendumTitle) {
+    // Google Civic doubles the measure letter ("Measure A A"); collapse it for
+    // display and so source matching keys off the clean title.
+    contest.referendumTitle = normalizeMeasureTitle(contest.referendumTitle);
+
     // Cross-validate across all measure sources (county registrar, state SOS,
     // Vote Smart, Google Civic) and merge by trust tier with source
     // attribution. AI is only used as a clearly-labeled last resort.
