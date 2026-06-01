@@ -623,6 +623,30 @@ interface EnrichmentContext {
   electionYear?: number;
 }
 
+/**
+ * Best-effort county extraction from a voter-info response. The Civic API has
+ * no explicit county field, so we scan the places it tends to appear — the
+ * election administration region/jurisdiction names and contest district
+ * names — for a "<Name> County" string. Used to scope local measure sources.
+ */
+function deriveCounty(resp: VoterInfoResponse): string | undefined {
+  const haystacks: (string | undefined)[] = [];
+  for (const region of resp.state ?? []) {
+    haystacks.push(region.name);
+    haystacks.push(region.electionAdministrationBody?.name);
+    haystacks.push(region.localJurisdiction?.name);
+    haystacks.push(region.localJurisdiction?.electionAdministrationBody?.name);
+  }
+  for (const c of resp.contests ?? []) {
+    haystacks.push(c.district?.name);
+  }
+  for (const h of haystacks) {
+    const m = /([A-Z][A-Za-z.\s]+?)\s+County\b/.exec(h ?? "");
+    if (m?.[1]) return `${m[1].trim()} County`;
+  }
+  return undefined;
+}
+
 async function enrichContest(
   contest: Contest,
   ctx?: EnrichmentContext,
@@ -710,7 +734,9 @@ async function enrichContest(
       contest.roleDescription = generated;
       if (role) {
         await saveRoleDescription(role, level ?? null, generated, "ai").catch(
-          () => {},
+          () => {
+            // best-effort cache write; ignore failures
+          },
         );
       }
     } catch {
@@ -776,8 +802,9 @@ export async function getVoterInfo(
   if (cached) return cached;
 
   const enrichCtx = (resp: VoterInfoResponse): EnrichmentContext => ({
-    stateAbbrev: resp.normalizedInput?.state,
-    electionYear: resp.election?.electionDay
+    stateAbbrev: resp.normalizedInput.state,
+    county: deriveCounty(resp),
+    electionYear: resp.election.electionDay
       ? new Date(resp.election.electionDay).getFullYear()
       : new Date().getFullYear(),
   });
