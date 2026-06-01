@@ -33,18 +33,57 @@ const BASE = "https://ballotpedia.org";
 
 /** Map two-letter state abbreviations to full names for contest corroboration. */
 const STATE_NAMES: Record<string, string> = {
-  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
-  CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia",
-  HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa",
-  KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland",
-  MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi",
-  MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada",
-  NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York",
-  NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma",
-  OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina",
-  SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont",
-  VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin",
-  WY: "Wyoming", DC: "District of Columbia",
+  AL: "Alabama",
+  AK: "Alaska",
+  AZ: "Arizona",
+  AR: "Arkansas",
+  CA: "California",
+  CO: "Colorado",
+  CT: "Connecticut",
+  DE: "Delaware",
+  FL: "Florida",
+  GA: "Georgia",
+  HI: "Hawaii",
+  ID: "Idaho",
+  IL: "Illinois",
+  IN: "Indiana",
+  IA: "Iowa",
+  KS: "Kansas",
+  KY: "Kentucky",
+  LA: "Louisiana",
+  ME: "Maine",
+  MD: "Maryland",
+  MA: "Massachusetts",
+  MI: "Michigan",
+  MN: "Minnesota",
+  MS: "Mississippi",
+  MO: "Missouri",
+  MT: "Montana",
+  NE: "Nebraska",
+  NV: "Nevada",
+  NH: "New Hampshire",
+  NJ: "New Jersey",
+  NM: "New Mexico",
+  NY: "New York",
+  NC: "North Carolina",
+  ND: "North Dakota",
+  OH: "Ohio",
+  OK: "Oklahoma",
+  OR: "Oregon",
+  PA: "Pennsylvania",
+  RI: "Rhode Island",
+  SC: "South Carolina",
+  SD: "South Dakota",
+  TN: "Tennessee",
+  TX: "Texas",
+  UT: "Utah",
+  VT: "Vermont",
+  VA: "Virginia",
+  WA: "Washington",
+  WV: "West Virginia",
+  WI: "Wisconsin",
+  WY: "Wyoming",
+  DC: "District of Columbia",
 };
 
 /**
@@ -101,15 +140,14 @@ function escapeRe(s: string): string {
  * We try a couple of variants because Ballotpedia titles vary in suffix usage.
  */
 function nameSlugs(name: string): string[] {
-  const clean = name
-    .replace(/\s+/g, " ")
-    .replace(/[“”"]/g, "")
-    .trim();
+  const clean = name.replace(/\s+/g, " ").replace(/[“”"]/g, "").trim();
   if (!clean) return [];
   const base = clean.replace(/ /g, "_");
   const slugs = [base];
   // Drop a trailing suffix ("Jr.", "Sr.", "III") which Ballotpedia often omits.
-  const noSuffix = clean.replace(/[\s,]+(?:jr\.?|sr\.?|i{2,3}|iv)$/i, "").trim();
+  const noSuffix = clean
+    .replace(/[\s,]+(?:jr\.?|sr\.?|i{2,3}|iv)$/i, "")
+    .trim();
   if (noSuffix && noSuffix !== clean) slugs.push(noSuffix.replace(/ /g, "_"));
   return [...new Set(slugs)];
 }
@@ -223,7 +261,11 @@ function infoboxWebsite(html: string): string | undefined {
     const url = m[1];
     if (!url) continue;
     if (/ballotpedia\.org|wikipedia\.org|wikimedia\.org/i.test(url)) continue;
-    if (/facebook\.com|twitter\.com|x\.com|instagram\.com|youtube\.com|linkedin\.com/i.test(url))
+    if (
+      /facebook\.com|twitter\.com|x\.com|instagram\.com|youtube\.com|linkedin\.com/i.test(
+        url,
+      )
+    )
       continue;
     return url;
   }
@@ -280,7 +322,11 @@ function verifyPersonArticle(
     .replace(/[\s,]+(?:jr\.?|sr\.?|i{2,3}|iv)$/i, "")
     .trim();
   const surname = nameNoSuffix.split(/\s+/).pop()?.toLowerCase();
-  if (surname && surname.length > 2 && !biography.toLowerCase().includes(surname))
+  if (
+    surname &&
+    surname.length > 2 &&
+    !biography.toLowerCase().includes(surname)
+  )
     return null;
 
   // HARD contest corroboration: reject "some politician" with no contest token.

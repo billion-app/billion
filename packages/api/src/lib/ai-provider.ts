@@ -10,9 +10,9 @@
  * as "AI unavailable" and skip generation rather than throw.
  */
 
+import type { LanguageModel } from "ai";
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { LanguageModel } from "ai";
 
 function resolveModel(): LanguageModel | null {
   const deepseekKey = process.env.DEEPSEEK_API_KEY;

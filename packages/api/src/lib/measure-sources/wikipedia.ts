@@ -78,7 +78,8 @@ export async function enrichFromWikipedia(
       sourceUrl: pageUrl,
       official: false,
       matchedTitle: page.title ?? articleTitle,
-      officialSummary: extract.length > 1500 ? extract.slice(0, 1500) + "…" : extract,
+      officialSummary:
+        extract.length > 1500 ? extract.slice(0, 1500) + "…" : extract,
       fullTextUrl: pageUrl,
     };
   }

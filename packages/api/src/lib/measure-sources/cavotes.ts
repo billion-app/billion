@@ -36,7 +36,8 @@ interface BallotDetail {
 
 /** Heading vocabularies vary by cycle; map both to canonical sections. */
 const HEADINGS = {
-  summary: /\b(the question|the proposal|what .* would do|the situation|the way it is now)\b/i,
+  summary:
+    /\b(the question|the proposal|what .* would do|the situation|the way it is now)\b/i,
   fiscal: /\b(fiscal (effects|impact))\b/i,
   pro: /\b(supporters say|people for|arguments? in favor)\b/i,
   con: /\b(opponents say|people against|arguments? against)\b/i,
@@ -61,7 +62,10 @@ function sliceSection(
 
 function clamp(s: string | undefined, max: number): string | undefined {
   if (!s) return undefined;
-  const t = s.replace(/\s*\n\s*/g, " ").replace(/\s{2,}/g, " ").trim();
+  const t = s
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
   if (!t) return undefined;
   return t.length > max ? t.slice(0, max).trimEnd() + "…" : t;
 }
@@ -91,7 +95,9 @@ export async function enrichFromCaVotes(
   const prevStr = String(year - 1);
   const match = list.find((b) => {
     const s = b.slug.toLowerCase();
-    const hasProp = new RegExp(`(^|[^0-9a-z])prop[-_]?${propLc}([^0-9a-z]|$)`).test(s);
+    const hasProp = new RegExp(
+      `(^|[^0-9a-z])prop[-_]?${propLc}([^0-9a-z]|$)`,
+    ).test(s);
     const hasYear = s.includes(yearStr) || s.includes(prevStr);
     return hasProp && hasYear;
   });

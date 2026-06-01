@@ -19,12 +19,8 @@
  */
 
 import type { CandidateSourceData } from "./types";
+import { fetchVoteSmart, getApiKey, stateNameToAbbrev } from "../votesmart";
 import { candidateNameSimilarity } from "./types";
-import {
-  fetchVoteSmart,
-  getApiKey,
-  stateNameToAbbrev,
-} from "../votesmart";
 
 const SOURCE_NAME = "Vote Smart";
 const TIER = "vote_smart" as const;
@@ -227,7 +223,9 @@ async function resolveCandidate(
   // Compare the un-boosted name similarity against the threshold so the
   // state/year nudges only break ties, never manufacture a match.
   if (!best) return null;
-  if (candidateNameSimilarity(name, candidateName(best)) < NAME_MATCH_THRESHOLD) {
+  if (
+    candidateNameSimilarity(name, candidateName(best)) < NAME_MATCH_THRESHOLD
+  ) {
     return null;
   }
   return best;

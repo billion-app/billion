@@ -19,10 +19,10 @@
  * any failure or no match.
  */
 
-import type { CandidateChannel, CandidateSourceData } from "./types";
-import { candidateNameSimilarity } from "./types";
 import type { OpenStatesPerson } from "../../clients/open-states";
+import type { CandidateChannel, CandidateSourceData } from "./types";
 import { getLegislators } from "../../clients/open-states";
+import { candidateNameSimilarity } from "./types";
 
 const SOURCE_NAME = "Open States";
 /** Token-overlap threshold to accept a name match (handles nicknames). */

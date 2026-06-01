@@ -1,6 +1,6 @@
 # Architecture
 
-Billion is an AI-powered civic information app. It pulls from government and civic data sources (Congress, the Federal Register, the Supreme Court, local councils, and election authorities), enriches the content with AI-generated articles, summaries, and imagery, cross-validates ballot-measure information against official records, and surfaces all of it to users through a React Native mobile app backed by a Next.js + tRPC API.
+Billion is an AI-powered civic information app. It pulls from government and civic data sources (Congress, the Federal Register, the Supreme Court, local councils, and election authorities), enriches the content with AI-generated articles, summaries, and imagery, cross-validates ballot-measure **and candidate** information against official and public-record sources, and surfaces all of it to users through a React Native mobile app backed by a Next.js + tRPC API.
 
 This document covers how the system is structured, why the key decisions were made, and what alternatives were considered. See [CONTRIBUTING.md](./CONTRIBUTING.md) for dev setup, styling conventions, and localtunnel configuration. See [docs/MEASURE_ENRICHMENT.md](./docs/MEASURE_ENRICHMENT.md) for the deep dive on ballot-measure cross-validation.
 
@@ -16,6 +16,7 @@ flowchart TB
         legistar["Legistar (local councils)"]
         openstates["Open States v3"]
         measuresrc["Measure sources<br/>(CA SOS, LWV, Ballotpedia,<br/>Wikipedia, Vote Smart, SPUR)"]
+        candsrc["Candidate sources<br/>(Open States, Vote Smart,<br/>Ballotpedia, Wikipedia)"]
     end
 
     subgraph ai["AI Providers"]
@@ -40,6 +41,7 @@ flowchart TB
     legistar --> api
     openstates --> api
     measuresrc --> api
+    candsrc --> api
     api -->|"grounded summaries"| deepseek
     api <-->|"queries + civic cache"| db
 
@@ -147,7 +149,7 @@ All three content tables share a common pattern:
 | `user_preference` | Preferred topics / content types (JSONB string arrays)              |
 | `blocked_content` | Hidden sources/topics                                               |
 | `user_settings`   | Privacy & consent flags (location, personalize, analytics, crash, offline) |
-| `civic_api_cache` | Google Civic responses, keyed by `(address_hash, endpoint, params)` with `expires_at` TTL |
+| `civic_api_cache` | Google Civic responses **and** enrichment results, keyed by `(address_hash, endpoint, params)` with `expires_at` TTL. Also backs per-candidate enrichment under endpoint `candidate-enrich` (global `address_hash`, 7d TTL) |
 
 **Auth** — better-auth-managed `user`, `session`, `account`, `verification` (regenerated into `auth-schema.ts` via `pnpm auth:generate`).
 
@@ -195,7 +197,7 @@ erDiagram
     }
     civic_api_cache {
         string address_hash
-        timestamp expires_at "TTL: 7d/24h/30d"
+        timestamp expires_at "TTL: 7d/24h/30d; candidate-enrich 7d"
     }
 ```
 
@@ -219,7 +221,7 @@ The root router (`packages/api/src/root.ts`) composes **eight** sub-routers:
 | Router       | Procedures (Q = query, M = mutation, 🔒 = protected)                                                                 |
 | ------------ | -------------------------------------------------------------------------------------------------------------------- |
 | `auth`       | `getSession` (Q), `getSecretMessage` (Q 🔒)                                                                           |
-| `civic`      | `getElections`, `getVoterInfo`, `getRepresentatives`, `getRepresentativesEnriched` (all Q) — Google Civic           |
+| `civic`      | `getElections`, `getVoterInfo`, `getRepresentatives`, `getRepresentativesEnriched` (all Q) — Google Civic + measure/candidate cross-validation |
 | `legistar`   | `getLocalBills`, `getMeetings`, `getAgenda`, `getVotes`, `getBodies`, `getMeetingVotes` (all Q) — local councils     |
 | `openStates` | `searchBills`, `getBillDetails`, `getLegislators`, `getBillVotes` (all Q) — CA state legislature (Open States v3)    |
 | `content`    | `getAll`, `getByType`, `getById` (all Q) — aggregates bill / government_content / court_case                         |
@@ -282,6 +284,45 @@ flowchart TD
     sentinel -->|yes| nosummary
     sentinel -->|no| flagged["AI summary<br/>(summary_is_ai_generated = true,<br/>tier = ai_generated)"]
     flagged --> done
+```
+
+A wrinkle worth calling out: for **local lettered measures**, the County Counsel / City Attorney **Impartial Analysis** (carried on Ballotpedia) is now extracted on its own and wins the summary slot ahead of the bare ballot question — it's the authoritative neutral text, so it no longer gets buried in the fiscal field, and the advocacy/AI fallback only runs when it's absent. Relatedly, **SPUR** (used as grounding text) is party-independent but *not* neutral: it issues an explicit YES/NO endorsement. Its recommendation section is dropped before grounding so only descriptive text feeds the AI, and SPUR's pro/con never gets tiered as if it were a nonpartisan League source.
+
+### Candidate Cross-Validation
+
+The same pattern is applied to **candidates** in a non-referendum contest. Google Civic returns a candidate's name and party but rarely a biography, photo, incumbency flag, or contact channels. `enrichCandidate` (in `civic.ts`) fans out per candidate through a candidate cross-validation engine (`packages/api/src/lib/candidate-crossvalidate.ts`) that fetches every source concurrently and merges **field-by-field by the same trust tiers** as measures — the highest-tier source holding a field wins it and is cited.
+
+Source adapters live in `packages/api/src/lib/candidate-sources/` (sharing the measure pipeline's `SourceTier`, citation shape, and fetch/HTML helpers via `candidate-sources/types.ts`):
+
+| Source      | Adapter         | Contributes                                              | Scope / gate                                   |
+| ----------- | --------------- | ------------------------------------------------------- | ---------------------------------------------- |
+| Open States | `open-states.ts`| incumbent flag, photo, email, phone, website, socials   | **State legislators only** (gates on level/roles) |
+| Vote Smart  | `votesmart.ts`  | biography, photo, office phone, website/email           | resolve `candidateId` by name+state (`VOTE_SMART_API_KEY`) |
+| Ballotpedia | `ballotpedia.ts`| biography, photo                                        | slugify name → article HTML; disambiguation guard |
+| Wikipedia   | `wikipedia.ts`  | biography (intro extract), photo                        | no key; collision guard (must read as a political bio) |
+
+Key differences from the measure engine:
+
+- **No AI authoring of bios.** Every source that yields prose already returns a real, attributed `biography`. There is no grounded-AI fallback — when no source has a bio, the UI shows its sparse fallback rather than a guess from a bare name.
+- **Collision defense.** A bare name ("John Smith") can resolve to a disambiguation page or an unrelated person. Ballotpedia and Wikipedia both guard against this — reject disambiguation pages, require the text to read like a political biography, and (Wikipedia) bias the title search with office + state. `candidateNameSimilarity()` (token Jaccard, accept at ≥0.7) matches a candidate across sources whose names vary by nickname/middle-name/suffix.
+- **Cache-only, no DB rows.** Candidates are *not* persisted to `candidate`/`contest`. The `civic_api_cache` row IS the storage, under endpoint `candidate-enrich`, keyed globally by `name + office + electionYear` plus optional disambiguators (`stateAbbrev`, `district`, `county`) so two same-name candidates in different places don't collide. TTL is **7 days** (bios change rarely; longer than the 24h voter-info TTL), so it also survives eviction of the voter-info response that triggered it.
+
+Enriched fields are merged back onto the candidate, never clobbering existing Google Civic data with empties; per-candidate failures are swallowed so one bad lookup can't break the contest.
+
+```mermaid
+flowchart TD
+    cand["Candidate<br/>(from Google Civic)"] --> cache{"candidate-enrich<br/>cache hit?"}
+    cache -->|yes| backfill["Merge cached fields<br/>onto candidate"]
+    cache -->|no| fetch["Fetch all sources concurrently<br/>(Promise.all, per-candidate limit)"]
+
+    fetch --> os["Open States<br/>(state legislators only)"]
+    fetch --> vs["Vote Smart"]
+    fetch --> bp["Ballotpedia"]
+    fetch --> wiki["Wikipedia"]
+
+    os & vs & bp & wiki --> merge["Merge by trust tier<br/>(highest wins per field, each cited)"]
+    merge --> write["setCachedCandidate()<br/>(TTL 7d)"]
+    write --> backfill
 ```
 
 ### LLM Provider (API side)
@@ -419,7 +460,7 @@ A PostgREST-style HTTP API (Supabase anon key + RLS) would solve both, but our b
 
 **tRPC client** (`apps/expo/src/utils/api.tsx`) uses `httpBatchLink`. The base URL (`utils/base-url.ts`) prefers `EXPO_PUBLIC_API_URL`, else auto-detects the dev machine's IP from the Expo debugger host, else `localhost:3000`. Requests carry `x-trpc-source: expo-react` and the auth cookie.
 
-**Screens** (Expo Router): four tabs — Browse (`index`, content + search + an election banner for the signed-in user's own election), Feed (`feed`, swipeable video cards), Elections (`elections`, address-based voter info), Settings. Detail routes include `article-detail`, `contest-detail`, `measure-detail`, and `local-elections`. The measure-detail screen renders the short summary on the card and the long summary on detail, the `summaryIsAiGenerated` label, structured pro/con arguments, fiscal impact, and per-field source citations linking back to origin.
+**Screens** (Expo Router): four tabs — Browse (`index`, content + search + an election banner for the signed-in user's own election), Feed (`feed`, swipeable video cards), Elections (`elections`, address-based voter info), Settings. Detail routes include `article-detail`, `contest-detail`, `measure-detail`, and `local-elections`. The measure-detail screen renders the short summary on the card and the long summary on detail, the `summaryIsAiGenerated` label, structured pro/con arguments, fiscal impact, and per-field source citations linking back to origin. The contest-detail screen renders the enriched candidate fields — photo, biography, incumbent badge, contact link, social channels — alongside the same per-field source citations.
 
 **Styling:** NativeWind v5. All Expo styles are consolidated in `apps/expo/src/styles.ts`, which re-exports shared tokens from `@acme/ui/theme-tokens` and adds RN-specific layers (`planes` for surface depth, `hair` hairline borders, content-type colors) plus the `sp`/`rd` rem-to-px helpers and a `useTheme()` hook. Brand fonts (IBM Plex Serif, Inria Serif, Albert Sans) load via `expo-font`. See CONTRIBUTING.md for the full style API.
 
@@ -462,6 +503,8 @@ better-auth (`packages/auth/`, `initAuth()`): Drizzle/Postgres adapter, Discord 
 | AI text model     | DeepSeek v4-flash      | Gemini, GPT-4o            | Cost/quality ratio; swappable via the Vercel AI SDK (OpenAI is the configured fallback)               |
 | AI image model    | Vertex Imagen 3        | DALL-E 3                  | Migrated off DALL-E; Imagen integrates via the same Vertex/AI-SDK tooling                              |
 | Measure summaries | Cross-validate sources, AI only as grounded last resort | AI-generate everything | Official records must win; AI is barred from authoring on a bare title (hallucination risk)            |
+| Candidate bios    | Source-supplied only (Open States / Vote Smart / Ballotpedia / Wikipedia), cross-validated by tier | AI-author bios from name | A bio is a factual record about a real person; AI authoring on a bare name risks fabrication — show sparse UI instead |
+| Candidate storage | Cache-only in `civic_api_cache` (`candidate-enrich`, 7d) | Persist to `candidate`/`contest` rows | On-demand per voter address; durable rows add write paths and staleness for data that recomputes cheaply |
 | Image storage     | `bytea` in Postgres    | S3/R2 object storage      | Simpler for now; object storage is the right move at scale                                              |
 | Scraper DB access | Direct Drizzle         | tRPC mutations            | No benefit to HTTP overhead for a trusted server process                                                |
 | Scraper framework | Custom fetch + cheerio | Crawlee                   | Crawlee pulled in Playwright + Apify storage for a pattern that's ~60 lines of fetch+retry; the REST-API scrapers didn't need it at all |
