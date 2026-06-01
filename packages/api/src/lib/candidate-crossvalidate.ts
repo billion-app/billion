@@ -25,9 +25,11 @@ import type {
 import { enrichCandidateFromBallotpedia } from "./candidate-sources/ballotpedia";
 import { enrichCandidateFromCaSos } from "./candidate-sources/ca-sos-voterguide";
 import { enrichCandidateFromOpenStates } from "./candidate-sources/open-states";
+import { enrichCandidateFromScc } from "./candidate-sources/scc-registrar";
 import { byTierDesc, candidateCite } from "./candidate-sources/types";
 import { enrichCandidateFromVoteSmart } from "./candidate-sources/votesmart";
 import { enrichCandidateFromWikipedia } from "./candidate-sources/wikipedia";
+import { generateCandidateStatementSummary } from "./civic-ai";
 
 /**
  * Collect from all candidate sources and merge into a canonical, source-
@@ -39,8 +41,14 @@ export async function crossValidateCandidate(
   input: CandidateInput,
   ctx: CandidateCrossValidateContext,
 ): Promise<CanonicalCandidate> {
-  const [caSos, openStates, voteSmart, ballotpedia, wikipedia] =
+  const [scc, caSos, openStates, voteSmart, ballotpedia, wikipedia] =
     await Promise.all([
+      enrichCandidateFromScc(input.name, {
+        office: input.office,
+        stateAbbrev: ctx.stateAbbrev,
+        county: ctx.county,
+        electionYear: ctx.electionYear,
+      }).catch(() => null),
       enrichCandidateFromCaSos(input.name, {
         office: input.office,
         stateAbbrev: ctx.stateAbbrev,
@@ -72,6 +80,7 @@ export async function crossValidateCandidate(
     ]);
 
   const sources: CandidateSourceData[] = [
+    scc,
     caSos,
     openStates,
     voteSmart,
@@ -112,6 +121,18 @@ export async function crossValidateCandidate(
     if (src.biography?.trim()) {
       biography = src.biography.trim();
       citations.push(candidateCite("biography", src));
+      break;
+    }
+  }
+
+  // --- statement: highest-tier source with a verbatim candidate statement
+  //     (county registrar > state SOS). Self-authored, kept distinct from the
+  //     neutral biography. ---
+  let statement: string | undefined;
+  for (const src of sources) {
+    if (src.statement?.trim()) {
+      statement = src.statement.trim();
+      citations.push(candidateCite("statement", src));
       break;
     }
   }
@@ -161,10 +182,40 @@ export async function crossValidateCandidate(
   // text" case cannot occur. We surface only source-supplied bios (each cited),
   // and show the sparse UI fallback when no source had one — never a guess.
 
+  // --- statement summary: AI summarizes the verbatim statement into plain
+  //     language, grounded ONLY on the statement (no authoring from a bare
+  //     name). Computed here, inside the cached path, so the LLM runs once per
+  //     candidate rather than per request. ---
+  let statementSummary: string | undefined;
+  let statementSummaryIsAiGenerated = false;
+  if (statement) {
+    try {
+      const { long } = await generateCandidateStatementSummary(
+        input.name,
+        statement,
+      );
+      statementSummary = long;
+      statementSummaryIsAiGenerated = true;
+      citations.push({
+        field: "statementSummary",
+        sourceName:
+          "AI summary — grounded on the candidate's statement, not an official source",
+        tier: "ai_generated",
+        official: false,
+      });
+    } catch {
+      // No LLM, statement too thin, or model judged it insufficient — leave the
+      // summary unset and let the UI fall back to the verbatim statement.
+    }
+  }
+
   return {
     name: input.name,
     party: input.party,
     biography,
+    statement,
+    statementSummary,
+    statementSummaryIsAiGenerated,
     photoUrl,
     candidateUrl,
     email,

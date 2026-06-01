@@ -122,6 +122,68 @@ Return only the JSON object, or exactly ${INSUFFICIENT}.`;
 }
 
 /**
+ * Summarize a candidate's own statement of qualifications into plain language,
+ * **from the statement text only**.
+ *
+ * Unlike a ballot measure, the source here is the candidate's self-authored
+ * pitch, so we do NOT strip advocacy — we plainly restate what the candidate
+ * says about their background and priorities, without endorsing or fact-checking.
+ *
+ * @param name      The candidate's name (for orientation, NOT a content source).
+ * @param statement The verbatim candidate statement. Must be substantive — we
+ *                  refuse to summarize from a near-empty statement.
+ * @throws if no AI provider is configured, the statement is too thin, or the
+ *         model judges the text insufficient.
+ */
+export async function generateCandidateStatementSummary(
+  name: string,
+  statement: string,
+): Promise<MeasureSummaries> {
+  if (!llm) throw new Error("no AI provider configured");
+  if (statement.trim().length < MIN_GROUNDING_CHARS) {
+    throw new Error("insufficient statement text — refusing to summarize");
+  }
+
+  const prompt = `You write plain-language summaries of candidate statements for a voter information app.
+
+Summarize what this candidate says about themselves — their background, qualifications, and priorities — using ONLY the STATEMENT TEXT below. This is the candidate's own statement, written by them.
+
+Hard rules:
+- Use ONLY facts present in the STATEMENT TEXT. Do not use any outside knowledge.
+- If the STATEMENT TEXT does not actually contain a candidate statement (e.g. it is only a name, heading, or boilerplate), reply with exactly: ${INSUFFICIENT}
+- This is the candidate's own pitch — restate what THEY say (their priorities and background). Do NOT fact-check, endorse, oppose, or add your own judgment.
+- Attribute claims to the candidate where natural ("they say", "their priorities include") rather than asserting them as fact.
+- Plain English, no jargon. Do not repeat the candidate's name verbatim.
+
+Produce TWO summaries and return them as a JSON object on a single line:
+{"short": "...", "long": "..."}
+- "short": ONE sentence capturing who they are and their top priority, for a list preview.
+- "long": 3-4 sentences covering their background and main priorities as stated.
+
+CANDIDATE NAME: ${name}
+
+STATEMENT TEXT:
+"""
+${statement.slice(0, 6000)}
+"""
+
+Return only the JSON object, or exactly ${INSUFFICIENT}.`;
+
+  const { text } = await generateText({ model: llm, temperature: 0.2, prompt });
+  const out = text.trim();
+  if (!out || out.toUpperCase().includes(INSUFFICIENT)) {
+    throw new Error("model judged statement text insufficient");
+  }
+  const parsed = parseJsonObject(out);
+  const short = typeof parsed?.short === "string" ? parsed.short.trim() : "";
+  const long = typeof parsed?.long === "string" ? parsed.long.trim() : "";
+  if (!short && !long) {
+    return { short: firstSentence(out), long: out };
+  }
+  return { short: short || firstSentence(long), long: long || short };
+}
+
+/**
  * Generate neutral pro/con bullet points from fetched source text, used only as
  * a fallback when no source supplied real, human-written arguments.
  *

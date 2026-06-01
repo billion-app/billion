@@ -384,6 +384,9 @@ importers:
 
   apps/scraper:
     dependencies:
+      '@acme/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@acme/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -420,6 +423,9 @@ importers:
       turndown:
         specifier: ^7.2.2
         version: 7.2.2
+      unpdf:
+        specifier: ^1.6.2
+        version: 1.6.2
       yargs:
         specifier: ^18.0.0
         version: 18.0.0
@@ -8008,6 +8014,14 @@ packages:
     resolution: {integrity: sha512-uNaeirEPvpZWSgzwsPGtU2zVSTrn/8L5q/IexZmH0eH6SA73CmAA5U4GwORTxQAZs95TAXLNqeLoPPNO5gZfWg==}
     engines: {node: '>=8'}
 
+  unpdf@1.6.2:
+    resolution: {integrity: sha512-zQ80ySoPuPHOsvIoRp/nJyQt8TOUoTh1+WBCGcBvlddQNgKDLRwm0AY3x8Q35I7+kIiRSgqMx+Ma2pl9McIp7A==}
+    peerDependencies:
+      '@napi-rs/canvas': ^0.1.69
+    peerDependenciesMeta:
+      '@napi-rs/canvas':
+        optional: true
+
   unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
@@ -9749,7 +9763,7 @@ snapshots:
       metro-babel-transformer: 0.83.1
       metro-cache: 0.82.5
       metro-cache-key: 0.83.1
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       metro-file-map: 0.82.5
       metro-resolver: 0.82.5
@@ -11314,7 +11328,7 @@ snapshots:
       debug: 2.6.9
       invariant: 2.2.4
       metro: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       semver: 7.7.4
     transitivePeerDependencies:
@@ -11328,7 +11342,7 @@ snapshots:
       debug: 4.4.3
       invariant: 2.2.4
       metro: 0.82.5(bufferutil@4.1.0)
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       semver: 7.7.4
     optionalDependencies:
@@ -11403,7 +11417,7 @@ snapshots:
     dependencies:
       '@react-native/js-polyfills': 0.84.1
       '@react-native/metro-babel-transformer': 0.84.1(@babel/core@7.29.0)
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-runtime: 0.82.5
     transitivePeerDependencies:
       - '@babel/core'
@@ -14603,13 +14617,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  metro-config@0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4):
+  metro-config@0.82.5(bufferutil@4.1.0):
     dependencies:
       connect: 3.7.0
       cosmiconfig: 5.2.1
       flow-enums-runtime: 0.0.6
       jest-validate: 29.7.0
-      metro: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro: 0.82.5(bufferutil@4.1.0)
       metro-cache: 0.82.5
       metro-core: 0.82.5
       metro-runtime: 0.82.5
@@ -14755,7 +14769,7 @@ snapshots:
       metro-babel-transformer: 0.82.5
       metro-cache: 0.82.5
       metro-cache-key: 0.82.5
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       metro-file-map: 0.82.5
       metro-resolver: 0.82.5
@@ -14802,7 +14816,7 @@ snapshots:
       metro-babel-transformer: 0.82.5
       metro-cache: 0.82.5
       metro-cache-key: 0.82.5
-      metro-config: 0.82.5(bufferutil@4.1.0)(utf-8-validate@6.0.4)
+      metro-config: 0.82.5(bufferutil@4.1.0)
       metro-core: 0.82.5
       metro-file-map: 0.82.5
       metro-resolver: 0.82.5
@@ -16498,6 +16512,8 @@ snapshots:
   unique-string@2.0.0:
     dependencies:
       crypto-random-string: 2.0.0
+
+  unpdf@1.6.2: {}
 
   unpipe@1.0.0: {}
 
