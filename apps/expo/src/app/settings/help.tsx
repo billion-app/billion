@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Linking, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { Text } from "~/components/Themed";
 import { Card, Icon, ScreenShell, SearchInput } from "~/components/ui";
 import { colors, fontBody } from "~/styles";
+
+const SUPPORT_EMAIL = "hello@billion.app";
 
 const FAQS = [
   {
@@ -57,14 +59,25 @@ export default function HelpScreen() {
         ))}
       </View>
 
-      <Card style={s.contactRow}>
-        <Icon name="message" size={22} color={colors.bill} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.contactTitle}>Still stuck?</Text>
-          <Text style={s.contactSub}>Reach our team directly</Text>
-        </View>
-        <Icon name="chevR" size={18} color="#5B6172" />
-      </Card>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() =>
+          void Linking.openURL(
+            `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+              "Billion support request",
+            )}`,
+          )
+        }
+      >
+        <Card style={s.contactRow}>
+          <Icon name="message" size={22} color={colors.bill} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.contactTitle}>Still stuck?</Text>
+            <Text style={s.contactSub}>Reach our team directly</Text>
+          </View>
+          <Icon name="chevR" size={18} color="#5B6172" />
+        </Card>
+      </TouchableOpacity>
     </ScreenShell>
   );
 }

@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Alert, Share, StyleSheet, View } from "react-native";
+import * as Location from "expo-location";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { usePostHog } from "posthog-react-native";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
@@ -52,6 +54,7 @@ const DEFAULTS: Record<Key, boolean> = {
 };
 
 export default function PrivacyScreen() {
+  const posthog = usePostHog();
   const settingsQuery = useQuery(trpc.user.getSettings.queryOptions());
   const updateMutation = useMutation({
     ...trpc.user.updateSettings.mutationOptions(),
@@ -64,6 +67,7 @@ export default function PrivacyScreen() {
 
   const [state, setState] = useState<Record<Key, boolean>>(DEFAULTS);
   const [synced, setSynced] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   if (settingsQuery.data && !synced) {
     setState({
@@ -76,10 +80,49 @@ export default function PrivacyScreen() {
     setSynced(true);
   }
 
-  const toggle = (k: Key) => {
+  const toggle = async (k: Key) => {
     const newVal = !state[k];
     setState((p) => ({ ...p, [k]: newVal }));
+
+    // Requesting location on the OS level when enabling the location toggle.
+    if (k === "location" && newVal) {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== Location.PermissionStatus.GRANTED) {
+        Alert.alert(
+          "Location permission denied",
+          "Enable location access in Settings to load your local ballot.",
+        );
+        setState((p) => ({ ...p, location: false }));
+        updateMutation.mutate({ location: false });
+        return;
+      }
+    }
+
+    // Reflect the analytics preference in PostHog so the SDK respects opt-out.
+    if (k === "analytics") {
+      if (newVal) {
+        void posthog.optIn();
+      } else {
+        void posthog.optOut();
+      }
+    }
+
     updateMutation.mutate({ [k]: newVal });
+  };
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const data = await queryClient.fetchQuery(
+        trpc.user.requestDataExport.queryOptions(),
+      );
+      await Share.share({ message: JSON.stringify(data, null, 2) });
+    } catch {
+      Alert.alert("Export failed", "Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -102,14 +145,15 @@ export default function PrivacyScreen() {
               <Text style={s.label}>{r.label}</Text>
               <Text style={s.sub}>{r.sub}</Text>
             </View>
-            <Toggle on={state[r.k]} onChange={() => toggle(r.k)} />
+            <Toggle on={state[r.k]} onChange={() => void toggle(r.k)} />
           </View>
         ))}
       </Card>
 
       <GhostButton
-        label="Download my data"
+        label={exporting ? "Preparing…" : "Download my data"}
         style={{ marginTop: 20, alignSelf: "flex-start" }}
+        onPress={() => void handleExport()}
       />
     </ScreenShell>
   );
