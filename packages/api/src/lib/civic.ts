@@ -11,6 +11,8 @@ import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
 import type { CrossValidateContext } from "./measure-crossvalidate";
+import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
+import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
 import { crossValidateMeasure } from "./measure-crossvalidate";
@@ -214,6 +216,12 @@ export interface Candidate {
   email?: string;
   orderOnBallot?: string;
   channels?: Channel[];
+  /** Biography merged from candidate sources (Ballotpedia/Wikipedia/Vote Smart). */
+  biography?: string;
+  /** True when the candidate currently holds the office (per Open States / Vote Smart). */
+  incumbent?: boolean;
+  /** Per-field source attribution for the enriched fields above. */
+  citations?: MeasureCitationRef[];
 }
 
 export interface Channel {
@@ -621,6 +629,33 @@ function inferLevel(office: string): string | undefined {
 // Contest Enrichment
 // ============================================================================
 
+/**
+ * Bound outbound enrichment fan-out for a whole voterinfo request. Contests are
+ * enriched concurrently and each contest fans out per candidate × multiple
+ * sources, so a cold ballot could otherwise burst hundreds of simultaneous
+ * fetches. This module-level limiter caps in-flight enrichments GLOBALLY (not
+ * per-contest) so N contests can't multiply the cap.
+ */
+const ENRICH_CONCURRENCY = 5;
+let enrichInFlight = 0;
+const enrichQueue: (() => void)[] = [];
+
+function withEnrichLimit<T>(thunk: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const run = () => {
+      enrichInFlight++;
+      thunk()
+        .then(resolve, reject)
+        .finally(() => {
+          enrichInFlight--;
+          enrichQueue.shift()?.();
+        });
+    };
+    if (enrichInFlight < ENRICH_CONCURRENCY) run();
+    else enrichQueue.push(run);
+  });
+}
+
 interface EnrichmentContext {
   stateAbbrev?: string;
   county?: string;
@@ -718,6 +753,74 @@ async function enrichContest(
       // Enrichment failed entirely — leave the raw Google Civic data intact.
     }
     return contest;
+  }
+
+  // Candidate branch: a non-referendum contest with candidates. Mirror the
+  // referendum branch — fan out to candidate sources, merge by trust tier, and
+  // attribute every surfaced field — but cache-only per candidate (no DB rows).
+  if (contest.candidates?.length) {
+    const electionYear = ctx?.electionYear ?? new Date().getFullYear();
+    const office = contest.office ?? "";
+    const district = contest.district?.name;
+    await Promise.all(
+      contest.candidates.map((candidate) =>
+        withEnrichLimit(async () => {
+          try {
+            let merged = await getCachedCandidate(
+              candidate.name,
+              office,
+              electionYear,
+              ctx?.stateAbbrev,
+              district,
+              ctx?.county,
+            );
+            if (!merged) {
+              merged = await crossValidateCandidate(
+                {
+                  name: candidate.name,
+                  party: candidate.party,
+                  office: contest.office,
+                  district,
+                  roles: contest.roles,
+                  level: contest.level,
+                },
+                {
+                  stateAbbrev: ctx?.stateAbbrev,
+                  county: ctx?.county,
+                  electionYear,
+                },
+              );
+              await setCachedCandidate(
+                candidate.name,
+                office,
+                electionYear,
+                merged,
+                ctx?.stateAbbrev,
+                district,
+                ctx?.county,
+              );
+            }
+
+            // Merge canonical fields back onto the candidate, preferring enriched
+            // values but never clobbering existing Google Civic data with empties.
+            candidate.biography = merged.biography ?? candidate.biography;
+            candidate.incumbent = merged.incumbent ?? candidate.incumbent;
+            candidate.photoUrl = merged.photoUrl ?? candidate.photoUrl;
+            candidate.candidateUrl =
+              merged.candidateUrl ?? candidate.candidateUrl;
+            candidate.email = merged.email ?? candidate.email;
+            candidate.phone = merged.phone ?? candidate.phone;
+            candidate.channels = merged.channels ?? candidate.channels;
+            candidate.citations = merged.citations.length
+              ? merged.citations
+              : candidate.citations;
+          } catch {
+            // Best-effort per candidate: one failure must not break the contest
+            // or the other candidates — leave the raw Google Civic data intact.
+          }
+        }),
+      ),
+    );
   }
 
   if (contest.office && !contest.roleDescription) {
