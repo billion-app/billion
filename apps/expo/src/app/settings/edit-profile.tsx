@@ -30,6 +30,7 @@ export default function EditProfileScreen() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [synced, setSynced] = useState(false);
 
   if (sessionUser && !synced) {
@@ -96,8 +97,14 @@ export default function EditProfileScreen() {
   ];
 
   const handleSave = () => {
-    if (name && name !== sessionUser?.name) {
-      updateProfile.mutate({ name });
+    const trimmed = name.trim();
+    if (trimmed.length < 1) {
+      setNameError("Name can't be empty.");
+      return;
+    }
+    setNameError(null);
+    if (trimmed && trimmed !== sessionUser?.name) {
+      updateProfile.mutate({ name: trimmed });
     }
   };
 
@@ -127,19 +134,32 @@ export default function EditProfileScreen() {
         />
       </View>
 
-      {fields.map((f) => (
-        <View key={f.label} style={{ marginBottom: 18 }}>
-          <Text style={s.label}>{f.label}</Text>
-          <TextInput
-            style={[s.input, !f.set && { opacity: 0.5 }]}
-            value={f.value}
-            onChangeText={f.set}
-            editable={!!f.set}
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="none"
-          />
-        </View>
-      ))}
+      {fields.map((f) => {
+        const set = f.set;
+        return (
+          <View key={f.label} style={{ marginBottom: 18 }}>
+            <Text style={s.label}>{f.label}</Text>
+            <TextInput
+              style={[s.input, !set && { opacity: 0.5 }]}
+              value={f.value}
+              onChangeText={
+                set
+                  ? (v) => {
+                      set(v);
+                      setNameError(null);
+                    }
+                  : undefined
+              }
+              editable={!!set}
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+            />
+            {f.label === "DISPLAY NAME" && nameError && (
+              <Text style={s.error}>{nameError}</Text>
+            )}
+          </View>
+        );
+      })}
 
       <GhostButton
         label={deleteAccount.isPending ? "Deleting…" : "Delete account"}
@@ -185,5 +205,12 @@ const s = StyleSheet.create({
     color: colors.white,
     fontFamily: "AlbertSans-Regular",
     fontSize: 16,
+  },
+  error: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+    color: colors.red[500],
+    marginTop: 6,
+    paddingLeft: 4,
   },
 });
