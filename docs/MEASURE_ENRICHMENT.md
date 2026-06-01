@@ -101,13 +101,18 @@ that uses a browser User-Agent and turns any failure into `null`.
   (`spur.org/voter-guide/<YYYY>-<MM>`) by its letter and fetches the real page
   text. That text — never the title alone — is what the AI summarizes. The
   summary is flagged AI-generated and cites the SPUR page it was built from.
+- **Pro/con:** SPUR pages carry real "Pros"/"Cons" lists; those are parsed and
+  surfaced directly (preferred, cited to SPUR). AI pro/con is generated only
+  when no source supplied any.
 
 ## AI's role (explicitly scoped)
 
 - **YES** — summarize official fiscal-impact analyses into plain language;
   reconcile and structure existing source text.
-- **NO** — generate pro/con arguments from scratch; invent a summary when no
-  source material exists (the UI shows "No information available" instead).
+- **NO** — invent a summary or arguments when no source material exists (the UI
+  shows "No information available" instead). AI pro/con is allowed only as a
+  last resort, grounded on fetched source text, when no source had real
+  arguments — and is flagged AI-generated.
 - **Fallback only** — when there _is_ fetched source text but no human summary,
   an AI summary is generated and **flagged** (`Contest.summaryIsAiGenerated`) so
   the app labels it "AI-generated — not from an official source". The model is
@@ -124,6 +129,7 @@ that uses a browser User-Agent and turns any failure into `null`.
 | Field                               | Meaning                                                                             |
 | ----------------------------------- | ----------------------------------------------------------------------------------- |
 | `summary`                           | best available summary (official preferred)                                         |
+| `summaryShort` / `summaryLong`      | one-sentence card preview / fuller detail-screen summary                            |
 | `summaryIsAiGenerated`              | true if `summary` came from AI                                                      |
 | `fiscalImpact`                      | official fiscal analysis                                                            |
 | `proArguments[]` / `conArguments[]` | attributed arguments (`{text, author?, sourceName, sourceUrl}`)                     |
