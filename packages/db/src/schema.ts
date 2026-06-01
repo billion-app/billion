@@ -612,7 +612,11 @@ export const CivicApiCache = pgTable(
     createdAt: t.timestamp().defaultNow().notNull(),
   }),
   (table) => ({
-    uniqueCacheKey: unique().on(table.addressHash, table.endpoint, table.params),
+    uniqueCacheKey: unique().on(
+      table.addressHash,
+      table.endpoint,
+      table.params,
+    ),
     expiresAtIdx: index("civic_cache_expires_idx").on(table.expiresAt),
   }),
 );

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Alert, Share, StyleSheet, View } from "react-native";
-import { useMutation, useQuery } from "@tanstack/react-query";
 import * as Location from "expo-location";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { usePostHog } from "posthog-react-native";
 
 import type { IconName } from "~/components/ui";

@@ -26,7 +26,9 @@ export default function FeedbackScreen() {
   const [cat, setCat] = useState("bug");
   const [text, setText] = useState("");
 
-  const submitFeedback = useMutation(trpc.user.submitFeedback.mutationOptions());
+  const submitFeedback = useMutation(
+    trpc.user.submitFeedback.mutationOptions(),
+  );
 
   const handleSubmit = () => {
     if (!text.trim()) return;
