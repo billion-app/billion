@@ -45,6 +45,7 @@ function measureRoute(m: Contest) {
       referendumText: m.referendumText ?? "",
       referendumUrl: m.referendumUrl ?? "",
       summary: m.summary ?? "",
+      summaryLong: m.summaryLong ?? m.summary ?? "",
       summaryIsAiGenerated: m.summaryIsAiGenerated ? "true" : "false",
       fiscalImpact: m.fiscalImpact ?? "",
       proArguments: JSON.stringify(m.proArguments ?? []),
@@ -303,8 +304,10 @@ export default function ElectionsScreen() {
                     </TouchableOpacity>
                     {mOpen && (
                       <View style={s.summaryNested}>
-                        {m.summary ? (
-                          <Text style={s.measureSub}>{m.summary}</Text>
+                        {m.summaryShort ?? m.summary ? (
+                          <Text style={s.measureSub}>
+                            {m.summaryShort ?? m.summary}
+                          </Text>
                         ) : m.referendumSubtitle ? (
                           <Text style={s.measureSub}>
                             {m.referendumSubtitle}

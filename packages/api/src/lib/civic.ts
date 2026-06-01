@@ -189,6 +189,10 @@ export interface Contest {
   sources?: Source[];
   roleDescription?: string;
   summary?: string;
+  /** One-sentence summary for the ballot card preview. */
+  summaryShort?: string;
+  /** Fuller plain-language summary for the measure detail screen. */
+  summaryLong?: string;
   /** True when `summary` was AI-generated rather than from an official source. */
   summaryIsAiGenerated?: boolean;
   /** Official fiscal impact analysis (e.g. from the LAO or county). */
@@ -675,6 +679,8 @@ async function enrichContest(
       );
 
       contest.summary = merged.summary ?? contest.summary;
+      contest.summaryShort = merged.summaryShort ?? merged.summary;
+      contest.summaryLong = merged.summaryLong ?? merged.summary;
       contest.summaryIsAiGenerated = merged.summaryIsAiGenerated;
       contest.fiscalImpact = merged.fiscalImpact;
       contest.proArguments = merged.proArguments.length

@@ -45,6 +45,7 @@ export default function MeasureDetailScreen() {
     referendumText: string;
     referendumUrl: string;
     summary: string;
+    summaryLong: string;
     summaryIsAiGenerated: string;
     fiscalImpact: string;
     proArguments: string;
@@ -88,10 +89,10 @@ export default function MeasureDetailScreen() {
 
         <Text style={s.title}>{params.referendumTitle}</Text>
 
-        {params.summary || params.referendumSubtitle ? (
+        {params.summaryLong || params.summary || params.referendumSubtitle ? (
           <>
             <Text style={s.subtitle}>
-              {params.summary || params.referendumSubtitle}
+              {params.summaryLong || params.summary || params.referendumSubtitle}
             </Text>
             {summaryIsAi && (
               <View style={s.aiNotice}>
