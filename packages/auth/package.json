@@ -20,7 +20,7 @@
     "@acme/db": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.11",
     "better-auth": "catalog:",
-    "next": "^16.2.1",
+    "next": "^16.2.3",
     "react": "catalog:react19",
     "react-dom": "catalog:react19",
     "zod": "catalog:"
