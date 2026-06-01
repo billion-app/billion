@@ -18,6 +18,7 @@ export type {
   PollingLocation,
   Contest,
   Candidate,
+  Source,
 } from "./lib/civic";
 
 // Google Civic API client functions (for direct use outside tRPC)
@@ -27,6 +28,8 @@ export {
   getRepresentatives,
   getRepresentativesEnriched,
 } from "./lib/civic";
+
+export { enrichFromCaliforniaOfficialSources } from "./lib/california-measures";
 
 // Open States API types
 export type {
@@ -74,7 +77,6 @@ export type {
   DateRange,
   LegislationQuery,
 } from "./integrations/legistar";
-
 
 /**
  * Inference helpers for input types

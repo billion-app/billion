@@ -4,16 +4,15 @@ This document explains how to set up API keys and access for all civic data inte
 
 ## Quick Reference
 
-| Source | Key Required | Cost | Env Variable |
-|--------|--------------|------|--------------|
-| Google Civic API | Yes | Free (25k/day) | `GOOGLE_CIVIC_API_KEY` |
-| Open States API | Yes | Free | `OPEN_STATES_API_KEY` |
-| CA Secretary of State | Yes | Free | `CA_SOS_API_KEY` |
-| Legistar (local councils) | No | Free | — |
-| VOTE411 (scraper) | No | Free | — |
-| Santa Clara ROV (scraper) | No* | Free | — |
-
-*Uses Google Civic API internally
+| Source                         | Key Required | Cost           | Env Variable           |
+| ------------------------------ | ------------ | -------------- | ---------------------- |
+| Google Civic API               | Yes          | Free (25k/day) | `GOOGLE_CIVIC_API_KEY` |
+| Open States API                | Yes          | Free           | `OPEN_STATES_API_KEY`  |
+| CA SOS Election Results API    | Yes          | Free           | `CA_SOS_API_KEY`       |
+| CA SOS Official Voter Guide    | No           | Free           | —                      |
+| Legistar (local councils)      | No           | Free           | —                      |
+| VOTE411 (scraper)              | No           | Free           | —                      |
+| Santa Clara ROV local measures | No           | Free           | —                      |
 
 ---
 
@@ -43,6 +42,7 @@ GOOGLE_CIVIC_API_KEY=AIza...your_key_here
 ### Optional: Restrict Key
 
 For production, restrict the key:
+
 - **Application restrictions:** HTTP referrers or IP addresses
 - **API restrictions:** Google Civic Information API only
 
@@ -110,6 +110,31 @@ CA_SOS_API_KEY=your_subscription_key_here
 
 ---
 
+## California Official Voter Guide
+
+**Provides:** Official statewide proposition summaries, "what your vote means" text, arguments, fiscal impact text, and links to the full proposed law.
+
+**No API key required.** The API layer reads public Official Voter Information Guide HTML from:
+
+- Current guide: https://voterguide.sos.ca.gov/
+- Archived guides: https://vigarchive.sos.ca.gov/
+
+### Runtime Integration
+
+Statewide California propositions are enriched in `packages/api/src/lib/civic.ts` before Vote Smart and before AI summaries:
+
+1. Google Civic returns a ballot contest with a title such as `Proposition 36`.
+2. `packages/api/src/lib/california-measures.ts` detects the proposition number.
+3. The official voter-guide page is fetched and parsed.
+4. Parsed official fields are merged into the Google Civic contest.
+5. Parsed source records are cached in the `civic_api_cache` table.
+
+### Source Priority
+
+For statewide California propositions, official SOS voter-guide fields win over Vote Smart, Google Civic, and AI-generated summaries. Vote Smart remains useful as a state-level fallback when SOS pages are not available for a given election.
+
+---
+
 ## Legistar Web API
 
 **Provides:** Local city council meetings, legislation, votes, agendas
@@ -120,11 +145,11 @@ CA_SOS_API_KEY=your_subscription_key_here
 
 ### Supported Jurisdictions
 
-| Jurisdiction | Legistar Client ID | Website |
-|--------------|-------------------|---------|
-| San Jose | `sanjose` | sanjose.legistar.com |
-| Santa Clara County | `santaclara` | sccgov.legistar.com |
-| Sunnyvale | `sunnyvale` | sunnyvaleca.legistar.com |
+| Jurisdiction       | Legistar Client ID | Website                  |
+| ------------------ | ------------------ | ------------------------ |
+| San Jose           | `sanjose`          | sanjose.legistar.com     |
+| Santa Clara County | `santaclara`       | sccgov.legistar.com      |
+| Sunnyvale          | `sunnyvale`        | sunnyvaleca.legistar.com |
 
 ### Usage
 
@@ -173,29 +198,49 @@ The scraper extracts data from vote411.org. Rate limiting and caching are built 
 
 ---
 
-## Santa Clara County ROV Scraper
+## Santa Clara County ROV Local Measures
 
-**Provides:** Sample ballots, polling locations, election calendar, candidate filings
+**Provides:** Local ballot measure questions, measure letters, jurisdictions, vote thresholds, and links to official argument/analysis PDFs where the county publishes them.
 
-**No direct API key required** — uses Google Civic API internally.
+**No API key required.**
 
-### Setup
+### Official Source
 
-Ensure `GOOGLE_CIVIC_API_KEY` is set (see Google Civic section above).
+Santa Clara County publishes a public local-measures list for each election:
 
-### Why Not Direct Scraping?
+- https://vote.santaclaracounty.gov/list-local-measures-0
 
-The Santa Clara County Registrar of Voters website (vote.santaclaracounty.gov) uses Cloudflare bot protection, making direct scraping unreliable. The scraper uses Google Civic API as a proxy data source.
+The current implementation uses this source as the California proving ground for local measures. When a Google Civic contest title contains `Measure A`, `Measure B`, etc. and the voter context appears to be Santa Clara County or a Santa Clara County city, the API parser looks up the matching county measure and fills the official ballot question plus source attribution.
+
+Because the county site may return bot-protection responses to server-side fetches, the API also includes a small 2024 fallback catalog for the San Jose/Santa Clara proving-ground measures. The fallback text is copied from the county's published local-measures page and points users back to the same official source URL.
 
 ### Running
 
-```bash
-# Run Santa Clara ROV scraper
-pnpm scraper santaclararov
+This enrichment runs inside `civic.getVoterInfo`; there is no standalone scraper command yet.
 
-# Run all scrapers
-pnpm scraper all
-```
+The county site should still be treated as the canonical source for local ballot-measure text. If future county pages require PDF extraction, the scraper pipeline should extract source text first and use AI only to structure that text, not to invent missing content.
+
+---
+
+## Ballot Measure Enrichment Rules
+
+### Source Priority
+
+1. County registrar voter guide or local-measures page
+2. California SOS Official Voter Information Guide
+3. Vote Smart
+4. Google Civic
+5. AI summary from source material only
+
+Every official enrichment appends source metadata to the contest `sources` array with `name`, `official`, `url`, and `fields`.
+
+### AI Guardrails
+
+AI can be used to summarize or structure existing public-record text. It must not generate measure summaries from a title alone. If no source material is available, the UI should show that details are unavailable rather than presenting a fabricated summary.
+
+### Cache Strategy
+
+Official measure-source fetches use `civic_api_cache` with a global cache key and a 30-day TTL. Address-specific Google Civic voter-info responses continue to use the existing address-hash cache.
 
 ---
 
@@ -223,18 +268,22 @@ For local development, copy `.env.example` to `.env` and fill in your keys.
 These provide more comprehensive data but require paid subscriptions:
 
 ### BallotReady
+
 - Full ballot data + endorsements
 - Contact: https://organizations.ballotready.org/ballotready-api
 
 ### Ballotpedia
+
 - Candidate bios, detailed election coverage
 - Contact: https://developer.ballotpedia.org/
 
 ### Democracy Works
+
 - Comprehensive election data
 - Contact: https://www.democracy.works/elections-api
 
 ### Vote Smart
+
 - Free for research/nonprofit use
 - Voting records, interest group ratings
 - Register: https://votesmart.org/share/api

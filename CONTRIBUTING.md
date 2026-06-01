@@ -255,9 +255,12 @@ The app can run without third-party API keys. When keys are missing, mock data i
 | API | Env Var | Mock Trigger |
 |-----|---------|--------------|
 | **Google Civic** (elections, representatives, voter info) | `GOOGLE_CIVIC_API_KEY` | Not set → returns mock data |
+| **California official measure sources** (SOS voter guide, Santa Clara local measures) | None | Source fetch fails → keeps Google Civic/mock fields |
 | **Legistar** (local legislation) | None (public API) | API request fails → returns mock data for San Jose and Santa Clara |
 
 Mock data includes realistic local government content (elections, bills, resolutions, representatives) so you can develop UI features without any API keys.
+
+California ballot-measure enrichment runs after Google Civic returns contests. Official SOS and Santa Clara County fields are preferred over Vote Smart and AI-generated summaries, and AI summaries are only attempted when source text is present.
 
 ### Database Seeding
 
