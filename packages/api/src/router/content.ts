@@ -250,6 +250,12 @@ export const contentRouter = {
             b.aiGeneratedArticle ?? b.fullText ?? "No content available",
           originalContent: b.fullText ?? "Full text not available",
           url: b.url,
+          actions: (b.actions ?? []) as {
+            date: string;
+            text: string;
+            type?: string;
+          }[],
+          status: b.status ?? undefined,
         };
       }
 

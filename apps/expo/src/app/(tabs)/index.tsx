@@ -1,396 +1,183 @@
+import type { Href } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image } from "expo-image";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import Fuse from "fuse.js";
 
 import type { VideoPost } from "@acme/api";
 
-import type { Theme } from "~/styles";
-import { Text, View } from "~/components/Themed";
+import type { ContentItem } from "~/utils/content";
+import { ElectionBanner } from "~/components/ElectionBanner";
+import { Text } from "~/components/Themed";
 import {
-  buttons,
-  colors,
-  createHeaderStyles,
-  createSearchStyles,
-  createTabContainerStyles,
-  fontSize,
-  getTypeBadgeColor,
-  layout,
-  rd,
-  sp,
-  typography,
-  useTheme,
-} from "~/styles";
+  ContentCard,
+  Pill,
+  Pills,
+  SearchInput,
+  TabScreen,
+} from "~/components/ui";
+import { useUserAddress } from "~/hooks/useUserAddress";
+import { colors, fontBody, fontDisplay } from "~/styles";
 import { trpc } from "~/utils/api";
+import { toCardItem } from "~/utils/content";
+import { daysUntil, isWithinDays } from "~/utils/dates";
 
-interface ContentCard {
-  id: string;
-  title: string;
-  description: string;
-  type: "bill" | "government_content" | "court_case" | "general";
-  isAIGenerated: boolean;
-  thumbnailUrl?: string;
-  imageUri?: string;
-}
-
-const _TYPE_LABELS: Record<ContentCard["type"], string> = {
-  bill: "BILL",
-  government_content: "ORDER",
-  court_case: "CASE",
-  general: "NEWS",
-};
-
-const ContentCardComponent = ({
-  item,
-  theme,
-}: {
-  item: ContentCard;
-  theme: Theme;
-}) => {
-  const router = useRouter();
-
-  const getDisplayTitle = (title: string) => {
-    if (title.length <= 60) return title;
-    const truncated = title.substring(0, 57);
-    const lastSpace = truncated.lastIndexOf(" ");
-    return lastSpace > 40
-      ? truncated.substring(0, lastSpace) + "..."
-      : truncated + "...";
-  };
-
-  const getTitleFontSize = (len: number) => {
-    if (len < 40) return fontSize.xl;
-    if (len < 60) return fontSize.lg;
-    if (len < 80) return fontSize.base;
-    return fontSize.sm;
-  };
-
-  const typeLabel =
-    item.type === "bill"
-      ? "BILL"
-      : item.type === "government_content"
-        ? "ORDER"
-        : item.type === "court_case"
-          ? "CASE"
-          : "NEWS";
-
-  const typeBadgeColor = getTypeBadgeColor(item.type);
-
-  const displayTitle = getDisplayTitle(item.title);
-  const titleFontSize = getTitleFontSize(displayTitle.length);
-
-  return (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: theme.card }]}
-      onPress={() => router.push(`/article-detail?id=${item.id}`)}
-      activeOpacity={0.85}
-      testID="content-card"
-    >
-      {/* Left accent bar */}
-      <View style={[styles.cardAccent, { backgroundColor: typeBadgeColor }]} />
-
-      <View style={styles.cardBody}>
-        {/* Type badge */}
-        <View
-          style={[styles.typeBadge, { backgroundColor: typeBadgeColor + "22" }]}
-          testID="content-card-badge"
-        >
-          <Text style={[styles.typeBadgeText, { color: typeBadgeColor }]}>
-            {typeLabel}
-          </Text>
-        </View>
-
-        {/* Title */}
-        <Text
-          style={[
-            styles.cardTitle,
-            { color: theme.foreground, fontSize: titleFontSize },
-          ]}
-          testID="content-card-title"
-        >
-          {displayTitle}
-        </Text>
-
-        {/* Description */}
-        {item.description ? (
-          <Text
-            style={[styles.cardDescription, { color: theme.textSecondary }]}
-            numberOfLines={2}
-            testID="content-card-description"
-          >
-            {item.description}
-          </Text>
-        ) : null}
-
-        <Text style={[styles.readMore, { color: typeBadgeColor }]}>
-          Read More →
-        </Text>
-      </View>
-
-      {/* Thumbnail */}
-      {(item.imageUri ?? item.thumbnailUrl) ? (
-        <Image
-          style={styles.thumbnail}
-          source={{ uri: item.imageUri ?? item.thumbnailUrl }}
-          contentFit="cover"
-          transition={300}
-        />
-      ) : null}
-    </TouchableOpacity>
-  );
-};
-
-const TabButton = ({
-  title,
-  active,
-  onPress,
-  theme,
-}: {
-  title: string;
-  active: boolean;
-  onPress: () => void;
-  theme: Theme;
-}) => (
-  <TouchableOpacity
-    style={[
-      buttons.tab,
-      { borderRadius: 9999 },
-      active
-        ? { backgroundColor: theme.primary }
-        : {
-            backgroundColor: "transparent",
-            borderWidth: 1,
-            borderColor: colors.borderLight,
-          },
-    ]}
-    onPress={onPress}
-    activeOpacity={0.8}
-  >
-    <Text
-      style={[
-        buttons.tabText,
-        {
-          color: active ? theme.primaryForeground : theme.mutedForeground,
-          fontFamily: "AlbertSans-Medium",
-        },
-      ]}
-    >
-      {title}
-    </Text>
-  </TouchableOpacity>
-);
-
-const TAB_CONFIG: { key: VideoPost["type"] | "all"; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "bill", label: "Bills" },
-  { key: "court_case", label: "Cases" },
-  { key: "government_content", label: "Orders" },
+const FILTERS: { id: VideoPost["type"] | "all"; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "bill", label: "Bills" },
+  { id: "government_content", label: "Executive" },
+  { id: "court_case", label: "Courts" },
+  { id: "general", label: "Briefings" },
 ];
 
 export default function BrowseScreen() {
-  const insets = useSafeAreaInsets();
-  const { theme } = useTheme();
-  const [selectedTab, setSelectedTab] = useState<VideoPost["type"] | "all">(
-    "all",
+  const router = useRouter();
+  const [filter, setFilter] = useState<VideoPost["type"] | "all">("all");
+  const [query, setQuery] = useState("");
+
+  // Derive the banner from the user's actual location, not the nationwide
+  // election list (which surfaced out-of-state elections like "North Dakota
+  // Primary"). Use the address they set on the Elections tab — getVoterInfo
+  // returns the election relevant to that address. Banner stays hidden until
+  // an address is set.
+  const { address } = useUserAddress();
+  const voterInfoQuery = useQuery({
+    ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
+    enabled: !!address,
+  });
+  const election = voterInfoQuery.data?.election;
+  const upcomingElection =
+    election && isWithinDays(election.electionDay, 30) ? election : undefined;
+
+  const { data, isLoading, error } = useQuery(
+    trpc.content.getByType.queryOptions({ type: filter }),
   );
-  const [searchQuery, setSearchQuery] = useState("");
 
-  const {
-    data: content,
-    isLoading,
-    error,
-  } = useQuery(
-    trpc.content.getByType.queryOptions({
-      type: selectedTab,
-    }),
+  const fuse = useMemo(
+    () =>
+      data
+        ? new Fuse(data, { keys: ["title", "description"], threshold: 0.3 })
+        : null,
+    [data],
   );
 
-  const fuse = useMemo(() => {
-    if (!content) return null;
-    return new Fuse(content, {
-      keys: ["title", "description"],
-      threshold: 0.3,
-      includeScore: true,
-    });
-  }, [content]);
-
-  const filteredContent = useMemo(() => {
-    if (!content) return [];
-    if (!searchQuery.trim()) return content;
-    if (!fuse) return content;
-    return fuse.search(searchQuery).map((r) => r.item);
-  }, [content, searchQuery, fuse]);
-
-  const headerStyles = createHeaderStyles(theme, insets.top);
-  const searchStyles = createSearchStyles(theme);
-  const tabContainerStyles = createTabContainerStyles(theme);
+  const items = useMemo<ContentItem[]>(() => {
+    if (!data) return [];
+    if (!query.trim() || !fuse) return data as ContentItem[];
+    return fuse.search(query).map((r) => r.item) as ContentItem[];
+  }, [data, query, fuse]);
 
   return (
-    <View style={layout.container}>
-      <View style={headerStyles.container}>
-        <Text style={[headerStyles.title, { fontFamily: "IBMPlexSerif-Bold" }]}>
-          Browse
-        </Text>
-
-        <TextInput
-          style={searchStyles}
-          placeholder="Search bills, cases, orders…"
-          placeholderTextColor={theme.mutedForeground}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          clearButtonMode="while-editing"
-          returnKeyType="search"
-        />
-      </View>
-
-      {/* Filter tabs */}
-      <View style={tabContainerStyles}>
-        {TAB_CONFIG.map(({ key, label }) => (
-          <TabButton
-            key={key}
-            title={label}
-            active={selectedTab === key}
-            onPress={() => setSelectedTab(key)}
-            theme={theme}
+    <TabScreen
+      title="Browse"
+      headerExtra={
+        <>
+          <Text style={s.subtitle}>
+            What your government is <Text style={s.subtitleEm}>actually</Text>{" "}
+            doing.
+          </Text>
+          <SearchInput
+            placeholder="Search bills, cases, orders…"
+            value={query}
+            onChangeText={setQuery}
+            clearButtonMode="while-editing"
+            returnKeyType="search"
+            style={{ marginBottom: 16 }}
+          />
+        </>
+      }
+    >
+      <Pills>
+        {FILTERS.map((f) => (
+          <Pill
+            key={f.id}
+            label={f.label}
+            active={filter === f.id}
+            onPress={() => setFilter(f.id)}
           />
         ))}
-      </View>
+      </Pills>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
+      {upcomingElection && (
+        <ElectionBanner
+          daysUntil={daysUntil(upcomingElection.electionDay)}
+          electionName={upcomingElection.name}
+          onPress={() => router.push("/elections" as Href)}
+        />
+      )}
+
+      <View style={s.results}>
         {isLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.white} />
-          </View>
+          <ActivityIndicator
+            size="large"
+            color={colors.white}
+            style={{ marginTop: 48 }}
+          />
         ) : error ? (
-          <View style={styles.centerContainer}>
-            <Text style={[typography.bodySmall, { color: theme.danger }]}>
-              Unable to load content
-            </Text>
+          <View style={s.center}>
+            <Text style={s.errorText}>Unable to load content</Text>
           </View>
-        ) : filteredContent.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <Text style={[typography.h4, { color: theme.foreground }]}>
-              Nothing found
-            </Text>
-            <Text
-              style={[
-                typography.bodySmall,
-                { color: theme.mutedForeground, marginTop: sp[2] },
-              ]}
-            >
-              Try a different search or filter
-            </Text>
+        ) : items.length === 0 ? (
+          <View style={s.center}>
+            <Text style={s.emptyTitle}>Nothing found</Text>
+            <Text style={s.emptySub}>Try a different search or filter</Text>
           </View>
         ) : (
           <>
-            {searchQuery.trim() ? (
-              <Text
-                style={[styles.resultsText, { color: theme.textSecondary }]}
-              >
-                {filteredContent.length} result
-                {filteredContent.length !== 1 ? "s" : ""}
-              </Text>
-            ) : null}
-            {filteredContent.map((item: ContentCard) => (
-              <ContentCardComponent key={item.id} item={item} theme={theme} />
+            <Text style={s.resultsCount}>
+              {items.length} result{items.length === 1 ? "" : "s"} · sorted by
+              recent
+            </Text>
+            {items.map((item) => (
+              <ContentCard
+                key={item.id}
+                item={toCardItem(item)}
+                onPress={() => router.push(`/article-detail?id=${item.id}`)}
+              />
             ))}
-            {/* Bottom padding for tab bar */}
-            <View
-              style={styles.listFooter}
-              lightColor="transparent"
-              darkColor="transparent"
-            />
           </>
         )}
-      </ScrollView>
-    </View>
+      </View>
+    </TabScreen>
   );
 }
 
-const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: sp[5],
-    paddingTop: sp[4],
-  },
-
-  card: {
-    flexDirection: "row",
-    borderRadius: rd.lg,
-    marginBottom: sp[4],
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
-    minHeight: 110,
-  },
-  cardAccent: {
-    width: 3,
-  },
-  cardBody: {
-    flex: 1,
-    padding: sp[4],
-    gap: sp[2],
-  },
-  typeBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: sp[2],
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: sp[1],
-  },
-  typeBadgeText: {
-    fontSize: 11,
-    fontFamily: "AlbertSans-Bold",
-    letterSpacing: 0.5,
-  },
-  cardTitle: {
-    fontFamily: "InriaSerif-Bold",
-    lineHeight: 22,
-  },
-  cardDescription: {
-    fontSize: fontSize.sm,
+const s = StyleSheet.create({
+  subtitle: {
     fontFamily: "AlbertSans-Regular",
-    lineHeight: 18,
+    fontSize: 14.5,
+    color: colors.textSecondary,
+    marginTop: 4,
+    marginBottom: 18,
   },
-  readMore: {
-    fontSize: fontSize.sm,
+  subtitleEm: {
+    fontFamily: fontDisplay.italic,
+    fontStyle: "italic",
+    color: "rgba(255,255,255,0.85)",
+  },
+  results: { paddingHorizontal: 20, paddingTop: 18, gap: 12 },
+  resultsCount: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: colors.textSecondary,
+  },
+  center: { alignItems: "center", paddingVertical: 64, gap: 8 },
+  errorText: {
     fontFamily: "AlbertSans-Medium",
-    marginTop: sp[1],
+    fontSize: 16,
+    color: colors.red[500],
   },
-  thumbnail: {
-    width: 80,
-    height: "100%" as unknown as number,
+  emptyTitle: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 18,
+    color: colors.white,
   },
-
-  centerContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: sp[16],
-    gap: sp[2],
-  },
-  resultsText: {
-    fontSize: fontSize.sm,
+  emptySub: {
     fontFamily: "AlbertSans-Medium",
-    marginBottom: sp[3],
-  },
-  listFooter: {
-    height: sp[8],
+    fontSize: 14,
+    color: colors.textSecondary,
   },
 });

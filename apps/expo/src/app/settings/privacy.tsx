@@ -1,254 +1,159 @@
-/**
- * Privacy Settings screen — settings sub-page
- *
- * MOCK DATA / TODO:
- * - TODO: Load initial toggle states from tRPC (trpc.user.preferences.get)
- * - TODO: Persist each toggle via tRPC mutation (trpc.user.preferences.setPrivacy)
- * - TODO: "Download My Data" should trigger a GDPR/CCPA data export request via tRPC
- * - TODO: Location-Based Content toggle should request device location permission when enabled
- * - TODO: Analytics toggle should integrate with analytics SDK opt-in/out (e.g. Amplitude, PostHog)
- */
-
 import { useState } from "react";
-import { ScrollView, StyleSheet, Switch, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, View } from "react-native";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { Text, View } from "~/components/Themed";
-import { colors, fonts, rd, sp, useTheme } from "~/styles";
+import type { IconName } from "~/components/ui";
+import { Text } from "~/components/Themed";
+import { Card, GhostButton, Icon, ScreenShell, Toggle } from "~/components/ui";
+import { colors, fontBody, hair, planes } from "~/styles";
+import { queryClient, trpc } from "~/utils/api";
 
-interface ToggleRow {
-  id: string;
-  label: string;
-  description: string;
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-}
+type Key = "location" | "personalize" | "analytics" | "crash" | "offline";
 
-const PRIVACY_TOGGLES: ToggleRow[] = [
+const ROWS: { k: Key; icon: IconName; label: string; sub: string }[] = [
   {
-    id: "analytics",
-    label: "Usage Analytics",
-    description: "Help improve the app by sharing anonymous usage data.",
-    icon: "analytics-outline",
+    k: "location",
+    icon: "pin",
+    label: "Location access",
+    sub: "Used only to load your local ballot",
   },
   {
-    id: "personalization",
-    label: "Personalized Feed",
-    description: "Allow us to use your reading history to tailor content.",
-    icon: "sparkles-outline",
+    k: "personalize",
+    icon: "sliders",
+    label: "Personalized feed",
+    sub: "Tailor content to your interests",
   },
   {
-    id: "location",
-    label: "Location-Based Content",
-    description: "Show content relevant to your state and district.",
-    icon: "location-outline",
+    k: "analytics",
+    icon: "layers",
+    label: "Usage analytics",
+    sub: "Share anonymous app usage",
   },
   {
-    id: "crash",
-    label: "Crash Reports",
-    description: "Automatically send crash reports to help fix bugs.",
-    icon: "bug-outline",
+    k: "crash",
+    icon: "shield",
+    label: "Crash reports",
+    sub: "Send diagnostics automatically",
+  },
+  {
+    k: "offline",
+    icon: "download",
+    label: "Offline downloads",
+    sub: "Save articles for offline reading",
   },
 ];
 
+const DEFAULTS: Record<Key, boolean> = {
+  location: true,
+  personalize: true,
+  analytics: false,
+  crash: true,
+  offline: true,
+};
+
 export default function PrivacyScreen() {
-  const router = useRouter();
-  const { theme } = useTheme();
-  const [toggles, setToggles] = useState<Record<string, boolean>>({
-    analytics: false,
-    personalization: true,
-    location: true,
-    crash: true,
+  const settingsQuery = useQuery(trpc.user.getSettings.queryOptions());
+  const updateMutation = useMutation({
+    ...trpc.user.updateSettings.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.getSettings.queryKey(),
+      });
+    },
   });
 
-  const set = (id: string, value: boolean) =>
-    setToggles((prev) => ({ ...prev, [id]: value }));
+  const [state, setState] = useState<Record<Key, boolean>>(DEFAULTS);
+  const [synced, setSynced] = useState(false);
+
+  if (settingsQuery.data && !synced) {
+    setState({
+      location: settingsQuery.data.location,
+      personalize: settingsQuery.data.personalize,
+      analytics: settingsQuery.data.analytics,
+      crash: settingsQuery.data.crash,
+      offline: settingsQuery.data.offline,
+    });
+    setSynced(true);
+  }
+
+  const toggle = (k: Key) => {
+    const newVal = !state[k];
+    setState((p) => ({ ...p, [k]: newVal }));
+    updateMutation.mutate({ [k]: newVal });
+  };
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={["top"]}
-    >
-      <View
-        style={[
-          styles.header,
-          {
-            borderBottomColor: theme.border,
-            backgroundColor: theme.background,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>
-          Privacy Settings
+    <ScreenShell title="Privacy">
+      <View style={s.notice}>
+        <Icon name="lock" size={20} color={colors.green[500]} />
+        <Text style={s.noticeText}>
+          Your reading history never leaves your device. You control everything
+          below.
         </Text>
-        <View
-          style={{ width: 44 }}
-          lightColor="transparent"
-          darkColor="transparent"
-        />
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.intro, { color: theme.textSecondary }]}>
-          Control how Billion uses your data. We never sell personal
-          information.
-        </Text>
-
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-          DATA & PERSONALIZATION
-        </Text>
-        <View
-          style={[
-            styles.section,
-            { backgroundColor: theme.card, borderColor: theme.border },
-          ]}
-          lightColor={theme.card}
-          darkColor={theme.card}
-        >
-          {PRIVACY_TOGGLES.map((row, i) => (
-            <View
-              key={row.id}
-              style={[
-                styles.row,
-                i < PRIVACY_TOGGLES.length - 1 && {
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.border,
-                },
-              ]}
-              lightColor="transparent"
-              darkColor="transparent"
-            >
-              <Ionicons
-                name={row.icon}
-                size={18}
-                color={theme.mutedForeground}
-                style={{ marginRight: sp[3] }}
-              />
-              <View
-                style={styles.rowText}
-                lightColor="transparent"
-                darkColor="transparent"
-              >
-                <Text style={[styles.rowLabel, { color: theme.foreground }]}>
-                  {row.label}
-                </Text>
-                <Text style={[styles.rowDesc, { color: theme.textSecondary }]}>
-                  {row.description}
-                </Text>
-              </View>
-              <Switch
-                value={toggles[row.id]}
-                onValueChange={(v) => set(row.id, v)}
-                trackColor={{ false: theme.muted, true: colors.civicBlue }}
-                thumbColor={colors.white}
-              />
+      <Card flush>
+        {ROWS.map((r, i) => (
+          <View key={r.k} style={[s.row, i < ROWS.length - 1 && s.divider]}>
+            <View style={s.tile}>
+              <Icon name={r.icon} size={18} color={colors.white} />
             </View>
-          ))}
-        </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.label}>{r.label}</Text>
+              <Text style={s.sub}>{r.sub}</Text>
+            </View>
+            <Toggle on={state[r.k]} onChange={() => toggle(r.k)} />
+          </View>
+        ))}
+      </Card>
 
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-          ACCOUNT
-        </Text>
-        <View
-          style={[
-            styles.section,
-            { backgroundColor: theme.card, borderColor: theme.border },
-          ]}
-          lightColor={theme.card}
-          darkColor={theme.card}
-        >
-          <TouchableOpacity style={styles.linkRow}>
-            <Text style={[styles.linkLabel, { color: theme.foreground }]}>
-              Download My Data
-            </Text>
-            <Ionicons
-              name="download-outline"
-              size={18}
-              color={theme.mutedForeground}
-            />
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <GhostButton
+        label="Download my data"
+        style={{ marginTop: 20, alignSelf: "flex-start" }}
+      />
+    </ScreenShell>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
+const s = StyleSheet.create({
+  notice: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[4],
-    borderBottomWidth: 1,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    flex: 1,
-    textAlign: "center",
-    fontFamily: fonts.bodySemibold,
-    fontSize: 16,
-  },
-  scroll: { flex: 1, paddingHorizontal: sp[5] },
-  intro: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: sp[5],
-    marginBottom: sp[6],
-  },
-  sectionLabel: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    marginBottom: sp[2],
-    marginTop: sp[2],
-  },
-  section: {
-    borderRadius: rd.lg,
+    gap: 11,
+    backgroundColor: planes.surface,
     borderWidth: 1,
-    marginBottom: sp[6],
-    overflow: "hidden",
+    borderColor: hair[2],
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 22,
+  },
+  noticeText: {
+    flex: 1,
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 13.5,
+    color: "rgba(255,255,255,0.78)",
+    lineHeight: 20,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[4],
+    gap: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
   },
-  rowText: { flex: 1, marginRight: sp[4] },
-  rowLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 14,
-    marginBottom: sp[1],
-  },
-  rowDesc: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  linkRow: {
-    flexDirection: "row",
+  divider: { borderBottomWidth: 1, borderBottomColor: hair[1] },
+  tile: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: planes.surface,
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[4],
+    justifyContent: "center",
   },
-  linkLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 14,
+  label: { fontFamily: fontBody.semibold, fontSize: 14.5, color: colors.white },
+  sub: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
 });

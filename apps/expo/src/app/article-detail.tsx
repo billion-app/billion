@@ -2,67 +2,62 @@ import type { RenderRules } from "@ronradtke/react-native-markdown-display";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Linking,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "@ronradtke/react-native-markdown-display";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { AIDisclaimerBanner } from "~/components/AIDisclaimerBanner";
-import { Text, View } from "~/components/Themed";
-// import { WireframeWave } from "~/components/WireframeWave";
+import { Text } from "~/components/Themed";
 import {
-  badges,
-  buttons,
-  cards,
+  Badge,
+  Card,
+  GhostButton,
+  Icon,
+  Kicker,
+  LensPanel,
+  NavHeader,
+  Placeholder,
+  PrimaryButton,
+  Segmented,
+} from "~/components/ui";
+import {
   colors,
-  createTabContainerStyles,
+  contentType,
+  fontBody,
+  fontDisplay,
   getMarkdownStyles,
-  getTypeBadgeColor,
-  layout,
-  rd,
-  sp,
-  typography,
+  hair,
+  planes,
+  resolveType,
   useTheme,
 } from "~/styles";
-import { trpc } from "~/utils/api";
+import { queryClient, trpc } from "~/utils/api";
+import { authClient } from "~/utils/auth";
 
-const TabButton = ({
-  title,
-  active,
-  onPress,
-}: {
-  title: string;
-  active: boolean;
-  onPress: () => void;
-}) => (
-  <TouchableOpacity
-    style={[
-      buttons.tab,
-      localStyles.tabButton,
-      active
-        ? { backgroundColor: colors.white }
-        : { backgroundColor: "transparent" },
-    ]}
-    onPress={onPress}
-    activeOpacity={0.85}
-  >
-    <Text
-      style={[
-        localStyles.tabButtonText,
-        { color: active ? colors.black : colors.white },
-      ]}
-    >
-      {title}
-    </Text>
-  </TouchableOpacity>
-);
+// TODO(backend): real per-side framing per content item.
+const PLACEHOLDER_LENS = {
+  left: {
+    stance: "Supporters argue",
+    points: [
+      "Frames this as closing a long-standing gap",
+      "Point to broad public benefit",
+    ],
+  },
+  right: {
+    stance: "Critics counter",
+    points: [
+      "Question the cost and scope",
+      "Prefer a narrower, state-led approach",
+    ],
+  },
+};
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
@@ -70,11 +65,7 @@ export default function ArticleDetailScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  const [selectedTab, setSelectedTab] = useState<"article" | "original">(
-    "article",
-  );
-
-  // Fetch content from tRPC
+  const [mode, setMode] = useState<"explainer" | "source">("explainer");
 
   const {
     data: content,
@@ -85,72 +76,80 @@ export default function ArticleDetailScreen() {
     enabled: !!articleId,
   });
 
-  // Handle loading state
+  // isArticleSaved is a protected procedure — only query it when signed in,
+  // otherwise it throws UNAUTHORIZED.
+  const { data: session } = authClient.useSession();
+  const isSignedIn = !!session?.user;
+
+  const savedQuery = useQuery({
+    ...trpc.user.isArticleSaved.queryOptions({ contentId: articleId ?? "" }),
+    enabled: !!articleId && isSignedIn,
+  });
+  const saved = savedQuery.data?.saved ?? false;
+
+  const saveMutation = useMutation({
+    ...trpc.user.saveArticle.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.isArticleSaved.queryKey({
+          contentId: articleId ?? "",
+        }),
+      });
+    },
+  });
+  const unsaveMutation = useMutation({
+    ...trpc.user.unsaveArticle.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.isArticleSaved.queryKey({
+          contentId: articleId ?? "",
+        }),
+      });
+    },
+  });
+
+  const toggleSave = () => {
+    if (!articleId || !content) return;
+    if (!isSignedIn) {
+      Alert.alert(
+        "Sign in to save",
+        "Sign in to bookmark and revisit content.",
+      );
+      return;
+    }
+    if (saved) {
+      unsaveMutation.mutate({ contentId: articleId });
+    } else {
+      saveMutation.mutate({ contentId: articleId, contentType: content.type });
+    }
+  };
 
   if (isLoading) {
     return (
-      <>
-        <Stack.Screen
-          options={{
-            title: "Loading...",
-            headerBackTitle: "Back",
-          }}
-        />
-        <View
-          style={[layout.fullCenter, { backgroundColor: theme.background }]}
-        >
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text
-            style={[localStyles.loadingText, { color: theme.textSecondary }]}
-          >
-            Loading content...
-          </Text>
-        </View>
-      </>
+      <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
+        <ActivityIndicator size="large" color={colors.white} />
+        <Text style={s.loadingText}>Loading content…</Text>
+      </View>
     );
   }
 
-  // Handle error state
   if (error || !content) {
     return (
-      <>
-        <Stack.Screen
-          options={{
-            title: "Error",
-            headerBackTitle: "Back",
-          }}
+      <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
+        <Text style={s.errorTitle}>
+          {error ? "Failed to load content" : "Content not found"}
+        </Text>
+        <PrimaryButton
+          label="Go Back"
+          onPress={() => router.back()}
+          style={{ width: 160, marginTop: 16 }}
         />
-        <View
-          style={[
-            localStyles.errorContainer,
-            { backgroundColor: theme.background },
-          ]}
-        >
-          <Text style={[typography.h4, { color: theme.danger }]}>
-            {error ? "Failed to load content" : "Content not found"}
-          </Text>
-          <TouchableOpacity
-            style={[
-              localStyles.errorButton,
-              { backgroundColor: theme.primary },
-            ]}
-            onPress={() => router.back()}
-          >
-            <Text
-              style={[
-                localStyles.errorButtonText,
-                { color: theme.primaryForeground },
-              ]}
-            >
-              Go Back
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </>
+      </View>
     );
   }
 
-  const tabContainerStyles = createTabContainerStyles(theme);
+  const typeKey = resolveType(content.type);
+  const t = contentType[typeKey];
   const markdownStyles = getMarkdownStyles(theme);
   const markdownRules: RenderRules = {
     image: (
@@ -167,15 +166,13 @@ export default function ArticleDetailScreen() {
       const show = allowedImageHandlers.some((value: string) =>
         src.toLowerCase().startsWith(value.toLowerCase()),
       );
-      if (!show && defaultImageHandler === null) {
-        return null;
-      }
+      if (!show && defaultImageHandler === null) return null;
       const imageUri = show ? src : `${defaultImageHandler}${src}`;
       return (
         <Image
           key={node.key}
           source={{ uri: imageUri }}
-          style={[styles._VIEW_SAFE_image, localStyles.markdownImage]}
+          style={[styles._VIEW_SAFE_image, s.markdownImage]}
           contentFit="contain"
           transition={200}
           accessible={!!alt}
@@ -187,22 +184,18 @@ export default function ArticleDetailScreen() {
   };
 
   const handleOpenOriginal = async () => {
-    if (content.url) {
-      try {
-        const canOpen = await Linking.canOpenURL(content.url);
-        if (canOpen) {
-          await Linking.openURL(content.url);
-        }
-      } catch (openError) {
-        console.error("Error opening URL:", openError);
+    if (!content.url) return;
+    try {
+      if (await Linking.canOpenURL(content.url)) {
+        await Linking.openURL(content.url);
       }
+    } catch (e) {
+      console.error("Error opening URL:", e);
     }
   };
 
   const activeContent =
-    selectedTab === "article"
-      ? content.articleContent
-      : content.originalContent;
+    mode === "explainer" ? content.articleContent : content.originalContent;
   const looksLikeMarkdown =
     /^#{1,6}\s/m.test(activeContent) ||
     /\[[^\]]+\]\((https?:\/\/|\/)/.test(activeContent) ||
@@ -210,231 +203,280 @@ export default function ArticleDetailScreen() {
     /(^|\n)>\s/m.test(activeContent) ||
     /!\[[^\]]*\]\(/.test(activeContent) ||
     activeContent.includes("```");
-  const shouldRenderMarkdown =
+  const renderMarkdown =
     activeContent.length <= 20000 &&
     (content.isAIGenerated || looksLikeMarkdown);
 
+  const actions =
+    "actions" in content
+      ? (content.actions as { date: string; text: string }[])
+      : [];
+  const timeline =
+    actions.length > 0
+      ? actions
+          .slice()
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .map((a, i, arr) => ({
+            label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
+            done: true,
+            current: i === arr.length - 1,
+          }))
+      : [
+          { label: "Introduced", done: true, current: false },
+          { label: "Committee review", done: true, current: false },
+          { label: "Latest action", done: true, current: true },
+          { label: "Becomes law", done: false, current: false },
+        ];
+
   return (
-    <>
-      <SafeAreaView style={layout.container} edges={["top"]}>
-        {/* Wireframe wave background */}
-        {/*<WireframeWave />*/}
-
-        <View
-          style={[
-            tabContainerStyles,
-            { borderBottomColor: theme.border, alignItems: "center" },
-          ]}
-        >
-          {/* Close button — left of tabs, 44×44 touch target, no background */}
-          <TouchableOpacity
-            style={localStyles.closeButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="close" size={22} color={colors.white} />
+    <View style={s.screen}>
+      <NavHeader
+        title={t.label}
+        onBack={() => router.back()}
+        action={
+          <TouchableOpacity onPress={toggleSave} hitSlop={8}>
+            <Icon
+              name={saved ? "bookmarkFill" : "bookmark"}
+              size={21}
+              color={saved ? colors.white : colors.textSecondary}
+            />
           </TouchableOpacity>
+        }
+      />
 
-          <TabButton
-            title="Article"
-            active={selectedTab === "article"}
-            onPress={() => setSelectedTab("article")}
-          />
-          <TabButton
-            title="Original"
-            active={selectedTab === "original"}
-            onPress={() => setSelectedTab("original")}
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Placeholder
+          label={`${t.label.toLowerCase()} · header art`}
+          height={170}
+          radius={16}
+          style={{ marginBottom: 18 }}
+        />
+
+        <View style={s.badgeRow}>
+          <Badge type={typeKey} />
+        </View>
+
+        <Text style={s.title}>{content.title}</Text>
+
+        {content.description ? (
+          <Text style={s.desc}>{content.description}</Text>
+        ) : null}
+
+        {/* explainer / source toggle */}
+        <View style={{ marginTop: 18, marginBottom: 18 }}>
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            options={[
+              { id: "explainer", label: "Plain explainer", icon: "sparkle" },
+              { id: "source", label: "Original text", icon: "doc" },
+            ]}
           />
         </View>
 
-        <ScrollView
-          style={layout.scrollView}
-          contentContainerStyle={localStyles.scrollViewContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Type badge */}
-          {(() => {
-            const typeLabel =
-              content.type === "bill"
-                ? "BILL"
-                : content.type === "government_content"
-                  ? "ORDER"
-                  : "CASE";
-
-            const badgeColor = getTypeBadgeColor(content.type);
-            return (
-              <View
-                style={[badges.base, { backgroundColor: badgeColor + "22" }]}
-                lightColor="transparent"
-                darkColor="transparent"
-              >
-                <Text
-                  style={[
-                    badges.text,
-                    { color: badgeColor, fontFamily: "AlbertSans-Bold" },
-                  ]}
-                >
-                  {typeLabel}
-                </Text>
-              </View>
-            );
-          })()}
-
-          {/* Article title */}
-          <Text
-            style={[
-              typography.h1,
-              localStyles.articleTitle,
-              { color: theme.foreground, fontFamily: "IBMPlexSerif-Bold" },
-            ]}
-          >
-            {content.title}
-          </Text>
-
-          {/* Short description */}
-          <Text
-            style={[
-              typography.bodySmall,
-              localStyles.articleDescription,
-              { color: theme.textSecondary },
-            ]}
-          >
-            {content.description}
-          </Text>
-
-          {/* AI Disclaimer Banner - shown only on Article tab */}
-          {selectedTab === "article" && (
-            <AIDisclaimerBanner style={{ marginBottom: sp[4] }} />
-          )}
-
-          {/* Show "View Original" button in Original tab */}
-          {selectedTab === "original" && content.url && (
-            <TouchableOpacity
-              style={[
-                localStyles.viewOriginalButton,
-                { backgroundColor: theme.primary },
-              ]}
-              onPress={handleOpenOriginal}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="open-outline"
-                size={20}
-                color={theme.primaryForeground}
-                style={{ marginRight: sp[2] }}
-              />
-              <Text
-                style={[
-                  typography.bodySmall,
-                  { color: theme.primaryForeground, fontWeight: "600" },
-                ]}
-              >
-                View on Original Site
+        {mode === "explainer" && (
+          <View style={s.disclaimer}>
+            <Icon name="sparkle" size={17} color={t.color} />
+            <Text style={s.disclaimerText}>
+              Explained by Billion AI from the official text.{" "}
+              <Text style={s.disclaimerEm}>
+                Always verify against the source below.
               </Text>
-            </TouchableOpacity>
-          )}
-
-          <View
-            style={[
-              cards.content,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-                marginTop: sp[5],
-                marginBottom: sp[20],
-              },
-            ]}
-          >
-            {shouldRenderMarkdown ? (
-              <Markdown style={markdownStyles} rules={markdownRules}>
-                {activeContent}
-              </Markdown>
-            ) : (
-              <Text
-                style={[
-                  typography.body,
-                  localStyles.plainTextContent,
-                  { color: theme.foreground },
-                ]}
-              >
-                {activeContent}
-              </Text>
-            )}
+            </Text>
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </>
+        )}
+
+        {mode === "source" && content.url && (
+          <PrimaryButton
+            label="View on Original Site"
+            icon="external"
+            onPress={handleOpenOriginal}
+            style={{ marginBottom: 18 }}
+          />
+        )}
+
+        <View style={mode === "source" ? s.sourcePanel : undefined}>
+          {renderMarkdown ? (
+            <Markdown style={markdownStyles} rules={markdownRules}>
+              {activeContent}
+            </Markdown>
+          ) : (
+            <Text style={s.plainText}>{activeContent}</Text>
+          )}
+        </View>
+
+        {/* Dual-Lens — signature */}
+        <View style={{ marginVertical: 24 }}>
+          <LensPanel data={PLACEHOLDER_LENS} />
+        </View>
+
+        {/* timeline */}
+        <Kicker>Where it stands</Kicker>
+        <Card style={{ marginBottom: 24 }}>
+          {timeline.map((step, i) => (
+            <View key={i} style={s.timelineRow}>
+              <View style={s.timelineMarker}>
+                <View
+                  style={[
+                    s.timelineDot,
+                    {
+                      borderColor: step.done ? t.color : hair[3],
+                      backgroundColor: step.current ? t.color : "transparent",
+                    },
+                  ]}
+                />
+                {i < timeline.length - 1 && (
+                  <View
+                    style={[
+                      s.timelineLine,
+                      { backgroundColor: step.done ? t.color : hair[2] },
+                    ]}
+                  />
+                )}
+              </View>
+              <Text
+                style={[
+                  s.timelineLabel,
+                  {
+                    color: step.done ? colors.white : colors.textSecondary,
+                    fontFamily: step.current ? fontBody.bold : fontBody.medium,
+                  },
+                ]}
+              >
+                {step.label}
+              </Text>
+            </View>
+          ))}
+        </Card>
+
+        {/* dig-deeper exit */}
+        <View style={s.exit}>
+          <Text style={s.exitTitle}>Don&apos;t take our word for it.</Text>
+          <Text style={s.exitSub}>
+            Read the full, unedited text and track every action on the official
+            record.
+          </Text>
+          <PrimaryButton
+            label="Open the source"
+            icon="external"
+            onPress={handleOpenOriginal}
+          />
+          <GhostButton
+            label="View all related records"
+            onPress={handleOpenOriginal}
+            style={{ width: "100%", marginTop: 6 }}
+          />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-const localStyles = StyleSheet.create({
-  loadingText: {
-    marginTop: sp[4],
-  },
-  errorContainer: {
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: planes.navy },
+  fullCenter: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: sp[5],
+    padding: 20,
   },
-  errorButton: {
-    borderRadius: rd.full,
-    paddingHorizontal: sp[8],
-    paddingVertical: sp[3],
-    marginTop: sp[4],
-    minHeight: 48,
+  loadingText: {
+    fontFamily: "AlbertSans-Regular",
+    marginTop: 16,
+    color: colors.textSecondary,
   },
-  errorButtonText: {
-    fontFamily: "AlbertSans_600SemiBold",
-    fontSize: 16,
+  errorTitle: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 18,
+    color: colors.red[500],
   },
-  tabButton: {
-    borderRadius: rd.full,
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    marginBottom: 14,
   },
-  tabButtonText: {
-    fontFamily: "AlbertSans_500Medium",
-    fontSize: 16,
-    textAlign: "center",
+  title: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 30,
+    color: colors.white,
+    marginBottom: 16,
+    lineHeight: 34,
   },
-  scrollViewContent: {
-    padding: sp[5],
-    paddingBottom: sp[10],
+  desc: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 22,
   },
-  articleTitle: {
-    marginBottom: sp[3],
-    marginTop: sp[4],
+  disclaimer: {
+    flexDirection: "row",
+    gap: 9,
+    backgroundColor: planes.surface,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    marginBottom: 18,
   },
-  articleDescription: {
-    marginBottom: sp[4],
+  disclaimerText: {
+    flex: 1,
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 12.5,
+    color: "rgba(255,255,255,0.7)",
+    lineHeight: 18,
   },
-  plainTextContent: {
-    lineHeight: sp[6],
+  disclaimerEm: { color: colors.white, fontFamily: fontBody.semibold },
+  sourcePanel: {
+    backgroundColor: planes.ink,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 14,
+    padding: 18,
+  },
+  plainText: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 16.5,
+    lineHeight: 27,
+    color: "rgba(255,255,255,0.88)",
+  },
+  timelineRow: { flexDirection: "row", gap: 12 },
+  timelineMarker: { alignItems: "center" },
+  timelineDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
+  timelineLine: { width: 2, flex: 1, minHeight: 22 },
+  timelineLabel: { fontSize: 14, paddingBottom: 14 },
+  exit: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 16,
+    padding: 20,
+  },
+  exitTitle: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 18,
+    color: colors.white,
+    marginBottom: 6,
+  },
+  exitSub: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   markdownImage: {
     width: "100%",
     minHeight: 180,
     maxHeight: 320,
-    marginVertical: sp[3],
+    marginVertical: 12,
     alignSelf: "center",
-  },
-  // White pill button — brand signature for primary CTAs
-  viewOriginalButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: sp[3],
-    paddingHorizontal: sp[6],
-    borderRadius: rd.full,
-    marginTop: sp[4],
-    minHeight: 48,
-  },
-  // Close button — inline left of tabs, 44×44 touch target, no background
-  closeButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: sp[1],
   },
 });

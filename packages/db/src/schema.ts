@@ -58,6 +58,10 @@ export const Bill = pgTable(
         { url: string; alt: string; source: string; sourceUrl: string }[]
       >()
       .default([]), // Array of relevant images for the article
+    actions: t
+      .jsonb()
+      .$type<{ date: string; text: string; type?: string }[]>()
+      .default([]),
     url: t.text().notNull(),
     sourceWebsite: t.varchar({ length: 50 }).notNull(), // "congress.gov"
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
@@ -214,5 +218,390 @@ export const CreateVideoSchema = createInsertSchema(Video).omit({
   createdAt: true,
   updatedAt: true,
 });
+
+// Elections table — persists scraped election data from Google Civic, VOTE411, etc.
+export const ElectionRecord = pgTable(
+  "election",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    externalId: t.varchar({ length: 100 }),
+    name: t.text().notNull(),
+    date: t.varchar({ length: 20 }).notNull(),
+    electionType: t.varchar({ length: 20 }).notNull(),
+    ocdDivisionId: t.text(),
+    source: t.varchar({ length: 50 }).notNull(),
+    deadlines: t
+      .jsonb()
+      .$type<{ date: string; description: string; type: string }[]>()
+      .default([]),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueElection: unique().on(table.externalId, table.source),
+  }),
+);
+
+// Role descriptions — reusable across elections, keyed by (role, level)
+export const RoleDescriptionRecord = pgTable(
+  "role_description",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    role: t.varchar({ length: 50 }).notNull(),
+    level: t.varchar({ length: 50 }),
+    description: t.text().notNull(),
+    source: t.varchar({ length: 20 }).notNull().default("seed"),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueRoleLevel: unique().on(table.role, table.level),
+  }),
+);
+
+// Contests / races within an election
+export const ContestRecord = pgTable(
+  "contest",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    electionId: t.uuid().notNull(),
+    office: t.text(),
+    districtName: t.text(),
+    districtScope: t.varchar({ length: 50 }),
+    numberElected: t.integer().default(1),
+    // Referendum fields (for ballot measures)
+    referendumTitle: t.text(),
+    referendumSubtitle: t.text(),
+    referendumText: t.text(),
+    referendumProStatement: t.text(),
+    referendumConStatement: t.text(),
+    referendumUrl: t.text(),
+    type: t.varchar({ length: 20 }).notNull(), // "candidate" | "referendum"
+    roleDescription: t.text(),
+    summary: t.text(),
+    // True when `summary` was AI-generated rather than from an official source.
+    summaryIsAiGenerated: t.boolean().default(false),
+    // Official fiscal impact analysis (LAO / county registrar).
+    fiscalImpact: t.text(),
+    // Per-field source attribution from the cross-validation engine.
+    citations: t
+      .jsonb()
+      .$type<
+        {
+          field: string;
+          sourceName: string;
+          sourceUrl?: string;
+          tier: string;
+          official: boolean;
+        }[]
+      >()
+      .default([]),
+    source: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    electionIdx: index("contest_election_id_idx").on(table.electionId),
+  }),
+);
+
+// Candidates within a contest
+export const CandidateRecord = pgTable(
+  "candidate",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contestId: t.uuid().notNull(),
+    name: t.text().notNull(),
+    party: t.varchar({ length: 100 }),
+    candidateUrl: t.text(),
+    photoUrl: t.text(),
+    email: t.text(),
+    phone: t.varchar({ length: 50 }),
+    incumbent: t.boolean().default(false),
+    biography: t.text(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    contestIdx: index("candidate_contest_id_idx").on(table.contestId),
+  }),
+);
+
+// Polling locations / drop boxes / early vote sites
+export const PollingLocationRecord = pgTable(
+  "polling_location",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    electionId: t.uuid(),
+    name: t.text(),
+    addressLine1: t.text().notNull(),
+    addressLine2: t.text(),
+    city: t.text().notNull(),
+    state: t.varchar({ length: 2 }).notNull(),
+    zip: t.varchar({ length: 10 }).notNull(),
+    hours: t.text(),
+    latitude: t.doublePrecision(),
+    longitude: t.doublePrecision(),
+    locationType: t.varchar({ length: 20 }).notNull(), // "polling_place" | "early_vote" | "drop_box"
+    voterServices: t.jsonb().$type<string[]>().default([]),
+    startDate: t.varchar({ length: 20 }),
+    endDate: t.varchar({ length: 20 }),
+    source: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    electionIdx: index("polling_location_election_id_idx").on(table.electionId),
+  }),
+);
+
+// Saved/bookmarked articles per user
+export const SavedArticle = pgTable(
+  "saved_article",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text().notNull(),
+    contentId: t.uuid().notNull(),
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueSave: unique().on(table.userId, table.contentId),
+    userIdx: index("saved_article_user_id_idx").on(table.userId),
+  }),
+);
+
+// User preferences for content interests (topics + content types)
+export const UserPreference = pgTable(
+  "user_preference",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text().notNull(),
+    topics: t.jsonb().$type<string[]>().default([]).notNull(),
+    contentTypes: t.jsonb().$type<string[]>().default([]).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueUser: unique().on(table.userId),
+  }),
+);
+
+// Blocked content (sources and topics hidden from feed)
+export const BlockedContent = pgTable(
+  "blocked_content",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text().notNull(),
+    name: t.text().notNull(),
+    type: t.varchar({ length: 20 }).notNull(), // "source" | "topic"
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueBlock: unique().on(table.userId, table.name, table.type),
+    userIdIndex: index("blocked_content_user_id_idx").on(table.userId),
+  }),
+);
+
+// User privacy/app settings
+export const UserSettings = pgTable(
+  "user_settings",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text().notNull(),
+    location: t.boolean().notNull().default(true),
+    personalize: t.boolean().notNull().default(true),
+    analytics: t.boolean().notNull().default(false),
+    crash: t.boolean().notNull().default(true),
+    offline: t.boolean().notNull().default(true),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueUser: unique().on(table.userId),
+  }),
+);
+
+// Legistar local government data cache tables
+
+export const LegistarBody = pgTable(
+  "legistar_body",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    jurisdiction: t.varchar({ length: 50 }).notNull(),
+    bodyId: t.integer().notNull(),
+    bodyGuid: t.varchar({ length: 100 }),
+    name: t.text().notNull(),
+    typeName: t.varchar({ length: 100 }),
+    activeFlag: t.boolean().default(true),
+    numberOfMembers: t.integer(),
+    description: t.text(),
+    contactName: t.varchar({ length: 256 }),
+    contactEmail: t.varchar({ length: 256 }),
+    contactPhone: t.varchar({ length: 50 }),
+    fetchedAt: t.timestamp().defaultNow().notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueBody: unique().on(table.jurisdiction, table.bodyId),
+  }),
+);
+
+export const LegistarMatter = pgTable(
+  "legistar_matter",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    jurisdiction: t.varchar({ length: 50 }).notNull(),
+    matterId: t.integer().notNull(),
+    matterGuid: t.varchar({ length: 100 }),
+    matterFile: t.varchar({ length: 100 }),
+    title: t.text().notNull(),
+    name: t.text(),
+    typeName: t.varchar({ length: 100 }),
+    statusName: t.varchar({ length: 100 }),
+    bodyName: t.varchar({ length: 256 }),
+    bodyId: t.integer(),
+    introDate: t.timestamp(),
+    agendaDate: t.timestamp(),
+    passedDate: t.timestamp(),
+    enactmentDate: t.timestamp(),
+    enactmentNumber: t.varchar({ length: 100 }),
+    requester: t.text(),
+    notes: t.text(),
+    lastModifiedUtc: t.timestamp().notNull(),
+    fetchedAt: t.timestamp().defaultNow().notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueMatter: unique().on(table.jurisdiction, table.matterId),
+    matterFileIdx: index("legistar_matter_file_idx").on(table.matterFile),
+  }),
+);
+
+export const LegistarMeeting = pgTable(
+  "legistar_meeting",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    jurisdiction: t.varchar({ length: 50 }).notNull(),
+    eventId: t.integer().notNull(),
+    eventGuid: t.varchar({ length: 100 }),
+    bodyId: t.integer(),
+    bodyName: t.varchar({ length: 256 }),
+    date: t.timestamp().notNull(),
+    time: t.text(),
+    location: t.text(),
+    agendaFile: t.text(),
+    minutesFile: t.text(),
+    videoPath: t.text(),
+    agendaStatusName: t.varchar({ length: 100 }),
+    minutesStatusName: t.varchar({ length: 100 }),
+    comment: t.text(),
+    inSiteUrl: t.text(),
+    lastModifiedUtc: t.timestamp().notNull(),
+    fetchedAt: t.timestamp().defaultNow().notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueMeeting: unique().on(table.jurisdiction, table.eventId),
+    meetingDateIdx: index("legistar_meeting_date_idx").on(table.date),
+  }),
+);
+
+export const LegistarAgendaItem = pgTable(
+  "legistar_agenda_item",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    jurisdiction: t.varchar({ length: 50 }).notNull(),
+    eventItemId: t.integer().notNull(),
+    eventId: t.integer().notNull(),
+    agendaSequence: t.integer(),
+    agendaNumber: t.varchar({ length: 50 }),
+    title: t.text(),
+    actionName: t.varchar({ length: 256 }),
+    passedFlagName: t.varchar({ length: 50 }),
+    tally: t.varchar({ length: 50 }),
+    moverName: t.varchar({ length: 256 }),
+    seconderName: t.varchar({ length: 256 }),
+    matterId: t.integer(),
+    matterFile: t.varchar({ length: 100 }),
+    matterName: t.text(),
+    matterType: t.varchar({ length: 100 }),
+    matterStatus: t.varchar({ length: 100 }),
+    consent: t.boolean().default(false),
+    agendaNote: t.text(),
+    minutesNote: t.text(),
+    lastModifiedUtc: t.timestamp().notNull(),
+    fetchedAt: t.timestamp().defaultNow().notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueAgendaItem: unique().on(table.jurisdiction, table.eventItemId),
+    agendaEventIdx: index("legistar_agenda_item_event_idx").on(table.eventId),
+  }),
+);
+
+export const LegistarVote = pgTable(
+  "legistar_vote",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    jurisdiction: t.varchar({ length: 50 }).notNull(),
+    voteId: t.integer().notNull(),
+    eventItemId: t.integer().notNull(),
+    personId: t.integer().notNull(),
+    personName: t.varchar({ length: 256 }).notNull(),
+    valueName: t.varchar({ length: 50 }).notNull(),
+    sort: t.integer(),
+    lastModifiedUtc: t.timestamp().notNull(),
+    fetchedAt: t.timestamp().defaultNow().notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueVote: unique().on(table.jurisdiction, table.voteId),
+    voteEventItemIdx: index("legistar_vote_event_item_idx").on(
+      table.eventItemId,
+    ),
+    votePersonIdx: index("legistar_vote_person_idx").on(table.personId),
+  }),
+);
+
+// Google Civic API response cache
+export const CivicApiCache = pgTable(
+  "civic_api_cache",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    addressHash: t.varchar({ length: 64 }).notNull(),
+    endpoint: t.varchar({ length: 50 }).notNull(),
+    params: t.text().notNull().default("{}"),
+    responseData: t.jsonb().notNull(),
+    fetchedAt: t.timestamp().defaultNow().notNull(),
+    expiresAt: t.timestamp().notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueCacheKey: unique().on(
+      table.addressHash,
+      table.endpoint,
+      table.params,
+    ),
+    expiresAtIdx: index("civic_cache_expires_idx").on(table.expiresAt),
+  }),
+);
 
 export * from "./auth-schema";
