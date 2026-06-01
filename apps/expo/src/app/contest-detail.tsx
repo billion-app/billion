@@ -226,7 +226,10 @@ export default function ContestDetailScreen() {
               const hasContact =
                 contactRows.length > 0 || (cand.channels?.length ?? 0) > 0;
               const hasBody =
-                hasContact || !!cand.biography || hasStatement || sources.length > 0;
+                hasContact ||
+                !!cand.biography ||
+                hasStatement ||
+                sources.length > 0;
 
               return (
                 <Card key={i}>

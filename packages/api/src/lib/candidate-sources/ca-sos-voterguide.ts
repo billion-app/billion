@@ -28,15 +28,15 @@ import { and, eq, gt } from "@acme/db";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
-import type { CandidateChannel, CandidateSourceData } from "./types";
 import type { CaSosStatement } from "./ca-sos-cache";
+import type { CandidateChannel, CandidateSourceData } from "./types";
 import { decodeEntities, htmlToText } from "../measure-sources/html";
-import { candidateNameSimilarity, clamp, dropInitials } from "./types";
 import {
   CA_SOS_ADDRESS_HASH,
   CA_SOS_ENDPOINT,
   caSosCacheParams,
 } from "./ca-sos-cache";
+import { candidateNameSimilarity, clamp, dropInitials } from "./types";
 
 export const GUIDE_BASE = "https://voterguide.sos.ca.gov";
 const FETCH_TIMEOUT_MS = 12_000;
@@ -285,10 +285,7 @@ function extractChannels(contactText: string): CandidateChannel[] | undefined {
  * statement (>= 40 chars). Shared by the live adapter path below and the cron
  * scraper (apps/scraper) so both extract identically from one source of truth.
  */
-export function parseOfficePage(
-  html: string,
-  slug: string,
-): CaSosStatement[] {
+export function parseOfficePage(html: string, slug: string): CaSosStatement[] {
   if (!html || html.length < 500) return [];
   const url = officeUrl(slug);
   const out: CaSosStatement[] = [];
@@ -309,7 +306,8 @@ export function parseOfficePage(
       .map(({ i }) => i)
       .pop();
 
-    const contactHtml = contactIdx !== undefined ? (paras[contactIdx] ?? "") : "";
+    const contactHtml =
+      contactIdx !== undefined ? (paras[contactIdx] ?? "") : "";
     const contactText = htmlToText(contactHtml);
 
     const statementParas = paras
