@@ -1,252 +1,136 @@
-/**
- * Edit Profile screen — settings sub-page
- *
- * MOCK DATA / TODO:
- * - TODO: Initial values are hardcoded — load from tRPC (trpc.user.profile.get)
- * - TODO: "Save Changes" is a no-op — wire to tRPC mutation (trpc.user.profile.update)
- * - TODO: "Change photo" is a no-op — integrate expo-image-picker and upload to storage (e.g. S3/Cloudflare R2)
- * - TODO: Validate username format (alphanumeric + dots/underscores, no spaces)
- * - TODO: Validate email format and check uniqueness via tRPC before saving
- * - TODO: Avatar initial "AR" is hardcoded — derive from user's actual name
- */
-
 import { useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-import type { Theme } from "~/styles";
-import { Text, View } from "~/components/Themed";
-import { colors, fonts, rd, sp, useTheme } from "~/styles";
+import { Text } from "~/components/Themed";
+import { Avatar, GhostButton, Icon, ScreenShell } from "~/components/ui";
+import { colors, fontBody, hair, planes } from "~/styles";
+import { queryClient, trpc } from "~/utils/api";
 
-function Field({
-  label,
-  value,
-  onChangeText,
-  multiline = false,
-  placeholder,
-  theme,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  multiline?: boolean;
-  placeholder?: string;
-  theme: Theme;
-}) {
-  return (
-    <View style={styles.field} lightColor="transparent" darkColor="transparent">
-      <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-        {label}
-      </Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        multiline={multiline}
-        placeholder={placeholder}
-        placeholderTextColor={theme.mutedForeground}
-        style={[
-          styles.fieldInput,
-          {
-            color: theme.foreground,
-            backgroundColor: theme.card,
-            borderColor: theme.border,
-            height: multiline ? 80 : undefined,
-            textAlignVertical: multiline ? "top" : undefined,
-          },
-        ]}
-      />
-    </View>
-  );
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 export default function EditProfileScreen() {
-  const router = useRouter();
-  const { theme } = useTheme();
+  const sessionQuery = useQuery(trpc.auth.getSession.queryOptions());
+  const sessionUser = sessionQuery.data?.user;
 
-  const [name, setName] = useState("Alex Rivera");
-  const [username, setUsername] = useState("alex.rivera");
-  const [email, setEmail] = useState("alex@example.com");
-  const [bio, setBio] = useState("Civic-minded. Always reading.");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [synced, setSynced] = useState(false);
+
+  if (sessionUser && !synced) {
+    setName(sessionUser.name);
+    setEmail(sessionUser.email);
+    setSynced(true);
+  }
+
+  const updateProfile = useMutation({
+    ...trpc.user.updateProfile.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.auth.getSession.queryKey(),
+      });
+    },
+  });
+
+  const fields = [
+    { label: "DISPLAY NAME", value: name, set: setName },
+    { label: "EMAIL", value: email, set: undefined },
+  ];
+
+  const handleSave = () => {
+    if (name && name !== sessionUser?.name) {
+      updateProfile.mutate({ name });
+    }
+  };
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={["top"]}
-    >
-      <View
-        style={[
-          styles.header,
-          {
-            borderBottomColor: theme.border,
-            backgroundColor: theme.background,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>
-          Edit Profile
-        </Text>
-        <View
-          style={{ width: 44 }}
-          lightColor="transparent"
-          darkColor="transparent"
-        />
-      </View>
-
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Avatar */}
-        <View
-          style={styles.avatarSection}
-          lightColor="transparent"
-          darkColor="transparent"
-        >
-          <View style={[styles.avatar, { backgroundColor: colors.civicBlue }]}>
-            <Text style={styles.avatarInitial}>AR</Text>
-          </View>
-          <TouchableOpacity activeOpacity={0.7}>
-            <Text style={[styles.changePhotoText, { color: colors.civicBlue }]}>
-              Change photo
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <Field
-          label="FULL NAME"
-          value={name}
-          onChangeText={setName}
-          placeholder="Your name"
-          theme={theme}
-        />
-        <Field
-          label="USERNAME"
-          value={username}
-          onChangeText={setUsername}
-          placeholder="username"
-          theme={theme}
-        />
-        <Field
-          label="EMAIL"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="you@example.com"
-          theme={theme}
-        />
-        <Field
-          label="BIO"
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          placeholder="Tell us about yourself"
-          theme={theme}
-        />
-      </ScrollView>
-
-      <View
-        style={[
-          styles.footer,
-          { backgroundColor: theme.background, borderTopColor: theme.border },
-        ]}
-      >
-        <TouchableOpacity
-          style={[styles.saveBtn, { backgroundColor: colors.white }]}
-          onPress={() => router.back()}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.saveBtnText, { color: colors.black }]}>
-            Save Changes
+    <ScreenShell
+      title="Edit Profile"
+      action={
+        <TouchableOpacity hitSlop={8} onPress={handleSave}>
+          <Text style={s.save}>
+            {updateProfile.isPending ? "Saving…" : "Save"}
           </Text>
         </TouchableOpacity>
+      }
+    >
+      <View style={s.avatarWrap}>
+        <View>
+          <Avatar name={getInitials(name || "?")} size={92} />
+          <View style={s.editBadge}>
+            <Icon name="edit" size={15} color={planes.ink} />
+          </View>
+        </View>
+        <GhostButton
+          label="Change photo"
+          color={colors.bill}
+          style={{ marginTop: 10, height: 32 }}
+        />
       </View>
-    </SafeAreaView>
+
+      {fields.map((f) => (
+        <View key={f.label} style={{ marginBottom: 18 }}>
+          <Text style={s.label}>{f.label}</Text>
+          <TextInput
+            style={[s.input, !f.set && { opacity: 0.5 }]}
+            value={f.value}
+            onChangeText={f.set}
+            editable={!!f.set}
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="none"
+          />
+        </View>
+      ))}
+
+      <GhostButton
+        label="Delete account"
+        color={colors.red[500]}
+        style={{ marginTop: 8, alignSelf: "flex-start" }}
+      />
+    </ScreenShell>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[4],
-    borderBottomWidth: 1,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    flex: 1,
-    textAlign: "center",
-    fontFamily: fonts.bodySemibold,
-    fontSize: 16,
-  },
-  scroll: { flex: 1, paddingHorizontal: sp[5] },
-  avatarSection: {
-    alignItems: "center",
-    paddingTop: sp[8],
-    paddingBottom: sp[6],
-    gap: sp[3],
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: rd.full,
+const s = StyleSheet.create({
+  save: { fontFamily: fontBody.bold, fontSize: 15, color: colors.bill },
+  avatarWrap: { alignItems: "center", marginBottom: 28 },
+  editBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 3,
+    borderColor: planes.navy,
   },
-  avatarInitial: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 28,
-    color: colors.white,
-  },
-  changePhotoText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 14,
-  },
-  field: {
-    marginBottom: sp[5],
-  },
-  fieldLabel: {
-    fontFamily: fonts.bodySemibold,
+  label: {
+    fontFamily: fontBody.semibold,
     fontSize: 11,
-    letterSpacing: 0.8,
-    marginBottom: sp[2],
+    letterSpacing: 0.6,
+    color: colors.textSecondary,
+    marginBottom: 9,
+    paddingLeft: 4,
   },
-  fieldInput: {
-    fontFamily: fonts.body,
-    fontSize: 15,
+  input: {
+    height: 50,
+    backgroundColor: planes.slate,
     borderWidth: 1,
-    borderRadius: rd.md,
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[3],
-    minHeight: 48,
-  },
-  footer: {
-    padding: sp[5],
-    borderTopWidth: 1,
-  },
-  saveBtn: {
-    borderRadius: rd.full,
-    paddingVertical: sp[4],
-    alignItems: "center",
-  },
-  saveBtnText: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 15,
+    borderColor: hair[2],
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    color: colors.white,
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 16,
   },
 });

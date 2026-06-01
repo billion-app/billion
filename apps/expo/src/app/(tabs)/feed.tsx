@@ -1,45 +1,211 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   FlatList,
-  StatusBar,
   StyleSheet,
   TouchableOpacity,
+  View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 
 import type { VideoPost } from "@acme/api";
 
-import { Text, View } from "~/components/Themed";
+import { Text } from "~/components/Themed";
+import { Badge, Icon, LensStrip, Placeholder } from "~/components/ui";
 import {
-  badges,
-  cards,
-  fontSize,
-  getTypeBadgeColor,
-  layout,
-  rd,
-  sp,
-  typography,
-  useTheme,
+  colors,
+  contentType,
+  fontBody,
+  fontDisplay,
+  hair,
+  planes,
+  resolveType,
 } from "~/styles";
-import { trpc } from "~/utils/api";
-import { getBaseUrl } from "~/utils/base-url";
+import { queryClient, trpc } from "~/utils/api";
+import { authClient } from "~/utils/auth";
 
-const { height: screenHeight } = Dimensions.get("window");
+const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
+
+const TYPE_TAG: Record<string, string> = {
+  bill: "Bill",
+  government_content: "Exec Order",
+  court_case: "Court Case",
+  general: "Briefing",
+};
+
+// Bottom tab bar height (see TabBar) so the CTA clears it.
+const TAB_BAR_HEIGHT = 74;
+
+const SAVEABLE_TYPES = new Set(["bill", "government_content", "court_case"]);
+
+function FeedCard({
+  item,
+  height,
+  topInset,
+  bottomInset,
+  onOpen,
+}: {
+  item: VideoPost;
+  height: number;
+  topInset: number;
+  bottomInset: number;
+  onOpen: () => void;
+}) {
+  const canSave = SAVEABLE_TYPES.has(item.type);
+  const contentId = item.originalContentId;
+
+  // isArticleSaved is a protected procedure — only query it when signed in,
+  // otherwise it throws UNAUTHORIZED.
+  const { data: session } = authClient.useSession();
+  const isSignedIn = !!session?.user;
+
+  const savedQuery = useQuery({
+    ...trpc.user.isArticleSaved.queryOptions({ contentId }),
+    enabled: canSave && isSignedIn,
+    staleTime: 5 * 60 * 1000,
+  });
+  const saved = savedQuery.data?.saved ?? false;
+
+  const saveMutation = useMutation({
+    ...trpc.user.saveArticle.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.isArticleSaved.queryKey({ contentId }),
+      });
+    },
+  });
+  const unsaveMutation = useMutation({
+    ...trpc.user.unsaveArticle.mutationOptions(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: trpc.user.isArticleSaved.queryKey({ contentId }),
+      });
+    },
+  });
+
+  const toggleSave = () => {
+    if (!canSave) return;
+    if (!isSignedIn) {
+      Alert.alert(
+        "Sign in to save",
+        "Sign in to bookmark and revisit content.",
+      );
+      return;
+    }
+    if (saved) {
+      unsaveMutation.mutate({ contentId });
+    } else {
+      saveMutation.mutate({
+        contentId,
+        contentType: item.type as "bill" | "government_content" | "court_case",
+      });
+    }
+  };
+
+  const typeKey = resolveType(item.type);
+  const t = contentType[typeKey];
+
+  return (
+    <LinearGradient
+      colors={[planes.navy, "#181F38"]}
+      style={[
+        s.card,
+        {
+          height,
+          paddingTop: topInset + 14,
+          paddingBottom: TAB_BAR_HEIGHT + bottomInset + 18,
+        },
+      ]}
+    >
+      {/* top meta */}
+      <View style={s.meta}>
+        <Badge type={typeKey} />
+        <Text style={s.tag}>{TYPE_TAG[item.type] ?? "Briefing"}</Text>
+        <Text style={s.time}>Recent</Text>
+      </View>
+
+      {/* hero */}
+      {(item.imageUri ?? item.thumbnailUrl) ? (
+        <Image
+          style={s.hero}
+          source={{ uri: item.imageUri ?? item.thumbnailUrl }}
+          contentFit="cover"
+          transition={300}
+        />
+      ) : (
+        <Placeholder
+          label={`${(TYPE_TAG[item.type] ?? "briefing").toLowerCase()} · visual explainer`}
+          height={150}
+          radius={14}
+          style={{ marginBottom: 18 }}
+        />
+      )}
+
+      {/* headline */}
+      <Text style={s.headline}>{item.title}</Text>
+
+      {/* gist */}
+      {item.articlePreview ? (
+        <Text style={s.gist} numberOfLines={4}>
+          {item.articlePreview}
+        </Text>
+      ) : null}
+
+      {/* key-fact chips — TODO(backend): real stat/status/chamber per item */}
+      <View style={s.chips}>
+        <View style={[s.chip, { flex: 1 }]}>
+          <Text style={[s.chipStat, { color: t.color }]}>{t.label}</Text>
+          <Text style={s.chipLabel}>type</Text>
+        </View>
+        <View style={[s.chip, { flex: 1.4 }]}>
+          <Text style={s.chipStatus}>{item.author || "Public record"}</Text>
+          <Text style={s.chipLabel}>source</Text>
+        </View>
+      </View>
+
+      {/* dual-lens strip */}
+      <View style={{ marginBottom: "auto" }}>
+        <LensStrip label="See it across the spectrum" onExpand={onOpen} />
+      </View>
+
+      {/* exit point */}
+      <View style={s.actions}>
+        <TouchableOpacity
+          style={s.cta}
+          onPress={onOpen}
+          activeOpacity={0.85}
+          testID="feed-cta"
+        >
+          <Text style={s.ctaText}>Dig into the source</Text>
+          <Icon name="external" size={17} color={planes.ink} />
+        </TouchableOpacity>
+        {canSave && (
+          <TouchableOpacity
+            style={s.saveBtn}
+            onPress={toggleSave}
+            activeOpacity={0.8}
+          >
+            <Icon
+              name={saved ? "bookmarkFill" : "bookmark"}
+              size={20}
+              color={saved ? colors.white : "rgba(255,255,255,0.7)"}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+    </LinearGradient>
+  );
+}
 
 export default function FeedScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
-
-  // Debug: log base URL
-  useEffect(() => {
-    console.warn("[FeedScreen] Base URL:", getBaseUrl());
-  }, []);
-
-  // Use infinite query for video feed
+  const insets = useSafeAreaInsets();
 
   const {
     data,
@@ -51,255 +217,71 @@ export default function FeedScreen() {
   } = useInfiniteQuery(
     trpc.video.getInfinite.infiniteQueryOptions(
       { limit: 10 },
-      { initialCursor: 0, getNextPageParam: (lastPage) => lastPage.nextCursor },
+      {
+        initialCursor: 0,
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+      },
     ),
   );
 
-  // Flatten all pages into a single array of videos
-
-  const videos = useMemo(() => {
-    if (!data) {
-      return [];
-    }
-
-    return data.pages.flatMap((page: { videos: VideoPost[] }) => page.videos);
-  }, [data]);
-
-  const loadMoreVideos = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      void fetchNextPage();
-    }
-  };
-
-  const renderVideoItem = ({ item }: { item: VideoPost; index: number }) => (
-    <View
-      style={[
-        styles.videoContainer,
-        { height: screenHeight, backgroundColor: theme.background },
-      ]}
-      lightColor={theme.background}
-      darkColor={theme.background}
-    >
-      {/* Content Card */}
-      <View
-        style={[
-          cards.elevated,
-          {
-            backgroundColor: theme.card,
-            borderWidth: 1,
-            borderColor: theme.border,
-          },
-        ]}
-        lightColor={theme.card}
-        darkColor={theme.card}
-        testID="feed-card"
-      >
-        {/* Type Badge */}
-        <View
-          style={[
-            badges.base,
-            { backgroundColor: getTypeBadgeColor(item.type) },
-          ]}
-          lightColor="transparent"
-          darkColor="transparent"
-          testID="feed-badge"
-        >
-          <Text style={badges.text}>
-            {item.type == "bill"
-              ? "BILL"
-              : item.type == "government_content"
-                ? "ORDER"
-                : item.type == "court_case"
-                  ? "CASE"
-                  : "NEWS"}
-          </Text>
-        </View>
-
-        {/* Title */}
-        <Text
-          style={[typography.h1, styles.cardTitle, { color: theme.foreground }]}
-        >
-          {item.title}
-        </Text>
-
-        {/* Hybrid Image Display - prioritize AI-generated imageUri */}
-        {item.imageUri ? (
-          <Image
-            style={{ width: "100%", height: 200, borderRadius: rd.xl }}
-            source={{ uri: item.imageUri }}
-            contentFit="cover"
-            transition={300}
-          />
-        ) : item.thumbnailUrl ? (
-          <Image
-            style={{ width: "100%", height: 200, borderRadius: rd.xl }}
-            source={{ uri: item.thumbnailUrl }}
-            contentFit="cover"
-            transition={300}
-          />
-        ) : (
-          <View
-            style={{
-              width: "100%",
-              height: 200,
-              borderRadius: rd.xl,
-              backgroundColor: theme.muted,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-            lightColor={theme.muted}
-            darkColor={theme.muted}
-          >
-            <Text style={{ fontSize: 48 }}>
-              {item.type === "bill"
-                ? "📜"
-                : item.type === "court_case"
-                  ? "⚖️"
-                  : "🏛️"}
-            </Text>
-          </View>
-        )}
-
-        {/* Article Preview */}
-        <Text
-          style={[
-            styles.articlePreview,
-            { color: theme.mutedForeground, marginTop: 20 },
-          ]}
-        >
-          {item.articlePreview}
-        </Text>
-
-        {/* Author */}
-        <Text style={[styles.author, { color: theme.accent }]}>
-          {item.author}
-        </Text>
-
-        {/* Read Full Article Button */}
-        <TouchableOpacity
-          style={[
-            styles.readButton,
-            styles.readButtonSurface,
-            { backgroundColor: theme.primary },
-          ]}
-          onPress={() => {
-            // Use originalContentId from video
-            router.push(`/article-detail?id=${item.originalContentId}`);
-          }}
-          activeOpacity={0.85}
-        >
-          <Text
-            style={[styles.readButtonText, { color: theme.primaryForeground }]}
-          >
-            Read Full Article
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Action Buttons - Floating with no background */}
-      {/*<View
-        style={[styles.bottomOverlay, { paddingBottom: insets.bottom + 80 }]}
-        lightColor="transparent"
-        darkColor="transparent"
-      >
-        <View
-          style={actions.container}
-          lightColor="transparent"
-          darkColor="transparent"
-        >
-          <TouchableOpacity
-            style={actions.button}
-            onPress={() => handleLike(item.id)}
-          >
-            <Text
-              style={[
-                actions.icon,
-                { filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" },
-                likedVideos.has(item.id) && styles.actionIconLiked,
-              ]}
-            >
-              {likedVideos.has(item.id) ? "❤️" : "🤍"}
-            </Text>
-            <Text style={[actions.text, { color: theme.foreground }]}>
-              {item.likes + (likedVideos.has(item.id) ? 1 : 0)}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={actions.button}>
-            <Text style={actions.icon}>💬</Text>
-            <Text style={[actions.text, { color: theme.foreground }]}>
-              {item.comments}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={actions.button}>
-            <Text style={actions.icon}>📤</Text>
-            <Text style={[actions.text, { color: theme.foreground }]}>
-              {item.shares}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>*/}
-    </View>
+  const videos = useMemo(
+    () =>
+      data ? data.pages.flatMap((p: { videos: VideoPost[] }) => p.videos) : [],
+    [data],
   );
 
-  // Show loading state while fetching initial videos
+  const loadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  };
 
   if (isPending) {
     return (
-      <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>
-        <StatusBar hidden />
-        <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-          Loading videos...
-        </Text>
+      <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
+        <ActivityIndicator size="large" color={colors.white} />
+        <Text style={s.loadingText}>Loading feed…</Text>
       </View>
     );
   }
 
-  // Show error state if fetching failed
   if (error) {
-    console.error("[FeedScreen] Error loading videos:", error);
     return (
-      <View style={[layout.fullCenter, { backgroundColor: theme.background }]}>
-        <StatusBar hidden />
-        <Text style={[typography.h4, { color: theme.danger }]}>
-          Error loading videos
-        </Text>
-        <Text
-          style={[
-            typography.body,
-            styles.errorSubtext,
-            { color: theme.textSecondary },
-          ]}
-        >
-          Please try again later
-        </Text>
+      <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
+        <Text style={s.errorTitle}>Error loading feed</Text>
+        <Text style={s.errorSub}>Please try again later</Text>
       </View>
     );
   }
 
   return (
-    <View style={layout.container}>
-      <StatusBar hidden />
+    <View style={s.screen}>
       <FlatList
         data={videos}
-        renderItem={renderVideoItem}
         keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <FeedCard
+            item={item}
+            height={SCREEN_H}
+            topInset={insets.top}
+            bottomInset={insets.bottom}
+            onOpen={() =>
+              router.push(`/article-detail?id=${item.originalContentId}`)
+            }
+          />
+        )}
         pagingEnabled
         showsVerticalScrollIndicator={false}
-        snapToInterval={screenHeight}
+        snapToInterval={SCREEN_H}
         snapToAlignment="start"
-        decelerationRate={0}
+        decelerationRate="fast"
         bounces={false}
-        onEndReached={loadMoreVideos}
+        onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        getItemLayout={(_data, index) => ({
-          length: screenHeight,
-          offset: screenHeight * index,
+        getItemLayout={(_d, index) => ({
+          length: SCREEN_H,
+          offset: SCREEN_H * index,
           index,
         })}
-        removeClippedSubviews={true}
+        removeClippedSubviews
         maxToRenderPerBatch={3}
         windowSize={5}
       />
@@ -307,68 +289,105 @@ export default function FeedScreen() {
   );
 }
 
-// import {
-//   spacing,
-// } from "@acme/ui/theme-tokens";
-// const sp = (key: keyof typeof spacing): number => spacing[key] * 16;
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: planes.navy },
+  fullCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
   loadingText: {
-    fontFamily: "AlbertSans_400Regular",
-    marginTop: sp[4],
-    fontSize: fontSize.base,
+    fontFamily: "AlbertSans-Regular",
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textSecondary,
   },
-  errorSubtext: {
-    fontFamily: "AlbertSans_400Regular",
-    marginTop: sp[2],
+  errorTitle: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 18,
+    color: colors.red[500],
   },
-  videoContainer: {
-    position: "relative",
-    width: "100%",
-    padding: sp[5],
-    justifyContent: "center",
+  errorSub: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 8,
   },
-  cardTitle: {
-    fontFamily: "IBMPlexSerif_700Bold",
-    marginBottom: sp[3],
-    marginTop: sp[4],
-  },
-  cardDescription: {
-    marginBottom: sp[4],
-  },
-  articlePreview: {
-    fontFamily: "AlbertSans_400Regular",
-    fontSize: fontSize.base,
-    marginBottom: sp[4],
-    lineHeight: fontSize.base * 1.6,
-  },
-  author: {
-    fontFamily: "AlbertSans_600SemiBold",
-    fontSize: fontSize.sm,
-    marginBottom: sp[5],
-  },
-  readButton: {
-    width: "100%",
-  },
-  readButtonSurface: {
+  card: { width: SCREEN_W, paddingHorizontal: 22 },
+  meta: {
+    flexDirection: "row",
     alignItems: "center",
-    borderRadius: rd.full,
+    gap: 9,
+    marginBottom: 16,
+  },
+  tag: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12.5,
+    color: colors.textSecondary,
+  },
+  time: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 12.5,
+    color: colors.textSecondary,
+    marginLeft: "auto",
+  },
+  hero: { width: "100%", height: 150, borderRadius: 14, marginBottom: 18 },
+  headline: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 29,
+    color: colors.white,
+    marginBottom: 14,
+    lineHeight: 33,
+  },
+  gist: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 16.5,
+    lineHeight: 25,
+    color: "rgba(255,255,255,0.82)",
+    marginBottom: 18,
+  },
+  chips: { flexDirection: "row", gap: 10, marginBottom: 18 },
+  chip: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  chipStat: { fontFamily: "IBMPlexSerif-Bold", fontSize: 20 },
+  chipStatus: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13.5,
+    color: colors.white,
+  },
+  chipLabel: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 11.5,
+    color: colors.textSecondary,
+    marginTop: 3,
+  },
+  actions: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    marginTop: 18,
+  },
+  cta: {
+    flex: 1,
+    height: 50,
+    borderRadius: 9999,
+    backgroundColor: colors.white,
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    minHeight: 52,
-    paddingHorizontal: sp[6],
-    paddingVertical: sp[3],
+    gap: 8,
   },
-  readButtonText: {
-    fontFamily: "AlbertSans_500Medium",
-    fontSize: fontSize.base,
-    textAlign: "center",
-  },
-  bottomOverlay: {
-    position: "absolute",
-    bottom: 0,
-    right: sp[5],
-    alignItems: "flex-end",
-  },
-  actionIconLiked: {
-    transform: [{ scale: 1.25 }],
+  ctaText: { fontFamily: fontBody.semibold, fontSize: 16, color: planes.ink },
+  saveBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

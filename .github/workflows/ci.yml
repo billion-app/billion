@@ -69,7 +69,7 @@ jobs:
         run: cp .env.example .env
 
       - name: Bundle iOS
-        run: cd apps/expo && npx expo export --platform ios --output-dir /tmp/expo-out
+        run: cd apps/expo && npx expo export --platform ios --output-dir dist
 
       - name: Bundle Android
-        run: cd apps/expo && npx expo export --platform android --output-dir /tmp/expo-out
+        run: cd apps/expo && npx expo export --platform android --output-dir dist

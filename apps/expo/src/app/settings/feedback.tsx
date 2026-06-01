@@ -1,323 +1,142 @@
-/**
- * Send Feedback screen — settings sub-page
- *
- * MOCK DATA / TODO:
- * - TODO: Submission is simulated (sets local state) — wire to a real endpoint (e.g. tRPC or a form service like Typeform/Linear)
- * - TODO: Attach device metadata automatically (OS version, app version, user ID) to submission payload
- * - TODO: Allow optional screenshot attachment
- * - TODO: Rate limiting — prevent duplicate submissions within a short window
- * - TODO: "Bug Report" category should optionally attach recent error logs
- */
-
 import { useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 
-import { Text, View } from "~/components/Themed";
-import { colors, fonts, rd, sp, useTheme } from "~/styles";
+import type { IconName } from "~/components/ui";
+import { Text } from "~/components/Themed";
+import { Icon, Kicker, PrimaryButton, ScreenShell } from "~/components/ui";
+import { colors, fontBody, hair, planes } from "~/styles";
 
-const CATEGORIES = [
-  { id: "bug", label: "Bug Report", icon: "bug-outline" as const },
-  { id: "feature", label: "Feature Request", icon: "bulb-outline" as const },
-  { id: "content", label: "Content Issue", icon: "newspaper-outline" as const },
-  { id: "other", label: "Other", icon: "chatbubble-outline" as const },
+const CATS: { id: string; label: string; icon: IconName }[] = [
+  { id: "bug", label: "Bug report", icon: "flag" },
+  { id: "idea", label: "Feature idea", icon: "sparkle" },
+  { id: "content", label: "Content issue", icon: "doc" },
 ];
 
 export default function FeedbackScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams<{ category?: string }>();
-  const { theme } = useTheme();
-  const [category, setCategory] = useState(params.category ?? "bug");
+  const [cat, setCat] = useState("bug");
   const [text, setText] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  if (submitted) {
-    return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.background }]}
-        edges={["top"]}
-      >
-        <View
-          style={[
-            styles.header,
-            {
-              borderBottomColor: theme.border,
-              backgroundColor: theme.background,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="chevron-back" size={22} color={colors.white} />
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: theme.foreground }]}>
-            Send Feedback
-          </Text>
-          <View
-            style={{ width: 44 }}
-            lightColor="transparent"
-            darkColor="transparent"
-          />
-        </View>
-        <View
-          style={styles.thanks}
-          lightColor="transparent"
-          darkColor="transparent"
-        >
-          <Ionicons name="checkmark-circle" size={56} color={colors.teal} />
-          <Text style={[styles.thanksTitle, { color: theme.foreground }]}>
-            Thanks!
-          </Text>
-          <Text style={[styles.thanksSub, { color: theme.textSecondary }]}>
-            Your feedback helps us build a better Billion.
-          </Text>
-          <TouchableOpacity
-            style={[styles.doneBtn, { backgroundColor: colors.white }]}
-            onPress={() => router.back()}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.doneBtnText, { color: colors.black }]}>
-              Done
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={["top"]}
-    >
-      <View
-        style={[
-          styles.header,
-          {
-            borderBottomColor: theme.border,
-            backgroundColor: theme.background,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>
-          Send Feedback
-        </Text>
-        <View
-          style={{ width: 44 }}
-          lightColor="transparent"
-          darkColor="transparent"
-        />
-      </View>
+    <ScreenShell title="Send Feedback">
+      <Text style={s.title}>What&apos;s on your mind?</Text>
+      <Text style={s.intro}>
+        We read every note — it shapes what we build next.
+      </Text>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-          CATEGORY
-        </Text>
-        <View
-          style={styles.categories}
-          lightColor="transparent"
-          darkColor="transparent"
-        >
-          {CATEGORIES.map((cat) => {
-            const active = category === cat.id;
-            return (
-              <TouchableOpacity
-                key={cat.id}
+      <Kicker>Category</Kicker>
+      <View style={{ gap: 10, marginBottom: 24 }}>
+        {CATS.map((c) => {
+          const active = cat === c.id;
+          return (
+            <TouchableOpacity
+              key={c.id}
+              activeOpacity={0.8}
+              onPress={() => setCat(c.id)}
+              style={[
+                s.catRow,
+                {
+                  backgroundColor: active ? planes.surface : planes.slate,
+                  borderColor: active ? hair[3] : hair[1],
+                },
+              ]}
+            >
+              <Icon
+                name={c.icon}
+                size={19}
+                color={active ? colors.white : colors.textSecondary}
+              />
+              <Text
                 style={[
-                  styles.catChip,
-                  {
-                    backgroundColor: active ? colors.civicBlue : theme.card,
-                    borderColor: active ? colors.civicBlue : theme.border,
-                  },
+                  s.catLabel,
+                  { color: active ? colors.white : "rgba(255,255,255,0.7)" },
                 ]}
-                onPress={() => setCategory(cat.id)}
-                activeOpacity={0.7}
               >
-                <Ionicons
-                  name={cat.icon}
-                  size={14}
-                  color={active ? colors.white : theme.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.catLabel,
-                    { color: active ? colors.white : theme.textSecondary },
-                  ]}
-                >
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-          YOUR FEEDBACK
-        </Text>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          multiline
-          placeholder="Describe the issue or idea in detail…"
-          placeholderTextColor={theme.mutedForeground}
-          style={[
-            styles.textArea,
-            {
-              color: theme.foreground,
-              backgroundColor: theme.card,
-              borderColor: theme.border,
-            },
-          ]}
-        />
-      </ScrollView>
-
-      <View
-        style={[
-          styles.footer,
-          { backgroundColor: theme.background, borderTopColor: theme.border },
-        ]}
-      >
-        <TouchableOpacity
-          style={[
-            styles.submitBtn,
-            {
-              backgroundColor:
-                text.trim().length > 0 ? colors.white : theme.card,
-            },
-          ]}
-          onPress={() => text.trim().length > 0 && setSubmitted(true)}
-          activeOpacity={0.85}
-        >
-          <Text
-            style={[
-              styles.submitBtnText,
-              {
-                color:
-                  text.trim().length > 0 ? colors.black : theme.mutedForeground,
-              },
-            ]}
-          >
-            Submit Feedback
-          </Text>
-        </TouchableOpacity>
+                {c.label}
+              </Text>
+              <View
+                style={[
+                  s.radio,
+                  { borderColor: active ? colors.white : hair[3] },
+                ]}
+              >
+                {active && <View style={s.radioDot} />}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
-    </SafeAreaView>
+
+      <Kicker>Details</Kicker>
+      <TextInput
+        style={s.textarea}
+        value={text}
+        onChangeText={setText}
+        placeholder="Tell us what happened or what you'd love to see…"
+        placeholderTextColor={colors.textSecondary}
+        multiline
+        textAlignVertical="top"
+      />
+      <Text style={s.attached}>App version 2.4.0 attached automatically.</Text>
+
+      <PrimaryButton label="Submit feedback" />
+    </ScreenShell>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[4],
-    borderBottomWidth: 1,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+const s = StyleSheet.create({
   title: {
-    flex: 1,
-    textAlign: "center",
-    fontFamily: fonts.bodySemibold,
-    fontSize: 16,
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 19,
+    color: colors.white,
+    marginBottom: 6,
   },
-  scroll: { flex: 1, paddingHorizontal: sp[5] },
-  sectionLabel: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    marginTop: sp[6],
-    marginBottom: sp[3],
-  },
-  categories: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: sp[2],
-    marginBottom: sp[2],
-  },
-  catChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: sp[2],
-    paddingHorizontal: sp[3],
-    borderRadius: rd.full,
-    borderWidth: 1,
-    gap: sp[1],
-  },
-  catLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 13,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderRadius: rd.lg,
-    padding: sp[4],
-    height: 160,
-    textAlignVertical: "top",
-    fontFamily: fonts.body,
+  intro: {
+    fontFamily: "AlbertSans-Regular",
     fontSize: 14,
-    lineHeight: 20,
+    color: colors.textSecondary,
+    marginBottom: 22,
   },
-  footer: {
-    padding: sp[5],
-    borderTopWidth: 1,
-  },
-  submitBtn: {
-    borderRadius: rd.full,
-    paddingVertical: sp[4],
+  catRow: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  submitBtnText: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 15,
-  },
-  thanks: {
-    flex: 1,
+  catLabel: { flex: 1, fontFamily: fontBody.semibold, fontSize: 15 },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
-    gap: sp[4],
-    paddingHorizontal: sp[10],
   },
-  thanksTitle: {
-    fontFamily: "IBMPlexSerif_700Bold",
-    fontSize: 32,
+  radioDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.white,
   },
-  thanksSub: {
-    fontFamily: fonts.body,
+  textarea: {
+    minHeight: 130,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 12,
+    padding: 14,
+    color: colors.white,
+    fontFamily: "AlbertSans-Regular",
     fontSize: 15,
-    textAlign: "center",
     lineHeight: 22,
   },
-  doneBtn: {
-    borderRadius: rd.full,
-    paddingVertical: sp[4],
-    paddingHorizontal: sp[10],
-    marginTop: sp[4],
-  },
-  doneBtnText: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 15,
+  attached: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginVertical: 10,
+    marginBottom: 20,
   },
 });
