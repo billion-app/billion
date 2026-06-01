@@ -54,7 +54,10 @@
     "PORT",
     "GOOGLE_CIVIC_API_KEY",
     "CA_SOS_API_KEY",
-    "OPEN_STATES_API_KEY"
+    "OPEN_STATES_API_KEY",
+    "VOTE_SMART_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "OPENAI_API_KEY"
   ],
   "globalPassThroughEnv": [
     "NODE_ENV",

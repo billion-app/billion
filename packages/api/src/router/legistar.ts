@@ -76,16 +76,13 @@ export const legistarRouter = {
           .flat()
           .sort(
             (a, b) =>
-              new Date(a.EventDate).getTime() -
-              new Date(b.EventDate).getTime(),
+              new Date(a.EventDate).getTime() - new Date(b.EventDate).getTime(),
           );
       } catch (error) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch meetings",
+            error instanceof Error ? error.message : "Failed to fetch meetings",
           cause: error,
         });
       }
@@ -105,9 +102,7 @@ export const legistarRouter = {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch agenda",
+            error instanceof Error ? error.message : "Failed to fetch agenda",
           cause: error,
         });
       }

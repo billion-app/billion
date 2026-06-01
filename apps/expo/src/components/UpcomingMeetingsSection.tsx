@@ -1,4 +1,9 @@
-import { ActivityIndicator, Linking, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 
@@ -9,7 +14,9 @@ import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
 import { trpc } from "~/utils/api";
 
 interface UpcomingMeetingsSectionProps {
-  onMeetingPress?: (meeting: LegistarMeeting & { jurisdiction: string }) => void;
+  onMeetingPress?: (
+    meeting: LegistarMeeting & { jurisdiction: string },
+  ) => void;
 }
 
 function formatDate(iso: string): string {
@@ -62,26 +69,44 @@ export function UpcomingMeetingsSection({
             <View style={styles.icons}>
               {meeting.EventAgendaFile && (
                 <TouchableOpacity
-                  onPress={() => void Linking.openURL(meeting.EventAgendaFile ?? "")}
+                  onPress={() =>
+                    void Linking.openURL(meeting.EventAgendaFile ?? "")
+                  }
                   hitSlop={8}
                 >
-                  <FontAwesome name="file-text-o" size={14} color={colors.civicBlue} />
+                  <FontAwesome
+                    name="file-text-o"
+                    size={14}
+                    color={colors.civicBlue}
+                  />
                 </TouchableOpacity>
               )}
               {meeting.EventVideoPath && (
                 <TouchableOpacity
-                  onPress={() => void Linking.openURL(meeting.EventVideoPath ?? "")}
+                  onPress={() =>
+                    void Linking.openURL(meeting.EventVideoPath ?? "")
+                  }
                   hitSlop={8}
                 >
-                  <FontAwesome name="video-camera" size={14} color={colors.civicBlue} />
+                  <FontAwesome
+                    name="video-camera"
+                    size={14}
+                    color={colors.civicBlue}
+                  />
                 </TouchableOpacity>
               )}
               {meeting.EventMinutesFile && (
                 <TouchableOpacity
-                  onPress={() => void Linking.openURL(meeting.EventMinutesFile ?? "")}
+                  onPress={() =>
+                    void Linking.openURL(meeting.EventMinutesFile ?? "")
+                  }
                   hitSlop={8}
                 >
-                  <FontAwesome name="file-o" size={14} color={colors.textMuted} />
+                  <FontAwesome
+                    name="file-o"
+                    size={14}
+                    color={colors.textMuted}
+                  />
                 </TouchableOpacity>
               )}
             </View>

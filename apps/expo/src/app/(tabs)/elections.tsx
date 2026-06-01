@@ -33,6 +33,36 @@ function partyInitial(party?: string): string {
   return "NP";
 }
 
+/** Build the /measure-detail route params for a measure contest. */
+function measureRoute(m: Contest) {
+  return {
+    pathname: "/measure-detail" as const,
+    params: {
+      referendumTitle: m.referendumTitle ?? "",
+      referendumSubtitle: m.referendumSubtitle ?? "",
+      referendumProStatement: m.referendumProStatement ?? "",
+      referendumConStatement: m.referendumConStatement ?? "",
+      referendumText: m.referendumText ?? "",
+      referendumUrl: m.referendumUrl ?? "",
+      summary: m.summary ?? "",
+      summaryLong: m.summaryLong ?? m.summary ?? "",
+      summaryIsAiGenerated: m.summaryIsAiGenerated ? "true" : "false",
+      fiscalImpact: m.fiscalImpact ?? "",
+      proArguments: JSON.stringify(m.proArguments ?? []),
+      conArguments: JSON.stringify(m.conArguments ?? []),
+      citations: JSON.stringify(m.citations ?? []),
+    },
+  };
+}
+
+/** Short label for the most authoritative source backing a measure. */
+function topSourceLabel(m: Contest): string | null {
+  const official = m.sources?.find((src) => src.official);
+  const src = official ?? m.sources?.[0];
+  if (!src) return null;
+  return src.official ? `Official · ${src.name}` : src.name;
+}
+
 // TODO(backend): default to the signed-in user's registered address. We mock
 // one (matching the mocked profile in Sacramento) so the ballot populates by
 // default; the user can still edit it.
@@ -274,11 +304,13 @@ export default function ElectionsScreen() {
                     </TouchableOpacity>
                     {mOpen && (
                       <View style={s.summaryNested}>
-                        {m.summary ? (
-                          <Text style={s.measureSub}>{m.summary}</Text>
-                        ) : m.referendumSubtitle ? (
-                          <Text style={s.measureSub}>
-                            {m.referendumSubtitle}
+                        {(m.summaryShort ??
+                        m.summary ??
+                        m.referendumSubtitle) ? (
+                          <Text style={s.measureSub} numberOfLines={2}>
+                            {m.summaryShort ??
+                              m.summary ??
+                              m.referendumSubtitle}
                           </Text>
                         ) : null}
                         {m.referendumProStatement ? (
@@ -316,22 +348,7 @@ export default function ElectionsScreen() {
                         <TouchableOpacity
                           style={s.readMoreBtn}
                           activeOpacity={0.8}
-                          onPress={() =>
-                            router.push({
-                              pathname: "/measure-detail",
-                              params: {
-                                referendumTitle: m.referendumTitle ?? "",
-                                referendumSubtitle: m.referendumSubtitle ?? "",
-                                referendumProStatement:
-                                  m.referendumProStatement ?? "",
-                                referendumConStatement:
-                                  m.referendumConStatement ?? "",
-                                referendumText: m.referendumText ?? "",
-                                referendumUrl: m.referendumUrl ?? "",
-                                summary: m.summary ?? "",
-                              },
-                            })
-                          }
+                          onPress={() => router.push(measureRoute(m))}
                         >
                           <Icon name="doc" size={15} color={colors.bill} />
                           <Text style={s.readMoreText}>Read full measure</Text>
@@ -412,10 +429,28 @@ export default function ElectionsScreen() {
                   </TouchableOpacity>
                   {expanded && (
                     <View style={s.measureBody}>
-                      {(m.referendumSubtitle || m.summary) ? (
+                      {m.summaryShort || m.summary || m.referendumSubtitle ? (
                         <Text style={s.measureSub}>
-                          {m.referendumSubtitle ?? m.summary}
+                          {m.summaryShort ?? m.summary ?? m.referendumSubtitle}
                         </Text>
+                      ) : null}
+                      {m.summaryIsAiGenerated && (
+                        <View style={s.aiChip}>
+                          <Icon
+                            name="sparkle"
+                            size={11}
+                            color={colors.yellow[500]}
+                          />
+                          <Text style={s.aiChipText}>AI-generated summary</Text>
+                        </View>
+                      )}
+                      {m.fiscalImpact ? (
+                        <View style={s.fiscalRow}>
+                          <Text style={s.fiscalLabel}>Fiscal impact</Text>
+                          <Text style={s.fiscalValue} numberOfLines={3}>
+                            {m.fiscalImpact}
+                          </Text>
+                        </View>
                       ) : null}
                       {m.referendumProStatement ? (
                         <View style={s.stanceRow}>
@@ -452,26 +487,27 @@ export default function ElectionsScreen() {
                       <TouchableOpacity
                         style={s.readMoreBtn}
                         activeOpacity={0.8}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/measure-detail",
-                            params: {
-                              referendumTitle: m.referendumTitle ?? "",
-                              referendumSubtitle: m.referendumSubtitle ?? "",
-                              referendumProStatement:
-                                m.referendumProStatement ?? "",
-                              referendumConStatement:
-                                m.referendumConStatement ?? "",
-                              referendumText: m.referendumText ?? "",
-                              referendumUrl: m.referendumUrl ?? "",
-                              summary: m.summary ?? "",
-                            },
-                          })
-                        }
+                        onPress={() => router.push(measureRoute(m))}
                       >
                         <Icon name="doc" size={15} color={colors.bill} />
                         <Text style={s.readMoreText}>Read full measure</Text>
                       </TouchableOpacity>
+                      {topSourceLabel(m) ? (
+                        <View style={s.sourceChip}>
+                          <Icon
+                            name={
+                              m.sources?.some((src) => src.official)
+                                ? "shield"
+                                : "info"
+                            }
+                            size={11}
+                            color={colors.textSecondary}
+                          />
+                          <Text style={s.sourceChipText} numberOfLines={1}>
+                            {topSourceLabel(m)}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                   )}
                 </Card>
@@ -708,6 +744,43 @@ const s = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
     color: colors.bill,
+  },
+  aiChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+  },
+  aiChipText: {
+    fontFamily: fontBody.medium,
+    fontSize: 11.5,
+    color: colors.yellow[500],
+  },
+  fiscalRow: { gap: 3 },
+  fiscalLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11.5,
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  fiscalValue: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+    lineHeight: 19,
+  },
+  sourceChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    marginTop: 2,
+  },
+  sourceChipText: {
+    fontFamily: fontBody.medium,
+    fontSize: 11.5,
+    color: colors.textSecondary,
   },
   empty: {
     fontFamily: "AlbertSans-Regular",

@@ -1,3 +1,17 @@
+// ============================================================================
+// Cached Client — DB-backed cache with 24h TTL
+// ============================================================================
+
+import { and, eq, gt } from "@acme/db";
+import { db } from "@acme/db/client";
+import {
+  LegistarAgendaItem as LegistarAgendaItemRow,
+  LegistarBody as LegistarBodyRow,
+  LegistarMatter as LegistarMatterRow,
+  LegistarMeeting as LegistarMeetingRow,
+  LegistarVote as LegistarVoteRow,
+} from "@acme/db/schema";
+
 /**
  * Legistar Web API Client
  *
@@ -661,20 +675,6 @@ class FallbackLegistarClient extends LegistarClient {
   }
 }
 
-// ============================================================================
-// Cached Client — DB-backed cache with 24h TTL
-// ============================================================================
-
-import { and, eq, gt } from "@acme/db";
-import { db } from "@acme/db/client";
-import {
-  LegistarAgendaItem as LegistarAgendaItemRow,
-  LegistarBody as LegistarBodyRow,
-  LegistarMatter as LegistarMatterRow,
-  LegistarMeeting as LegistarMeetingRow,
-  LegistarVote as LegistarVoteRow,
-} from "@acme/db/schema";
-
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 function parseDate(s: string | null | undefined): Date | null {
@@ -688,14 +688,22 @@ class CachedLegistarClient extends FallbackLegistarClient {
     jurisdiction: Jurisdiction,
     query?: LegislationQuery,
   ): Promise<LegistarMatter[]> {
-    if (!query?.text && !query?.matterType && !query?.status && !query?.bodyId) {
+    if (
+      !query?.text &&
+      !query?.matterType &&
+      !query?.status &&
+      !query?.bodyId
+    ) {
       const cached = await db
         .select()
         .from(LegistarMatterRow)
         .where(
           and(
             eq(LegistarMatterRow.jurisdiction, jurisdiction),
-            gt(LegistarMatterRow.fetchedAt, new Date(Date.now() - CACHE_TTL_MS)),
+            gt(
+              LegistarMatterRow.fetchedAt,
+              new Date(Date.now() - CACHE_TTL_MS),
+            ),
           ),
         )
         .orderBy(LegistarMatterRow.lastModifiedUtc)
@@ -984,10 +992,7 @@ class CachedLegistarClient extends FallbackLegistarClient {
     }
   }
 
-  private async upsertVotes(
-    jurisdiction: Jurisdiction,
-    votes: LegistarVote[],
-  ) {
+  private async upsertVotes(jurisdiction: Jurisdiction, votes: LegistarVote[]) {
     if (votes.length === 0) return;
     const now = new Date();
     for (const v of votes) {
@@ -1017,9 +1022,7 @@ class CachedLegistarClient extends FallbackLegistarClient {
 
 // --- Row-to-API-type mappers (for cache reads) ---
 
-function rowToMatter(
-  r: typeof LegistarMatterRow.$inferSelect,
-): LegistarMatter {
+function rowToMatter(r: typeof LegistarMatterRow.$inferSelect): LegistarMatter {
   return {
     MatterId: r.matterId,
     MatterGuid: r.matterGuid ?? "",
@@ -1080,9 +1083,7 @@ function rowToMeeting(
   };
 }
 
-function rowToBody(
-  r: typeof LegistarBodyRow.$inferSelect,
-): LegistarBody {
+function rowToBody(r: typeof LegistarBodyRow.$inferSelect): LegistarBody {
   return {
     BodyId: r.bodyId,
     BodyGuid: r.bodyGuid ?? "",
@@ -1149,9 +1150,7 @@ function rowToAgendaItem(
   };
 }
 
-function rowToVote(
-  r: typeof LegistarVoteRow.$inferSelect,
-): LegistarVote {
+function rowToVote(r: typeof LegistarVoteRow.$inferSelect): LegistarVote {
   return {
     VoteId: r.voteId,
     VoteGuid: "",

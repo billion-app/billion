@@ -283,6 +283,23 @@ export const ContestRecord = pgTable(
     type: t.varchar({ length: 20 }).notNull(), // "candidate" | "referendum"
     roleDescription: t.text(),
     summary: t.text(),
+    // True when `summary` was AI-generated rather than from an official source.
+    summaryIsAiGenerated: t.boolean().default(false),
+    // Official fiscal impact analysis (LAO / county registrar).
+    fiscalImpact: t.text(),
+    // Per-field source attribution from the cross-validation engine.
+    citations: t
+      .jsonb()
+      .$type<
+        {
+          field: string;
+          sourceName: string;
+          sourceUrl?: string;
+          tier: string;
+          official: boolean;
+        }[]
+      >()
+      .default([]),
     source: t.varchar({ length: 50 }).notNull(),
     createdAt: t.timestamp().defaultNow().notNull(),
   }),
