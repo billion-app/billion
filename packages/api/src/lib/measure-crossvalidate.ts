@@ -216,6 +216,11 @@ export async function crossValidateMeasure(
   const proArguments = collectArguments(sources, "pro", citations);
   const conArguments = collectArguments(sources, "con", citations);
 
+  // Short/long summaries default to the chosen summary; the AI fallback below
+  // upgrades them to a one-sentence preview + a fuller paragraph when it runs.
+  let summaryShort: string | undefined = summary;
+  let summaryLong: string | undefined = summary;
+
   // --- AI fallback (last resort): summarize REAL fetched source text only. ---
   // No human/aggregator source had a summary. Rather than show a blank card, we
   // gather real text about the measure (Google Civic's own fields, else fetched
@@ -237,6 +242,7 @@ export async function crossValidateMeasure(
       ? [{ name: "Google Civic Information API", url: input.url }]
       : [];
 
+    let fetchedProsCons: { pros?: string[]; cons?: string[] } | undefined;
     if (groundingText.trim().length < 250) {
       const fetched = await collectGroundingText(input.title, {
         electionYear: ctx.electionYear,
@@ -245,17 +251,23 @@ export async function crossValidateMeasure(
       if (fetched) {
         groundingText = fetched.text;
         groundingSources = fetched.sources;
+        fetchedProsCons = { pros: fetched.pros, cons: fetched.cons };
       }
     }
 
     try {
-      summary = await generateMeasureSummary(input.title, groundingText);
+      const summaries = await generateMeasureSummary(input.title, groundingText);
+      summary = summaries.long;
+      summaryShort = summaries.short;
+      summaryLong = summaries.long;
       summaryIsAiGenerated = true;
+      const gsource = groundingSources[0];
       // Cite the AI step itself, plus the real sources it was grounded on, so
       // the reader can follow the summary back to the underlying material.
       citations.push({
         field: "summary",
-        sourceName: "AI summary — grounded on the sources below, not an official source",
+        sourceName:
+          "AI summary — grounded on the sources below, not an official source",
         tier: "ai_generated",
         official: false,
       });
@@ -349,6 +361,8 @@ export async function crossValidateMeasure(
   return {
     title: input.title,
     summary,
+    summaryShort,
+    summaryLong,
     summaryIsAiGenerated,
     fiscalImpact,
     fullText,

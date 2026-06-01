@@ -86,6 +86,10 @@ export interface MeasureSourceData {
 export interface CanonicalMeasure {
   title: string;
   summary?: string;
+  /** One-sentence summary for list/card previews (AI or first sentence). */
+  summaryShort?: string;
+  /** Fuller plain-language summary for the detail screen. */
+  summaryLong?: string;
   /** True when `summary` was produced by AI with no official source text. */
   summaryIsAiGenerated?: boolean;
   fiscalImpact?: string;
