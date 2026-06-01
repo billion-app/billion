@@ -10,9 +10,7 @@
     "fallbackToCacheTimeout": 0
   },
   "newArchEnabled": true,
-  "assetBundlePatterns": [
-    "**/*"
-  ],
+  "assetBundlePatterns": ["**/*"],
   "ios": {
     "bundleIdentifier": "app.billion-news.billion",
     "supportsTablet": true,
