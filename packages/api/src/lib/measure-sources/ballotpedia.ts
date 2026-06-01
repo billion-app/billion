@@ -33,8 +33,9 @@ const BASE = "https://ballotpedia.org";
 export function parseMeasureCodes(title: string): string[] {
   // "D D" (same letter, spaced) → ["D", "DD"]; single → ["D"].
   const dup = /\bmeasure\s+([a-z])\s+([a-z])\b/i.exec(title);
-  if (dup?.[1] && dup[2] && dup[1].toUpperCase() === dup[2].toUpperCase()) {
-    const l = dup[1].toUpperCase();
+  const [, first, second] = dup ?? [];
+  if (first && first.toUpperCase() === second?.toUpperCase()) {
+    const l = first.toUpperCase();
     return [l, l + l];
   }
   const m = /\bmeasure\s+([a-z]{1,2})\b/i.exec(title);
@@ -75,7 +76,10 @@ function findMeasureLinks(
     const href = m[1];
     const linkText = htmlToText(m[2] ?? "");
     // Match the code in either the visible text or the article slug.
-    if (!href || (!codeRe.test(linkText) && !codeRe.test(href.replace(/_/g, " "))))
+    if (
+      !href ||
+      (!codeRe.test(linkText) && !codeRe.test(href.replace(/_/g, " ")))
+    )
       continue;
     if (!/measure|proposition|prop|tax|bond|initiative/i.test(href)) continue;
     if (seen.has(href)) continue;
@@ -131,7 +135,10 @@ function sectionByAnchors(
 function clamp(s: string | undefined, max: number): string | undefined {
   if (!s) return undefined;
   // Collapse the hard line wraps htmlToText leaves in, for clean prose display.
-  const t = s.replace(/\s*\n\s*/g, " ").replace(/\s{2,}/g, " ").trim();
+  const t = s
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
   if (!t) return undefined;
   return t.length > max ? t.slice(0, max).trimEnd() + "…" : t;
 }
