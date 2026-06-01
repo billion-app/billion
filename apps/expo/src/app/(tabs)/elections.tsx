@@ -304,7 +304,9 @@ export default function ElectionsScreen() {
                     </TouchableOpacity>
                     {mOpen && (
                       <View style={s.summaryNested}>
-                        {m.summaryShort ?? m.summary ?? m.referendumSubtitle ? (
+                        {(m.summaryShort ??
+                        m.summary ??
+                        m.referendumSubtitle) ? (
                           <Text style={s.measureSub} numberOfLines={2}>
                             {m.summaryShort ??
                               m.summary ??

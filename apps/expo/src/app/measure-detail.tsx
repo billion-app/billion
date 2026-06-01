@@ -1,10 +1,4 @@
-import {
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import type { MeasureArgumentRef, MeasureCitationRef } from "@acme/api";
@@ -92,7 +86,9 @@ export default function MeasureDetailScreen() {
         {params.summaryLong || params.summary || params.referendumSubtitle ? (
           <>
             <Text style={s.subtitle}>
-              {params.summaryLong || params.summary || params.referendumSubtitle}
+              {params.summaryLong ||
+                params.summary ||
+                params.referendumSubtitle}
             </Text>
             {summaryIsAi && (
               <View style={s.aiNotice}>
@@ -159,9 +155,8 @@ export default function MeasureDetailScreen() {
             <Kicker>Sources</Kicker>
             <Card>
               {sources.map((src, i) => {
-                const open = src.sourceUrl
-                  ? () => void Linking.openURL(src.sourceUrl!)
-                  : undefined;
+                const url = src.sourceUrl;
+                const open = url ? () => void Linking.openURL(url) : undefined;
                 return (
                   <Pressable
                     key={`src-${i}`}

@@ -22,9 +22,9 @@ import type {
   CanonicalCandidate,
   MeasureCitation,
 } from "./candidate-sources/types";
-import { byTierDesc, candidateCite } from "./candidate-sources/types";
 import { enrichCandidateFromBallotpedia } from "./candidate-sources/ballotpedia";
 import { enrichCandidateFromOpenStates } from "./candidate-sources/open-states";
+import { byTierDesc, candidateCite } from "./candidate-sources/types";
 import { enrichCandidateFromVoteSmart } from "./candidate-sources/votesmart";
 import { enrichCandidateFromWikipedia } from "./candidate-sources/wikipedia";
 
