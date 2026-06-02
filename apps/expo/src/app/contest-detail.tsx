@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import Fuse from "fuse.js";
 import {
   Image,
   LayoutAnimation,
@@ -12,7 +13,16 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { Text } from "~/components/Themed";
-import { Card, Icon, Kicker, NavHeader, Segmented } from "~/components/ui";
+import {
+  Card,
+  Icon,
+  Kicker,
+  NavHeader,
+  Pill,
+  Pills,
+  SearchInput,
+  Segmented,
+} from "~/components/ui";
 import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 
 interface CandidateCitation {
@@ -145,22 +155,85 @@ export default function ContestDetailScreen() {
     roleDescription: string;
   }>();
 
-  const candidates: CandidateParam[] = params.candidates
-    ? (JSON.parse(params.candidates) as CandidateParam[])
-    : [];
+  const candidates: CandidateParam[] = useMemo(
+    () =>
+      params.candidates
+        ? (JSON.parse(params.candidates) as CandidateParam[])
+        : [],
+    [params.candidates],
+  );
   const description = params.roleDescription || null;
 
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  // Expansion keyed by candidate identity (name + original index), not array
+  // index — index-keying breaks once the list is filtered.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState("");
+  const [hasStatementOnly, setHasStatementOnly] = useState(false);
+  const [activeParty, setActiveParty] = useState<string | null>(null);
 
-  const toggle = useCallback((idx: number) => {
+  const toggle = useCallback((key: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
+
+  /** Party initials actually present in this contest, in first-seen order. */
+  const partyOptions = useMemo(() => {
+    const seen: string[] = [];
+    for (const c of candidates) {
+      const p = partyInitial(c.party);
+      if (!seen.includes(p)) seen.push(p);
+    }
+    return seen;
+  }, [candidates]);
+
+  // Fuzzy index over fields a voter might type. Weighted so a name hit
+  // outranks a stray statement/party hit. Rebuilt only when the list changes.
+  const fuse = useMemo(
+    () =>
+      new Fuse(candidates, {
+        keys: [
+          { name: "name", weight: 0.7 },
+          { name: "party", weight: 0.2 },
+          { name: "statementSummary", weight: 0.05 },
+          { name: "statement", weight: 0.05 },
+        ],
+        threshold: 0.4,
+        ignoreLocation: true,
+      }),
+    [candidates],
+  );
+
+  const filtered = useMemo(() => {
+    // Exact predicates (party chip, has-statement toggle) narrow first.
+    const base = candidates.filter((c) => {
+      if (
+        hasStatementOnly &&
+        !c.statement?.trim() &&
+        !c.statementSummary?.trim()
+      )
+        return false;
+      if (activeParty && partyInitial(c.party) !== activeParty) return false;
+      return true;
+    });
+
+    const q = query.trim();
+    if (!q) return base;
+
+    // Fuzzy-rank by relevance. Search the full index, then keep only rows that
+    // also survived the exact predicates — preserves Fuse's score order.
+    const allowed = new Set(base);
+    return fuse
+      .search(q)
+      .map((r) => r.item)
+      .filter((c) => allowed.has(c));
+  }, [candidates, fuse, query, hasStatementOnly, activeParty]);
+
+  const filtering = !!query.trim() || hasStatementOnly || activeParty !== null;
 
   return (
     <View style={s.screen}>
@@ -186,11 +259,54 @@ export default function ContestDetailScreen() {
 
         <View style={s.section}>
           <Kicker>
-            {`${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
+            {filtering
+              ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
+              : `${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
           </Kicker>
+
+          {candidates.length > 1 ? (
+            <View style={s.filters}>
+              <SearchInput
+                placeholder="Search candidates…"
+                value={query}
+                onChangeText={setQuery}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+              />
+              <View style={s.pillsBleed}>
+                <Pills>
+                <Pill
+                  label="Has statement"
+                  icon="doc"
+                  active={hasStatementOnly}
+                  onPress={() => setHasStatementOnly((v) => !v)}
+                />
+                {partyOptions.map((p) => (
+                  <Pill
+                    key={p}
+                    label={p}
+                    active={activeParty === p}
+                    onPress={() =>
+                      setActiveParty((cur) => (cur === p ? null : p))
+                    }
+                  />
+                ))}
+                </Pills>
+              </View>
+            </View>
+          ) : null}
+
+          {filtered.length === 0 ? (
+            <Card>
+              <Text style={s.noContact}>No candidates match.</Text>
+            </Card>
+          ) : null}
+
           <View style={{ gap: 12 }}>
-            {candidates.map((cand, i) => {
-              const open = expanded.has(i);
+            {filtered.map((cand) => {
+              const key = `${cand.name}-${candidates.indexOf(cand)}`;
+              const open = expanded.has(key);
               const contactRows = [
                 cand.candidateUrl && {
                   icon: "globe" as const,
@@ -232,11 +348,11 @@ export default function ContestDetailScreen() {
                 sources.length > 0;
 
               return (
-                <Card key={i}>
+                <Card key={key}>
                   <TouchableOpacity
                     style={s.candHeader}
                     activeOpacity={0.7}
-                    onPress={() => toggle(i)}
+                    onPress={() => toggle(key)}
                   >
                     <View style={s.partyTile}>
                       {cand.photoUrl ? (
@@ -419,6 +535,8 @@ const s = StyleSheet.create({
     marginBottom: 24,
   },
   section: { marginBottom: 24 },
+  filters: { gap: 10, marginBottom: 14 },
+  pillsBleed: { marginHorizontal: -20 },
   descText: {
     fontFamily: fontBody.regular,
     fontSize: 14.5,
