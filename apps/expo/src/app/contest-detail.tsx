@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import Fuse from "fuse.js";
 import {
   Image,
   LayoutAnimation,
@@ -190,10 +191,26 @@ export default function ContestDetailScreen() {
     return seen;
   }, [candidates]);
 
+  // Fuzzy index over fields a voter might type. Weighted so a name hit
+  // outranks a stray statement/party hit. Rebuilt only when the list changes.
+  const fuse = useMemo(
+    () =>
+      new Fuse(candidates, {
+        keys: [
+          { name: "name", weight: 0.7 },
+          { name: "party", weight: 0.2 },
+          { name: "statementSummary", weight: 0.05 },
+          { name: "statement", weight: 0.05 },
+        ],
+        threshold: 0.4,
+        ignoreLocation: true,
+      }),
+    [candidates],
+  );
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return candidates.filter((c) => {
-      if (q && !c.name.toLowerCase().includes(q)) return false;
+    // Exact predicates (party chip, has-statement toggle) narrow first.
+    const base = candidates.filter((c) => {
       if (
         hasStatementOnly &&
         !c.statement?.trim() &&
@@ -203,7 +220,18 @@ export default function ContestDetailScreen() {
       if (activeParty && partyInitial(c.party) !== activeParty) return false;
       return true;
     });
-  }, [candidates, query, hasStatementOnly, activeParty]);
+
+    const q = query.trim();
+    if (!q) return base;
+
+    // Fuzzy-rank by relevance. Search the full index, then keep only rows that
+    // also survived the exact predicates — preserves Fuse's score order.
+    const allowed = new Set(base);
+    return fuse
+      .search(q)
+      .map((r) => r.item)
+      .filter((c) => allowed.has(c));
+  }, [candidates, fuse, query, hasStatementOnly, activeParty]);
 
   const filtering = !!query.trim() || hasStatementOnly || activeParty !== null;
 
