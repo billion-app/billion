@@ -31,12 +31,12 @@
   "devDependencies": {
     "@acme/prettier-config": "workspace:*",
     "@playwright/test": "^1.58.2",
-    "@turbo/gen": "^2.8.21",
+    "@turbo/gen": "^2.9.14",
     "@types/node": "^25.5.0",
     "dotenv-cli": "^11.0.0",
     "prettier": "catalog:",
     "ts-node": "^10.9.2",
-    "turbo": "^2.8.21",
+    "turbo": "^2.9.14",
     "typescript": "catalog:"
   },
   "prettier": "@acme/prettier-config"
