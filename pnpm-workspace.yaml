@@ -6,7 +6,7 @@ packages:
 
 catalog:
   "@better-auth/cli": 1.4.21
-  "@better-auth/expo": 1.6.2
+  "@better-auth/expo": 1.6.13
   "@eslint/js": ^10.0.1
   "@tailwindcss/postcss": ^4.2.2
   "@tanstack/react-form": ^1.28.5
@@ -14,7 +14,7 @@ catalog:
   "@trpc/client": ^11.16.0
   "@trpc/server": ^11.16.0
   "@trpc/tanstack-react-query": ^11.16.0
-  better-auth: 1.6.2
+  better-auth: 1.6.13
   eslint: ^10.1.0
   prettier: ^3.8.1
   tailwindcss: ^4.2.2
@@ -45,7 +45,10 @@ overrides:
   chalk: "4.1.2"
   markdown-it@<14.1.1: ">=14.1.1"
   yaml@>=2.0.0 <2.8.3: ">=2.8.3"
-  kysely@<0.28.17: ">=0.28.17"
+  # Pin to last 0.28.x: @better-auth/kysely-adapter@1.6.x imports
+  # DEFAULT_MIGRATION_TABLE, which kysely 0.29 removed. 0.28.17 keeps the
+  # export and still satisfies the security floor. core only needs kysely types.
+  kysely: "0.28.17"
   valibot@>=0.31.0 <1.2.0: ">=1.2.0"
   uuid@<11.1.1: ">=11.1.1"
   ws@>=8.0.0 <8.20.1: ">=8.20.1"
@@ -55,7 +58,7 @@ overrides:
   "@xmldom/xmldom@<0.8.13": ">=0.8.13"
   brace-expansion@>=5.0.0 <5.0.6: ">=5.0.6"
   postcss@<8.5.10: ">=8.5.10"
-  better-auth@<1.6.2: ">=1.6.2"
+  better-auth@<1.6.13: ">=1.6.13"
   drizzle-orm@<0.45.2: ">=0.45.2"
   "@expo/metro": "~0.1.1"
   "@expo/metro-config": "~0.20.18"
