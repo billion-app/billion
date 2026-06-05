@@ -5,12 +5,6 @@ export const metadata: Metadata = {
   title: "Privacy Policy — Billion",
 };
 
-const C = {
-  deepNavy: "#0e1530",
-  border: "rgba(255,255,255,0.08)",
-  general: "#8a8fa0",
-};
-
 const LAST_UPDATED = "April 5, 2026";
 
 const SECTIONS = [
@@ -58,53 +52,32 @@ const SECTIONS = [
 
 export default function PrivacyPage() {
   return (
-    <main
-      className="min-h-screen"
-      style={{ backgroundColor: C.deepNavy, color: "#fff" }}
-    >
+    <main className="min-h-screen bg-background text-foreground">
       <nav
-        className="flex items-center justify-between px-6 py-5"
-        style={{ maxWidth: 1120, margin: "0 auto" }}
+        className="flex items-center justify-between px-6 py-5 mx-auto"
+        style={{ maxWidth: 1120 }}
       >
         <Link
           href="/"
-          className="text-[22px] font-bold tracking-[-0.02em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            textDecoration: "none",
-          }}
+          className="text-[22px] font-bold tracking-[-0.02em] text-white font-display no-underline"
         >
           Billion
         </Link>
         <Link
           href="/terms"
-          className="text-[15px] font-medium transition-colors duration-150 hover:text-white"
-          style={{
-            color: "rgba(255,255,255,0.6)",
-            fontFamily: "var(--font-albert-sans)",
-            textDecoration: "none",
-          }}
+          className="text-[15px] font-medium transition-colors duration-200 text-white/60 hover:text-gold font-sans no-underline"
         >
           Terms of Service
         </Link>
       </nav>
 
-      <article
-        className="mx-auto px-6 py-12 md:py-16"
-        style={{ maxWidth: 720 }}
-      >
-        <p
-          className="mb-2 text-[12px] font-medium tracking-[0.1em] uppercase"
-          style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
-        >
+      <article className="mx-auto px-6 py-12 md:py-16" style={{ maxWidth: 720 }}>
+        <p className="mb-2 text-[12px] font-medium tracking-label text-muted-foreground font-sans uppercase">
           Last updated {LAST_UPDATED}
         </p>
         <h1
-          className="mb-10 leading-[1.15] font-bold tracking-[-0.02em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            fontSize: "clamp(2rem, 4vw, 3rem)",
-          }}
+          className="mb-10 leading-[1.15] font-bold tracking-[-0.02em] text-white font-display"
+          style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}
         >
           Privacy Policy
         </h1>
@@ -112,19 +85,10 @@ export default function PrivacyPage() {
         <div className="flex flex-col gap-8">
           {SECTIONS.map((s) => (
             <section key={s.title}>
-              <h2
-                className="mb-2 text-[15px] font-semibold text-white"
-                style={{ fontFamily: "var(--font-albert-sans)" }}
-              >
+              <h2 className="mb-2 text-[15px] font-semibold text-white font-sans">
                 {s.title}
               </h2>
-              <p
-                className="m-0 text-[16px] leading-[1.7]"
-                style={{
-                  color: "rgba(255,255,255,0.7)",
-                  fontFamily: "var(--font-albert-sans)",
-                }}
-              >
+              <p className="m-0 text-[16px] leading-[1.7] text-white/70 font-sans">
                 {s.body}
               </p>
             </section>
@@ -134,37 +98,26 @@ export default function PrivacyPage() {
 
       <footer
         className="mx-auto flex items-center justify-between px-6 py-8"
-        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+        style={{ maxWidth: 1120, borderTop: "1px solid rgba(255,255,255,0.08)" }}
       >
-        <span
-          className="text-[18px] font-bold"
-          style={{
-            color: "rgba(255,255,255,0.4)",
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-          }}
-        >
+        <span className="text-[18px] font-bold text-white/40 font-display">
           Billion
         </span>
-        <div
-          className="flex items-center gap-5 text-[13px]"
-          style={{ fontFamily: "var(--font-albert-sans)" }}
-        >
+        <div className="flex items-center gap-5 text-[13px] font-sans">
           <Link
             href="/terms"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
+            className="transition-colors duration-200 text-white/40 hover:text-gold no-underline"
           >
             Terms
           </Link>
           <Link
             href="/privacy"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
+            className="transition-colors duration-200 text-white/40 hover:text-gold no-underline"
           >
             Privacy
           </Link>
-          <span style={{ color: "rgba(255,255,255,0.25)" }}>
-            © 2026 Billion. All rights reserved.
+          <span className="text-white/25">
+            &copy; 2026 Billion. All rights reserved.
           </span>
         </div>
       </footer>
