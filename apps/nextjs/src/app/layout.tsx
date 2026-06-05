@@ -11,6 +11,8 @@ import { Toaster } from "@acme/ui/toast";
 
 import { env } from "~/env";
 import { TRPCReactProvider } from "~/trpc/react";
+import { IntroProvider } from "./_components/intro-context";
+import { IntroOverlay } from "./_components/intro-overlay";
 
 import "~/app/globals.css";
 
@@ -79,7 +81,10 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           geistMono.variable,
         )}
       >
-        <TRPCReactProvider>{props.children}</TRPCReactProvider>
+        <IntroProvider>
+          <TRPCReactProvider>{props.children}</TRPCReactProvider>
+          <IntroOverlay />
+        </IntroProvider>
         <Toaster />
       </body>
     </html>
