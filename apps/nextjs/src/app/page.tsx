@@ -122,7 +122,7 @@ export default function LandingPage() {
           <img
             src="/billion-logo.png"
             alt="Billion"
-            className="h-8 w-8"
+            className="h-8 w-8 rounded-2xl"
           />
           <span className="text-[22px] font-bold tracking-[-0.02em] text-white font-display">
             Billion

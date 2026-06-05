@@ -13,7 +13,7 @@ export function IntroProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Overlay: 1s hold + 0.9s animate + 0.4s exit fade = ~2.3s. Fire at 2.4s.
-    const timer = setTimeout(() => setDone(true), 2400);
+    const timer = setTimeout(() => setDone(true), 2100);
     return () => clearTimeout(timer);
   }, []);
 
