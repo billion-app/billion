@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 
 import { WaitlistForm } from "./_components/waitlist-form";
+import { useIntroDone } from "./_components/intro-context";
 import {
   AnimatedSection,
   AnimatedCard,
@@ -105,19 +106,28 @@ function GoldDivider() {
 
 /* ── Page ──────────────────────────────────────────────────────────────── */
 export default function LandingPage() {
+  const introDone = useIntroDone();
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       {/* ── NAV ──────────────────────────────────────────────────── */}
       <motion.nav
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+        initial={{ opacity: 0 }}
+        animate={introDone ? { opacity: 1 } : { opacity: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
         className="flex items-center justify-between px-6 py-5 mx-auto"
         style={{ maxWidth: 1120 }}
       >
-        <span className="text-[22px] font-bold tracking-[-0.02em] text-white font-display">
-          Billion
-        </span>
+        <div className="flex items-center gap-3">
+          <img
+            src="/billion-logo.png"
+            alt="Billion"
+            className="h-8 w-8"
+          />
+          <span className="text-[22px] font-bold tracking-[-0.02em] text-white font-display">
+            Billion
+          </span>
+        </div>
         <Link
           href="#waitlist"
           className="text-[15px] font-medium transition-colors duration-200 text-white/60 hover:text-gold font-sans no-underline"
