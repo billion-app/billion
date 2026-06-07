@@ -64,3 +64,4 @@ dist/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+packages/db/seed-waitlist.sql
