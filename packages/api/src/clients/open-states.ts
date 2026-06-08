@@ -168,13 +168,22 @@ function getApiKey(): string {
 
 async function openStatesFetch<T>(
   path: string,
-  params: Record<string, string | number | boolean | undefined> = {},
+  params: Record<
+    string,
+    string | number | boolean | string[] | undefined
+  > = {},
 ): Promise<T> {
   const apiKey = getApiKey();
   const url = new URL(`${BASE_URL}${path}`);
 
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined) {
+    if (value === undefined) continue;
+    // Array values become repeated query params (?include=a&include=b) —
+    // /people validates each `include` as a single enum, so it rejects the
+    // comma-joined form the bills endpoints happen to tolerate.
+    if (Array.isArray(value)) {
+      for (const v of value) url.searchParams.append(key, v);
+    } else {
       url.searchParams.set(key, String(value));
     }
   }
@@ -337,6 +346,11 @@ export async function getLegislators(
     org_classification: orgClassification,
     page,
     per_page: perPage,
+    // /people omits offices + links unless explicitly included; the app uses
+    // these for the Call / Website actions on each legislator card. Must be
+    // repeated params (?include=offices&include=links) — /people validates each
+    // `include` as a single enum and rejects the comma-joined form.
+    include: ["offices", "links"],
   });
 }
 
