@@ -19,6 +19,10 @@
       "types": "./dist/clients/open-states.d.ts",
       "default": "./src/clients/open-states.ts"
     },
+    "./clients/ca-sos-results": {
+      "types": "./dist/clients/ca-sos-results.d.ts",
+      "default": "./src/clients/ca-sos-results.ts"
+    },
     "./lib/civic-ai": {
       "types": "./dist/lib/civic-ai.d.ts",
       "default": "./src/lib/civic-ai.ts"
