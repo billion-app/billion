@@ -9,6 +9,7 @@ export { getThumbnailForContent } from "./router/content";
 
 // Google Civic API types
 export type {
+  Address,
   Election,
   VoterInfoResponse,
   RepresentativesResponse,
