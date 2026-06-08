@@ -27,10 +27,22 @@ export type {
 // Google Civic API client functions (for direct use outside tRPC)
 export {
   getElections,
+  getElectionResults,
+  getDistrictElectionResults,
   getVoterInfo,
   getRepresentatives,
   getRepresentativesEnriched,
 } from "./lib/civic";
+
+// California Secretary of State live election-results feed
+export type {
+  ElectionContestResult,
+  ResultCandidate,
+  StatewideOffice,
+  DistrictChamber,
+  DistrictRef,
+} from "./clients/ca-sos-results";
+export { SOS_RESULTS_HOME } from "./clients/ca-sos-results";
 
 // Google Places address autocomplete
 export type { AddressSuggestion } from "./lib/places";
