@@ -10,7 +10,16 @@ import { and, eq, gt } from "@acme/db";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
+import type {
+  DistrictRef,
+  ElectionContestResult,
+  StatewideOffice,
+} from "../clients/ca-sos-results";
 import type { CrossValidateContext } from "./measure-crossvalidate";
+import {
+  getDistrictResults,
+  getStatewideResults,
+} from "../clients/ca-sos-results";
 import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
 import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
@@ -33,6 +42,9 @@ const CACHE_TTL = {
   voterinfo: 24 * 60 * 60 * 1000,
   representatives: 30 * 24 * 60 * 60 * 1000,
   representativesEnriched: 30 * 24 * 60 * 60 * 1000,
+  // Live results move fast on/after election night — keep it short so the feed
+  // stays current, but long enough to shield the SOS source from every client.
+  electionResults: 5 * 60 * 1000,
 } as const;
 
 function hashAddress(address: string): string {
@@ -930,6 +942,82 @@ export async function getElections(): Promise<Election[]> {
   } catch (error) {
     console.warn("[civic] getElections failed, using mock data:", error);
     return MOCK_ELECTIONS;
+  }
+}
+
+/**
+ * Get live, normalized results for the requested California statewide offices,
+ * sourced from the Secretary of State election-night feed. Cached briefly (see
+ * CACHE_TTL.electionResults) so the marquee races stay current without hammering
+ * the SOS on every client request. Returns [] on total failure rather than
+ * throwing — the results section is supplementary and shouldn't break the tab.
+ */
+export async function getElectionResults(
+  offices?: StatewideOffice[],
+): Promise<ElectionContestResult[]> {
+  // Cache key is global (results aren't address-scoped); the office list
+  // distinguishes entries so different selections don't collide.
+  const params = { offices: offices ?? "default" };
+  const cached = await getCached<ElectionContestResult[]>(
+    "__global__",
+    "electionResults",
+    params,
+  );
+  if (cached) return cached;
+
+  try {
+    const results = await getStatewideResults(offices);
+    await setCache(
+      "__global__",
+      "electionResults",
+      params,
+      results,
+      CACHE_TTL.electionResults,
+    );
+    return results;
+  } catch (error) {
+    console.warn("[civic] getElectionResults failed:", error);
+    return [];
+  }
+}
+
+/**
+ * Get live results for the specific district races on a voter's ballot (US
+ * House / State Senate / State Assembly). The district refs are supplied by the
+ * caller (derived from the ballot), so results are scoped to the voter rather
+ * than dumping every district in the state. Cached and fail-soft like the
+ * statewide variant.
+ */
+export async function getDistrictElectionResults(
+  refs: DistrictRef[],
+): Promise<ElectionContestResult[]> {
+  if (refs.length === 0) return [];
+
+  // Sort refs so the cache key is stable regardless of caller ordering.
+  const sorted = [...refs].sort((a, b) =>
+    `${a.chamber}-${a.number}`.localeCompare(`${b.chamber}-${b.number}`),
+  );
+  const params = { refs: sorted };
+  const cached = await getCached<ElectionContestResult[]>(
+    "__global__",
+    "districtResults",
+    params,
+  );
+  if (cached) return cached;
+
+  try {
+    const results = await getDistrictResults(refs);
+    await setCache(
+      "__global__",
+      "districtResults",
+      params,
+      results,
+      CACHE_TTL.electionResults,
+    );
+    return results;
+  } catch (error) {
+    console.warn("[civic] getDistrictElectionResults failed:", error);
+    return [];
   }
 }
 
