@@ -32,7 +32,10 @@ import type {
   ElectionContestResult,
   ResultCandidate,
 } from "@acme/api";
-import { SOS_RESULTS_HOME } from "@acme/api";
+// Import the constant from the dependency-free client module directly, NOT the
+// @acme/api barrel: the barrel re-exports server-only code (civic.ts → Node
+// `crypto`) that Metro can't bundle. ca-sos-results.ts has zero imports.
+import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker } from "~/components/ui";
