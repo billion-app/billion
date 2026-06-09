@@ -85,19 +85,56 @@ Summary (max 100 characters):`,
  * @param fullText - Full content text
  * @param type - Content type (bill, executive order, court case, etc.)
  * @param url - Source URL
+ * @param length - Article length preset (default: 'standard')
+ * @param readingLevel - Target reading level (default: 'accessible')
  * @returns Markdown-formatted article
  */
+export type ExplainerLength = 'concise' | 'standard' | 'comprehensive';
+export type ExplainerReadingLevel = 'technical' | 'accessible' | 'balanced';
+
+const SECTION_WORD_COUNTS: Record<ExplainerLength, { lede: string; overview: string; impact: string; debate: string }> = {
+  concise: {
+    lede: 'max 30 words',
+    overview: '80-120 words',
+    impact: '60-80 words',
+    debate: '60-80 words',
+  },
+  standard: {
+    lede: 'max 50 words',
+    overview: '200-400 words',
+    impact: '200-300 words',
+    debate: '200-300 words',
+  },
+  comprehensive: {
+    lede: 'max 75 words',
+    overview: '400-600 words',
+    impact: '400-500 words',
+    debate: '400-500 words',
+  },
+};
+
+const READING_LEVEL_INSTRUCTIONS: Record<ExplainerReadingLevel, string> = {
+  accessible: 'Use 8th-grade reading level language. Define any necessary technical/legal terms inline.',
+  technical: 'Use precise legal and policy terminology. Assume the reader has professional or policy background. Include relevant statutory or regulatory references where useful. Do not define common legal terms.',
+  balanced: 'Balance accessible language with technical precision. Define specialized acronyms and major jargon inline, but allow moderate complexity elsewhere.',
+};
+
 export async function generateAIArticle(
   title: string,
   fullText: string,
   type: string,
   url: string,
+  length: ExplainerLength = 'standard',
+  readingLevel: ExplainerReadingLevel = 'accessible',
 ): Promise<string> {
   if (rateLimitHit) {
     throw new AIRateLimitError();
   }
   try {
     logger.start(`Generating AI article for: ${title}`);
+
+    const wc = SECTION_WORD_COUNTS[length];
+    const readingLevelInstruction = READING_LEVEL_INSTRUCTIONS[readingLevel];
 
     const { text, usage } = await generateText({
       model: llm,
@@ -106,20 +143,20 @@ export async function generateAIArticle(
 **Structure your article with these 4 sections:**
 
 ## What This Means For You
-Write 1-2 very short, punchy sentences (max 50 words) that immediately tell a regular person how this affects their life. Use 5th-8th grade reading level. Completely avoid legal or technical terms. Focus on the "so what?"—the direct, practical result for everyday people. Make it feel human and relevant.
+Write 1-2 very short, punchy sentences (${wc.lede}) that immediately tell a regular person how this affects their life. Focus on the "so what?"—the direct, practical result for everyday people. Make it feel human and relevant.
 
 ## Overview
-Provide a balanced, neutral, and informative explanation of what this ${type} is about. Use engaging storytelling elements while remaining objective. Break down complex concepts, define technical terms, and provide context. Make it interesting to read while being thorough. Aim for 200-400 words.
+Provide a balanced, neutral, and informative explanation of what this ${type} is about. Use engaging storytelling elements while remaining objective. Break down complex concepts and provide context. Make it interesting to read while being thorough. Aim for ${wc.overview}.
 
 ## Impact & Implications
-Explain what this means in practice. Who is affected and how? What are the short-term and long-term implications? What changes as a result? Use real-world examples when possible. Be specific about practical effects. Aim for 200-300 words.
+Explain what this means in practice. Who is affected and how? What are the short-term and long-term implications? What changes as a result? Use real-world examples when possible. Be specific about practical effects. Aim for ${wc.impact}.
 
 ## The Debate
 Present both sides of the political spectrum's views on this matter. Give equal weight to supporters and critics. Quote or paraphrase key arguments from both perspectives. Remain objective and let readers understand different viewpoints. Structure this as:
 - **Supporters argue:** [their main points]
 - **Critics contend:** [their main points]
 
-Aim for 200-300 words, balanced between both sides.
+Aim for ${wc.debate}, balanced between both sides.
 
 ---
 
@@ -129,8 +166,7 @@ Aim for 200-300 words, balanced between both sides.
 - Use bullet points or numbered lists where appropriate
 - Include blockquotes (>) for any direct quotes from the original text
 - Keep paragraphs short (2-4 sentences) for readability
-- Use 8th-grade reading level language
-- Define any necessary technical/legal terms inline
+- ${readingLevelInstruction}
 
 **Original Content:**
 

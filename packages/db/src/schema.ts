@@ -3,6 +3,8 @@ import { customType, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+import { user } from "./auth-schema";
+
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
   dataType() {
@@ -72,7 +74,7 @@ export const Bill = pgTable(
     createdAt: t.timestamp().defaultNow().notNull(),
     updatedAt: t
       .timestamp({ mode: "date", withTimezone: true })
-      .$onUpdateFn(() => sql`now()`),
+      .$onUpdateFn(() => sql`now()`)
   }),
   (table) => ({
     uniqueBillNumberSource: unique().on(table.billNumber, table.sourceWebsite),
@@ -219,6 +221,7 @@ export const CreateVideoSchema = createInsertSchema(Video).omit({
   updatedAt: true,
 });
 
+<<<<<<< Updated upstream
 // Elections table — persists scraped election data from Google Civic, VOTE411, etc.
 export const ElectionRecord = pgTable(
   "election",
@@ -619,6 +622,85 @@ export const CivicApiCache = pgTable(
       table.params,
     ),
     expiresAtIdx: index("civic_cache_expires_idx").on(table.expiresAt),
+  }),
+);
+
+// User reading preferences — one row per user, stores global explainer defaults
+export const UserPreferences = pgTable("user_preferences", (t) => ({
+  userId: t
+    .text()
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  explainerLength: t.varchar({ length: 20 }).notNull().default("standard"), // "concise" | "standard" | "comprehensive"
+  readingLevel: t.varchar({ length: 20 }).notNull().default("accessible"), // "technical" | "accessible" | "balanced"
+  createdAt: t.timestamp().defaultNow().notNull(),
+  updatedAt: t
+    .timestamp({ mode: "date", withTimezone: true })
+    .$onUpdateFn(() => sql`now()`),
+}));
+
+export const CreateUserPreferencesSchema = createInsertSchema(UserPreferences, {
+  explainerLength: z.enum(["concise", "standard", "comprehensive"]),
+  readingLevel: z.enum(["technical", "accessible", "balanced"]),
+}).omit({ createdAt: true, updatedAt: true });
+
+// Explainer variant cache — one row per (contentId, contentType, length, readingLevel) combo
+export const ExplainerVariant = pgTable(
+  "explainer_variant",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentId: t.uuid().notNull(), // polymorphic: Bill.id | GovernmentContent.id | CourtCase.id
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
+    length: t.varchar({ length: 20 }).notNull(), // "concise" | "standard" | "comprehensive"
+    readingLevel: t.varchar({ length: 20 }).notNull(), // "technical" | "accessible" | "balanced"
+    markdown: t.text().notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(), // mirrored from source; used for cache invalidation
+    promptVersion: t.varchar({ length: 20 }).notNull().default("v1"), // bump when prompt template changes
+    generatedAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueVariant: unique().on(
+      table.contentId,
+      table.contentType,
+      table.length,
+      table.readingLevel,
+    ),
+    contentIdIndex: index("explainer_variant_content_id_idx").on(
+      table.contentId,
+    ),
+  }),
+);
+
+export const CreateExplainerVariantSchema = createInsertSchema(
+  ExplainerVariant,
+).omit({ id: true, generatedAt: true });
+
+// Dual-lens perspectives cache — one row per content item
+export const ContentLens = pgTable(
+  "content_lens",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
+    contentId: t.uuid().notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    lensData: t
+      .jsonb()
+      .$type<{
+        left: { stance: string; points: string[] };
+        right: { stance: string; points: string[] };
+        generatedAt: string;
+        modelVersion: string;
+      }>()
+      .notNull(),
+    modelVersion: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueContentLens: unique().on(table.contentType, table.contentId),
+    contentIdIndex: index("content_lens_content_id_idx").on(table.contentId),
   }),
 );
 
