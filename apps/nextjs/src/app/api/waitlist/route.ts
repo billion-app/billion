@@ -15,10 +15,7 @@ export async function POST(req: Request) {
 
   const parsed = CreateWaitlistSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid email" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
 
   const email = parsed.data.email.trim().toLowerCase();

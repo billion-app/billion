@@ -168,10 +168,7 @@ function getApiKey(): string {
 
 async function openStatesFetch<T>(
   path: string,
-  params: Record<
-    string,
-    string | number | boolean | string[] | undefined
-  > = {},
+  params: Record<string, string | number | boolean | string[] | undefined> = {},
 ): Promise<T> {
   const apiKey = getApiKey();
   const url = new URL(`${BASE_URL}${path}`);
