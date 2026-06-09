@@ -1,6 +1,6 @@
 import { db } from "@acme/db/client";
 import { and, eq } from "@acme/db";
-import { Bill, GovernmentContent, CourtCase, ExplainerVariant } from "@acme/db/schema";
+import { Bill, GovernmentContent, CourtCase, ExplainerVariant, ContentLens } from "@acme/db/schema";
 import type {
   BillData,
   GovernmentContentData,
@@ -10,6 +10,7 @@ import { createContentHash } from "../hash.js";
 import {
   generateAISummary,
   generateAIArticle,
+  generateDualLens,
   AIRateLimitError,
   type ExplainerLength,
 } from "../ai/text-generation.js";
@@ -201,7 +202,69 @@ async function upsertExplainerVariants(
   }
 }
 
+async function upsertContentLens(
+  contentId: string,
+  contentType: 'bill' | 'government_content' | 'court_case',
+  contentHash: string,
+  title: string,
+  fullText: string,
+  articleType: string,
+): Promise<void> {
+  const [existing] = await db
+    .select({ contentHash: ContentLens.contentHash })
+    .from(ContentLens)
+    .where(
+      and(
+        eq(ContentLens.contentId, contentId),
+        eq(ContentLens.contentType, contentType),
+      ),
+    )
+    .limit(1);
+
+  if (existing?.contentHash === contentHash) {
+    logger.debug(`Dual-lens already cached for ${contentId}`);
+    return;
+  }
+
+  const lens = await generateDualLens(title, fullText, articleType);
+  if (!lens) {
+    logger.warn(`Dual-lens generation returned null for ${contentId}`);
+    return;
+  }
+
+  const modelVersion = 'deepseek-v4-flash';
+  await db
+    .insert(ContentLens)
+    .values({
+      contentId,
+      contentType,
+      contentHash,
+      lensData: {
+        ...lens,
+        generatedAt: new Date().toISOString(),
+        modelVersion,
+      },
+      modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: [ContentLens.contentType, ContentLens.contentId],
+      set: {
+        contentHash,
+        lensData: {
+          ...lens,
+          generatedAt: new Date().toISOString(),
+          modelVersion,
+        },
+        modelVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+  logger.success(`Cached dual-lens for ${contentId}`);
+}
+
 export async function upsertContent(input: ContentData) {
+  const newContentHash = createContentHash(hashFields(input));
   const existing = await checkExisting(input);
   const label = contentLabel(input);
 
@@ -466,6 +529,18 @@ export async function upsertContent(input: ContentData) {
         articleType,
         newContentHash,
         aiGeneratedArticle,
+      );
+    }
+
+    // Generate and cache dual-lens perspectives
+    if (hasUsableText && result?.id) {
+      await upsertContentLens(
+        result.id,
+        input.type,
+        newContentHash,
+        title,
+        fullText!,
+        articleType,
       );
     }
   } catch (error) {

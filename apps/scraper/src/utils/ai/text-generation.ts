@@ -192,3 +192,94 @@ Write the article now using the 4-section structure above:`,
     return '';
   }
 }
+
+export interface LensSide {
+  stance: string;
+  points: string[];
+}
+
+export interface DualLens {
+  left: LensSide;
+  right: LensSide;
+}
+
+function parseLensJSON(raw: string): DualLens | null {
+  try {
+    const json = raw.match(/\{[\s\S]*\}/)?.[0];
+    if (!json) return null;
+    const parsed = JSON.parse(json) as unknown;
+    if (
+      typeof parsed !== 'object' || parsed === null ||
+      !('left' in parsed) || !('right' in parsed)
+    ) return null;
+    const { left, right } = parsed as Record<string, unknown>;
+    if (
+      typeof left !== 'object' || left === null ||
+      typeof right !== 'object' || right === null
+    ) return null;
+    const l = left as Record<string, unknown>;
+    const r = right as Record<string, unknown>;
+    if (
+      typeof l.stance !== 'string' || !Array.isArray(l.points) ||
+      typeof r.stance !== 'string' || !Array.isArray(r.points)
+    ) return null;
+    const leftPoints = (l.points as unknown[]).filter((p): p is string => typeof p === 'string');
+    const rightPoints = (r.points as unknown[]).filter((p): p is string => typeof p === 'string');
+    if (leftPoints.length < 2 || rightPoints.length < 2) return null;
+    return {
+      left: { stance: l.stance, points: leftPoints.slice(0, 4) },
+      right: { stance: r.stance, points: rightPoints.slice(0, 4) },
+    };
+  } catch {
+    return null;
+  }
+}
+
+const DUAL_LENS_PROMPT = (title: string, type: string, text: string) => `You are a nonpartisan civic analyst. Given the following ${type}, produce balanced perspectives from supporters and critics. Cite specific provisions, sections, or precedents from the source text. Do not editorialize — present each side's strongest arguments.
+
+Respond with ONLY valid JSON, no markdown, no explanation:
+{
+  "left": {
+    "stance": "Proponents argue",
+    "points": ["2 to 4 specific arguments citing the text"]
+  },
+  "right": {
+    "stance": "Critics counter",
+    "points": ["2 to 4 specific arguments citing the text"]
+  }
+}
+
+Title: ${title}
+
+Content:
+${text.substring(0, 4000)}`;
+
+export async function generateDualLens(
+  title: string,
+  fullText: string,
+  type: string,
+): Promise<DualLens | null> {
+  if (rateLimitHit) {
+    throw new AIRateLimitError();
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { text, usage } = await generateText({
+        model: llm,
+        prompt: DUAL_LENS_PROMPT(title, type, fullText),
+      });
+      trackLLMUsage(usage.inputTokens, usage.outputTokens);
+      const lens = parseLensJSON(text);
+      if (lens) return lens;
+      logger.warn(`Dual-lens parse failed on attempt ${attempt + 1} for "${title}" — retrying`);
+    } catch (error) {
+      if (isRateLimitError(error)) {
+        rateLimitHit = true;
+        throw new AIRateLimitError();
+      }
+      logger.error(`Dual-lens generation error on attempt ${attempt + 1}`, error);
+      if (attempt === 1) return null;
+    }
+  }
+  return null;
+}
