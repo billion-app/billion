@@ -2,7 +2,7 @@
 
 Billion is an AI-powered civic information app. It pulls from government and civic data sources (Congress, the Federal Register, the Supreme Court, local councils, and election authorities), enriches the content with AI-generated articles, summaries, and imagery, cross-validates ballot-measure **and candidate** information against official and public-record sources, and surfaces all of it to users through a React Native mobile app backed by a Next.js + tRPC API.
 
-This document covers how the system is structured, why the key decisions were made, and what alternatives were considered. See [CONTRIBUTING.md](./CONTRIBUTING.md) for dev setup, styling conventions, and localtunnel configuration. See [docs/MEASURE_ENRICHMENT.md](./docs/MEASURE_ENRICHMENT.md) for the deep dive on ballot-measure cross-validation.
+This document covers how the system is structured, why the key decisions were made, and what alternatives were considered. See [CONTRIBUTING.md](./CONTRIBUTING.md) for dev setup, styling conventions, and localtunnel configuration. The ballot-measure pipeline (adapter-by-adapter, bias controls, source roadmap) and per-source key/access setup are covered in [Ballot-Measure Enrichment — Deep Dive](#ballot-measure-enrichment--deep-dive) and [Civic Data Source Setup](#civic-data-source-setup) below.
 
 ### System Overview
 
@@ -327,6 +327,148 @@ flowchart TD
     merge --> write["setCachedCandidate()<br/>(TTL 7d)"]
     write --> backfill
 ```
+
+### Ballot-Measure Enrichment — Deep Dive
+
+> Consolidates the former `docs/MEASURE_ENRICHMENT.md`. The [Ballot-Measure Cross-Validation](#ballot-measure-cross-validation) subsection above is the summary; this is the adapter-by-adapter detail, bias controls, output shape, and source roadmap.
+
+#### The problem
+
+The Google Civic Information API reliably returns ballot-measure **titles** but almost never populates the content fields (subtitle, pro/con, fiscal impact, full text) — especially for local (city/county) measures. The expanded measure cards in the app were therefore mostly empty. All of this data is **public record**; paid aggregators (Ballotpedia, BallotReady, Democracy Works) just structure it. So instead of paying for a thin API, we combine several free, official sources and cross-validate them. There is **no national clearinghouse** for measure content — it's a state-and-local matter, which is why coverage is built up state by state.
+
+#### Engine + entry point
+
+- **Engine:** `packages/api/src/lib/measure-crossvalidate.ts`
+- **Source adapters:** `packages/api/src/lib/measure-sources/`
+- **Entry point:** `enrichContest()` in `packages/api/src/lib/civic.ts`, run by `civic.getVoterInfo`.
+
+```
+CA SOS Official Voter Guide  ─┐
+LWV CaVotes (Pros & Cons)    ─┤
+Ballotpedia (statewide+local)─┤
+Wikipedia (statewide props)  ─┼──▶ Cross-Validation Engine ──▶ Canonical Measure ──▶ Cache (CivicApiCache) ──▶ App
+Vote Smart API               ─┤        │ merge by trust tier        │ citation on every field
+Google Civic API             ─┤        │ AI structures, never authors
+SPUR + AI (grounded fallback)─┘        └── flags discrepancies for review
+```
+
+#### Trust tiers
+
+When more than one source covers the same field, the higher tier wins (defined in `measure-sources/types.ts`, `SOURCE_TIER_RANK`):
+
+```
+county_registrar > state_sos > lwv > ballotpedia > wikipedia > vote_smart > google_civic > ai_generated
+```
+
+#### Source adapters (wired today)
+
+Each adapter fetches over a shared, defensive helper (`measure-sources/fetch.ts`) that uses a browser User-Agent and turns any failure into `null`.
+
+| Source                              | Adapter                | Tier          | Scope / method                                                                 |
+| ----------------------------------- | ---------------------- | ------------- | ------------------------------------------------------------------------------ |
+| CA SOS Official Voter Guide         | `ca-sos-voterguide.ts` | `state_sos`   | CA statewide props. Official AG summary, LAO fiscal impact, pro/con, full-text URL — **real official text, not AI.** Matches on the prop number parsed from the title. The guide is rebuilt each cycle and only serves the active election, so it yields nothing between prop cycles. |
+| League of Women Voters — CaVotes    | `cavotes.ts`           | `lwv`         | CA statewide props. Nonpartisan "Pros & Cons" summary, fiscal effects, supporter/opponent arguments via the CaVotes WordPress REST API (`cavotes.org/wp-json/wp/v2/ballots`). Slugs are inconsistent across years, so it enumerates the list and matches by prop number + year. |
+| Ballotpedia                         | `ballotpedia.ts`       | `ballotpedia` | **Statewide _and_ local** lettered measures — the main source for local. Rendered article HTML (MediaWiki API disabled), resolved from a year/county index. Extracts ballot summary/question, fiscal impact / impartial analysis, arguments. Year-gated so a same-letter measure from another cycle isn't surfaced. |
+| Wikipedia                           | `wikipedia.ts`         | `wikipedia`   | CA statewide props only — gated on a parsed prop number (local titles like "Measure Q" collide with unrelated articles). MediaWiki extract for `<year> California Proposition <n>`; neutral encyclopedic overview. |
+| Vote Smart                          | `votesmart.ts`         | `vote_smart`  | State-level measures. Fuzzy-matches the title to a Vote Smart measure → summary, full-text URL, pro/con URLs. Requires `VOTE_SMART_API_KEY`. |
+| Google Civic                        | (the input itself)     | `google_civic`| The measure as the API returned it — lowest-trust, so its subtitle/text still surface when nothing better exists. |
+
+#### Grounded AI fallback (`grounded-fallback.ts`)
+
+- **When:** no human/aggregator source had a summary.
+- **What:** resolves the measure on SPUR's Bay Area voter guide (`spur.org/voter-guide/<YYYY>-<MM>`) by its letter and fetches the real page text. That text — never the title alone — is what the AI summarizes. The summary is flagged AI-generated and cites the SPUR page it was built from.
+- **Bias control:** SPUR is party-independent but takes an explicit YES/NO position on every measure. We strip its "SPUR's Recommendation" section before grounding, and the AI prompt is instructed to ignore advocacy framing, so the endorsement never leaks into the neutral summary.
+- **Pro/con:** SPUR pages carry "Pros"/"Cons" lists; those are parsed and surfaced directly, cited to SPUR at the `ai_generated` (last-resort) tier — they are SPUR's framing, not the nonpartisan League tier. AI pro/con is generated only when no source supplied any.
+
+#### AI's role (explicitly scoped)
+
+- **YES** — summarize official fiscal-impact analyses into plain language; reconcile and structure existing source text.
+- **NO** — invent a summary or arguments when no source material exists (the UI shows "No information available"). AI pro/con is allowed only as a grounded last resort, flagged AI-generated.
+- **Fallback only** — when there _is_ fetched source text but no human summary, an AI summary is generated and **flagged** (`Contest.summaryIsAiGenerated`) so the app labels it "AI-generated — not from an official source". The model gets the real source text and returns `INSUFFICIENT` (→ no summary) if that text doesn't actually describe the measure, so it can't fabricate from a title. Generation goes through the generic `llm` provider (`ai-provider.ts`): DeepSeek by default, OpenAI fallback.
+
+#### Output shape
+
+`crossValidateMeasure` returns a `CanonicalMeasure`, mapped onto the existing `Contest` type:
+
+| Field                               | Meaning                                                                             |
+| ----------------------------------- | ----------------------------------------------------------------------------------- |
+| `summary`                           | best available summary (official preferred)                                         |
+| `summaryShort` / `summaryLong`      | one-sentence card preview / fuller detail-screen summary                            |
+| `summaryIsAiGenerated`              | true if `summary` came from AI                                                      |
+| `fiscalImpact`                      | official fiscal analysis                                                            |
+| `proArguments[]` / `conArguments[]` | attributed arguments (`{text, author?, sourceName, sourceUrl}`)                     |
+| `citations[]`                       | which source supplied each field (`{field, sourceName, sourceUrl, tier, official}`) |
+| `sources[]`                         | one `Source` per citation, for attribution chips                                    |
+
+The same columns exist on `ContestRecord` (`summaryIsAiGenerated`, `fiscalImpact`, `citations`) so persisted measures keep their attribution.
+
+#### Robustness
+
+Every scraper is **defensive**: network failures, timeouts, and markup changes yield `null`, never a throw. A missing source is simply "no data from this tier", and the engine merges whatever it got. Worst case, the app falls back to the raw Google Civic data exactly as before. Enrichment is expensive (network + AI), so results ride along inside the `civic.getVoterInfo` response, cached per-address in `CivicApiCache` with a 24h TTL — no separate cache table.
+
+#### Source roadmap — extending beyond California
+
+The source-adapter interface (`MeasureSourceData`) is generic, so the **source set grows without touching the engine**: write an adapter returning `MeasureSourceData | null`, assign it a `SourceTier`, and register it in the `Promise.all` in `crossValidateMeasure`. The premise (from `docs/research/api-pricing-and-incorporation-2026.md`): measure content is public record, so we ingest free official/civic sources state by state. California is by far the most data-rich state in machine-readable form, hence CA-first.
+
+**Planned sources** (researched, tracked in the [Outreach Tracker](https://github.com/orgs/billion-app/projects/3) under the *Data Source* track — **not yet built**; `docs/outreach-deliverables.md` §4 defines "done" per source):
+
+| Source            | Adds                                              | Access            | Outreach? |
+| ----------------- | ------------------------------------------------- | ----------------- | --------- |
+| **CA SOS Results API** | Vote counts for all CA measures (JSON/CSV)   | Free, no auth     | No        |
+| **CA SOS VIG Archive** | Full prop text + pro/con + rebuttals, 1996–present | Free (HTML; live site 403s, use archive) | Permission ask |
+| **LAO**           | CA fiscal analyses 1974–present (best-structured) | Free, clean HTML  | No        |
+| **SF DataSF**     | SF propositions 1907–present (Socrata API) — *local schema template* | Free API | No |
+| **CEDA** (CSU Sacramento) | CA **local** measures + text, 1995–present | Free, Excel/PDF   | Bulk-export request |
+| **NCSL**          | National metadata (50 states, 1902–present) — type/topic/pass-fail, **no text** | Free (Power BI / CSV) | CSV-export request |
+| **OpenElections** | Precinct-level results across states (CSV on GitHub) | Free            | Licensing confirm |
+| **VIP / Voting Info Project** | 40+ states ballot content (VIP spec v6.0) | Request (feeds not public) | Partnership |
+| **Florida / Oregon / Colorado / NY / Texas SOS** | Per-state measure text/results | Free (HTML/PDF/XLSX) | Mostly no |
+
+**Phasing** (CA-first):
+
+1. **Phase 1 — CA core:** CA SOS Results API + LAO + VIG Archive + SF DataSF. Mostly no outreach; proves out the pipeline on the richest single-state dataset.
+2. **Phase 2 — national results layer:** NCSL metadata + OpenElections, combined for a national results picture.
+3. **Phase 3 — other states:** Florida, Oregon, etc. — add per-state adapters as bandwidth allows.
+4. **Phase 4 — CA local:** CEDA for county/city/school-district measures.
+
+Outreach-gated sources (CEDA, NCSL, VIP) follow the same code path once access is granted — a data-access request just precedes the build. **Risk mitigations baked into source design:** scrapers tag the source-structure version they target; 403-prone sites (live VIG) fall back to archived versions plus politeness delays; PDF-only states (FL, TX) use `pdfminer`/`pdfplumber` and are deprioritized; government data has no SLA, so results are cached aggressively with last-fetched timestamps. CEDA historical data can validate extraction accuracy.
+
+---
+
+### Civic Data Source Setup
+
+> Consolidates the former `docs/CIVIC_DATA_SOURCES.md`. How to obtain keys/access for every civic integration. For local dev, copy `.env.example` to `.env` and fill in the keys below.
+
+| Source                                 | Key required | Cost           | Env variable           |
+| -------------------------------------- | ------------ | -------------- | ---------------------- |
+| Google Civic API                       | Yes          | Free (25k/day) | `GOOGLE_CIVIC_API_KEY` |
+| Open States API                        | Yes          | Free           | `OPEN_STATES_API_KEY`  |
+| Google Places (address autocomplete)   | Yes          | Pay-as-you-go  | `GOOGLE_PLACES_API_KEY` (→ `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`) |
+| Vote Smart                             | Yes          | Free (org tier)| `VOTE_SMART_API_KEY`   |
+| Legistar (local councils)              | No           | Free           | —                      |
+| VOTE411 / LWV (scraper)                | No           | Free           | —                      |
+| CA SOS Voter Guide (scraper)           | No           | Free           | —                      |
+| Santa Clara measure pipeline (scraper) | No           | Free           | —                      |
+
+> ⚠️ **`CA_SOS_API_KEY` is dead cruft.** Earlier docs listed it for election results, but the results client uses the free, keyless `media.sos.ca.gov` endpoint — the key is unused in code. Safe to drop from `.env.example`.
+
+**Google Civic Information API** — elections, polling locations, ballot info, representatives; 25k req/day free. [Cloud Console](https://console.cloud.google.com/) → create/select project → APIs & Services → Library → enable "Google Civic Information API" → Credentials → Create API Key. For production, restrict the key (HTTP referrers/IP + this API only). → `GOOGLE_CIVIC_API_KEY`.
+
+**Open States API** — CA state bills, legislators, voting records. [Sign up](https://openstates.org/accounts/signup/) → verify email → [profile](https://openstates.org/accounts/profile/) → API Keys → Generate. Docs: <https://docs.openstates.org/api-v3/>. → `OPEN_STATES_API_KEY`.
+
+**Google Places (Autocomplete New)** — US street-address autocomplete for the ballot lookup. Same Cloud Console flow as Civic; enable "Places API (New)". Reuses the Google key chain. See `packages/api/src/lib/places.ts` (session-token billing). → `GOOGLE_PLACES_API_KEY`.
+
+**Vote Smart** — voting records, candidate bios, measure pro/con. Access is **member vs. business/organizational** (not nonprofit vs. for-profit) — org fees apply; ToS bars use "in any campaign activity". [Register](https://votesmart.org/share/api). → `VOTE_SMART_API_KEY`.
+
+**Legistar Web API** — local council meetings, legislation, votes, agendas; no key, unlimited public data. Supported jurisdictions (client id): San Jose (`sanjose`), Santa Clara County (`santaclara`), Sunnyvale (`sunnyvale`). Add a city by extracting its `*.legistar.com` subdomain into the `JURISDICTIONS` constant in `packages/api/src/integrations/legistar.ts`. Base: <https://webapi.legistar.com/> (OData-compatible).
+
+**VOTE411 / League of Women Voters** — nonpartisan voter guides, candidate questionnaires, measure explanations; no key (scraper, rate-limited + cached). ⚠️ ToS bars commercial use without **written consent** and prohibits automated queries — a negotiated partnership is the only compliant path (tracked in the Outreach Tracker). Also `cavotes.org/easy-voter-guide/` for CA.
+
+**CA SOS Official Voter Guide (scraper)** — official statewide proposition summaries (AG), LAO fiscal analyses, arguments, full-text links; no key. Source `voterguide.sos.ca.gov`. Distinct from the (dead) results API — this carries the human-written official measure content and feeds the cross-validation engine (`measure-sources/ca-sos-voterguide.ts`). CA statewide only; local measures use the county pipelines.
+
+**Santa Clara measure pipeline (scraper)** — local lettered measure summaries + fiscal impact for Santa Clara County, the proving ground for county-level ingestion; no key. Sources: SCC Registrar (`vote.santaclaracounty.gov`, Cloudflare-protected so sometimes unavailable) with the LWV Easy Voter Guide (`easyvoterguide.org`) as nonpartisan fallback.
+
+**Paid APIs (future, benchmark only):** BallotReady (full ballot + endorsements), Ballotpedia (candidate bios, detailed coverage), Democracy Works (comprehensive election data). All cost thousands/month and are fallback/gap-fillers only — see the Outreach Tracker for evaluation status.
 
 ### LLM Provider (API side)
 
