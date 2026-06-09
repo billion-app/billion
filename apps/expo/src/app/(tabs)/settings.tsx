@@ -44,6 +44,18 @@ function buildGroups(
 ): { title: string; items: Item[] }[] {
   return [
     {
+      title: "Content",
+      items: [
+        {
+          id: "reading-preferences",
+          title: "Reading Preferences",
+          subtitle: "Article length and reading level",
+          icon: "reader-outline",
+          onPress: () => router.push("/settings/explainer-preferences"),
+        },
+      ],
+    },
+    {
       title: "Account",
       items: [
         {

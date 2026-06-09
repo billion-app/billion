@@ -1,9 +1,10 @@
 import type { TRPCRouterRecord } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { desc, eq } from "@acme/db";
+import { and, desc, eq } from "@acme/db";
 import { db } from "@acme/db/client";
-import { Bill, CourtCase, GovernmentContent } from "@acme/db/schema";
+import { Bill, CourtCase, ExplainerVariant, GovernmentContent } from "@acme/db/schema";
 
 import { publicProcedure } from "../trpc";
 
@@ -304,5 +305,75 @@ export const contentRouter = {
       }
 
       throw new Error(`Content with id ${input.id} not found`);
+    }),
+
+  // Serve a personalized explainer variant from the pre-generated cache.
+  // Returns { markdown, cached: true } on a cache hit, or { markdown: null, cached: false }
+  // when the requested variant hasn't been generated yet (client should fall back to the
+  // default aiGeneratedArticle returned by getById).
+  getExplainer: publicProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        contentType: z.enum(["bill", "government_content", "court_case"]),
+        length: z
+          .enum(["concise", "standard", "comprehensive"])
+          .default("standard"),
+        readingLevel: z
+          .enum(["technical", "accessible", "balanced"])
+          .default("accessible"),
+      }),
+    )
+    .query(async ({ input }) => {
+      // 1. Check variant cache
+      const [variant] = await db
+        .select()
+        .from(ExplainerVariant)
+        .where(
+          and(
+            eq(ExplainerVariant.contentId, input.id),
+            eq(ExplainerVariant.contentType, input.contentType),
+            eq(ExplainerVariant.length, input.length),
+            eq(ExplainerVariant.readingLevel, input.readingLevel),
+          ),
+        )
+        .limit(1);
+
+      // 2. Fetch source content hash (verifies the source exists and lets us
+      //    detect stale cache entries when content changes)
+      let sourceHash: string | null = null;
+      if (input.contentType === "bill") {
+        const [row] = await db
+          .select({ contentHash: Bill.contentHash })
+          .from(Bill)
+          .where(eq(Bill.id, input.id))
+          .limit(1);
+        if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+        sourceHash = row.contentHash;
+      } else if (input.contentType === "government_content") {
+        const [row] = await db
+          .select({ contentHash: GovernmentContent.contentHash })
+          .from(GovernmentContent)
+          .where(eq(GovernmentContent.id, input.id))
+          .limit(1);
+        if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+        sourceHash = row.contentHash;
+      } else {
+        const [row] = await db
+          .select({ contentHash: CourtCase.contentHash })
+          .from(CourtCase)
+          .where(eq(CourtCase.id, input.id))
+          .limit(1);
+        if (!row) throw new TRPCError({ code: "NOT_FOUND" });
+        sourceHash = row.contentHash;
+      }
+
+      // 3. Cache hit: variant exists and content hasn't changed since generation
+      if (variant && variant.contentHash === sourceHash) {
+        return { markdown: variant.markdown, cached: true as const };
+      }
+
+      // 4. Cache miss: scraper hasn't generated this variant yet (or content changed)
+      return { markdown: null, cached: false as const };
     }),
 } satisfies TRPCRouterRecord;

@@ -1,3 +1,4 @@
+/// <reference types="pg" />
 import { authRouter } from "./router/auth";
 import { civicRouter } from "./router/civic";
 import { contentRouter } from "./router/content";

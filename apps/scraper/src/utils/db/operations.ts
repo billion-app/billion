@@ -1,6 +1,6 @@
 import { db } from "@acme/db/client";
-import { eq } from "@acme/db";
-import { Bill, GovernmentContent, CourtCase } from "@acme/db/schema";
+import { and, eq } from "@acme/db";
+import { Bill, GovernmentContent, CourtCase, ExplainerVariant } from "@acme/db/schema";
 import type {
   BillData,
   GovernmentContentData,
@@ -11,6 +11,7 @@ import {
   generateAISummary,
   generateAIArticle,
   AIRateLimitError,
+  type ExplainerLength,
 } from "../ai/text-generation.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getThumbnailImage } from "../api/google-images.js";
@@ -124,8 +125,83 @@ function getUpdateTable(input: ContentData) {
   }
 }
 
+/**
+ * Pre-cache concise and comprehensive explainer variants alongside the already-generated
+ * standard article. The standard variant is stored directly from `standardMarkdown` (no
+ * extra AI call). concise and comprehensive each get one additional Gemini call.
+ */
+async function upsertExplainerVariants(
+  contentId: string,
+  contentType: 'bill' | 'government_content' | 'court_case',
+  fullText: string,
+  title: string,
+  url: string,
+  articleType: string,
+  contentHash: string,
+  standardMarkdown: string,
+): Promise<void> {
+  const lengths: ExplainerLength[] = ['concise', 'standard', 'comprehensive'];
+
+  for (const length of lengths) {
+    const [existing] = await db
+      .select({ contentHash: ExplainerVariant.contentHash })
+      .from(ExplainerVariant)
+      .where(
+        and(
+          eq(ExplainerVariant.contentId, contentId),
+          eq(ExplainerVariant.contentType, contentType),
+          eq(ExplainerVariant.length, length),
+          eq(ExplainerVariant.readingLevel, 'accessible'),
+        ),
+      )
+      .limit(1);
+
+    if (existing?.contentHash === contentHash) {
+      logger.debug(`Explainer variant ${length}+accessible already cached for ${contentId}`);
+      continue;
+    }
+
+    let markdown: string;
+    if (length === 'standard') {
+      markdown = standardMarkdown;
+    } else {
+      try {
+        markdown = await generateAIArticle(title, fullText, articleType, url, length, 'accessible');
+      } catch (error) {
+        if (error instanceof AIRateLimitError) throw error;
+        logger.warn(`Failed to generate ${length} variant for ${contentId}: ${error instanceof Error ? error.message : error}`);
+        continue;
+      }
+    }
+
+    if (!markdown) continue;
+
+    await db
+      .insert(ExplainerVariant)
+      .values({
+        contentId,
+        contentType,
+        length,
+        readingLevel: 'accessible',
+        markdown,
+        contentHash,
+        promptVersion: 'v1',
+      })
+      .onConflictDoUpdate({
+        target: [
+          ExplainerVariant.contentId,
+          ExplainerVariant.contentType,
+          ExplainerVariant.length,
+          ExplainerVariant.readingLevel,
+        ],
+        set: { markdown, contentHash, generatedAt: new Date() },
+      });
+
+    logger.success(`Cached ${length}+accessible explainer variant for ${contentId}`);
+  }
+}
+
 export async function upsertContent(input: ContentData) {
-  const newContentHash = createContentHash(hashFields(input));
   const existing = await checkExisting(input);
   const label = contentLabel(input);
 
@@ -377,6 +453,20 @@ export async function upsertContent(input: ContentData) {
         })
         .where(eq(idCol, result.id));
       logger.success(`${label} enriched with AI content`);
+    }
+
+    // Cache concise and comprehensive variants alongside the standard article
+    if (aiGeneratedArticle && result?.id) {
+      await upsertExplainerVariants(
+        result.id,
+        input.type,
+        fullText!,
+        title,
+        url,
+        articleType,
+        newContentHash,
+        aiGeneratedArticle,
+      );
     }
   } catch (error) {
     if (error instanceof AIRateLimitError) {

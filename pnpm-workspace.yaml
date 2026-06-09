@@ -37,6 +37,7 @@ overrides:
   react: 19.0.0
   react-dom: 19.0.0
   "@types/minimatch": 5.1.2
+  "@types/pg": 8.11.6
   esbuild@<=0.24.2: ">=0.25.0"
   file-type@>=13.0.0 <21.3.1: ">=21.3.1"
   file-type@>=20.0.0 <=21.3.1: ">=21.3.2"
