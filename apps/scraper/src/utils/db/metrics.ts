@@ -138,8 +138,8 @@ export function printMetricsSummary(scraperName: string): void {
       const totalTokens = costs.llmInputTokens + costs.llmOutputTokens;
       printKeyValue("LLM tokens", `${totalTokens.toLocaleString()} (${formatUsd(costs.llmCost)})`);
     }
-    if (costs.imagenImages > 0) {
-      printKeyValue("Imagen 3 images", `${costs.imagenImages} (${formatUsd(costs.imagenCost)})`);
+    if (costs.fluxImages > 0) {
+      printKeyValue("FLUX.2 Pro images", `${costs.fluxImages} (${formatUsd(costs.fluxCost)})`);
     }
     if (costs.googleSearches > 0) {
       printKeyValue("Google searches", `${costs.googleSearches} (${formatUsd(costs.googleSearchCost)})`);

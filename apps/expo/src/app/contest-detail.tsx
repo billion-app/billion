@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from "react";
-import Fuse from "fuse.js";
 import {
   Image,
   LayoutAnimation,
@@ -11,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import Fuse from "fuse.js";
 
 import { Text } from "~/components/Themed";
 import {
@@ -276,22 +276,22 @@ export default function ContestDetailScreen() {
               />
               <View style={s.pillsBleed}>
                 <Pills>
-                <Pill
-                  label="Has statement"
-                  icon="doc"
-                  active={hasStatementOnly}
-                  onPress={() => setHasStatementOnly((v) => !v)}
-                />
-                {partyOptions.map((p) => (
                   <Pill
-                    key={p}
-                    label={p}
-                    active={activeParty === p}
-                    onPress={() =>
-                      setActiveParty((cur) => (cur === p ? null : p))
-                    }
+                    label="Has statement"
+                    icon="doc"
+                    active={hasStatementOnly}
+                    onPress={() => setHasStatementOnly((v) => !v)}
                   />
-                ))}
+                  {partyOptions.map((p) => (
+                    <Pill
+                      key={p}
+                      label={p}
+                      active={activeParty === p}
+                      onPress={() =>
+                        setActiveParty((cur) => (cur === p ? null : p))
+                      }
+                    />
+                  ))}
                 </Pills>
               </View>
             </View>
