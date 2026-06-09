@@ -221,7 +221,6 @@ export const CreateVideoSchema = createInsertSchema(Video).omit({
   updatedAt: true,
 });
 
-<<<<<<< Updated upstream
 // Elections table — persists scraped election data from Google Civic, VOTE411, etc.
 export const ElectionRecord = pgTable(
   "election",

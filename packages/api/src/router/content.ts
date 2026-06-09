@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 import { and, desc, eq } from "@acme/db";
 import { db } from "@acme/db/client";
-import { Bill, CourtCase, ExplainerVariant, GovernmentContent } from "@acme/db/schema";
+import { Bill, CourtCase, ContentLens, ExplainerVariant, GovernmentContent } from "@acme/db/schema";
 
 import { publicProcedure } from "../trpc";
 
@@ -240,6 +240,11 @@ export const contentRouter = {
         .limit(1);
       if (bill[0]) {
         const b = bill[0];
+        const [lens] = await db
+          .select({ lensData: ContentLens.lensData })
+          .from(ContentLens)
+          .where(and(eq(ContentLens.contentId, b.id), eq(ContentLens.contentType, "bill")))
+          .limit(1);
         return {
           id: b.id,
           title: b.title,
@@ -251,12 +256,7 @@ export const contentRouter = {
             b.aiGeneratedArticle ?? b.fullText ?? "No content available",
           originalContent: b.fullText ?? "Full text not available",
           url: b.url,
-          actions: (b.actions ?? []) as {
-            date: string;
-            text: string;
-            type?: string;
-          }[],
-          status: b.status ?? undefined,
+          lensData: lens?.lensData ?? null,
         };
       }
 
@@ -268,6 +268,11 @@ export const contentRouter = {
         .limit(1);
       if (content[0]) {
         const c = content[0];
+        const [lens] = await db
+          .select({ lensData: ContentLens.lensData })
+          .from(ContentLens)
+          .where(and(eq(ContentLens.contentId, c.id), eq(ContentLens.contentType, "government_content")))
+          .limit(1);
         return {
           id: c.id,
           title: c.title,
@@ -279,6 +284,7 @@ export const contentRouter = {
             c.aiGeneratedArticle ?? c.fullText ?? "No content available",
           originalContent: c.fullText ?? "Full text not available",
           url: c.url,
+          lensData: lens?.lensData ?? null,
         };
       }
 
@@ -290,6 +296,11 @@ export const contentRouter = {
         .limit(1);
       if (courtCase[0]) {
         const c = courtCase[0];
+        const [lens] = await db
+          .select({ lensData: ContentLens.lensData })
+          .from(ContentLens)
+          .where(and(eq(ContentLens.contentId, c.id), eq(ContentLens.contentType, "court_case")))
+          .limit(1);
         return {
           id: c.id,
           title: c.title,
@@ -301,6 +312,7 @@ export const contentRouter = {
             c.aiGeneratedArticle ?? c.fullText ?? "No content available",
           originalContent: c.fullText ?? "Full text not available",
           url: c.url,
+          lensData: lens?.lensData ?? null,
         };
       }
 
