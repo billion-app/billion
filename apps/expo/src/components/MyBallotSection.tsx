@@ -82,7 +82,11 @@ export function MyBallotSection({
           onPress={onViewBallot}
           activeOpacity={0.8}
         >
-          <FontAwesome name="check-square-o" size={15} color={colors.civicBlue} />
+          <FontAwesome
+            name="check-square-o"
+            size={15}
+            color={colors.civicBlue}
+          />
           <Text style={styles.ballotLinkText}>View your full ballot</Text>
           <FontAwesome
             name="chevron-right"
