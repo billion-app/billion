@@ -3,8 +3,8 @@
  *
  * Every piece of measure data we surface is tagged with where it came from so
  * the app can show source attribution and so the cross-validation engine can
- * merge conflicting sources by trust priority. See the "Ballot-Measure
- * Enrichment — Deep Dive" section in ARCHITECTURE.md.
+ * merge conflicting sources by trust priority. See
+ * docs/measure-enrichment.md.
  */
 
 /**
