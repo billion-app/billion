@@ -95,6 +95,21 @@ export type {
   LegislationQuery,
 } from "./integrations/legistar";
 
+// Ballot-measure enrichment engine (cross-validation + canonical output types)
+export { crossValidateMeasure } from "./lib/measure-crossvalidate";
+export type {
+  CrossValidateContext,
+  CivicMeasureInput,
+} from "./lib/measure-crossvalidate";
+export type {
+  CanonicalMeasure,
+  MeasureSourceData,
+  MeasureCitation,
+  MeasureArgument,
+  SourceTier,
+} from "./lib/measure-sources/types";
+export { SOURCE_TIER_RANK } from "./lib/measure-sources/types";
+
 /**
  * Inference helpers for input types
  * @example
