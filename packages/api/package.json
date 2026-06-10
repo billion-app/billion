@@ -38,6 +38,14 @@
     "./lib/candidate-sources/ca-sos-voterguide": {
       "types": "./dist/lib/candidate-sources/ca-sos-voterguide.d.ts",
       "default": "./src/lib/candidate-sources/ca-sos-voterguide.ts"
+    },
+    "./lib/measure-crossvalidate": {
+      "types": "./dist/lib/measure-crossvalidate.d.ts",
+      "default": "./src/lib/measure-crossvalidate.ts"
+    },
+    "./lib/measure-sources/types": {
+      "types": "./dist/lib/measure-sources/types.d.ts",
+      "default": "./src/lib/measure-sources/types.ts"
     }
   },
   "license": "MIT",
