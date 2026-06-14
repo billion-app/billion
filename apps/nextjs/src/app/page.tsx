@@ -13,6 +13,9 @@ import {
   CountUp,
 } from "./_components/animations";
 
+import { WorkflowHero } from "./_components/workflow-hero";
+
+
 /* ── Gold accent tokens (not yet in Tailwind theme) ────────────────────── */
 const gold = "#c4a35a";
 const goldBorder = "rgba(196,163,90,0.25)";
@@ -237,7 +240,7 @@ export default function LandingPage() {
             Three source systems.
           </h2>
         </AnimatedSection>
-
+       
         <StaggerContainer
           staggerDelay={0.1}
           className="mt-10 grid grid-cols-1 gap-[14px] md:grid-cols-[1.5fr_1fr_1fr]"
@@ -400,6 +403,7 @@ export default function LandingPage() {
           to the bill text, the filing, the full decision. If you finish reading
           and feel like you&apos;ve got the gist, we&apos;ve failed.
         </p>
+        <WorkflowHero />
         <Link
           href="#waitlist"
           className="inline-flex h-[52px] cursor-pointer items-center justify-center rounded-full border-none bg-white px-7 text-[16px] font-medium whitespace-nowrap text-black transition-all duration-200 hover:opacity-90 active:scale-[0.98] font-sans no-underline"
