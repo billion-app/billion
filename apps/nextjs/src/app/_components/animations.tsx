@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useMotionValue, useTransform, animate, type Variants } from "motion/react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 
 /* ── Shared animation presets ──────────────────────────────────────────── */
 
@@ -115,10 +115,12 @@ export function AnimatedCard({
   children,
   className,
   accent = false,
+  style,
 }: {
   children: ReactNode;
   className?: string;
   accent?: boolean;
+  style?: CSSProperties;
 }) {
   return (
     <motion.div
@@ -133,6 +135,7 @@ export function AnimatedCard({
       }}
       transition={{ duration: 0.2, ease: "easeOut" }}
       className={className}
+      style={style}
     >
       {children}
     </motion.div>
