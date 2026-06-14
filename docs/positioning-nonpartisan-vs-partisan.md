@@ -82,8 +82,37 @@ This is the "have the cake" position: engagement lever pulled, moat intact.
 
 ## 5. Market evidence
 
-> **[PLACEHOLDER — populated from the `billion-positioning-market-research` workflow run, 2026-06-13.]**
-> Will contain: verified revenue/subscriber numbers for comparable nonpartisan products (Ground News, Tangle, USAFacts, AllSides) vs. partisan media; market-sizing for the "exhausted majority"; distribution/brand-safety evidence; and the investor-appetite read. Only figures that survive adversarial fact-checking will be included; unverified numbers will be marked as such.
+> Source: `billion-positioning-market-research` workflow, 2026-06-13 (43 findings → 13 load-bearing claims adversarially fact-checked). Figures below survived that check; where a fact-check **corrected** the original claim, the corrected version is what's shown. Several revenue numbers are inherently third-party estimates — flagged as such.
+
+### 5a. Neutrality demonstrably *can* monetize — and converts unusually well
+
+- **Tangle** (Isaac Saul's nonpartisan "what the Left and Right are saying" newsletter) is the cleanest proof. Verified: **~$4.15M 2025 revenue** (85% subscriptions, 15% ads), **~470K free + 71K paid** subscribers, **~16% free-to-paid conversion**, ~60% open rates, and 2025 growth of paid +23% / free +38% / MRR +42% (Press Gazette, corroborated by Nieman Lab, A Media Operator, Inbox Collective). That **16% conversion is 3–5× the typical newsletter** (~3% median; Substack cites 5–10%) — evidence that explicitly-neutral framing drives unusually high willingness-to-pay. *Caveat the fact-check insisted on: the "rural conservatives and progressives both trust it" line is the founder's mission framing, not survey data.*
+- **Ground News** — the closest product analog (nonpartisan bias-comparison news app, freemium) — is real and growing, distributed heavily through creator/influencer sponsorships (1,863 sponsored-video integrations / 664M views in a 2025 sample, the top sponsor in that set, +202% YoY). Revenue is **modest and unaudited** (~$5.7M Growjo estimate; third-party only). Confirms the model works *and* that its growth engine is YouTube creators, not partisan virality.
+
+### 5b. The partisan "ceiling" is real but currently *collapsing* — and the academic evidence cuts against the engagement thesis
+
+- The steelman claim that partisan players hit a higher revenue ceiling is **directionally true but overstated**. The Daily Wire's **$200M is a self-reported *peak*, not current** — as of mid-2026 it's in documented decline (~60% staff cut over 13 months, large audience drop). A peak-then-collapse is exactly the durability risk a brand bets against.
+- **Strongest causal evidence (verified academic paper — Yan & Miller, "Engagement vs. Commitment," 2026, arXiv 2605.18357):** using instrumental-variable identification on a major European newspaper's user-level data, polarizing content **raises time-on-site but does *not* help (and tends to hurt) paid subscription/commitment.** Engagement and revenue diverge. *The fact-check trimmed the original "actively hurts / opposite of theory" to this more precise version — but the direction stands: outrage ≠ durable revenue.*
+- **Insider/B2B partisan media monetizes at high per-user rates** (Punchbowl ~$20M 2023, now ~$385/yr; Puck) — but via **professional/insider subscriptions**, the opposite of Billion's mass-consumer, tuned-out audience. Not a model Billion can copy.
+
+### 5c. Distribution / brand-safety penalizes *all* political content — so partisanship adds risk without escaping the baseline
+
+- **Brand-safety keyword blocklists demonetize political/news content regardless of slant:** ~**54% of news URLs** that contextual targeting cleared would still trip a typical keyword blocklist; ~**57–70% of blocking is "unnecessary"** (IAS/CHEQ data — note these vendors sell the alternative, so treat as directional). Takeaway: Billion already eats the "news is hard to monetize via ads" tax *whether or not* it's partisan — so going partisan buys none of the upside and adds the downside below.
+- **Deplatforming risk is concentrated on partisan products:** Parler was removed from Apple, Google Play, and AWS within ~48–72 hours in Jan 2021 (trigger was content-moderation failure tied to Jan 6, not slant per se — but the lesson holds: partisan-coded apps carry platform-dependency tail risk a neutral civic tool largely avoids).
+- *(Implication for Billion's pipeline: the 32 library/university/election-office partners from the SCC pilot are all neutrality-bound and would be unreachable to a partisan app — consistent with §2c.)*
+
+### 5d. Market sizing — the "tuned-out" target is bigger framed as fatigue than as a missing team
+
+- The **purely tuned-out** "should-be-informed-but-aren't" segment is real but a **minority — ~9% of US adults** ("Tuned-Out Middle," Pew typology, June 2026; the "~23M adults" version is an inference, not a Pew figure). Notably this group is **46% Dem-lean / 43% Rep-lean, 52% moderate** — i.e. *not* a partisan audience you could capture by picking a side.
+- Broaden to the **polarization-fatigued** and the TAM is large: **~67% "Exhausted Majority"** (More in Common, *Hidden Tribes*) and a ~62% "messy center" (Pew 2026). **News avoidance is ~43% of US adults** and rising, with stated reasons (negativity, powerlessness, sensationalism, distrust of impartiality) that map almost exactly onto a nonpartisan civic product's pitch.
+- The strategic read: the addressable market is defined by *fatigue with the fight*, not by an unserved team. Picking a side targets the small slice and alienates the large one.
+
+### 5e. What did NOT survive / remains uncertain
+
+- The final auto-synthesis step of the research run failed validation; this section is built directly from the **13 verified checks**, which is the more reliable layer anyway.
+- **Revenue/valuation figures for private companies** (Ground News, Daily Wire current, Punchbowl) are third-party estimates or self-reported — directional, not audited.
+- **Investor-appetite** for partisan-vs-nonpartisan civic for-profits was researched but not independently verified to the same bar; treat the §2e point as reasoning consistent with #111's stated avoid-list, not a measured finding.
+- Brand-safety percentages originate partly from vendors selling the alternative — real effect, possibly overstated magnitude.
 
 ---
 
