@@ -28,29 +28,24 @@ All live-API functions come from `@acme/api`. Scrapers run as CLI jobs in `apps/
 **Auth:** `GOOGLE_CIVIC_API_KEY`  
 **Rate limit:** 25,000 req/day free
 
-> ⚠️ **The Representatives API was turned down by Google on April 30, 2025.** Only the **Elections** endpoints (`elections`, `voterinfo`, results) remain live — those power `getElections` / `getVoterInfo` and the whole enrichment pipeline, and are the only Civic functions the app actually consumes. `getRepresentatives` / `getRepresentativesEnriched` below call the dead `/representatives` endpoint: they throw on a live call (no API-failure mock fallback) and **no app screen invokes them** — treat them as deprecated, pending removal/migration. For elected-official lookup, migrate to Open States (legislators) or OCD-IDs via the Divisions API. See `docs/civic-data-sources.md`.
+> ⚠️ **The Representatives API was turned down by Google on April 30, 2025.** Only the **Elections** endpoints (`elections`, `voterinfo`, results) remain live — those power `getElections` / `getVoterInfo` and the whole enrichment pipeline, and are the only Civic functions the app consumes. The old `getRepresentatives` / `getRepresentativesEnriched` functions (which called the dead `/representatives` endpoint and were unused by any screen) have been **removed**. A replacement "your elected officials" lookup — Open States for legislators, Legistar for local, OCD-IDs via the still-live Divisions API for address→district — is tracked as a roadmap feature in [issue #123](https://github.com/billion-app/billion/issues/123). See `docs/civic-data-sources.md`.
 
 ```ts
 import {
   getElections,
   getVoterInfo,
-  getRepresentatives,
-  getRepresentativesEnriched,
   getElectionResults,
   getDistrictElectionResults,
 } from "@acme/api";
 
 // Or, for direct tRPC consumption:
 // civic.getVoterInfo({ address, electionId })
-// civic.getRepresentatives({ address })
 ```
 
 | Function | Args | Returns |
 |---|---|---|
 | `getElections()` | — | `Election[]` — all elections Google knows about |
 | `getVoterInfo(address, electionId)` | street address string, election ID | `VoterInfoResponse` — contests, polling places, drop boxes, enriched measures |
-| `getRepresentatives(address)` | street address string | ⚠️ **DEPRECATED — dead endpoint** (Google turned down `/representatives` 2025-04-30). `RepresentativesResponse` — reps by office |
-| `getRepresentativesEnriched(address)` | street address string | ⚠️ **DEPRECATED — dead endpoint.** same, with candidate bios from Vote Smart |
 | `getElectionResults(stateFips, countyFips)` | FIPS codes | CA SOS results for the matching jurisdiction |
 | `getDistrictElectionResults(districtRef)` | `DistrictRef` | narrowed by district |
 
