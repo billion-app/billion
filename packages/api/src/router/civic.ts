@@ -7,8 +7,6 @@ import {
   getDistrictElectionResults,
   getElectionResults,
   getElections,
-  getRepresentatives,
-  getRepresentativesEnriched,
   getVoterInfo,
 } from "../lib/civic";
 import { publicProcedure } from "../trpc";
@@ -119,122 +117,6 @@ export const civicRouter = {
             error instanceof Error
               ? error.message
               : "Failed to fetch voter info",
-          cause: error,
-        });
-      }
-    }),
-
-  /**
-   * Get elected officials/representatives for an address
-   */
-  getRepresentatives: publicProcedure
-    .input(
-      z.object({
-        address: z.string().min(1, "Address is required"),
-        levels: z
-          .array(
-            z.enum([
-              "country",
-              "administrativeArea1",
-              "administrativeArea2",
-              "locality",
-              "regional",
-              "special",
-              "subLocality1",
-              "subLocality2",
-            ]),
-          )
-          .optional(),
-        roles: z
-          .array(
-            z.enum([
-              "headOfState",
-              "headOfGovernment",
-              "deputyHeadOfGovernment",
-              "governmentOfficer",
-              "executiveCouncil",
-              "legislatorUpperBody",
-              "legislatorLowerBody",
-              "highestCourtJudge",
-              "judge",
-              "schoolBoard",
-              "specialPurposeOfficer",
-            ]),
-          )
-          .optional(),
-      }),
-    )
-    .query(async ({ input }) => {
-      try {
-        return await getRepresentatives(input.address, {
-          levels: input.levels,
-          roles: input.roles,
-        });
-      } catch (error) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch representatives",
-          cause: error,
-        });
-      }
-    }),
-
-  /**
-   * Get representatives with office info merged (convenience endpoint)
-   */
-  getRepresentativesEnriched: publicProcedure
-    .input(
-      z.object({
-        address: z.string().min(1, "Address is required"),
-        levels: z
-          .array(
-            z.enum([
-              "country",
-              "administrativeArea1",
-              "administrativeArea2",
-              "locality",
-              "regional",
-              "special",
-              "subLocality1",
-              "subLocality2",
-            ]),
-          )
-          .optional(),
-        roles: z
-          .array(
-            z.enum([
-              "headOfState",
-              "headOfGovernment",
-              "deputyHeadOfGovernment",
-              "governmentOfficer",
-              "executiveCouncil",
-              "legislatorUpperBody",
-              "legislatorLowerBody",
-              "highestCourtJudge",
-              "judge",
-              "schoolBoard",
-              "specialPurposeOfficer",
-            ]),
-          )
-          .optional(),
-      }),
-    )
-    .query(async ({ input }) => {
-      try {
-        return await getRepresentativesEnriched(input.address, {
-          levels: input.levels,
-          roles: input.roles,
-        });
-      } catch (error) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch representatives",
           cause: error,
         });
       }
