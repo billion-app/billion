@@ -15,7 +15,9 @@ How to obtain keys/access for every civic integration. For local dev, copy `.env
 
 > ⚠️ **`CA_SOS_API_KEY` is dead cruft.** Earlier docs listed it for election results, but the results client uses the free, keyless `media.sos.ca.gov` endpoint — the key is unused in code. Safe to drop from `.env.example`.
 
-**Google Civic Information API** — elections, polling locations, ballot info, representatives; 25k req/day free. [Cloud Console](https://console.cloud.google.com/) → create/select project → APIs & Services → Library → enable "Google Civic Information API" → Credentials → Create API Key. For production, restrict the key (HTTP referrers/IP + this API only). → `GOOGLE_CIVIC_API_KEY`.
+**Google Civic Information API** — elections, polling locations, ballot info; 25k req/day free. [Cloud Console](https://console.cloud.google.com/) → create/select project → APIs & Services → Library → enable "Google Civic Information API" → Credentials → Create API Key. For production, restrict the key (HTTP referrers/IP + this API only). → `GOOGLE_CIVIC_API_KEY`.
+
+> ⚠️ **Representatives API turned down 2025-04-30.** Google retired the `/representatives` endpoint; only the **Elections** endpoints (`elections`, `voterinfo`, results) remain. Those are what `getVoterInfo` and the enrichment pipeline use, and the only Civic calls the app makes. The `getRepresentatives` / `getRepresentativesEnriched` functions in `civic.ts` still target the dead endpoint and are unused by any screen — pending removal. For elected-official lookup, use Open States (legislators) or OCD-IDs via the Divisions API.
 
 **Open States API** — CA state bills, legislators, voting records. [Sign up](https://openstates.org/accounts/signup/) → verify email → [profile](https://openstates.org/accounts/profile/) → API Keys → Generate. Docs: <https://docs.openstates.org/api-v3/>. → `OPEN_STATES_API_KEY`.
 
