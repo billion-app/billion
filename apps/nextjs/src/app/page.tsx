@@ -257,15 +257,10 @@ function SourceSystemsList() {
     >
       <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-3">
         <span className="font-sans text-[12px] font-semibold tracking-[0.1em] text-white/72 uppercase">
-          Source stream
+          Source map
         </span>
-        <span className="flex items-center gap-2 font-sans text-[12px] font-semibold tracking-[0.08em] text-[#c4a35a] uppercase">
-          <motion.span
-            className="h-1.5 w-1.5 rounded-full bg-[#c4a35a]"
-            animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.4, 1] }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-          />
-          Live
+        <span className="font-sans text-[12px] font-semibold tracking-[0.08em] text-white/45 uppercase">
+          Official records
         </span>
       </div>
       {sourceSystems.map((system) => (
@@ -295,15 +290,9 @@ function SourceSystemsList() {
             className="m-0 flex items-center gap-2 font-sans text-[12px] font-semibold tracking-[0.08em] whitespace-nowrap uppercase"
             style={{ color: system.color, opacity: 0.92 }}
           >
-            <motion.span
+            <span
               className="h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: system.color }}
-              animate={{ opacity: [0.35, 1, 0.35] }}
-              transition={{
-                duration: 2.4,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
             />
             {system.source}
           </p>
@@ -400,8 +389,7 @@ export default function LandingPage() {
             className="text-muted-foreground mx-auto mb-7 font-sans text-[18px] leading-[1.6] lg:mx-0"
             style={{ maxWidth: "38ch" }}
           >
-            Bills, court cases, and executive actions, explained from the
-            source.
+            Everything you need to know as a voter, explained from the source.
           </p>
           <div className="flex flex-col gap-4">
             <WaitlistForm />
@@ -424,7 +412,7 @@ export default function LandingPage() {
         className="mx-auto grid grid-cols-1 gap-8 px-6 py-14 md:grid-cols-[0.95fr_1.05fr] md:items-center md:gap-16 md:py-[4.5rem]"
         style={{ maxWidth: 1120 }}
       >
-        <AnimatedSection variant="slideInLeft">
+        <AnimatedSection variant="slideInRight" className="md:order-2">
           <p className="tracking-label text-muted-foreground mb-[14px] font-sans text-[12px] font-medium uppercase">
             The Problem
           </p>
@@ -436,8 +424,17 @@ export default function LandingPage() {
             <br />
             The path is not.
           </h2>
+
+          <p className="text-muted-foreground mt-4 mb-0 max-w-[32ch] font-sans text-[16px] leading-[1.6]">
+            {/*A well-informed people is fundamental to democracy.*/}
+            However, not only are existing formats extremely boring, they are
+            also oftentimes overcomplicated in legal language designed to be
+            inaccessible for the average citizen.
+          </p>
         </AnimatedSection>
-        <ProblemComparison />
+        <div className="md:order-1">
+          <ProblemComparison />
+        </div>
       </section>
 
       <GoldDivider />
@@ -475,7 +472,7 @@ export default function LandingPage() {
         className="mx-auto grid grid-cols-1 gap-8 px-6 py-12 md:grid-cols-[0.82fr_1.18fr] md:items-center md:gap-16 md:py-14"
         style={{ maxWidth: 1120 }}
       >
-        <AnimatedSection variant="slideInLeft">
+        <AnimatedSection variant="slideInRight" className="md:order-2">
           <h2
             className="text-foreground font-display m-0 leading-[1.18] font-normal tracking-[-0.01em]"
             style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)" }}
@@ -488,7 +485,7 @@ export default function LandingPage() {
             Same source. Different stakes.
           </p>
         </AnimatedSection>
-        <AnimatedSection variant="slideInRight">
+        <AnimatedSection variant="slideInLeft" className="md:order-1">
           <LensList />
         </AnimatedSection>
       </section>
@@ -505,13 +502,14 @@ export default function LandingPage() {
           className="text-foreground font-display mx-auto mb-5 max-w-[18ch] leading-[1.2] font-normal tracking-[-0.01em]"
           style={{ fontSize: "clamp(2rem, 4vw, 3.5rem)" }}
         >
-          Briefs should open the{" "}
+          Everything points to{" "}
           <em className="italic" style={{ color: gold }}>
-            source.
+            deeper reading.
           </em>
         </h2>
-        <p className="text-muted-foreground mx-auto mb-7 max-w-[34ch] font-sans text-[18px] leading-[1.6]">
-          The short version is a doorway, not the destination.
+        <p className="text-muted-foreground mx-auto mb-7 font-sans text-[18px] leading-[1.6]">
+          We're not a summarization engine. Instead, we encourage individual
+          critical thinking and independent research.
         </p>
         <WorkflowHero />
         <Link
