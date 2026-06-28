@@ -5,6 +5,7 @@ import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker, PrimaryButton, ScreenShell } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
+import { getAppVersion } from "~/utils/app-version";
 
 const CATS: { id: string; label: string; icon: IconName }[] = [
   { id: "bug", label: "Bug report", icon: "flag" },
@@ -76,7 +77,9 @@ export default function FeedbackScreen() {
         multiline
         textAlignVertical="top"
       />
-      <Text style={s.attached}>App version 2.4.0 attached automatically.</Text>
+      <Text style={s.attached}>
+        App version {getAppVersion()} attached automatically.
+      </Text>
 
       <PrimaryButton label="Submit feedback" />
     </ScreenShell>
