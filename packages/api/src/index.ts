@@ -9,12 +9,9 @@ export { getThumbnailForContent } from "./router/content";
 
 // Google Civic API types
 export type {
+  Address,
   Election,
   VoterInfoResponse,
-  RepresentativesResponse,
-  Representative,
-  Official,
-  Office,
   PollingLocation,
   Contest,
   Candidate,
@@ -26,10 +23,20 @@ export type {
 // Google Civic API client functions (for direct use outside tRPC)
 export {
   getElections,
+  getElectionResults,
+  getDistrictElectionResults,
   getVoterInfo,
-  getRepresentatives,
-  getRepresentativesEnriched,
 } from "./lib/civic";
+
+// California Secretary of State live election-results feed
+export type {
+  ElectionContestResult,
+  ResultCandidate,
+  StatewideOffice,
+  DistrictChamber,
+  DistrictRef,
+} from "./clients/ca-sos-results";
+export { SOS_RESULTS_HOME } from "./clients/ca-sos-results";
 
 // Google Places address autocomplete
 export type { AddressSuggestion } from "./lib/places";
@@ -81,6 +88,21 @@ export type {
   DateRange,
   LegislationQuery,
 } from "./integrations/legistar";
+
+// Ballot-measure enrichment engine (cross-validation + canonical output types)
+export { crossValidateMeasure } from "./lib/measure-crossvalidate";
+export type {
+  CrossValidateContext,
+  CivicMeasureInput,
+} from "./lib/measure-crossvalidate";
+export type {
+  CanonicalMeasure,
+  MeasureSourceData,
+  MeasureCitation,
+  MeasureArgument,
+  SourceTier,
+} from "./lib/measure-sources/types";
+export { SOURCE_TIER_RANK } from "./lib/measure-sources/types";
 
 /**
  * Inference helpers for input types

@@ -20,6 +20,7 @@ import type {
 import { generateMeasureSummary, generateProConFromText } from "./civic-ai";
 import { enrichFromBallotpedia } from "./measure-sources/ballotpedia";
 import { enrichFromCaSos } from "./measure-sources/ca-sos-voterguide";
+import { enrichFromLao } from "./measure-sources/ca-lao-fiscal";
 import { enrichFromCaVotes } from "./measure-sources/cavotes";
 import { collectGroundingText } from "./measure-sources/grounded-fallback";
 import { SOURCE_TIER_RANK } from "./measure-sources/types";
@@ -141,7 +142,7 @@ export async function crossValidateMeasure(
   input: CivicMeasureInput,
   ctx: CrossValidateContext,
 ): Promise<CanonicalMeasure> {
-  const [sos, lwv, bp, wiki, vs] = await Promise.all([
+  const [sos, lwv, bp, wiki, vs, lao] = await Promise.all([
     enrichFromCaSos(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
       () => null,
     ),
@@ -157,6 +158,9 @@ export async function crossValidateMeasure(
       () => null,
     ),
     collectVoteSmart(input.title, ctx),
+    enrichFromLao(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
+      () => null,
+    ),
   ]);
 
   const sources: MeasureSourceData[] = [
@@ -165,6 +169,7 @@ export async function crossValidateMeasure(
     bp,
     wiki,
     vs,
+    lao,
     civicAsSource(input),
   ].filter((s): s is MeasureSourceData => s !== null);
   sources.sort(byTierDesc);

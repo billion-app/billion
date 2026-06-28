@@ -13,6 +13,7 @@ import type { Contest } from "@acme/api";
 
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { ElectionHero } from "~/components/ElectionHero";
+import { ElectionResultsSection } from "~/components/ElectionResultsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { useUserAddress } from "~/hooks/useUserAddress";
@@ -235,6 +236,10 @@ export default function ElectionsScreen() {
     >
       {/* election hero — what election is happening, what it means */}
       {selected && <ElectionHero election={selected} />}
+
+      {/* live results (CA SOS feed): statewide + the voter's district races,
+          scoped from their ballot. Self-hides when off-season. */}
+      <ElectionResultsSection contests={contests} />
 
       {voterInfoQuery.isLoading && (
         <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />

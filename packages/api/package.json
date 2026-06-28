@@ -19,6 +19,10 @@
       "types": "./dist/clients/open-states.d.ts",
       "default": "./src/clients/open-states.ts"
     },
+    "./clients/ca-sos-results": {
+      "types": "./dist/clients/ca-sos-results.d.ts",
+      "default": "./src/clients/ca-sos-results.ts"
+    },
     "./lib/civic-ai": {
       "types": "./dist/lib/civic-ai.d.ts",
       "default": "./src/lib/civic-ai.ts"
@@ -34,6 +38,14 @@
     "./lib/candidate-sources/ca-sos-voterguide": {
       "types": "./dist/lib/candidate-sources/ca-sos-voterguide.d.ts",
       "default": "./src/lib/candidate-sources/ca-sos-voterguide.ts"
+    },
+    "./lib/measure-crossvalidate": {
+      "types": "./dist/lib/measure-crossvalidate.d.ts",
+      "default": "./src/lib/measure-crossvalidate.ts"
+    },
+    "./lib/measure-sources/types": {
+      "types": "./dist/lib/measure-sources/types.d.ts",
+      "default": "./src/lib/measure-sources/types.ts"
     }
   },
   "license": "MIT",

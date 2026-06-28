@@ -1,10 +1,44 @@
 # Billion
 
-Welcome to the codebase. See below for development set-up instructions. See [Manifesto](./BRANDING.md) for what Billion even is.
+Welcome to the codebase. See below for development set-up instructions. See [Manifesto](./BRANDING.md) for what Billion even is, [CONTRIBUTING.md](./CONTRIBUTING.md) for how to start working on it, and [docs/](./docs/README.md) for how the system works.
 
 ## Quick Start
 
+> These instructions were originally copy-pasted from https://github.com/t3-oss/create-t3-turbo (which this project is scaffolded from). I've modified it to get rid of the bs that we don't use. For example, I've commented out all of the original auth instructions cuz we're not using that for now.
+
+> Anything in blockquotes without admonitions (like this one you're reading) is additional commentary I added
+
+### If already set up
+
+```
+pnpm run dev
+```
+
+> And go to the `@acme/ios` tab in that TUI and follow Expo's instructions (press `i`, typically)
+
+### Otherwise...
+
+> Make sure you have:
+>
+> - pnpm
+> - Xcode CLI stuff whatever (run `xcode-select --install`)
+> - Xcode installed with the iOS simulator installed (go to App Store)
+> - Postgres installed globally (unless you want to figure out how to run this project in a Docker container?). It's easy with https://postgresapp.com/ on macOS
+>
+> (instructions copied from https://github.com/t3-oss/create-t3-turbo)
+
+<!--
+
+> **Note**
+> The [db](./packages/db) package is preconfigured to use Supabase and is **edge-bound** with the [Vercel Postgres](https://github.com/vercel/storage/tree/main/packages/postgres) driver. If you're using something else, make the necessary modifications to the [schema](./packages/db/src/schema.ts) as well as the [client](./packages/db/src/index.ts) and the [drizzle config](./packages/db/drizzle.config.ts). If you want to switch to non-edge database driver, remove `export const runtime = "edge";` [from all pages and api routes](https://github.com/t3-oss/create-t3-turbo/issues/634#issuecomment-1730240214).
+
+-->
+
+To get it running, follow the steps below:
+
 ### Website (`apps/nextjs`)
+
+### 1. Setup dependencies
 
 ```bash
 git clone https://github.com/ThatXliner/billion.git
@@ -60,9 +94,9 @@ Opens at `http://localhost:3000`. This runs Next.js + all dependency packages (a
 > [!NOTE]
 > If you just installed XCode, or updated it, open the simulator manually once. Run `npx expo start` from `apps/expo`, then enter `I` to launch Expo Go. After that, `pnpm dev` from root works.
 
-   ```diff
-   +  "dev": "expo start --ios",
-   ```
+```diff
++  "dev": "expo start --ios",
+```
 
 2. Run `pnpm dev` at the project root folder.
 
@@ -96,7 +130,6 @@ pnpm dev
 
 Now, everything below is NOT copy+pasted from the original template README. Good job reading this far. Send me a text if you did.
 
-
 ### Troubleshooting
 
 **Website:**
@@ -110,14 +143,14 @@ Now, everything below is NOT copy+pasted from the original template README. Good
 
 **Expo:**
 #### "CommandError: No development build (dev.thatxliner.billion) for this project is installed. Please make and install a development build on the device first. Learn more: https://docs.expo.dev/development/build/"
-  
+
 In this case, `pnpm clean && pnpm install && cd apps/expo && pnpm ios` before you go back to root and run `pnpm dev`. Maybe open the Xcode project and build from there?
 
 #### Xcode build errors??
 
 Always open `ios/billion.xcworkspace`, never `ios/billion.xcodeproj`. If that doesn't help, re-create the ios directory with `pnpm expo prebuild --platform ios --clean` from `apps/expo/`.
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md#troubleshooting) for common `pnpm run ios` crash errors and their fixes.
+See [docs/troubleshooting.md](./docs/troubleshooting.md) for common `pnpm run ios` crash errors and their fixes.
 
 ## FAQ & Deployment
 
