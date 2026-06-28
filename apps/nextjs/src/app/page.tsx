@@ -78,24 +78,6 @@ const rawSourceLines = [
   "unless superseded by subsequent appropriations language.",
 ];
 
-const solutionFeatures = [
-  {
-    label: "Translate",
-    detail:
-      "Turn bills, orders, and filings into concise explanations with the legal terms unpacked.",
-  },
-  {
-    label: "Orient",
-    detail:
-      "Show the timeline, decision point, and institutional context around each source.",
-  },
-  {
-    label: "Anchor",
-    detail:
-      "Keep every brief tied to the official record, so readers can inspect the claim.",
-  },
-];
-
 /* ── Badge ─────────────────────────────────────────────────────────────── */
 function Badge({ type, color }: { type: string; color: string }) {
   return (
@@ -141,16 +123,10 @@ function RecordTransitionSection() {
   );
   const briefX = useTransform(scrollYProgress, [0, 0.58], [26, 0]);
   const briefScale = useTransform(scrollYProgress, [0, 0.62], [0.94, 1]);
-  const featureOpacity = useTransform(
-    scrollYProgress,
-    [0.55, 0.72, 1],
-    [0, 1, 1],
-  );
-  const featureY = useTransform(scrollYProgress, [0.55, 0.78], [14, 0]);
   const bubbleLayerOpacity = useTransform(
     scrollYProgress,
-    [0, 0.34, 0.44],
-    [0, 0, 1],
+    [0, 0.16, 0.28, 1],
+    [0, 0, 1, 1],
   );
 
   const bubbles = [
@@ -371,25 +347,6 @@ function RecordTransitionSection() {
                 </p>
               </div>
             </div>
-
-            <motion.div
-              className="grid grid-cols-3 border-t border-white/[0.08] bg-white/[0.025]"
-              style={{ opacity: featureOpacity, y: featureY }}
-            >
-              {solutionFeatures.map((feature, index) => (
-                <div
-                  key={feature.label}
-                  className="border-r border-white/[0.07] px-3 py-3 last:border-r-0"
-                >
-                  <span className="font-sans text-[10px] font-semibold text-[#c4a35a]">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <p className="text-foreground mt-1 mb-0 font-sans text-[12px] font-semibold">
-                    {feature.label}
-                  </p>
-                </div>
-              ))}
-            </motion.div>
           </motion.div>
         </div>
       </div>
