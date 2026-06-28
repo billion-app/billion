@@ -277,13 +277,6 @@ function RecordTransitionSection() {
               <span className="font-sans text-[12px] font-semibold tracking-[0.1em] text-[#c4a35a] uppercase">
                 Billion
               </span>
-              <div className="flex rounded-full border border-white/10 bg-white/[0.04] p-1 font-sans text-[11px] font-semibold text-white/46">
-                <span className="rounded-full bg-white px-2.5 py-1 text-[#080d18]">
-                  Brief
-                </span>
-                <span className="px-2.5 py-1">Context</span>
-                <span className="px-2.5 py-1">Source</span>
-              </div>
             </div>
 
             <div className="space-y-3.5 p-4">
