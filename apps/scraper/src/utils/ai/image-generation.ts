@@ -1,21 +1,38 @@
 /**
- * AI image generation using Google Vertex AI Imagen 3
+ * AI image generation using Black Forest Labs FLUX.2 Pro (BFL direct API)
  * Generates images from text prompts and converts them to JPEG format
  */
 
-import { generateImage as aiGenerateImage } from 'ai';
-import { vertexProvider } from './provider.js';
 import { createLogger } from '../log.js';
-import { trackImagenImage } from '../costs.js';
+import { trackFluxImage } from '../costs.js';
 import { AIRateLimitError, setRateLimitHit } from './text-generation.js';
 
 const logger = createLogger("image");
+
+const BFL_API_KEY = process.env.BFL_API_KEY;
+// flux-2-pro is the pinned model; flux-2-pro-preview tracks BFL's latest advances.
+const BFL_MODEL = process.env.BFL_MODEL || 'flux-2-pro';
+const BFL_BASE_URL = 'https://api.bfl.ai/v1';
+
+// Signed result URLs are valid for 10 minutes, so cap polling well within that.
+const POLL_INTERVAL_MS = 1000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 export interface GeneratedImage {
   data: Buffer;
   mimeType: string;
   width: number;
   height: number;
+}
+
+interface BflSubmitResponse {
+  id: string;
+  polling_url: string;
+}
+
+interface BflPollResponse {
+  status: string;
+  result?: { sample?: string };
 }
 
 /**
@@ -26,7 +43,74 @@ async function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Generate an image using Vertex AI Imagen 3 with retry logic for rate limits
+ * Marker error so the retry loop can distinguish a content-moderation block
+ * (don't retry, return null) from a real failure.
+ */
+class ContentModeratedError extends Error {}
+
+/**
+ * Submit a generation request and poll the result URL until the image is ready.
+ * @returns the signed sample URL for the generated image
+ * @throws ContentModeratedError if the prompt or result is moderated
+ */
+async function generateViaFlux(prompt: string): Promise<string> {
+  const submit = await fetch(`${BFL_BASE_URL}/${BFL_MODEL}`, {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'x-key': BFL_API_KEY as string,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prompt, width: 1024, height: 1024 }),
+  });
+
+  if (!submit.ok) {
+    const text = await submit.text();
+    throw new Error(`BFL submit failed (${submit.status}): ${text}`);
+  }
+
+  const { polling_url } = (await submit.json()) as BflSubmitResponse;
+  if (!polling_url) {
+    throw new Error('BFL submit response missing polling_url');
+  }
+
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await sleep(POLL_INTERVAL_MS);
+
+    const poll = await fetch(polling_url, {
+      headers: { 'accept': 'application/json', 'x-key': BFL_API_KEY as string },
+    });
+
+    if (!poll.ok) {
+      const text = await poll.text();
+      throw new Error(`BFL poll failed (${poll.status}): ${text}`);
+    }
+
+    const data = (await poll.json()) as BflPollResponse;
+    switch (data.status) {
+      case 'Ready': {
+        const sample = data.result?.sample;
+        if (!sample) {
+          throw new Error('BFL result Ready but missing sample URL');
+        }
+        return sample;
+      }
+      case 'Content Moderated':
+      case 'Request Moderated':
+        throw new ContentModeratedError(data.status);
+      case 'Error':
+      case 'Failed':
+        throw new Error(`BFL generation failed: ${JSON.stringify(data)}`);
+      // 'Pending'/'Processing' — keep polling
+    }
+  }
+
+  throw new Error(`BFL generation timed out after ${POLL_TIMEOUT_MS}ms`);
+}
+
+/**
+ * Generate an image using FLUX.2 Pro with retry logic for rate limits
  * @param prompt - Text description of desired image
  * @param maxRetries - Maximum number of retry attempts (default: 3)
  * @returns Generated image as Buffer with metadata, or null if generation fails
@@ -35,6 +119,11 @@ export async function generateImage(
   prompt: string,
   maxRetries = 3,
 ): Promise<GeneratedImage | null> {
+  if (!BFL_API_KEY) {
+    logger.error('BFL_API_KEY is not set — cannot generate images');
+    return null;
+  }
+
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -42,49 +131,43 @@ export async function generateImage(
       if (attempt > 0) {
         logger.warn(`Retry attempt ${attempt}/${maxRetries} for image generation`);
       } else {
-        logger.start(`Generating image with Imagen 3: ${prompt.substring(0, 50)}...`);
+        logger.start(`Generating image with FLUX.2 Pro: ${prompt.substring(0, 50)}...`);
       }
 
-      const result = await aiGenerateImage({
-        model: vertexProvider.image('imagen-3.0-generate-001'),
-        prompt: `Premium editorial photography: ${prompt}. Cinematic lighting, vibrant color palette, masterpiece composition, 8k resolution, highly detailed, expressive and dynamic.`,
-        aspectRatio: '1:1',
-        providerOptions: {
-          vertex: { sampleCount: 1 },
-        },
-      });
+      const fullPrompt = `Premium editorial photography: ${prompt}. Cinematic lighting, vibrant color palette, masterpiece composition, 8k resolution, highly detailed, expressive and dynamic.`;
+      const sampleUrl = await generateViaFlux(fullPrompt);
 
-      // Imagen returns base64-encoded bytes directly — no URL download needed
-      const buffer = Buffer.from(result.image.base64, 'base64');
+      // The sample URL is a short-lived signed link — download the bytes now.
+      const imageRes = await fetch(sampleUrl);
+      if (!imageRes.ok) {
+        throw new Error(`Failed to download generated image (${imageRes.status})`);
+      }
+      const buffer = Buffer.from(await imageRes.arrayBuffer());
 
-      trackImagenImage();
+      trackFluxImage();
       logger.success(`Image generated: ${buffer.length} bytes`);
 
       return {
         data: buffer,
-        mimeType: (result.image as any).mimeType ?? 'image/png',
+        mimeType: imageRes.headers.get('content-type') ?? 'image/png',
         width: 1024,
         height: 1024,
       };
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      // Imagen safety filter block (don't retry)
-      if (
-        lastError.message.includes('SAFETY') ||
-        lastError.message.includes('blocked') ||
-        lastError.message.includes('content_filter')
-      ) {
-        logger.warn(`Image generation blocked by safety filter for prompt: ${prompt.substring(0, 100)}...`);
+      // Content moderation block (don't retry)
+      if (error instanceof ContentModeratedError) {
+        logger.warn(`Image generation blocked by content moderation for prompt: ${prompt.substring(0, 100)}...`);
         return null;
       }
 
-      // Check for rate limit errors (429 or RESOURCE_EXHAUSTED)
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Check for rate limit errors (BFL returns 429 when out of concurrency/credits)
       const isRateLimitError =
-        lastError.message.includes('RESOURCE_EXHAUSTED') ||
         lastError.message.includes('429') ||
         lastError.message.includes('rate_limit_exceeded') ||
-        lastError.message.includes('Rate limit');
+        lastError.message.includes('Rate limit') ||
+        lastError.message.includes('Too Many Requests');
 
       if (isRateLimitError && attempt < maxRetries) {
         // Exponential backoff: 2^attempt * 1000ms (1s, 2s, 4s, 8s...)

@@ -114,7 +114,10 @@ export function initAuth(options: {
           }
         : {}),
     },
-    trustedOrigins: ["expo://"],
+    // Must include the Expo client's URL scheme (app.config.json → "billion",
+    // plus the dev-client "exp+billion") so isTrustedOrigin accepts the native
+    // OAuth callback redirect. "expo://" kept for backward compatibility.
+    trustedOrigins: ["billion://", "exp+billion://", "expo://"],
     onAPIError: {
       onError(error, ctx) {
         console.error("BETTER AUTH API ERROR", error, ctx);

@@ -1,7 +1,6 @@
 import type { LanguageModel } from "ai";
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createVertex } from "@ai-sdk/google-vertex";
 
 const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
 
@@ -23,13 +22,5 @@ export const visionLlm: LanguageModel | null = googleApiKey
   ? createGoogleGenerativeAI({ apiKey: googleApiKey })("gemini-2.5-flash")
   : null;
 
-// Keep Vertex for Imagen image generation
-const project = process.env.GOOGLE_VERTEX_PROJECT;
-const location = process.env.GOOGLE_VERTEX_LOCATION;
-const apiKey = process.env.GOOGLE_VERTEX_API_KEY;
-
-export const vertexProvider = createVertex({
-  ...(project ? { project } : {}),
-  ...(location ? { location } : {}),
-  ...(apiKey ? { apiKey } : {}),
-});
+// Image generation uses Black Forest Labs FLUX.2 Pro via its own REST API
+// (see ai/image-generation.ts) — no AI SDK provider needed.

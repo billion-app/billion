@@ -22,18 +22,21 @@ export function WaitlistForm({
     setErrorMsg("");
 
     try {
-      const res = await fetch("https://getlaunchlist.com/s/m2zvn0", {
+      const res = await fetch("/api/waitlist", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ email }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
 
       if (res.ok) {
         setStatus("success");
         setEmail("");
       } else {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         setStatus("error");
-        setErrorMsg("Something went wrong. Please try again.");
+        setErrorMsg(data?.error ?? "Something went wrong. Please try again.");
       }
     } catch {
       setStatus("error");

@@ -10,7 +10,16 @@ import { and, eq, gt } from "@acme/db";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
+import type {
+  DistrictRef,
+  ElectionContestResult,
+  StatewideOffice,
+} from "../clients/ca-sos-results";
 import type { CrossValidateContext } from "./measure-crossvalidate";
+import {
+  getDistrictResults,
+  getStatewideResults,
+} from "../clients/ca-sos-results";
 import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
 import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
@@ -31,8 +40,9 @@ function getApiKey(): string | null {
 const CACHE_TTL = {
   elections: 7 * 24 * 60 * 60 * 1000,
   voterinfo: 24 * 60 * 60 * 1000,
-  representatives: 30 * 24 * 60 * 60 * 1000,
-  representativesEnriched: 30 * 24 * 60 * 60 * 1000,
+  // Live results move fast on/after election night — keep it short so the feed
+  // stays current, but long enough to shield the SOS source from every client.
+  electionResults: 5 * 60 * 1000,
 } as const;
 
 function hashAddress(address: string): string {
@@ -285,47 +295,6 @@ export interface VoterInfoResponse {
   mailOnly?: boolean;
 }
 
-export interface Official {
-  name: string;
-  address?: Address[];
-  party?: string;
-  phones?: string[];
-  urls?: string[];
-  photoUrl?: string;
-  emails?: string[];
-  channels?: Channel[];
-}
-
-export interface Office {
-  name: string;
-  divisionId: string;
-  levels?: string[];
-  roles?: string[];
-  officialIndices: number[];
-}
-
-export interface Division {
-  name: string;
-  alsoKnownAs?: string[];
-  officeIndices?: number[];
-}
-
-export interface RepresentativesResponse {
-  kind: string;
-  normalizedInput: Address;
-  divisions: Record<string, Division>;
-  offices: Office[];
-  officials: Official[];
-}
-
-// Enriched types that combine office info with officials
-export interface Representative extends Official {
-  office: string;
-  divisionId: string;
-  levels?: string[];
-  roles?: string[];
-}
-
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -525,37 +494,6 @@ function getMockVoterInfo(address: string): VoterInfoResponse {
     ],
   };
 }
-
-const MOCK_REPRESENTATIVES: Representative[] = [
-  {
-    name: "Ro Khanna",
-    office: "U.S. Representative, CA-17",
-    party: "Democratic Party",
-    divisionId: "ocd-division/country:us/state:ca/cd:17",
-    levels: ["country"],
-    roles: ["legislatorLowerBody"],
-    urls: ["https://example.com"],
-    phones: ["(202) 555-0117"],
-  },
-  {
-    name: "Alex Padilla",
-    office: "U.S. Senator",
-    party: "Democratic Party",
-    divisionId: "ocd-division/country:us/state:ca",
-    levels: ["country"],
-    roles: ["legislatorUpperBody"],
-    phones: ["(202) 555-0100"],
-  },
-  {
-    name: "Matt Mahan",
-    office: "Mayor of San Jose",
-    party: "Nonpartisan",
-    divisionId: "ocd-division/country:us/state:ca/place:san_jose",
-    levels: ["locality"],
-    roles: ["headOfGovernment"],
-    phones: ["(408) 555-0199"],
-  },
-];
 
 // ============================================================================
 // Role/Level Inference from office name
@@ -934,6 +872,82 @@ export async function getElections(): Promise<Election[]> {
 }
 
 /**
+ * Get live, normalized results for the requested California statewide offices,
+ * sourced from the Secretary of State election-night feed. Cached briefly (see
+ * CACHE_TTL.electionResults) so the marquee races stay current without hammering
+ * the SOS on every client request. Returns [] on total failure rather than
+ * throwing — the results section is supplementary and shouldn't break the tab.
+ */
+export async function getElectionResults(
+  offices?: StatewideOffice[],
+): Promise<ElectionContestResult[]> {
+  // Cache key is global (results aren't address-scoped); the office list
+  // distinguishes entries so different selections don't collide.
+  const params = { offices: offices ?? "default" };
+  const cached = await getCached<ElectionContestResult[]>(
+    "__global__",
+    "electionResults",
+    params,
+  );
+  if (cached) return cached;
+
+  try {
+    const results = await getStatewideResults(offices);
+    await setCache(
+      "__global__",
+      "electionResults",
+      params,
+      results,
+      CACHE_TTL.electionResults,
+    );
+    return results;
+  } catch (error) {
+    console.warn("[civic] getElectionResults failed:", error);
+    return [];
+  }
+}
+
+/**
+ * Get live results for the specific district races on a voter's ballot (US
+ * House / State Senate / State Assembly). The district refs are supplied by the
+ * caller (derived from the ballot), so results are scoped to the voter rather
+ * than dumping every district in the state. Cached and fail-soft like the
+ * statewide variant.
+ */
+export async function getDistrictElectionResults(
+  refs: DistrictRef[],
+): Promise<ElectionContestResult[]> {
+  if (refs.length === 0) return [];
+
+  // Sort refs so the cache key is stable regardless of caller ordering.
+  const sorted = [...refs].sort((a, b) =>
+    `${a.chamber}-${a.number}`.localeCompare(`${b.chamber}-${b.number}`),
+  );
+  const params = { refs: sorted };
+  const cached = await getCached<ElectionContestResult[]>(
+    "__global__",
+    "districtResults",
+    params,
+  );
+  if (cached) return cached;
+
+  try {
+    const results = await getDistrictResults(refs);
+    await setCache(
+      "__global__",
+      "districtResults",
+      params,
+      results,
+      CACHE_TTL.electionResults,
+    );
+    return results;
+  } catch (error) {
+    console.warn("[civic] getDistrictElectionResults failed:", error);
+    return [];
+  }
+}
+
+/**
  * Get voter info for a specific address
  *
  * @param address - The registered address of the voter
@@ -1007,139 +1021,6 @@ export async function getVoterInfo(
   }
 }
 
-/**
- * Get elected officials (representatives) for an address
- *
- * @param address - The address to look up
- * @param levels - Optional filter by government level: country, administrativeArea1 (state),
- *                 administrativeArea2 (county), locality, regional, special, subLocality1, subLocality2
- * @param roles - Optional filter by role: headOfState, headOfGovernment, deputyHeadOfGovernment,
- *                governmentOfficer, executiveCouncil, legislatorUpperBody, legislatorLowerBody,
- *                highestCourtJudge, judge, schoolBoard, specialPurposeOfficer
- * @returns Representatives with their offices and contact information
- */
-export async function getRepresentatives(
-  address: string,
-  options?: {
-    levels?: string[];
-    roles?: string[];
-    includeOffices?: boolean;
-  },
-): Promise<RepresentativesResponse> {
-  const cacheParams: Record<string, unknown> = {
-    ...(options?.levels?.length ? { levels: options.levels } : {}),
-    ...(options?.roles?.length ? { roles: options.roles } : {}),
-  };
-  const cached = await getCached<RepresentativesResponse>(
-    address,
-    "representatives",
-    cacheParams,
-  );
-  if (cached) return cached;
-
-  if (!getApiKey()) {
-    return {
-      kind: "civicinfo#representativeInfoResponse",
-      normalizedInput: {
-        line1: address,
-        city: "San Jose",
-        state: "CA",
-        zip: "95112",
-      },
-      divisions: {},
-      offices: MOCK_REPRESENTATIVES.map((r, i) => ({
-        name: r.office,
-        divisionId: r.divisionId,
-        levels: r.levels,
-        roles: r.roles,
-        officialIndices: [i],
-      })),
-      officials: MOCK_REPRESENTATIVES.map((r) => ({
-        name: r.name,
-        party: r.party,
-        phones: r.phones,
-        urls: r.urls,
-      })),
-    };
-  }
-  const params: Record<string, string> = { address };
-
-  if (options?.levels?.length) {
-    params.levels = options.levels.join(",");
-  }
-
-  if (options?.roles?.length) {
-    params.roles = options.roles.join(",");
-  }
-
-  if (options?.includeOffices === false) {
-    params.includeOffices = "false";
-  }
-
-  const result = await fetchCivicApi<RepresentativesResponse>(
-    "representatives",
-    params,
-  );
-  await setCache(
-    address,
-    "representatives",
-    cacheParams,
-    result,
-    CACHE_TTL.representatives,
-  );
-  return result;
-}
-
-/**
- * Get representatives with office info merged (convenience function)
- *
- * @param address - The address to look up
- * @returns Array of representatives with their office information included
- */
-export async function getRepresentativesEnriched(
-  address: string,
-  options?: {
-    levels?: string[];
-    roles?: string[];
-  },
-): Promise<Representative[]> {
-  const cacheParams: Record<string, unknown> = {
-    ...(options?.levels?.length ? { levels: options.levels } : {}),
-    ...(options?.roles?.length ? { roles: options.roles } : {}),
-  };
-  const cached = await getCached<Representative[]>(
-    address,
-    "representativesEnriched",
-    cacheParams,
-  );
-  if (cached) return cached;
-
-  if (!getApiKey()) return MOCK_REPRESENTATIVES;
-  const response = await getRepresentatives(address, options);
-
-  const representatives: Representative[] = [];
-
-  for (const office of response.offices) {
-    for (const index of office.officialIndices) {
-      const official = response.officials[index];
-      if (official) {
-        representatives.push({
-          ...official,
-          office: office.name,
-          divisionId: office.divisionId,
-          levels: office.levels,
-          roles: office.roles,
-        });
-      }
-    }
-  }
-
-  await setCache(
-    address,
-    "representativesEnriched",
-    cacheParams,
-    representatives,
-    CACHE_TTL.representativesEnriched,
-  );
-  return representatives;
-}
+// NOTE: Representatives lookup was removed when Google turned down the Civic
+// Representatives API (2025-04-30). A replacement "your elected officials"
+// feature is tracked as a roadmap enhancement — see issue #123.
