@@ -36,60 +36,63 @@ pnpm run dev
 
 To get it running, follow the steps below:
 
+### Website (`apps/nextjs`)
+
 ### 1. Setup dependencies
 
 ```bash
 git clone https://github.com/ThatXliner/billion.git
 cd billion
-# Install dependencies
-pnpm i
 
-# Configure environment variables
-# There is an `.env.example` in the root directory you can use for reference
+# 1. Install dependencies
+pnpm install
+
+# 2. Create root .env from template (gitignored — must be done manually)
 cp .env.example .env
 
-# Push the Drizzle schema to the database
+# 3. Fill in required values in .env:
+#    - POSTGRES_URL: your Supabase/Postgres connection string
+#    - BETTER_AUTH_SECRET: any random string (`openssl rand -base64 32`)
+#    Other keys are optional — pages that use them will degrade gracefully.
+
+# 4. Push database schema
 pnpm db:push
 ```
 
-<!--
-
-### 2. Generate Better Auth Schema
-
-This project uses [Better Auth](https://www.better-auth.com) for authentication. The auth schema needs to be generated using the Better Auth CLI before you can use the authentication features.
+**Start the dev server:**
 
 ```bash
-# Generate the Better Auth schema
-pnpm --filter @acme/auth generate
+pnpm dev:next
 ```
 
-This command runs the Better Auth CLI with the following configuration:
+Opens at `http://localhost:3000`. This runs Next.js + all dependency packages (api, auth, db, ui, validators) via Turborepo.
 
-- **Config file**: `packages/auth/script/auth-cli.ts` - A CLI-only configuration file (isolated from src to prevent imports)
-- **Output**: `packages/db/src/auth-schema.ts` - Generated Drizzle schema for authentication tables
+> **Windows note:** use `pnpm dev:next` instead of `pnpm dev`. The root `dev` script has a single-quoted filter (`--filter='!@acme/scraper'`) that PowerShell and Git Bash mangle. `dev:next` avoids the filter entirely.
 
-The generation process:
+**Requirements:**
+- Node >=22.20.0 (22.15.0 works with a warning)
+- pnpm installed
+- A running Postgres instance
 
-1. Reads the Better Auth configuration from `packages/auth/script/auth-cli.ts`
-2. Generates the appropriate database schema based on your auth setup
-3. Outputs a Drizzle-compatible schema file to the `@acme/db` package
+### Mobile app (`apps/expo`)
 
-> **Note**: The `auth-cli.ts` file is placed in the `script/` directory (instead of `src/`) to prevent accidental imports from other parts of the codebase. This file is exclusively for CLI schema generation and should **not** be used directly in your application. For runtime authentication, use the configuration from `packages/auth/src/index.ts`.
+> Make sure you have:
+> - Xcode CLI stuff (`xcode-select --install`)
+> - Xcode installed with iOS simulator (App Store)
+> - Postgres installed globally. Easy via https://postgresapp.com/ on macOS.
 
-For more information about the Better Auth CLI, see the [official documentation](https://www.better-auth.com/docs/concepts/cli#generate).
-
--->
+### 1. Setup (same steps as website above)
 
 ### 2. Configure Expo `dev`-script
 
-> Idk why these instructions tell you to change the `dev` script (in `apps/expo`) but if that's what helps, sure. Remember to change it back to `"dev": "expo start",`
+> Remember to change it back to `"dev": "expo start",` when done.
 
-#### Use iOS Simulator
+#### iOS Simulator
 
 1. Make sure you have XCode and XCommand Line Tools installed [as shown on expo docs](https://docs.expo.dev/workflow/ios-simulator).
 
 > [!NOTE]
-> If you just installed XCode, or if you have updated it, you need to open the simulator manually once. Run `npx expo start` from `apps/expo`, and then enter `I` to launch Expo Go. After the manual launch, you can run `pnpm dev` in the root directory.
+> If you just installed XCode, or updated it, open the simulator manually once. Run `npx expo start` from `apps/expo`, then enter `I` to launch Expo Go. After that, `pnpm dev` from root works.
 
 ```diff
 +  "dev": "expo start --ios",
@@ -97,13 +100,11 @@ For more information about the Better Auth CLI, see the [official documentation]
 
 2. Run `pnpm dev` at the project root folder.
 
-#### Use Android Emulator
-
-> (who is doing this anyway...)
+#### Android Emulator
 
 1. Install Android Studio tools [as shown on expo docs](https://docs.expo.dev/workflow/android-studio-emulator).
 
-2. Change the `dev` script at `apps/expo/package.json` to open the Android emulator.
+2. Change the `dev` script at `apps/expo/package.json`:
 
    ```diff
    +  "dev": "expo start --android",
@@ -111,23 +112,19 @@ For more information about the Better Auth CLI, see the [official documentation]
 
 3. Run `pnpm dev` at the project root folder.
 
-<!--### 4. Configuring Better-Auth to work with Expo
+### If already set up
 
-In order to get Better-Auth to work with Expo, you must either:
+```bash
+# Website only
+pnpm dev:next
 
-#### Deploy the Auth Proxy (RECOMMENDED)
-
-Better-auth comes with an [auth proxy plugin](https://www.better-auth.com/docs/plugins/oauth-proxy). By deploying the Next.js app, you can get OAuth working in preview deployments and development for Expo apps.
-
-By using the proxy plugin, the Next.js apps will forward any auth requests to the proxy server, which will handle the OAuth flow and then redirect back to the Next.js app. This makes it easy to get OAuth working since you'll have a stable URL that is publicly accessible and doesn't change for every deployment and doesn't rely on what port the app is running on. So if port 3000 is taken and your Next.js app starts at port 3001 instead, your auth should still work without having to reconfigure the OAuth provider.
-
-#### Add your local IP to your OAuth provider
-
-You can alternatively add your local IP (e.g. `192.168.x.y:$PORT`) to your OAuth provider. This may not be as reliable as your local IP may change when you change networks. Some OAuth providers may also only support a single callback URL for each app making this approach unviable for some providers (e.g. GitHub).-->
+# Everything (broken on Windows — use dev:next instead)
+pnpm dev
+```
 
 ### Congratulations
 
-> Congrats it's set up. See [CONTRIBUTING](./CONTRIBUTING.md) if you need to add a new UI component or a new package in the `packages/` folder.
+> See [CONTRIBUTING](./CONTRIBUTING.md) if you need to add a new UI component or a new package in `packages/`.
 
 ---
 
@@ -135,15 +132,16 @@ Now, everything below is NOT copy+pasted from the original template README. Good
 
 ### Troubleshooting
 
-- If there's any issues with dependencies, just add to the project root.
+**Website:**
+- **`pnpm dev` fails with "No package found with name ''!@acme/scraper''"** — Use `pnpm dev:next` instead. The single quotes around the filter get mangled on Windows.
+- **`Cannot find module '@tailwindcss/postcss'`** — Make sure `@tailwindcss/postcss` is in `apps/nextjs/package.json` devDependencies (pnpm strict isolation requires it as a direct dependency).
+- **DB connection errors** — Verify `POSTGRES_URL` in root `.env` is set correctly and the database is running. Run `pnpm db:push` to apply the schema.
+- **Dependency issues** — add this to root `.npmrc`:
+  ```
+  node-linker=hoisted
+  ```
 
-```
-# .npmrc
-node-linker=hoisted
-```
-
-- Make sure Next.js is running. Maybe `cp .env.example .env` and update the values (if needed)?
-
+**Expo:**
 #### "CommandError: No development build (dev.thatxliner.billion) for this project is installed. Please make and install a development build on the device first. Learn more: https://docs.expo.dev/development/build/"
 
 In this case, `pnpm clean && pnpm install && cd apps/expo && pnpm ios` before you go back to root and run `pnpm dev`. Maybe open the Xcode project and build from there?

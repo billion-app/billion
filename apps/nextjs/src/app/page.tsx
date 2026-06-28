@@ -1,611 +1,644 @@
+"use client";
+
+import { useRef } from "react";
 import Link from "next/link";
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "motion/react";
 
+import {
+  AnimatedSection,
+  CountUp,
+  StaggerContainer,
+  StaggerItem,
+} from "./_components/animations";
+import { HeroExperience } from "./_components/hero-experience";
+import { useIntroDone } from "./_components/intro-context";
 import { WaitlistForm } from "./_components/waitlist-form";
+import { WorkflowHero } from "./_components/workflow-hero";
 
-// ── Color constants matching the Svelte design ──────────────────────────────
-const C = {
-  deepNavy: "#0e1530",
-  slate: "#272d3c",
-  bill: "#4a7cff",
-  executive: "#6366f1",
-  case: "#0891b2",
-  general: "#8a8fa0",
-  border: "rgba(255,255,255,0.08)",
-  borderFocus: "rgba(255,255,255,0.3)",
-  success: "#10b981",
-  error: "#ef4444",
-};
+/* ── Gold accent tokens (not yet in Tailwind theme) ────────────────────── */
+const gold = "#c4a35a";
+const goldGlow = "rgba(196,163,90,0.15)";
+const dividerGold = "rgba(196,163,90,0.3)";
 
-// ── Badge ────────────────────────────────────────────────────────────────────
+const sourceSystems = [
+  {
+    type: "BILL",
+    color: "#4a7cff",
+    title: "Bills",
+    signal: "Status, sponsors, amendments",
+    source: "Congress.gov",
+    count: 4392,
+  },
+  {
+    type: "ORDER",
+    color: "#6366f1",
+    title: "Orders",
+    signal: "Authority, agencies, challenges",
+    source: "White House",
+  },
+  {
+    type: "CASE",
+    color: "#0891b2",
+    title: "Cases",
+    signal: "Filings, rulings, timelines",
+    source: "Federal courts",
+  },
+];
+
+const lensCards = [
+  {
+    label: "Institutional",
+    color: "#6366f1",
+    line: "Agency authority, court posture, and precedent risk.",
+  },
+  {
+    label: "Impact",
+    color: "#4a7cff",
+    line: "People affected, local pressure, and implementation risk.",
+  },
+];
+
+const rawSourceLines = [
+  "SEC. 204. AUTHORIZATION EXTENSION.",
+  "Subsection (b)(2) is amended by striking fiscal year 2026",
+  "and inserting fiscal year 2028, subject to the reporting",
+  "requirements described under paragraph (4). The Secretary",
+  "shall submit quarterly implementation data to the committee",
+  "of jurisdiction not later than 30 days after each quarter.",
+  "No funds may be obligated until the certification required",
+  "under subsection (d) has been transmitted to Congress.",
+  "Local agencies receiving assistance shall publish notice",
+  "of material changes, appeals, waivers, and compliance dates.",
+  "This section shall take effect 90 days after enactment",
+  "unless superseded by subsequent appropriations language.",
+];
+
+/* ── Badge ─────────────────────────────────────────────────────────────── */
 function Badge({ type, color }: { type: string; color: string }) {
   return (
     <span
-      className="inline-flex items-center rounded-[6px] px-[10px] text-[11px] font-medium tracking-[0.06em] text-white uppercase"
-      style={{ backgroundColor: color, height: 24 }}
+      className="inline-flex h-6 items-center rounded-[6px] px-[10px] text-[11px] font-medium text-white uppercase"
+      style={{ backgroundColor: color, letterSpacing: "0.08em" }}
     >
       {type}
     </span>
   );
 }
 
-// ── Hero content cards ───────────────────────────────────────────────────────
-const HERO_CARDS = [
-  {
-    type: "BILL",
-    color: C.bill,
-    title: "H.R. 4312: National Housing Stabilization Act",
-    preview:
-      "What changed in committee, who supports it, and what it means for your state.",
-    meta: "Congress.gov · Passed Committee",
-    time: "2h ago",
-    opacity: 1,
-  },
-  {
-    type: "CASE",
-    color: C.case,
-    title: "U.S. v. Westfield Utilities",
-    preview: "Majority and dissent logic, plain language, side by side.",
-    meta: "U.S. Court of Appeals, 9th Circuit",
-    time: "5h ago",
-    opacity: 1,
-  },
-  {
-    type: "ORDER",
-    color: C.executive,
-    title: "E.O. 14192: Department of Government Efficiency",
-    preview:
-      "What it authorizes, which agencies are affected, and open legal challenges.",
-    meta: "",
-    time: "8h ago",
-    opacity: 0.7,
-  },
-];
-
-function HeroCard({ card }: { card: (typeof HERO_CARDS)[number] }) {
+/* ── Gold divider line ─────────────────────────────────────────────────── */
+function GoldDivider() {
   return (
-    <div
-      className="rounded-[14px] p-5"
+    <hr
+      className="mx-auto my-0 h-px border-0"
       style={{
-        backgroundColor: C.slate,
-        border: `1px solid ${C.border}`,
-        borderLeft: `3px solid ${card.color}`,
-        opacity: card.opacity,
+        background: `linear-gradient(90deg, transparent 0%, ${dividerGold} 50%, transparent 100%)`,
       }}
-    >
-      <div className="mb-[10px] flex items-center justify-between">
-        <Badge type={card.type} color={card.color} />
-        <span
-          className="text-[12px]"
-          style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
-        >
-          {card.time}
-        </span>
-      </div>
-      <h3
-        className="mb-2 text-[1.1rem] leading-[1.35] font-normal text-white"
-        style={{
-          fontFamily: "var(--font-inria-serif), 'Times New Roman', serif",
-        }}
-      >
-        {card.title}
-      </h3>
-      <p
-        className="mb-[10px] text-[14px] leading-[1.5]"
-        style={{ color: C.general }}
-      >
-        {card.preview}
-      </p>
-      {card.meta && (
-        <p
-          className="m-0 text-[12px] font-medium"
-          style={{ color: "rgba(255,255,255,0.3)" }}
-        >
-          {card.meta}
-        </p>
-      )}
-    </div>
+    />
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
-export default function LandingPage() {
+function RecordTransitionSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const reducedMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end end"],
+  });
+
+  const rawOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.5, 1],
+    [0.42, 0.3, 0.17],
+  );
+  const rawX = useTransform(scrollYProgress, [0, 1], ["0%", "-7%"]);
+  const briefOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.14, 0.34, 1],
+    [0, 0, 1, 1],
+  );
+  const briefX = useTransform(scrollYProgress, [0, 0.58], [26, 0]);
+  const briefScale = useTransform(scrollYProgress, [0, 0.62], [0.94, 1]);
+  const bubbleLayerOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.16, 0.28, 1],
+    [0, 0, 1, 1],
+  );
+
+  const bubbles = [
+    {
+      text: "18-month extension",
+      className: "top-[36%] left-[8%]",
+      x: 170,
+      y: 24,
+      delay: 0,
+    },
+    {
+      text: "quarterly reporting",
+      className: "top-[49%] left-[12%]",
+      x: 158,
+      y: 34,
+      delay: 1.35,
+    },
+    {
+      text: "official source",
+      className: "top-[63%] left-[7%]",
+      x: 190,
+      y: 68,
+      delay: 2.7,
+    },
+  ];
+
   return (
-    <main
-      className="min-h-screen"
-      style={{ backgroundColor: C.deepNavy, color: "#fff" }}
+    <section
+      ref={sectionRef}
+      className="relative min-h-[205vh] border-t border-b border-white/[0.06]"
+      data-testid="record-transition-section"
     >
-      {/* ── NAV ────────────────────────────────────────────────────── */}
-      <nav
-        className="flex items-center justify-between px-6 py-5"
-        style={{ maxWidth: 1120, margin: "0 auto" }}
+      <div
+        className="sticky top-0 mx-auto grid min-h-screen grid-cols-1 gap-8 overflow-hidden px-6 py-10 md:items-center lg:grid-cols-[0.9fr_1.1fr] lg:gap-16 lg:py-16"
+        style={{ maxWidth: 1120 }}
       >
-        <span
-          className="text-[22px] font-bold tracking-[-0.02em] text-white"
-          style={{ fontFamily: "var(--font-ibm-plex-serif), Georgia, serif" }}
+        <AnimatedSection
+          variant="slideInLeft"
+          className="max-w-[440px] self-center"
         >
-          Billion
+          <p className="tracking-label text-muted-foreground mb-[14px] font-sans text-[12px] font-medium uppercase">
+            The Problem:{" "}
+            <span className="text-[#c4a35a]">Solved In Context</span>
+          </p>
+          <h2
+            className="text-foreground font-display m-0 leading-[1.18] font-normal tracking-[-0.01em]"
+            style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)" }}
+          >
+            The source is public.
+            <br />
+            Billion makes it readable.
+          </h2>
+          <p className="text-muted-foreground mt-4 mb-0 max-w-[36ch] font-sans text-[16px] leading-[1.6]">
+            Raw civic records arrive as dense legal text, procedural status, and
+            missing context. Billion turns the same source into a brief you can
+            understand, compare, and verify.
+          </p>
+          <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3 font-sans text-[12px] font-semibold tracking-[0.08em] uppercase">
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-white/48">
+              Raw source
+            </span>
+            <span className="h-px w-8 bg-gradient-to-r from-white/15 to-[rgba(196,163,90,0.7)]" />
+            <span className="rounded-full border border-[rgba(196,163,90,0.26)] bg-[rgba(196,163,90,0.08)] px-3 py-2 text-[#c4a35a]">
+              Billion brief
+            </span>
+          </div>
+        </AnimatedSection>
+
+        <div
+          className="relative min-h-[430px] overflow-hidden rounded-[18px] border border-white/10 bg-[#060b19] p-4 sm:min-h-[470px] sm:p-5 lg:min-h-[520px]"
+          data-testid="record-transition-visual"
+        >
+          <motion.div
+            aria-hidden="true"
+            className="absolute inset-0 overflow-hidden bg-[linear-gradient(135deg,rgba(74,124,255,0.1),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.06),transparent)]"
+            style={{ opacity: rawOpacity, x: rawX }}
+          >
+            <div className="absolute top-4 right-5 left-5 flex items-center justify-between border-b border-white/10 pb-3 font-sans text-[10px] font-semibold tracking-[0.12em] text-white/52 uppercase">
+              <span>Raw source</span>
+              <span>42 pages</span>
+            </div>
+            <div
+              className="absolute inset-x-5 top-14 bottom-5 overflow-hidden"
+              style={{
+                WebkitMaskImage:
+                  "linear-gradient(180deg, transparent 0%, black 14%, black 82%, transparent 100%)",
+                maskImage:
+                  "linear-gradient(180deg, transparent 0%, black 14%, black 82%, transparent 100%)",
+              }}
+            >
+              <motion.div
+                className="flex flex-col gap-2 font-mono text-[10px] leading-[1.45] text-white/72"
+                animate={reducedMotion ? undefined : { y: [0, -172] }}
+                transition={{
+                  duration: 15,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+              >
+                {[...rawSourceLines, ...rawSourceLines].map((line, index) => (
+                  <span
+                    key={`${line}-${index}`}
+                    className="block border-b border-white/[0.045] pb-1"
+                  >
+                    {line}
+                  </span>
+                ))}
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {!reducedMotion && (
+            <motion.div
+              className="pointer-events-none absolute inset-0 z-10"
+              style={{ opacity: bubbleLayerOpacity }}
+              aria-hidden="true"
+            >
+              {bubbles.map((bubble) => (
+                <motion.span
+                  key={bubble.text}
+                  className={`absolute rounded-full border border-white/20 bg-[#d5b45f] px-3 py-1.5 font-sans text-[12px] leading-none font-bold whitespace-nowrap text-[#050b16] shadow-[0_10px_28px_rgba(196,163,90,0.3)] ring-1 ring-[rgba(255,255,255,0.12)] sm:px-3.5 sm:text-[13px] ${bubble.className}`}
+                  animate={{
+                    opacity: [0, 1, 1, 0],
+                    x: [0, bubble.x * 0.45, bubble.x],
+                    y: [0, bubble.y * 0.45, bubble.y],
+                    scale: [0.96, 1, 1, 0.92],
+                  }}
+                  transition={{
+                    duration: 3.9,
+                    delay: bubble.delay,
+                    repeat: Infinity,
+                    repeatDelay: 1.2,
+                    ease: [0.16, 1, 0.3, 1],
+                    times: [0, 0.18, 0.78, 1],
+                  }}
+                >
+                  {bubble.text}
+                </motion.span>
+              ))}
+            </motion.div>
+          )}
+
+          <motion.div
+            className="absolute right-4 bottom-4 left-4 z-20 overflow-hidden rounded-[18px] border border-white/12 bg-[#10182f]/95 shadow-[0_24px_70px_rgba(0,0,0,0.36)] backdrop-blur-md sm:right-5 sm:bottom-5 sm:left-auto sm:w-[390px]"
+            style={{ opacity: briefOpacity, x: briefX, scale: briefScale }}
+          >
+            <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
+              <span className="font-sans text-[12px] font-semibold tracking-[0.1em] text-[#c4a35a] uppercase">
+                Billion
+              </span>
+            </div>
+
+            <div className="space-y-3.5 p-4">
+              <div className="rounded-[14px] border border-white/[0.08] bg-white/[0.04] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Badge type="Bill" color="#4a7cff" />
+                  <span className="font-sans text-[12px] font-medium text-white/46">
+                    Committee update
+                  </span>
+                </div>
+                <h3 className="text-foreground font-editorial m-0 text-[1.35rem] leading-[1.12] font-bold">
+                  Funding extended, with new reporting rules.
+                </h3>
+                <p className="text-muted-foreground mt-2 mb-0 font-sans text-[13px] leading-[1.45]">
+                  The bill gives the program{" "}
+                  <span className="rounded-[5px] bg-[rgba(196,163,90,0.12)] px-1 text-white/82">
+                    18 more months
+                  </span>{" "}
+                  and requires{" "}
+                  <span className="rounded-[5px] bg-[rgba(196,163,90,0.12)] px-1 text-white/82">
+                    quarterly oversight reports
+                  </span>{" "}
+                  before funds move.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="rounded-[12px] border border-[rgba(99,102,241,0.24)] bg-[rgba(99,102,241,0.08)] p-3">
+                  <p className="mb-1 font-sans text-[10px] font-semibold tracking-[0.12em] text-[#8b8dfd] uppercase">
+                    Context
+                  </p>
+                  <p className="m-0 font-sans text-[12px] leading-[1.35] text-white/74">
+                    Moves next to the floor calendar.
+                  </p>
+                </div>
+                <div className="rounded-[12px] border border-[rgba(8,145,178,0.22)] bg-[rgba(8,145,178,0.075)] p-3">
+                  <p className="mb-1 font-sans text-[10px] font-semibold tracking-[0.12em] text-[#2bb7d3] uppercase">
+                    Both sides
+                  </p>
+                  <p className="m-0 font-sans text-[12px] leading-[1.35] text-white/74">
+                    Supporters cite continuity. Critics want tighter audits.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-[12px] border border-[rgba(196,163,90,0.2)] bg-[rgba(196,163,90,0.055)] p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="font-sans text-[10px] font-semibold tracking-[0.12em] text-[#c4a35a] uppercase">
+                    Source
+                  </span>
+                  <span className="font-sans text-[11px] text-white/44">
+                    Congress.gov
+                  </span>
+                </div>
+                <p className="m-0 font-mono text-[11px] leading-[1.45] text-white/62">
+                  &quot;...amended by striking fiscal year 2026 and{" "}
+                  <span className="rounded-[4px] bg-[rgba(196,163,90,0.12)] px-1 text-white/78">
+                    inserting fiscal year 2028
+                  </span>
+                  ...&quot;
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SourceSystemsList() {
+  return (
+    <StaggerContainer
+      staggerDelay={0.08}
+      className="overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.03]"
+    >
+      <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-3">
+        <span className="font-sans text-[12px] font-semibold tracking-[0.1em] text-white/72 uppercase">
+          Source map
         </span>
+        <span className="font-sans text-[12px] font-semibold tracking-[0.08em] text-white/45 uppercase">
+          Official records
+        </span>
+      </div>
+      {sourceSystems.map((system) => (
+        <StaggerItem
+          key={system.type}
+          variant="fadeUp"
+          className="group grid gap-4 border-b border-white/[0.07] px-5 py-4 transition-colors duration-200 last:border-b-0 hover:bg-white/[0.035] sm:grid-cols-[88px_1fr_auto] sm:items-center"
+        >
+          <Badge type={system.type} color={system.color} />
+          <div>
+            <h3 className="text-foreground font-editorial m-0 text-[1.25rem] leading-[1.15] font-bold">
+              {system.title}
+            </h3>
+            <p className="text-muted-foreground mt-1 mb-0 font-sans text-[14px] leading-[1.45]">
+              {typeof system.count === "number" ? (
+                <>
+                  <span className="text-white/72">
+                    <CountUp to={system.count} duration={2} /> tracked
+                  </span>
+                  {" · "}
+                </>
+              ) : null}
+              {system.signal}
+            </p>
+          </div>
+          <p
+            className="m-0 flex items-center gap-2 font-sans text-[12px] font-semibold tracking-[0.08em] whitespace-nowrap uppercase"
+            style={{ color: system.color, opacity: 0.92 }}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: system.color }}
+            />
+            {system.source}
+          </p>
+        </StaggerItem>
+      ))}
+    </StaggerContainer>
+  );
+}
+
+function LensList() {
+  return (
+    <StaggerContainer
+      staggerDelay={0.08}
+      className="overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.03]"
+    >
+      <div className="flex flex-col gap-2 border-b border-white/[0.07] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <span className="font-sans text-[12px] font-semibold tracking-[0.1em] text-white/72 uppercase">
+          Source text
+        </span>
+        <span className="font-sans text-[13px] text-white/45">
+          one record, multiple readings
+        </span>
+      </div>
+      {lensCards.map((lens) => (
+        <StaggerItem
+          key={lens.label}
+          variant="fadeUp"
+          className="group relative grid gap-3 border-b border-white/[0.07] px-5 py-4 transition-colors duration-200 last:border-b-0 hover:bg-white/[0.035] sm:grid-cols-[150px_1fr] sm:items-center"
+        >
+          <div>
+            <Badge type={lens.label} color={lens.color} />
+          </div>
+          <p className="text-foreground font-editorial m-0 text-[1.15rem] leading-[1.25] font-normal">
+            {lens.line}
+          </p>
+        </StaggerItem>
+      ))}
+    </StaggerContainer>
+  );
+}
+
+/* ── Page ──────────────────────────────────────────────────────────────── */
+export default function LandingPage() {
+  const introDone = useIntroDone();
+
+  return (
+    <main className="bg-background text-foreground min-h-screen">
+      {/* ── NAV ──────────────────────────────────────────────────── */}
+      <motion.nav
+        initial={{ opacity: 0 }}
+        animate={introDone ? { opacity: 1 } : { opacity: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="mx-auto flex items-center justify-between px-6 py-5"
+        style={{ maxWidth: 1120 }}
+      >
+        <div className="flex items-center gap-3">
+          <img
+            src="/billion-logo.png"
+            alt="Billion"
+            className="h-8 w-8 rounded-2xl"
+          />
+          <span className="text-foreground font-display text-[22px] font-bold tracking-[-0.02em]">
+            Billion
+          </span>
+        </div>
         <Link
           href="#waitlist"
-          className="text-[15px] font-medium transition-colors duration-150 hover:text-white"
-          style={{
-            color: "rgba(255,255,255,0.6)",
-            fontFamily: "var(--font-albert-sans)",
-            textDecoration: "none",
-          }}
+          className="text-muted-foreground hover:text-gold font-sans text-[15px] font-medium no-underline transition-colors duration-200"
         >
           Get Early Access
         </Link>
-      </nav>
+      </motion.nav>
 
-      {/* ── HERO ───────────────────────────────────────────────────── */}
+      {/* ── HERO ─────────────────────────────────────────────────── */}
       <section
-        className="mx-auto grid grid-cols-1 gap-10 px-6 pt-12 pb-[4.5rem] md:grid-cols-[1.1fr_0.9fr] md:items-center md:pt-14 md:pb-20"
-        style={{
-          maxWidth: 1120,
-          animation: "fadeUp 0.6s cubic-bezier(0.25,0.1,0.25,1) both",
-        }}
+        className="mx-auto grid grid-cols-1 gap-10 px-6 pt-12 pb-[4.5rem] md:pt-14 md:pb-20 lg:grid-cols-[minmax(0,0.72fr)_minmax(440px,1.28fr)] lg:items-center"
+        style={{ maxWidth: 1180 }}
       >
         {/* Left — text */}
-        <div style={{ maxWidth: 580 }}>
-          <p
-            className="mb-[14px] text-[12px] font-medium tracking-[0.1em] uppercase"
-            style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
-          >
+        <AnimatedSection
+          variant="fadeUp"
+          className="mx-auto max-w-[580px] text-center lg:mx-0 lg:text-left"
+        >
+          <p className="tracking-label text-muted-foreground mb-[14px] font-sans text-[12px] font-medium uppercase">
             AI Civic Intelligence
           </p>
           <h1
-            className="mb-6 leading-[1.15] font-bold tracking-[-0.02em] text-white"
-            style={{
-              fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-              fontSize: "clamp(2.2rem, 5vw, 3.75rem)",
-            }}
+            className="text-foreground font-display mb-6 leading-[1.15] font-bold tracking-[-0.02em]"
+            style={{ fontSize: "clamp(2.2rem, 5vw, 3.75rem)" }}
           >
             Know what government is doing before it changes your life.
           </h1>
           <p
-            className="mb-7 text-[18px] leading-[1.6]"
-            style={{
-              color: C.general,
-              maxWidth: "52ch",
-              fontFamily: "var(--font-albert-sans)",
-            }}
+            className="text-muted-foreground mx-auto mb-7 font-sans text-[18px] leading-[1.6] lg:mx-0"
+            style={{ maxWidth: "38ch" }}
           >
-            Bills, court cases, and executive actions — explained clearly,
-            linked to the source.
+            Everything you need to know as a voter, explained from the source.
           </p>
           <div className="flex flex-col gap-4">
             <WaitlistForm />
             <Link
               href="#approach"
-              className="inline-flex h-[52px] items-center justify-center px-1 text-[16px] font-medium transition-colors duration-150 hover:text-white"
-              style={{
-                color: "rgba(255,255,255,0.6)",
-                fontFamily: "var(--font-albert-sans)",
-                textDecoration: "none",
-              }}
+              className="text-muted-foreground hover:text-gold inline-flex h-[52px] items-center justify-center px-1 font-sans text-[16px] font-medium no-underline transition-colors duration-200"
             >
               See How It Works
             </Link>
           </div>
-        </div>
+        </AnimatedSection>
 
-        {/* Right — cards */}
-        <div
-          className="relative flex max-h-[480px] flex-col gap-3 overflow-hidden"
-          style={{
-            animation: "fadeUp 0.6s cubic-bezier(0.25,0.1,0.25,1) 0.15s both",
-          }}
-          aria-label="Billion content preview"
-        >
-          {HERO_CARDS.map((card) => (
-            <HeroCard key={card.title} card={card} />
-          ))}
-          {/* fade mask */}
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-[100px]"
-            style={{
-              background: `linear-gradient(to top, ${C.deepNavy}, transparent)`,
-            }}
-            aria-hidden="true"
-          />
-        </div>
+        <HeroExperience />
       </section>
 
-      {/* ── PROBLEM ────────────────────────────────────────────────── */}
-      <section
-        className="mx-auto grid grid-cols-1 gap-8 px-6 py-14 md:grid-cols-2 md:items-start md:gap-16 md:py-[4.5rem]"
-        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
-      >
-        <div>
-          <p
-            className="mb-[14px] text-[12px] font-medium tracking-[0.1em] uppercase"
-            style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
-          >
-            The Problem
-          </p>
-          <h2
-            className="m-0 leading-[1.18] font-normal tracking-[-0.01em] text-white"
-            style={{
-              fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-              fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)",
-            }}
-          >
-            Public information exists.
-            <br />
-            Public understanding doesn't.
-          </h2>
-        </div>
-        <p
-          className="m-0 pt-1 text-[18px] leading-[1.65] md:pt-2"
-          style={{
-            color: "rgba(255,255,255,0.75)",
-            fontFamily: "var(--font-albert-sans)",
-          }}
-        >
-          Most people hear about policy through headlines, not source material.
-          Billion closes that gap.
-        </p>
-      </section>
+      <RecordTransitionSection />
 
-      {/* ── APPROACH ───────────────────────────────────────────────── */}
+      <GoldDivider />
+
+      {/* ── APPROACH ──────────────────────────────────────────────── */}
       <section
         id="approach"
-        className="mx-auto px-6 py-14 md:py-[4.5rem]"
-        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+        className="mx-auto grid grid-cols-1 gap-8 px-6 py-12 md:grid-cols-[0.82fr_1.18fr] md:items-center md:gap-16 md:py-14"
+        style={{ maxWidth: 1120 }}
       >
-        <h2
-          className="m-0 text-center leading-[1.18] font-normal tracking-[-0.01em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)",
-          }}
-        >
-          One civic feed.
-          <br />
-          Three source systems.
-        </h2>
-
-        <div className="mt-10 grid grid-cols-1 gap-[14px] md:grid-cols-[1.5fr_1fr_1fr]">
-          {/* Bill */}
-          <div
-            className="rounded-[14px] p-7"
-            style={{
-              backgroundColor: C.slate,
-              border: `1px solid ${C.border}`,
-              borderTop: `2px solid ${C.bill}`,
-            }}
+        <AnimatedSection variant="slideInLeft">
+          <h2
+            className="text-foreground font-display m-0 leading-[1.18] font-normal tracking-[-0.01em]"
+            style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)" }}
           >
-            <Badge type="BILL" color={C.bill} />
-            <h3
-              className="mt-[14px] mb-[10px] text-[1.25rem] leading-[1.3] font-bold text-white"
-              style={{
-                fontFamily: "var(--font-inria-serif), 'Times New Roman', serif",
-              }}
-            >
-              Congressional Legislation
-            </h3>
-            <p
-              className="m-0 text-[15px] leading-[1.6]"
-              style={{
-                color: C.general,
-                fontFamily: "var(--font-albert-sans)",
-              }}
-            >
-              Tracks sponsorship, status, and text changes. Explainers generate
-              when source content changes — not on a schedule.
-            </p>
-            <p
-              className="mt-4 mb-0 text-[12px] font-medium"
-              style={{
-                color: C.bill,
-                opacity: 0.85,
-                fontFamily: "var(--font-albert-sans)",
-              }}
-            >
-              4,392 bills tracked in the current Congress
-            </p>
-          </div>
-
-          {/* Order */}
-          <div
-            className="rounded-[14px] p-7"
-            style={{
-              backgroundColor: C.slate,
-              border: `1px solid ${C.border}`,
-              borderTop: `2px solid ${C.executive}`,
-            }}
-          >
-            <Badge type="ORDER" color={C.executive} />
-            <h3
-              className="mt-[14px] mb-[10px] text-[1.25rem] leading-[1.3] font-bold text-white"
-              style={{
-                fontFamily: "var(--font-inria-serif), 'Times New Roman', serif",
-              }}
-            >
-              Executive Actions
-            </h3>
-            <p
-              className="m-0 text-[15px] leading-[1.6]"
-              style={{
-                color: C.general,
-                fontFamily: "var(--font-albert-sans)",
-              }}
-            >
-              Orders, memoranda, and proclamations pulled directly from official
-              White House publications.
-            </p>
-          </div>
-
-          {/* Case */}
-          <div
-            className="rounded-[14px] p-7"
-            style={{
-              backgroundColor: C.slate,
-              border: `1px solid ${C.border}`,
-              borderTop: `2px solid ${C.case}`,
-            }}
-          >
-            <Badge type="CASE" color={C.case} />
-            <h3
-              className="mt-[14px] mb-[10px] text-[1.25rem] leading-[1.3] font-bold text-white"
-              style={{
-                fontFamily: "var(--font-inria-serif), 'Times New Roman', serif",
-              }}
-            >
-              Federal Court Cases
-            </h3>
-            <p
-              className="m-0 text-[15px] leading-[1.6]"
-              style={{
-                color: C.general,
-                fontFamily: "var(--font-albert-sans)",
-              }}
-            >
-              Filings and decisions surfaced with plain-language analysis and
-              timeline context.
-            </p>
-          </div>
-        </div>
+            <span className="block md:whitespace-nowrap">
+              Track the moving parts.
+            </span>
+            <span className="block md:whitespace-nowrap">Skip the noise.</span>
+          </h2>
+          <p className="text-muted-foreground mt-4 mb-0 max-w-[32ch] font-sans text-[16px] leading-[1.6]">
+            Billion watches the official record, then turns changes into
+            source-linked signals.
+          </p>
+        </AnimatedSection>
+        <AnimatedSection variant="slideInRight">
+          <SourceSystemsList />
+        </AnimatedSection>
       </section>
 
-      {/* ── DUAL LENS ──────────────────────────────────────────────── */}
+      <GoldDivider />
+
+      {/* ── DUAL LENS ─────────────────────────────────────────────── */}
       <section
-        className="mx-auto px-6 py-14 md:py-[4.5rem]"
-        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+        className="mx-auto grid grid-cols-1 gap-8 px-6 py-12 md:grid-cols-[0.82fr_1.18fr] md:items-center md:gap-16 md:py-14"
+        style={{ maxWidth: 1120 }}
       >
-        <h2
-          className="m-0 text-center leading-[1.18] font-normal tracking-[-0.01em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)",
-          }}
-        >
-          Two readings.
-          <br />
-          Every topic.
-        </h2>
-        <p
-          className="mx-auto mt-[14px] mb-0 text-center text-[18px] leading-[1.6]"
-          style={{
-            color: C.general,
-            maxWidth: "52ch",
-            fontFamily: "var(--font-albert-sans)",
-          }}
-        >
-          Billion surfaces analysis from across the political spectrum — side by
-          side, transparently labeled, never merged into a false middle.
-        </p>
-
-        <div className="mt-8 grid grid-cols-1 gap-[14px] md:grid-cols-2">
-          {/* Institutional Lens */}
-          <div
-            className="relative rounded-[14px] p-8"
-            style={{
-              backgroundColor: C.slate,
-              border: `1px solid ${C.border}`,
-              borderTop: `2px solid ${C.executive}`,
-            }}
+        <AnimatedSection variant="slideInRight" className="md:order-2">
+          <h2
+            className="text-foreground font-display m-0 leading-[1.18] font-normal tracking-[-0.01em]"
+            style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.75rem)" }}
           >
-            <p
-              className="m-0 mb-[18px] text-[11px] font-medium tracking-[0.1em] uppercase"
-              style={{
-                color: C.executive,
-                fontFamily: "var(--font-albert-sans)",
-              }}
-            >
-              Institutional Lens
-            </p>
-            <blockquote
-              className="m-0 mb-4 border-none p-0 text-[1.15rem] leading-[1.45] font-normal text-white"
-              style={{
-                fontFamily: "var(--font-inria-serif), 'Times New Roman', serif",
-              }}
-            >
-              "Expanding federal housing mandates risks crowding out private
-              investment and local zoning authority."
-            </blockquote>
-            <p
-              className="m-0 mb-5 text-[15px] leading-[1.6]"
-              style={{
-                color: C.general,
-                fontFamily: "var(--font-albert-sans)",
-              }}
-            >
-              Frames policy around institutional stability, federalism, and
-              legal precedent established by prior congresses.
-            </p>
-            <p
-              className="m-0 text-[12px] font-medium"
-              style={{
-                color: "rgba(255,255,255,0.25)",
-                fontFamily: "var(--font-albert-sans)",
-              }}
-            >
-              Re: H.R. 4312 · Institute for Housing Policy Research
-            </p>
-          </div>
-
-          {/* Impact Lens */}
-          <div
-            className="relative rounded-[14px] p-8"
-            style={{
-              backgroundColor: "rgba(74,124,255,0.05)",
-              border: `1px solid ${C.border}`,
-              borderTop: `2px solid ${C.bill}`,
-            }}
-          >
-            <p
-              className="m-0 mb-[18px] text-[11px] font-medium tracking-[0.1em] uppercase"
-              style={{ color: C.bill, fontFamily: "var(--font-albert-sans)" }}
-            >
-              Impact Lens
-            </p>
-            <blockquote
-              className="m-0 mb-4 border-none p-0 text-[1.15rem] leading-[1.45] font-normal text-white"
-              style={{
-                fontFamily: "var(--font-inria-serif), 'Times New Roman', serif",
-              }}
-            >
-              "40 million Americans lack stable housing — federal intervention
-              is the only mechanism at scale."
-            </blockquote>
-            <p
-              className="m-0 mb-5 text-[15px] leading-[1.6]"
-              style={{
-                color: C.general,
-                fontFamily: "var(--font-albert-sans)",
-              }}
-            >
-              Frames policy around impact on households, local economies, and
-              the civil liberties of renters and low-income communities.
-            </p>
-            <p
-              className="m-0 text-[12px] font-medium"
-              style={{
-                color: "rgba(255,255,255,0.25)",
-                fontFamily: "var(--font-albert-sans)",
-              }}
-            >
-              Re: H.R. 4312 · National Housing Justice Coalition
-            </p>
-          </div>
-        </div>
+            Disagreement,
+            <br />
+            labeled.
+          </h2>
+          <p className="text-muted-foreground mt-4 mb-0 max-w-[32ch] font-sans text-[16px] leading-[1.6]">
+            Same source. Different stakes.
+          </p>
+        </AnimatedSection>
+        <AnimatedSection variant="slideInLeft" className="md:order-1">
+          <LensList />
+        </AnimatedSection>
       </section>
 
-      {/* ── BRADBURY ───────────────────────────────────────────────── */}
-      <section
+      <GoldDivider />
+
+      {/* ── BRADBURY ──────────────────────────────────────────────── */}
+      <AnimatedSection
+        variant="scaleIn"
         className="mx-auto px-6 py-14 text-center md:py-[4.5rem]"
-        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+        style={{ maxWidth: 1120 }}
       >
         <h2
-          className="mx-auto mb-5 leading-[1.2] font-normal tracking-[-0.01em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            fontSize: "clamp(2rem, 4vw, 3.5rem)",
-            maxWidth: "18ch",
-          }}
+          className="text-foreground font-display mx-auto mb-5 max-w-[18ch] leading-[1.2] font-normal tracking-[-0.01em]"
+          style={{ fontSize: "clamp(2rem, 4vw, 3.5rem)" }}
         >
-          Every summary should lead to{" "}
-          <em className="italic">deeper reading.</em>
+          Everything points to{" "}
+          <em className="italic" style={{ color: gold }}>
+            deeper reading.
+          </em>
         </h2>
-        <p
-          className="mx-auto mb-7 text-[18px] leading-[1.7]"
-          style={{
-            color: C.general,
-            maxWidth: "48ch",
-            fontFamily: "var(--font-albert-sans)",
-          }}
-        >
-          We are not a summarization engine.
-          <br />
-          <br />
-          Every piece of content Billion produces functions as an invitation —
-          to the bill text, the filing, the full decision. If you finish reading
-          and feel like you've got the gist, we've failed.
+        <p className="text-muted-foreground mx-auto mb-7 font-sans text-[18px] leading-[1.6]">
+          We're not a summarization engine. Instead, we encourage individual
+          critical thinking and independent research.
         </p>
+        <WorkflowHero />
         <Link
           href="#waitlist"
-          className="inline-flex h-[52px] cursor-pointer items-center justify-center rounded-full border-none bg-white px-7 text-[16px] font-medium whitespace-nowrap text-black transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.98]"
-          style={{
-            fontFamily: "var(--font-albert-sans)",
-            textDecoration: "none",
-          }}
+          className="bg-primary text-primary-foreground inline-flex h-[52px] cursor-pointer items-center justify-center rounded-full border-none px-7 font-sans text-[16px] font-medium whitespace-nowrap no-underline transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
+          style={{ boxShadow: `0 0 24px ${goldGlow}` }}
         >
           Explore the source
         </Link>
-      </section>
+      </AnimatedSection>
 
-      {/* ── WAITLIST ───────────────────────────────────────────────── */}
-      <section
-        id="waitlist"
+      <GoldDivider />
+
+      {/* ── WAITLIST ──────────────────────────────────────────────── */}
+      <AnimatedSection
+        variant="fadeUp"
         className="mx-auto px-6 py-14 text-center md:py-[4.5rem]"
-        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+        style={{ maxWidth: 1120 }}
+        id="waitlist"
       >
-        <p
-          className="mb-[14px] text-center text-[12px] font-medium tracking-[0.1em] uppercase"
-          style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
-        >
+        <p className="tracking-label text-muted-foreground mb-[14px] text-center font-sans text-[12px] font-medium uppercase">
           Early Access
         </p>
         <h2
-          className="mb-4 leading-[1.2] font-bold tracking-[-0.02em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            fontSize: "clamp(2rem, 4vw, 3.2rem)",
-          }}
+          className="text-foreground font-display mb-4 leading-[1.2] font-bold tracking-[-0.02em]"
+          style={{ fontSize: "clamp(2rem, 4vw, 3.2rem)" }}
         >
           Be first when Billion opens.
         </h2>
-        <p
-          className="mx-auto mb-7 text-[18px] leading-[1.6]"
-          style={{
-            color: C.general,
-            maxWidth: "44ch",
-            fontFamily: "var(--font-albert-sans)",
-          }}
-        >
+        <p className="text-muted-foreground mx-auto mb-7 max-w-[44ch] font-sans text-[18px] leading-[1.6]">
           Early access, updates, and pilot invites.
         </p>
         <WaitlistForm size="large" />
-      </section>
+      </AnimatedSection>
 
-      {/* ── FOOTER ─────────────────────────────────────────────────── */}
+      <GoldDivider />
+
+      {/* ── FOOTER ────────────────────────────────────────────────── */}
       <footer
-        className="mx-auto flex items-center justify-between px-6 py-8"
-        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+        className="mx-auto flex flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:justify-between sm:text-left"
+        style={{ maxWidth: 1120 }}
       >
-        <span
-          className="text-[18px] font-bold"
-          style={{
-            color: "rgba(255,255,255,0.4)",
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-          }}
-        >
+        <span className="text-muted-foreground font-display text-[18px] font-bold">
           Billion
         </span>
-        <div
-          className="flex items-center gap-5 text-[13px]"
-          style={{
-            color: "rgba(255,255,255,0.25)",
-            fontFamily: "var(--font-albert-sans)",
-          }}
-        >
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-sans text-[13px] sm:justify-end">
           <Link
             href="/terms"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
+            className="text-muted-foreground hover:text-gold no-underline transition-colors duration-200"
           >
             Terms
           </Link>
           <Link
             href="/privacy"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
+            className="text-muted-foreground hover:text-gold no-underline transition-colors duration-200"
           >
             Privacy
           </Link>
-          <span>© 2026 Billion. All rights reserved.</span>
+          <span className="text-muted-foreground/70">
+            &copy; 2026 Billion. All rights reserved.
+          </span>
         </div>
       </footer>
     </main>

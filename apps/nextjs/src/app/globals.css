@@ -4,7 +4,7 @@
 
 @source "../../../../packages/ui/src/*.{ts,tsx}";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark, .dark *));
 
 @utility container {
   margin-inline: auto;
@@ -17,6 +17,20 @@
   }
 }
 
+@utility divider-gold {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(196, 163, 90, 0.3) 50%,
+    transparent 100%
+  );
+}
+
+/* ── Grain texture overlay ────────────────────────────────────────────── */
+/* Subtle noise texture for old-money feel. Applied via body::after.      */
+
 @keyframes fadeUp {
   from {
     opacity: 0;
@@ -28,15 +42,101 @@
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(196, 163, 90, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(196, 163, 90, 0);
+  }
+}
+
+@keyframes drawCheck {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
   * {
     @apply border-border;
     box-sizing: border-box;
   }
   body {
     margin: 0;
-    background: #0e1530;
-    color: #ffffff;
+    background: var(--background);
+    color: var(--foreground);
     letter-spacing: var(--tracking-normal);
     font-family: var(--font-albert-sans), "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -49,7 +149,7 @@
     font-family: var(--font-inria-serif), "Times New Roman", serif;
   }
   :focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.3);
+    outline: 2px solid var(--ring);
     outline-offset: 3px;
   }
 }
