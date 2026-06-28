@@ -7,6 +7,7 @@ import {
 } from "next/font/google";
 
 import { cn } from "@acme/ui";
+import { ThemeProvider } from "@acme/ui/theme";
 import { Toaster } from "@acme/ui/toast";
 
 import { env } from "~/env";
@@ -38,10 +39,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0E1530" },
-  ],
+  themeColor: "#0E1530",
 };
 
 const ibmPlexSerif = IBM_Plex_Serif({
@@ -81,11 +79,19 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           geistMono.variable,
         )}
       >
-        <IntroProvider>
-          <TRPCReactProvider>{props.children}</TRPCReactProvider>
-          <IntroOverlay />
-        </IntroProvider>
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          forcedTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <IntroProvider>
+            <TRPCReactProvider>{props.children}</TRPCReactProvider>
+            <IntroOverlay />
+          </IntroProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

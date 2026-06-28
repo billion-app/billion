@@ -1,40 +1,38 @@
 "use client";
 
-import {
-  AnimatedCard,
-  StaggerContainer,
-  StaggerItem,
-} from "./animations";
+import { StaggerContainer, StaggerItem } from "./animations";
 
 const gold = "#c4a35a";
+const steps = [
+  {
+    label: "Discover",
+    detail: "Catch source-record changes as bills, orders, and rulings move.",
+    color: "#4a7cff",
+  },
+  {
+    label: "Understand",
+    detail: "See status, stakes, and timeline without losing the source.",
+    color: "#0891b2",
+  },
+  {
+    label: "Compare",
+    detail: "Read competing interpretations side by side, clearly labeled.",
+    color: "#6366f1",
+  },
+  {
+    label: "Verify",
+    detail: "Open the bill, order, filing, or opinion behind the brief.",
+    color: gold,
+  },
+];
 
 function Badge({ type, color }: { type: string; color: string }) {
   return (
     <span
-      className="inline-flex h-6 items-center rounded-[6px] px-[10px] text-[11px] font-medium text-white uppercase font-sans"
+      className="inline-flex h-6 items-center rounded-[6px] px-[10px] font-sans text-[11px] font-medium text-white uppercase"
       style={{ backgroundColor: color, letterSpacing: "0.08em" }}
     >
       {type}
-    </span>
-  );
-}
-
-function WorkflowPill({
-  label,
-  color,
-}: {
-  label: string;
-  color: string;
-}) {
-  return (
-    <span
-      className="inline-flex items-center rounded-full border px-3 py-1.5 text-[12px] font-medium text-white font-sans"
-      style={{
-        borderColor: `${color}66`,
-        backgroundColor: `${color}18`,
-      }}
-    >
-      {label}
     </span>
   );
 }
@@ -43,75 +41,38 @@ export function WorkflowHero() {
   return (
     <StaggerContainer
       staggerDelay={0.1}
-      className="mt-10 mb-7 grid grid-cols-1 gap-[14px] md:grid-cols-[1.5fr_1fr_1fr]"
+      className="mx-auto mt-8 mb-7 grid max-w-[900px] grid-cols-1 overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.03] md:grid-cols-4"
     >
-      {/* Bradbury */}
-      <StaggerItem variant="scaleIn">
-        <AnimatedCard
-          accent
-          className="rounded-[14px] p-7 bg-card border border-border text-left"
-          style={{ borderTopWidth: 2, borderTopColor: gold }}
+      {steps.map((step, index) => (
+        <StaggerItem
+          key={step.label}
+          variant="fadeUp"
+          className="group relative border-b border-white/[0.07] p-4 text-left transition-colors duration-200 last:border-b-0 hover:bg-white/[0.035] md:border-r md:border-b-0 md:last:border-r-0"
         >
-          <Badge type="Bradbury" color={gold} />
-          <h3 className="mt-[14px] mb-[10px] text-[1.25rem] leading-[1.3] font-bold text-white font-editorial">
-            Every summary should start a deeper read.
-          </h3>
-          <p className="m-0 text-[15px] leading-[1.6] text-muted-foreground font-sans">
-            Billion keeps the short version useful, but never treats it as the
-            destination. The product path should move people from curiosity to
-            source material.
-          </p>
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <WorkflowPill label="Discover" color="#4a7cff" />
-            <span className="text-[13px] text-white/25 font-sans">-&gt;</span>
-            <WorkflowPill label="Understand" color="#0891b2" />
-            <span className="text-[13px] text-white/25 font-sans">-&gt;</span>
-            <WorkflowPill label="Compare" color="#6366f1" />
-            <span className="text-[13px] text-white/25 font-sans">-&gt;</span>
-            <WorkflowPill label="Verify" color={gold} />
+          <span
+            className="absolute top-0 right-4 left-4 h-[2px] rounded-full"
+            style={{ backgroundColor: step.color }}
+            aria-hidden="true"
+          />
+          <div className="flex gap-3">
+            <Badge type={`0${index + 1}`} color={step.color} />
+            <div>
+              <h3 className="text-foreground font-editorial m-0 text-[1.08rem] leading-[1.15] font-bold">
+                {step.label}
+              </h3>
+              <p className="text-muted-foreground mt-2 mb-0 font-sans text-[13px] leading-[1.5]">
+                {step.detail}
+              </p>
+            </div>
           </div>
-          <p
-            className="mt-4 mb-0 text-[12px] font-medium font-sans"
-            style={{ color: gold, opacity: 0.85 }}
-          >
-            The summary is a doorway, not the room.
-          </p>
-        </AnimatedCard>
-      </StaggerItem>
-
-      {/* Compare */}
-      <StaggerItem variant="scaleIn">
-        <AnimatedCard
-          className="rounded-[14px] p-7 bg-card border border-border text-left"
-          style={{ borderTopWidth: 2, borderTopColor: "#6366f1" }}
-        >
-          <Badge type="Compare" color="#6366f1" />
-          <h3 className="mt-[14px] mb-[10px] text-[1.25rem] leading-[1.3] font-bold text-white font-editorial">
-            Show disagreement clearly.
-          </h3>
-          <p className="m-0 text-[15px] leading-[1.6] text-muted-foreground font-sans">
-            Put competing readings beside each other with transparent labels
-            instead of compressing them into a false middle.
-          </p>
-        </AnimatedCard>
-      </StaggerItem>
-
-      {/* Verify */}
-      <StaggerItem variant="scaleIn">
-        <AnimatedCard
-          className="rounded-[14px] p-7 bg-card border border-border text-left"
-          style={{ borderTopWidth: 2, borderTopColor: "#0891b2" }}
-        >
-          <Badge type="Verify" color="#0891b2" />
-          <h3 className="mt-[14px] mb-[10px] text-[1.25rem] leading-[1.3] font-bold text-white font-editorial">
-            Keep the source one tap away.
-          </h3>
-          <p className="m-0 text-[15px] leading-[1.6] text-muted-foreground font-sans">
-            Every generated brief should lead back to the bill text, filing,
-            decision, voter guide, or official publication it came from.
-          </p>
-        </AnimatedCard>
-      </StaggerItem>
+          {index < steps.length - 1 && (
+            <span
+              className="absolute top-1/2 right-[-5px] z-10 hidden h-2.5 w-2.5 -translate-y-1/2 rotate-45 border-t border-r border-white/12 bg-[#070c1c] md:block"
+              aria-hidden="true"
+            />
+          )}
+        </StaggerItem>
+      ))}
     </StaggerContainer>
   );
 }

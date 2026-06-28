@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 const IntroContext = createContext<boolean>(false);
 
@@ -17,7 +18,5 @@ export function IntroProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, []);
 
-  return (
-    <IntroContext.Provider value={done}>{children}</IntroContext.Provider>
-  );
+  return <IntroContext.Provider value={done}>{children}</IntroContext.Provider>;
 }
