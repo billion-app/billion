@@ -1,13 +1,19 @@
 "use client";
 
-import { motion, useMotionValue, useTransform, animate, type Variants } from "motion/react";
-import { useEffect, type CSSProperties, type ReactNode } from "react";
+import type { Variants } from "motion/react";
+import type { CSSProperties, ReactNode } from "react";
+import { useEffect } from "react";
+import { animate, motion, useMotionValue, useTransform } from "motion/react";
 
 /* ── Shared animation presets ──────────────────────────────────────────── */
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] } },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
+  },
 };
 
 const fadeIn: Variants = {
@@ -17,17 +23,29 @@ const fadeIn: Variants = {
 
 const slideInLeft: Variants = {
   hidden: { opacity: 0, x: -24 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] } },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
+  },
 };
 
 const slideInRight: Variants = {
   hidden: { opacity: 0, x: 24 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] } },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
+  },
 };
 
 const scaleIn: Variants = {
   hidden: { opacity: 0, scale: 0.95 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] } },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] },
+  },
 };
 
 /* ── Section wrapper — animates when scrolled into view ────────────────── */
@@ -37,18 +55,26 @@ export function AnimatedSection({
   className,
   variant = "fadeUp",
   delay = 0,
+  id,
+  style,
 }: {
   children: ReactNode;
   className?: string;
   variant?: "fadeUp" | "fadeIn" | "slideInLeft" | "slideInRight" | "scaleIn";
   delay?: number;
+  id?: string;
+  style?: CSSProperties;
 }) {
   const v =
-    variant === "fadeIn" ? fadeIn
-    : variant === "slideInLeft" ? slideInLeft
-    : variant === "slideInRight" ? slideInRight
-    : variant === "scaleIn" ? scaleIn
-    : fadeUp;
+    variant === "fadeIn"
+      ? fadeIn
+      : variant === "slideInLeft"
+        ? slideInLeft
+        : variant === "slideInRight"
+          ? slideInRight
+          : variant === "scaleIn"
+            ? scaleIn
+            : fadeUp;
 
   return (
     <motion.div
@@ -58,6 +84,8 @@ export function AnimatedSection({
       transition={{ delay }}
       variants={v}
       className={className}
+      id={id}
+      style={style}
     >
       {children}
     </motion.div>
@@ -98,9 +126,7 @@ export function StaggerItem({
   variant?: "fadeUp" | "fadeIn" | "scaleIn";
 }) {
   const v =
-    variant === "fadeIn" ? fadeIn
-    : variant === "scaleIn" ? scaleIn
-    : fadeUp;
+    variant === "fadeIn" ? fadeIn : variant === "scaleIn" ? scaleIn : fadeUp;
 
   return (
     <motion.div variants={v} className={className}>
@@ -128,10 +154,7 @@ export function AnimatedCard({
         y: -2,
         boxShadow: accent
           ? "0 8px 32px rgba(196, 163, 90, 0.15)"
-          : "0 8px 32px rgba(0, 0, 0, 0.3)",
-        borderColor: accent
-          ? "rgba(196, 163, 90, 0.4)"
-          : "rgba(255, 255, 255, 0.12)",
+          : "0 8px 32px rgba(14, 21, 48, 0.18)",
       }}
       transition={{ duration: 0.2, ease: "easeOut" }}
       className={className}

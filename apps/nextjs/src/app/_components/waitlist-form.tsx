@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
 export function WaitlistForm({
   size = "default",
@@ -42,8 +42,10 @@ export function WaitlistForm({
   };
 
   const isLarge = size === "large";
-  const inputPy = isLarge ? "14px" : "12px";
+  const controlHeight = isLarge ? 58 : 52;
   const fontSize = isLarge ? "16px" : "15px";
+  const formWidth = isLarge ? "max-w-[760px]" : "max-w-md lg:mx-0";
+  const gapClass = isLarge ? "gap-3 sm:gap-5" : "gap-3";
 
   return (
     <AnimatePresence mode="wait">
@@ -83,7 +85,7 @@ export function WaitlistForm({
             />
           </svg>
           <span
-            className="text-[15px] font-medium font-sans"
+            className="font-sans text-[15px] font-medium"
             style={{ color: gold }}
           >
             You&apos;re on the list — we&apos;ll be in touch!
@@ -96,9 +98,9 @@ export function WaitlistForm({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
+          className={`mx-auto flex w-full flex-col items-stretch sm:flex-row sm:items-center ${gapClass} ${formWidth}`}
         >
-          <div className="relative w-full sm:w-auto">
+          <div className="relative min-w-0 flex-1">
             <input
               type="email"
               required
@@ -106,25 +108,12 @@ export function WaitlistForm({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={status === "loading"}
-              className="w-full rounded-full border-0 outline-none transition-all duration-200 sm:w-72 font-sans"
+              className="border-border bg-input text-foreground placeholder:text-muted-foreground focus:border-gold w-full rounded-full border font-sans transition-all duration-200 outline-none focus:[box-shadow:0_0_0_3px_rgba(196,163,90,0.1)] disabled:opacity-60"
               style={{
-                backgroundColor: "rgba(255,255,255,0.08)",
-                color: "#FFFFFF",
+                height: controlHeight,
                 fontSize,
-                paddingTop: inputPy,
-                paddingBottom: inputPy,
                 paddingLeft: "20px",
                 paddingRight: "20px",
-                border: "1px solid rgba(255,255,255,0.14)",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "rgba(196,163,90,0.4)";
-                e.currentTarget.style.boxShadow =
-                  "0 0 0 3px rgba(196,163,90,0.1)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)";
-                e.currentTarget.style.boxShadow = "none";
               }}
             />
           </div>
@@ -133,12 +122,10 @@ export function WaitlistForm({
             disabled={status === "loading"}
             whileHover={{ scale: status === "loading" ? 1 : 1.02 }}
             whileTap={{ scale: status === "loading" ? 1 : 0.98 }}
-            className="rounded-full px-8 font-medium text-black transition-all duration-200 hover:opacity-90 disabled:opacity-60 font-sans"
+            className="bg-primary text-primary-foreground flex items-center justify-center rounded-full px-7 font-sans font-medium whitespace-nowrap transition-all duration-200 hover:opacity-90 disabled:opacity-60"
             style={{
-              backgroundColor: "#FFFFFF",
+              height: controlHeight,
               fontSize,
-              paddingTop: inputPy,
-              paddingBottom: inputPy,
             }}
           >
             {status === "loading" ? (
@@ -153,7 +140,7 @@ export function WaitlistForm({
                   {[0, 1, 2].map((i) => (
                     <motion.span
                       key={i}
-                      className="inline-block h-[4px] w-[4px] rounded-full bg-black/40"
+                      className="bg-primary-foreground/40 inline-block h-[4px] w-[4px] rounded-full"
                       animate={{ opacity: [0.2, 1, 0.2] }}
                       transition={{
                         repeat: Infinity,
@@ -165,7 +152,7 @@ export function WaitlistForm({
                 </span>
               </span>
             ) : (
-              "Join the waitlist"
+              "Join waitlist"
             )}
           </motion.button>
           <AnimatePresence>
@@ -174,7 +161,7 @@ export function WaitlistForm({
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                className="w-full text-center text-[13px] font-sans"
+                className="w-full text-center font-sans text-[13px]"
                 style={{ color: "#ef4444" }}
               >
                 {errorMsg}

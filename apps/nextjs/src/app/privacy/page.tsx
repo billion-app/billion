@@ -52,31 +52,34 @@ const SECTIONS = [
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="bg-background text-foreground min-h-screen">
       <nav
-        className="flex items-center justify-between px-6 py-5 mx-auto"
+        className="mx-auto flex items-center justify-between px-6 py-5"
         style={{ maxWidth: 1120 }}
       >
         <Link
           href="/"
-          className="text-[22px] font-bold tracking-[-0.02em] text-white font-display no-underline"
+          className="text-foreground font-display text-[22px] font-bold tracking-[-0.02em] no-underline"
         >
           Billion
         </Link>
         <Link
           href="/terms"
-          className="text-[15px] font-medium transition-colors duration-200 text-white/60 hover:text-gold font-sans no-underline"
+          className="text-muted-foreground hover:text-gold font-sans text-[15px] font-medium no-underline transition-colors duration-200"
         >
           Terms of Service
         </Link>
       </nav>
 
-      <article className="mx-auto px-6 py-12 md:py-16" style={{ maxWidth: 720 }}>
-        <p className="mb-2 text-[12px] font-medium tracking-label text-muted-foreground font-sans uppercase">
+      <article
+        className="mx-auto px-6 py-12 md:py-16"
+        style={{ maxWidth: 720 }}
+      >
+        <p className="tracking-label text-muted-foreground mb-2 font-sans text-[12px] font-medium uppercase">
           Last updated {LAST_UPDATED}
         </p>
         <h1
-          className="mb-10 leading-[1.15] font-bold tracking-[-0.02em] text-white font-display"
+          className="text-foreground font-display mb-10 leading-[1.15] font-bold tracking-[-0.02em]"
           style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}
         >
           Privacy Policy
@@ -85,10 +88,10 @@ export default function PrivacyPage() {
         <div className="flex flex-col gap-8">
           {SECTIONS.map((s) => (
             <section key={s.title}>
-              <h2 className="mb-2 text-[15px] font-semibold text-white font-sans">
+              <h2 className="text-foreground mb-2 font-sans text-[15px] font-semibold">
                 {s.title}
               </h2>
-              <p className="m-0 text-[16px] leading-[1.7] text-white/70 font-sans">
+              <p className="text-muted-foreground m-0 font-sans text-[16px] leading-[1.7]">
                 {s.body}
               </p>
             </section>
@@ -97,26 +100,26 @@ export default function PrivacyPage() {
       </article>
 
       <footer
-        className="mx-auto flex items-center justify-between px-6 py-8"
-        style={{ maxWidth: 1120, borderTop: "1px solid rgba(255,255,255,0.08)" }}
+        className="border-border mx-auto flex items-center justify-between border-t px-6 py-8"
+        style={{ maxWidth: 1120 }}
       >
-        <span className="text-[18px] font-bold text-white/40 font-display">
+        <span className="text-muted-foreground font-display text-[18px] font-bold">
           Billion
         </span>
-        <div className="flex items-center gap-5 text-[13px] font-sans">
+        <div className="flex items-center gap-5 font-sans text-[13px]">
           <Link
             href="/terms"
-            className="transition-colors duration-200 text-white/40 hover:text-gold no-underline"
+            className="text-muted-foreground hover:text-gold no-underline transition-colors duration-200"
           >
             Terms
           </Link>
           <Link
             href="/privacy"
-            className="transition-colors duration-200 text-white/40 hover:text-gold no-underline"
+            className="text-muted-foreground hover:text-gold no-underline transition-colors duration-200"
           >
             Privacy
           </Link>
-          <span className="text-white/25">
+          <span className="text-muted-foreground/70">
             &copy; 2026 Billion. All rights reserved.
           </span>
         </div>
