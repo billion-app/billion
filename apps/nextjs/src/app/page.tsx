@@ -531,7 +531,7 @@ export default function LandingPage() {
             className="text-foreground font-display mb-6 leading-[1.15] font-bold tracking-[-0.02em]"
             style={{ fontSize: "clamp(2.2rem, 5vw, 3.75rem)" }}
           >
-            Government moves. Know why.
+            Know what government is doing before it changes your life.
           </h1>
           <p
             className="text-muted-foreground mx-auto mb-7 font-sans text-[18px] leading-[1.6] lg:mx-0"
