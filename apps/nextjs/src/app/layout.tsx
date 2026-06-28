@@ -7,10 +7,13 @@ import {
 } from "next/font/google";
 
 import { cn } from "@acme/ui";
+import { ThemeProvider } from "@acme/ui/theme";
 import { Toaster } from "@acme/ui/toast";
 
 import { env } from "~/env";
 import { TRPCReactProvider } from "~/trpc/react";
+import { IntroProvider } from "./_components/intro-context";
+import { IntroOverlay } from "./_components/intro-overlay";
 
 import "~/app/globals.css";
 
@@ -36,10 +39,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0E1530" },
-  ],
+  themeColor: "#0E1530",
 };
 
 const ibmPlexSerif = IBM_Plex_Serif({
@@ -69,7 +69,7 @@ const geistMono = Geist_Mono({
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body
         className={cn(
           "bg-background text-foreground min-h-screen font-sans antialiased",
@@ -79,8 +79,19 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           geistMono.variable,
         )}
       >
-        <TRPCReactProvider>{props.children}</TRPCReactProvider>
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          forcedTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <IntroProvider>
+            <TRPCReactProvider>{props.children}</TRPCReactProvider>
+            <IntroOverlay />
+          </IntroProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
