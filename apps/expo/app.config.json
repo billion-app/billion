@@ -2,7 +2,7 @@
   "name": "billion",
   "slug": "billion",
   "scheme": "billion",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "orientation": "portrait",
   "icon": "./assets/billion-logo.png",
   "userInterfaceStyle": "dark",
@@ -10,7 +10,9 @@
     "fallbackToCacheTimeout": 0
   },
   "newArchEnabled": true,
-  "assetBundlePatterns": ["**/*"],
+  "assetBundlePatterns": [
+    "**/*"
+  ],
   "ios": {
     "bundleIdentifier": "app.billion-news.billion",
     "supportsTablet": true,
@@ -44,6 +46,7 @@
     "expo-router",
     "expo-secure-store",
     "expo-web-browser",
+    "./expo-plugins/with-fmt-xcode26-fix",
     [
       "expo-splash-screen",
       {
