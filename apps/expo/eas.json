@@ -9,7 +9,7 @@
       "pnpm": "10.15.1",
       "ios": {
         "resourceClass": "m-medium",
-        "image": "macos-sequoia-15.6-xcode-16.4"
+        "image": "macos-tahoe-26.4-xcode-26.4"
       }
     },
     "development": {
