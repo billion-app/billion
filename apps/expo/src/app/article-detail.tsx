@@ -311,7 +311,7 @@ export default function ArticleDetailScreen() {
 
         {/* Dual-Lens — signature */}
         <View style={{ marginVertical: 24 }}>
-          <LensPanel data={PLACEHOLDER_LENS} />
+          <LensPanel data={content.lensData ?? PLACEHOLDER_LENS} />
         </View>
 
         {/* timeline */}

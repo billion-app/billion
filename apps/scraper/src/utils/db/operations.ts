@@ -1,6 +1,6 @@
 import { db } from "@acme/db/client";
-import { eq } from "@acme/db";
-import { Bill, GovernmentContent, CourtCase } from "@acme/db/schema";
+import { and, eq } from "@acme/db";
+import { Bill, GovernmentContent, CourtCase, ContentLens } from "@acme/db/schema";
 import type {
   BillData,
   GovernmentContentData,
@@ -10,6 +10,7 @@ import { createContentHash } from "../hash.js";
 import {
   generateAISummary,
   generateAIArticle,
+  generateDualLens,
   AIRateLimitError,
 } from "../ai/text-generation.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
@@ -378,6 +379,18 @@ export async function upsertContent(input: ContentData) {
         .where(eq(idCol, result.id));
       logger.success(`${label} enriched with AI content`);
     }
+
+    // Generate and cache dual-lens perspectives
+    if (hasUsableText && result?.id) {
+      await upsertContentLens(
+        result.id,
+        input.type,
+        newContentHash,
+        title,
+        fullText!,
+        articleType,
+      );
+    }
   } catch (error) {
     if (error instanceof AIRateLimitError) {
       logger.warn(`AI rate limit hit — ${label} saved without AI content, will retry next run`);
@@ -422,4 +435,71 @@ export async function upsertContent(input: ContentData) {
   });
 
   return result;
+}
+
+/**
+ * Generate (or refresh) the cached dual-lens perspectives for a content item.
+ * Skips generation when a row already exists for the current contentHash, so
+ * unchanged content never re-pays for an LLM call. AIRateLimitError propagates
+ * to the caller's rate-limit handler.
+ */
+async function upsertContentLens(
+  contentId: string,
+  contentType: "bill" | "government_content" | "court_case",
+  contentHash: string,
+  title: string,
+  fullText: string,
+  articleType: string,
+): Promise<void> {
+  const [existing] = await db
+    .select({ contentHash: ContentLens.contentHash })
+    .from(ContentLens)
+    .where(
+      and(
+        eq(ContentLens.contentId, contentId),
+        eq(ContentLens.contentType, contentType),
+      ),
+    )
+    .limit(1);
+
+  if (existing?.contentHash === contentHash) {
+    logger.debug(`Dual-lens already cached for ${contentId}`);
+    return;
+  }
+
+  const lens = await generateDualLens(title, fullText, articleType);
+  if (!lens) {
+    logger.warn(`Dual-lens generation returned null for ${contentId}`);
+    return;
+  }
+
+  const modelVersion = "deepseek-v4-flash";
+  await db
+    .insert(ContentLens)
+    .values({
+      contentId,
+      contentType,
+      contentHash,
+      lensData: {
+        ...lens,
+        generatedAt: new Date().toISOString(),
+        modelVersion,
+      },
+      modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: [ContentLens.contentType, ContentLens.contentId],
+      set: {
+        contentHash,
+        lensData: {
+          ...lens,
+          generatedAt: new Date().toISOString(),
+          modelVersion,
+        },
+        modelVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+  logger.success(`Cached dual-lens for ${contentId}`);
 }
