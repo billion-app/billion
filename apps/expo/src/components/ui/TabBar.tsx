@@ -41,6 +41,9 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
           const descriptor = descriptors[route.key];
           if (!descriptor) return null;
           const { options } = descriptor;
+          // Expo Router hides tab routes with href: null; custom tab bars need
+          // to respect that option explicitly.
+          if ((options as { href?: unknown }).href === null) return null;
           const label =
             typeof options.tabBarLabel === "string"
               ? options.tabBarLabel

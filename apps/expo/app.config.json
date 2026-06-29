@@ -2,7 +2,7 @@
   "name": "billion",
   "slug": "billion",
   "scheme": "billion",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "orientation": "portrait",
   "icon": "./assets/billion-logo.png",
   "userInterfaceStyle": "dark",
@@ -10,9 +10,7 @@
     "fallbackToCacheTimeout": 0
   },
   "newArchEnabled": true,
-  "assetBundlePatterns": [
-    "**/*"
-  ],
+  "assetBundlePatterns": ["**/*"],
   "ios": {
     "bundleIdentifier": "app.billion-news.billion",
     "supportsTablet": true,
