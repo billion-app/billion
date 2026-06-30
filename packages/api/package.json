@@ -46,6 +46,10 @@
     "./lib/measure-sources/types": {
       "types": "./dist/lib/measure-sources/types.d.ts",
       "default": "./src/lib/measure-sources/types.ts"
+    },
+    "./lib/measure-sources/vig-archive": {
+      "types": "./dist/lib/measure-sources/vig-archive.d.ts",
+      "default": "./src/lib/measure-sources/vig-archive.ts"
     }
   },
   "license": "MIT",
