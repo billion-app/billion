@@ -156,8 +156,18 @@
 
   /* Gradients */
   --gradient-brand: linear-gradient(180deg, #0e1530 0%, #272d3c 100%);
-  --gradient-gold: linear-gradient(135deg, #c4a35a 0%, #d4b96a 50%, #a8893a 100%);
-  --gradient-divider: linear-gradient(90deg, transparent 0%, rgba(196, 163, 90, 0.3) 50%, transparent 100%);
+  --gradient-gold: linear-gradient(
+    135deg,
+    #c4a35a 0%,
+    #d4b96a 50%,
+    #a8893a 100%
+  );
+  --gradient-divider: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(196, 163, 90, 0.3) 50%,
+    transparent 100%
+  );
 
   --radius-sm: 6px;
   --radius-md: 8px;

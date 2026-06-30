@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 
 export function IntroOverlay() {
   const [phase, setPhase] = useState<"hold" | "animate" | "done">("hold");
@@ -30,7 +30,7 @@ export function IntroOverlay() {
       {phase !== "done" && (
         <motion.div
           key="overlay"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background"
+          className="bg-background fixed inset-0 z-50 flex items-center justify-center"
           exit={{ opacity: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
@@ -46,9 +46,7 @@ export function IntroOverlay() {
 
           <motion.div
             animate={
-              phase === "animate"
-                ? { x: targetPos.x, y: targetPos.y }
-                : {}
+              phase === "animate" ? { x: targetPos.x, y: targetPos.y } : {}
             }
             transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
             style={{ perspective: 1000 }}
@@ -58,9 +56,7 @@ export function IntroOverlay() {
               alt="Billion"
               className="h-20 w-20 rounded-2xl shadow-md"
               animate={
-                phase === "animate"
-                  ? { rotateY: [0, 360], scale: 0.4 }
-                  : {}
+                phase === "animate" ? { rotateY: [0, 360], scale: 0.4 } : {}
               }
               transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
             />
