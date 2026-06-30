@@ -19,8 +19,8 @@ import type {
 } from "./measure-sources/types";
 import { generateMeasureSummary, generateProConFromText } from "./civic-ai";
 import { enrichFromBallotpedia } from "./measure-sources/ballotpedia";
-import { enrichFromCaSos } from "./measure-sources/ca-sos-voterguide";
 import { enrichFromLao } from "./measure-sources/ca-lao-fiscal";
+import { enrichFromCaSos } from "./measure-sources/ca-sos-voterguide";
 import { enrichFromCaVotes } from "./measure-sources/cavotes";
 import { collectGroundingText } from "./measure-sources/grounded-fallback";
 import { SOURCE_TIER_RANK } from "./measure-sources/types";
