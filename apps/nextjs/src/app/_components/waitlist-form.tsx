@@ -9,9 +9,7 @@ export function WaitlistForm({
   size?: "default" | "large";
 }) {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "success" | "error"
-  >("idle");
+  const [status, setStatus] = useState<WaitlistStatus>("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,13 +26,14 @@ export function WaitlistForm({
         body: JSON.stringify({ email }),
       });
 
+      const data = (await res
+        .json()
+        .catch(() => null)) as WaitlistResponse | null;
+
       if (res.ok) {
-        setStatus("success");
+        setStatus(data?.result === "already_joined" ? "already" : "success");
         setEmail("");
       } else {
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
         setStatus("error");
         setErrorMsg(data?.error ?? "Something went wrong. Please try again.");
       }
@@ -49,19 +48,39 @@ export function WaitlistForm({
   const fontSize = isLarge ? "16px" : "15px";
   const formWidth = isLarge ? "max-w-[760px]" : "max-w-md lg:mx-0";
   const gapClass = isLarge ? "gap-3 sm:gap-5" : "gap-3";
+  const confirmation =
+    status === "already"
+      ? {
+          key: "already",
+          message: "You're already on the list — you're all set.",
+          tone: "rgba(148,163,184,0.1)",
+          border: "rgba(148,163,184,0.28)",
+          iconFill: "rgba(148,163,184,0.18)",
+          iconStroke: "#94a3b8",
+          textColor: "#cbd5e1",
+        }
+      : {
+          key: "success",
+          message: "You're on the list — we'll be in touch!",
+          tone: "rgba(196,163,90,0.1)",
+          border: "rgba(196,163,90,0.3)",
+          iconFill: "rgba(196,163,90,0.2)",
+          iconStroke: gold,
+          textColor: gold,
+        };
 
   return (
     <AnimatePresence mode="wait">
-      {status === "success" ? (
+      {status === "success" || status === "already" ? (
         <motion.div
-          key="success"
+          key={confirmation.key}
           initial={{ opacity: 0, scale: 0.95, height: 0 }}
           animate={{ opacity: 1, scale: 1, height: "auto" }}
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
-          className="flex items-center gap-3 rounded-full px-6 py-3.5"
+          className={`mx-auto flex w-full items-center gap-3 rounded-full px-6 py-3.5 ${formWidth}`}
           style={{
-            backgroundColor: "rgba(196,163,90,0.1)",
-            border: "1px solid rgba(196,163,90,0.3)",
+            backgroundColor: confirmation.tone,
+            border: `1px solid ${confirmation.border}`,
           }}
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -69,14 +88,14 @@ export function WaitlistForm({
               cx="9"
               cy="9"
               r="9"
-              fill="rgba(196,163,90,0.2)"
+              fill={confirmation.iconFill}
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.1, duration: 0.3 }}
             />
             <motion.path
               d="M5.5 9l2.5 2.5 4.5-4.5"
-              stroke="#c4a35a"
+              stroke={confirmation.iconStroke}
               strokeWidth="1.6"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -89,9 +108,9 @@ export function WaitlistForm({
           </svg>
           <span
             className="font-sans text-[15px] font-medium"
-            style={{ color: gold }}
+            style={{ color: confirmation.textColor }}
           >
-            You&apos;re on the list — we&apos;ll be in touch!
+            {confirmation.message}
           </span>
         </motion.div>
       ) : (
@@ -178,3 +197,10 @@ export function WaitlistForm({
 }
 
 const gold = "#c4a35a";
+
+type WaitlistStatus = "idle" | "loading" | "success" | "already" | "error";
+
+interface WaitlistResponse {
+  error?: string;
+  result?: "joined" | "already_joined";
+}
