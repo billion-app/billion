@@ -335,7 +335,7 @@ export const contentRouter = {
           .select()
           .from(SavedArticle)
           .where(eq(SavedArticle.userId, userId))
-          .orderBy(desc(SavedArticle.createdAt))
+          .orderBy(desc(SavedArticle.createdAt), desc(SavedArticle.id))
           .limit(limit + 1)
           .offset(cursor);
 
