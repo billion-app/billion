@@ -323,8 +323,8 @@ export const contentRouter = {
     list: protectedProcedure
       .input(
         z.object({
-          limit: z.number().min(1).max(50).default(10),
-          cursor: z.number().optional(),
+          limit: z.number().int().min(1).max(50).default(10),
+          cursor: z.number().int().min(0).optional(),
         }),
       )
       .query(async ({ ctx, input }) => {
