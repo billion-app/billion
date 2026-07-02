@@ -60,31 +60,31 @@ function FeedCard({
   const canSave = SAVEABLE_TYPES.has(item.type);
   const contentId = item.originalContentId;
 
-  // isArticleSaved is a protected procedure — only query it when signed in,
+  // content.saved.isSaved is a protected procedure — only query it when signed in,
   // otherwise it throws UNAUTHORIZED.
   const { data: session } = authClient.useSession();
   const isSignedIn = !!session?.user;
 
   const savedQuery = useQuery({
-    ...trpc.user.isArticleSaved.queryOptions({ contentId }),
+    ...trpc.content.saved.isSaved.queryOptions({ contentId }),
     enabled: canSave && isSignedIn,
     staleTime: 5 * 60 * 1000,
   });
   const saved = savedQuery.data?.saved ?? false;
 
   const saveMutation = useMutation({
-    ...trpc.user.saveArticle.mutationOptions(),
+    ...trpc.content.saved.add.mutationOptions(),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: trpc.user.isArticleSaved.queryKey({ contentId }),
+        queryKey: trpc.content.saved.isSaved.queryKey({ contentId }),
       });
     },
   });
   const unsaveMutation = useMutation({
-    ...trpc.user.unsaveArticle.mutationOptions(),
+    ...trpc.content.saved.remove.mutationOptions(),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: trpc.user.isArticleSaved.queryKey({ contentId }),
+        queryKey: trpc.content.saved.isSaved.queryKey({ contentId }),
       });
     },
   });
