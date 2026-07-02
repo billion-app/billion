@@ -28,6 +28,7 @@ import {
   InriaSerif_700Bold_Italic,
 } from "@expo-google-fonts/inria-serif";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { useTheme } from "~/styles";
 import { queryClient } from "~/utils/api";
@@ -89,15 +90,17 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: {
-            backgroundColor: theme.background,
-          },
-        }}
-      />
-      <StatusBar style="light" />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: {
+              backgroundColor: theme.background,
+            },
+          }}
+        />
+        <StatusBar style="light" />
+      </GestureHandlerRootView>
     </QueryClientProvider>
   );
 }

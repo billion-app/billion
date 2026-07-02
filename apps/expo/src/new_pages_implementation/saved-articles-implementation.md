@@ -2,50 +2,22 @@
 
 ## Current Status
 
-The Saved Articles page exists at `apps/expo/src/app/settings/saved-articles.tsx` with mock data, swipe-to-unsave UI, and undo toast functionality.
+The Saved Articles page lives at `apps/expo/src/app/settings/saved-articles.tsx` and is
+wired to real backend data via `trpc.content.saved.list` (paginated), with
+swipe-to-unsave backed by `trpc.content.saved.remove`. Saving/unsaving from the
+article detail screen and the feed use `trpc.content.saved.add` /
+`trpc.content.saved.remove` / `trpc.content.saved.isSaved`.
 
 ## Backend Dependencies
 
-- **Data source**: Currently mock data. Needs tRPC endpoint (`trpc.content.saved.list`).
-- **Persist unsave**: Needs tRPC mutation (`trpc.content.saved.remove`).
-- **Navigation**: Tap card should navigate to article detail (requires content detail screen).
-- **Sort/filter**: Not implemented.
-- **Pagination**: Not implemented for real data.
-
-## Implementation Without Backend
-
-### Immediate Fixes (No Backend):
-
-1. **Local storage for saved articles**:
-   - Use `AsyncStorage` or `expo-sqlite` to store saved articles locally.
-   - Schema: `{ id, type, title, date, color, contentId, savedAt }`.
-   - Initialize state from local storage on mount.
-
-2. **Persist unsave actions locally**:
-   - When user swipes to unsave, remove item from local storage.
-   - Undo toast should restore item to local storage.
-
-3. **Navigation to article detail**:
-   - If article detail screen exists, navigate with `contentId` and `type`.
-   - Otherwise, temporarily disable tap or show placeholder.
-
-4. **Sort/filter controls**:
-   - Implement local sorting by date (newest first) and filtering by type.
-   - Use local state for sort criteria.
-
-### Local Storage Alternative:
-
-- Use `AsyncStorage` for simple key-value storage of saved articles array.
-- For better performance, use `expo-sqlite` with proper indexing.
-- Store saved articles as JSON array under key `@billion/saved_articles`.
-
-### Migration Path to Backend:
-
-- Sync local saved articles with backend on user login.
-- Implement tRPC endpoints for saved articles.
-- Use optimistic updates: update UI immediately, sync in background.
+- **Data source**: Real data via `trpc.content.saved.list` (cursor/offset pagination, `limit`/`cursor` input).
+- **Persist unsave**: `trpc.content.saved.remove` mutation, invalidates the list query on success.
+- **Navigation**: Tapping a card navigates to `/article-detail?id=...`.
+- **Sort/filter**: Not implemented (filter icon is a placeholder).
+- **Pagination**: Implemented via `useInfiniteQuery` + `FlatList` `onEndReached`.
 
 ## Priority: 🟢 High (Core bookmarking feature)
 
-**Can ship with**: Local storage for saved articles, full UI interaction.
-**Blockers**: Need article detail screen for navigation.
+**Shipped**: Real backend-backed saved articles list, save/unsave from article
+detail and feed, swipe-to-unsave, pagination.
+**Remaining**: Sort/filter controls are still a placeholder.
