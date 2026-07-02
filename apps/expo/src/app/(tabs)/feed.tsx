@@ -78,6 +78,9 @@ function FeedCard({
       void queryClient.invalidateQueries({
         queryKey: trpc.content.saved.isSaved.queryKey({ contentId }),
       });
+      void queryClient.invalidateQueries({
+        queryKey: trpc.content.saved.list.infiniteQueryKey(),
+      });
     },
   });
   const unsaveMutation = useMutation({
@@ -85,6 +88,9 @@ function FeedCard({
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: trpc.content.saved.isSaved.queryKey({ contentId }),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: trpc.content.saved.list.infiniteQueryKey(),
       });
     },
   });
