@@ -1,21 +1,69 @@
 import { useState } from "react";
-import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useMutation } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker, PrimaryButton, ScreenShell } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
-import { getAppVersion } from "~/utils/app-version";
+import { trpc } from "~/utils/api";
+import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
 
-const CATS: { id: string; label: string; icon: IconName }[] = [
+type FeedbackCategory = "bug" | "idea" | "content";
+
+const CATS: { id: FeedbackCategory; label: string; icon: IconName }[] = [
   { id: "bug", label: "Bug report", icon: "flag" },
   { id: "idea", label: "Feature idea", icon: "sparkle" },
   { id: "content", label: "Content issue", icon: "doc" },
 ];
 
 export default function FeedbackScreen() {
-  const [cat, setCat] = useState("bug");
+  const [cat, setCat] = useState<FeedbackCategory>("bug");
   const [text, setText] = useState("");
+  const [lastSubmittedAt, setLastSubmittedAt] = useState(0);
+  const submitMutation = useMutation(trpc.feedback.submit.mutationOptions());
+  const message = text.trim();
+  const canSubmit = message.length >= 5 && !submitMutation.isPending;
+
+  const submit = () => {
+    if (!canSubmit) return;
+    const now = Date.now();
+    if (now - lastSubmittedAt < 30_000) {
+      Alert.alert("Already sent", "Give us a moment before sending another.");
+      return;
+    }
+
+    submitMutation.mutate(
+      {
+        category: cat,
+        message,
+        appVersion: getAppVersion(),
+        buildNumber: getAppBuildNumber(),
+        platform: Platform.OS,
+        platformVersion: String(Platform.Version),
+      },
+      {
+        onSuccess: () => {
+          setLastSubmittedAt(Date.now());
+          setText("");
+          Alert.alert("Feedback sent", "Thanks. We read every note.");
+        },
+        onError: () => {
+          Alert.alert(
+            "Couldn’t send feedback",
+            "Please try again in a moment.",
+          );
+        },
+      },
+    );
+  };
 
   return (
     <ScreenShell title="Send Feedback">
@@ -81,7 +129,11 @@ export default function FeedbackScreen() {
         App version {getAppVersion()} attached automatically.
       </Text>
 
-      <PrimaryButton label="Submit feedback" />
+      <PrimaryButton
+        label={submitMutation.isPending ? "Sending…" : "Submit feedback"}
+        onPress={submit}
+        style={{ opacity: canSubmit ? 1 : 0.55 }}
+      />
     </ScreenShell>
   );
 }
