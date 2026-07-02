@@ -90,7 +90,9 @@ export function parseArchiveIndex(html: string): VigElection[] {
     seen.add(path);
     out.push({ year, electionType, path });
   }
-  return out.sort((a, b) => a.year - b.year || a.electionType.localeCompare(b.electionType));
+  return out.sort(
+    (a, b) => a.year - b.year || a.electionType.localeCompare(b.electionType),
+  );
 }
 
 /**
@@ -103,7 +105,9 @@ export function parsePropIndex(html: string): string[] {
   const re = /href="[^"]*\/propositions\/(\d+[a-z]?)\/?"/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
-    const n = m[1]!.toUpperCase();
+    const propNumber = m[1];
+    if (!propNumber) continue;
+    const n = propNumber.toUpperCase();
     if (seen.has(n)) continue;
     seen.add(n);
     out.push(n);
@@ -157,7 +161,8 @@ const M = {
   con: lineMarker("CON"),
   // Sidebar headings that follow the main content in document order — used as
   // hard stops so a missing section can't bleed into the nav rail.
-  sidebar: /(?:^|\n)\s*(Propositions|Dates to Remember|Voter Information Guide)\b/i,
+  sidebar:
+    /(?:^|\n)\s*(Propositions|Dates to Remember|Voter Information Guide)\b/i,
 };
 
 /**
@@ -216,7 +221,9 @@ const A = {
  * Parse arguments-rebuttals.htm into the four full-length sections. The page
  * always orders them FAVOR → REBUTTAL-TO-FAVOR → AGAINST → REBUTTAL-TO-AGAINST.
  */
-export function parseArgsRebuttals(html: string): Pick<
+export function parseArgsRebuttals(
+  html: string,
+): Pick<
   VigArchiveProp,
   "proArgument" | "conArgument" | "proRebuttal" | "conRebuttal"
 > {
