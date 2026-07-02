@@ -95,6 +95,9 @@ export default function ArticleDetailScreen() {
           contentId: articleId ?? "",
         }),
       });
+      void queryClient.invalidateQueries({
+        queryKey: trpc.content.saved.list.infiniteQueryKey(),
+      });
     },
   });
   const unsaveMutation = useMutation({
@@ -104,6 +107,9 @@ export default function ArticleDetailScreen() {
         queryKey: trpc.content.saved.isSaved.queryKey({
           contentId: articleId ?? "",
         }),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: trpc.content.saved.list.infiniteQueryKey(),
       });
     },
   });
