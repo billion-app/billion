@@ -76,34 +76,40 @@ export default function ArticleDetailScreen() {
     enabled: !!articleId,
   });
 
-  // isArticleSaved is a protected procedure — only query it when signed in,
+  // content.saved.isSaved is a protected procedure — only query it when signed in,
   // otherwise it throws UNAUTHORIZED.
   const { data: session } = authClient.useSession();
   const isSignedIn = !!session?.user;
 
   const savedQuery = useQuery({
-    ...trpc.user.isArticleSaved.queryOptions({ contentId: articleId ?? "" }),
+    ...trpc.content.saved.isSaved.queryOptions({ contentId: articleId ?? "" }),
     enabled: !!articleId && isSignedIn,
   });
   const saved = savedQuery.data?.saved ?? false;
 
   const saveMutation = useMutation({
-    ...trpc.user.saveArticle.mutationOptions(),
+    ...trpc.content.saved.add.mutationOptions(),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: trpc.user.isArticleSaved.queryKey({
+        queryKey: trpc.content.saved.isSaved.queryKey({
           contentId: articleId ?? "",
         }),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: trpc.content.saved.list.infiniteQueryKey(),
       });
     },
   });
   const unsaveMutation = useMutation({
-    ...trpc.user.unsaveArticle.mutationOptions(),
+    ...trpc.content.saved.remove.mutationOptions(),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: trpc.user.isArticleSaved.queryKey({
+        queryKey: trpc.content.saved.isSaved.queryKey({
           contentId: articleId ?? "",
         }),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: trpc.content.saved.list.infiniteQueryKey(),
       });
     },
   });

@@ -581,24 +581,6 @@ export const LegistarVote = pgTable(
   }),
 );
 
-// Waitlist signups (migrated from LaunchList)
-export const Waitlist = pgTable(
-  "waitlist",
-  (t) => ({
-    id: t.uuid().notNull().primaryKey().defaultRandom(),
-    email: t.varchar({ length: 320 }).notNull(),
-    source: t.varchar({ length: 50 }).notNull().default("waitlist-form"),
-    createdAt: t.timestamp().defaultNow().notNull(),
-  }),
-  (table) => ({
-    uniqueEmail: unique().on(table.email),
-  }),
-);
-
-export const CreateWaitlistSchema = createInsertSchema(Waitlist, {
-  email: z.email().max(320),
-}).pick({ email: true });
-
 // Google Civic API response cache
 export const CivicApiCache = pgTable(
   "civic_api_cache",

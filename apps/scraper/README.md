@@ -4,11 +4,16 @@ Pulls in government content like bills, court cases, and White House content and
 
 ## Scrapers
 
-| File | Where data comes from | How |
-|---|---|---|
-| `congress.ts` | Congress.gov bills | Official REST API |
-| `whitehouse.ts` | Whitehouse.gov | HTML scraping |
-| `scotus.ts` | Court opinions | CourtListener REST API |
+| File                   | Where data comes from             | How                                |
+| ---------------------- | --------------------------------- | ---------------------------------- |
+| `congress.ts`          | Congress.gov bills                | Official REST API                  |
+| `federalregister.ts`   | Federal Register                  | Official REST API + HTML text      |
+| `scotus.ts`            | Court opinions                    | CourtListener REST API             |
+| `vote411.ts`           | VOTE411                           | Public voter-guide HTML            |
+| `scc-cvig.ts`          | Santa Clara County voter guides   | PDF extraction + optional Gemini   |
+| `ca-sos-statements.ts` | CA Secretary of State voter guide | Official candidate-statement pages |
+| `ca-lao-fiscal.ts`     | CA Legislative Analyst's Office   | Proposition fiscal analyses        |
+| `ca-vig-archive.ts`    | CA SOS voter-guide archive        | Historical proposition guide pages |
 
 ---
 
@@ -16,26 +21,29 @@ Pulls in government content like bills, court cases, and White House content and
 
 ### 1. Copy the env file
 
+From the repo root:
+
 ```bash
-cp ../../.env.example .env
+cp .env.example .env
 ```
 
 Then fill in the values. The ones you need for scraping:
 
-| Variable | Required | Where to get it |
-|---|---|---|
-| `POSTGRES_URL` | ✅ | Your Supabase project settings |
-| `BFL_API_KEY` | ✅ | Black Forest Labs key for FLUX.2 Pro image generation — [bfl.ai](https://bfl.ai) |
-| `OPENAI_API_KEY` | ✅ | [platform.openai.com](https://platform.openai.com) |
-| `CONGRESS_API_KEY` | ✅ | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/) |
-| `COURTLISTENER_API_KEY` | Optional | Free at [courtlistener.com](https://www.courtlistener.com/sign-in/) — only needed for higher rate limits |
-| `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional | For article thumbnail images |
+| Variable                                     | Required | Where to get it / why it matters                                                                      |
+| -------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `POSTGRES_URL`                               | ✅       | Your Supabase/Postgres project settings                                                               |
+| `DEEPSEEK_API_KEY`                           | ✅       | [DeepSeek](https://platform.deepseek.com/) key for article, summary, and image-prompt text generation |
+| `BFL_API_KEY`                                | ✅       | Black Forest Labs key for FLUX.2 Pro image generation — [bfl.ai](https://bfl.ai)                      |
+| `CONGRESS_API_KEY`                           | ✅       | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/)                                 |
+| `COURTLISTENER_API_KEY`                      | Optional | Free at [courtlistener.com](https://www.courtlistener.com/sign-in/) — only needed for higher limits   |
+| `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional | Google Custom Search fallback for article thumbnail images                                            |
+| `GOOGLE_GENERATIVE_AI_API_KEY`               | Optional | Gemini vision fallback for PDF-heavy civic sources                                                    |
 
 ### 2. Run it
 
 ```bash
 pnpm install
-pnpm dev
+pnpm --filter @acme/scraper run start -- congress --concurrency 1
 ```
 
 ---
@@ -50,9 +58,9 @@ Uses the official [Congress.gov API](https://api.congress.gov) so no scraping. F
 
 ```ts
 await scrapeCongress({
-  congress: 119,      // which Congress (default: 119)
-  chamber: "House",   // "House" or "Senate" (default: "House")
-  maxBills: 100,      // how many bills to fetch (default: 100)
+  congress: 119, // which Congress (default: 119)
+  chamber: "House", // "House" or "Senate" (default: "House")
+  maxBills: 100, // how many bills to fetch (default: 100)
 });
 ```
 
@@ -64,8 +72,8 @@ Uses the [CourtListener API](https://www.courtlistener.com/api/) — free, works
 
 ```ts
 await scrapeScotus({
-  court: "scotus",  // court ID (default: "scotus" = Supreme Court)
-  maxCases: 50,     // how many cases to fetch (default: 50)
+  court: "scotus", // court ID (default: "scotus" = Supreme Court)
+  maxCases: 50, // how many cases to fetch (default: 50)
 });
 
 // Other courts you can use:

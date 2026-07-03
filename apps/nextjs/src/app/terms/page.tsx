@@ -5,12 +5,6 @@ export const metadata: Metadata = {
   title: "Terms of Service — Billion",
 };
 
-const C = {
-  deepNavy: "#0e1530",
-  border: "rgba(255,255,255,0.08)",
-  general: "#8a8fa0",
-};
-
 const LAST_UPDATED = "April 5, 2026";
 
 const SECTIONS = [
@@ -62,32 +56,20 @@ const SECTIONS = [
 
 export default function TermsPage() {
   return (
-    <main
-      className="min-h-screen"
-      style={{ backgroundColor: C.deepNavy, color: "#fff" }}
-    >
+    <main className="bg-background text-foreground min-h-screen">
       <nav
-        className="flex items-center justify-between px-6 py-5"
-        style={{ maxWidth: 1120, margin: "0 auto" }}
+        className="mx-auto flex items-center justify-between px-6 py-5"
+        style={{ maxWidth: 1120 }}
       >
         <Link
           href="/"
-          className="text-[22px] font-bold tracking-[-0.02em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            textDecoration: "none",
-          }}
+          className="text-foreground font-display text-[22px] font-bold tracking-[-0.02em] no-underline"
         >
           Billion
         </Link>
         <Link
           href="/privacy"
-          className="text-[15px] font-medium transition-colors duration-150 hover:text-white"
-          style={{
-            color: "rgba(255,255,255,0.6)",
-            fontFamily: "var(--font-albert-sans)",
-            textDecoration: "none",
-          }}
+          className="text-muted-foreground hover:text-gold font-sans text-[15px] font-medium no-underline transition-colors duration-200"
         >
           Privacy Policy
         </Link>
@@ -97,18 +79,12 @@ export default function TermsPage() {
         className="mx-auto px-6 py-12 md:py-16"
         style={{ maxWidth: 720 }}
       >
-        <p
-          className="mb-2 text-[12px] font-medium tracking-[0.1em] uppercase"
-          style={{ color: C.general, fontFamily: "var(--font-albert-sans)" }}
-        >
+        <p className="tracking-label text-muted-foreground mb-2 font-sans text-[12px] font-medium uppercase">
           Last updated {LAST_UPDATED}
         </p>
         <h1
-          className="mb-10 leading-[1.15] font-bold tracking-[-0.02em] text-white"
-          style={{
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-            fontSize: "clamp(2rem, 4vw, 3rem)",
-          }}
+          className="text-foreground font-display mb-10 leading-[1.15] font-bold tracking-[-0.02em]"
+          style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}
         >
           Terms of Service
         </h1>
@@ -116,19 +92,10 @@ export default function TermsPage() {
         <div className="flex flex-col gap-8">
           {SECTIONS.map((s) => (
             <section key={s.title}>
-              <h2
-                className="mb-2 text-[15px] font-semibold text-white"
-                style={{ fontFamily: "var(--font-albert-sans)" }}
-              >
+              <h2 className="text-foreground mb-2 font-sans text-[15px] font-semibold">
                 {s.title}
               </h2>
-              <p
-                className="m-0 text-[16px] leading-[1.7]"
-                style={{
-                  color: "rgba(255,255,255,0.7)",
-                  fontFamily: "var(--font-albert-sans)",
-                }}
-              >
+              <p className="text-muted-foreground m-0 font-sans text-[16px] leading-[1.7]">
                 {s.body}
               </p>
             </section>
@@ -137,38 +104,27 @@ export default function TermsPage() {
       </article>
 
       <footer
-        className="mx-auto flex items-center justify-between px-6 py-8"
-        style={{ maxWidth: 1120, borderTop: `1px solid ${C.border}` }}
+        className="border-border mx-auto flex items-center justify-between border-t px-6 py-8"
+        style={{ maxWidth: 1120 }}
       >
-        <span
-          className="text-[18px] font-bold"
-          style={{
-            color: "rgba(255,255,255,0.4)",
-            fontFamily: "var(--font-ibm-plex-serif), Georgia, serif",
-          }}
-        >
+        <span className="text-muted-foreground font-display text-[18px] font-bold">
           Billion
         </span>
-        <div
-          className="flex items-center gap-5 text-[13px]"
-          style={{ fontFamily: "var(--font-albert-sans)" }}
-        >
+        <div className="flex items-center gap-5 font-sans text-[13px]">
           <Link
             href="/terms"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
+            className="text-muted-foreground hover:text-gold no-underline transition-colors duration-200"
           >
             Terms
           </Link>
           <Link
             href="/privacy"
-            className="transition-colors duration-150 hover:text-white"
-            style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
+            className="text-muted-foreground hover:text-gold no-underline transition-colors duration-200"
           >
             Privacy
           </Link>
-          <span style={{ color: "rgba(255,255,255,0.25)" }}>
-            © 2026 Billion. All rights reserved.
+          <span className="text-muted-foreground/70">
+            &copy; 2026 Billion. All rights reserved.
           </span>
         </div>
       </footer>

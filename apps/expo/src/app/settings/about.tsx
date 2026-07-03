@@ -6,6 +6,7 @@ import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import { Card, Icon, ScreenShell } from "~/components/ui";
 import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
+import { getAppVersionLabel } from "~/utils/app-version";
 
 export default function AboutScreen() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function AboutScreen() {
           <Text style={s.logoText}>B</Text>
         </LinearGradient>
         <Text style={s.name}>Billion</Text>
-        <Text style={s.version}>Version 2.4.0 (build 1182)</Text>
+        <Text style={s.version}>{getAppVersionLabel()}</Text>
         <View style={s.upToDate}>
           <Icon name="check" size={14} color={colors.green[500]} />
           <Text style={s.upToDateText}>You&apos;re up to date</Text>

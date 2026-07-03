@@ -3,9 +3,21 @@ import { z } from "zod/v4";
 
 import { and, desc, eq } from "@acme/db";
 import { db } from "@acme/db/client";
-import { Bill, ContentLens, CourtCase, GovernmentContent } from "@acme/db/schema";
+import {
+  Bill,
+  ContentLens,
+  CourtCase,
+  GovernmentContent,
+  SavedArticle,
+} from "@acme/db/schema";
 
-import { publicProcedure } from "../trpc";
+import { protectedProcedure, publicProcedure } from "../trpc";
+
+const SAVED_CONTENT_TYPES = [
+  "bill",
+  "government_content",
+  "court_case",
+] as const;
 
 // Look up cached dual-lens perspectives for a content item. Returns null when
 // none have been generated yet (the client falls back to a placeholder).
@@ -327,4 +339,140 @@ export const contentRouter = {
 
       throw new Error(`Content with id ${input.id} not found`);
     }),
+
+  // --- Saved Articles ---
+  saved: {
+    // Paginated list of the current user's saved articles, newest first.
+    list: protectedProcedure
+      .input(
+        z.object({
+          limit: z.number().int().min(1).max(50).default(10),
+          cursor: z.number().int().min(0).optional(),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        const userId = ctx.session.user.id;
+        const { limit, cursor = 0 } = input;
+
+        const saved = await db
+          .select()
+          .from(SavedArticle)
+          .where(eq(SavedArticle.userId, userId))
+          .orderBy(desc(SavedArticle.createdAt), desc(SavedArticle.id))
+          .limit(limit + 1)
+          .offset(cursor);
+
+        const hasMore = saved.length > limit;
+        const page = hasMore ? saved.slice(0, limit) : saved;
+
+        const results = await Promise.all(
+          page.map(async (s) => {
+            if (s.contentType === "bill") {
+              const [row] = await db
+                .select({
+                  id: Bill.id,
+                  title: Bill.title,
+                  description: Bill.description,
+                })
+                .from(Bill)
+                .where(eq(Bill.id, s.contentId))
+                .limit(1);
+              return row
+                ? { ...row, type: "bill" as const, savedAt: s.createdAt }
+                : null;
+            }
+            if (s.contentType === "government_content") {
+              const [row] = await db
+                .select({
+                  id: GovernmentContent.id,
+                  title: GovernmentContent.title,
+                  description: GovernmentContent.description,
+                })
+                .from(GovernmentContent)
+                .where(eq(GovernmentContent.id, s.contentId))
+                .limit(1);
+              return row
+                ? {
+                    ...row,
+                    type: "government_content" as const,
+                    savedAt: s.createdAt,
+                  }
+                : null;
+            }
+            const [row] = await db
+              .select({
+                id: CourtCase.id,
+                title: CourtCase.title,
+                description: CourtCase.description,
+              })
+              .from(CourtCase)
+              .where(eq(CourtCase.id, s.contentId))
+              .limit(1);
+            return row
+              ? { ...row, type: "court_case" as const, savedAt: s.createdAt }
+              : null;
+          }),
+        );
+
+        return {
+          items: results.filter((item) => item != null),
+          nextCursor: hasMore ? cursor + limit : undefined,
+        };
+      }),
+
+    // Save an article for the current user (no-op if already saved).
+    add: protectedProcedure
+      .input(
+        z.object({
+          contentId: z.string().uuid(),
+          contentType: z.enum(SAVED_CONTENT_TYPES),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const userId = ctx.session.user.id;
+        await db
+          .insert(SavedArticle)
+          .values({
+            userId,
+            contentId: input.contentId,
+            contentType: input.contentType,
+          })
+          .onConflictDoNothing();
+        return { success: true };
+      }),
+
+    // Remove a saved article for the current user.
+    remove: protectedProcedure
+      .input(z.object({ contentId: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const userId = ctx.session.user.id;
+        await db
+          .delete(SavedArticle)
+          .where(
+            and(
+              eq(SavedArticle.userId, userId),
+              eq(SavedArticle.contentId, input.contentId),
+            ),
+          );
+        return { success: true };
+      }),
+
+    // Whether the given content is already saved by the current user.
+    isSaved: protectedProcedure
+      .input(z.object({ contentId: z.string().uuid() }))
+      .query(async ({ ctx, input }) => {
+        const userId = ctx.session.user.id;
+        const [row] = await db
+          .select({ id: SavedArticle.id })
+          .from(SavedArticle)
+          .where(
+            and(
+              eq(SavedArticle.userId, userId),
+              eq(SavedArticle.contentId, input.contentId),
+            ),
+          )
+          .limit(1);
+        return { saved: !!row };
+      }),
+  },
 } satisfies TRPCRouterRecord;

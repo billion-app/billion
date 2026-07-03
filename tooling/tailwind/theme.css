@@ -64,7 +64,7 @@
     --accent-foreground: oklch(1 0 0);
     --destructive: oklch(0.55 0.22 25);
     --destructive-foreground: oklch(1 0 0);
-    --border: oklch(1 0 0 / 0.06); /* rgba(255,255,255,0.06) */
+    --border: oklch(1 0 0 / 0.08); /* warm white border */
     --input: oklch(0.19 0.04 262);
     --ring: oklch(1 0 0 / 0.3);
     --chart-1: oklch(0.62 0.18 257);
@@ -139,14 +139,35 @@
   --color-case: #0891b2;
   --color-general: #8a8fa0;
 
+  /* Old-money accent palette */
+  --color-gold: #c4a35a;
+  --color-gold-light: #d4b96a;
+  --color-gold-dark: #a8893a;
+  --color-leather: #6b4423;
+  --color-leather-light: #8b6914;
+  --color-parchment: #f5f0e8;
+  --color-burgundy: #722f37;
+
   /* Semantic */
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
   --color-text-secondary: #8a8fa0;
 
-  /* Brand gradient */
+  /* Gradients */
   --gradient-brand: linear-gradient(180deg, #0e1530 0%, #272d3c 100%);
+  --gradient-gold: linear-gradient(
+    135deg,
+    #c4a35a 0%,
+    #d4b96a 50%,
+    #a8893a 100%
+  );
+  --gradient-divider: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(196, 163, 90, 0.3) 50%,
+    transparent 100%
+  );
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -169,4 +190,6 @@
   --tracking-wide: calc(var(--tracking-normal) + 0.025em);
   --tracking-wider: calc(var(--tracking-normal) + 0.05em);
   --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+  --tracking-luxury: 0.08em;
+  --tracking-label: 0.12em;
 }

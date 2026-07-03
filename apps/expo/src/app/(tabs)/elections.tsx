@@ -148,11 +148,6 @@ function MeasureCard({
   );
 }
 
-// TODO(backend): default to the signed-in user's registered address. We mock
-// one (matching the mocked profile in Sacramento) so the ballot populates by
-// default; the user can still edit it.
-const MOCK_ADDRESS = "1414 K Street, Sacramento, CA 95814";
-
 export default function ElectionsScreen() {
   const router = useRouter();
   const { address: storedAddress, setAddress } = useUserAddress();
@@ -183,15 +178,15 @@ export default function ElectionsScreen() {
     [toggleSet],
   );
 
-  // Fall back to the mock address until the user sets their own.
-  const address = storedAddress ?? MOCK_ADDRESS;
+  const hasAddress = !!storedAddress;
 
   // Let Civic resolve the election for THIS address — getElections returns a
   // nationwide list, so picking the soonest from it surfaces the wrong
   // (e.g. out-of-state) election and breaks the ballot lookup.
-  const voterInfoQuery = useQuery(
-    trpc.civic.getVoterInfo.queryOptions({ address }),
-  );
+  const voterInfoQuery = useQuery({
+    ...trpc.civic.getVoterInfo.queryOptions({ address: storedAddress ?? "" }),
+    enabled: hasAddress,
+  });
 
   // The address-specific election the ballot belongs to.
   const selected = voterInfoQuery.data?.election;
@@ -210,7 +205,7 @@ export default function ElectionsScreen() {
       title="Your Ballot"
       contentStyle={{ gap: 24 }}
       headerExtra={
-        editing ? (
+        editing || !storedAddress ? (
           <AddressAutocomplete
             initialValue={storedAddress ?? ""}
             onSubmit={(addr) => {
@@ -224,7 +219,7 @@ export default function ElectionsScreen() {
             <View style={s.addrBody}>
               <Text style={s.addrKicker}>REGISTERED ADDRESS</Text>
               <Text style={s.addrText} numberOfLines={1}>
-                {address}
+                {storedAddress}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setEditing(true)}>
@@ -234,6 +229,17 @@ export default function ElectionsScreen() {
         )
       }
     >
+      {!hasAddress && (
+        <View style={s.section}>
+          <Card>
+            <Text style={s.empty}>
+              Enter your registered address above to load the election and
+              ballot for where you vote.
+            </Text>
+          </Card>
+        </View>
+      )}
+
       {/* election hero — what election is happening, what it means */}
       {selected && <ElectionHero election={selected} />}
 
@@ -374,7 +380,7 @@ export default function ElectionsScreen() {
         </View>
       )}
 
-      {contests.length === 0 && !voterInfoQuery.isLoading && (
+      {hasAddress && contests.length === 0 && !voterInfoQuery.isLoading && (
         <View style={s.section}>
           <Card>
             <Text style={s.empty}>

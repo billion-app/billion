@@ -4,16 +4,24 @@
 
 `apps/scraper/` is a standalone Node.js process. It runs on demand or on a schedule and writes **directly to the database** via `@acme/db` — no HTTP, no tRPC, no auth. It's a trusted server-side process; routing writes through tRPC would add latency, require tokens, and force write endpoints to be secured for no benefit.
 
-Invoke via CLI: `pnpm start [federalregister|congress|scotus|vote411|all] [--concurrency N]` (default concurrency 3, via `p-limit`). It ships as a multi-stage `Dockerfile.scraper` (Node 20-slim) that builds `@acme/db` + the scraper, rewrites package exports to `dist/`, and runs `node dist/main.js`.
+Invoke via CLI: `pnpm start [scraper|all] [--concurrency N]` (default
+concurrency 3, via `p-limit`). From the repo root, use
+`pnpm --filter @acme/scraper run start -- [scraper] --concurrency N`. It ships
+as a multi-stage `Dockerfile.scraper` (Node 20-slim) that builds `@acme/db` +
+the scraper, rewrites package exports to `dist/`, and runs `node dist/main.js`.
 
 ## Scrapers
 
-| Scraper              | Source                       | Content type         | Method                                                 |
-| -------------------- | ---------------------------- | -------------------- | ------------------------------------------------------ |
-| `congress.ts`        | congress.gov REST API        | `bill`               | REST (`CONGRESS_API_KEY`), incremental by `updateDate` |
-| `federalregister.ts` | federalregister.gov REST API | `government_content` | REST; HTML→Markdown via Turndown                       |
-| `scotus.ts`          | CourtListener REST API       | `court_case`         | REST (`COURTLISTENER_API_KEY`, optional)               |
-| `vote411.ts`         | vote411.org                  | (cached locally)     | cheerio HTML parse; does **not** write to the main DB  |
+| Scraper                | Source                         | Content type         | Method                                                 |
+| ---------------------- | ------------------------------ | -------------------- | ------------------------------------------------------ |
+| `congress.ts`          | congress.gov REST API          | `bill`               | REST (`CONGRESS_API_KEY`), incremental by `updateDate` |
+| `federalregister.ts`   | federalregister.gov REST API   | `government_content` | REST; HTML→Markdown via Turndown                       |
+| `scotus.ts`            | CourtListener REST API         | `court_case`         | REST (`COURTLISTENER_API_KEY`, optional)               |
+| `vote411.ts`           | vote411.org                    | (cached locally)     | cheerio HTML parse; does **not** write to the main DB  |
+| `scc-cvig.ts`          | Santa Clara County voter guide | `civic_api_cache`    | PDF extraction; optional Gemini fallback               |
+| `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages                     |
+| `ca-lao-fiscal.ts`     | CA LAO ballot analyses         | `civic_api_cache`    | proposition fiscal analyses via HTML parse             |
+| `ca-vig-archive.ts`    | CA SOS voter-guide archive     | `civic_api_cache`    | historical proposition guide pages via HTML parse      |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
@@ -32,19 +40,19 @@ All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fe
 
 ## AI Pipeline
 
-Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **DeepSeek `deepseek-v4-flash`** (Vercel AI SDK), images via **Google Vertex AI Imagen 3**. Token and image costs are tracked per run.
+Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **DeepSeek `deepseek-v4-flash`** (Vercel AI SDK), images via **Black Forest Labs FLUX.2 Pro**. Token and image costs are tracked per run.
 
 Each new/changed item runs through:
 
 1. **Summary** (`text-generation.ts`) — ≤100-char punchy summary, 8th-grade reading level.
 2. **Article** (`text-generation.ts`) — structured 4-section markdown: _What This Means For You_, _Overview_, _Impact & Implications_, _The Debate_; balanced across perspectives. Stored in `ai_generated_article`. Throws a typed `AIRateLimitError` on 429.
 3. **Marketing copy** (`marketing-generation.ts`) — Zod-validated `{ title ≤25 chars, description ≤25 words, imagePrompt }` for the `video` feed card.
-4. **Imagery** — two paths:
+4. **Imagery** — multiple sources:
    - _Scraped thumbnail_ (preferred, free): source-provided image URL → `thumbnail_url`.
-   - _Generated_: Imagen 3 produces a 1024×1024 image from the marketing image prompt; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Up to 3 retries with backoff; safety-filter blocks return `null` silently.
+   - _Generated_: FLUX.2 Pro produces a 1024×1024 image from the marketing image prompt; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Up to 3 retries with backoff; moderation blocks return `null` silently.
    - _Stock-photo fallback_: `image-keywords.ts` → Google Custom Search (`GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`) can supply a thumbnail URL.
 
-> The earlier design used **Gemini for text and DALL-E for images**; both were replaced (DeepSeek for cost/quality on text, Vertex Imagen for images).
+> The earlier design used **Gemini for text and DALL-E/Imagen for images**; both were replaced (DeepSeek for cost/quality on text, FLUX.2 Pro for images).
 
 ## Pipeline Flow
 
@@ -67,11 +75,11 @@ flowchart TD
     marketing --> img{"Scraped<br/>thumbnail?"}
 
     img -->|yes| thumburl["thumbnail_url"]
-    img -->|no| imagen["Vertex Imagen 3 → sharp JPEG<br/>→ image_data (bytea)"]
-    imagen -.->|safety block / fail| stock["Google Custom Search<br/>stock thumbnail URL"]
+    img -->|no| flux["FLUX.2 Pro → sharp JPEG<br/>→ image_data (bytea)"]
+    flux -.->|moderation block / fail| stock["Google Custom Search<br/>stock thumbnail URL"]
 
     thumburl --> upsert["upsertContent()<br/>onConflictDoUpdate + append versions"]
-    imagen --> upsert
+    flux --> upsert
     stock --> upsert
     skipai --> upsert
     backfill --> upsert
