@@ -615,8 +615,9 @@ export const ContentLens = pgTable(
     lensData: t
       .jsonb()
       .$type<{
-        left: { stance: string; points: string[] };
-        right: { stance: string; points: string[] };
+        left: { stance: string; points: { text: string; sourceIds: number[] }[] };
+        right: { stance: string; points: { text: string; sourceIds: number[] }[] };
+        sources: { id: number; title: string; url: string }[];
         generatedAt: string;
         modelVersion: string;
       }>()

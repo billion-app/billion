@@ -3,10 +3,11 @@
  * Generates summaries and full articles from government content
  */
 
-import { generateText, APICallError, RetryError } from 'ai';
+import { generateText, generateObject, APICallError, RetryError } from 'ai';
+import { z } from 'zod';
 import { createLogger } from '../log.js';
 import { trackLLMUsage } from '../costs.js';
-import { llm } from './provider.js';
+import { llm, searchModel, webSearchTool } from './provider.js';
 
 const logger = createLogger("ai");
 
@@ -157,67 +158,124 @@ Write the article now using the 4-section structure above:`,
   }
 }
 
+export interface LensPoint {
+  text: string;
+  /** Ids into DualLens.sources backing this point (may be empty). */
+  sourceIds: number[];
+}
+
 export interface LensSide {
   stance: string;
-  points: string[];
+  points: LensPoint[];
+}
+
+export interface DualLensSource {
+  id: number;
+  title: string;
+  url: string;
 }
 
 export interface DualLens {
   left: LensSide;
   right: LensSide;
+  sources: DualLensSource[];
 }
 
-function parseLensJSON(raw: string): DualLens | null {
-  try {
-    const json = raw.match(/\{[\s\S]*\}/)?.[0];
-    if (!json) return null;
-    const parsed = JSON.parse(json) as unknown;
-    if (
-      typeof parsed !== 'object' || parsed === null ||
-      !('left' in parsed) || !('right' in parsed)
-    ) return null;
-    const { left, right } = parsed as Record<string, unknown>;
-    if (
-      typeof left !== 'object' || left === null ||
-      typeof right !== 'object' || right === null
-    ) return null;
-    const l = left as Record<string, unknown>;
-    const r = right as Record<string, unknown>;
-    if (
-      typeof l.stance !== 'string' || !Array.isArray(l.points) ||
-      typeof r.stance !== 'string' || !Array.isArray(r.points)
-    ) return null;
-    const leftPoints = (l.points as unknown[]).filter((p): p is string => typeof p === 'string');
-    const rightPoints = (r.points as unknown[]).filter((p): p is string => typeof p === 'string');
-    if (leftPoints.length < 2 || rightPoints.length < 2) return null;
-    return {
-      left: { stance: l.stance, points: leftPoints.slice(0, 4) },
-      right: { stance: r.stance, points: rightPoints.slice(0, 4) },
-    };
-  } catch {
-    return null;
+/**
+ * Structured-output schema for the synthesis step. Replaces the old manual JSON
+ * parsing — the AI SDK validates against this, so malformed output throws (and
+ * we retry) instead of silently slipping through.
+ */
+const DualLensSchema = z.object({
+  left: z.object({
+    stance: z.string(),
+    points: z
+      .array(z.object({ text: z.string(), sourceIds: z.array(z.number()) }))
+      .min(2)
+      .max(4),
+  }),
+  right: z.object({
+    stance: z.string(),
+    points: z
+      .array(z.object({ text: z.string(), sourceIds: z.array(z.number()) }))
+      .min(2)
+      .max(4),
+  }),
+});
+
+/** Web-search results surfaced by the AI SDK, as returned by generateText. */
+interface SdkSource {
+  sourceType?: string;
+  url?: string;
+  title?: string;
+}
+
+/** Dedupe web-search sources by URL and assign stable 1-based citation ids. */
+function numberSources(raw: readonly SdkSource[] | undefined): DualLensSource[] {
+  const byUrl = new Map<string, number>();
+  const out: DualLensSource[] = [];
+  for (const s of raw ?? []) {
+    if (s.sourceType !== "url" || !s.url || byUrl.has(s.url)) continue;
+    const id = out.length + 1;
+    byUrl.set(s.url, id);
+    out.push({ id, title: s.title?.trim() || s.url, url: s.url });
   }
+  return out;
 }
 
-const DUAL_LENS_PROMPT = (title: string, type: string, text: string) => `You are a nonpartisan civic analyst. Given the following ${type}, produce balanced perspectives from supporters and critics. Cite specific provisions, sections, or precedents from the source text. Do not editorialize — present each side's strongest arguments.
-
-Respond with ONLY valid JSON, no markdown, no explanation:
-{
-  "left": {
-    "stance": "Proponents argue",
-    "points": ["2 to 4 specific arguments citing the text"]
-  },
-  "right": {
-    "stance": "Critics counter",
-    "points": ["2 to 4 specific arguments citing the text"]
-  }
+/**
+ * Well-engineered citations: strip any sourceId the model invented that doesn't
+ * resolve to a real fetched source, so every rendered citation number is backed
+ * by an actual URL (points are kept even if uncited, preserving the ≥2 shape).
+ */
+function verifyCitations(
+  lens: { left: LensSide; right: LensSide },
+  sources: DualLensSource[],
+): DualLens {
+  const valid = new Set(sources.map((s) => s.id));
+  const fix = (side: LensSide): LensSide => ({
+    stance: side.stance,
+    points: side.points.map((p) => ({
+      text: p.text,
+      sourceIds: [...new Set(p.sourceIds.filter((id) => valid.has(id)))],
+    })),
+  });
+  return { left: fix(lens.left), right: fix(lens.right), sources };
 }
+
+const RESEARCH_PROMPT = (title: string, type: string, text: string) =>
+  `You are a nonpartisan civic analyst researching a ${type}. Use web search to find how supporters and critics actually view it. Gather the strongest, most specific real-world arguments from BOTH sides, and note which sources back each argument. Prefer official, nonpartisan, and reputable sources. Do not editorialize.
 
 Title: ${title}
 
-Content:
-${text.substring(0, 4000)}`;
+Content excerpt:
+${text.substring(0, 3000)}`;
 
+const STRUCTURE_PROMPT = (
+  title: string,
+  type: string,
+  research: string,
+  sourceList: string,
+) =>
+  `You are a nonpartisan civic analyst. Using ONLY the research below, produce balanced perspectives on this ${type}: "left" = proponents/supporters, "right" = critics/opponents. Each side needs 2 to 4 specific points presenting that side's strongest arguments — do not editorialize.
+
+For each point, set "sourceIds" to the numbers of the sources (from the Sources list) that directly support it. If a point isn't backed by a listed source, use an empty array. Never cite a source number that isn't in the list. Suggested stances: left = "Proponents argue", right = "Critics counter".
+
+Sources:
+${sourceList || "(none found — use empty sourceIds arrays)"}
+
+Research:
+${research}
+
+Title: ${title}`;
+
+/**
+ * Generate a cited dual-lens for a content item via a real agentic loop:
+ *   (1) DeepSeek researches the web with its native web_search tool,
+ *   (2) DeepSeek structures the findings into schema-validated perspectives with
+ *       per-point citations.
+ * Falls back to source-text-only structuring if web research is unavailable.
+ */
 export async function generateDualLens(
   title: string,
   fullText: string,
@@ -226,22 +284,46 @@ export async function generateDualLens(
   if (rateLimitHit) {
     throw new AIRateLimitError();
   }
+
+  // Step 1 — agentic web research (native DeepSeek web_search).
+  let research = "";
+  let sources: DualLensSource[] = [];
+  try {
+    const res = await generateText({
+      model: searchModel,
+      tools: { web_search: webSearchTool },
+      prompt: RESEARCH_PROMPT(title, type, fullText),
+    });
+    trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
+    research = res.text;
+    sources = numberSources(res.sources as SdkSource[] | undefined);
+    logger.info(`Dual-lens: web research found ${sources.length} sources for "${title}"`);
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      rateLimitHit = true;
+      throw new AIRateLimitError();
+    }
+    logger.warn(`Dual-lens web research failed for "${title}" — falling back to source text`, error);
+  }
+
+  // Step 2 — structured synthesis (schema-validated; no manual JSON parsing).
+  const grounding = research.trim() || fullText.substring(0, 4000);
+  const sourceList = sources.map((s) => `[${s.id}] ${s.title} — ${s.url}`).join("\n");
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const { text, usage } = await generateText({
+      const { object, usage } = await generateObject({
         model: llm,
-        prompt: DUAL_LENS_PROMPT(title, type, fullText),
+        schema: DualLensSchema,
+        prompt: STRUCTURE_PROMPT(title, type, grounding, sourceList),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
-      const lens = parseLensJSON(text);
-      if (lens) return lens;
-      logger.warn(`Dual-lens parse failed on attempt ${attempt + 1} for "${title}" — retrying`);
+      return verifyCitations(object, sources);
     } catch (error) {
       if (isRateLimitError(error)) {
         rateLimitHit = true;
         throw new AIRateLimitError();
       }
-      logger.error(`Dual-lens generation error on attempt ${attempt + 1}`, error);
+      logger.warn(`Dual-lens structuring failed on attempt ${attempt + 1} for "${title}"`, error);
       if (attempt === 1) return null;
     }
   }

@@ -1,5 +1,6 @@
 import type { LanguageModel } from "ai";
 import { createDeepSeek } from "@ai-sdk/deepseek";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
@@ -13,6 +14,24 @@ const deepseekProvider = createDeepSeek({
 });
 
 export const llm = deepseekProvider("deepseek-v4-flash");
+
+// DeepSeek's Anthropic-compatible endpoint exposes the native server-side
+// `web_search` tool (the OpenAI-compatible `llm` above does not). Same
+// DEEPSEEK_API_KEY, no third-party search service. Used for the dual-lens
+// agentic web research step (see ai/text-generation.ts). The @ai-sdk/anthropic
+// major is pinned to the v3/provider-v3 line to match the rest of the SDK.
+const deepseekAnthropic = createAnthropic({
+  baseURL: "https://api.deepseek.com/anthropic",
+  apiKey: deepseekApiKey,
+});
+
+/** DeepSeek model that supports the native web_search server tool. */
+export const searchModel = deepseekAnthropic("deepseek-v4-flash");
+
+/** Native web-search server tool (bounded by maxUses). */
+export const webSearchTool = deepseekAnthropic.tools.webSearch_20250305({
+  maxUses: 5,
+});
 
 // Multimodal (PDF/vision) model for document extraction — DeepSeek is text-only.
 // Gated on the API key so the scraper still runs without it (callers that need

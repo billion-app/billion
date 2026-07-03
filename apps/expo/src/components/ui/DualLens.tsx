@@ -3,14 +3,32 @@
  * LensStrip: compact spectrum read-out (tap to expand).
  * LensPanel: two-column "both sides, side by side" card.
  */
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { colors, fontBody, hair, planes } from "~/styles";
 import { Icon } from "./Icon";
 
+export interface LensSource {
+  id: number;
+  title: string;
+  url: string;
+}
+
+export interface LensPoint {
+  text: string;
+  sourceIds: number[];
+}
+
 export interface LensData {
-  left: { stance: string; points: string[] };
-  right: { stance: string; points: string[] };
+  // Points may be the new cited shape or legacy bare strings (old cached rows).
+  left: { stance: string; points: (LensPoint | string)[] };
+  right: { stance: string; points: (LensPoint | string)[] };
+  sources?: LensSource[];
+}
+
+/** Normalize a point to the cited shape, tolerating legacy string points. */
+function toPoint(p: LensPoint | string): LensPoint {
+  return typeof p === "string" ? { text: p, sourceIds: [] } : p;
 }
 
 /* ---------- LensStrip ---------- */
@@ -67,6 +85,7 @@ export function LensStrip({
 
 /* ---------- LensPanel ---------- */
 export function LensPanel({ data }: { data: LensData }) {
+  const sources = data.sources ?? [];
   return (
     <View style={s.panel}>
       <View style={s.panelHead}>
@@ -86,22 +105,47 @@ export function LensPanel({ data }: { data: LensData }) {
             </Text>
             <Text style={s.colStance}>{data[k].stance}</Text>
             <View style={s.points}>
-              {data[k].points.map((p, i) => (
+              {data[k].points.map(toPoint).map((p, i) => (
                 <View key={i} style={s.point}>
                   <View style={s.dot} />
-                  <Text style={s.pointText}>{p}</Text>
+                  <Text style={s.pointText}>
+                    {p.text}
+                    {p.sourceIds.length > 0 && (
+                      <Text style={s.cite}> [{p.sourceIds.join(",")}]</Text>
+                    )}
+                  </Text>
                 </View>
               ))}
             </View>
           </View>
         ))}
       </View>
-      <View style={s.footer}>
-        <Icon name="info" size={14} color={colors.textSecondary} />
-        <Text style={s.footerText}>
-          Framing summarized from sources across the spectrum.
-        </Text>
-      </View>
+      {sources.length > 0 ? (
+        <View style={s.sources}>
+          <Text style={s.sourcesLabel}>SOURCES</Text>
+          {sources.map((src) => (
+            <TouchableOpacity
+              key={src.id}
+              style={s.sourceRow}
+              activeOpacity={0.7}
+              onPress={() => void Linking.openURL(src.url)}
+            >
+              <Text style={s.sourceNum}>{src.id}</Text>
+              <Text style={s.sourceTitle} numberOfLines={1}>
+                {src.title}
+              </Text>
+              <Icon name="chevR" size={13} color={colors.textSecondary} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : (
+        <View style={s.footer}>
+          <Icon name="info" size={14} color={colors.textSecondary} />
+          <Text style={s.footerText}>
+            Framing summarized from sources across the spectrum.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -227,11 +271,48 @@ const s = StyleSheet.create({
     color: "rgba(255,255,255,0.82)",
     lineHeight: 18,
   },
+  cite: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 10.5,
+    color: colors.civicBlue,
+  },
   footer: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 14 },
   footerText: {
     flex: 1,
     fontFamily: "AlbertSans-Regular",
     fontSize: 11.5,
     color: colors.textSecondary,
+  },
+  sources: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: hair[1],
+    gap: 6,
+  },
+  sourcesLabel: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 10,
+    letterSpacing: 1,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  sourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 3,
+  },
+  sourceNum: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 11,
+    color: colors.civicBlue,
+    minWidth: 14,
+  },
+  sourceTitle: {
+    flex: 1,
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.72)",
   },
 });
