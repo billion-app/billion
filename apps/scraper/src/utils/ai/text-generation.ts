@@ -3,7 +3,7 @@
  * Generates summaries and full articles from government content
  */
 
-import { generateText, generateObject, APICallError, RetryError } from 'ai';
+import { generateText, generateObject, tool, stepCountIs, APICallError, RetryError } from 'ai';
 import { z } from 'zod';
 import { createLogger } from '../log.js';
 import { trackLLMUsage } from '../costs.js';
@@ -243,8 +243,106 @@ function verifyCitations(
   return { left: fix(lens.left), right: fix(lens.right), sources };
 }
 
+const BROWSER_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+/** Strip a fetched HTML page down to readable text for the agent to read. */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z]+;|&#\d+;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Client tool: web search. Wraps DeepSeek's native server-side web_search (which
+ * completes in one shot) so the OUTER model drives a genuine multi-step loop —
+ * it can search, read a page, then search again. Keeps us on DeepSeek only (no
+ * third-party search service). The native search sub-call is tracked separately.
+ */
+const webResearchTool = tool({
+  description:
+    "Search the web for information about a topic. Returns a short summary and a list of result sources (title + url).",
+  inputSchema: z.object({
+    query: z.string().describe("A focused search query."),
+  }),
+  execute: async ({ query }: { query: string }) => {
+    const res = await generateText({
+      model: searchModel,
+      tools: { web_search: webSearchTool },
+      prompt: `Search the web and briefly summarize what you find for: ${query}`,
+    });
+    trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
+    const results = ((res.sources ?? []) as SdkSource[])
+      .filter((s) => s.sourceType === "url" && s.url)
+      .map((s) => ({ title: s.title ?? s.url, url: s.url }));
+    return { summary: res.text.slice(0, 1500), results };
+  },
+});
+
+/**
+ * Client tool: read a page in depth (search results are only snippets/summaries).
+ * The model calls this to open the most relevant sources before concluding.
+ */
+const fetchPageTool = tool({
+  description:
+    "Fetch the readable text of a web page by URL to read a source in depth. Use after web_search to open the most relevant results.",
+  inputSchema: z.object({
+    url: z.string().describe("The full URL to fetch, from a web_search result."),
+  }),
+  execute: async ({ url }: { url: string }) => {
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: "text/html", "User-Agent": BROWSER_UA },
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!res.ok) return { url, error: `HTTP ${res.status}` };
+      const text = stripHtml(await res.text()).slice(0, 4000);
+      return { url, text };
+    } catch (err) {
+      return { url, error: err instanceof Error ? err.message : "fetch failed" };
+    }
+  },
+});
+
+/** Collect every source URL surfaced across the loop's tool results, for citations. */
+function collectLoopSources(steps: unknown): SdkSource[] {
+  const out: SdkSource[] = [];
+  for (const step of Array.isArray(steps) ? steps : []) {
+    const results = (step as { toolResults?: unknown }).toolResults;
+    for (const r of Array.isArray(results) ? results : []) {
+      const rr = r as {
+        toolName?: string;
+        output?: {
+          url?: string;
+          text?: string;
+          results?: { title?: string; url?: string }[];
+        };
+      };
+      if (rr.toolName === "web_search" && Array.isArray(rr.output?.results)) {
+        for (const it of rr.output.results) {
+          if (it.url) out.push({ sourceType: "url", url: it.url, title: it.title });
+        }
+      } else if (rr.toolName === "fetch_page" && rr.output?.url && rr.output.text) {
+        out.push({ sourceType: "url", url: rr.output.url, title: rr.output.url });
+      }
+    }
+  }
+  return out;
+}
+
 const RESEARCH_PROMPT = (title: string, type: string, text: string) =>
-  `You are a nonpartisan civic analyst researching a ${type}. Use web search to find how supporters and critics actually view it. Gather the strongest, most specific real-world arguments from BOTH sides, and note which sources back each argument. Prefer official, nonpartisan, and reputable sources. Do not editorialize.
+  `You are a nonpartisan civic analyst researching a ${type}. Your framing must stay balanced, but to capture each side's real arguments you should deliberately seek out sources FROM BOTH SIDES. Work step by step and DO NOT write your briefing until you have read primary sources:
+1. Use web_search to find both the strongest case FOR and the strongest case AGAINST — including proponents/campaigns/supportive editorials and critics/opponents/critical editorials, alongside official or nonpartisan analyses for the facts.
+2. You MUST then use fetch_page to open and read at least TWO of the most relevant results in full (snippets alone are not enough) — at least one supportive and one critical source.
+3. Search or fetch again if either side's case is still weak or one-sided.
+4. Only once you have read enough, write a concise briefing of the strongest, most specific real-world arguments from BOTH sides, noting which source URLs back each argument.
+
+Prioritize credible, verifiable sources over neutrality — a partisan source is fine for capturing that side's argument, as long as it's real. Do not editorialize in your own voice.
 
 Title: ${title}
 
@@ -269,11 +367,16 @@ ${research}
 
 Title: ${title}`;
 
+/** Max tool-call rounds in the research loop (bounds cost + latency). */
+const RESEARCH_MAX_STEPS = 6;
+
 /**
- * Generate a cited dual-lens for a content item via a real agentic loop:
- *   (1) DeepSeek researches the web with its native web_search tool,
- *   (2) DeepSeek structures the findings into schema-validated perspectives with
- *       per-point citations.
+ * Generate a cited dual-lens for a content item.
+ *   (1) A real agentic loop: DeepSeek drives a multi-step tool loop
+ *       (web_search + fetch_page, capped by stopWhen) — it searches, opens and
+ *       reads sources, and searches again until it can brief both sides.
+ *   (2) DeepSeek structures the briefing into schema-validated perspectives with
+ *       per-point citations (generateObject; no manual JSON parsing).
  * Falls back to source-text-only structuring if web research is unavailable.
  */
 export async function generateDualLens(
@@ -285,19 +388,24 @@ export async function generateDualLens(
     throw new AIRateLimitError();
   }
 
-  // Step 1 — agentic web research (native DeepSeek web_search).
+  // Step 1 — model-driven agentic research loop. The standard model drives it
+  // (web_search here is a client tool wrapping DeepSeek's native search), so it
+  // genuinely multi-steps: search -> read a page -> search again -> brief.
   let research = "";
   let sources: DualLensSource[] = [];
   try {
     const res = await generateText({
-      model: searchModel,
-      tools: { web_search: webSearchTool },
+      model: llm,
+      tools: { web_search: webResearchTool, fetch_page: fetchPageTool },
+      stopWhen: stepCountIs(RESEARCH_MAX_STEPS),
       prompt: RESEARCH_PROMPT(title, type, fullText),
     });
     trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
     research = res.text;
-    sources = numberSources(res.sources as SdkSource[] | undefined);
-    logger.info(`Dual-lens: web research found ${sources.length} sources for "${title}"`);
+    sources = numberSources(collectLoopSources(res.steps));
+    logger.info(
+      `Dual-lens: research loop ran ${res.steps?.length ?? 1} step(s), ${sources.length} sources for "${title}"`,
+    );
   } catch (error) {
     if (isRateLimitError(error)) {
       rateLimitHit = true;
