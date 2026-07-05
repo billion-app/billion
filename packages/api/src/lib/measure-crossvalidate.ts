@@ -26,6 +26,7 @@ import { collectGroundingText } from "./measure-sources/grounded-fallback";
 import { SOURCE_TIER_RANK } from "./measure-sources/types";
 import { enrichFromWikipedia } from "./measure-sources/wikipedia";
 import { enrichFromVoteSmart } from "./votesmart";
+import { enrichFromSfDataSf } from "./measure-sources/sf-datasf";
 
 export interface CrossValidateContext {
   stateAbbrev?: string;
@@ -142,7 +143,7 @@ export async function crossValidateMeasure(
   input: CivicMeasureInput,
   ctx: CrossValidateContext,
 ): Promise<CanonicalMeasure> {
-  const [sos, lwv, bp, wiki, vs, lao] = await Promise.all([
+  const [sos, lwv, bp, wiki, vs, lao, sf] = await Promise.all([
     enrichFromCaSos(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
       () => null,
     ),
@@ -161,6 +162,9 @@ export async function crossValidateMeasure(
     enrichFromLao(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
       () => null,
     ),
+    enrichFromSfDataSf(input.title, ctx.stateAbbrev, ctx.county, ctx.electionYear).catch(
+      () => null,
+    ),
   ]);
 
   const sources: MeasureSourceData[] = [
@@ -170,6 +174,7 @@ export async function crossValidateMeasure(
     wiki,
     vs,
     lao,
+    sf,
     civicAsSource(input),
   ].filter((s): s is MeasureSourceData => s !== null);
   sources.sort(byTierDesc);
