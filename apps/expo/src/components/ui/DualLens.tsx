@@ -19,7 +19,12 @@ export interface LensPoint {
   sourceIds: number[];
 }
 
+export type LensFraming = "proponent_opponent" | "left_right";
+
 export interface LensData {
+  // How the two sides split: ideological (left/right) vs support-based
+  // (proponent/opponent). Defaults to proponent/opponent when absent.
+  framing?: LensFraming;
   // Points may be the new cited shape or legacy bare strings (old cached rows).
   left: { stance: string; points: (LensPoint | string)[] };
   right: { stance: string; points: (LensPoint | string)[] };
@@ -29,6 +34,13 @@ export interface LensData {
 /** Normalize a point to the cited shape, tolerating legacy string points. */
 function toPoint(p: LensPoint | string): LensPoint {
   return typeof p === "string" ? { text: p, sourceIds: [] } : p;
+}
+
+/** Column axis labels for the current framing (left side, right side). */
+function kickers(framing: LensFraming | undefined): [string, string] {
+  return framing === "left_right"
+    ? ["PROGRESSIVE", "CONSERVATIVE"]
+    : ["PROPONENTS", "OPPONENTS"];
 }
 
 /* ---------- LensStrip ---------- */
@@ -98,11 +110,9 @@ export function LensPanel({ data }: { data: LensData }) {
         </View>
       </View>
       <View style={s.cols}>
-        {(["left", "right"] as const).map((k) => (
+        {(["left", "right"] as const).map((k, i) => (
           <View key={k} style={s.col}>
-            <Text style={s.colKicker}>
-              {k === "left" ? "ONE VIEW" : "ANOTHER VIEW"}
-            </Text>
+            <Text style={s.colKicker}>{kickers(data.framing)[i]}</Text>
             <Text style={s.colStance}>{data[k].stance}</Text>
             <View style={s.points}>
               {data[k].points.map(toPoint).map((p, i) => (

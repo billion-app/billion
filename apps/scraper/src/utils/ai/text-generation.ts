@@ -175,7 +175,29 @@ export interface DualLensSource {
   url: string;
 }
 
+/**
+ * How the two sides are framed. `left_right` for ideological/partisan splits
+ * (progressive vs conservative); `proponent_opponent` for support-vs-oppose
+ * splits. `left` is always the progressive/proponent side. Chosen
+ * deterministically by content type — see framingForContentType.
+ */
+export type LensFraming = "proponent_opponent" | "left_right";
+
+/** Content types the dual-lens pipeline runs on. */
+export type LensContentType = "bill" | "government_content" | "court_case";
+
+/**
+ * Deterministic framing per content type:
+ *  - bill           → proponent/opponent (support vs oppose this specific bill)
+ *  - government_content (executive actions) → left/right (inherently partisan policy)
+ *  - court_case     → proponent/opponent (for vs against the ruling)
+ */
+export function framingForContentType(type: LensContentType): LensFraming {
+  return type === "government_content" ? "left_right" : "proponent_opponent";
+}
+
 export interface DualLens {
+  framing: LensFraming;
   left: LensSide;
   right: LensSide;
   sources: DualLensSource[];
@@ -230,6 +252,7 @@ function numberSources(raw: readonly SdkSource[] | undefined): DualLensSource[] 
  */
 function verifyCitations(
   lens: { left: LensSide; right: LensSide },
+  framing: LensFraming,
   sources: DualLensSource[],
 ): DualLens {
   const valid = new Set(sources.map((s) => s.id));
@@ -240,7 +263,12 @@ function verifyCitations(
       sourceIds: [...new Set(p.sourceIds.filter((id) => valid.has(id)))],
     })),
   });
-  return { left: fix(lens.left), right: fix(lens.right), sources };
+  return {
+    framing,
+    left: fix(lens.left),
+    right: fix(lens.right),
+    sources,
+  };
 }
 
 const BROWSER_UA =
@@ -352,12 +380,19 @@ ${text.substring(0, 3000)}`;
 const STRUCTURE_PROMPT = (
   title: string,
   type: string,
+  framing: LensFraming,
   research: string,
   sourceList: string,
 ) =>
-  `You are a nonpartisan civic analyst. Using ONLY the research below, produce balanced perspectives on this ${type}: "left" = proponents/supporters, "right" = critics/opponents. Each side needs 2 to 4 specific points presenting that side's strongest arguments — do not editorialize.
+  `You are a nonpartisan civic analyst. Using ONLY the research below, produce balanced perspectives on this ${type}. Each side needs 2 to 4 specific points presenting that side's strongest arguments — do not editorialize.
 
-For each point, set "sourceIds" to the numbers of the sources (from the Sources list) that directly support it. If a point isn't backed by a listed source, use an empty array. Never cite a source number that isn't in the list. Suggested stances: left = "Proponents argue", right = "Critics counter".
+${
+  framing === "left_right"
+    ? `Frame the two sides ideologically: "left" = the progressive/liberal view, "right" = the conservative view. Set left.stance = "Progressive view" and right.stance = "Conservative view".`
+    : `Frame the two sides by support: "left" = proponents/supporters, "right" = opponents/critics. Set left.stance = "Proponents argue" and right.stance = "Opponents counter".`
+}
+
+For each point, set "sourceIds" to the numbers of the sources (from the Sources list) that directly support it. If a point isn't backed by a listed source, use an empty array. Never cite a source number that isn't in the list.
 
 Sources:
 ${sourceList || "(none found — use empty sourceIds arrays)"}
@@ -383,6 +418,7 @@ export async function generateDualLens(
   title: string,
   fullText: string,
   type: string,
+  framing: LensFraming,
 ): Promise<DualLens | null> {
   if (rateLimitHit) {
     throw new AIRateLimitError();
@@ -422,10 +458,10 @@ export async function generateDualLens(
       const { object, usage } = await generateObject({
         model: llm,
         schema: DualLensSchema,
-        prompt: STRUCTURE_PROMPT(title, type, grounding, sourceList),
+        prompt: STRUCTURE_PROMPT(title, type, framing, grounding, sourceList),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
-      return verifyCitations(object, sources);
+      return verifyCitations(object, framing, sources);
     } catch (error) {
       if (isRateLimitError(error)) {
         rateLimitHit = true;

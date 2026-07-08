@@ -615,6 +615,7 @@ export const ContentLens = pgTable(
     lensData: t
       .jsonb()
       .$type<{
+        framing?: "proponent_opponent" | "left_right";
         left: { stance: string; points: { text: string; sourceIds: number[] }[] };
         right: { stance: string; points: { text: string; sourceIds: number[] }[] };
         sources: { id: number; title: string; url: string }[];

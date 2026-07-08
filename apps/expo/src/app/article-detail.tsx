@@ -43,6 +43,7 @@ import { authClient } from "~/utils/auth";
 
 // TODO(backend): real per-side framing per content item.
 const PLACEHOLDER_LENS = {
+  framing: "proponent_opponent" as const,
   left: {
     stance: "Supporters argue",
     points: [

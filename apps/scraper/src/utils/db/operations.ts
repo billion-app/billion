@@ -11,6 +11,7 @@ import {
   generateAISummary,
   generateAIArticle,
   generateDualLens,
+  framingForContentType,
   AIRateLimitError,
 } from "../ai/text-generation.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
@@ -467,7 +468,12 @@ async function upsertContentLens(
     return;
   }
 
-  const lens = await generateDualLens(title, fullText, articleType);
+  const lens = await generateDualLens(
+    title,
+    fullText,
+    articleType,
+    framingForContentType(contentType),
+  );
   if (!lens) {
     logger.warn(`Dual-lens generation returned null for ${contentId}`);
     return;
