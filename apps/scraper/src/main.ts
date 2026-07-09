@@ -3,14 +3,11 @@ import { hideBin } from "yargs/helpers";
 
 import type { Scraper } from "./utils/types.js";
 import { validateScraperEnv } from "./env.js";
-import { caLaoFiscal } from "./scrapers/ca-lao-fiscal.js";
 import { caSosStatements } from "./scrapers/ca-sos-statements.js";
-import { caVigArchive } from "./scrapers/ca-vig-archive.js";
 import { congress } from "./scrapers/congress.js";
 import { federalregister } from "./scrapers/federalregister.js";
 import { sccCvig } from "./scrapers/scc-cvig.js";
 import { scotus } from "./scrapers/scotus.js";
-import { vote411 } from "./scrapers/vote411.js";
 import { setConcurrency } from "./utils/concurrency.js";
 import { printMetricsSummary, resetMetrics } from "./utils/db/metrics.js";
 import { createLogger } from "./utils/log.js";
@@ -21,11 +18,8 @@ const scrapers: Scraper[] = [
   federalregister,
   congress,
   scotus,
-  vote411,
   sccCvig,
   caSosStatements,
-  caLaoFiscal,
-  caVigArchive,
 ];
 const scraperNames = scrapers.map((s) => s.name);
 

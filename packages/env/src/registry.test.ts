@@ -29,11 +29,14 @@ void test("Congress validation requires only its relevant core keys", () => {
   ]);
 });
 
-void test("vote411 has no required variables", () => {
+void test("a cache-only scraper requires just Postgres", () => {
   const result = validateEnvironment({
     environment: {},
     surface: "scraper",
-    scrapers: ["vote411"],
+    scrapers: ["ca-sos-statements"],
   });
-  assert.equal(result.success, true);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.key),
+    ["POSTGRES_URL"],
+  );
 });

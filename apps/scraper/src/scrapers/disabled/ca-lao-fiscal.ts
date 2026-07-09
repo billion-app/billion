@@ -18,14 +18,14 @@ import * as cheerio from "cheerio";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
-import type { Scraper } from "../utils/types.js";
-import { getItemLimit } from "../utils/concurrency.js";
+import type { Scraper } from "../../utils/types.js";
+import { getItemLimit } from "../../utils/concurrency.js";
 import {
   incrementTotalProcessed,
   setExpectedTotal,
-} from "../utils/db/metrics.js";
-import { fetchWithRetry } from "../utils/fetch.js";
-import { createLogger } from "../utils/log.js";
+} from "../../utils/db/metrics.js";
+import { fetchWithRetry } from "../../utils/fetch.js";
+import { createLogger } from "../../utils/log.js";
 
 const logger = createLogger("ca-lao-fiscal");
 

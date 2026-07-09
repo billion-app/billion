@@ -13,11 +13,8 @@ export const scraperNames = [
   "federalregister",
   "congress",
   "scotus",
-  "vote411",
   "scc-cvig",
   "ca-sos-statements",
-  "ca-lao-fiscal",
-  "ca-vig-archive",
 ] as const;
 export type ScraperName = (typeof scraperNames)[number];
 
@@ -78,9 +75,7 @@ export const envRegistry = [
     example: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
     requirements: { nextjs: "required", database: "required" },
     scraperRequirements: Object.fromEntries(
-      scraperNames
-        .filter((name) => name !== "vote411")
-        .map((name) => [name, "required"]),
+      scraperNames.map((name) => [name, "required"]),
     ) as Partial<Record<ScraperName, Requirement>>,
     schema: postgresUrl,
   }),
@@ -307,6 +302,16 @@ export const envRegistry = [
     defaultValue: "0",
     requirements: { scraper: "optional" },
     schema: z.enum(["0", "1"]),
+  }),
+  define({
+    key: "SCRAPER_MAX_NEW_ITEMS_PER_RUN",
+    description:
+      "Max brand-new items (per data source) that get AI enrichment in one run; extras roll over to the next run.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "10",
+    requirements: { scraper: "optional" },
+    schema: positiveNumber,
   }),
   ...scraperCostDefinitions.map(([key, description, defaultValue]) =>
     define({

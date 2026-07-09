@@ -20,9 +20,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import * as cheerio from "cheerio";
 
-import type { Scraper } from "../utils/types.js";
-import { fetchWithRetry } from "../utils/fetch.js";
-import { createLogger } from "../utils/log.js";
+import type { Scraper } from "../../utils/types.js";
+import { fetchWithRetry } from "../../utils/fetch.js";
+import { createLogger } from "../../utils/log.js";
 
 const NAME = "VOTE411";
 const BASE_URL = "https://www.vote411.org";
