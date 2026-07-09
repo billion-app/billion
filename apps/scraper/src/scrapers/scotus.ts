@@ -4,6 +4,7 @@ import { setExpectedTotal } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
+import { createNewItemLimiter } from "../utils/new-item-limit.js";
 
 const CL_BASE = "https://www.courtlistener.com/api/rest/v4";
 const NAME = "SCOTUS";
@@ -167,6 +168,7 @@ async function scrape(config: ScotusScraperConfig = {}) {
   setExpectedTotal(clusters.length);
 
   const limit = getItemLimit();
+  const newItemLimiter = createNewItemLimiter();
   await Promise.allSettled(
     clusters.map((cluster) =>
       limit(async () => {
@@ -191,19 +193,22 @@ async function scrape(config: ScotusScraperConfig = {}) {
             ? stripHtml(cluster.syllabus).slice(0, 1000) || undefined
             : undefined;
 
-          await upsertContent({
-            type: "court_case",
-            data: {
-              caseNumber: docketNumber,
-              title,
-              court: courtName,
-              filedDate,
-              description,
-              status,
-              fullText,
-              url: caseUrl,
+          await upsertContent(
+            {
+              type: "court_case",
+              data: {
+                caseNumber: docketNumber,
+                title,
+                court: courtName,
+                filedDate,
+                description,
+                status,
+                fullText,
+                url: caseUrl,
+              },
             },
-          });
+            { newItemLimiter },
+          );
 
           logger.success(`Processed: ${docketNumber} — ${title}`);
         } catch (error) {

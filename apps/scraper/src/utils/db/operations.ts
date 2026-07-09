@@ -30,6 +30,7 @@ import {
 import { generateVideoForContent } from "./video-operations.js";
 import { tickProgress } from "../progress.js";
 import { createLogger } from "../log.js";
+import type { NewItemLimiter } from "../new-item-limit.js";
 
 const logger = createLogger("db");
 const forceAIRegeneration = process.env.SCRAPER_FORCE_AI_REGEN === "1";
@@ -124,7 +125,10 @@ function getUpdateTable(input: ContentData) {
   }
 }
 
-export async function upsertContent(input: ContentData) {
+export async function upsertContent(
+  input: ContentData,
+  options?: { newItemLimiter?: NewItemLimiter },
+) {
   const newContentHash = createContentHash(hashFields(input));
   const existing = await checkExisting(input);
   const label = contentLabel(input);
@@ -188,6 +192,21 @@ export async function upsertContent(input: ContentData) {
         ? `No raw changes for ${label}, backfilling missing AI content`
         : `No changes for ${label}, skipping AI generation`,
     );
+  }
+
+  // A new item beyond the run's daily budget still gets its raw content saved
+  // (Phase 1 below) but skips AI enrichment/video generation entirely — it
+  // will look like a "needs backfill" item next run and consume that day's
+  // budget instead.
+  const budgetExhausted =
+    progressKind === "new" &&
+    options?.newItemLimiter !== undefined &&
+    !options.newItemLimiter.tryConsume();
+  if (budgetExhausted) {
+    shouldGenerateSummary = false;
+    shouldGenerateArticle = false;
+    shouldGenerateImage = false;
+    logger.info(`${label}: daily new-item cap reached, deferring AI enrichment to a later run`);
   }
 
   // Phase 1: always persist raw content first (no AI fields)
@@ -386,7 +405,7 @@ export async function upsertContent(input: ContentData) {
     }
   }
 
-  if (fullText) {
+  if (fullText && !budgetExhausted) {
     try {
       const videoSource =
         input.type === "bill"
