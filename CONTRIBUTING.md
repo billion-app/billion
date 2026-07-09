@@ -5,26 +5,71 @@ Everything you need to get a change running locally. Deep dives live in [`docs/`
 ## Prerequisites
 
 - Node `>=22.20.0` and pnpm `>=10.15.1`
-- Xcode + iOS simulator (for the mobile app): `xcode-select --install`
-- Postgres running locally ([Postgres.app](https://postgresapp.com/) is the easy path on macOS)
+- A Postgres database. The onboarding script detects Postgres.app and Homebrew
+  Postgres first, then offers a Docker Compose fallback.
+- Optional for mobile work: Xcode + an iOS simulator, and/or Android Studio +
+  an Android SDK/emulator.
 
 ## Setup
 
 ```bash
 git clone https://github.com/ThatXliner/billion.git
 cd billion
-pnpm i
-cp .env.example .env   # fill in what you have; missing keys fall back to mocks
-pnpm db:push           # push the Drizzle schema to your database
+pnpm onboard
 ```
 
-**No API keys needed to start.** When keys are missing, realistic mock data is returned automatically (Google Civic, Places, Legistar-on-failure), so you can build UI features with zero configuration. When you do want real data, [docs/civic-data-sources.md](./docs/civic-data-sources.md) walks through getting every key.
+The interactive onboarding script is safe to rerun. Before each applicable
+step it asks whether it should:
 
-Optionally seed sample content (requires `POSTGRES_URL` in `.env`):
+- install workspace dependencies;
+- create `.env` without overwriting an existing one;
+- generate a local `BETTER_AUTH_SECRET`;
+- preserve an existing local `POSTGRES_URL`, detect a running system Postgres,
+  or start the Docker Compose fallback;
+- apply the Drizzle schema and optionally seed sample content;
+- check native prerequisites and optionally run clean Expo prebuilds; and
+- run the monorepo typecheck.
+
+Preview everything without making changes:
 
 ```bash
-pnpm -F @acme/db seed
+pnpm onboard --dry-run --yes
 ```
+
+Useful flags are `--skip-deps`, `--skip-postgres`, and `--skip-expo`. Run
+`pnpm onboard --help` for the full list.
+
+**No external API keys are needed for basic UI development.** Missing civic
+provider keys use mocks or skip optional enrichment. See
+[the launch environment guide](./docs/launch.md) when you need real provider
+data or scraper access.
+
+### Local Postgres selection
+
+The script uses this order and never resets a database:
+
+1. An existing local `POSTGRES_URL` in `.env`.
+2. A reachable system Postgres on port `5432`, including Postgres.app or a
+   Homebrew service. If an installed macOS service is stopped, the script can
+   offer to start it.
+3. The repository's Docker Compose Postgres on `127.0.0.1:54322`.
+
+It will not automatically push a schema to a remote-looking `POSTGRES_URL`.
+The Docker fallback stores data in the `billion-postgres-data` named volume.
+
+```bash
+pnpm postgres:start   # start Docker Postgres
+pnpm postgres:status  # show container health
+pnpm postgres:logs    # follow Postgres logs
+pnpm postgres:stop    # stop without deleting data
+```
+
+### Expo native projects
+
+The onboarding script asks separately about iOS and Android. A clean prebuild
+deletes and regenerates the ignored `apps/expo/ios` or `apps/expo/android`
+directory, so it is never run without confirmation. You do not need a prebuild
+for website/API-only work.
 
 ## Day-to-day
 
