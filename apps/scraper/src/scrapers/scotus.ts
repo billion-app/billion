@@ -1,9 +1,9 @@
+import type { Scraper } from "../utils/types.js";
+import { getItemLimit } from "../utils/concurrency.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
+import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
-import { getItemLimit } from "../utils/concurrency.js";
-import { upsertContent } from "../utils/db/operations.js";
-import { setExpectedTotal } from "../utils/db/metrics.js";
-import type { Scraper } from "../utils/types.js";
 
 const CL_BASE = "https://www.courtlistener.com/api/rest/v4";
 const NAME = "SCOTUS";
@@ -218,5 +218,6 @@ async function scrape(config: ScotusScraperConfig = {}) {
 
 export const scotus: Scraper = {
   name: NAME,
+  requiredEnv: ["POSTGRES_URL", "DEEPSEEK_API_KEY"],
   scrape: () => scrape(),
 };

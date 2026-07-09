@@ -1,11 +1,11 @@
 import TurndownService from "turndown";
 
+import type { Scraper } from "../utils/types.js";
+import { getItemLimit } from "../utils/concurrency.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
+import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
-import { upsertContent } from "../utils/db/operations.js";
-import { setExpectedTotal } from "../utils/db/metrics.js";
-import { getItemLimit } from "../utils/concurrency.js";
-import type { Scraper } from "../utils/types.js";
 
 const NAME = "Federal Register";
 const FR_BASE = "https://www.federalregister.gov/api/v1";
@@ -31,19 +31,29 @@ interface FrListResponse {
 
 function mapSubtype(subtype: string | null): string {
   switch (subtype) {
-    case "Executive Order": return "Executive Order";
-    case "Proclamation": return "Proclamation";
-    case "Notice": return "Notice";
-    case "Memorandum": return "Memorandum";
-    default: return "Presidential Document";
+    case "Executive Order":
+      return "Executive Order";
+    case "Proclamation":
+      return "Proclamation";
+    case "Notice":
+      return "Notice";
+    case "Memorandum":
+      return "Memorandum";
+    default:
+      return "Presidential Document";
   }
 }
 
-async function fetchDocumentText(bodyHtmlUrl: string): Promise<string | undefined> {
+async function fetchDocumentText(
+  bodyHtmlUrl: string,
+): Promise<string | undefined> {
   try {
     const res = await fetchWithRetry(bodyHtmlUrl, { timeoutMs: 30_000 });
     const html = await res.text();
-    const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced" });
+    const turndown = new TurndownService({
+      headingStyle: "atx",
+      codeBlockStyle: "fenced",
+    });
     return turndown.turndown(html).trim() || undefined;
   } catch {
     return undefined;
@@ -120,5 +130,6 @@ async function scrape() {
 
 export const federalregister: Scraper = {
   name: NAME,
+  requiredEnv: ["POSTGRES_URL", "DEEPSEEK_API_KEY"],
   scrape,
 };

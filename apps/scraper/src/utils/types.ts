@@ -3,16 +3,19 @@
  * All types are derived from Drizzle schemas - NO DUPLICATION!
  */
 
-import type { z } from 'zod/v4';
+import type { z } from "zod/v4";
+
 import {
   CreateBillSchema,
-  CreateGovernmentContentSchema,
   CreateCourtCaseSchema,
-} from '@acme/db/schema';
+  CreateGovernmentContentSchema,
+} from "@acme/db/schema";
 
 // Infer TypeScript types from Zod schemas (which are derived from Drizzle)
 export type BillData = z.infer<typeof CreateBillSchema>;
-export type GovernmentContentData = z.infer<typeof CreateGovernmentContentSchema>;
+export type GovernmentContentData = z.infer<
+  typeof CreateGovernmentContentSchema
+>;
 export type CourtCaseData = z.infer<typeof CreateCourtCaseSchema>;
 
 // Image result type (used in images JSONB field, defined in schema)
@@ -45,7 +48,13 @@ export interface ExistingRecordCheck {
 }
 
 // Scraper interface for the runner
+export type ScraperEnvVar =
+  | "POSTGRES_URL"
+  | "DEEPSEEK_API_KEY"
+  | "CONGRESS_API_KEY";
+
 export interface Scraper {
   name: string;
+  requiredEnv?: readonly ScraperEnvVar[];
   scrape: () => Promise<void>;
 }

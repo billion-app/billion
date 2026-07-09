@@ -3,19 +3,29 @@
  * Generates compelling social media titles, descriptions, and image prompts
  */
 
-import { generateObject, APICallError, RetryError } from "ai";
+import { APICallError, generateObject, RetryError } from "ai";
 import { z } from "zod";
-import { createLogger } from "../log.js";
+
 import { trackLLMUsage } from "../costs.js";
-import { AIRateLimitError, rateLimitHit, setRateLimitHit } from "./text-generation.js";
-import { llm } from "./provider.js";
+import { createLogger } from "../log.js";
+import { getTextLlm } from "./provider.js";
+import {
+  AIRateLimitError,
+  rateLimitHit,
+  setRateLimitHit,
+} from "./text-generation.js";
 
 function isRateLimitError(error: unknown): boolean {
   if (error instanceof APICallError) return error.statusCode === 429;
   if (error instanceof RetryError) return isRateLimitError(error.lastError);
   if (!(error instanceof Error)) return false;
   const msg = error.message.toLowerCase();
-  return msg.includes('429') || msg.includes('rate limit') || msg.includes('resource_exhausted') || msg.includes('quota');
+  return (
+    msg.includes("429") ||
+    msg.includes("rate limit") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("quota")
+  );
 }
 
 const logger = createLogger("ai");
@@ -47,7 +57,7 @@ export async function generateMarketingCopy(
     logger.start(`Generating marketing copy for: ${articleTitle}`);
 
     const { object, usage } = await generateObject({
-      model: llm,
+      model: getTextLlm(),
       schema: MarketingCopySchema,
       prompt: `You are a professional marketing copywriter creating engaging social media content.
 

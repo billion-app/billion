@@ -18,23 +18,23 @@
  * on a cron through that window; re-runs upsert the single per-year row.
  */
 
-import { db } from "@acme/db/client";
-import { CivicApiCache } from "@acme/db/schema";
-import {
-  CA_SOS_ADDRESS_HASH,
-  CA_SOS_ENDPOINT,
-  caSosCacheParams,
-} from "@acme/api/lib/candidate-sources/ca-sos-cache";
 import type {
   CaSosPayload,
   CaSosStatement,
 } from "@acme/api/lib/candidate-sources/ca-sos-cache";
 import {
-  OFFICE_SLUGS,
+  CA_SOS_ADDRESS_HASH,
+  CA_SOS_ENDPOINT,
+  caSosCacheParams,
+} from "@acme/api/lib/candidate-sources/ca-sos-cache";
+import {
   fetchText,
+  OFFICE_SLUGS,
   officeUrl,
   parseOfficePage,
 } from "@acme/api/lib/candidate-sources/ca-sos-voterguide";
+import { db } from "@acme/db/client";
+import { CivicApiCache } from "@acme/db/schema";
 
 import type { Scraper } from "../utils/types.js";
 import { createLogger } from "../utils/log.js";
@@ -72,7 +72,9 @@ async function scrape(): Promise<void> {
 
   const statements = await scrapeAllOffices();
   if (statements.length === 0) {
-    logger.warn(`CA SOS ${year}: no statements extracted — skipping cache write.`);
+    logger.warn(
+      `CA SOS ${year}: no statements extracted — skipping cache write.`,
+    );
     return;
   }
 
@@ -108,4 +110,8 @@ async function scrape(): Promise<void> {
   }
 }
 
-export const caSosStatements: Scraper = { name: "ca-sos-statements", scrape };
+export const caSosStatements: Scraper = {
+  name: "ca-sos-statements",
+  requiredEnv: ["POSTGRES_URL"],
+  scrape,
+};

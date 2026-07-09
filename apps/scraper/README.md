@@ -27,17 +27,21 @@ From the repo root:
 cp .env.example .env
 ```
 
-Then fill in the values. The ones you need for scraping:
+Then fill in the values needed by the scraper you plan to run. The CLI checks
+required values with Zod before starting network or database work:
 
-| Variable                                     | Required | Where to get it / why it matters                                                                      |
-| -------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------- |
-| `POSTGRES_URL`                               | ✅       | Your Supabase/Postgres project settings                                                               |
-| `DEEPSEEK_API_KEY`                           | ✅       | [DeepSeek](https://platform.deepseek.com/) key for article, summary, and image-prompt text generation |
-| `BFL_API_KEY`                                | ✅       | Black Forest Labs key for FLUX.2 Pro image generation — [bfl.ai](https://bfl.ai)                      |
-| `CONGRESS_API_KEY`                           | ✅       | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/)                                 |
-| `COURTLISTENER_API_KEY`                      | Optional | Free at [courtlistener.com](https://www.courtlistener.com/sign-in/) — only needed for higher limits   |
-| `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional | Google Custom Search fallback for article thumbnail images                                            |
-| `GOOGLE_GENERATIVE_AI_API_KEY`               | Optional | Gemini vision fallback for PDF-heavy civic sources                                                    |
+| Variable                                     | Required by                               | Why it matters                                                         |
+| -------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------- |
+| `POSTGRES_URL`                               | Every registered scraper except `vote411` | Your Supabase/Postgres connection.                                     |
+| `DEEPSEEK_API_KEY`                           | `federalregister`, `congress`, `scotus`   | Article, summary, image-keyword, and feed-copy generation.             |
+| `CONGRESS_API_KEY`                           | `congress`                                | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/). |
+| `BFL_API_KEY`                                | Optional                                  | FLUX feed images; raw content and AI text still persist without it.    |
+| `COURTLISTENER_API_KEY`                      | Optional                                  | Higher CourtListener limits for `scotus`.                              |
+| `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional pair                             | Google Custom Search article thumbnails.                               |
+| `GOOGLE_GENERATIVE_AI_API_KEY`               | Optional                                  | Gemini vision fallback for `scc-cvig` PDF extraction.                  |
+
+See [the launch environment guide](../../docs/launch.md) for the complete
+per-scraper matrix, provider setup links, defaults, and production guidance.
 
 ### 2. Run it
 

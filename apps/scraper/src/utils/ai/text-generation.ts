@@ -3,17 +3,18 @@
  * Generates summaries and full articles from government content
  */
 
-import { generateText, APICallError, RetryError } from 'ai';
-import { createLogger } from '../log.js';
-import { trackLLMUsage } from '../costs.js';
-import { llm } from './provider.js';
+import { APICallError, generateText, RetryError } from "ai";
+
+import { trackLLMUsage } from "../costs.js";
+import { createLogger } from "../log.js";
+import { getTextLlm } from "./provider.js";
 
 const logger = createLogger("ai");
 
 export class AIRateLimitError extends Error {
   constructor() {
-    super('LLM rate limit hit — deferring AI generation to next run');
-    this.name = 'AIRateLimitError';
+    super("LLM rate limit hit — deferring AI generation to next run");
+    this.name = "AIRateLimitError";
   }
 }
 
@@ -31,10 +32,10 @@ function isRateLimitError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const msg = error.message.toLowerCase();
   return (
-    msg.includes('429') ||
-    msg.includes('rate limit') ||
-    msg.includes('resource_exhausted') ||
-    msg.includes('quota')
+    msg.includes("429") ||
+    msg.includes("rate limit") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("quota")
   );
 }
 
@@ -53,7 +54,7 @@ export async function generateAISummary(
   }
   try {
     const { text, usage } = await generateText({
-      model: llm,
+      model: getTextLlm(),
       prompt: `You are an expert at simplifying complex government and legal jargon for a general audience.
 Generate a very short, punchy summary (max 100 characters) for this content.
 
@@ -74,8 +75,8 @@ Summary (max 100 characters):`,
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
-    logger.error('Error generating AI summary', error);
-    return content.substring(0, 97) + '...';
+    logger.error("Error generating AI summary", error);
+    return content.substring(0, 97) + "...";
   }
 }
 
@@ -100,7 +101,7 @@ export async function generateAIArticle(
     logger.start(`Generating AI article for: ${title}`);
 
     const { text, usage } = await generateText({
-      model: llm,
+      model: getTextLlm(),
       prompt: `You are an expert at making government and legal content accessible and engaging for everyday people. Transform the following ${type} into a well-structured, markdown-formatted article.
 
 **Structure your article with these 4 sections:**
@@ -152,7 +153,7 @@ Write the article now using the 4-section structure above:`,
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
-    logger.error('Error generating AI article', error);
-    return '';
+    logger.error("Error generating AI article", error);
+    return "";
   }
 }

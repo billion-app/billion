@@ -1,89 +1,265 @@
-# Launch Guide
+# Launch and Environment Configuration
 
-This is the launch checklist for configuration, especially environment
-variables. It complements `.env.example`: `.env.example` is the starter template
-for common local setup, while this page says what must be present for a real
-production launch.
+This document is the source of truth for production configuration across the
+monorepo. `.env.example` is a copyable local-development template; this guide
+explains which runtime owns each variable, whether it is actually required,
+what stops working without it, and where to obtain it.
 
-## Production Surfaces
+## Requirement labels
 
-| Surface                | What it needs                                                               |
-| ---------------------- | --------------------------------------------------------------------------- |
-| Next.js API / website  | Postgres, auth secret, Resend, civic/API keys                               |
-| Expo mobile app        | `EXPO_PUBLIC_API_URL` baked into the native build                           |
-| Scraper / data jobs    | Postgres, DeepSeek, source API keys, image generation keys                  |
-| App Store / operations | public privacy URL, working feedback inbox, launch data already in Postgres |
+- **Startup required** — the process will fail validation, fail during module
+  loading, or cannot perform its primary job without the variable.
+- **Launch required** — the process may start, but a user-facing launch feature
+  will be broken or will serve mock data.
+- **Feature required** — only the named feature or job needs it.
+- **Optional** — the code has a fallback, skips enrichment, or uses a default.
+- **Platform provided** — Vercel, Expo, Node, or CI owns it; do not normally add
+  it to `.env` yourself.
 
-## Required For Launch
+## Where variables belong
 
-Set these in the production deployment environment and in any local `.env` used
-to run launch verification.
+| Runtime                 | Configure variables in                                             | Important boundary                                                                              |
+| ----------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Next.js website and API | Vercel project settings; root `.env` locally                       | Server secrets only. This app currently exposes no `NEXT_PUBLIC_*` variables.                   |
+| Expo mobile app         | EAS environment variables; root `.env` locally                     | Every `EXPO_PUBLIC_*` value is compiled into the client and is public. Never put secrets there. |
+| Scraper container/jobs  | Container or scheduler secret store; root `.env` locally           | All keys are server-side. The development command loads the root `.env`.                        |
+| Database tooling        | Shell/CI secret store; root `.env` locally                         | `POSTGRES_URL` grants direct database access and must remain secret.                            |
+| Social-media agent      | The machine or secret store running the agent; root `.env` locally | Instagram credentials and Gemini keys are operational secrets, not app-client configuration.    |
 
-| Variable                | Used by                  | Why it is required                                        |
-| ----------------------- | ------------------------ | --------------------------------------------------------- |
-| `POSTGRES_URL`          | API, DB package, scraper | Primary Supabase/Postgres database connection             |
-| `BETTER_AUTH_SECRET`    | Auth / Next.js API       | Required by Better Auth even if v1 has no account flow    |
-| `EXPO_PUBLIC_API_URL`   | Expo app build           | Mobile app API origin; baked into the JS bundle           |
-| `RESEND_API_KEY`        | Website, feedback API    | Waitlist contacts and in-app feedback delivery            |
-| `DEEPSEEK_API_KEY`      | Scraper, API AI helpers  | Scraper text generation; current scraper fails without it |
-| `CONGRESS_API_KEY`      | Scraper                  | Federal bill ingestion from congress.gov                  |
-| `BFL_API_KEY`           | Scraper                  | Generated feed images via FLUX.2 Pro                      |
-| `GOOGLE_CIVIC_API_KEY`  | API                      | Real voter-info / ballot lookup instead of mock data      |
-| `GOOGLE_PLACES_API_KEY` | API, Expo address entry  | Production address autocomplete                           |
+Do not commit a populated `.env`. Use separate keys for development and
+production where providers support it, restrict keys to only the APIs they
+need, and rotate any value that appears in logs or source control.
 
-`GOOGLE_PLACES_API_KEY` falls back to `GOOGLE_API_KEY` and then
-`GOOGLE_CIVIC_API_KEY`, but production should use a dedicated Places key with
-API restrictions.
+## Production launch minimum
 
-## Strongly Recommended
+These variables cover the website/API, a production mobile build, real civic
+data, email workflows, and the registered scraper suite:
 
-| Variable                  | Used by                  | Notes                                                                 |
-| ------------------------- | ------------------------ | --------------------------------------------------------------------- |
-| `OPEN_STATES_API_KEY`     | API / civic enrichment   | California state bills, legislators, voting records                   |
-| `VOTE_SMART_API_KEY`      | API / enrichment         | Candidate bios, voting records, state measure pro/con where available |
-| `COURTLISTENER_API_KEY`   | Scraper                  | Optional auth token, but avoids low anonymous rate limits             |
-| `GOOGLE_API_KEY`          | Scraper, Places fallback | Needed with `GOOGLE_SEARCH_ENGINE_ID` for stock thumbnail fallback    |
-| `GOOGLE_SEARCH_ENGINE_ID` | Scraper                  | Google Custom Search engine for article thumbnail fallback            |
-| `FEEDBACK_TO_EMAIL`       | Feedback API             | Explicit delivery inbox; defaults to the maintainer email in code     |
-| `FEEDBACK_FROM_EMAIL`     | Feedback API             | Verified Resend sender; defaults to Resend onboarding sender          |
+| Variable                | Requirement      | Runtime                                      | Why                                                                                                   |
+| ----------------------- | ---------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `POSTGRES_URL`          | Startup required | Next.js, DB tooling; all DB-writing scrapers | Stores application, auth, civic-cache, and scraped-content data.                                      |
+| `BETTER_AUTH_SECRET`    | Startup required | Next.js                                      | Signs/encrypts Better Auth data.                                                                      |
+| `RESEND_API_KEY`        | Startup required | Next.js                                      | Next.js validates it at startup; waitlist contact management and feedback email use it.               |
+| `EXPO_PUBLIC_API_URL`   | Launch required  | Expo build                                   | Tells the installed app where the production Next.js/tRPC API lives.                                  |
+| `GOOGLE_CIVIC_API_KEY`  | Launch required  | Next.js API                                  | Enables real voter information; otherwise civic endpoints can return development mock data.           |
+| `GOOGLE_PLACES_API_KEY` | Launch required  | Next.js API                                  | Enables production address autocomplete and place details.                                            |
+| `DEEPSEEK_API_KEY`      | Feature required | Content-enriching scrapers                   | Required by `federalregister`, `congress`, and `scotus`; cache-only civic scrapers do not require it. |
+| `CONGRESS_API_KEY`      | Feature required | `congress` scraper                           | Authenticates Congress.gov bill ingestion.                                                            |
 
-## Optional / Operational
+`BFL_API_KEY` is strongly recommended for a complete feed, but it is not a hard
+scraper startup requirement: without it, raw content and AI text can still be
+stored, while generated feed images are omitted. Likewise, optional enrichment
+keys below improve coverage but do not prevent the core app from starting.
 
-| Variable                         | Used by                  | Notes                                                       |
-| -------------------------------- | ------------------------ | ----------------------------------------------------------- |
-| `AUTH_DISCORD_ID`                | Auth                     | Only needed when Discord sign-in is enabled                 |
-| `AUTH_DISCORD_SECRET`            | Auth                     | Only needed when Discord sign-in is enabled                 |
-| `AUTH_REDIRECT_PROXY_URL`        | Auth                     | OAuth redirect proxy for preview/local auth flows           |
-| `RESEND_WAITLIST_SEGMENT_ID`     | Website waitlist         | Adds waitlist contacts to a Resend segment                  |
-| `RESEND_LAUNCH_UPDATES_TOPIC_ID` | Website waitlist         | Opts contacts into a launch-updates topic                   |
-| `OPENAI_API_KEY`                 | API AI fallback          | API fallback if DeepSeek is absent; not used by scraper     |
-| `GOOGLE_GENERATIVE_AI_API_KEY`   | Scraper PDF extraction   | Optional Gemini vision fallback for PDF-heavy civic sources |
-| `BFL_MODEL`                      | Scraper image generation | Defaults to `flux-2-pro`                                    |
-| `SCRAPER_FORCE_AI_REGEN`         | Scraper                  | Set `1` to regenerate AI fields despite unchanged hashes    |
-| `LLM_INPUT_PRICE`                | Scraper cost reporting   | Optional cost metric override                               |
-| `LLM_OUTPUT_PRICE`               | Scraper cost reporting   | Optional cost metric override                               |
-| `FLUX_IMAGE_PRICE`               | Scraper cost reporting   | Optional cost metric override                               |
-| `GOOGLE_SEARCH_PRICE`            | Scraper cost reporting   | Optional cost metric override                               |
+## Next.js website and API
 
-## Not A Launch Blocker
+### Core server configuration
 
-`CA_SOS_API_KEY` is currently unused by the code. The California Secretary of
-State election-results path uses keyless public feeds, and the voter-guide
-scraper also does not need this key. Do not block launch on it.
+| Variable             | Requirement      | Used for                                 | Missing behavior                                                    | Where to get it                                                                                                                                                                                              |
+| -------------------- | ---------------- | ---------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POSTGRES_URL`       | Startup required | Drizzle, Better Auth, tRPC data access   | Next.js environment validation fails or the first DB access throws. | Supabase project dashboard → **Connect** → connection string. See [Supabase connection modes](https://supabase.com/docs/guides/database/connecting-to-postgres).                                             |
+| `BETTER_AUTH_SECRET` | Startup required | Better Auth signing/encryption           | Next.js environment validation fails.                               | Generate a high-entropy secret, for example `openssl rand -base64 32`; see [Better Auth installation](https://www.better-auth.com/docs/installation).                                                        |
+| `RESEND_API_KEY`     | Startup required | Waitlist Contacts API and feedback email | Next.js environment validation fails.                               | [Resend API Keys](https://resend.com/docs/dashboard/api-keys/introduction). Use **Full access** because the waitlist reads and mutates contacts, segments, and topics in addition to sending feedback email. |
 
-## Launch Data Verification
+For Supabase, copy the connection string rather than assembling it manually.
+The usual production choice for Vercel is the transaction pooler (`:6543`),
+which is intended for transient/serverless connections. A persistent scraper
+container can use a direct connection when IPv6 is available or session mode
+(`:5432`) when it is not. The current Drizzle migration config converts a
+`:6543` pooler URL to `:5432` for schema operations.
 
-After setting the required scraper keys, run narrow scraper checks before a full
-`all` run:
+### Email behavior
+
+| Variable                         | Requirement | Used for                                                       | Default / missing behavior                                                                                                                                                    | Where to get it                                                                                                                  |
+| -------------------------------- | ----------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `FEEDBACK_TO_EMAIL`              | Recommended | Feedback recipient list                                        | Defaults to the maintainer address currently hard-coded in `packages/api/src/router/feedback.ts`. Set this explicitly for production; comma-separated addresses are accepted. | An inbox monitored by the team.                                                                                                  |
+| `FEEDBACK_FROM_EMAIL`            | Recommended | Feedback sender identity                                       | Defaults to `Billion Feedback <onboarding@resend.dev>`, which is unsuitable for a general production sender.                                                                  | Verify a domain in [Resend Domains](https://resend.com/docs/dashboard/domains/introduction), then use an address on it.          |
+| `RESEND_WAITLIST_SEGMENT_ID`     | Optional    | Adds waitlist contacts to an internal segment                  | Contacts are still created globally, but are not assigned to a segment.                                                                                                       | Create/copy a segment in the Resend Audience dashboard; see [Segments](https://resend.com/docs/dashboard/segments/introduction). |
+| `RESEND_LAUNCH_UPDATES_TOPIC_ID` | Optional    | Opts waitlist contacts into a user-facing launch-updates topic | Contacts are created without that topic subscription.                                                                                                                         | Create/copy a topic in Resend; see [Topics](https://resend.com/docs/knowledge-base/why-use-topics).                              |
+
+### Civic and address data
+
+| Variable                | Requirement      | Used for                                                             | Default / missing behavior                                                                                            | Where to get it                                                                                                                                                                                                                             |
+| ----------------------- | ---------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_CIVIC_API_KEY`  | Launch required  | Elections, representatives, polling locations, and voter information | Some civic calls use mock development data; explicit live voter-info calls can report that the key is not configured. | Create a server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials), enable the [Civic Information API](https://developers.google.com/civic-information/docs/using_api), and restrict the key to that API. |
+| `GOOGLE_PLACES_API_KEY` | Launch required  | Address autocomplete and place details                               | Falls back to `GOOGLE_API_KEY`, then `GOOGLE_CIVIC_API_KEY`, then local mock suggestions.                             | Enable **Places API (New)** and create a restricted server key; see [Places setup](https://developers.google.com/maps/documentation/places/web-service/cloud-setup).                                                                        |
+| `OPEN_STATES_API_KEY`   | Feature required | California state bills, legislators, and voting records              | Open States-backed enrichments are skipped or return no enrichment.                                                   | [Open States account/API keys](https://openstates.org/accounts/profile/).                                                                                                                                                                   |
+| `VOTE_SMART_API_KEY`    | Feature required | Candidate and state-measure enrichment                               | Vote Smart-backed adapters skip enrichment.                                                                           | Request access from [Vote Smart](https://votesmart.org/share/api).                                                                                                                                                                          |
+
+Use a dedicated `GOOGLE_PLACES_API_KEY` in production even though the code has
+fallbacks. It allows tighter API restrictions and keeps Places usage separate
+from Civic and Custom Search quotas.
+
+### AI used by API-side enrichment
+
+| Variable           | Requirement          | Used for                       | Default / missing behavior                                                | Where to get it                                                  |
+| ------------------ | -------------------- | ------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `DEEPSEEK_API_KEY` | Optional for Next.js | API-side civic text generation | Falls back to OpenAI when configured; otherwise AI enrichment is skipped. | [DeepSeek API platform](https://platform.deepseek.com/api_keys). |
+| `OPENAI_API_KEY`   | Optional fallback    | API-side civic text generation | Used only when DeepSeek is absent; it is not used by the scraper.         | [OpenAI API keys](https://platform.openai.com/api-keys).         |
+
+### Authentication providers and platform values
+
+| Variable                        | Requirement                     | Used for                                            | Notes                                                                                                                                                                                      |
+| ------------------------------- | ------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `AUTH_DISCORD_ID`               | Feature required                | Discord sign-in                                     | Set together with `AUTH_DISCORD_SECRET`; leaving both absent disables Discord as a provider. Create an app in the [Discord Developer Portal](https://discord.com/developers/applications). |
+| `AUTH_DISCORD_SECRET`           | Feature required                | Discord sign-in                                     | Server secret; never expose it to Expo or browser code.                                                                                                                                    |
+| `VERCEL_ENV`                    | Platform provided               | Selects production, preview, or local auth base URL | Vercel supplies it.                                                                                                                                                                        |
+| `VERCEL_URL`                    | Platform provided               | Preview deployment URL and server-side tRPC origin  | Vercel supplies it.                                                                                                                                                                        |
+| `VERCEL_PROJECT_PRODUCTION_URL` | Platform provided               | Stable production auth callback URL                 | Vercel supplies it. Confirm the project has a production domain before enabling OAuth.                                                                                                     |
+| `PORT`                          | Optional local/runtime override | Local Next.js/tRPC origin fallback                  | Defaults to `3000`.                                                                                                                                                                        |
+
+`AUTH_REDIRECT_PROXY_URL` is mentioned in older local-tunnel documentation and
+is present in `turbo.json`, but application code does not currently read it.
+Do not treat it as a launch requirement without reintroducing a consumer.
+
+## Expo mobile app
+
+| Variable              | Requirement     | Used for                                   | Missing behavior                                                                                                      | Where to configure it                                                                                                                                                                 |
+| --------------------- | --------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXPO_PUBLIC_API_URL` | Launch required | Base URL for `/api/trpc` and auth requests | Local development attempts host auto-detection; an installed production build has no reliable fallback and can throw. | Add the public HTTPS origin, such as `https://app.example.com`, to the EAS production environment. See [EAS environment variables](https://docs.expo.dev/eas/environment-variables/). |
+
+Do not append `/api/trpc`; the client appends it. Do not use a trailing slash.
+Because this is an `EXPO_PUBLIC_*` variable, its value is visible in the app
+bundle. It must contain only the public API origin, never an API key or secret.
+
+## Scraper and scheduled data jobs
+
+The registered CLI scrapers are `federalregister`, `congress`, `scotus`,
+`vote411`, `scc-cvig`, `ca-sos-statements`, `ca-lao-fiscal`, and
+`ca-vig-archive`.
+
+### Shared scraper variables
+
+| Variable                       | Requirement                      | Used for                                                                                   | Missing behavior                                                                                                                                  | Where to get it                                                                                                                                         |
+| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEEPSEEK_API_KEY`             | Required for content enrichment  | Shared `deepseek-v4-flash` provider for articles, summaries, image keywords, and feed copy | Environment validation fails before `federalregister`, `congress`, or `scotus` starts. Cache-only civic scrapers and `vote411` do not require it. | [DeepSeek API platform](https://platform.deepseek.com/api_keys).                                                                                        |
+| `POSTGRES_URL`                 | Required for DB-writing scrapers | Raw content, civic cache, AI fields, and feed rows                                         | Zod validation fails before a DB-writing scraper starts. `vote411` is the exception.                                                              | Supabase dashboard → **Connect**.                                                                                                                       |
+| `BFL_API_KEY`                  | Recommended                      | FLUX-generated feed-card images for content scrapers                                       | Image generation logs an error and returns `null`; raw content, AI text, and any Google thumbnail can still persist.                              | Create a key under API → Keys in the [BFL dashboard](https://dashboard.bfl.ai); see the [BFL quick start](https://docs.bfl.ai/quick_start/get_started). |
+| `BFL_MODEL`                    | Optional                         | Selects the BFL image model                                                                | Defaults to `flux-2-pro`. Only change this to a model endpoint supported by the current request payload.                                          | [BFL model documentation](https://docs.bfl.ai/).                                                                                                        |
+| `GOOGLE_API_KEY`               | Optional pair                    | Google Custom Search image thumbnails                                                      | Image search is skipped unless both Google variables are present. This key is also a Places fallback in the API.                                  | Create a restricted server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials) and enable Custom Search JSON API.      |
+| `GOOGLE_SEARCH_ENGINE_ID`      | Optional pair                    | Programmable Search Engine identifier (`cx`)                                               | Image search is skipped unless both Google variables are present.                                                                                 | Create a search engine in [Programmable Search Engine](https://programmablesearchengine.google.com/).                                                   |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Optional                         | Gemini vision fallback for PDF candidate statements                                        | `scc-cvig` uses text-layer PDF extraction only and skips the vision fallback.                                                                     | Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey).                                                                             |
+| `SCRAPER_FORCE_AI_REGEN`       | Optional operational flag        | Forces AI field regeneration for unchanged rows                                            | Default is off. Set exactly `1` for a deliberate backfill; it can incur substantial API cost.                                                     | Set manually for one controlled job.                                                                                                                    |
+
+### Per-scraper requirements
+
+Required variables are declared on each scraper and checked with Zod before
+network or database work begins. An `all` run validates the union of the eight
+registered scrapers' requirements.
+
+| CLI name            | Required variables                                     | Optional source/enrichment variables                             | Notes                                                                                                                                                  |
+| ------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `federalregister`   | `POSTGRES_URL`, `DEEPSEEK_API_KEY`                     | `BFL_API_KEY`; `GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`      | Uses the keyless Federal Register API.                                                                                                                 |
+| `congress`          | `POSTGRES_URL`, `DEEPSEEK_API_KEY`, `CONGRESS_API_KEY` | `BFL_API_KEY`; Google image-search pair                          | Get a free Congress key from [Congress.gov API signup](https://api.congress.gov/sign-up/).                                                             |
+| `scotus`            | `POSTGRES_URL`, `DEEPSEEK_API_KEY`                     | `COURTLISTENER_API_KEY`, `BFL_API_KEY`; Google image-search pair | Runs anonymously at lower CourtListener rate limits when its token is absent.                                                                          |
+| `vote411`           | None                                                   | None                                                             | Writes under `.cache/vote411`, not Postgres. The Playwright address lookup is not registered. Review VOTE411 usage terms before production automation. |
+| `scc-cvig`          | `POSTGRES_URL`                                         | `GOOGLE_GENERATIVE_AI_API_KEY`                                   | Text-layer PDF extraction still runs; Gemini is only a fallback.                                                                                       |
+| `ca-sos-statements` | `POSTGRES_URL`                                         | None                                                             | Uses public California SOS voter-guide pages.                                                                                                          |
+| `ca-lao-fiscal`     | `POSTGRES_URL`                                         | None                                                             | Uses public LAO proposition analysis pages.                                                                                                            |
+| `ca-vig-archive`    | `POSTGRES_URL`                                         | None                                                             | Uses public archived California voter guides.                                                                                                          |
+
+`COURTLISTENER_API_KEY` is an authentication token despite its historical
+`*_API_KEY` name. Send it only to CourtListener and store it as a secret.
+
+### Scraper cost-reporting overrides
+
+These do not alter provider billing; they only change the estimates printed by
+the scraper. Invalid, empty, or zero values fall back to the defaults shown.
+
+| Variable              | Default | Tracks                                  |
+| --------------------- | ------: | --------------------------------------- |
+| `LLM_INPUT_PRICE`     |  `0.10` | LLM input cost estimate                 |
+| `LLM_OUTPUT_PRICE`    |  `0.30` | LLM output cost estimate                |
+| `FLUX_IMAGE_PRICE`    |  `0.03` | Cost estimate per generated BFL image   |
+| `GOOGLE_SEARCH_PRICE` | `0.005` | Cost estimate per Custom Search request |
+
+## Social-media agent
+
+The root launch does not require this separate operational tool. Configure
+these only on the machine that generates or publishes social content.
+
+| Variable             | Requirement                  | Used for                                | Default / missing behavior                                                                                                                          |
+| -------------------- | ---------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BASE_URL`           | Optional                     | Web app origin that Playwright captures | Defaults to `http://localhost:8081`.                                                                                                                |
+| `GEMINI_API_KEY`     | Feature required             | AI-generated Instagram captions         | Caption generation is unavailable or can be disabled with `--no-gemini`. Get a key from [Google AI Studio](https://aistudio.google.com/app/apikey). |
+| `INSTAGRAM_USERNAME` | Feature required for posting | Instagram browser login                 | Generation still works; `--post`, login verification, and posting fail without both Instagram credentials.                                          |
+| `INSTAGRAM_PASSWORD` | Feature required for posting | Instagram browser login                 | Store only in an operational secret manager.                                                                                                        |
+
+## Build, CI, and framework-owned variables
+
+`NODE_ENV`, `CI`, `npm_lifecycle_event`, `VERCEL`, `VERCEL_ENV`, `VERCEL_URL`,
+and `VERCEL_PROJECT_PRODUCTION_URL` are supplied by the runtime or build
+platform. They influence validation, logging, test retries, and URL selection.
+Do not copy fixed production values into `.env.example`.
+
+## Known unused or obsolete names
+
+- `CA_SOS_API_KEY` is not read by application or scraper code. California
+  election results and voter-guide sources currently use keyless public feeds.
+- `AUTH_REDIRECT_PROXY_URL` has no current application-code consumer.
+- `OPENAI_API_KEY` is an API-side fallback only; the scraper requires DeepSeek
+  and does not fall back to OpenAI.
+
+## Local setup
+
+From the repository root:
+
+```bash
+cp .env.example .env
+pnpm install
+```
+
+The normal scraper development command loads `apps/scraper/.env` first when
+present, then the root `.env`:
+
+```bash
+pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
+```
+
+The production scraper command is `node dist/main.js`; it does **not** load a
+file itself. Inject variables through the container/scheduler environment.
+
+## Launch verification
+
+### 1. Validate builds and configuration
+
+```bash
+pnpm typecheck
+pnpm build
+```
+
+### 2. Apply and inspect the database schema
 
 ```bash
 pnpm db:push
+```
+
+Use a non-production database for rehearsal. `db:push` changes schema and
+should not be treated as a read-only connectivity check.
+
+### 3. Run scraper smoke tests separately
+
+Running the scrapers one at a time makes a missing source-specific key or
+upstream outage obvious:
+
+```bash
 pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
 pnpm --filter @acme/scraper run start -- scotus --concurrency 1
 pnpm --filter @acme/scraper run start -- congress --concurrency 1
+pnpm --filter @acme/scraper run start -- scc-cvig --concurrency 1
+pnpm --filter @acme/scraper run start -- ca-sos-statements --concurrency 1
+pnpm --filter @acme/scraper run start -- ca-lao-fiscal --concurrency 1
+pnpm --filter @acme/scraper run start -- ca-vig-archive --concurrency 1
+pnpm --filter @acme/scraper run start -- vote411 --concurrency 1
 ```
 
-Then inspect the persisted text for obvious extraction failures:
+Only after those pass, run the concurrent suite:
+
+```bash
+pnpm --filter @acme/scraper run start -- all --concurrency 1
+```
+
+### 4. Inspect persisted content
 
 ```bash
 psql "$POSTGRES_URL" -c "select title, length(full_text), left(full_text, 300) from government_content order by updated_at desc limit 5;"
@@ -91,13 +267,43 @@ psql "$POSTGRES_URL" -c "select bill_number, length(full_text), left(full_text, 
 psql "$POSTGRES_URL" -c "select case_number, length(full_text), left(full_text, 300) from court_case order by updated_at desc limit 5;"
 ```
 
-Look for raw HTML, repeated navigation text, broken PDF columns, extremely short
-`full_text`, or obvious encoding garbage. Fix scraper extraction before
-regenerating AI content.
+Look for raw HTML, repeated navigation text, broken PDF columns, extremely
+short `full_text`, and encoding damage before forcing any AI regeneration.
 
-## Related Docs
+### 5. Exercise user-facing launch paths
 
-- [Civic data source setup](./civic-data-sources.md)
+- Submit the website waitlist form and confirm the Resend contact, optional
+  segment, and optional topic membership.
+- Submit feedback from the mobile app and confirm delivery from the verified
+  sender to `FEEDBACK_TO_EMAIL`.
+- In a production mobile build, test address autocomplete, ballot lookup,
+  representatives, and polling-place responses against a real address.
+- Test auth callback URLs on both a Vercel preview and the production domain if
+  a social provider is enabled.
+
+## Keeping this document and `.env.example` current
+
+When adding or removing an environment-variable read:
+
+1. Update the runtime's validation schema when one exists.
+2. Add a safe placeholder or commented optional entry to `.env.example`.
+3. Update the relevant runtime and feature table in this guide.
+4. Update `turbo.json` if a Turbo task must receive or hash the variable.
+5. Document whether absence prevents startup, disables one feature, produces
+   mock data, or merely changes an operational default.
+
+Useful audit command:
+
+```bash
+rg -n --hidden --glob '!node_modules/**' --glob '!.git/**' \
+  --glob '!**/.next/**' --glob '!**/dist/**' \
+  'process\.env|import\.meta\.env|Deno\.env|getenv' .
+```
+
+## Related documentation
+
 - [Scraper pipeline](./scraper.md)
+- [Civic data sources](./civic-data-sources.md)
+- [Data layer](./data-layer.md)
 - [iOS release builds](./ios-release.md)
 - [Localtunnel setup](./localtunnel.md)
