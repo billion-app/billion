@@ -2,6 +2,7 @@
 // this file and the other one (in (tabs)) is required.
 // Surely I'm not doing the provider twice... right??
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Font from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -28,7 +29,6 @@ import {
   InriaSerif_700Bold_Italic,
 } from "@expo-google-fonts/inria-serif";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { useTheme } from "~/styles";
 import { queryClient } from "~/utils/api";
