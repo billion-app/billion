@@ -41,7 +41,9 @@ export function ContentCard({
       <Spine type={item.type} />
       <View style={s.top}>
         <View style={s.topLeft}>
-          <Badge type={item.type} />
+          <View testID="content-card-badge">
+            <Badge type={item.type} />
+          </View>
           {item.tag && <Text style={s.tag}>{item.tag}</Text>}
         </View>
         {onSave && (

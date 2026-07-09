@@ -266,10 +266,14 @@ export default function ArticleDetailScreen() {
           <Badge type={typeKey} />
         </View>
 
-        <Text style={s.title}>{content.title}</Text>
+        <Text style={s.title} testID="article-title">
+          {content.title}
+        </Text>
 
         {content.description ? (
-          <Text style={s.desc}>{content.description}</Text>
+          <Text style={s.desc} testID="article-description">
+            {content.description}
+          </Text>
         ) : null}
 
         {/* explainer / source toggle */}
@@ -305,7 +309,10 @@ export default function ArticleDetailScreen() {
           />
         )}
 
-        <View style={mode === "source" ? s.sourcePanel : undefined}>
+        <View
+          testID="article-content"
+          style={mode === "source" ? s.sourcePanel : undefined}
+        >
           {renderMarkdown ? (
             <Markdown style={markdownStyles} rules={markdownRules}>
               {activeContent}
