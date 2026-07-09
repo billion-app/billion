@@ -64,6 +64,30 @@ pnpm install
 pnpm --filter @acme/scraper run start -- congress --concurrency 1
 ```
 
+### Production build
+
+Build the Node ESM production artifacts from the repository root:
+
+```bash
+pnpm --filter @acme/scraper build
+```
+
+Vite writes the scraper CLI to `dist/main.js` and the retroactive-video job to
+`dist/retroactive-videos.js`. The build can also emit shared chunks; deploy the
+whole `dist/` directory rather than copying only an entry file. Linked
+`@acme/*` workspace source is included in the build, while normal third-party
+packages remain runtime dependencies.
+
+Start the production CLI with variables supplied by the container or scheduler:
+
+```bash
+node apps/scraper/dist/main.js congress --concurrency 1
+```
+
+The production entry does not load `.env` files or bake their values into the
+bundle. Development commands continue to load the repository's local env files
+as described in the [launch environment guide](../../docs/launch.md).
+
 ### Source and enrichment limits
 
 `--max-items` caps source records fetched/processed by each selected scraper for

@@ -12,7 +12,10 @@
     "ai": "^6.0.141",
     "cheerio": "^1.2.0",
     "consola": "^3.4.2",
+    "drizzle-orm": "^0.45.2",
+    "drizzle-zod": "^0.8.3",
     "p-limit": "^7.3.0",
+    "pg": "^8.20.0",
     "playwright": "^1.58.2",
     "sharp": "^0.34.5",
     "turndown": "^7.2.2",
@@ -25,14 +28,15 @@
     "@types/turndown": "^5.0.6",
     "@types/yargs": "^17.0.35",
     "tsx": "^4.21.0",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vite": "^8.1.4"
   },
   "scripts": {
     "dev": "pnpm run start:dev",
     "start": "pnpm run start:dev",
     "start:prod": "node dist/main.js",
     "start:dev": "tsx src/entry.ts",
-    "build": "tsc",
+    "build": "pnpm run typecheck && vite build",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
     "retroactive-videos": "tsx src/retroactive-videos-entry.ts"

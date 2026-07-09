@@ -297,8 +297,13 @@ The normal scraper development command loads root `.env.local` first, then root
 pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
 ```
 
-The production scraper command is `node dist/main.js`; it does **not** load a
-file itself. Inject variables through the container/scheduler environment.
+`pnpm --filter @acme/scraper build` uses Vite to produce Node ESM artifacts.
+The stable production entries are `dist/main.js` for the scraper CLI and
+`dist/retroactive-videos.js` for the retroactive-video job; Vite may also emit
+shared chunks, so deploy the complete `dist/` directory. The production scraper
+command remains `node dist/main.js`. It does **not** load an env file or contain
+build-time environment values; inject variables through the
+container/scheduler environment.
 
 ## Deployment and a central secret manager
 
@@ -333,7 +338,14 @@ never becomes a production-secret store.
 ```bash
 pnpm typecheck
 pnpm build
+pnpm --filter @acme/scraper build
+test -f apps/scraper/dist/main.js
+test -f apps/scraper/dist/retroactive-videos.js
 ```
+
+The final two checks exercise the scraper's Vite build directly and verify only
+its stable entry-point contract. Shared chunk names are intentionally not part
+of launch verification.
 
 ### 2. Apply and inspect the database schema
 
