@@ -40,7 +40,7 @@ All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fe
 
 ## AI Pipeline
 
-Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **DeepSeek `deepseek-v4-flash`** (Vercel AI SDK), images via **Black Forest Labs FLUX.2 Klein 9B**. Token and image costs are tracked per run.
+Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **DeepSeek `deepseek-v4-flash`** (Vercel AI SDK), PDF vision fallback via **Gemini `gemini-2.5-flash`**, and images via **Black Forest Labs FLUX.2 Klein 9B**. Provider usage and image costs are tracked per run.
 
 Each new/changed item runs through:
 

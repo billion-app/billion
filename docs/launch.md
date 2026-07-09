@@ -194,7 +194,7 @@ scheduled because the app does not consume their output.
 | `POSTGRES_URL`                 | Required for all active scrapers | Raw content, civic cache, AI fields, and feed rows                                         | Zod validation fails before a scraper starts.                                                                                       | Copy a provider connection string. When substituting credentials yourself, percent-encode only the username/password components, not the whole URL.     |
 | `BFL_API_KEY`                  | Recommended                      | FLUX-generated feed-card images for content scrapers                                       | Image generation logs an error and returns `null`; raw content, AI text, and any Google thumbnail can still persist.                | Create a key under API → Keys in the [BFL dashboard](https://dashboard.bfl.ai); see the [BFL quick start](https://docs.bfl.ai/quick_start/get_started). |
 | `BFL_MODEL`                    | Optional                         | Selects the BFL image model                                                                | Defaults to `flux-2-klein-9b`. Only change this to a model endpoint supported by the current request payload.                       | [BFL model documentation](https://docs.bfl.ai/).                                                                                                        |
-| `GOOGLE_API_KEY`               | Optional pair                    | Google Custom Search image thumbnails                                                      | Image search is skipped unless both Google variables are present. This key is also a Places fallback in the API.                    | Create a restricted server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials) and enable Custom Search JSON API.      |
+| `GOOGLE_API_KEY`               | Optional pair                    | Google Custom Search image thumbnails                                                      | Image search is skipped unless both Google variables are present. Existing customers get 100 free queries/day; the API is scheduled for discontinuation on January 1, 2027. This key is also a Places fallback in the API. | Create a restricted server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials) and enable Custom Search JSON API. |
 | `GOOGLE_SEARCH_ENGINE_ID`      | Optional pair                    | Programmable Search Engine identifier (`cx`)                                               | Image search is skipped unless both Google variables are present.                                                                   | Create a search engine in [Programmable Search Engine](https://programmablesearchengine.google.com/).                                                   |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Optional                         | Gemini vision fallback for PDF candidate statements                                        | `scc-cvig` uses text-layer PDF extraction only and skips the vision fallback.                                                       | Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey).                                                                             |
 | `SCRAPER_FORCE_AI_REGEN`       | Optional operational flag        | Forces AI field regeneration for unchanged rows                                            | Default is off. Set exactly `1` for a deliberate backfill; it can incur substantial API cost.                                       | Set manually for one controlled job.                                                                                                                    |
@@ -241,10 +241,12 @@ the scraper. Invalid, empty, or zero values fall back to the defaults shown.
 
 | Variable              | Default | Tracks                                  |
 | --------------------- | ------: | --------------------------------------- |
-| `LLM_INPUT_PRICE`     |  `0.10` | LLM input cost estimate                 |
-| `LLM_OUTPUT_PRICE`    |  `0.30` | LLM output cost estimate                |
+| `LLM_INPUT_PRICE`     |  `0.14` | DeepSeek V4 Flash input estimate ($/1M tokens, cache-miss rate) |
+| `LLM_OUTPUT_PRICE`    |  `0.28` | DeepSeek V4 Flash output estimate ($/1M tokens) |
+| `VISION_INPUT_PRICE`  |  `0.30` | Gemini 2.5 Flash vision input estimate ($/1M tokens) |
+| `VISION_OUTPUT_PRICE` |  `2.50` | Gemini 2.5 Flash vision output estimate ($/1M tokens) |
 | `FLUX_IMAGE_PRICE`    | `0.015` | Cost estimate per generated BFL image   |
-| `GOOGLE_SEARCH_PRICE` | `0.005` | Cost estimate per Custom Search request |
+| `GOOGLE_SEARCH_PRICE` | `0.005` | Cost estimate per Custom Search request after the free quota |
 
 ## Social-media agent
 

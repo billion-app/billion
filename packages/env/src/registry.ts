@@ -63,8 +63,10 @@ const positiveInteger = string.refine(
 
 const define = (definition: EnvDefinition) => definition;
 const scraperCostDefinitions = [
-  ["LLM_INPUT_PRICE", "Estimated LLM input price.", "0.10"],
-  ["LLM_OUTPUT_PRICE", "Estimated LLM output price.", "0.30"],
+  ["LLM_INPUT_PRICE", "Estimated DeepSeek V4 Flash input price.", "0.14"],
+  ["LLM_OUTPUT_PRICE", "Estimated DeepSeek V4 Flash output price.", "0.28"],
+  ["VISION_INPUT_PRICE", "Estimated Gemini 2.5 Flash vision input price.", "0.30"],
+  ["VISION_OUTPUT_PRICE", "Estimated Gemini 2.5 Flash vision output price.", "2.50"],
   ["FLUX_IMAGE_PRICE", "Estimated price per generated BFL image.", "0.015"],
   [
     "GOOGLE_SEARCH_PRICE",

@@ -38,6 +38,7 @@ import { CivicApiCache } from "@acme/db/schema";
 
 import type { Scraper } from "../utils/types.js";
 import { visionLlm } from "../utils/ai/provider.js";
+import { trackVisionUsage } from "../utils/costs.js";
 import { createLogger } from "../utils/log.js";
 import { sccCvigConfig } from "./scc-cvig.config.js";
 
@@ -240,7 +241,7 @@ async function extractWithVision(
     return null;
   }
   try {
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: visionLlm,
       schema: StatementSchema,
       temperature: 0.2,
@@ -257,6 +258,7 @@ async function extractWithVision(
         },
       ],
     });
+    trackVisionUsage(usage.inputTokens, usage.outputTokens);
     return object.statements
       .filter((s) => s.statement.trim().length >= 40)
       .map((s) => ({
