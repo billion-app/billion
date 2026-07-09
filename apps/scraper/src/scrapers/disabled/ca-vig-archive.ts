@@ -180,6 +180,9 @@ async function scrape(): Promise<void> {
 }
 
 export const caVigArchive: Scraper = {
+  id: "ca-vig-archive",
   name: "ca-vig-archive",
+  source: "California Secretary of State voter-guide archive",
+  environment: { required: ["POSTGRES_URL"] },
   scrape,
 };

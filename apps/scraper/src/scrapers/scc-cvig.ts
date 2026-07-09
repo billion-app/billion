@@ -39,6 +39,7 @@ import { CivicApiCache } from "@acme/db/schema";
 import type { Scraper } from "../utils/types.js";
 import { visionLlm } from "../utils/ai/provider.js";
 import { createLogger } from "../utils/log.js";
+import { sccCvigConfig } from "./scc-cvig.config.js";
 
 const logger = createLogger("scc-cvig");
 
@@ -314,19 +315,28 @@ function dedupe(statements: SccCvigStatement[]): SccCvigStatement[] {
   return [...byKey.values()];
 }
 
-async function scrape(): Promise<void> {
+async function scrape(maxItems = 10): Promise<void> {
   const years = Object.keys(SCC_GUIDES).map(Number);
   if (years.length === 0) {
     logger.warn("No SCC guides configured — nothing to scrape.");
     return;
   }
 
+  let remaining = maxItems;
   for (const year of years) {
+    if (remaining <= 0) break;
     const guide = SCC_GUIDES[year];
     if (!guide) continue;
     logger.info(`Scraping SCC ${year} guide (election ${guide.electionId})…`);
 
-    const statements = dedupe(await scrapeGuide(year, guide));
+    const docCodes = guide.docCodes.slice(0, remaining);
+    remaining -= docCodes.length;
+    const statements = dedupe(
+      await scrapeGuide(year, {
+        ...guide,
+        docCodes,
+      }),
+    );
     if (statements.length === 0) {
       logger.warn(
         `SCC ${year}: no statements extracted — skipping cache write.`,
@@ -368,6 +378,7 @@ async function scrape(): Promise<void> {
 }
 
 export const sccCvig: Scraper = {
-  name: "scc-cvig",
-  scrape,
+  ...sccCvigConfig,
+  scrape: (options) =>
+    scrape((options?.maxItems ?? Number(process.env.SCC_CVIG_MAX_ITEMS)) || 10),
 };

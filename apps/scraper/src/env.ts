@@ -1,5 +1,4 @@
-import type { ScraperName } from "@acme/env";
-import { scraperNames, validateEnvironment } from "@acme/env";
+import { envSchemas, validateEnvironment } from "@acme/env";
 
 import type { Scraper } from "./utils/types.js";
 
@@ -7,19 +6,26 @@ export function validateScraperEnv(
   scrapers: readonly Scraper[],
   environment: NodeJS.ProcessEnv = process.env,
 ): void {
-  const selected = scrapers.map((scraper) => {
-    const key = scraper.name.toLowerCase().replace(/[.\s]/g, "");
-    if (!scraperNames.includes(key as ScraperName)) {
-      throw new Error(
-        `Scraper "${scraper.name}" has no environment registry entry`,
-      );
+  for (const scraper of scrapers) {
+    for (const requirement of [
+      "required",
+      "recommended",
+      "optional",
+    ] as const) {
+      for (const key of scraper.environment[requirement] ?? []) {
+        if (!envSchemas[key]) {
+          throw new Error(
+            `Scraper "${scraper.id}" declares unknown environment variable ${key}`,
+          );
+        }
+      }
     }
-    return key as ScraperName;
-  });
+  }
   const result = validateEnvironment({
     environment,
     surface: "scraper",
-    scrapers: selected,
+    scrapers: scrapers.map((scraper) => scraper.id),
+    scraperContracts: scrapers,
   });
   if (!result.success) {
     throw new Error(

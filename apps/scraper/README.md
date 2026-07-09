@@ -2,18 +2,22 @@
 
 Pulls in government content like bills, court cases, and White House content and saves it to the database. For new or changed content, it automatically generates an AI article and finds a thumbnail image.
 
-## Scrapers
+## Active data sources
 
-| File                   | Where data comes from             | How                                |
-| ---------------------- | --------------------------------- | ---------------------------------- |
-| `congress.ts`          | Congress.gov bills                | Official REST API                  |
-| `federalregister.ts`   | Federal Register                  | Official REST API + HTML text      |
-| `scotus.ts`            | Court opinions                    | CourtListener REST API             |
-| `vote411.ts`           | VOTE411                           | Public voter-guide HTML            |
-| `scc-cvig.ts`          | Santa Clara County voter guides   | PDF extraction + optional Gemini   |
-| `ca-sos-statements.ts` | CA Secretary of State voter guide | Official candidate-statement pages |
-| `ca-lao-fiscal.ts`     | CA Legislative Analyst's Office   | Proposition fiscal analyses        |
-| `ca-vig-archive.ts`    | CA SOS voter-guide archive        | Historical proposition guide pages |
+Only these five are registered and run by `all`:
+
+| CLI name            | Source and data fetched                                                                    | Stored/used as                                                                                        |
+| ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `federalregister`   | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article/summary and feed-image enrichment                                    |
+| `congress`          | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI/feed enrichment                                            |
+| `scotus`            | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
+| `scc-cvig`          | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
+| `ca-sos-statements` | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
+
+`vote411`, `ca-lao-fiscal`, and `ca-vig-archive` remain under
+`src/scrapers/disabled/` and do not run. Their caches had no application
+consumer, so scheduling them only created unused data. See the disabled-folder
+README for the requirements to revive them.
 
 ---
 
@@ -34,18 +38,21 @@ links to its provider. Verify it without printing values:
 pnpm env:doctor --target scraper --scraper congress --file .env
 ```
 
-The scraper checks required values with Zod before starting network or database
+Each adjacent `*.config.ts` file declares that scraper's source and required,
+recommended, and optional variables. The wizard and runtime validator consume
+the same declaration, so adding a scraper does not require duplicating its
+requirements in `@acme/env`. Zod validation runs before network or database
 work:
 
-| Variable                                     | Required by                               | Why it matters                                                         |
-| -------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------- |
-| `POSTGRES_URL`                               | Every registered scraper except `vote411` | Your Supabase/Postgres connection.                                     |
-| `DEEPSEEK_API_KEY`                           | `federalregister`, `congress`, `scotus`   | Article, summary, image-keyword, and feed-copy generation.             |
-| `CONGRESS_API_KEY`                           | `congress`                                | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/). |
-| `BFL_API_KEY`                                | Optional                                  | FLUX feed images; raw content and AI text still persist without it.    |
-| `COURTLISTENER_API_KEY`                      | Optional                                  | Higher CourtListener limits for `scotus`.                              |
-| `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional pair                             | Google Custom Search article thumbnails.                               |
-| `GOOGLE_GENERATIVE_AI_API_KEY`               | Optional                                  | Gemini vision fallback for `scc-cvig` PDF extraction.                  |
+| Variable                                     | Required by                             | Why it matters                                                                                                     |
+| -------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `POSTGRES_URL`                               | Every active scraper                    | Your Postgres connection. If inserting credentials manually, percent-encode only the username/password components. |
+| `DEEPSEEK_API_KEY`                           | `federalregister`, `congress`, `scotus` | Article, summary, image-keyword, and feed-copy generation.                                                         |
+| `CONGRESS_API_KEY`                           | `congress`                              | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/).                                             |
+| `BFL_API_KEY`                                | Optional                                | FLUX feed images; raw content and AI text still persist without it.                                                |
+| `COURTLISTENER_API_KEY`                      | Optional                                | Higher CourtListener limits for `scotus`.                                                                          |
+| `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional pair                           | Google Custom Search article thumbnails.                                                                           |
+| `GOOGLE_GENERATIVE_AI_API_KEY`               | Optional                                | Gemini vision fallback for `scc-cvig` PDF extraction.                                                              |
 
 See [the launch environment guide](../../docs/launch.md) for the complete
 per-scraper matrix, provider setup links, defaults, and production guidance.
@@ -56,6 +63,34 @@ per-scraper matrix, provider setup links, defaults, and production guidance.
 pnpm install
 pnpm --filter @acme/scraper run start -- congress --concurrency 1
 ```
+
+### Source and enrichment limits
+
+`--max-items` caps source records fetched/processed by each selected scraper for
+that run. It overrides the selected scraper's environment default:
+
+```bash
+# Process at most ten Congress.gov bills in this run
+pnpm --filter @acme/scraper run start -- congress --max-items 10
+
+# If scheduled once per day, this is effectively ten bills per day
+CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start -- congress
+```
+
+| Variable                        | Default | Counts                                              |
+| ------------------------------- | ------: | --------------------------------------------------- |
+| `FEDERALREGISTER_MAX_ITEMS`     |      20 | Presidential documents                              |
+| `CONGRESS_MAX_ITEMS`            |     100 | Bills                                               |
+| `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters                      |
+| `SCC_CVIG_MAX_ITEMS`            |      10 | Voter-guide PDF documents                           |
+| `CA_SOS_MAX_ITEMS`              |       9 | Statewide-office candidate-statement pages          |
+| `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
+
+These are per-run limits, not durable calendar-day quotas. Schedule one run per
+day to obtain a daily cap. If the scheduler retries or runs multiple times, each
+invocation gets a fresh allowance. Source limits cap API/page work;
+`SCRAPER_MAX_NEW_ITEMS_PER_RUN` separately caps expensive enrichment while
+still storing additional raw records for later backfill.
 
 ---
 

@@ -7,6 +7,7 @@ import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
+import { federalregisterConfig } from "./federalregister.config.js";
 
 const NAME = "Federal Register";
 const FR_BASE = "https://www.federalregister.gov/api/v1";
@@ -61,10 +62,9 @@ async function fetchDocumentText(
   }
 }
 
-async function scrape() {
+async function scrape(maxDocuments = 20) {
   logger.info("Starting...");
 
-  const maxDocuments = 20;
   const fields = [
     "title",
     "type",
@@ -134,6 +134,10 @@ async function scrape() {
 }
 
 export const federalregister: Scraper = {
-  name: NAME,
-  scrape,
+  ...federalregisterConfig,
+  scrape: (options) =>
+    scrape(
+      (options?.maxItems ?? Number(process.env.FEDERALREGISTER_MAX_ITEMS)) ||
+        20,
+    ),
 };

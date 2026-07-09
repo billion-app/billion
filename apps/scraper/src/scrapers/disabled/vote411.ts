@@ -611,7 +611,10 @@ async function scrape(): Promise<void> {
 }
 
 export const vote411: Scraper = {
+  id: "vote411",
   name: NAME,
+  source: "VOTE411 public voter-guide pages",
+  environment: {},
   scrape,
 };
 

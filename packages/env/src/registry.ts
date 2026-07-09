@@ -9,16 +9,14 @@ export const surfaces = [
 ] as const;
 export type EnvSurface = (typeof surfaces)[number];
 
-export const scraperNames = [
-  "federalregister",
-  "congress",
-  "scotus",
-  "scc-cvig",
-  "ca-sos-statements",
-] as const;
-export type ScraperName = (typeof scraperNames)[number];
-
 export type Requirement = "required" | "recommended" | "optional";
+
+export interface ScraperEnvContract {
+  id: string;
+  name: string;
+  source: string;
+  environment: Partial<Record<Requirement, readonly string[]>>;
+}
 
 export interface EnvDefinition {
   key: string;
@@ -29,16 +27,24 @@ export interface EnvDefinition {
   example?: string;
   defaultValue?: string;
   requirements: Partial<Record<EnvSurface, Requirement>>;
-  scraperRequirements?: Partial<Record<ScraperName, Requirement>>;
   schema: z.ZodType<string>;
 }
 
 const string = z.string().trim().min(1, "must not be empty");
 const url = z.url("must be a valid URL");
-const postgresUrl = string.refine(
-  (value) => /^postgres(?:ql)?:\/\//i.test(value),
-  "must start with postgres:// or postgresql://",
-);
+const postgresUrl = string
+  .refine(
+    (value) => /^postgres(?:ql)?:\/\//i.test(value),
+    "must start with postgres:// or postgresql://",
+  )
+  .refine((value) => {
+    try {
+      const parsed = new URL(value);
+      return Boolean(parsed.hostname) && !/%(?![0-9a-f]{2})/i.test(value);
+    } catch {
+      return false;
+    }
+  }, "must be a valid connection URL; percent-encode special characters in username/password components");
 const emailList = string.refine(
   (value) =>
     value
@@ -49,6 +55,10 @@ const emailList = string.refine(
 const positiveNumber = string.refine(
   (value) => Number.isFinite(Number(value)) && Number(value) >= 0,
   "must be a non-negative number",
+);
+const positiveInteger = string.refine(
+  (value) => Number.isInteger(Number(value)) && Number(value) > 0,
+  "must be a positive integer",
 );
 
 const define = (definition: EnvDefinition) => definition;
@@ -62,21 +72,25 @@ const scraperCostDefinitions = [
     "0.005",
   ],
 ] as const;
+const scraperSourceLimitDefinitions = [
+  ["FEDERALREGISTER_MAX_ITEMS", "Federal Register documents per run.", "20"],
+  ["CONGRESS_MAX_ITEMS", "Congress.gov bills per run.", "100"],
+  ["SCOTUS_MAX_ITEMS", "CourtListener opinion clusters per run.", "50"],
+  ["SCC_CVIG_MAX_ITEMS", "Santa Clara voter-guide PDFs per run.", "10"],
+  ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
+] as const;
 
 export const envRegistry = [
   define({
     key: "POSTGRES_URL",
     description:
-      "Postgres connection used by the API, auth, DB tools, and DB-writing scrapers.",
+      "Postgres connection used by the API, auth, DB tools, and DB-writing scrapers. Percent-encode special characters only inside substituted username/password components.",
     group: "Database",
     secret: true,
     setupUrl:
       "https://supabase.com/docs/guides/database/connecting-to-postgres",
     example: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
     requirements: { nextjs: "required", database: "required" },
-    scraperRequirements: Object.fromEntries(
-      scraperNames.map((name) => [name, "required"]),
-    ) as Partial<Record<ScraperName, Requirement>>,
     schema: postgresUrl,
   }),
   define({
@@ -211,11 +225,6 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://platform.deepseek.com/api_keys",
     requirements: { nextjs: "optional" },
-    scraperRequirements: {
-      federalregister: "required",
-      congress: "required",
-      scotus: "required",
-    },
     schema: string,
   }),
   define({
@@ -234,7 +243,6 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://api.congress.gov/sign-up/",
     requirements: {},
-    scraperRequirements: { congress: "required" },
     schema: string,
   }),
   define({
@@ -244,7 +252,6 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://www.courtlistener.com/sign-in/",
     requirements: {},
-    scraperRequirements: { scotus: "recommended" },
     schema: string,
   }),
   define({
@@ -291,7 +298,6 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://aistudio.google.com/app/apikey",
     requirements: {},
-    scraperRequirements: { "scc-cvig": "optional" },
     schema: string,
   }),
   define({
@@ -313,6 +319,17 @@ export const envRegistry = [
     requirements: { scraper: "optional" },
     schema: positiveNumber,
   }),
+  ...scraperSourceLimitDefinitions.map(([key, description, defaultValue]) =>
+    define({
+      key,
+      description,
+      group: "Scraper source limits",
+      secret: false,
+      defaultValue,
+      requirements: {},
+      schema: positiveInteger,
+    }),
+  ),
   ...scraperCostDefinitions.map(([key, description, defaultValue]) =>
     define({
       key,
@@ -373,15 +390,28 @@ const rank: Record<Requirement, number> = {
 export function requirementFor(
   definition: EnvDefinition,
   surface: EnvSurface,
-  selectedScrapers: readonly ScraperName[] = scraperNames,
+  selectedScrapers: readonly string[] = [],
+  scraperContracts: readonly ScraperEnvContract[] = [],
 ): Requirement | null {
   const requirements: Requirement[] = [];
   const surfaceRequirement = definition.requirements[surface];
   if (surfaceRequirement) requirements.push(surfaceRequirement);
-  if (surface === "scraper" && definition.scraperRequirements) {
-    for (const scraper of selectedScrapers) {
-      const requirement = definition.scraperRequirements[scraper];
-      if (requirement) requirements.push(requirement);
+  if (surface === "scraper") {
+    const selected = selectedScrapers.length
+      ? scraperContracts.filter((contract) =>
+          selectedScrapers.includes(contract.id),
+        )
+      : scraperContracts;
+    for (const contract of selected) {
+      for (const requirement of [
+        "required",
+        "recommended",
+        "optional",
+      ] as const) {
+        if (contract.environment[requirement]?.includes(definition.key)) {
+          requirements.push(requirement);
+        }
+      }
     }
   }
   return (
@@ -391,12 +421,18 @@ export function requirementFor(
 
 export function definitionsFor(
   surface: EnvSurface,
-  selectedScrapers: readonly ScraperName[] = scraperNames,
+  selectedScrapers: readonly string[] = [],
+  scraperContracts: readonly ScraperEnvContract[] = [],
 ) {
   return envRegistry
     .map((definition) => ({
       definition,
-      requirement: requirementFor(definition, surface, selectedScrapers),
+      requirement: requirementFor(
+        definition,
+        surface,
+        selectedScrapers,
+        scraperContracts,
+      ),
     }))
     .filter(
       (item): item is { definition: EnvDefinition; requirement: Requirement } =>
@@ -404,10 +440,14 @@ export function definitionsFor(
     );
 }
 
-export function definitionsForAll() {
+export function definitionsForAll(
+  scraperContracts: readonly ScraperEnvContract[] = [],
+) {
   return envRegistry.map((definition) => {
     const requirements = surfaces
-      .map((surface) => requirementFor(definition, surface))
+      .map((surface) =>
+        requirementFor(definition, surface, [], scraperContracts),
+      )
       .filter((value): value is Requirement => value !== null);
     return {
       definition,

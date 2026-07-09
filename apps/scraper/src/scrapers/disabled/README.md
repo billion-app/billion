@@ -2,7 +2,7 @@
 
 Scrapers that are kept in the tree but **not registered** in `main.ts`, so they
 never run. They still typecheck (imports are kept valid) so they're easy to
-revive, but they are excluded from the scraper list and the env registry.
+revive, but they are excluded from the active scraper contracts used by setup.
 
 ## `ca-vig-archive.ts`
 
@@ -15,8 +15,8 @@ queried. The pure parser lives beside it at
 `@acme/api/lib/measure-sources/disabled/vig-archive`.
 
 To revive it: add an `enrichFromVigArchive` source into `crossValidateMeasure`,
-re-register the scraper in `apps/scraper/src/main.ts`, add `"ca-vig-archive"`
-back to `scraperNames` in `@acme/env`, and note that the archive has two page
+re-register the scraper in `apps/scraper/src/scrapers.ts`, add an adjacent
+config to `scraper-contracts.ts`, and note that the archive has two page
 layouts — modern (`/{year}/{type}/propositions/{N}/`) and old
 (`/{year}/{type}/propositions/prop{N}-title.htm`, indexed by `propositions.htm`);
 the current parser only handles the modern one.
@@ -31,7 +31,8 @@ was redundant. (That live enricher module is still in use and stays put; only th
 scraper here is disabled.)
 
 To revive it: make `enrichFromLao` read the `ca-lao-fiscal` `CivicApiCache` rows
-before falling back to a live fetch, then re-register + re-add to `scraperNames`.
+before falling back to a live fetch, then re-register its implementation and
+contract.
 
 ## `vote411.ts` / `vote411-ballot.ts`
 
@@ -43,4 +44,4 @@ and cache the data," and its `getCached*` getters are imported nowhere.
 `vote411-ballot.ts` was never even registered in `main.ts`.
 
 To revive: have the scraper persist to the database (a real table the API reads),
-add a reader in `@acme/api`, then re-register + re-add to `scraperNames`.
+add a reader in `@acme/api`, then re-register its implementation and contract.

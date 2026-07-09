@@ -297,6 +297,9 @@ async function scrape(): Promise<void> {
 }
 
 export const caLaoFiscal: Scraper = {
+  id: "ca-lao-fiscal",
   name: "ca-lao-fiscal",
+  source: "California Legislative Analyst's Office proposition analyses",
+  environment: { required: ["POSTGRES_URL"] },
   scrape,
 };

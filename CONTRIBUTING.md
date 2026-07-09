@@ -51,6 +51,7 @@ the selected surface's keys:
 
 ```bash
 pnpm env:setup
+pnpm env:setup --target all
 pnpm env:doctor --target all
 ```
 

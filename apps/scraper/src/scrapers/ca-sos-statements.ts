@@ -38,6 +38,7 @@ import { CivicApiCache } from "@acme/db/schema";
 
 import type { Scraper } from "../utils/types.js";
 import { createLogger } from "../utils/log.js";
+import { caSosStatementsConfig } from "./ca-sos-statements.config.js";
 
 const logger = createLogger("ca-sos-statements");
 
@@ -50,10 +51,10 @@ function targetYear(): number {
 }
 
 /** Fetch + parse every statewide office page, deduped by slug to one fetch each. */
-async function scrapeAllOffices(): Promise<CaSosStatement[]> {
+async function scrapeAllOffices(maxItems = 9): Promise<CaSosStatement[]> {
   const slugs = [...new Set(OFFICE_SLUGS.map((o) => o.slug))];
   const all: CaSosStatement[] = [];
-  for (const slug of slugs) {
+  for (const slug of slugs.slice(0, maxItems)) {
     const html = await fetchText(officeUrl(slug));
     if (!html) {
       logger.warn(`${slug}: page fetch failed.`);
@@ -66,11 +67,11 @@ async function scrapeAllOffices(): Promise<CaSosStatement[]> {
   return all;
 }
 
-async function scrape(): Promise<void> {
+async function scrape(maxItems = 9): Promise<void> {
   const year = targetYear();
   logger.info(`Scraping CA SOS voter guide for ${year}…`);
 
-  const statements = await scrapeAllOffices();
+  const statements = await scrapeAllOffices(maxItems);
   if (statements.length === 0) {
     logger.warn(
       `CA SOS ${year}: no statements extracted — skipping cache write.`,
@@ -111,6 +112,7 @@ async function scrape(): Promise<void> {
 }
 
 export const caSosStatements: Scraper = {
-  name: "ca-sos-statements",
-  scrape,
+  ...caSosStatementsConfig,
+  scrape: (options) =>
+    scrape((options?.maxItems ?? Number(process.env.CA_SOS_MAX_ITEMS)) || 9),
 };
