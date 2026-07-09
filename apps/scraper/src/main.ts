@@ -1,29 +1,42 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { congress } from "./scrapers/congress.js";
-import { scotus } from "./scrapers/scotus.js";
-import { federalregister } from "./scrapers/federalregister.js";
-import { vote411 } from "./scrapers/vote411.js";
-import { sccCvig } from "./scrapers/scc-cvig.js";
-import { caSosStatements } from "./scrapers/ca-sos-statements.js";
-import { caLaoFiscal } from "./scrapers/ca-lao-fiscal.js";
-import { caVigArchive } from "./scrapers/ca-vig-archive.js";
 import type { Scraper } from "./utils/types.js";
-import { createLogger } from "./utils/log.js";
+import { validateScraperEnv } from "./env.js";
+import { caLaoFiscal } from "./scrapers/ca-lao-fiscal.js";
+import { caSosStatements } from "./scrapers/ca-sos-statements.js";
+import { caVigArchive } from "./scrapers/ca-vig-archive.js";
+import { congress } from "./scrapers/congress.js";
+import { federalregister } from "./scrapers/federalregister.js";
+import { sccCvig } from "./scrapers/scc-cvig.js";
+import { scotus } from "./scrapers/scotus.js";
+import { vote411 } from "./scrapers/vote411.js";
 import { setConcurrency } from "./utils/concurrency.js";
-import { resetMetrics, printMetricsSummary } from "./utils/db/metrics.js";
+import { printMetricsSummary, resetMetrics } from "./utils/db/metrics.js";
+import { createLogger } from "./utils/log.js";
 
 const logger = createLogger("main");
 
-const scrapers: Scraper[] = [federalregister, congress, scotus, vote411, sccCvig, caSosStatements, caLaoFiscal, caVigArchive];
+const scrapers: Scraper[] = [
+  federalregister,
+  congress,
+  scotus,
+  vote411,
+  sccCvig,
+  caSosStatements,
+  caLaoFiscal,
+  caVigArchive,
+];
 const scraperNames = scrapers.map((s) => s.name);
 
 const argv = await yargs(hideBin(process.argv))
   .command("$0 [scraper]", "Run government data scrapers", (yargs) =>
     yargs.positional("scraper", {
       describe: "Which scraper to run",
-      choices: [...scraperNames.map((n) => n.toLowerCase().replace(/[.\s]/g, "")), "all"] as const,
+      choices: [
+        ...scraperNames.map((n) => n.toLowerCase().replace(/[.\s]/g, "")),
+        "all",
+      ] as const,
       default: "all" as const,
     }),
   )
@@ -44,6 +57,7 @@ setConcurrency(concurrency);
 async function main() {
   resetMetrics();
   if (arg === "all") {
+    validateScraperEnv(scrapers);
     logger.info("Running all scrapers...");
     const results = await Promise.allSettled(scrapers.map((s) => s.scrape()));
     const failed = results
@@ -69,6 +83,7 @@ async function main() {
       logger.error(`Unknown scraper: "${arg}"`);
       process.exit(1);
     }
+    validateScraperEnv([scraper]);
     await scraper.scrape();
     printMetricsSummary(scraper.name);
   }

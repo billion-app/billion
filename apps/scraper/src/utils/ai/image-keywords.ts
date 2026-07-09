@@ -3,12 +3,16 @@
  * Uses LLM to extract visual concepts for image search
  */
 
-import { generateText, APICallError, RetryError } from 'ai';
+import { APICallError, generateText, RetryError } from "ai";
 
-import { AIRateLimitError, rateLimitHit, setRateLimitHit } from './text-generation.js';
-import { createLogger } from '../log.js';
-import { trackLLMUsage } from '../costs.js';
-import { llm } from './provider.js';
+import { trackLLMUsage } from "../costs.js";
+import { createLogger } from "../log.js";
+import { getTextLlm } from "./provider.js";
+import {
+  AIRateLimitError,
+  rateLimitHit,
+  setRateLimitHit,
+} from "./text-generation.js";
 
 const logger = createLogger("ai");
 
@@ -19,10 +23,10 @@ function isRateLimitError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const msg = error.message.toLowerCase();
   return (
-    msg.includes('429') ||
-    msg.includes('rate limit') ||
-    msg.includes('resource_exhausted') ||
-    msg.includes('quota')
+    msg.includes("429") ||
+    msg.includes("rate limit") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("quota")
   );
 }
 
@@ -44,7 +48,7 @@ export async function generateImageSearchKeywords(
   }
   try {
     const { text, usage } = await generateText({
-      model: llm,
+      model: getTextLlm(),
       prompt: `Given this ${type} title and content, generate 2-4 search keywords for finding visually striking, high-end editorial stock photos. Focus on dramatic, cinematic, and photographic concepts that feel professional and modern.
 
 GOOD examples (specific, dynamic, visual):
@@ -69,19 +73,19 @@ Return ONLY 2-4 specific visual keywords separated by spaces. No quotes, no expl
     });
     trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
-    return text.trim().replace(/['"]/g, '');
+    return text.trim().replace(/['"]/g, "");
   } catch (error) {
     if (isRateLimitError(error)) {
       setRateLimitHit(true);
       throw new AIRateLimitError();
     }
-    logger.error('Error generating image search keywords', error);
+    logger.error("Error generating image search keywords", error);
     return title
       .toLowerCase()
-      .replace(/[^\w\s]/g, '')
+      .replace(/[^\w\s]/g, "")
       .split(/\s+/)
       .filter((word) => word.length > 3)
       .slice(0, 3)
-      .join(' ');
+      .join(" ");
   }
 }

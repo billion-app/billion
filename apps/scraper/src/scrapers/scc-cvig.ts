@@ -24,21 +24,21 @@ import { generateObject } from "ai";
 import { getDocumentProxy } from "unpdf";
 import { z } from "zod/v4";
 
-import { db } from "@acme/db/client";
-import { CivicApiCache } from "@acme/db/schema";
+import type {
+  SccCvigPayload,
+  SccCvigStatement,
+} from "@acme/api/lib/candidate-sources/scc-cvig-cache";
 import {
   SCC_CVIG_ADDRESS_HASH,
   SCC_CVIG_ENDPOINT,
   sccCvigCacheParams,
 } from "@acme/api/lib/candidate-sources/scc-cvig-cache";
-import type {
-  SccCvigPayload,
-  SccCvigStatement,
-} from "@acme/api/lib/candidate-sources/scc-cvig-cache";
+import { db } from "@acme/db/client";
+import { CivicApiCache } from "@acme/db/schema";
 
 import type { Scraper } from "../utils/types.js";
-import { createLogger } from "../utils/log.js";
 import { visionLlm } from "../utils/ai/provider.js";
+import { createLogger } from "../utils/log.js";
 
 const logger = createLogger("scc-cvig");
 
@@ -145,11 +145,15 @@ async function extractColumnAwareText(pdf: Uint8Array): Promise<string> {
  * Qualifications: <body>` block, ending the body at the next candidate name, the
  * next office heading, a `CS-####` doc code, or a page footer.
  */
-function segmentStatements(text: string, sourceUrl: string): SccCvigStatement[] {
+function segmentStatements(
+  text: string,
+  sourceUrl: string,
+): SccCvigStatement[] {
   const out: SccCvigStatement[] = [];
 
   // Split the doc by office headings so each candidate inherits its office.
-  const headingRe = /CANDIDATE STATEMENTS? FOR\s+([^\n]+?)(?=\s+[A-Z][A-Z.'' -]+\s+Occupation:)/g;
+  const headingRe =
+    /CANDIDATE STATEMENTS? FOR\s+([^\n]+?)(?=\s+[A-Z][A-Z.'' -]+\s+Occupation:)/g;
   // Within a section, a candidate block runs from a CAPS name + "Occupation:"
   // through "Education and Qualifications:" and its body, up to the next such
   // name, the next office heading, a CS-#### code, or a page footer.
@@ -178,10 +182,9 @@ function segmentStatements(text: string, sourceUrl: string): SccCvigStatement[] 
     const occupation = cm[2]?.split(/\s+Age:/)[0]?.trim();
     const body = cm[3]?.trim().replace(/\s+/g, " ");
     if (!name || !body || body.length < 40) continue;
-    const parts = [
-      occupation ? `Occupation: ${occupation}` : "",
-      body,
-    ].filter(Boolean);
+    const parts = [occupation ? `Occupation: ${occupation}` : "", body].filter(
+      Boolean,
+    );
     out.push({
       name,
       office: officeAt(cm.index),
@@ -204,7 +207,10 @@ function cleanName(raw: string | undefined): string {
     .trim()
     .replace(/\s+/g, " ")
     .replace(/^(?:CITY|COUNTY|TOWN)\s+OF\s+SANTA\s+CLARA\s+/i, "")
-    .replace(/^(?:CITY|COUNTY|TOWN)\s+OF\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+/, "")
+    .replace(
+      /^(?:CITY|COUNTY|TOWN)\s+OF\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+/,
+      "",
+    )
     .trim();
 }
 
@@ -322,7 +328,9 @@ async function scrape(): Promise<void> {
 
     const statements = dedupe(await scrapeGuide(year, guide));
     if (statements.length === 0) {
-      logger.warn(`SCC ${year}: no statements extracted — skipping cache write.`);
+      logger.warn(
+        `SCC ${year}: no statements extracted — skipping cache write.`,
+      );
       continue;
     }
 
@@ -359,4 +367,8 @@ async function scrape(): Promise<void> {
   }
 }
 
-export const sccCvig: Scraper = { name: "scc-cvig", scrape };
+export const sccCvig: Scraper = {
+  name: "scc-cvig",
+  requiredEnv: ["POSTGRES_URL"],
+  scrape,
+};

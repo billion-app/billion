@@ -2,17 +2,24 @@ import type { LanguageModel } from "ai";
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
-const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
+let textLlm: LanguageModel | null = null;
 
-if (!deepseekApiKey) {
-  throw new Error("DEEPSEEK_API_KEY environment variable is required");
+/**
+ * Resolve the text model lazily so keyless/cache-only scrapers can load without
+ * DeepSeek. The CLI validates DEEPSEEK_API_KEY before running a scraper that
+ * actually needs text generation; this guard also protects standalone callers.
+ */
+export function getTextLlm(): LanguageModel {
+  if (textLlm) return textLlm;
+
+  const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("DEEPSEEK_API_KEY is required for scraper AI generation");
+  }
+
+  textLlm = createDeepSeek({ apiKey })("deepseek-v4-flash");
+  return textLlm;
 }
-
-const deepseekProvider = createDeepSeek({
-  apiKey: deepseekApiKey,
-});
-
-export const llm = deepseekProvider("deepseek-v4-flash");
 
 // Multimodal (PDF/vision) model for document extraction — DeepSeek is text-only.
 // Gated on the API key so the scraper still runs without it (callers that need

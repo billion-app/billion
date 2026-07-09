@@ -1,16 +1,17 @@
 import { eq, max } from "@acme/db";
 import { db } from "@acme/db/client";
 import { Bill } from "@acme/db/schema";
+
+import type { Scraper } from "../utils/types.js";
+import { getItemLimit } from "../utils/concurrency.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
+import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
-import { getItemLimit } from "../utils/concurrency.js";
-import { upsertContent } from "../utils/db/operations.js";
-import { setExpectedTotal } from "../utils/db/metrics.js";
-import type { Scraper } from "../utils/types.js";
 
 const BASE_URL = "https://api.congress.gov/v3";
-const NAME = "Congress.gov";
-const logger = createLogger(NAME);
+const NAME = "congress";
+const logger = createLogger("Congress.gov");
 
 interface CongressScraperConfig {
   maxBills?: number;
@@ -233,7 +234,9 @@ async function scrape(config: CongressScraperConfig = {}) {
 
   if (lastScrape?.lastUpdated) {
     // Congress.gov API expects ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
-    const fromDate = lastScrape.lastUpdated.toISOString().replace(/\.\d{3}Z$/, "Z");
+    const fromDate = lastScrape.lastUpdated
+      .toISOString()
+      .replace(/\.\d{3}Z$/, "Z");
     fetchParams.fromDateTime = fromDate;
     logger.info(`Fetching bills updated since ${fromDate}`);
   }
@@ -258,7 +261,9 @@ async function scrape(config: CongressScraperConfig = {}) {
   }
 
   const bills = allBills.slice(0, maxBills);
-  logger.info(`Fetched ${bills.length} bills${lastScrape?.lastUpdated ? " (incremental)" : " (full)"}`);
+  logger.info(
+    `Fetched ${bills.length} bills${lastScrape?.lastUpdated ? " (incremental)" : " (full)"}`,
+  );
 
   if (bills.length === 0) {
     logger.success("No new or updated bills since last scrape");
@@ -280,7 +285,10 @@ async function scrape(config: CongressScraperConfig = {}) {
           );
           const detail = detailData.bill;
 
-          const formattedBillNumber = formatBillNumber(detail.type, detail.number);
+          const formattedBillNumber = formatBillNumber(
+            detail.type,
+            detail.number,
+          );
           const title = (detail.title ?? "Unknown").slice(0, 250);
 
           const primarySponsor = detail.sponsors?.[0];
@@ -325,7 +333,10 @@ async function scrape(config: CongressScraperConfig = {}) {
 
           logger.success(`Processed: ${formattedBillNumber} — ${title}`);
         } catch (error) {
-          logger.error(`Error processing bill ${item.type}${item.number}`, error);
+          logger.error(
+            `Error processing bill ${item.type}${item.number}`,
+            error,
+          );
         }
       }),
     ),
@@ -336,5 +347,6 @@ async function scrape(config: CongressScraperConfig = {}) {
 
 export const congress: Scraper = {
   name: NAME,
+  requiredEnv: ["POSTGRES_URL", "DEEPSEEK_API_KEY", "CONGRESS_API_KEY"],
   scrape: () => scrape(),
 };
