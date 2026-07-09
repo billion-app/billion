@@ -93,9 +93,9 @@ export async function generateVideoForContent(
   };
 
   // Upsert video with hybrid image support
-  // Hard-truncate title to DB constraint (varchar 25) as a safety net in case
+  // Hard-truncate title to DB constraint (varchar 100) as a safety net in case
   // the AI schema validation ever drifts from the DB schema again
-  const safeTitle = marketingCopy.title.substring(0, 25);
+  const safeTitle = marketingCopy.title.substring(0, 100);
 
   try {
     await db

@@ -30,8 +30,14 @@ function isRateLimitError(error: unknown): boolean {
 
 const logger = createLogger("ai");
 
+// Video.title is varchar(100) in the DB. We don't enforce the limit in the
+// generateObject schema because the model can overshoot, which makes the
+// whole call throw and discards otherwise-usable copy. Instead we generate
+// freely and truncate to fit the column below.
+const TITLE_MAX_LENGTH = 100;
+
 const MarketingCopySchema = z.object({
-  title: z.string().max(25), // Must match Video.title varchar(25) DB constraint
+  title: z.string(),
   description: z.string(),
   imagePrompt: z.string(),
 });
@@ -64,7 +70,7 @@ export async function generateMarketingCopy(
 Create compelling marketing copy for this ${contentType} to be displayed in a social media feed.
 
 Requirements:
-1. "title": Compelling, attention-grabbing title (MUST be 25 characters or less)
+1. "title": Compelling, attention-grabbing title (MUST be 100 characters or less)
 2. "description": A very short (max 25 words) summary for a mobile feed. Write in simple, plain English (8th-grade level). Focus on the "so what?"—why should a regular person care? No jargon.
 3. "imagePrompt": A creative, high-energy, and visually arresting scene description that captures the *essence* of the story. Instead of literal office buildings or meetings, focus on dramatic metaphors, intense human emotion, or dynamic action. Use vivid color descriptions and interesting perspectives (e.g., extreme close-ups, wide cinematic shots, or dramatic low angles). Avoid text, icons, or stereotypical stock photo tropes.
 
@@ -73,7 +79,10 @@ Content Preview: ${articleContent.substring(0, 1000)}`,
     });
     trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
-    return object;
+    return {
+      ...object,
+      title: object.title.slice(0, TITLE_MAX_LENGTH).trim(),
+    };
   } catch (error) {
     if (isRateLimitError(error)) {
       setRateLimitHit(true);
@@ -83,7 +92,7 @@ Content Preview: ${articleContent.substring(0, 1000)}`,
 
     // Fallback to simple extraction
     return {
-      title: articleTitle.substring(0, 25),
+      title: articleTitle.substring(0, TITLE_MAX_LENGTH),
       description: articleContent.substring(0, 200) + "...",
       imagePrompt: `A dynamic, cinematic editorial photo about ${articleTitle}. Dramatic lighting, vivid colors.`,
     };
