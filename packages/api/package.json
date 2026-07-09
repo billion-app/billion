@@ -66,6 +66,7 @@
     "@acme/db": "workspace:*",
     "@acme/validators": "workspace:*",
     "@ai-sdk/deepseek": "^1.0.0",
+    "@ai-sdk/groq": "^1.0.0",
     "@ai-sdk/openai": "^2.0.0",
     "@trpc/server": "catalog:",
     "ai": "^6.0.141",

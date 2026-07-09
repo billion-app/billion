@@ -150,8 +150,9 @@ from Civic and Custom Search quotas.
 
 | Variable           | Requirement          | Used for                       | Default / missing behavior                                                | Where to get it                                                  |
 | ------------------ | -------------------- | ------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `DEEPSEEK_API_KEY` | Optional for Next.js | API-side civic text generation | Falls back to OpenAI when configured; otherwise AI enrichment is skipped. | [DeepSeek API platform](https://platform.deepseek.com/api_keys). |
-| `OPENAI_API_KEY`   | Optional fallback    | API-side civic text generation | Used only when DeepSeek is absent; it is not used by the scraper.         | [OpenAI API keys](https://platform.openai.com/api-keys).         |
+| `GROQ_API_KEY`     | Optional for Next.js | API-side civic text generation | Used first for AI enrichment; otherwise the provider falls back to DeepSeek, then OpenAI, then skips AI enrichment. | [Groq console](https://console.groq.com/keys). |
+| `DEEPSEEK_API_KEY` | Optional fallback    | API-side civic text generation | Used after Groq when configured; otherwise the provider falls back to OpenAI, then skips AI enrichment. | [DeepSeek API platform](https://platform.deepseek.com/api_keys). |
+| `OPENAI_API_KEY`   | Optional fallback    | API-side civic text generation | Used only when Groq and DeepSeek are absent; it is not used by the scraper. | [OpenAI API keys](https://platform.openai.com/api-keys).         |
 
 ### Authentication providers and platform values
 

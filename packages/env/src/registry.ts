@@ -269,6 +269,15 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "GROQ_API_KEY",
+    description: "Groq key for AI text generation.",
+    group: "AI",
+    secret: true,
+    setupUrl: "https://console.groq.com/keys",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
     key: "OPENAI_API_KEY",
     description: "Fallback API-side AI key; not used by the scraper.",
     group: "AI",
