@@ -205,9 +205,14 @@ Do not copy fixed production values into `.env.example`.
 From the repository root:
 
 ```bash
-cp .env.example .env
-pnpm install
+pnpm onboard
 ```
+
+Contributor onboarding prefers an existing local Postgres (including
+Postgres.app and Homebrew services) and falls back to the repository's Docker
+Compose service on `127.0.0.1:54322`. It creates `.env`, generates the local auth
+secret, applies the Drizzle schema, and can prepare Expo native projects. See
+[CONTRIBUTING.md](../CONTRIBUTING.md) for flags and the full decision order.
 
 The normal scraper development command loads `apps/scraper/.env` first when
 present, then the root `.env`:

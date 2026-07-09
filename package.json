@@ -26,7 +26,13 @@
     "ui-add": "turbo run ui-add",
     "android": "pnpm --dir apps/expo run android",
     "ios": "pnpm --dir apps/expo run ios",
-    "bump": "node scripts/bump.mjs"
+    "bump": "node scripts/bump.mjs",
+    "onboard": "node scripts/onboard.mjs",
+    "onboard:test": "node --test scripts/onboard.test.mjs",
+    "postgres:start": "docker compose up -d --wait postgres",
+    "postgres:status": "docker compose ps postgres",
+    "postgres:logs": "docker compose logs -f postgres",
+    "postgres:stop": "docker compose stop postgres"
   },
   "devDependencies": {
     "@acme/prettier-config": "workspace:*",
