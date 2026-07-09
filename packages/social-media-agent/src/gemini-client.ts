@@ -1,4 +1,5 @@
-import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+import type { GenerativeModel } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export interface GeminiOptions {
   model?: string;
@@ -20,7 +21,7 @@ export class GeminiClient {
   constructor(apiKey: string, options: GeminiOptions = {}) {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.options = {
-      model: options.model ?? 'gemini-2.5-flash',
+      model: options.model ?? "gemini-2.5-flash",
       temperature: options.temperature ?? 0.7,
       maxTokens: options.maxTokens ?? 500,
     };
@@ -66,7 +67,7 @@ Return only the final caption text.
       const response = await result.response;
       return response.text().trim();
     } catch (error) {
-      console.error('Error generating caption with Gemini:', error);
+      console.error("Error generating caption with Gemini:", error);
       throw error;
     }
   }
@@ -93,16 +94,19 @@ Return only the final caption text.
 
       // Parse numbered list
       return text
-        .split('\n')
-        .map(line => line.replace(/^\d+[\.\)]\s*/, '').trim())
-        .filter(line => line.length > 0);
+        .split("\n")
+        .map((line) => line.replace(/^\d+[\.\)]\s*/, "").trim())
+        .filter((line) => line.length > 0);
     } catch (error) {
-      console.error('Error extracting key points with Gemini:', error);
+      console.error("Error extracting key points with Gemini:", error);
       throw error;
     }
   }
 
-  async summarizeArticle(articleContent: string, maxLength: number = 200): Promise<string> {
+  async summarizeArticle(
+    articleContent: string,
+    maxLength = 200,
+  ): Promise<string> {
     const prompt = `
       Summarize the following article in under ${maxLength} characters for social media.
       Focus on the key takeaways and why it matters to the public.
@@ -118,7 +122,7 @@ Return only the final caption text.
       const response = await result.response;
       return response.text().trim();
     } catch (error) {
-      console.error('Error summarizing article with Gemini:', error);
+      console.error("Error summarizing article with Gemini:", error);
       throw error;
     }
   }

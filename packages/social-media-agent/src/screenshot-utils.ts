@@ -1,7 +1,8 @@
-import { Page, Locator } from 'playwright';
-import * as path from 'path';
-import * as fs from 'fs';
-import sharp from 'sharp';
+import * as fs from "fs";
+import * as path from "path";
+import type { Page } from "playwright";
+import { Locator } from "playwright";
+import sharp from "sharp";
 
 export class ScreenshotUtils {
   constructor(private screenshotsDir: string) {
@@ -15,7 +16,7 @@ export class ScreenshotUtils {
     page: Page,
     selector: string,
     name: string,
-    options: { padding?: number; highlight?: boolean } = {}
+    options: { padding?: number; highlight?: boolean } = {},
   ): Promise<string> {
     const { padding = 10, highlight = false } = options;
 
@@ -30,7 +31,7 @@ export class ScreenshotUtils {
         await element.evaluate((el: Element) => {
           const htmlEl = el as HTMLElement;
           const originalOutline = htmlEl.style.outline;
-          htmlEl.style.outline = '3px solid #ff0000';
+          htmlEl.style.outline = "3px solid #ff0000";
           setTimeout(() => {
             htmlEl.style.outline = originalOutline;
           }, 1000);
@@ -57,17 +58,16 @@ export class ScreenshotUtils {
       await page.screenshot({
         path: screenshotPath,
         clip: paddedBox,
-        type: 'png',
+        type: "png",
       });
 
       console.log(`Screenshot saved: ${screenshotPath}`);
       return screenshotPath;
-
     } catch (error) {
       console.error(`Failed to capture element ${selector}:`, error);
 
       // Fallback to full page screenshot
-      console.log('Falling back to full page screenshot');
+      console.log("Falling back to full page screenshot");
       return this.captureFullPage(page, `${name}-fullpage`);
     }
   }
@@ -78,7 +78,7 @@ export class ScreenshotUtils {
     await page.screenshot({
       path: screenshotPath,
       fullPage: true,
-      type: 'png',
+      type: "png",
     });
 
     console.log(`Full page screenshot saved: ${screenshotPath}`);
@@ -90,7 +90,7 @@ export class ScreenshotUtils {
 
     await page.screenshot({
       path: screenshotPath,
-      type: 'png',
+      type: "png",
     });
 
     console.log(`Viewport screenshot saved: ${screenshotPath}`);
@@ -101,9 +101,9 @@ export class ScreenshotUtils {
     page: Page,
     selectors: string[],
     name: string,
-    options: { spacing?: number; direction?: 'vertical' | 'horizontal' } = {}
+    options: { spacing?: number; direction?: "vertical" | "horizontal" } = {},
   ): Promise<string> {
-    const { spacing = 20, direction = 'vertical' } = options;
+    const { spacing = 20, direction = "vertical" } = options;
     const elementImages: Buffer[] = [];
     let maxWidth = 0;
     let maxHeight = 0;
@@ -112,6 +112,7 @@ export class ScreenshotUtils {
 
     for (let i = 0; i < selectors.length; i++) {
       const selector = selectors[i];
+      if (!selector) continue;
       try {
         await page.waitForSelector(selector, { timeout: 3000 });
         const element = page.locator(selector).first();
@@ -120,14 +121,15 @@ export class ScreenshotUtils {
         if (box) {
           const screenshot = await page.screenshot({
             clip: box,
-            type: 'png',
+            type: "png",
           });
 
           elementImages.push(Buffer.from(screenshot));
 
-          if (direction === 'vertical') {
+          if (direction === "vertical") {
             maxWidth = Math.max(maxWidth, box.width);
-            totalHeight += box.height + (i < selectors.length - 1 ? spacing : 0);
+            totalHeight +=
+              box.height + (i < selectors.length - 1 ? spacing : 0);
           } else {
             maxHeight = Math.max(maxHeight, box.height);
             totalWidth += box.width + (i < selectors.length - 1 ? spacing : 0);
@@ -139,16 +141,28 @@ export class ScreenshotUtils {
     }
 
     if (elementImages.length === 0) {
-      throw new Error('No elements captured');
+      throw new Error("No elements captured");
     }
 
     // Create composite image
     const compositePath = this.getScreenshotPath(name);
 
-    if (direction === 'vertical') {
-      await this.createVerticalComposite(elementImages, maxWidth, totalHeight, spacing, compositePath);
+    if (direction === "vertical") {
+      await this.createVerticalComposite(
+        elementImages,
+        maxWidth,
+        totalHeight,
+        spacing,
+        compositePath,
+      );
     } else {
-      await this.createHorizontalComposite(elementImages, totalWidth, maxHeight, spacing, compositePath);
+      await this.createHorizontalComposite(
+        elementImages,
+        totalWidth,
+        maxHeight,
+        spacing,
+        compositePath,
+      );
     }
 
     return compositePath;
@@ -159,15 +173,15 @@ export class ScreenshotUtils {
     width: number,
     totalHeight: number,
     spacing: number,
-    outputPath: string
+    outputPath: string,
   ): Promise<void> {
     const composite = sharp({
       create: {
         width,
         height: totalHeight,
         channels: 4,
-        background: { r: 0, g: 0, b: 0, alpha: 0 }
-      }
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
     });
 
     // Compute metadata for all images first
@@ -175,18 +189,16 @@ export class ScreenshotUtils {
       images.map(async (imageBuffer) => {
         const metadata = await sharp(imageBuffer).metadata();
         return { imageBuffer, metadata };
-      })
+      }),
     );
 
     let y = 0;
     const operations = imageMetadata.map(({ imageBuffer, metadata }, index) => {
-      const newHeight = Math.round(width * metadata.height! / metadata.width!);
-      const operation = sharp(imageBuffer)
-        .resize(width, newHeight)
-        .toBuffer();
+      const newHeight = Math.round((width * metadata.height) / metadata.width);
+      const operation = sharp(imageBuffer).resize(width, newHeight).toBuffer();
 
       const currentY = y;
-      y += metadata.height! + (index < images.length - 1 ? spacing : 0);
+      y += metadata.height + (index < images.length - 1 ? spacing : 0);
 
       return { operation, x: 0, y: currentY };
     });
@@ -196,7 +208,7 @@ export class ScreenshotUtils {
         input: await op.operation,
         left: op.x,
         top: op.y,
-      }))
+      })),
     );
 
     await composite.composite(resolvedOperations).toFile(outputPath);
@@ -207,15 +219,15 @@ export class ScreenshotUtils {
     totalWidth: number,
     height: number,
     spacing: number,
-    outputPath: string
+    outputPath: string,
   ): Promise<void> {
     const composite = sharp({
       create: {
         width: totalWidth,
         height,
         channels: 4,
-        background: { r: 0, g: 0, b: 0, alpha: 0 }
-      }
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
     });
 
     // Compute metadata for all images first
@@ -223,18 +235,16 @@ export class ScreenshotUtils {
       images.map(async (imageBuffer) => {
         const metadata = await sharp(imageBuffer).metadata();
         return { imageBuffer, metadata };
-      })
+      }),
     );
 
     let x = 0;
     const operations = imageMetadata.map(({ imageBuffer, metadata }, index) => {
-      const newWidth = Math.round(height * metadata.width! / metadata.height!);
-      const operation = sharp(imageBuffer)
-        .resize(newWidth, height)
-        .toBuffer();
+      const newWidth = Math.round((height * metadata.width) / metadata.height);
+      const operation = sharp(imageBuffer).resize(newWidth, height).toBuffer();
 
       const currentX = x;
-      x += metadata.width! + (index < images.length - 1 ? spacing : 0);
+      x += metadata.width + (index < images.length - 1 ? spacing : 0);
 
       return { operation, x: currentX, y: 0 };
     });
@@ -244,7 +254,7 @@ export class ScreenshotUtils {
         input: await op.operation,
         left: op.x,
         top: op.y,
-      }))
+      })),
     );
 
     await composite.composite(resolvedOperations).toFile(outputPath);
@@ -252,9 +262,9 @@ export class ScreenshotUtils {
 
   async addBranding(
     screenshotPath: string,
-    options: { watermark?: string; logoPath?: string } = {}
+    options: { watermark?: string; logoPath?: string } = {},
   ): Promise<string> {
-    const { watermark = 'via Billion App', logoPath } = options;
+    const { watermark = "via Billion App", logoPath } = options;
 
     const image = sharp(screenshotPath);
     const metadata = await image.metadata();
@@ -274,7 +284,7 @@ export class ScreenshotUtils {
       </svg>
     `;
 
-    const brandedPath = screenshotPath.replace('.png', '-branded.png');
+    const brandedPath = screenshotPath.replace(".png", "-branded.png");
 
     await image
       .composite([
@@ -290,8 +300,8 @@ export class ScreenshotUtils {
   }
 
   private getScreenshotPath(name: string): string {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const safeName = name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const safeName = name.replace(/[^a-z0-9]/gi, "-").toLowerCase();
     const filename = `${timestamp}-${safeName}.png`;
     return path.join(this.screenshotsDir, filename);
   }

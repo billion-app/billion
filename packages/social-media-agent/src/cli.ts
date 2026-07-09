@@ -1,30 +1,42 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
-import { SocialMediaAgent } from './agent';
-import { generateInstagramPosts } from './instagram-generator';
-import { findLatestInstagramPostJson, postInstagramFolders, testInstagramPosting, verifyInstagramLogin } from './instagram-poster';
-import * as path from 'path';
+import { Command } from "commander";
+
+import { SocialMediaAgent } from "./agent";
+import { generateInstagramPosts } from "./instagram-generator";
+import {
+  findLatestInstagramPostJson,
+  postInstagramFolders,
+  testInstagramPosting,
+  verifyInstagramLogin,
+} from "./instagram-poster";
+import { resolvePackagePath } from "./paths";
 
 const program = new Command();
 
 program
-  .name('social-agent')
-  .description('Social media agent for Billion news app')
-  .version('1.0.0');
+  .name("social-agent")
+  .description("Social media agent for Billion news app")
+  .version("1.0.0");
 
 program
-  .command('instagram')
-  .description('Generate Instagram-ready post folders under instagram-posts/')
-  .option('--category <type>', 'Category to capture: browse, feed, article, all', 'all')
-  .option('--count <number>', 'Number of browse/feed items to capture', '3')
-  .option('--article-id <id>', 'Article ID for article category')
-  .option('--post', 'Post the generated folders to Instagram')
-  .option('--headless', 'Run browser in headless mode', true)
-  .option('--no-headless', 'Show browser window')
+  .command("instagram")
+  .description("Generate Instagram-ready post folders under instagram-posts/")
+  .option(
+    "--category <type>",
+    "Category to capture: browse, feed, article, all",
+    "all",
+  )
+  .option("--count <number>", "Number of browse/feed items to capture", "3")
+  .option("--article-id <id>", "Article ID for article category")
+  .option("--post", "Post the generated folders to Instagram")
+  .option("--headless", "Run browser in headless mode", true)
+  .option("--no-headless", "Show browser window")
   .action(async (options) => {
-    const validCategories = ['browse', 'feed', 'article', 'all'];
+    const validCategories = ["browse", "feed", "article", "all"];
     if (!validCategories.includes(options.category)) {
-      console.error(`Invalid category: ${options.category}. Must be one of: ${validCategories.join(', ')}`);
+      console.error(
+        `Invalid category: ${options.category}. Must be one of: ${validCategories.join(", ")}`,
+      );
       process.exit(1);
     }
 
@@ -36,7 +48,7 @@ program
         headless: options.headless,
       });
 
-      console.log('\n=== Instagram Posts ===');
+      console.log("\n=== Instagram Posts ===");
       results.forEach((result, index) => {
         console.log(`${index + 1}. ${result.title}`);
         console.log(`   Folder: ${result.folderPath}`);
@@ -49,38 +61,46 @@ program
           postJsonPaths: results.map((result) => result.jsonPath),
           headless: options.headless,
         });
-        console.log('\nPosted generated folders to Instagram.');
+        console.log("\nPosted generated folders to Instagram.");
       }
     } catch (error) {
-      console.error('Error generating Instagram posts:', error);
+      console.error("Error generating Instagram posts:", error);
       process.exit(1);
     }
   });
 
 program
-  .command('run')
-  .description('Run the social media agent')
-  .option('--screen <type>', 'Screen to capture: browse, feed, article-detail', 'browse')
-  .option('--count <number>', 'Number of items to capture', '3')
-  .option('--article-id <id>', 'Article ID for article-detail screen')
-  .option('--output <dir>', 'Output directory for screenshots', 'screenshots')
-  .option('--headless', 'Run browser in headless mode', true)
-  .option('--no-headless', 'Show browser window')
-  .option('--no-gemini', 'Skip Gemini caption generation')
+  .command("run")
+  .description("Run the social media agent")
+  .option(
+    "--screen <type>",
+    "Screen to capture: browse, feed, article-detail",
+    "browse",
+  )
+  .option("--count <number>", "Number of items to capture", "3")
+  .option("--article-id <id>", "Article ID for article-detail screen")
+  .option("--output <dir>", "Output directory for screenshots", "screenshots")
+  .option("--headless", "Run browser in headless mode", true)
+  .option("--no-headless", "Show browser window")
+  .option("--no-gemini", "Skip Gemini caption generation")
   .action(async (options) => {
-    console.log('Starting social media agent...');
-    console.log('Options:', options);
+    console.log("Starting social media agent...");
+    console.log("Options:", options);
 
     // Validate screen type
-    const validScreens = ['browse', 'feed', 'article-detail'];
+    const validScreens = ["browse", "feed", "article-detail"];
     if (!validScreens.includes(options.screen)) {
-      console.error(`Invalid screen type: ${options.screen}. Must be one of: ${validScreens.join(', ')}`);
+      console.error(
+        `Invalid screen type: ${options.screen}. Must be one of: ${validScreens.join(", ")}`,
+      );
       process.exit(1);
     }
 
     // Validate article ID for article-detail screen
-    if (options.screen === 'article-detail' && !options.articleId) {
-      console.error('Article ID is required for article-detail screen. Use --article-id <id>');
+    if (options.screen === "article-detail" && !options.articleId) {
+      console.error(
+        "Article ID is required for article-detail screen. Use --article-id <id>",
+      );
       process.exit(1);
     }
 
@@ -88,34 +108,37 @@ program
       headless: options.headless,
       screenshotsDir: options.output,
       geminiApiKey: options.gemini ? process.env.GEMINI_API_KEY : undefined,
-      baseURL: process.env.BASE_URL || 'http://localhost:8081',
+      baseURL: process.env.BASE_URL,
     });
 
     try {
       await agent.initialize();
 
       // Navigate to target screen
-      if (options.screen === 'article-detail') {
-        await agent.navigateTo('article-detail', options.articleId);
+      if (options.screen === "article-detail") {
+        await agent.navigateTo("article-detail", options.articleId);
       } else {
         await agent.navigateTo(options.screen);
       }
 
       const screenshotResults = [];
 
-      if (options.screen === 'browse') {
+      if (options.screen === "browse") {
         // Extract content from browse screen
-        const contentItems = await agent.extractContentFromBrowse(parseInt(options.count));
+        const contentItems = await agent.extractContentFromBrowse(
+          parseInt(options.count),
+        );
         console.log(`Found ${contentItems.length} content items`);
 
         // Take screenshots of each content card
         for (let i = 0; i < contentItems.length; i++) {
           const item = contentItems[i];
+          if (!item) continue;
           console.log(`Processing item ${i + 1}: ${item.title}`);
 
           const screenshot = await agent.takeScreenshot(
             `[data-testid="content-card"] >> nth=${i}`,
-            `browse-item-${i + 1}`
+            `browse-item-${i + 1}`,
           );
 
           // Add metadata
@@ -126,51 +149,65 @@ program
 
           // Generate caption if Gemini is enabled
           if (options.gemini) {
-            screenshot.caption = await agent.generateSocialPost(item, screenshot.path);
-            console.log(`Generated caption: ${screenshot.caption.substring(0, 100)}...`);
+            screenshot.caption = await agent.generateSocialPost(
+              item,
+              screenshot.path,
+            );
+            console.log(
+              `Generated caption: ${screenshot.caption.substring(0, 100)}...`,
+            );
           }
 
           screenshotResults.push(screenshot);
         }
-
-      } else if (options.screen === 'feed') {
+      } else if (options.screen === "feed") {
         // Extract content from feed
-        const contentItems = await agent.extractContentFromFeed(parseInt(options.count));
+        const contentItems = await agent.extractContentFromFeed(
+          parseInt(options.count),
+        );
         console.log(`Found ${contentItems.length} feed items`);
 
         // Take full page screenshots for each feed item (since feed is vertical paging)
         for (let i = 0; i < contentItems.length; i++) {
           const item = contentItems[i];
+          if (!item) continue;
           console.log(`Processing feed item ${i + 1}: ${item.title}`);
 
-          const screenshot = await agent.takeFullPageScreenshot(`feed-item-${i + 1}`);
+          await agent.scrollFeedTo(i);
+          const screenshot = await agent.takeViewportScreenshot(
+            `feed-item-${i + 1}`,
+          );
           screenshot.metadata.title = item.title;
           screenshot.metadata.description = item.description;
           screenshot.metadata.type = item.type;
 
           if (options.gemini) {
-            screenshot.caption = await agent.generateSocialPost(item, screenshot.path);
-            console.log(`Generated caption: ${screenshot.caption.substring(0, 100)}...`);
+            screenshot.caption = await agent.generateSocialPost(
+              item,
+              screenshot.path,
+            );
+            console.log(
+              `Generated caption: ${screenshot.caption.substring(0, 100)}...`,
+            );
           }
 
           screenshotResults.push(screenshot);
 
           // Scroll to next item if not last
           if (i < contentItems.length - 1) {
-            console.log('Scrolling to next feed item...');
+            console.log("Scrolling to next feed item...");
             // Implementation depends on feed scrolling logic
           }
         }
-
-      } else if (options.screen === 'article-detail') {
+      } else if (options.screen === "article-detail") {
         // Extract article detail
         const articleDetail = await agent.extractArticleDetail();
         console.log(`Processing article: ${articleDetail.title}`);
 
         // Take screenshot of article header
         const headerScreenshot = await agent.takeScreenshot(
-          '.articleTitle',
-          'article-header'
+          ".articleTitle",
+          "article-header",
         );
         headerScreenshot.metadata.title = articleDetail.title;
         headerScreenshot.metadata.description = articleDetail.description;
@@ -179,8 +216,8 @@ program
 
         // Take screenshot of article content
         const contentScreenshot = await agent.takeScreenshot(
-          '.content',
-          'article-content'
+          ".content",
+          "article-content",
         );
 
         // Take screenshot of original content (switch tab)
@@ -194,8 +231,13 @@ program
             description: articleDetail.description,
             type: articleDetail.type,
           };
-          headerScreenshot.caption = await agent.generateSocialPost(contentItem, headerScreenshot.path);
-          console.log(`Generated caption: ${headerScreenshot.caption.substring(0, 100)}...`);
+          headerScreenshot.caption = await agent.generateSocialPost(
+            contentItem,
+            headerScreenshot.path,
+          );
+          console.log(
+            `Generated caption: ${headerScreenshot.caption.substring(0, 100)}...`,
+          );
         }
 
         screenshotResults.push(headerScreenshot, contentScreenshot);
@@ -204,24 +246,25 @@ program
       // Save metadata
       await agent.saveMetadata(screenshotResults);
 
-      console.log('\n=== Summary ===');
+      console.log("\n=== Summary ===");
       console.log(`Screenshots saved: ${screenshotResults.length}`);
-      console.log(`Output directory: ${path.resolve(options.output)}`);
+      console.log(
+        `Output directory: ${resolvePackagePath(options.output, "screenshots")}`,
+      );
 
       // Print captions if generated
       if (options.gemini) {
-        console.log('\n=== Generated Captions ===');
+        console.log("\n=== Generated Captions ===");
         screenshotResults.forEach((result, i) => {
           if (result.caption) {
             console.log(`\n${i + 1}. ${result.name}:`);
             console.log(result.caption);
-            console.log('---');
+            console.log("---");
           }
         });
       }
-
     } catch (error) {
-      console.error('Error running agent:', error);
+      console.error("Error running agent:", error);
       process.exit(1);
     } finally {
       await agent.close();
@@ -229,13 +272,22 @@ program
   });
 
 program
-  .command('instagram-test')
-  .description('Test Instagram login or post using an existing instagram-posts folder')
-  .option('--json <path>', 'Path to a post.json file. Defaults to the newest folder in instagram-posts/')
-  .option('--login-only', 'Only test Instagram login')
-  .option('--pause-ms <number>', 'Pause before closing the browser after the test flow', '0')
-  .option('--headless', 'Run browser in headless mode', true)
-  .option('--no-headless', 'Show browser window')
+  .command("instagram-test")
+  .description(
+    "Test Instagram login or post using an existing instagram-posts folder",
+  )
+  .option(
+    "--json <path>",
+    "Path to a post.json file. Defaults to the newest folder in instagram-posts/",
+  )
+  .option("--login-only", "Only test Instagram login")
+  .option(
+    "--pause-ms <number>",
+    "Pause before closing the browser after the test flow",
+    "0",
+  )
+  .option("--headless", "Run browser in headless mode", true)
+  .option("--no-headless", "Show browser window")
   .action(async (options) => {
     try {
       if (options.loginOnly) {
@@ -249,28 +301,28 @@ program
         });
       }
     } catch (error) {
-      console.error('Error testing Instagram flow:', error);
+      console.error("Error testing Instagram flow:", error);
       process.exit(1);
     }
   });
 
 program
-  .command('test')
-  .description('Test the agent with a simple navigation')
+  .command("test")
+  .description("Test the agent with a simple navigation")
   .action(async () => {
-    console.log('Testing agent...');
+    console.log("Testing agent...");
     const agent = new SocialMediaAgent({
       headless: true,
-      baseURL: process.env.BASE_URL || 'http://localhost:8081',
+      baseURL: process.env.BASE_URL,
     });
 
     try {
       await agent.initialize();
-      await agent.navigateTo('browse');
-      console.log('Successfully navigated to browse screen');
+      await agent.navigateTo("browse");
+      console.log("Successfully navigated to browse screen");
 
       // Take a full page screenshot
-      const screenshot = await agent.takeFullPageScreenshot('test-browse');
+      const screenshot = await agent.takeFullPageScreenshot("test-browse");
       console.log(`Test screenshot saved: ${screenshot.path}`);
 
       // Extract some content
@@ -278,25 +330,26 @@ program
       console.log(`Extracted ${contentItems.length} content items`);
 
       if (contentItems.length > 0) {
-        console.log('First item:', contentItems[0]);
+        console.log("First item:", contentItems[0]);
       }
-
     } catch (error) {
-      console.error('Test failed:', error);
+      console.error("Test failed:", error);
     } finally {
       await agent.close();
     }
   });
 
 program
-  .command('list-screens')
-  .description('List available screens in the app')
+  .command("list-screens")
+  .description("List available screens in the app")
   .action(() => {
-    console.log('Available screens:');
-    console.log('- browse: Browse content cards with filtering');
-    console.log('- feed: Vertical video feed with article previews');
-    console.log('- article-detail: Article detail with Article/Original tabs');
-    console.log('\nUse --screen <name> to target a specific screen.');
+    console.log("Available screens:");
+    console.log("- browse: Browse content cards with filtering");
+    console.log("- feed: Vertical video feed with article previews");
+    console.log(
+      "- article-detail: Article detail with Plain explainer/Original text tabs",
+    );
+    console.log("\nUse --screen <name> to target a specific screen.");
   });
 
 program.parse();

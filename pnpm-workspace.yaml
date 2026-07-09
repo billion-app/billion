@@ -2,7 +2,6 @@ packages:
   - apps/*
   - packages/*
   - tooling/*
-  - social-media-agent
 
 catalog:
   "@clack/prompts": 1.7.0
