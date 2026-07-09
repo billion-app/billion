@@ -8,6 +8,7 @@ import { setExpectedTotal } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
+import { createNewItemLimiter } from "../utils/new-item-limit.js";
 
 const BASE_URL = "https://api.congress.gov/v3";
 const NAME = "congress";
@@ -273,6 +274,7 @@ async function scrape(config: CongressScraperConfig = {}) {
   setExpectedTotal(bills.length);
 
   const limit = getItemLimit();
+  const newItemLimiter = createNewItemLimiter();
   await Promise.allSettled(
     bills.map((item) =>
       limit(async () => {
@@ -312,24 +314,27 @@ async function scrape(config: CongressScraperConfig = {}) {
           const fullText = await fetchFullText(congress, billType, billNumber);
           const actions = await fetchActions(congress, billType, billNumber);
 
-          await upsertContent({
-            type: "bill",
-            data: {
-              billNumber: formattedBillNumber,
-              title,
-              description: summary,
-              sponsor,
-              status,
-              introducedDate,
-              congress,
-              chamber: chamberValue,
-              summary,
-              fullText,
-              actions,
-              url: billUrl,
-              sourceWebsite: "congress.gov",
+          await upsertContent(
+            {
+              type: "bill",
+              data: {
+                billNumber: formattedBillNumber,
+                title,
+                description: summary,
+                sponsor,
+                status,
+                introducedDate,
+                congress,
+                chamber: chamberValue,
+                summary,
+                fullText,
+                actions,
+                url: billUrl,
+                sourceWebsite: "congress.gov",
+              },
             },
-          });
+            { newItemLimiter },
+          );
 
           logger.success(`Processed: ${formattedBillNumber} — ${title}`);
         } catch (error) {

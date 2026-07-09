@@ -6,6 +6,7 @@ import { setExpectedTotal } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
+import { createNewItemLimiter } from "../utils/new-item-limit.js";
 
 const NAME = "Federal Register";
 const FR_BASE = "https://www.federalregister.gov/api/v1";
@@ -91,6 +92,7 @@ async function scrape() {
   setExpectedTotal(documents.length);
 
   const limit = getItemLimit();
+  const newItemLimiter = createNewItemLimiter();
   await Promise.allSettled(
     documents.map((doc) =>
       limit(async () => {
@@ -104,18 +106,21 @@ async function scrape() {
             ? new Date(doc.publication_date)
             : new Date();
 
-          await upsertContent({
-            type: "government_content",
-            data: {
-              title: doc.title,
-              type: contentType,
-              publishedDate,
-              description: fullText ? undefined : (doc.abstract ?? undefined),
-              fullText,
-              url: doc.html_url,
-              source: "federalregister.gov",
+          await upsertContent(
+            {
+              type: "government_content",
+              data: {
+                title: doc.title,
+                type: contentType,
+                publishedDate,
+                description: fullText ? undefined : (doc.abstract ?? undefined),
+                fullText,
+                url: doc.html_url,
+                source: "federalregister.gov",
+              },
             },
-          });
+            { newItemLimiter },
+          );
 
           logger.success(`Scraped ${contentType}: ${doc.title}`);
         } catch (error) {
