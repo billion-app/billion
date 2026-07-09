@@ -4,23 +4,11 @@ Welcome to the codebase. See below for development set-up instructions. See [Man
 
 ## Quick Start
 
-> These instructions were originally copy-pasted from https://github.com/t3-oss/create-t3-turbo (which this project is scaffolded from). I've modified it to get rid of the bs that we don't use. For example, I've commented out all of the original auth instructions cuz we're not using that for now.
-
-> Anything in blockquotes without admonitions (like this one you're reading) is additional commentary I added
-
-### If already set up
-
-```
-pnpm run dev
-```
-
-> And go to the `@acme/ios` tab in that TUI and follow Expo's instructions (press `i`, typically)
-
-### Otherwise...
-
 Run the contributor onboarding assistant from the repository root:
 
 ```bash
+git clone https://github.com/billion-app/billion.git
+cd billion
 pnpm onboard
 ```
 
@@ -29,28 +17,20 @@ the schema, and optionally prepares the Expo native projects. See
 [CONTRIBUTING.md](./CONTRIBUTING.md) for the exact steps and non-interactive
 flags.
 
-<!--
 
-> **Note**
-> The [db](./packages/db) package is preconfigured to use Supabase and is **edge-bound** with the [Vercel Postgres](https://github.com/vercel/storage/tree/main/packages/postgres) driver. If you're using something else, make the necessary modifications to the [schema](./packages/db/src/schema.ts) as well as the [client](./packages/db/src/index.ts) and the [drizzle config](./packages/db/drizzle.config.ts). If you want to switch to non-edge database driver, remove `export const runtime = "edge";` [from all pages and api routes](https://github.com/t3-oss/create-t3-turbo/issues/634#issuecomment-1730240214).
+### If already set up...
 
--->
+#### Running the Expo app (`apps/expo`)
 
-To get it running, follow the steps below:
+This sets up Expo and Next.js (Next.js is necessary to run the Expo app)
 
-### Website (`apps/nextjs`)
-
-### 1. Setup dependencies
-
-```bash
-git clone https://github.com/ThatXliner/billion.git
-cd billion
-
-# Interactive, idempotent setup
-pnpm onboard
+```
+pnpm run dev
 ```
 
-**Start the dev server:**
+And go to the `@acme/ios` tab in that TUI and follow Expo's instructions (press `i`, typically)
+
+#### Running the website (`apps/nextjs`)
 
 ```bash
 pnpm dev:next
@@ -58,7 +38,18 @@ pnpm dev:next
 
 Opens at `http://localhost:3000`. This runs Next.js + all dependency packages (api, auth, db, ui, validators) via Turborepo.
 
-> **Windows note:** use `pnpm dev:next` instead of `pnpm dev`. The root `dev` script has a single-quoted filter (`--filter='!@acme/scraper'`) that PowerShell and Git Bash mangle. `dev:next` avoids the filter entirely.
+#### Running the scrapers (`apps/scraper`)
+
+```bash
+cd apps/scrapers && pnpm dev
+```
+
+Make sure you have the relevant environment variables set up
+
+---
+
+If anything goes wrong, continue reading to see the old, manual set up instructions:
+
 
 **Requirements:**
 
