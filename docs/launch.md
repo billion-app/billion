@@ -1,10 +1,10 @@
 # Launch and Environment Configuration
 
 This is the operating guide for configuration across the monorepo. The typed
-registry in `packages/env/src/registry.ts` is the machine-readable source of
-truth: it drives setup prompts, the doctor, generated templates, shared Zod
-schemas, and scraper fail-fast validation. `.env.example` is generated from
-that registry and contains no real secrets.
+registry in `packages/env/src/registry.ts` owns variable metadata and Zod
+schemas; adjacent scraper `*.config.ts` files own each scraper's requirements.
+Together they drive setup prompts, the doctor, generated templates, and
+fail-fast validation. `.env.example` is generated and contains no real secrets.
 
 ## Environment commands
 
@@ -15,6 +15,9 @@ belonging to the selected app surface.
 ```bash
 # Guided setup, including why each value exists and where to obtain it
 pnpm env:setup
+
+# Walk every app surface; contributor onboarding uses this comprehensive mode
+pnpm env:setup --target all
 
 # Configure only one scraper's file
 pnpm env:setup --target scraper --scraper congress --file .env.scraper.local
@@ -115,6 +118,13 @@ container can use a direct connection when IPv6 is available or session mode
 (`:5432`) when it is not. The current Drizzle migration config converts a
 `:6543` pooler URL to `:5432` for schema operations.
 
+If a provider gives you a URL with a password placeholder, replace the
+placeholder with `encodeURIComponent(password)`, not the raw password and not an
+encoded copy of the whole URL. For example, password `p@ss/word#1` becomes
+`p%40ss%2Fword%231` inside the URL. Characters such as `@`, `/`, `#`, `?`, `%`,
+and `:` can otherwise be interpreted as URL structure. A complete connection
+string copied from the provider is normally already safe to paste.
+
 ### Email behavior
 
 | Variable                         | Requirement | Used for                                                       | Default / missing behavior                                                                                                                                                    | Where to get it                                                                                                                  |
@@ -172,38 +182,54 @@ bundle. It must contain only the public API origin, never an API key or secret.
 ## Scraper and scheduled data jobs
 
 The registered CLI scrapers are `federalregister`, `congress`, `scotus`,
-`vote411`, `scc-cvig`, `ca-sos-statements`, `ca-lao-fiscal`, and
-`ca-vig-archive`.
+`scc-cvig`, and `ca-sos-statements`. The VOTE411, LAO cache, and VIG archive
+implementations are retained under `scrapers/disabled` but are not runnable or
+scheduled because the app does not consume their output.
 
 ### Shared scraper variables
 
-| Variable                       | Requirement                      | Used for                                                                                   | Missing behavior                                                                                                                                  | Where to get it                                                                                                                                         |
-| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DEEPSEEK_API_KEY`             | Required for content enrichment  | Shared `deepseek-v4-flash` provider for articles, summaries, image keywords, and feed copy | Environment validation fails before `federalregister`, `congress`, or `scotus` starts. Cache-only civic scrapers and `vote411` do not require it. | [DeepSeek API platform](https://platform.deepseek.com/api_keys).                                                                                        |
-| `POSTGRES_URL`                 | Required for DB-writing scrapers | Raw content, civic cache, AI fields, and feed rows                                         | Zod validation fails before a DB-writing scraper starts. `vote411` is the exception.                                                              | Supabase dashboard → **Connect**.                                                                                                                       |
-| `BFL_API_KEY`                  | Recommended                      | FLUX-generated feed-card images for content scrapers                                       | Image generation logs an error and returns `null`; raw content, AI text, and any Google thumbnail can still persist.                              | Create a key under API → Keys in the [BFL dashboard](https://dashboard.bfl.ai); see the [BFL quick start](https://docs.bfl.ai/quick_start/get_started). |
-| `BFL_MODEL`                    | Optional                         | Selects the BFL image model                                                                | Defaults to `flux-2-pro`. Only change this to a model endpoint supported by the current request payload.                                          | [BFL model documentation](https://docs.bfl.ai/).                                                                                                        |
-| `GOOGLE_API_KEY`               | Optional pair                    | Google Custom Search image thumbnails                                                      | Image search is skipped unless both Google variables are present. This key is also a Places fallback in the API.                                  | Create a restricted server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials) and enable Custom Search JSON API.      |
-| `GOOGLE_SEARCH_ENGINE_ID`      | Optional pair                    | Programmable Search Engine identifier (`cx`)                                               | Image search is skipped unless both Google variables are present.                                                                                 | Create a search engine in [Programmable Search Engine](https://programmablesearchengine.google.com/).                                                   |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Optional                         | Gemini vision fallback for PDF candidate statements                                        | `scc-cvig` uses text-layer PDF extraction only and skips the vision fallback.                                                                     | Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey).                                                                             |
-| `SCRAPER_FORCE_AI_REGEN`       | Optional operational flag        | Forces AI field regeneration for unchanged rows                                            | Default is off. Set exactly `1` for a deliberate backfill; it can incur substantial API cost.                                                     | Set manually for one controlled job.                                                                                                                    |
+| Variable                       | Requirement                      | Used for                                                                                   | Missing behavior                                                                                                                    | Where to get it                                                                                                                                         |
+| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEEPSEEK_API_KEY`             | Required for content enrichment  | Shared `deepseek-v4-flash` provider for articles, summaries, image keywords, and feed copy | Environment validation fails before `federalregister`, `congress`, or `scotus` starts. Cache-only civic scrapers do not require it. | [DeepSeek API platform](https://platform.deepseek.com/api_keys).                                                                                        |
+| `POSTGRES_URL`                 | Required for all active scrapers | Raw content, civic cache, AI fields, and feed rows                                         | Zod validation fails before a scraper starts.                                                                                       | Copy a provider connection string. When substituting credentials yourself, percent-encode only the username/password components, not the whole URL.     |
+| `BFL_API_KEY`                  | Recommended                      | FLUX-generated feed-card images for content scrapers                                       | Image generation logs an error and returns `null`; raw content, AI text, and any Google thumbnail can still persist.                | Create a key under API → Keys in the [BFL dashboard](https://dashboard.bfl.ai); see the [BFL quick start](https://docs.bfl.ai/quick_start/get_started). |
+| `BFL_MODEL`                    | Optional                         | Selects the BFL image model                                                                | Defaults to `flux-2-pro`. Only change this to a model endpoint supported by the current request payload.                            | [BFL model documentation](https://docs.bfl.ai/).                                                                                                        |
+| `GOOGLE_API_KEY`               | Optional pair                    | Google Custom Search image thumbnails                                                      | Image search is skipped unless both Google variables are present. This key is also a Places fallback in the API.                    | Create a restricted server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials) and enable Custom Search JSON API.      |
+| `GOOGLE_SEARCH_ENGINE_ID`      | Optional pair                    | Programmable Search Engine identifier (`cx`)                                               | Image search is skipped unless both Google variables are present.                                                                   | Create a search engine in [Programmable Search Engine](https://programmablesearchengine.google.com/).                                                   |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Optional                         | Gemini vision fallback for PDF candidate statements                                        | `scc-cvig` uses text-layer PDF extraction only and skips the vision fallback.                                                       | Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey).                                                                             |
+| `SCRAPER_FORCE_AI_REGEN`       | Optional operational flag        | Forces AI field regeneration for unchanged rows                                            | Default is off. Set exactly `1` for a deliberate backfill; it can incur substantial API cost.                                       | Set manually for one controlled job.                                                                                                                    |
 
 ### Per-scraper requirements
 
-Required variables are declared centrally in `@acme/env` and checked with Zod
-before network or database work begins. An `all` run validates the union of the
-eight registered scrapers' requirements.
+Each scraper owns a lightweight adjacent `*.config.ts` declaration containing
+its source and environment requirements. Both `env:setup` and runtime Zod
+validation consume those declarations. An `all` run validates their union.
 
-| CLI name            | Required variables                                     | Optional source/enrichment variables                             | Notes                                                                                                                                                  |
-| ------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `federalregister`   | `POSTGRES_URL`, `DEEPSEEK_API_KEY`                     | `BFL_API_KEY`; `GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`      | Uses the keyless Federal Register API.                                                                                                                 |
-| `congress`          | `POSTGRES_URL`, `DEEPSEEK_API_KEY`, `CONGRESS_API_KEY` | `BFL_API_KEY`; Google image-search pair                          | Get a free Congress key from [Congress.gov API signup](https://api.congress.gov/sign-up/).                                                             |
-| `scotus`            | `POSTGRES_URL`, `DEEPSEEK_API_KEY`                     | `COURTLISTENER_API_KEY`, `BFL_API_KEY`; Google image-search pair | Runs anonymously at lower CourtListener rate limits when its token is absent.                                                                          |
-| `vote411`           | None                                                   | None                                                             | Writes under `.cache/vote411`, not Postgres. The Playwright address lookup is not registered. Review VOTE411 usage terms before production automation. |
-| `scc-cvig`          | `POSTGRES_URL`                                         | `GOOGLE_GENERATIVE_AI_API_KEY`                                   | Text-layer PDF extraction still runs; Gemini is only a fallback.                                                                                       |
-| `ca-sos-statements` | `POSTGRES_URL`                                         | None                                                             | Uses public California SOS voter-guide pages.                                                                                                          |
-| `ca-lao-fiscal`     | `POSTGRES_URL`                                         | None                                                             | Uses public LAO proposition analysis pages.                                                                                                            |
-| `ca-vig-archive`    | `POSTGRES_URL`                                         | None                                                             | Uses public archived California voter guides.                                                                                                          |
+| CLI name            | Required variables                                     | Optional source/enrichment variables                             | Notes                                                                                      |
+| ------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `federalregister`   | `POSTGRES_URL`, `DEEPSEEK_API_KEY`                     | `BFL_API_KEY`; `GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`      | Uses the keyless Federal Register API.                                                     |
+| `congress`          | `POSTGRES_URL`, `DEEPSEEK_API_KEY`, `CONGRESS_API_KEY` | `BFL_API_KEY`; Google image-search pair                          | Get a free Congress key from [Congress.gov API signup](https://api.congress.gov/sign-up/). |
+| `scotus`            | `POSTGRES_URL`, `DEEPSEEK_API_KEY`                     | `COURTLISTENER_API_KEY`, `BFL_API_KEY`; Google image-search pair | Runs anonymously at lower CourtListener rate limits when its token is absent.              |
+| `scc-cvig`          | `POSTGRES_URL`                                         | `GOOGLE_GENERATIVE_AI_API_KEY`                                   | Text-layer PDF extraction still runs; Gemini is only a fallback.                           |
+| `ca-sos-statements` | `POSTGRES_URL`                                         | None                                                             | Uses public California SOS voter-guide pages.                                              |
+
+### Per-run source limits
+
+Use `--max-items 10` for a one-off override, or configure the scraper-specific
+variable below. A once-daily schedule makes a per-run limit an effective daily
+limit; retries and additional invocations each receive a fresh allowance.
+
+| Variable                        | Default | Unit                                |
+| ------------------------------- | ------: | ----------------------------------- |
+| `FEDERALREGISTER_MAX_ITEMS`     |      20 | Federal Register documents          |
+| `CONGRESS_MAX_ITEMS`            |     100 | Congress.gov bills                  |
+| `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters      |
+| `SCC_CVIG_MAX_ITEMS`            |      10 | Santa Clara voter-guide PDFs        |
+| `CA_SOS_MAX_ITEMS`              |       9 | California SOS office pages         |
+| `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving AI/image work |
+
+The last setting is an enrichment budget, not a source-fetch limit. Raw records
+beyond that enrichment budget are still stored and can be enriched later.
 
 `COURTLISTENER_API_KEY` is an authentication token despite its historical
 `*_API_KEY` name. Send it only to CourtListener and store it as a secret.
@@ -258,7 +284,8 @@ pnpm onboard
 Contributor onboarding prefers an existing local Postgres (including
 Postgres.app and Homebrew services) and falls back to the repository's Docker
 Compose service on `127.0.0.1:54322`. It creates `.env`, generates the local auth
-secret, applies the Drizzle schema, and can prepare Expo native projects. See
+secret, applies the Drizzle schema, offers the same environment wizard, and can
+prepare Expo native projects. See
 [CONTRIBUTING.md](../CONTRIBUTING.md) for flags and the full decision order.
 
 The normal scraper development command loads root `.env.local` first, then root
@@ -326,9 +353,6 @@ pnpm --filter @acme/scraper run start -- scotus --concurrency 1
 pnpm --filter @acme/scraper run start -- congress --concurrency 1
 pnpm --filter @acme/scraper run start -- scc-cvig --concurrency 1
 pnpm --filter @acme/scraper run start -- ca-sos-statements --concurrency 1
-pnpm --filter @acme/scraper run start -- ca-lao-fiscal --concurrency 1
-pnpm --filter @acme/scraper run start -- ca-vig-archive --concurrency 1
-pnpm --filter @acme/scraper run start -- vote411 --concurrency 1
 ```
 
 Only after those pass, run the concurrent suite:
@@ -365,11 +389,13 @@ When adding or removing an environment-variable read:
 
 1. Add or update the definition in `packages/env/src/registry.ts`, including
    its surface, requirement, secret flag, explanation, schema, and setup URL.
-2. Reuse its exported schema at a runtime boundary when applicable.
-3. Run `pnpm env:example`; do not hand-edit `.env.example`.
-4. Update the relevant runtime and feature table in this guide.
-5. Update `turbo.json` if a Turbo task must receive or hash the variable.
-6. Document whether absence prevents startup, disables one feature, produces
+2. For a scraper-specific value, declare its requirement in that scraper's
+   adjacent `*.config.ts`; do not add a per-scraper matrix to the env package.
+3. Reuse the exported schema at a runtime boundary when applicable.
+4. Run `pnpm env:example`; do not hand-edit `.env.example`.
+5. Update the relevant runtime and feature table in this guide.
+6. Update `turbo.json` if a Turbo task must receive or hash the variable.
+7. Document whether absence prevents startup, disables one feature, produces
    mock data, or merely changes an operational default.
 
 Useful audit command:

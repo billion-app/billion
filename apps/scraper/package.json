@@ -33,6 +33,7 @@
     "start:prod": "node dist/main.js",
     "start:dev": "tsx src/entry.ts",
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
     "retroactive-videos": "tsx src/retroactive-videos-entry.ts"
   },

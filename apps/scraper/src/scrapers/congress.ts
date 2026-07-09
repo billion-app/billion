@@ -9,9 +9,9 @@ import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
+import { congressConfig } from "./congress.config.js";
 
 const BASE_URL = "https://api.congress.gov/v3";
-const NAME = "congress";
 const logger = createLogger("Congress.gov");
 
 interface CongressScraperConfig {
@@ -351,6 +351,10 @@ async function scrape(config: CongressScraperConfig = {}) {
 }
 
 export const congress: Scraper = {
-  name: NAME,
-  scrape: () => scrape(),
+  ...congressConfig,
+  scrape: (options) =>
+    scrape({
+      maxBills:
+        (options?.maxItems ?? Number(process.env.CONGRESS_MAX_ITEMS)) || 100,
+    }),
 };

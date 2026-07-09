@@ -5,10 +5,9 @@ import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
+import { scotusConfig } from "./scotus.config.js";
 
 const CL_BASE = "https://www.courtlistener.com/api/rest/v4";
-const NAME = "SCOTUS";
-
 interface ScotusScraperConfig {
   maxCases?: number;
   court?: string;
@@ -222,6 +221,10 @@ async function scrape(config: ScotusScraperConfig = {}) {
 }
 
 export const scotus: Scraper = {
-  name: NAME,
-  scrape: () => scrape(),
+  ...scotusConfig,
+  scrape: (options) =>
+    scrape({
+      maxCases:
+        (options?.maxItems ?? Number(process.env.SCOTUS_MAX_ITEMS)) || 50,
+    }),
 };

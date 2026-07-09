@@ -5,6 +5,7 @@
 
 import type { z } from "zod/v4";
 
+import type { ScraperEnvContract } from "@acme/env";
 import {
   CreateBillSchema,
   CreateCourtCaseSchema,
@@ -49,6 +50,13 @@ export interface ExistingRecordCheck {
 
 // Scraper interface for the runner
 export interface Scraper {
+  id: string;
   name: string;
-  scrape: () => Promise<void>;
+  source: string;
+  environment: ScraperEnvContract["environment"];
+  scrape: (options?: ScraperRunOptions) => Promise<void>;
+}
+
+export interface ScraperRunOptions {
+  maxItems?: number;
 }
