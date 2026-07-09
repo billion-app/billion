@@ -1,6 +1,17 @@
+import nextEnv from "@next/env";
 import { createJiti } from "jiti";
 
+const { loadEnvConfig } = nextEnv;
 const jiti = createJiti(import.meta.url);
+
+// Next only auto-loads env files from the app directory. Load the monorepo root
+// so every workspace can continue sharing the repository-level .env file.
+loadEnvConfig(
+  new URL("../..", import.meta.url).pathname,
+  process.env.NODE_ENV === "development",
+  undefined,
+  true,
+);
 
 // Import env files to validate at build time. Use jiti so we can load .ts files in here.
 await jiti.import("./src/env");
