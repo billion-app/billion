@@ -7,6 +7,35 @@ function hash(content: string) {
   return createHash("sha256").update(content).digest("hex");
 }
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+function assertSeedTargetIsLocal() {
+  const rawUrl = process.env.POSTGRES_URL;
+  if (!rawUrl) {
+    throw new Error("Missing POSTGRES_URL");
+  }
+
+  let host: string;
+  try {
+    host = new URL(rawUrl).hostname;
+  } catch {
+    throw new Error("POSTGRES_URL is not a valid connection string.");
+  }
+
+  if (LOCAL_HOSTS.has(host)) return;
+  if (process.env.SEED_CONFIRM_REMOTE_HOST === host) return;
+
+  throw new Error(
+    `Refusing to seed fake/placeholder content into "${host}" — POSTGRES_URL ` +
+      `does not point at a local database.\n` +
+      `This script inserts mock bills, court cases, and executive orders ` +
+      `(e.g. fabricated URLs like ".../opinion/mock-gonzalez") that must never ` +
+      `land in a real database.\n` +
+      `If you are certain "${host}" is the intended target, re-run with ` +
+      `SEED_CONFIRM_REMOTE_HOST=${host} set explicitly.`,
+  );
+}
+
 const now = new Date();
 const daysAgo = (n: number) => new Date(now.getTime() - n * 86400000);
 
@@ -375,6 +404,8 @@ Free speech advocates are split: some see algorithmic curation as protected expr
 }));
 
 async function seed() {
+  assertSeedTargetIsLocal();
+
   console.log("Seeding database...\n");
 
   console.log("Inserting bills...");
