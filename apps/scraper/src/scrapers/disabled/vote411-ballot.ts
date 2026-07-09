@@ -22,7 +22,7 @@ import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
-import { createLogger } from "../utils/log.js";
+import { createLogger } from "../../utils/log.js";
 
 const logger = createLogger("VOTE411-Ballot");
 

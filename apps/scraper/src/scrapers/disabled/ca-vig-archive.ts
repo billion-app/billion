@@ -22,7 +22,7 @@ import type {
   VigArchivePayload,
   VigArchiveProp,
   VigElection,
-} from "@acme/api/lib/measure-sources/vig-archive";
+} from "@acme/api/lib/measure-sources/disabled/vig-archive";
 import {
   argsRebuttalsUrl,
   parseArchiveIndex,
@@ -35,13 +35,13 @@ import {
   VIG_ARCHIVE_ENDPOINT,
   VIG_ARCHIVE_ROOT,
   vigArchiveCacheParams,
-} from "@acme/api/lib/measure-sources/vig-archive";
+} from "@acme/api/lib/measure-sources/disabled/vig-archive";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
-import type { Scraper } from "../utils/types.js";
-import { fetchWithRetry } from "../utils/fetch.js";
-import { createLogger } from "../utils/log.js";
+import type { Scraper } from "../../utils/types.js";
+import { fetchWithRetry } from "../../utils/fetch.js";
+import { createLogger } from "../../utils/log.js";
 
 const logger = createLogger("ca-vig-archive");
 

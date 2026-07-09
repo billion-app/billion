@@ -9,13 +9,16 @@ const scraper = (name: string): Scraper => ({
   scrape: async () => undefined,
 });
 
-test("allows a scraper with no required environment", () => {
-  assert.doesNotThrow(() => validateScraperEnv([scraper("vote411")], {}));
+test("rejects a scraper with no environment registry entry", () => {
+  assert.throws(
+    () => validateScraperEnv([scraper("vote411")], {}),
+    /has no environment registry entry/,
+  );
 });
 
 test("requires Postgres for a cache-writing scraper", () => {
   assert.throws(
-    () => validateScraperEnv([scraper("ca-lao-fiscal")], {}),
+    () => validateScraperEnv([scraper("ca-sos-statements")], {}),
     /POSTGRES_URL: is required but missing/,
   );
 });
@@ -23,7 +26,7 @@ test("requires Postgres for a cache-writing scraper", () => {
 test("validates the Postgres URL scheme", () => {
   assert.throws(
     () =>
-      validateScraperEnv([scraper("ca-lao-fiscal")], {
+      validateScraperEnv([scraper("ca-sos-statements")], {
         POSTGRES_URL: "https://example.com/database",
       }),
     /must start with postgres:\/\/ or postgresql:\/\//,
