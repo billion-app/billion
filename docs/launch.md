@@ -1,9 +1,56 @@
 # Launch and Environment Configuration
 
-This document is the source of truth for production configuration across the
-monorepo. `.env.example` is a copyable local-development template; this guide
-explains which runtime owns each variable, whether it is actually required,
-what stops working without it, and where to obtain it.
+This is the operating guide for configuration across the monorepo. The typed
+registry in `packages/env/src/registry.ts` is the machine-readable source of
+truth: it drives setup prompts, the doctor, generated templates, shared Zod
+schemas, and scraper fail-fast validation. `.env.example` is generated from
+that registry and contains no real secrets.
+
+## Environment commands
+
+The CLI uses Yargs for commands/options and Clack for interactive prompts. It
+masks secret input, never prints configured values, and only asks for variables
+belonging to the selected app surface.
+
+```bash
+# Guided setup, including why each value exists and where to obtain it
+pnpm env:setup
+
+# Configure only one scraper's file
+pnpm env:setup --target scraper --scraper congress --file .env.scraper.local
+
+# Validate a local file without printing values
+pnpm env:doctor --target scraper --scraper congress --file .env.scraper.local
+
+# Validate variables injected into a CI job or deployed process
+pnpm env:doctor --target scraper --scraper congress --source process
+
+# Generate a secret-free deployment checklist/template
+pnpm env:template --target scraper --scraper congress --output .env.scraper.example
+
+# Regenerate the repository-wide example after changing the registry
+pnpm env:example
+```
+
+`required` values make the doctor fail. `recommended` values produce warnings
+but do not fail it. `optional` values are still validated when present.
+
+## Loading policy
+
+There is one contract, but not one universal loader:
+
+- Next.js keeps its native environment loading because its build/runtime
+  behavior and client-variable rules are framework-owned.
+- Expo keeps its native `EXPO_PUBLIC_*` replacement because those values are
+  compiled into the app bundle.
+- Local Node tools (scrapers, Drizzle, seeds, and the social agent) call the
+  shared `@acme/env/load` loader. It reads root `.env.local`, then root `.env`,
+  without overwriting variables already supplied by the shell.
+- Production processes do not load files. The hosting platform, container
+  scheduler, or secret-manager agent injects variables into `process.env`.
+
+Do not add new `dotenv`, `dotenv-cli`, `with-env`, or ad hoc `@next/env` calls.
+Add the variable to the registry and use the loader appropriate to the runtime.
 
 ## Requirement labels
 
@@ -39,7 +86,7 @@ data, email workflows, and the registered scraper suite:
 | ----------------------- | ---------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `POSTGRES_URL`          | Startup required | Next.js, DB tooling; all DB-writing scrapers | Stores application, auth, civic-cache, and scraped-content data.                                      |
 | `BETTER_AUTH_SECRET`    | Startup required | Next.js                                      | Signs/encrypts Better Auth data.                                                                      |
-| `RESEND_API_KEY`        | Startup required | Next.js                                      | Next.js validates it at startup; waitlist contact management and feedback email use it.               |
+| `RESEND_API_KEY`        | Feature required | Next.js                                      | Waitlist contact management and feedback email use it.                                                |
 | `EXPO_PUBLIC_API_URL`   | Launch required  | Expo build                                   | Tells the installed app where the production Next.js/tRPC API lives.                                  |
 | `GOOGLE_CIVIC_API_KEY`  | Launch required  | Next.js API                                  | Enables real voter information; otherwise civic endpoints can return development mock data.           |
 | `GOOGLE_PLACES_API_KEY` | Launch required  | Next.js API                                  | Enables production address autocomplete and place details.                                            |
@@ -59,7 +106,7 @@ keys below improve coverage but do not prevent the core app from starting.
 | -------------------- | ---------------- | ---------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `POSTGRES_URL`       | Startup required | Drizzle, Better Auth, tRPC data access   | Next.js environment validation fails or the first DB access throws. | Supabase project dashboard → **Connect** → connection string. See [Supabase connection modes](https://supabase.com/docs/guides/database/connecting-to-postgres).                                             |
 | `BETTER_AUTH_SECRET` | Startup required | Better Auth signing/encryption           | Next.js environment validation fails.                               | Generate a high-entropy secret, for example `openssl rand -base64 32`; see [Better Auth installation](https://www.better-auth.com/docs/installation).                                                        |
-| `RESEND_API_KEY`     | Startup required | Waitlist Contacts API and feedback email | Next.js environment validation fails.                               | [Resend API Keys](https://resend.com/docs/dashboard/api-keys/introduction). Use **Full access** because the waitlist reads and mutates contacts, segments, and topics in addition to sending feedback email. |
+| `RESEND_API_KEY`     | Feature required | Waitlist Contacts API and feedback email | The app starts, but those actions fail with a configuration error.  | [Resend API Keys](https://resend.com/docs/dashboard/api-keys/introduction). Use **Full access** because the waitlist reads and mutates contacts, segments, and topics in addition to sending feedback email. |
 
 For Supabase, copy the connection string rather than assembling it manually.
 The usual production choice for Vercel is the transaction pooler (`:6543`),
@@ -143,9 +190,9 @@ The registered CLI scrapers are `federalregister`, `congress`, `scotus`,
 
 ### Per-scraper requirements
 
-Required variables are declared on each scraper and checked with Zod before
-network or database work begins. An `all` run validates the union of the eight
-registered scrapers' requirements.
+Required variables are declared centrally in `@acme/env` and checked with Zod
+before network or database work begins. An `all` run validates the union of the
+eight registered scrapers' requirements.
 
 | CLI name            | Required variables                                     | Optional source/enrichment variables                             | Notes                                                                                                                                                  |
 | ------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -214,8 +261,8 @@ Compose service on `127.0.0.1:54322`. It creates `.env`, generates the local aut
 secret, applies the Drizzle schema, and can prepare Expo native projects. See
 [CONTRIBUTING.md](../CONTRIBUTING.md) for flags and the full decision order.
 
-The normal scraper development command loads `apps/scraper/.env` first when
-present, then the root `.env`:
+The normal scraper development command loads root `.env.local` first, then root
+`.env`. Existing shell values win:
 
 ```bash
 pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
@@ -223,6 +270,32 @@ pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
 
 The production scraper command is `node dist/main.js`; it does **not** load a
 file itself. Inject variables through the container/scheduler environment.
+
+## Deployment and a central secret manager
+
+The registry deliberately stores metadata and schemas, never secret values. A
+central secret manager should be the source of truth for production values,
+while Vercel, EAS, Render, Fly.io, or a self-hosted scheduler remains the final
+delivery layer. This keeps one inventory without copying every secret into
+every app.
+
+Use one path or namespace per environment and surface, for example
+`production/nextjs`, `production/expo`, and `production/scraper`. Grant each
+deployment access only to its own path. In particular, Expo should receive only
+`EXPO_PUBLIC_API_URL`; it must never receive database or provider secrets.
+
+The deployment-neutral workflow is:
+
+1. Generate a target template with `pnpm env:template`.
+2. Create only those keys in the chosen central manager.
+3. Let the platform integration or deploy job inject that target's keys.
+4. Run `pnpm env:doctor --target ... --source process` before starting the app
+   or scraper.
+
+This works whether the scraper lands on Render, Fly.io, Docker Compose, or a
+self-hosted scheduler. A future provider adapter can automate syncing from a
+chosen manager; the registry and CLI do not need to change, and the repository
+never becomes a production-secret store.
 
 ## Launch verification
 
@@ -286,15 +359,17 @@ short `full_text`, and encoding damage before forcing any AI regeneration.
 - Test auth callback URLs on both a Vercel preview and the production domain if
   a social provider is enabled.
 
-## Keeping this document and `.env.example` current
+## Keeping the registry, docs, and `.env.example` current
 
 When adding or removing an environment-variable read:
 
-1. Update the runtime's validation schema when one exists.
-2. Add a safe placeholder or commented optional entry to `.env.example`.
-3. Update the relevant runtime and feature table in this guide.
-4. Update `turbo.json` if a Turbo task must receive or hash the variable.
-5. Document whether absence prevents startup, disables one feature, produces
+1. Add or update the definition in `packages/env/src/registry.ts`, including
+   its surface, requirement, secret flag, explanation, schema, and setup URL.
+2. Reuse its exported schema at a runtime boundary when applicable.
+3. Run `pnpm env:example`; do not hand-edit `.env.example`.
+4. Update the relevant runtime and feature table in this guide.
+5. Update `turbo.json` if a Turbo task must receive or hash the variable.
+6. Document whether absence prevents startup, disables one feature, produces
    mock data, or merely changes an operational default.
 
 Useful audit command:

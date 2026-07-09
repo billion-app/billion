@@ -48,13 +48,7 @@ export interface ExistingRecordCheck {
 }
 
 // Scraper interface for the runner
-export type ScraperEnvVar =
-  | "POSTGRES_URL"
-  | "DEEPSEEK_API_KEY"
-  | "CONGRESS_API_KEY";
-
 export interface Scraper {
   name: string;
-  requiredEnv?: readonly ScraperEnvVar[];
   scrape: () => Promise<void>;
 }

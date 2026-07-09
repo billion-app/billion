@@ -1,5 +1,5 @@
 {
-  "name": "@acme/db",
+  "name": "@acme/env",
   "private": true,
   "type": "module",
   "exports": {
@@ -7,41 +7,35 @@
       "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
     },
-    "./client": {
-      "types": "./dist/client.d.ts",
-      "default": "./src/client.ts"
-    },
-    "./schema": {
-      "types": "./dist/schema.d.ts",
-      "default": "./src/schema.ts"
+    "./load": {
+      "types": "./dist/load.d.ts",
+      "default": "./src/load.ts"
     }
   },
-  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "dev": "tsc",
+    "doctor": "tsx src/cli.ts doctor",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
-    "push": "drizzle-kit push",
-    "seed": "tsx seed-entry.ts",
-    "studio": "drizzle-kit studio",
+    "setup": "tsx src/cli.ts setup",
+    "template": "tsx src/cli.ts template",
+    "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@acme/env": "workspace:*",
-    "@vercel/postgres": "^0.10.0",
-    "drizzle-orm": "^0.45.2",
-    "drizzle-zod": "^0.8.3",
-    "pg": "^8.20.0",
+    "@clack/prompts": "catalog:",
+    "dotenv": "^17.3.1",
+    "yargs": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@acme/eslint-config": "workspace:*",
     "@acme/prettier-config": "workspace:*",
     "@acme/tsconfig": "workspace:*",
-    "@types/pg": "^8.20.0",
-    "drizzle-kit": "^0.31.10",
+    "@types/node": "^25.5.0",
+    "@types/yargs": "^17.0.35",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "tsx": "^4.21.0",

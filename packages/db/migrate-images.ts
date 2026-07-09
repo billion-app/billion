@@ -1,13 +1,8 @@
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
-import { config } from "dotenv";
 import pg from "pg";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { loadRepoEnv } from "@acme/env/load";
 
-// Load .env from root
-config({ path: join(__dirname, "../../.env") });
+loadRepoEnv();
 
 const { Pool } = pg;
 

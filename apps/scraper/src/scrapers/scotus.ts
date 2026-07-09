@@ -218,6 +218,5 @@ async function scrape(config: ScotusScraperConfig = {}) {
 
 export const scotus: Scraper = {
   name: NAME,
-  requiredEnv: ["POSTGRES_URL", "DEEPSEEK_API_KEY"],
   scrape: () => scrape(),
 };

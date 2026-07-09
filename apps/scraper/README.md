@@ -19,16 +19,23 @@ Pulls in government content like bills, court cases, and White House content and
 
 ## Setup
 
-### 1. Copy the env file
+### 1. Configure the scraper environment
 
 From the repo root:
 
 ```bash
-cp .env.example .env
+pnpm env:setup --target scraper --scraper congress --file .env
 ```
 
-Then fill in the values needed by the scraper you plan to run. The CLI checks
-required values with Zod before starting network or database work:
+The wizard asks only for the selected scraper, explains each variable, and
+links to its provider. Verify it without printing values:
+
+```bash
+pnpm env:doctor --target scraper --scraper congress --file .env
+```
+
+The scraper checks required values with Zod before starting network or database
+work:
 
 | Variable                                     | Required by                               | Why it matters                                                         |
 | -------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------- |

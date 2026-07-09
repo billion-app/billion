@@ -1,5 +1,9 @@
 import type { Config } from "drizzle-kit";
 
+import { loadRepoEnv } from "@acme/env/load";
+
+loadRepoEnv();
+
 if (!process.env.POSTGRES_URL) {
   throw new Error("Missing POSTGRES_URL");
 }

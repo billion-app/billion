@@ -1,18 +1,6 @@
 // Retroactive video generator for existing articles
 // Generates videos for articles that don't have videos yet
 
-// IMPORTANT: Load env FIRST before any other imports
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Load environment variables from project root
-dotenv.config({ path: join(__dirname, '../../../.env') });
-
-// Import utilities AFTER env is loaded
 import { generateVideoForContent } from './utils/db/video-operations.js';
 import { findArticlesWithoutVideos } from './utils/db/helpers.js';
 import { createLogger, printHeader, printKeyValue, printFooter } from './utils/log.js';
