@@ -418,7 +418,7 @@ async function seed() {
     ...insertedBills.map((b, i) => ({
       contentType: "bill" as const,
       contentId: b.id,
-      title: bills[i]!.title.slice(0, 25),
+      title: bills[i]!.title.slice(0, 100),
       description: bills[i]!.description!,
       thumbnailUrl: bills[i]!.thumbnailUrl,
       author: "congress.gov",
@@ -432,7 +432,7 @@ async function seed() {
     ...insertedGov.map((g, i) => ({
       contentType: "government_content" as const,
       contentId: g.id,
-      title: govContent[i]!.title.slice(0, 25),
+      title: govContent[i]!.title.slice(0, 100),
       description: govContent[i]!.description!,
       thumbnailUrl: govContent[i]!.thumbnailUrl,
       author: govContent[i]!.source,
@@ -446,7 +446,7 @@ async function seed() {
     ...insertedCases.map((c, i) => ({
       contentType: "court_case" as const,
       contentId: c.id,
-      title: courtCases[i]!.title.slice(0, 25),
+      title: courtCases[i]!.title.slice(0, 100),
       description: courtCases[i]!.description!,
       thumbnailUrl: courtCases[i]!.thumbnailUrl,
       author: "courtlistener.com",
