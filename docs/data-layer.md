@@ -18,7 +18,25 @@ Drizzle was chosen because:
 
 Because the driver opens a raw TCP socket via Node's `net`/`tls`, **only server-side code can use the DB client directly.** The mobile app's JS runtime has no socket layer (see [Frontend apps](./frontend.md)).
 
-Migrations use `drizzle-kit`. `drizzle.config.ts` strips the pooler port `:6543` down to direct `:5432` for migrations, since DDL doesn't play well with the transaction pooler. Run via `pnpm -F @acme/db push` (or `db:push` from the root); inspect with `db:studio`.
+## Migrations
+
+Migrations use `drizzle-kit` with versioned SQL files under `packages/db/drizzle/`. `drizzle.config.ts` strips the pooler port `:6543` down to direct `:5432`, since DDL doesn't play well with the transaction pooler.
+
+The workflow is **schema-first, migration-applied**:
+
+1. Edit `packages/db/src/schema.ts`.
+2. `pnpm db:generate` — diffs the schema against the last snapshot and writes a new `NNNN_*.sql` migration + `meta/` snapshot. Commit these.
+3. `pnpm db:migrate` — applies pending migrations to the database pointed at by `POSTGRES_URL`. Drizzle records applied migrations in `drizzle.__drizzle_migrations` and skips ones already run.
+
+Supporting commands: `pnpm db:check` validates the migration history for collisions; `pnpm db:studio` opens the data browser.
+
+**`db:push` is for local prototyping only.** It applies the schema directly without writing a migration file, which is handy while iterating on a dev DB but leaves no history — never use it against shared or production databases. Anything meant to reach prod must go through `db:generate` → commit → `db:migrate`.
+
+### Baselining an existing database
+
+Databases created before this workflow (their schema was applied with `db:push`) already contain every table, so `db:migrate` would fail trying to re-create them. Run `pnpm db:baseline` **once** against such a database: it records the existing migrations in `drizzle.__drizzle_migrations` as already-applied, using the exact hashes drizzle expects, so future `db:migrate` runs pick up only genuinely new migrations. Brand-new databases skip this and just run `db:migrate`.
+
+One-off data fixes that can't be expressed as schema DDL live in `packages/db/manual-sql/` (see its README) and are applied by hand.
 
 ## Schema Overview
 

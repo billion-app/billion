@@ -120,7 +120,7 @@ Now, everything below is NOT copy+pasted from the original template README. Good
 
 - **`pnpm dev` fails with "No package found with name ''!@acme/scraper''"** — Use `pnpm dev:next` instead. The single quotes around the filter get mangled on Windows.
 - **`Cannot find module '@tailwindcss/postcss'`** — Make sure `@tailwindcss/postcss` is in `apps/nextjs/package.json` devDependencies (pnpm strict isolation requires it as a direct dependency).
-- **DB connection errors** — Verify `POSTGRES_URL` in root `.env` is set correctly and the database is running. Run `pnpm db:push` to apply the schema.
+- **DB connection errors** — Verify `POSTGRES_URL` in root `.env` is set correctly and the database is running. Run `pnpm db:migrate` to apply the schema (see [docs/data-layer.md](docs/data-layer.md#migrations)).
 - **Dependency issues** — add this to root `.npmrc`:
   ```
   node-linker=hoisted
