@@ -9,6 +9,7 @@ Run the contributor onboarding assistant from the repository root:
 ```bash
 git clone https://github.com/billion-app/billion.git
 cd billion
+pnpm install
 pnpm onboard
 ```
 
