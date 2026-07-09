@@ -29,5 +29,5 @@ export const visionLlm: LanguageModel | null = googleApiKey
   ? createGoogleGenerativeAI({ apiKey: googleApiKey })("gemini-2.5-flash")
   : null;
 
-// Image generation uses Black Forest Labs FLUX.2 Pro via its own REST API
+// Image generation uses Black Forest Labs FLUX.2 Klein 9B via its own REST API
 // (see ai/image-generation.ts) — no AI SDK provider needed.
