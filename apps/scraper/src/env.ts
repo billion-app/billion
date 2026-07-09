@@ -8,12 +8,13 @@ export function validateScraperEnv(
   environment: NodeJS.ProcessEnv = process.env,
 ): void {
   const selected = scrapers.map((scraper) => {
-    if (!scraperNames.includes(scraper.name as ScraperName)) {
+    const key = scraper.name.toLowerCase().replace(/[.\s]/g, "");
+    if (!scraperNames.includes(key as ScraperName)) {
       throw new Error(
         `Scraper "${scraper.name}" has no environment registry entry`,
       );
     }
-    return scraper.name as ScraperName;
+    return key as ScraperName;
   });
   const result = validateEnvironment({
     environment,
