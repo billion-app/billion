@@ -139,7 +139,7 @@ export function printMetricsSummary(scraperName: string): void {
       printKeyValue("LLM tokens", `${totalTokens.toLocaleString()} (${formatUsd(costs.llmCost)})`);
     }
     if (costs.fluxImages > 0) {
-      printKeyValue("FLUX.2 Pro images", `${costs.fluxImages} (${formatUsd(costs.fluxCost)})`);
+      printKeyValue("FLUX.2 Klein 9B images", `${costs.fluxImages} (${formatUsd(costs.fluxCost)})`);
     }
     if (costs.googleSearches > 0) {
       printKeyValue("Google searches", `${costs.googleSearches} (${formatUsd(costs.googleSearchCost)})`);

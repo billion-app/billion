@@ -65,7 +65,7 @@ const define = (definition: EnvDefinition) => definition;
 const scraperCostDefinitions = [
   ["LLM_INPUT_PRICE", "Estimated LLM input price.", "0.10"],
   ["LLM_OUTPUT_PRICE", "Estimated LLM output price.", "0.30"],
-  ["FLUX_IMAGE_PRICE", "Estimated price per generated BFL image.", "0.03"],
+  ["FLUX_IMAGE_PRICE", "Estimated price per generated BFL image.", "0.015"],
   [
     "GOOGLE_SEARCH_PRICE",
     "Estimated price per Custom Search request.",
@@ -268,7 +268,7 @@ export const envRegistry = [
     description: "BFL image model endpoint.",
     group: "Scraper images",
     secret: false,
-    defaultValue: "flux-2-pro",
+    defaultValue: "flux-2-klein-9b",
     requirements: { scraper: "optional" },
     schema: string,
   }),

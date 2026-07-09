@@ -40,7 +40,7 @@ All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fe
 
 ## AI Pipeline
 
-Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **DeepSeek `deepseek-v4-flash`** (Vercel AI SDK), images via **Black Forest Labs FLUX.2 Pro**. Token and image costs are tracked per run.
+Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **DeepSeek `deepseek-v4-flash`** (Vercel AI SDK), images via **Black Forest Labs FLUX.2 Klein 9B**. Token and image costs are tracked per run.
 
 Each new/changed item runs through:
 
@@ -49,10 +49,10 @@ Each new/changed item runs through:
 3. **Marketing copy** (`marketing-generation.ts`) — Zod-validated `{ title ≤25 chars, description ≤25 words, imagePrompt }` for the `video` feed card.
 4. **Imagery** — multiple sources:
    - _Scraped thumbnail_ (preferred, free): source-provided image URL → `thumbnail_url`.
-   - _Generated_: FLUX.2 Pro produces a 1024×1024 image from the marketing image prompt; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Up to 3 retries with backoff; moderation blocks return `null` silently.
+   - _Generated_: FLUX.2 Klein 9B produces a 1024×1024 image from the marketing image prompt; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Up to 3 retries with backoff; moderation blocks return `null` silently.
    - _Stock-photo fallback_: `image-keywords.ts` → Google Custom Search (`GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`) can supply a thumbnail URL.
 
-> The earlier design used **Gemini for text and DALL-E/Imagen for images**; both were replaced (DeepSeek for cost/quality on text, FLUX.2 Pro for images).
+> The earlier design used **Gemini for text and DALL-E/Imagen for images**; both were replaced (DeepSeek for cost/quality on text, FLUX.2 Klein 9B for images).
 
 ## Pipeline Flow
 
@@ -75,7 +75,7 @@ flowchart TD
     marketing --> img{"Scraped<br/>thumbnail?"}
 
     img -->|yes| thumburl["thumbnail_url"]
-    img -->|no| flux["FLUX.2 Pro → sharp JPEG<br/>→ image_data (bytea)"]
+    img -->|no| flux["FLUX.2 Klein 9B → sharp JPEG<br/>→ image_data (bytea)"]
     flux -.->|moderation block / fail| stock["Google Custom Search<br/>stock thumbnail URL"]
 
     thumburl --> upsert["upsertContent()<br/>onConflictDoUpdate + append versions"]

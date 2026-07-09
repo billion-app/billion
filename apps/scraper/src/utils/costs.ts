@@ -12,8 +12,8 @@ const PRICES = {
   // LLM — $/1M tokens (default: DeepSeek V4 Flash pricing)
   llmInput: Number(process.env.LLM_INPUT_PRICE) || 0.10,
   llmOutput: Number(process.env.LLM_OUTPUT_PRICE) || 0.30,
-  // FLUX.2 Pro — $/image (1MP / 1024x1024)
-  fluxImage: Number(process.env.FLUX_IMAGE_PRICE) || 0.03,
+  // FLUX.2 Klein 9B — $/image (1MP / 1024x1024)
+  fluxImage: Number(process.env.FLUX_IMAGE_PRICE) || 0.015,
   // Google Custom Search — $/query (after free tier)
   googleSearch: Number(process.env.GOOGLE_SEARCH_PRICE) || 0.005,
 };
