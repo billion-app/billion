@@ -138,6 +138,10 @@ export function printMetricsSummary(scraperName: string): void {
       const totalTokens = costs.llmInputTokens + costs.llmOutputTokens;
       printKeyValue("LLM tokens", `${totalTokens.toLocaleString()} (${formatUsd(costs.llmCost)})`);
     }
+    if (costs.visionInputTokens > 0 || costs.visionOutputTokens > 0) {
+      const totalTokens = costs.visionInputTokens + costs.visionOutputTokens;
+      printKeyValue("Gemini 2.5 Flash vision tokens", `${totalTokens.toLocaleString()} (${formatUsd(costs.visionCost)})`);
+    }
     if (costs.fluxImages > 0) {
       printKeyValue("FLUX.2 Klein 9B images", `${costs.fluxImages} (${formatUsd(costs.fluxCost)})`);
     }
