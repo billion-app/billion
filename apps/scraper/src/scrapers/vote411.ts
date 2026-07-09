@@ -612,7 +612,6 @@ async function scrape(): Promise<void> {
 
 export const vote411: Scraper = {
   name: NAME,
-  requiredEnv: [],
   scrape,
 };
 

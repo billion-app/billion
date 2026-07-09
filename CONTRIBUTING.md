@@ -27,6 +27,7 @@ step it asks whether it should:
 - preserve an existing local `POSTGRES_URL`, detect a running system Postgres,
   or start the Docker Compose fallback;
 - apply the Drizzle schema and optionally seed sample content;
+- open the target-aware environment wizard for app or scraper provider keys;
 - check native prerequisites and optionally run clean Expo prebuilds; and
 - run the monorepo typecheck.
 
@@ -43,6 +44,15 @@ Useful flags are `--skip-deps`, `--skip-postgres`, and `--skip-expo`. Run
 provider keys use mocks or skip optional enrichment. See
 [the launch environment guide](./docs/launch.md) when you need real provider
 data or scraper access.
+
+The environment wizard uses Clack for prompts and Yargs for its CLI. It explains
+why each value is needed, links to the provider, masks secrets, and writes only
+the selected surface's keys:
+
+```bash
+pnpm env:setup
+pnpm env:doctor --target all
+```
 
 ### Local Postgres selection
 

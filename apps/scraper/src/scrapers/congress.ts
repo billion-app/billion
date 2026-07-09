@@ -347,6 +347,5 @@ async function scrape(config: CongressScraperConfig = {}) {
 
 export const congress: Scraper = {
   name: NAME,
-  requiredEnv: ["POSTGRES_URL", "DEEPSEEK_API_KEY", "CONGRESS_API_KEY"],
   scrape: () => scrape(),
 };

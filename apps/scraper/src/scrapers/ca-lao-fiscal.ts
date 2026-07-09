@@ -298,6 +298,5 @@ async function scrape(): Promise<void> {
 
 export const caLaoFiscal: Scraper = {
   name: "ca-lao-fiscal",
-  requiredEnv: ["POSTGRES_URL"],
   scrape,
 };

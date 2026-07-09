@@ -130,6 +130,5 @@ async function scrape() {
 
 export const federalregister: Scraper = {
   name: NAME,
-  requiredEnv: ["POSTGRES_URL", "DEEPSEEK_API_KEY"],
   scrape,
 };

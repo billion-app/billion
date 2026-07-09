@@ -4,7 +4,6 @@ import { SocialMediaAgent } from './agent';
 import { generateInstagramPosts } from './instagram-generator';
 import { findLatestInstagramPostJson, postInstagramFolders, testInstagramPosting, verifyInstagramLogin } from './instagram-poster';
 import * as path from 'path';
-import 'dotenv/config';
 
 const program = new Command();
 

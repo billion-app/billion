@@ -181,6 +181,5 @@ async function scrape(): Promise<void> {
 
 export const caVigArchive: Scraper = {
   name: "ca-vig-archive",
-  requiredEnv: ["POSTGRES_URL"],
   scrape,
 };

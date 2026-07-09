@@ -369,6 +369,5 @@ async function scrape(): Promise<void> {
 
 export const sccCvig: Scraper = {
   name: "scc-cvig",
-  requiredEnv: ["POSTGRES_URL"],
   scrape,
 };

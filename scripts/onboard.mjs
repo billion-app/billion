@@ -6,8 +6,17 @@ import { createConnection } from "node:net";
 import { homedir, platform } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
-import { createInterface } from "node:readline/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  cancel,
+  confirm as clackConfirm,
+  log as clackLog,
+  intro,
+  isCancel,
+  note,
+  outro,
+} from "@clack/prompts";
+import yargs from "yargs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = join(ROOT, ".env");
@@ -20,40 +29,24 @@ const LOCAL_DATABASE_URL =
 let cachedPsql;
 let searchedForPsql = false;
 
-const colors = process.stdout.isTTY
-  ? {
-      blue: "\u001b[34m",
-      green: "\u001b[32m",
-      yellow: "\u001b[33m",
-      red: "\u001b[31m",
-      bold: "\u001b[1m",
-      reset: "\u001b[0m",
-    }
-  : Object.fromEntries(
-      ["blue", "green", "yellow", "red", "bold", "reset"].map((key) => [
-        key,
-        "",
-      ]),
-    );
-
 function log(message = "") {
   process.stdout.write(`${message}\n`);
 }
 
 function heading(message) {
-  log(`\n${colors.bold}${colors.blue}${message}${colors.reset}`);
+  clackLog.step(message);
 }
 
 function ok(message) {
-  log(`${colors.green}✓${colors.reset} ${message}`);
+  clackLog.success(message);
 }
 
 function warn(message) {
-  log(`${colors.yellow}!${colors.reset} ${message}`);
+  clackLog.warn(message);
 }
 
 function fail(message) {
-  log(`${colors.red}✗${colors.reset} ${message}`);
+  clackLog.error(message);
 }
 
 export function parseVersion(value) {
@@ -115,43 +108,45 @@ function setEnvValue(key, value, dryRun) {
 }
 
 function parseArgs(argv) {
-  const options = {
-    yes: false,
-    dryRun: false,
-    skipDeps: false,
-    skipPostgres: false,
-    skipExpo: false,
-    help: false,
+  const parsed = yargs(argv)
+    .scriptName("pnpm onboard")
+    .usage("$0 [options]")
+    .option("yes", {
+      alias: "y",
+      type: "boolean",
+      default: false,
+      describe: "Confirm every automatable step",
+    })
+    .option("dry-run", {
+      type: "boolean",
+      default: false,
+      describe: "Show planned work without changing files or running setup",
+    })
+    .option("skip-deps", {
+      type: "boolean",
+      default: false,
+      describe: "Skip pnpm install",
+    })
+    .option("skip-postgres", {
+      type: "boolean",
+      default: false,
+      describe: "Skip Docker/Postgres/schema setup",
+    })
+    .option("skip-expo", {
+      type: "boolean",
+      default: false,
+      describe: "Skip iOS and Android native setup",
+    })
+    .strict()
+    .help()
+    .parseSync();
+  return {
+    yes: parsed.yes,
+    dryRun: parsed.dryRun,
+    skipDeps: parsed.skipDeps,
+    skipPostgres: parsed.skipPostgres,
+    skipExpo: parsed.skipExpo,
   };
-
-  for (const arg of argv) {
-    if (arg === "--yes" || arg === "-y") options.yes = true;
-    else if (arg === "--dry-run") options.dryRun = true;
-    else if (arg === "--skip-deps") options.skipDeps = true;
-    else if (arg === "--skip-postgres") options.skipPostgres = true;
-    else if (arg === "--skip-expo") options.skipExpo = true;
-    else if (arg === "--help" || arg === "-h") options.help = true;
-    else throw new Error(`Unknown option: ${arg}`);
-  }
-  return options;
-}
-
-function printHelp() {
-  log(`Billion contributor onboarding
-
-Usage:
-  pnpm onboard [options]
-
-Options:
-  -y, --yes          Confirm every automatable step
-      --dry-run      Show planned work without changing files or running setup
-      --skip-deps    Skip pnpm install
-      --skip-postgres Skip Docker/Postgres/schema setup
-      --skip-expo    Skip iOS and Android native setup
-  -h, --help         Show this help
-
-The script is safe to rerun. It does not overwrite .env, reset databases, or
-deploy anything.`);
 }
 
 function commandResult(command, args = [], options = {}) {
@@ -200,11 +195,10 @@ function findMacContainerApp() {
 }
 
 async function createPrompter(options) {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
   return {
     async confirm(question, defaultValue = true) {
       if (options.yes) {
-        log(`  ${question} ${colors.green}yes${colors.reset} (--yes)`);
+        clackLog.info(`${question} yes (--yes)`);
         return true;
       }
       if (!process.stdin.isTTY) {
@@ -213,16 +207,17 @@ async function createPrompter(options) {
         );
         return false;
       }
-      const suffix = defaultValue ? "[Y/n]" : "[y/N]";
-      const answer = (await rl.question(`  ${question} ${suffix} `))
-        .trim()
-        .toLowerCase();
-      if (!answer) return defaultValue;
-      return answer === "y" || answer === "yes";
+      const answer = await clackConfirm({
+        message: question,
+        initialValue: defaultValue,
+      });
+      if (isCancel(answer)) {
+        cancel("Onboarding cancelled.");
+        process.exit(0);
+      }
+      return answer;
     },
-    close() {
-      rl.close();
-    },
+    close() {},
   };
 }
 
@@ -835,7 +830,7 @@ async function runPrebuild(target, options, prompt, unresolved) {
 }
 
 async function ensureExpo(options, prompt, unresolved, dependenciesReady) {
-  heading("4. Expo native development");
+  heading("5. Expo native development");
   if (options.skipExpo) {
     warn("Expo setup skipped by flag.");
     return;
@@ -881,8 +876,36 @@ async function ensureExpo(options, prompt, unresolved, dependenciesReady) {
   }
 }
 
+async function ensureProviderEnv(options, prompt, dependenciesReady) {
+  heading("4. App and provider environment");
+  if (!dependenciesReady) {
+    warn("The environment wizard requires workspace dependencies first.");
+    return;
+  }
+  if (options.yes || options.dryRun) {
+    log("  Run pnpm env:setup when you are ready to configure provider keys.");
+    return;
+  }
+  if (
+    await prompt.confirm(
+      "Configure app or scraper provider variables with the environment wizard?",
+      false,
+    )
+  ) {
+    const configured = commandResult(PNPM, ["env:setup", "--file", ".env"], {
+      ...options,
+      capture: false,
+    });
+    if (configured.status > 1) {
+      warn("The environment wizard did not complete; it is safe to rerun.");
+    }
+  } else {
+    log("  Run pnpm env:setup later; it explains every key and provider URL.");
+  }
+}
+
 async function finish(options, prompt, unresolved) {
-  heading("5. Verification");
+  heading("6. Verification");
   if (await prompt.confirm("Run the monorepo typecheck now?", false)) {
     const checked = commandResult(PNPM, ["typecheck"], options);
     if (checked.status !== 0) unresolved.push("Fix pnpm typecheck failures.");
@@ -890,14 +913,20 @@ async function finish(options, prompt, unresolved) {
   }
 
   heading("Ready for development");
-  log("  Website/API only: pnpm dev:next");
-  log("  Website + Expo:   pnpm dev");
-  log("  iOS build/run:     pnpm ios");
-  log("  Android build/run: pnpm android");
-  log("  Docker DB status:  pnpm postgres:status");
-  log("  Docker DB logs:    pnpm postgres:logs");
-  log("  Stop Docker DB:    pnpm postgres:stop");
-  log("  Full env reference: docs/launch.md");
+  note(
+    [
+      "Website/API only: pnpm dev:next",
+      "Website + Expo:   pnpm dev",
+      "iOS build/run:     pnpm ios",
+      "Android build/run: pnpm android",
+      "Docker DB status:  pnpm postgres:status",
+      "Docker DB logs:    pnpm postgres:logs",
+      "Stop Docker DB:    pnpm postgres:stop",
+      "Environment setup: pnpm env:setup",
+      "Environment check: pnpm env:doctor --target all",
+    ].join("\n"),
+    "Commands",
+  );
 
   if (unresolved.length > 0) {
     heading("Manual follow-ups");
@@ -906,6 +935,11 @@ async function finish(options, prompt, unresolved) {
   } else {
     ok("Contributor environment setup is complete.");
   }
+  outro(
+    unresolved.length > 0
+      ? "Onboarding finished with manual follow-ups."
+      : "Billion is ready for development.",
+  );
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -914,19 +948,15 @@ export async function main(argv = process.argv.slice(2)) {
     options = parseArgs(argv);
   } catch (error) {
     fail(error.message);
-    printHelp();
     process.exitCode = 2;
-    return;
-  }
-  if (options.help) {
-    printHelp();
     return;
   }
 
   process.chdir(ROOT);
-  log(`${colors.bold}Billion contributor onboarding${colors.reset}`);
-  log(
+  intro("Billion contributor onboarding");
+  note(
     "This script is idempotent and asks before changing your machine or repo.",
+    "Safe to rerun",
   );
   if (options.dryRun)
     warn("Dry-run mode: no commands or writes will be performed.");
@@ -941,6 +971,7 @@ export async function main(argv = process.argv.slice(2)) {
     );
     await ensureEnv(options, prompt);
     await ensurePostgres(options, prompt, unresolved, dependenciesReady);
+    await ensureProviderEnv(options, prompt, dependenciesReady);
     await ensureExpo(options, prompt, unresolved, dependenciesReady);
     await finish(options, prompt, unresolved);
   } finally {

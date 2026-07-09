@@ -112,6 +112,5 @@ async function scrape(): Promise<void> {
 
 export const caSosStatements: Scraper = {
   name: "ca-sos-statements",
-  requiredEnv: ["POSTGRES_URL"],
   scrape,
 };
