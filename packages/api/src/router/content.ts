@@ -341,6 +341,22 @@ export const contentRouter = {
         .limit(1);
       if (bill[0]) {
         const b = bill[0];
+        const actions = (b.actions ?? []) as {
+          date: string;
+          text: string;
+          type?: string;
+        }[];
+        const latestAction = actions.reduce<
+          (typeof actions)[number] | undefined
+        >(
+          (latest, action) =>
+            !latest || action.date > latest.date ? action : latest,
+          undefined,
+        );
+        const officialTextUrl =
+          b.sourceWebsite === "congress.gov"
+            ? `${b.url.replace(/\/$/, "")}/text`
+            : b.url;
         const [result] = await attachVideoImages([
           {
             id: b.id,
@@ -353,12 +369,21 @@ export const contentRouter = {
               b.aiGeneratedArticle ?? b.fullText ?? "No content available",
             originalContent: b.fullText ?? "Full text not available",
             url: b.url,
-            actions: (b.actions ?? []) as {
-              date: string;
-              text: string;
-              type?: string;
-            }[],
-            status: b.status ?? undefined,
+            actions,
+            billNumber: b.billNumber,
+            jurisdiction: "United States Congress",
+            congress: b.congress ?? undefined,
+            chamber: b.chamber ?? undefined,
+            sponsor: b.sponsor ?? undefined,
+            introducedDate: b.introducedDate?.toISOString(),
+            // The denormalized status field is intentionally short for feeds;
+            // the full latest action is the more precise record for bill detail.
+            status: latestAction?.text ?? b.status ?? undefined,
+            statusAsOf: latestAction?.date,
+            latestAction,
+            officialTextUrl,
+            sourceName: b.sourceWebsite,
+            sourceUpdatedAt: (b.updatedAt ?? b.createdAt).toISOString(),
           },
         ]);
         if (!result) throw new Error(`Failed to decorate bill ${b.id}`);

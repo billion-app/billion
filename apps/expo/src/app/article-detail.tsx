@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "@ronradtke/react-native-markdown-display";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { BillEvidenceCard } from "~/components/BillEvidenceCard";
 import { Text } from "~/components/Themed";
 import {
   Badge,
@@ -59,6 +60,13 @@ const PLACEHOLDER_LENS = {
     ],
   },
 };
+
+interface TimelineStep {
+  label: string;
+  date?: string;
+  done: boolean;
+  current: boolean;
+}
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
@@ -224,22 +232,30 @@ export default function ArticleDetailScreen() {
     },
   };
 
-  const handleOpenOriginal = async () => {
-    if (!content.url) return;
+  const handleOpenSource = async (
+    url: string | undefined,
+    sourceKind: "official_text" | "bill_record" | "original_source",
+  ) => {
+    if (!url) return;
     posthog.capture("original_source_opened", {
       content_id: content.id,
       content_type: content.type,
       content_title: content.title,
-      source_url: content.url,
+      source_url: url,
+      source_kind: sourceKind,
     });
     try {
-      if (await Linking.canOpenURL(content.url)) {
-        await Linking.openURL(content.url);
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
       }
     } catch (e) {
       posthog.captureException(e as Error, { content_id: content.id });
       console.error("Error opening URL:", e);
     }
+  };
+
+  const handleOpenOriginal = () => {
+    void handleOpenSource(content.url, "original_source");
   };
 
   const activeContent =
@@ -259,22 +275,42 @@ export default function ArticleDetailScreen() {
     "actions" in content
       ? (content.actions as { date: string; text: string }[])
       : [];
-  const timeline =
+  const timeline: TimelineStep[] =
     actions.length > 0
       ? actions
           .slice()
           .sort((a, b) => a.date.localeCompare(b.date))
           .map((a, i, arr) => ({
             label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
+            date: /^\d{4}-\d{2}-\d{2}/.exec(a.date)?.[0],
             done: true,
             current: i === arr.length - 1,
           }))
-      : [
-          { label: "Introduced", done: true, current: false },
-          { label: "Committee review", done: true, current: false },
-          { label: "Latest action", done: true, current: true },
-          { label: "Becomes law", done: false, current: false },
-        ];
+      : content.type === "bill"
+        ? []
+        : [
+            { label: "Introduced", done: true, current: false },
+            { label: "Committee review", done: true, current: false },
+            { label: "Latest action", done: true, current: true },
+            { label: "Becomes law", done: false, current: false },
+          ];
+  const billEvidence =
+    content.type === "bill" && "billNumber" in content
+      ? {
+          billNumber: content.billNumber,
+          jurisdiction: content.jurisdiction,
+          congress: content.congress,
+          chamber: content.chamber,
+          sponsor: content.sponsor,
+          introducedDate: content.introducedDate,
+          status: content.status,
+          statusAsOf: content.statusAsOf,
+          latestAction: content.latestAction,
+          officialTextUrl: content.officialTextUrl,
+          sourceName: content.sourceName,
+          sourceUpdatedAt: content.sourceUpdatedAt,
+        }
+      : undefined;
 
   return (
     <View style={s.screen}>
@@ -332,6 +368,14 @@ export default function ArticleDetailScreen() {
           </Text>
         ) : null}
 
+        {billEvidence ? (
+          <BillEvidenceCard
+            evidence={billEvidence}
+            recordUrl={content.url}
+            onOpenUrl={handleOpenSource}
+          />
+        ) : null}
+
         {/* explainer / source toggle */}
         <View style={{ marginTop: 18, marginBottom: 18 }}>
           <Segmented
@@ -386,6 +430,11 @@ export default function ArticleDetailScreen() {
         {/* timeline */}
         <Kicker>Where it stands</Kicker>
         <Card style={{ marginBottom: 24 }}>
+          {timeline.length === 0 ? (
+            <Text style={s.noTimelineText}>
+              No dated actions are available in this record yet.
+            </Text>
+          ) : null}
           {timeline.map((step, i) => (
             <View key={i} style={s.timelineRow}>
               <View style={s.timelineMarker}>
@@ -407,17 +456,24 @@ export default function ArticleDetailScreen() {
                   />
                 )}
               </View>
-              <Text
-                style={[
-                  s.timelineLabel,
-                  {
-                    color: step.done ? colors.white : colors.textSecondary,
-                    fontFamily: step.current ? fontBody.bold : fontBody.medium,
-                  },
-                ]}
-              >
-                {step.label}
-              </Text>
+              <View style={s.timelineContent}>
+                {step.date ? (
+                  <Text style={s.timelineDate}>{step.date}</Text>
+                ) : null}
+                <Text
+                  style={[
+                    s.timelineLabel,
+                    {
+                      color: step.done ? colors.white : colors.textSecondary,
+                      fontFamily: step.current
+                        ? fontBody.bold
+                        : fontBody.medium,
+                    },
+                  ]}
+                >
+                  {step.label}
+                </Text>
+              </View>
             </View>
           ))}
         </Card>
@@ -527,7 +583,20 @@ const s = StyleSheet.create({
   timelineMarker: { alignItems: "center" },
   timelineDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
   timelineLine: { width: 2, flex: 1, minHeight: 22 },
-  timelineLabel: { fontSize: 14, paddingBottom: 14 },
+  timelineContent: { flex: 1, paddingBottom: 14 },
+  timelineDate: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11,
+    letterSpacing: 0.5,
+    color: colors.textSecondary,
+    marginBottom: 3,
+  },
+  timelineLabel: { fontSize: 14 },
+  noTimelineText: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
   exit: {
     backgroundColor: planes.slate,
     borderWidth: 1,
