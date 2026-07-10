@@ -40,6 +40,7 @@
     "build": "pnpm run typecheck && vite build",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
+    "retroactive-lenses": "tsx src/retroactive-lenses-entry.ts",
     "retroactive-videos": "tsx src/retroactive-videos-entry.ts"
   },
   "author": "It's not you it's me",

@@ -26,6 +26,9 @@ export default defineConfig({
       external: externalizeRuntimeDependency,
       input: {
         main: fileURLToPath(new URL("./src/main.ts", import.meta.url)),
+        "retroactive-lenses": fileURLToPath(
+          new URL("./src/retroactive-lenses.ts", import.meta.url),
+        ),
         "retroactive-videos": fileURLToPath(
           new URL("./src/retroactive-videos.ts", import.meta.url),
         ),

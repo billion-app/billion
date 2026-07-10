@@ -463,7 +463,7 @@ export async function upsertContent(
  * unchanged content never re-pays for an LLM call. AIRateLimitError propagates
  * to the caller's rate-limit handler.
  */
-async function upsertContentLens(
+export async function upsertContentLens(
   contentId: string,
   contentType: "bill" | "government_content" | "court_case",
   contentHash: string,

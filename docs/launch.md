@@ -298,7 +298,8 @@ pnpm --filter @acme/scraper run start federalregister --concurrency 1
 ```
 
 `pnpm --filter @acme/scraper build` uses Vite to produce Node ESM artifacts.
-The stable production entries are `dist/main.js` for the scraper CLI and
+The stable production entries are `dist/main.js` for the scraper CLI,
+`dist/retroactive-lenses.js` for the dual-lens backfill, and
 `dist/retroactive-videos.js` for the retroactive-video job; Vite may also emit
 shared chunks, so deploy the complete `dist/` directory. The production scraper
 command remains `node dist/main.js`. It does **not** load an env file or contain
@@ -340,10 +341,11 @@ pnpm typecheck
 pnpm build
 pnpm --filter @acme/scraper build
 test -f apps/scraper/dist/main.js
+test -f apps/scraper/dist/retroactive-lenses.js
 test -f apps/scraper/dist/retroactive-videos.js
 ```
 
-The final two checks exercise the scraper's Vite build directly and verify only
+The final three checks exercise the scraper's Vite build directly and verify only
 its stable entry-point contract. Shared chunk names are intentionally not part
 of launch verification.
 

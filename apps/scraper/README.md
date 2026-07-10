@@ -72,7 +72,8 @@ Build the Node ESM production artifacts from the repository root:
 pnpm --filter @acme/scraper build
 ```
 
-Vite writes the scraper CLI to `dist/main.js` and the retroactive-video job to
+Vite writes the scraper CLI to `dist/main.js`, the dual-lens backfill to
+`dist/retroactive-lenses.js`, and the retroactive-video job to
 `dist/retroactive-videos.js`. The build can also emit shared chunks; deploy the
 whole `dist/` directory rather than copying only an entry file. Linked
 `@acme/*` workspace source is included in the build, while normal third-party
@@ -83,6 +84,19 @@ Start the production CLI with variables supplied by the container or scheduler:
 ```bash
 node apps/scraper/dist/main.js congress --concurrency 1
 ```
+
+### Backfill dual-lens perspectives
+
+Generate missing or stale perspectives directly from stored content without
+waiting for an upstream scraper to return each item again:
+
+```bash
+pnpm --filter @acme/scraper retroactive-lenses --type all --limit 10
+pnpm --filter @acme/scraper retroactive-lenses --type bill --limit 1 --dry-run
+```
+
+The limit applies per selected content type. Processing is sequential to keep
+AI cost and rate-limit behavior predictable.
 
 The production entry does not load `.env` files or bake their values into the
 bundle. Development commands continue to load the repository's local env files
