@@ -1,7 +1,11 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { validateScraperEnv } from "./env.js";
+import {
+  databaseTarget,
+  databaseTargetMessage,
+  validateScraperEnv,
+} from "./env.js";
 import { scrapers } from "./scrapers.js";
 import { setConcurrency } from "./utils/concurrency.js";
 import { printMetricsSummary, resetMetrics } from "./utils/db/metrics.js";
@@ -50,12 +54,22 @@ const arg = argv.scraper as string;
 const concurrency = (argv as { concurrency: number }).concurrency;
 const maxItems = (argv as { maxItems?: number }).maxItems;
 
+function logDatabaseTarget(): void {
+  const target = databaseTarget(process.env.POSTGRES_URL!);
+  if (target.target === "production") {
+    logger.warn(databaseTargetMessage(process.env.POSTGRES_URL!));
+  } else {
+    logger.info(databaseTargetMessage(process.env.POSTGRES_URL!));
+  }
+}
+
 setConcurrency(concurrency);
 
 async function main() {
   resetMetrics();
   if (arg === "all") {
     validateScraperEnv(scrapers);
+    logDatabaseTarget();
     logger.info("Running all scrapers...");
     const results = await Promise.allSettled(
       scrapers.map((scraper) => scraper.scrape({ maxItems })),
@@ -82,6 +96,7 @@ async function main() {
       process.exit(1);
     }
     validateScraperEnv([scraper]);
+    logDatabaseTarget();
     await scraper.scrape({ maxItems });
     printMetricsSummary(scraper.name);
   }

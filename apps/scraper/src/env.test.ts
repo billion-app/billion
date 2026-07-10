@@ -2,7 +2,35 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { Scraper } from "./utils/types.js";
-import { validateScraperEnv } from "./env.js";
+import {
+  databaseTarget,
+  databaseTargetMessage,
+  validateScraperEnv,
+} from "./env.js";
+
+test("identifies loopback database hosts as local", () => {
+  assert.deepEqual(
+    databaseTarget("postgresql://user:password@localhost:5432/postgres"),
+    { target: "local", host: "localhost" },
+  );
+  assert.deepEqual(
+    databaseTarget("postgresql://user:password@[::1]:5432/postgres"),
+    { target: "local", host: "[::1]" },
+  );
+});
+
+test("identifies non-loopback database hosts as production", () => {
+  assert.deepEqual(
+    databaseTarget("postgresql://user:password@db.example.com:5432/postgres"),
+    { target: "production", host: "db.example.com" },
+  );
+  assert.match(
+    databaseTargetMessage(
+      "postgresql://user:password@db.example.com:5432/postgres",
+    ),
+    /PRODUCTION database \(db\.example\.com\)/,
+  );
+});
 
 const scraper = (
   id: string,

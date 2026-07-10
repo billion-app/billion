@@ -16,6 +16,7 @@ import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -174,8 +175,17 @@ export default function ElectionsScreen() {
   );
 
   const toggleMeasure = useCallback(
-    (idx: number) => toggleSet(setExpandedMeasures, idx),
-    [toggleSet],
+    (idx: number, measure: Contest) => {
+      toggleSet(setExpandedMeasures, idx);
+      const isExpanding = !expandedMeasures.has(idx);
+      if (isExpanding) {
+        posthog.capture("ballot_measure_expanded", {
+          measure_title: measure.referendumTitle ?? null,
+          is_statewide: measureIsStatewide(measure),
+        });
+      }
+    },
+    [toggleSet, expandedMeasures],
   );
 
   const hasAddress = !!storedAddress;
@@ -219,6 +229,9 @@ export default function ElectionsScreen() {
             onSubmit={(addr) => {
               void setAddress(addr);
               setEditing(false);
+              posthog.capture("voter_address_set", {
+                is_update: !!storedAddress,
+              });
             }}
           />
         ) : (
@@ -321,7 +334,13 @@ export default function ElectionsScreen() {
                   <TouchableOpacity
                     key={`${group.key}-${i}`}
                     activeOpacity={0.85}
-                    onPress={() =>
+                    onPress={() => {
+                      posthog.capture("contest_detail_opened", {
+                        office: c.office ?? null,
+                        district: c.district?.name ?? null,
+                        candidate_count: c.candidates?.length ?? 0,
+                        government_level: group.label,
+                      });
                       router.push({
                         pathname: "/contest-detail",
                         params: {
@@ -332,8 +351,8 @@ export default function ElectionsScreen() {
                           districtName: c.district?.name ?? "",
                           roleDescription: c.roleDescription ?? "",
                         },
-                      })
-                    }
+                      });
+                    }}
                   >
                     <Card
                       style={{
@@ -381,8 +400,14 @@ export default function ElectionsScreen() {
                     key={`sw-${measures.indexOf(m)}`}
                     measure={m}
                     expanded={expandedMeasures.has(measures.indexOf(m))}
-                    onToggle={() => toggleMeasure(measures.indexOf(m))}
-                    onReadMore={() => router.push(measureRoute(m))}
+                    onToggle={() => toggleMeasure(measures.indexOf(m), m)}
+                    onReadMore={() => {
+                      posthog.capture("ballot_measure_detail_opened", {
+                        measure_title: m.referendumTitle ?? null,
+                        is_statewide: true,
+                      });
+                      router.push(measureRoute(m));
+                    }}
                   />
                 ))}
               </View>
@@ -402,8 +427,14 @@ export default function ElectionsScreen() {
                     key={`lo-${measures.indexOf(m)}`}
                     measure={m}
                     expanded={expandedMeasures.has(measures.indexOf(m))}
-                    onToggle={() => toggleMeasure(measures.indexOf(m))}
-                    onReadMore={() => router.push(measureRoute(m))}
+                    onToggle={() => toggleMeasure(measures.indexOf(m), m)}
+                    onReadMore={() => {
+                      posthog.capture("ballot_measure_detail_opened", {
+                        measure_title: m.referendumTitle ?? null,
+                        is_statewide: false,
+                      });
+                      router.push(measureRoute(m));
+                    }}
                   />
                 ))}
               </View>

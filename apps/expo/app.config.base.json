@@ -2,14 +2,13 @@
   "name": "billion",
   "slug": "billion",
   "scheme": "billion",
-  "version": "0.2.2",
+  "version": "0.2.7",
   "orientation": "portrait",
   "icon": "./assets/billion-logo.png",
   "userInterfaceStyle": "dark",
   "updates": {
     "fallbackToCacheTimeout": 0
   },
-  "newArchEnabled": true,
   "assetBundlePatterns": ["**/*"],
   "ios": {
     "bundleIdentifier": "app.billion-news.billion",
@@ -28,8 +27,7 @@
     "adaptiveIcon": {
       "foregroundImage": "./assets/billion-logo.png",
       "backgroundColor": "#0E1530"
-    },
-    "edgeToEdgeEnabled": true
+    }
   },
   "extra": {
     "eas": {

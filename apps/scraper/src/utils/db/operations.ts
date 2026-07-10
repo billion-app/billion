@@ -1,67 +1,48 @@
-import { db } from "@acme/db/client";
 import { and, eq } from "@acme/db";
-import { Bill, GovernmentContent, CourtCase, ContentLens } from "@acme/db/schema";
+import { db } from "@acme/db/client";
+import {
+  Bill,
+  ContentLens,
+  CourtCase,
+  GovernmentContent,
+} from "@acme/db/schema";
+
+import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
   BillData,
-  GovernmentContentData,
   CourtCaseData,
+  GovernmentContentData,
 } from "../types.js";
-import { createContentHash } from "../hash.js";
+import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import {
-  generateAISummary,
+  AIRateLimitError,
   generateAIArticle,
+  generateAISummary,
   generateDualLens,
   framingForContentType,
-  AIRateLimitError,
 } from "../ai/text-generation.js";
-import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getThumbnailImage } from "../api/google-images.js";
+import { createContentHash } from "../hash.js";
+import { createLogger } from "../log.js";
+import { tickProgress } from "../progress.js";
+import { isUsableSourceText } from "../reprocessing-policy.js";
 import {
   checkExistingBill,
-  checkExistingGovernmentContent,
   checkExistingCourtCase,
+  checkExistingGovernmentContent,
 } from "./helpers.js";
 import {
-  incrementTotalProcessed,
-  incrementNewEntries,
-  incrementExistingUnchanged,
-  incrementExistingChanged,
   incrementAIArticlesGenerated,
+  incrementExistingChanged,
+  incrementExistingUnchanged,
   incrementImagesSearched,
+  incrementNewEntries,
+  incrementTotalProcessed,
 } from "./metrics.js";
 import { generateVideoForContent } from "./video-operations.js";
-import { tickProgress } from "../progress.js";
-import { createLogger } from "../log.js";
-import type { NewItemLimiter } from "../new-item-limit.js";
 
 const logger = createLogger("db");
 const forceAIRegeneration = process.env.SCRAPER_FORCE_AI_REGEN === "1";
-
-function isUsableText(text: string | undefined | null): text is string {
-  if (!text || text.length < 200) return false;
-  if (/[A-Z]:\\/.test(text)) return false;
-
-  const lines = text.split("\n");
-  const boilerplateLines = lines.filter((line) => {
-    const trimmed = line.trim();
-    // Blank lines
-    if (trimmed === "") return true;
-    // Single-word lines (section numbers, lone tokens)
-    if (trimmed.split(/\s+/).length === 1) return true;
-    // Fully uppercase lines that are NOT legislative section headers
-    // (e.g. "SEC. 1." or "CHAPTER 2—" are expected in bill text — don't penalise them)
-    const isAllCaps =
-      /[a-zA-Z]/.test(trimmed) &&
-      trimmed === trimmed.toUpperCase() &&
-      trimmed.length > 2;
-    const isLegislativeHeader = /^(SEC\.|SECTION|CHAPTER|TITLE|PART|SUBPART|ART\.|ARTICLE)\s/i.test(trimmed);
-    return isAllCaps && !isLegislativeHeader;
-  });
-  // Raise threshold: bill/order text is legitimately header-heavy (50% instead of 30%)
-  if (boilerplateLines.length / lines.length >= 0.5) return false;
-
-  return true;
-}
 
 type ContentData =
   | { type: "bill"; data: BillData }
@@ -142,9 +123,11 @@ export async function upsertContent(
   const url = input.data.url;
   const sourceDescription = input.data.description;
 
-  const hasUsableText = isUsableText(fullText);
+  const hasUsableText = isUsableSourceText(fullText);
   if (!hasUsableText && fullText) {
-    logger.debug(`${label} fullText failed usability check (too short or boilerplate-heavy) — AI article will be skipped`);
+    logger.debug(
+      `${label} fullText failed usability check (too short or boilerplate-heavy) — AI article will be skipped`,
+    );
   }
   const hasSummarySource = Boolean(
     fullText || (input.type === "bill" && input.data.summary),
@@ -152,7 +135,7 @@ export async function upsertContent(
   const persistedDescription = existing?.description;
   const hasPersistedSummary = Boolean(
     (sourceDescription && sourceDescription.trim()) ||
-      (persistedDescription && persistedDescription.trim()),
+    (persistedDescription && persistedDescription.trim()),
   );
   let shouldGenerateSummary = false;
   let shouldGenerateArticle = false;
@@ -208,7 +191,9 @@ export async function upsertContent(
     shouldGenerateSummary = false;
     shouldGenerateArticle = false;
     shouldGenerateImage = false;
-    logger.info(`${label}: daily new-item cap reached, deferring AI enrichment to a later run`);
+    logger.info(
+      `${label}: daily new-item cap reached, deferring AI enrichment to a later run`,
+    );
   }
 
   // Phase 1: always persist raw content first (no AI fields)
@@ -344,7 +329,9 @@ export async function upsertContent(
             incrementAIArticlesGenerated();
             return article;
           }
-          logger.warn(`AI article generation returned empty result for ${label}`);
+          logger.warn(
+            `AI article generation returned empty result for ${label}`,
+          );
         } else if (existing?.hasArticle) {
           logger.debug(`Using existing AI article for ${label}`);
         }
@@ -367,7 +354,9 @@ export async function upsertContent(
             return thumbnailResult;
           } catch (error) {
             if (error instanceof AIRateLimitError) throw error;
-            logger.warn(`Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`);
+            logger.warn(
+              `Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`,
+            );
             return null;
           }
         } else if (existing?.hasThumbnail) {
@@ -413,7 +402,9 @@ export async function upsertContent(
     }
   } catch (error) {
     if (error instanceof AIRateLimitError) {
-      logger.warn(`AI rate limit hit — ${label} saved without AI content, will retry next run`);
+      logger.warn(
+        `AI rate limit hit — ${label} saved without AI content, will retry next run`,
+      );
     } else {
       throw error;
     }
@@ -438,12 +429,16 @@ export async function upsertContent(
       );
     } catch (error) {
       if (error instanceof AIRateLimitError) {
-        logger.warn(`AI rate limit hit — ${label} saved without video, will retry next run`);
+        logger.warn(
+          `AI rate limit hit — ${label} saved without video, will retry next run`,
+        );
       } else {
         // Video generation is supplementary — a failure here must not abort
         // content processing or propagate the raw DB error (which can contain
         // binary image data) up to the scraper's generic error handler
-        logger.warn(`Video generation failed for ${label} — content was saved successfully: ${error instanceof Error ? error.message : error}`);
+        logger.warn(
+          `Video generation failed for ${label} — content was saved successfully: ${error instanceof Error ? error.message : error}`,
+        );
       }
     }
   }

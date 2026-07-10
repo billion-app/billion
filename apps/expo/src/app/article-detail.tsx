@@ -1,5 +1,5 @@
 import type { RenderRules } from "@ronradtke/react-native-markdown-display";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -27,16 +27,17 @@ import {
   PrimaryButton,
   Segmented,
 } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import {
   colors,
   contentType,
+  darkTheme,
   fontBody,
   fontDisplay,
   getMarkdownStyles,
   hair,
   planes,
   resolveType,
-  useTheme,
 } from "~/styles";
 import { formatDate } from "~/utils/dates";
 import { queryClient, trpc } from "~/utils/api";
@@ -63,12 +64,23 @@ const PLACEHOLDER_LENS = {
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  const [failedHeaderImageUri, setFailedHeaderImageUri] = useState<
+    string | undefined
+  >();
+
+  const handleModeChange = (newMode: "explainer" | "source") => {
+    setMode(newMode);
+    posthog.capture("article_view_mode_toggled", {
+      content_id: articleId ?? null,
+      content_type: content?.type ?? null,
+      new_mode: newMode,
+    });
+  };
 
   const {
     data: content,
@@ -78,6 +90,18 @@ export default function ArticleDetailScreen() {
     ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
     enabled: !!articleId,
   });
+
+  useEffect(() => {
+    if (content) {
+      posthog.capture("article_viewed", {
+        content_id: content.id,
+        content_type: content.type,
+        content_title: content.title,
+        is_ai_generated: content.isAIGenerated,
+      });
+    }
+  }, [content]);
+  const headerImageUri = content?.imageUri ?? content?.thumbnailUrl;
 
   // content.saved.isSaved is a protected procedure — only query it when signed in,
   // otherwise it throws UNAUTHORIZED.
@@ -128,8 +152,18 @@ export default function ArticleDetailScreen() {
     }
     if (saved) {
       unsaveMutation.mutate({ contentId: articleId });
+      posthog.capture("content_unsaved", {
+        content_id: articleId,
+        content_type: content.type,
+        content_title: content.title,
+      });
     } else {
       saveMutation.mutate({ contentId: articleId, contentType: content.type });
+      posthog.capture("content_saved", {
+        content_id: articleId,
+        content_type: content.type,
+        content_title: content.title,
+      });
     }
   };
 
@@ -159,7 +193,10 @@ export default function ArticleDetailScreen() {
 
   const typeKey = resolveType(content.type);
   const t = contentType[typeKey];
-  const markdownStyles = getMarkdownStyles(theme);
+  // This screen is always rendered on the dark navy canvas, independent of
+  // the phone's appearance setting. Using the light system theme here made
+  // valid article markdown navy-on-navy and appear completely empty.
+  const markdownStyles = getMarkdownStyles(darkTheme);
   const markdownRules: RenderRules = {
     image: (
       node,
@@ -194,11 +231,18 @@ export default function ArticleDetailScreen() {
 
   const handleOpenOriginal = async () => {
     if (!content.url) return;
+    posthog.capture("original_source_opened", {
+      content_id: content.id,
+      content_type: content.type,
+      content_title: content.title,
+      source_url: content.url,
+    });
     try {
       if (await Linking.canOpenURL(content.url)) {
         await Linking.openURL(content.url);
       }
     } catch (e) {
+      posthog.captureException(e as Error, { content_id: content.id });
       console.error("Error opening URL:", e);
     }
   };
@@ -262,12 +306,26 @@ export default function ArticleDetailScreen() {
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Placeholder
-          label={`${t.label.toLowerCase()} · header art`}
-          height={170}
-          radius={16}
-          style={{ marginBottom: 18 }}
-        />
+        {headerImageUri && headerImageUri !== failedHeaderImageUri ? (
+          <View style={s.headerArt}>
+            <Image
+              source={{ uri: headerImageUri }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={200}
+              onError={() => setFailedHeaderImageUri(headerImageUri)}
+              accessible
+              accessibilityLabel={`Header image for ${content.title}`}
+            />
+          </View>
+        ) : (
+          <Placeholder
+            label={`${t.label.toLowerCase()} · header art`}
+            height={170}
+            radius={16}
+            style={{ marginBottom: 18 }}
+          />
+        )}
 
         <View style={s.badgeRow}>
           <Badge type={typeKey} />
@@ -287,7 +345,7 @@ export default function ArticleDetailScreen() {
         <View style={{ marginTop: 18, marginBottom: 18 }}>
           <Segmented
             value={mode}
-            onChange={setMode}
+            onChange={handleModeChange}
             options={[
               { id: "explainer", label: "Plain explainer", icon: "sparkle" },
               { id: "source", label: "Original text", icon: "doc" },
@@ -457,6 +515,13 @@ const s = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  headerArt: {
+    height: 170,
+    marginBottom: 18,
+    overflow: "hidden",
+    borderRadius: 16,
+    backgroundColor: planes.surface,
+  },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",

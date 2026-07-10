@@ -29,6 +29,9 @@ export default defineConfig({
         "retroactive-lenses": fileURLToPath(
           new URL("./src/retroactive-lenses.ts", import.meta.url),
         ),
+        "reprocess-content": fileURLToPath(
+          new URL("./src/reprocess-content.ts", import.meta.url),
+        ),
         "retroactive-videos": fileURLToPath(
           new URL("./src/retroactive-videos.ts", import.meta.url),
         ),

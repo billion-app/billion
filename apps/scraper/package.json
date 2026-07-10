@@ -6,8 +6,8 @@
   "dependencies": {
     "@acme/api": "workspace:*",
     "@acme/db": "workspace:*",
-    "@ai-sdk/anthropic": "^3.0.92",
     "@acme/env": "workspace:*",
+    "@ai-sdk/anthropic": "^3.0.92",
     "@ai-sdk/deepseek": "^1.0.0",
     "@ai-sdk/google": "^3.0.53",
     "ai": "^6.0.141",
@@ -41,6 +41,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
     "retroactive-lenses": "tsx src/retroactive-lenses-entry.ts",
+    "reprocess-content": "tsx src/reprocess-content-entry.ts",
     "retroactive-videos": "tsx src/retroactive-videos-entry.ts"
   },
   "author": "It's not you it's me",

@@ -1,7 +1,7 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, desc, eq } from "@acme/db";
+import { and, desc, eq, inArray, or } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -9,6 +9,7 @@ import {
   CourtCase,
   GovernmentContent,
   SavedArticle,
+  Video,
 } from "@acme/db/schema";
 
 import { protectedProcedure, publicProcedure } from "../trpc";
@@ -18,6 +19,76 @@ const SAVED_CONTENT_TYPES = [
   "government_content",
   "court_case",
 ] as const;
+type SavedContentType = (typeof SAVED_CONTENT_TYPES)[number];
+
+interface ContentImageRef {
+  id: string;
+  type: SavedContentType | "general";
+  thumbnailUrl?: string;
+}
+
+interface VideoImage {
+  imageUri?: string;
+  thumbnailUrl?: string;
+}
+
+function videoImageUri(
+  imageData: Buffer | null,
+  imageMimeType: string | null,
+): string | undefined {
+  if (!imageData || !imageMimeType) return undefined;
+  return `data:${imageMimeType};base64,${imageData.toString("base64")}`;
+}
+
+async function loadVideoImages(
+  refs: readonly ContentImageRef[],
+): Promise<Map<string, VideoImage>> {
+  const conditions = SAVED_CONTENT_TYPES.flatMap((type) => {
+    const ids = refs.filter((ref) => ref.type === type).map((ref) => ref.id);
+    return ids.length > 0
+      ? [and(eq(Video.contentType, type), inArray(Video.contentId, ids))]
+      : [];
+  });
+  if (conditions.length === 0) return new Map();
+
+  const videos = await db
+    .select({
+      contentType: Video.contentType,
+      contentId: Video.contentId,
+      imageData: Video.imageData,
+      imageMimeType: Video.imageMimeType,
+      thumbnailUrl: Video.thumbnailUrl,
+    })
+    .from(Video)
+    .where(or(...conditions));
+
+  return new Map(
+    videos.map((video) => [
+      `${video.contentType}:${video.contentId}`,
+      {
+        imageUri: videoImageUri(video.imageData, video.imageMimeType),
+        thumbnailUrl: video.thumbnailUrl ?? undefined,
+      },
+    ]),
+  );
+}
+
+async function attachVideoImages<T extends ContentImageRef>(
+  items: readonly T[],
+): Promise<(T & { imageUri?: string })[]> {
+  const videoImages = await loadVideoImages(items);
+  return items.map((item) => {
+    const video = videoImages.get(`${item.type}:${item.id}`);
+    const thumbnailUrl = item.thumbnailUrl ?? video?.thumbnailUrl;
+    return {
+      ...item,
+      thumbnailUrl,
+      // Source thumbnails remain preferred. Use the generated JPEG only when
+      // the source content has no usable URL of its own.
+      imageUri: thumbnailUrl ? undefined : video?.imageUri,
+    };
+  });
+}
 
 // Look up cached dual-lens perspectives for a content item. Returns null when
 // none have been generated yet (the client falls back to a placeholder).
@@ -44,28 +115,45 @@ export async function getThumbnailForContent(
   type: "bill" | "court_case" | "government_content" | "general",
 ): Promise<string | null> {
   try {
+    let thumbnailUrl: string | null = null;
     if (type === "bill") {
       const result = await db
         .select({ thumbnailUrl: Bill.thumbnailUrl })
         .from(Bill)
         .where(eq(Bill.id, id))
         .limit(1);
-      return result[0]?.thumbnailUrl ?? null;
+      thumbnailUrl = result[0]?.thumbnailUrl ?? null;
     } else if (type === "court_case") {
       const result = await db
         .select({ thumbnailUrl: CourtCase.thumbnailUrl })
         .from(CourtCase)
         .where(eq(CourtCase.id, id))
         .limit(1);
-      return result[0]?.thumbnailUrl ?? null;
+      thumbnailUrl = result[0]?.thumbnailUrl ?? null;
     } else {
       const result = await db
         .select({ thumbnailUrl: GovernmentContent.thumbnailUrl })
         .from(GovernmentContent)
         .where(eq(GovernmentContent.id, id))
         .limit(1);
-      return result[0]?.thumbnailUrl ?? null;
+      thumbnailUrl = result[0]?.thumbnailUrl ?? null;
     }
+    if (thumbnailUrl || type === "general") return thumbnailUrl;
+
+    const [video] = await db
+      .select({
+        imageData: Video.imageData,
+        imageMimeType: Video.imageMimeType,
+        thumbnailUrl: Video.thumbnailUrl,
+      })
+      .from(Video)
+      .where(and(eq(Video.contentType, type), eq(Video.contentId, id)))
+      .limit(1);
+    return (
+      videoImageUri(video?.imageData ?? null, video?.imageMimeType ?? null) ??
+      video?.thumbnailUrl ??
+      null
+    );
   } catch (error) {
     console.error(`Error fetching thumbnail for ${type} ${id}:`, error);
     return null;
@@ -143,7 +231,7 @@ export const contentRouter = {
       })),
     ];
 
-    return allContent;
+    return attachVideoImages(allContent);
   }),
 
   // Get content filtered by type from database
@@ -203,7 +291,7 @@ export const contentRouter = {
           })),
         ];
 
-        return allContent;
+        return attachVideoImages(allContent);
       }
 
       if (input.type === "bill") {
@@ -212,7 +300,7 @@ export const contentRouter = {
           .from(Bill)
           .orderBy(desc(Bill.createdAt))
           .limit(50);
-        return bills.map((bill) => ({
+        const items: ContentCard[] = bills.map((bill) => ({
           id: bill.id,
           title: bill.title,
           description: bill.description ?? bill.summary ?? "",
@@ -220,6 +308,7 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: bill.thumbnailUrl ?? undefined,
         }));
+        return attachVideoImages(items);
       }
 
       if (input.type === "government_content" || input.type === "general") {
@@ -228,7 +317,7 @@ export const contentRouter = {
           .from(GovernmentContent)
           .orderBy(desc(GovernmentContent.createdAt))
           .limit(50);
-        return governmentContent.map((content) => ({
+        const items: ContentCard[] = governmentContent.map((content) => ({
           id: content.id,
           title: content.title,
           description: content.description ?? "",
@@ -236,6 +325,7 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
+        return attachVideoImages(items);
       }
 
       // input.type === "court_case" — only remaining branch
@@ -244,7 +334,7 @@ export const contentRouter = {
         .from(CourtCase)
         .orderBy(desc(CourtCase.createdAt))
         .limit(50);
-      return courtCases.map((courtCase) => ({
+      const items: ContentCard[] = courtCases.map((courtCase) => ({
         id: courtCase.id,
         title: courtCase.title,
         description: courtCase.description ?? "",
@@ -252,6 +342,7 @@ export const contentRouter = {
         isAIGenerated: false,
         thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
       }));
+      return attachVideoImages(items);
     }),
 
   // Get detailed content by ID from database
@@ -270,25 +361,29 @@ export const contentRouter = {
         .limit(1);
       if (bill[0]) {
         const b = bill[0];
-        return {
-          id: b.id,
-          title: b.title,
-          description: b.description ?? b.summary ?? "",
-          type: "bill" as const,
-          isAIGenerated: !!b.aiGeneratedArticle,
-          thumbnailUrl: b.thumbnailUrl ?? undefined,
-          articleContent:
-            b.aiGeneratedArticle ?? b.fullText ?? "No content available",
-          originalContent: b.fullText ?? "Full text not available",
-          url: b.url,
-          actions: (b.actions ?? []) as {
-            date: string;
-            text: string;
-            type?: string;
-          }[],
-          status: b.status ?? undefined,
-          lensData: await getLensData(b.id, "bill"),
-        };
+        const [result] = await attachVideoImages([
+          {
+            id: b.id,
+            title: b.title,
+            description: b.description ?? b.summary ?? "",
+            type: "bill" as const,
+            isAIGenerated: !!b.aiGeneratedArticle,
+            thumbnailUrl: b.thumbnailUrl ?? undefined,
+            articleContent:
+              b.aiGeneratedArticle ?? b.fullText ?? "No content available",
+            originalContent: b.fullText ?? "Full text not available",
+            url: b.url,
+            actions: (b.actions ?? []) as {
+              date: string;
+              text: string;
+              type?: string;
+            }[],
+            status: b.status ?? undefined,
+            lensData: await getLensData(b.id, "bill"),
+          },
+        ]);
+        if (!result) throw new Error(`Failed to decorate bill ${b.id}`);
+        return result;
       }
 
       // Try to find in government content
@@ -299,19 +394,25 @@ export const contentRouter = {
         .limit(1);
       if (content[0]) {
         const c = content[0];
-        return {
-          id: c.id,
-          title: c.title,
-          description: c.description ?? "",
-          type: "government_content" as const,
-          isAIGenerated: !!c.aiGeneratedArticle,
-          thumbnailUrl: c.thumbnailUrl ?? undefined,
-          articleContent:
-            c.aiGeneratedArticle ?? c.fullText ?? "No content available",
-          originalContent: c.fullText ?? "Full text not available",
-          url: c.url,
-          lensData: await getLensData(c.id, "government_content"),
-        };
+        const [result] = await attachVideoImages([
+          {
+            id: c.id,
+            title: c.title,
+            description: c.description ?? "",
+            type: "government_content" as const,
+            isAIGenerated: !!c.aiGeneratedArticle,
+            thumbnailUrl: c.thumbnailUrl ?? undefined,
+            articleContent:
+              c.aiGeneratedArticle ?? c.fullText ?? "No content available",
+            originalContent: c.fullText ?? "Full text not available",
+            url: c.url,
+            lensData: await getLensData(c.id, "government_content"),
+          },
+        ]);
+        if (!result) {
+          throw new Error(`Failed to decorate government content ${c.id}`);
+        }
+        return result;
       }
 
       // Try to find in court cases
@@ -322,19 +423,23 @@ export const contentRouter = {
         .limit(1);
       if (courtCase[0]) {
         const c = courtCase[0];
-        return {
-          id: c.id,
-          title: c.title,
-          description: c.description ?? "",
-          type: "court_case" as const,
-          isAIGenerated: !!c.aiGeneratedArticle,
-          thumbnailUrl: c.thumbnailUrl ?? undefined,
-          articleContent:
-            c.aiGeneratedArticle ?? c.fullText ?? "No content available",
-          originalContent: c.fullText ?? "Full text not available",
-          url: c.url,
-          lensData: await getLensData(c.id, "court_case"),
-        };
+        const [result] = await attachVideoImages([
+          {
+            id: c.id,
+            title: c.title,
+            description: c.description ?? "",
+            type: "court_case" as const,
+            isAIGenerated: !!c.aiGeneratedArticle,
+            thumbnailUrl: c.thumbnailUrl ?? undefined,
+            articleContent:
+              c.aiGeneratedArticle ?? c.fullText ?? "No content available",
+            originalContent: c.fullText ?? "Full text not available",
+            url: c.url,
+            lensData: await getLensData(c.id, "court_case"),
+          },
+        ]);
+        if (!result) throw new Error(`Failed to decorate court case ${c.id}`);
+        return result;
       }
 
       throw new Error(`Content with id ${input.id} not found`);
@@ -373,6 +478,7 @@ export const contentRouter = {
                   id: Bill.id,
                   title: Bill.title,
                   description: Bill.description,
+                  thumbnailUrl: Bill.thumbnailUrl,
                 })
                 .from(Bill)
                 .where(eq(Bill.id, s.contentId))
@@ -387,6 +493,7 @@ export const contentRouter = {
                   id: GovernmentContent.id,
                   title: GovernmentContent.title,
                   description: GovernmentContent.description,
+                  thumbnailUrl: GovernmentContent.thumbnailUrl,
                 })
                 .from(GovernmentContent)
                 .where(eq(GovernmentContent.id, s.contentId))
@@ -404,6 +511,7 @@ export const contentRouter = {
                 id: CourtCase.id,
                 title: CourtCase.title,
                 description: CourtCase.description,
+                thumbnailUrl: CourtCase.thumbnailUrl,
               })
               .from(CourtCase)
               .where(eq(CourtCase.id, s.contentId))
@@ -414,8 +522,15 @@ export const contentRouter = {
           }),
         );
 
+        const items = results
+          .filter((item) => item != null)
+          .map((item) => ({
+            ...item,
+            description: item.description ?? "",
+            thumbnailUrl: item.thumbnailUrl ?? undefined,
+          }));
         return {
-          items: results.filter((item) => item != null),
+          items: await attachVideoImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }),
