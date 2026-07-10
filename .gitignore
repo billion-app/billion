@@ -66,3 +66,4 @@ dist/
 /playwright/.auth/
 packages/db/seed-waitlist.sql
 .env*
+.env.local

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import posthog from "posthog-js";
 
 export function WaitlistForm({
   size = "default",
@@ -19,6 +20,8 @@ export function WaitlistForm({
     setStatus("loading");
     setErrorMsg("");
 
+    posthog.capture("waitlist_form_submitted", { form_location: size });
+
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
@@ -31,15 +34,32 @@ export function WaitlistForm({
         .catch(() => null)) as WaitlistResponse | null;
 
       if (res.ok) {
-        setStatus(data?.result === "already_joined" ? "already" : "success");
+        const alreadyJoined = data?.result === "already_joined";
+        setStatus(alreadyJoined ? "already" : "success");
         setEmail("");
+
+        if (alreadyJoined) {
+          posthog.capture("waitlist_already_joined", {
+            form_location: size,
+          });
+        } else {
+          posthog.capture("waitlist_joined", { form_location: size });
+        }
       } else {
         setStatus("error");
         setErrorMsg(data?.error ?? "Something went wrong. Please try again.");
+        posthog.capture("waitlist_signup_error", {
+          form_location: size,
+          error: data?.error ?? "unknown",
+        });
       }
     } catch {
       setStatus("error");
       setErrorMsg("Something went wrong. Please try again.");
+      posthog.capture("waitlist_signup_error", {
+        form_location: size,
+        error: "network_error",
+      });
     }
   };
 
