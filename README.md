@@ -4,62 +4,34 @@ Welcome to the codebase. See below for development set-up instructions. See [Man
 
 ## Quick Start
 
-> These instructions were originally copy-pasted from https://github.com/t3-oss/create-t3-turbo (which this project is scaffolded from). I've modified it to get rid of the bs that we don't use. For example, I've commented out all of the original auth instructions cuz we're not using that for now.
+Run the contributor onboarding assistant from the repository root:
 
-> Anything in blockquotes without admonitions (like this one you're reading) is additional commentary I added
+```bash
+git clone https://github.com/billion-app/billion.git
+cd billion
+pnpm install
+pnpm onboard
+```
 
-### If already set up
+It installs dependencies, prepares `.env`, finds or starts Postgres, applies
+the schema, and optionally prepares the Expo native projects. See
+[CONTRIBUTING.md](./CONTRIBUTING.md) for the exact steps and non-interactive
+flags.
+
+
+### If already set up...
+
+#### Running the Expo app (`apps/expo`)
+
+This sets up Expo and Next.js (Next.js is necessary to run the Expo app)
 
 ```
 pnpm run dev
 ```
 
-> And go to the `@acme/ios` tab in that TUI and follow Expo's instructions (press `i`, typically)
+And go to the `@acme/ios` tab in that TUI and follow Expo's instructions (press `i`, typically)
 
-### Otherwise...
-
-> Make sure you have:
->
-> - pnpm
-> - Xcode CLI stuff whatever (run `xcode-select --install`)
-> - Xcode installed with the iOS simulator installed (go to App Store)
-> - Postgres installed globally (unless you want to figure out how to run this project in a Docker container?). It's easy with https://postgresapp.com/ on macOS
->
-> (instructions copied from https://github.com/t3-oss/create-t3-turbo)
-
-<!--
-
-> **Note**
-> The [db](./packages/db) package is preconfigured to use Supabase and is **edge-bound** with the [Vercel Postgres](https://github.com/vercel/storage/tree/main/packages/postgres) driver. If you're using something else, make the necessary modifications to the [schema](./packages/db/src/schema.ts) as well as the [client](./packages/db/src/index.ts) and the [drizzle config](./packages/db/drizzle.config.ts). If you want to switch to non-edge database driver, remove `export const runtime = "edge";` [from all pages and api routes](https://github.com/t3-oss/create-t3-turbo/issues/634#issuecomment-1730240214).
-
--->
-
-To get it running, follow the steps below:
-
-### Website (`apps/nextjs`)
-
-### 1. Setup dependencies
-
-```bash
-git clone https://github.com/ThatXliner/billion.git
-cd billion
-
-# 1. Install dependencies
-pnpm install
-
-# 2. Create root .env from template (gitignored — must be done manually)
-cp .env.example .env
-
-# 3. Fill in required values in .env:
-#    - POSTGRES_URL: your Supabase/Postgres connection string
-#    - BETTER_AUTH_SECRET: any random string (`openssl rand -base64 32`)
-#    Other keys are optional — pages that use them will degrade gracefully.
-
-# 4. Push database schema
-pnpm db:push
-```
-
-**Start the dev server:**
+#### Running the website (`apps/nextjs`)
 
 ```bash
 pnpm dev:next
@@ -67,19 +39,32 @@ pnpm dev:next
 
 Opens at `http://localhost:3000`. This runs Next.js + all dependency packages (api, auth, db, ui, validators) via Turborepo.
 
-> **Windows note:** use `pnpm dev:next` instead of `pnpm dev`. The root `dev` script has a single-quoted filter (`--filter='!@acme/scraper'`) that PowerShell and Git Bash mangle. `dev:next` avoids the filter entirely.
+#### Running the scrapers (`apps/scraper`)
+
+```bash
+cd apps/scrapers && pnpm dev
+```
+
+Make sure you have the relevant environment variables set up
+
+---
+
+If anything goes wrong, continue reading to see the old, manual set up instructions:
+
 
 **Requirements:**
+
 - Node >=22.20.0 (22.15.0 works with a warning)
 - pnpm installed
-- A running Postgres instance
+- A Postgres instance selected or started by `pnpm onboard`
 
 ### Mobile app (`apps/expo`)
 
 > Make sure you have:
+>
 > - Xcode CLI stuff (`xcode-select --install`)
 > - Xcode installed with iOS simulator (App Store)
-> - Postgres installed globally. Easy via https://postgresapp.com/ on macOS.
+> - A database selected by `pnpm onboard` (system Postgres or Docker fallback).
 
 ### 1. Setup (same steps as website above)
 
@@ -133,6 +118,7 @@ Now, everything below is NOT copy+pasted from the original template README. Good
 ### Troubleshooting
 
 **Website:**
+
 - **`pnpm dev` fails with "No package found with name ''!@acme/scraper''"** — Use `pnpm dev:next` instead. The single quotes around the filter get mangled on Windows.
 - **`Cannot find module '@tailwindcss/postcss'`** — Make sure `@tailwindcss/postcss` is in `apps/nextjs/package.json` devDependencies (pnpm strict isolation requires it as a direct dependency).
 - **DB connection errors** — Verify `POSTGRES_URL` in root `.env` is set correctly and the database is running. Run `pnpm db:push` to apply the schema.
@@ -142,6 +128,7 @@ Now, everything below is NOT copy+pasted from the original template README. Good
   ```
 
 **Expo:**
+
 #### "CommandError: No development build (dev.thatxliner.billion) for this project is installed. Please make and install a development build on the device first. Learn more: https://docs.expo.dev/development/build/"
 
 In this case, `pnpm clean && pnpm install && cd apps/expo && pnpm ios` before you go back to root and run `pnpm dev`. Maybe open the Xcode project and build from there?

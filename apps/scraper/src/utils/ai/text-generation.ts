@@ -4,17 +4,18 @@
  */
 
 import { generateText, generateObject, tool, stepCountIs, APICallError, RetryError } from 'ai';
+import type { Tool } from 'ai';
 import { z } from 'zod';
 import { createLogger } from '../log.js';
 import { trackLLMUsage } from '../costs.js';
-import { llm, searchModel, webSearchTool } from './provider.js';
+import { getSearchModel, getTextLlm, getWebSearchTool } from './provider.js';
 
 const logger = createLogger("ai");
 
 export class AIRateLimitError extends Error {
   constructor() {
-    super('LLM rate limit hit — deferring AI generation to next run');
-    this.name = 'AIRateLimitError';
+    super("LLM rate limit hit — deferring AI generation to next run");
+    this.name = "AIRateLimitError";
   }
 }
 
@@ -32,10 +33,10 @@ function isRateLimitError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const msg = error.message.toLowerCase();
   return (
-    msg.includes('429') ||
-    msg.includes('rate limit') ||
-    msg.includes('resource_exhausted') ||
-    msg.includes('quota')
+    msg.includes("429") ||
+    msg.includes("rate limit") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("quota")
   );
 }
 
@@ -54,7 +55,7 @@ export async function generateAISummary(
   }
   try {
     const { text, usage } = await generateText({
-      model: llm,
+      model: getTextLlm(),
       prompt: `You are an expert at simplifying complex government and legal jargon for a general audience.
 Generate a very short, punchy summary (max 100 characters) for this content.
 
@@ -75,8 +76,8 @@ Summary (max 100 characters):`,
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
-    logger.error('Error generating AI summary', error);
-    return content.substring(0, 97) + '...';
+    logger.error("Error generating AI summary", error);
+    return content.substring(0, 97) + "...";
   }
 }
 
@@ -101,7 +102,7 @@ export async function generateAIArticle(
     logger.start(`Generating AI article for: ${title}`);
 
     const { text, usage } = await generateText({
-      model: llm,
+      model: getTextLlm(),
       prompt: `You are an expert at making government and legal content accessible and engaging for everyday people. Transform the following ${type} into a well-structured, markdown-formatted article.
 
 **Structure your article with these 4 sections:**
@@ -153,8 +154,8 @@ Write the article now using the 4-section structure above:`,
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
-    logger.error('Error generating AI article', error);
-    return '';
+    logger.error("Error generating AI article", error);
+    return "";
   }
 }
 
@@ -300,8 +301,8 @@ const webResearchTool = tool({
   }),
   execute: async ({ query }: { query: string }) => {
     const res = await generateText({
-      model: searchModel,
-      tools: { web_search: webSearchTool },
+      model: getSearchModel(),
+      tools: { web_search: getWebSearchTool() as Tool<any, any> },
       prompt: `Search the web and briefly summarize what you find for: ${query}`,
     });
     trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
@@ -431,7 +432,7 @@ export async function generateDualLens(
   let sources: DualLensSource[] = [];
   try {
     const res = await generateText({
-      model: llm,
+      model: getTextLlm(),
       tools: { web_search: webResearchTool, fetch_page: fetchPageTool },
       stopWhen: stepCountIs(RESEARCH_MAX_STEPS),
       prompt: RESEARCH_PROMPT(title, type, fullText),
@@ -456,7 +457,7 @@ export async function generateDualLens(
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const { object, usage } = await generateObject({
-        model: llm,
+        model: getTextLlm(),
         schema: DualLensSchema,
         prompt: STRUCTURE_PROMPT(title, type, framing, grounding, sourceList),
       });

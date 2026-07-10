@@ -119,6 +119,7 @@ function FeedCard({
 
   return (
     <LinearGradient
+      testID="feed-card"
       colors={[planes.navy, "#181F38"]}
       style={[
         s.card,
@@ -131,7 +132,9 @@ function FeedCard({
     >
       {/* top meta */}
       <View style={s.meta}>
-        <Badge type={typeKey} />
+        <View testID="feed-badge">
+          <Badge type={typeKey} />
+        </View>
         <Text style={s.tag}>{TYPE_TAG[item.type] ?? "Briefing"}</Text>
         <Text style={s.time}>Recent</Text>
       </View>
@@ -154,11 +157,13 @@ function FeedCard({
       )}
 
       {/* headline */}
-      <Text style={s.headline}>{item.title}</Text>
+      <Text style={s.headline} testID="feed-title">
+        {item.title}
+      </Text>
 
       {/* gist */}
       {item.articlePreview ? (
-        <Text style={s.gist} numberOfLines={4}>
+        <Text style={s.gist} numberOfLines={4} testID="feed-description">
           {item.articlePreview}
         </Text>
       ) : null}

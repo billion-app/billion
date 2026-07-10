@@ -177,7 +177,7 @@ export const Video = pgTable(
     contentId: t.uuid().notNull(), // References id from source table
 
     // AI-generated marketing copy
-    title: t.varchar({ length: 25 }).notNull(), // Max 25 chars
+    title: t.varchar({ length: 100 }).notNull(), // Max 100 chars
     description: t.text().notNull(), // 50-word catchy headline
 
     // Hybrid image storage: Binary AI-generated images OR URL-based scraped thumbnails

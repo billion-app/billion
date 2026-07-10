@@ -3,6 +3,7 @@ import { vercel } from "@t3-oss/env-nextjs/presets-zod";
 import { z } from "zod/v4";
 
 import { authEnv } from "@acme/auth/env";
+import { envSchemas } from "@acme/env";
 
 export const env = createEnv({
   extends: [authEnv(), vercel()],
@@ -16,10 +17,12 @@ export const env = createEnv({
    * This way you can ensure the app isn't built with invalid env vars.
    */
   server: {
-    POSTGRES_URL: z.url(),
-    RESEND_API_KEY: z.string().min(1),
-    RESEND_LAUNCH_UPDATES_TOPIC_ID: z.string().min(1).optional(),
-    RESEND_WAITLIST_SEGMENT_ID: z.string().min(1).optional(),
+    POSTGRES_URL: envSchemas.POSTGRES_URL!,
+    RESEND_API_KEY: envSchemas.RESEND_API_KEY!.optional(),
+    RESEND_LAUNCH_UPDATES_TOPIC_ID:
+      envSchemas.RESEND_LAUNCH_UPDATES_TOPIC_ID!.optional(),
+    RESEND_WAITLIST_SEGMENT_ID:
+      envSchemas.RESEND_WAITLIST_SEGMENT_ID!.optional(),
   },
 
   /**

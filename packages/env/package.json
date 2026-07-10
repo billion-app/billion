@@ -1,0 +1,49 @@
+{
+  "name": "@acme/env",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./load": {
+      "types": "./dist/load.d.ts",
+      "default": "./src/load.ts"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "default": "./src/cli.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "tsc",
+    "doctor": "tsx src/cli.ts doctor",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "lint": "eslint --flag unstable_native_nodejs_ts_config",
+    "setup": "tsx src/cli.ts setup",
+    "template": "tsx src/cli.ts template",
+    "test": "tsx --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+  },
+  "dependencies": {
+    "@clack/prompts": "catalog:",
+    "dotenv": "^17.3.1",
+    "yargs": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@acme/eslint-config": "workspace:*",
+    "@acme/prettier-config": "workspace:*",
+    "@acme/tsconfig": "workspace:*",
+    "@types/node": "^25.5.0",
+    "@types/yargs": "^17.0.35",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "tsx": "^4.21.0",
+    "typescript": "catalog:"
+  },
+  "prettier": "@acme/prettier-config"
+}

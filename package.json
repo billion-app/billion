@@ -26,18 +26,29 @@
     "ui-add": "turbo run ui-add",
     "android": "pnpm --dir apps/expo run android",
     "ios": "pnpm --dir apps/expo run ios",
-    "bump": "node scripts/bump.mjs"
+    "bump": "node scripts/bump.mjs",
+    "env:doctor": "pnpm --filter @acme/scraper exec tsx src/env-cli.ts doctor --",
+    "env:example": "pnpm --filter @acme/scraper exec tsx src/env-cli.ts template --target all --output .env.example",
+    "env:setup": "pnpm --filter @acme/scraper exec tsx src/env-cli.ts setup --",
+    "env:template": "pnpm --filter @acme/scraper exec tsx src/env-cli.ts template --",
+    "onboard": "node scripts/onboard.mjs",
+    "onboard:test": "node --test scripts/onboard.test.mjs",
+    "postgres:start": "docker compose up -d --wait postgres",
+    "postgres:status": "docker compose ps postgres",
+    "postgres:logs": "docker compose logs -f postgres",
+    "postgres:stop": "docker compose stop postgres"
   },
   "devDependencies": {
     "@acme/prettier-config": "workspace:*",
+    "@clack/prompts": "catalog:",
     "@playwright/test": "^1.58.2",
     "@turbo/gen": "^2.9.14",
     "@types/node": "^25.5.0",
-    "dotenv-cli": "^11.0.0",
     "prettier": "catalog:",
     "ts-node": "^10.9.2",
     "turbo": "^2.9.14",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "yargs": "catalog:"
   },
   "prettier": "@acme/prettier-config"
 }

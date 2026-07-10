@@ -4,7 +4,7 @@ import { baseConfig } from "@acme/eslint-config/base";
 
 export default defineConfig(
   {
-    ignores: ["dist/**", "migrate-images.ts", "seed.ts"],
+    ignores: ["dist/**", "migrate-images.ts", "seed-entry.ts", "seed.ts"],
   },
   baseConfig,
 );

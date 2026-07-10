@@ -1,11 +1,13 @@
 import TurndownService from "turndown";
 
+import type { Scraper } from "../utils/types.js";
+import { getItemLimit } from "../utils/concurrency.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
+import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
-import { upsertContent } from "../utils/db/operations.js";
-import { setExpectedTotal } from "../utils/db/metrics.js";
-import { getItemLimit } from "../utils/concurrency.js";
-import type { Scraper } from "../utils/types.js";
+import { createNewItemLimiter } from "../utils/new-item-limit.js";
+import { federalregisterConfig } from "./federalregister.config.js";
 
 const NAME = "Federal Register";
 const FR_BASE = "https://www.federalregister.gov/api/v1";
@@ -31,29 +33,38 @@ interface FrListResponse {
 
 function mapSubtype(subtype: string | null): string {
   switch (subtype) {
-    case "Executive Order": return "Executive Order";
-    case "Proclamation": return "Proclamation";
-    case "Notice": return "Notice";
-    case "Memorandum": return "Memorandum";
-    default: return "Presidential Document";
+    case "Executive Order":
+      return "Executive Order";
+    case "Proclamation":
+      return "Proclamation";
+    case "Notice":
+      return "Notice";
+    case "Memorandum":
+      return "Memorandum";
+    default:
+      return "Presidential Document";
   }
 }
 
-async function fetchDocumentText(bodyHtmlUrl: string): Promise<string | undefined> {
+async function fetchDocumentText(
+  bodyHtmlUrl: string,
+): Promise<string | undefined> {
   try {
     const res = await fetchWithRetry(bodyHtmlUrl, { timeoutMs: 30_000 });
     const html = await res.text();
-    const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced" });
+    const turndown = new TurndownService({
+      headingStyle: "atx",
+      codeBlockStyle: "fenced",
+    });
     return turndown.turndown(html).trim() || undefined;
   } catch {
     return undefined;
   }
 }
 
-async function scrape() {
+async function scrape(maxDocuments = 20) {
   logger.info("Starting...");
 
-  const maxDocuments = 20;
   const fields = [
     "title",
     "type",
@@ -81,6 +92,7 @@ async function scrape() {
   setExpectedTotal(documents.length);
 
   const limit = getItemLimit();
+  const newItemLimiter = createNewItemLimiter();
   await Promise.allSettled(
     documents.map((doc) =>
       limit(async () => {
@@ -94,18 +106,21 @@ async function scrape() {
             ? new Date(doc.publication_date)
             : new Date();
 
-          await upsertContent({
-            type: "government_content",
-            data: {
-              title: doc.title,
-              type: contentType,
-              publishedDate,
-              description: fullText ? undefined : (doc.abstract ?? undefined),
-              fullText,
-              url: doc.html_url,
-              source: "federalregister.gov",
+          await upsertContent(
+            {
+              type: "government_content",
+              data: {
+                title: doc.title,
+                type: contentType,
+                publishedDate,
+                description: fullText ? undefined : (doc.abstract ?? undefined),
+                fullText,
+                url: doc.html_url,
+                source: "federalregister.gov",
+              },
             },
-          });
+            { newItemLimiter },
+          );
 
           logger.success(`Scraped ${contentType}: ${doc.title}`);
         } catch (error) {
@@ -119,6 +134,10 @@ async function scrape() {
 }
 
 export const federalregister: Scraper = {
-  name: NAME,
-  scrape,
+  ...federalregisterConfig,
+  scrape: (options) =>
+    scrape(
+      (options?.maxItems ?? Number(process.env.FEDERALREGISTER_MAX_ITEMS)) ||
+        20,
+    ),
 };

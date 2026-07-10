@@ -18,14 +18,14 @@ import * as cheerio from "cheerio";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
-import type { Scraper } from "../utils/types.js";
-import { createLogger } from "../utils/log.js";
-import { fetchWithRetry } from "../utils/fetch.js";
-import { getItemLimit } from "../utils/concurrency.js";
+import type { Scraper } from "../../utils/types.js";
+import { getItemLimit } from "../../utils/concurrency.js";
 import {
-  setExpectedTotal,
   incrementTotalProcessed,
-} from "../utils/db/metrics.js";
+  setExpectedTotal,
+} from "../../utils/db/metrics.js";
+import { fetchWithRetry } from "../../utils/fetch.js";
+import { createLogger } from "../../utils/log.js";
 
 const logger = createLogger("ca-lao-fiscal");
 
@@ -296,4 +296,10 @@ async function scrape(): Promise<void> {
   logger.info(`CA LAO ${year}: scrape complete.`);
 }
 
-export const caLaoFiscal: Scraper = { name: "ca-lao-fiscal", scrape };
+export const caLaoFiscal: Scraper = {
+  id: "ca-lao-fiscal",
+  name: "ca-lao-fiscal",
+  source: "California Legislative Analyst's Office proposition analyses",
+  environment: { required: ["POSTGRES_URL"] },
+  scrape,
+};

@@ -1,5 +1,5 @@
 /**
- * AI image generation using Black Forest Labs FLUX.2 Pro (BFL direct API)
+ * AI image generation using Black Forest Labs FLUX.2 Klein 9B (BFL direct API)
  * Generates images from text prompts and converts them to JPEG format
  */
 
@@ -10,8 +10,8 @@ import { AIRateLimitError, setRateLimitHit } from './text-generation.js';
 const logger = createLogger("image");
 
 const BFL_API_KEY = process.env.BFL_API_KEY;
-// flux-2-pro is the pinned model; flux-2-pro-preview tracks BFL's latest advances.
-const BFL_MODEL = process.env.BFL_MODEL || 'flux-2-pro';
+// Klein 9B is the cost-efficient default for high-volume feed imagery.
+const BFL_MODEL = process.env.BFL_MODEL || 'flux-2-klein-9b';
 const BFL_BASE_URL = 'https://api.bfl.ai/v1';
 
 // Signed result URLs are valid for 10 minutes, so cap polling well within that.
@@ -110,7 +110,7 @@ async function generateViaFlux(prompt: string): Promise<string> {
 }
 
 /**
- * Generate an image using FLUX.2 Pro with retry logic for rate limits
+ * Generate an image using FLUX.2 Klein 9B with retry logic for rate limits
  * @param prompt - Text description of desired image
  * @param maxRetries - Maximum number of retry attempts (default: 3)
  * @returns Generated image as Buffer with metadata, or null if generation fails
@@ -131,10 +131,10 @@ export async function generateImage(
       if (attempt > 0) {
         logger.warn(`Retry attempt ${attempt}/${maxRetries} for image generation`);
       } else {
-        logger.start(`Generating image with FLUX.2 Pro: ${prompt.substring(0, 50)}...`);
+        logger.start(`Generating image with FLUX.2 Klein 9B: ${prompt.substring(0, 50)}...`);
       }
 
-      const fullPrompt = `Premium editorial photography: ${prompt}. Cinematic lighting, vibrant color palette, masterpiece composition, 8k resolution, highly detailed, expressive and dynamic.`;
+      const fullPrompt = `Photorealistic editorial image in one coherent scene: ${prompt}. Make the frame information-dense with several relevant, clearly recognizable details across the foreground, subject, and background. Make it captivating, interesting, and fun through expressive human activity, unusual but believable visual details, strong composition, and energetic natural color. Keep the subject literal and grounded in the story; do not use visual metaphors, fantasy, dreamlike effects, surreal transformations, collages, infographics, or generic stock-photo staging. No text, captions, labels, logos, UI, or watermark.`;
       const sampleUrl = await generateViaFlux(fullPrompt);
 
       // The sample URL is a short-lived signed link — download the bytes now.

@@ -15,14 +15,14 @@
  * documented in the BallotLookup class below.
  */
 
-import * as cheerio from "cheerio";
 import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
+import * as cheerio from "cheerio";
 
-import { fetchWithRetry } from "../utils/fetch.js";
-import { createLogger } from "../utils/log.js";
-import type { Scraper } from "../utils/types.js";
+import type { Scraper } from "../../utils/types.js";
+import { fetchWithRetry } from "../../utils/fetch.js";
+import { createLogger } from "../../utils/log.js";
 
 const NAME = "VOTE411";
 const BASE_URL = "https://www.vote411.org";
@@ -230,7 +230,11 @@ const US_STATES: StateInfo[] = [
   { name: "Louisiana", slug: "louisiana", url: `${BASE_URL}/louisiana` },
   { name: "Maine", slug: "maine", url: `${BASE_URL}/maine` },
   { name: "Maryland", slug: "maryland", url: `${BASE_URL}/maryland` },
-  { name: "Massachusetts", slug: "massachusetts", url: `${BASE_URL}/massachusetts` },
+  {
+    name: "Massachusetts",
+    slug: "massachusetts",
+    url: `${BASE_URL}/massachusetts`,
+  },
   { name: "Michigan", slug: "michigan", url: `${BASE_URL}/michigan` },
   { name: "Minnesota", slug: "minnesota", url: `${BASE_URL}/minnesota` },
   { name: "Mississippi", slug: "mississippi", url: `${BASE_URL}/mississippi` },
@@ -238,26 +242,58 @@ const US_STATES: StateInfo[] = [
   { name: "Montana", slug: "montana", url: `${BASE_URL}/montana` },
   { name: "Nebraska", slug: "nebraska", url: `${BASE_URL}/nebraska` },
   { name: "Nevada", slug: "nevada", url: `${BASE_URL}/nevada` },
-  { name: "New Hampshire", slug: "new-hampshire", url: `${BASE_URL}/new-hampshire` },
+  {
+    name: "New Hampshire",
+    slug: "new-hampshire",
+    url: `${BASE_URL}/new-hampshire`,
+  },
   { name: "New Jersey", slug: "new-jersey", url: `${BASE_URL}/new-jersey` },
   { name: "New Mexico", slug: "new-mexico", url: `${BASE_URL}/new-mexico` },
   { name: "New York", slug: "new-york", url: `${BASE_URL}/new-york` },
-  { name: "North Carolina", slug: "north-carolina", url: `${BASE_URL}/north-carolina` },
-  { name: "North Dakota", slug: "north-dakota", url: `${BASE_URL}/north-dakota` },
+  {
+    name: "North Carolina",
+    slug: "north-carolina",
+    url: `${BASE_URL}/north-carolina`,
+  },
+  {
+    name: "North Dakota",
+    slug: "north-dakota",
+    url: `${BASE_URL}/north-dakota`,
+  },
   { name: "Ohio", slug: "ohio", url: `${BASE_URL}/ohio` },
   { name: "Oklahoma", slug: "oklahoma", url: `${BASE_URL}/oklahoma` },
   { name: "Oregon", slug: "oregon", url: `${BASE_URL}/oregon` },
-  { name: "Pennsylvania", slug: "pennsylvania", url: `${BASE_URL}/pennsylvania` },
-  { name: "Rhode Island", slug: "rhode-island", url: `${BASE_URL}/rhode-island` },
-  { name: "South Carolina", slug: "south-carolina", url: `${BASE_URL}/south-carolina` },
-  { name: "South Dakota", slug: "south-dakota", url: `${BASE_URL}/south-dakota` },
+  {
+    name: "Pennsylvania",
+    slug: "pennsylvania",
+    url: `${BASE_URL}/pennsylvania`,
+  },
+  {
+    name: "Rhode Island",
+    slug: "rhode-island",
+    url: `${BASE_URL}/rhode-island`,
+  },
+  {
+    name: "South Carolina",
+    slug: "south-carolina",
+    url: `${BASE_URL}/south-carolina`,
+  },
+  {
+    name: "South Dakota",
+    slug: "south-dakota",
+    url: `${BASE_URL}/south-dakota`,
+  },
   { name: "Tennessee", slug: "tennessee", url: `${BASE_URL}/tennessee` },
   { name: "Texas", slug: "texas", url: `${BASE_URL}/texas` },
   { name: "Utah", slug: "utah", url: `${BASE_URL}/utah` },
   { name: "Vermont", slug: "vermont", url: `${BASE_URL}/vermont` },
   { name: "Virginia", slug: "virginia", url: `${BASE_URL}/virginia` },
   { name: "Washington", slug: "washington", url: `${BASE_URL}/washington` },
-  { name: "West Virginia", slug: "west-virginia", url: `${BASE_URL}/west-virginia` },
+  {
+    name: "West Virginia",
+    slug: "west-virginia",
+    url: `${BASE_URL}/west-virginia`,
+  },
   { name: "Wisconsin", slug: "wisconsin", url: `${BASE_URL}/wisconsin` },
   { name: "Wyoming", slug: "wyoming", url: `${BASE_URL}/wyoming` },
 ];
@@ -267,7 +303,7 @@ const US_STATES: StateInfo[] = [
  */
 export async function scrapeStateInfo(
   stateSlug: string,
-  useCache = true
+  useCache = true,
 ): Promise<StateVotingInfo | null> {
   const cacheKey = `state-info-${stateSlug}`;
 
@@ -315,18 +351,30 @@ export async function scrapeStateInfo(
       const description = $(el).find(".description, p").first().text().trim();
 
       if (name && date) {
-        info.elections.push({ name, date, description: description || undefined });
+        info.elections.push({
+          name,
+          date,
+          description: description || undefined,
+        });
       }
     });
 
     // Extract deadlines
     $(".deadline, .registration-deadline, .voting-deadline").each((_, el) => {
-      const type = $(el).find(".deadline-type, .type, h4").first().text().trim();
+      const type = $(el)
+        .find(".deadline-type, .type, h4")
+        .first()
+        .text()
+        .trim();
       const date = $(el).find(".deadline-date, .date").first().text().trim();
       const description = $(el).find(".description, p").first().text().trim();
 
       if (type && date) {
-        info.deadlines.push({ type, date, description: description || undefined });
+        info.deadlines.push({
+          type,
+          date,
+          description: description || undefined,
+        });
       }
     });
 
@@ -358,7 +406,9 @@ export async function scrapeStateInfo(
     });
 
     writeCache(cacheKey, info);
-    logger.success(`Scraped ${state.name}: ${info.elections.length} elections, ${info.voterGuides.length} guides`);
+    logger.success(
+      `Scraped ${state.name}: ${info.elections.length} elections, ${info.voterGuides.length} guides`,
+    );
 
     return info;
   } catch (error) {
@@ -371,7 +421,7 @@ export async function scrapeStateInfo(
  * Scrape all states' voting information
  */
 export async function scrapeAllStates(
-  useCache = true
+  useCache = true,
 ): Promise<StateVotingInfo[]> {
   const results: StateVotingInfo[] = [];
 
@@ -394,12 +444,15 @@ export async function scrapeAllStates(
  * Scrape available voter guides and candidate forums from the main ballot page
  */
 export async function scrapeVoterGuides(
-  useCache = true
+  useCache = true,
 ): Promise<{ guides: VoterGuideLink[]; forums: CandidateForum[] }> {
   const cacheKey = "voter-guides-list";
 
   if (useCache) {
-    const cached = readCache<{ guides: VoterGuideLink[]; forums: CandidateForum[] }>(cacheKey);
+    const cached = readCache<{
+      guides: VoterGuideLink[];
+      forums: CandidateForum[];
+    }>(cacheKey);
     if (cached) return cached;
   }
 
@@ -525,11 +578,11 @@ export async function scrapeVoterGuides(
 
 // Placeholder for ballot lookup - implement with Playwright when needed
 export async function lookupBallotByAddress(
-  _address: string
+  _address: string,
 ): Promise<BallotInfo | null> {
   logger.warn(
     "Ballot lookup by address requires Playwright. " +
-      "See the code comments for implementation guidance."
+      "See the code comments for implementation guidance.",
   );
   return null;
 }
@@ -541,7 +594,9 @@ async function scrape(): Promise<void> {
 
   // Scrape voter guides and forums from the ballot page
   const { guides, forums } = await scrapeVoterGuides();
-  logger.info(`Found ${guides.length} voter guides and ${forums.length} candidate forums`);
+  logger.info(
+    `Found ${guides.length} voter guides and ${forums.length} candidate forums`,
+  );
 
   // For now, we just scrape and cache the data
   // The data can be used by the app to show available voter guides
@@ -556,7 +611,10 @@ async function scrape(): Promise<void> {
 }
 
 export const vote411: Scraper = {
+  id: "vote411",
   name: NAME,
+  source: "VOTE411 public voter-guide pages",
+  environment: {},
   scrape,
 };
 
@@ -579,6 +637,11 @@ export function getCachedStateInfo(stateSlug: string): StateVotingInfo | null {
 /**
  * Get cached voter guides if available
  */
-export function getCachedVoterGuides(): { guides: VoterGuideLink[]; forums: CandidateForum[] } | null {
-  return readCache<{ guides: VoterGuideLink[]; forums: CandidateForum[] }>("voter-guides-list");
+export function getCachedVoterGuides(): {
+  guides: VoterGuideLink[];
+  forums: CandidateForum[];
+} | null {
+  return readCache<{ guides: VoterGuideLink[]; forums: CandidateForum[] }>(
+    "voter-guides-list",
+  );
 }

@@ -18,30 +18,30 @@
  * passes, so this is a low-frequency backfill — re-runs upsert idempotently.
  */
 
-import { db } from "@acme/db/client";
-import { CivicApiCache } from "@acme/db/schema";
+import type {
+  VigArchivePayload,
+  VigArchiveProp,
+  VigElection,
+} from "@acme/api/lib/measure-sources/disabled/vig-archive";
 import {
-  VIG_ARCHIVE_ROOT,
-  VIG_ARCHIVE_ADDRESS_HASH,
-  VIG_ARCHIVE_ENDPOINT,
+  argsRebuttalsUrl,
   parseArchiveIndex,
+  parseArgsRebuttals,
   parsePropIndex,
   parsePropPage,
-  parseArgsRebuttals,
-  propsIndexUrl,
   propPageUrl,
-  argsRebuttalsUrl,
+  propsIndexUrl,
+  VIG_ARCHIVE_ADDRESS_HASH,
+  VIG_ARCHIVE_ENDPOINT,
+  VIG_ARCHIVE_ROOT,
   vigArchiveCacheParams,
-} from "@acme/api/lib/measure-sources/vig-archive";
-import type {
-  VigElection,
-  VigArchiveProp,
-  VigArchivePayload,
-} from "@acme/api/lib/measure-sources/vig-archive";
+} from "@acme/api/lib/measure-sources/disabled/vig-archive";
+import { db } from "@acme/db/client";
+import { CivicApiCache } from "@acme/db/schema";
 
-import type { Scraper } from "../utils/types.js";
-import { fetchWithRetry } from "../utils/fetch.js";
-import { createLogger } from "../utils/log.js";
+import type { Scraper } from "../../utils/types.js";
+import { fetchWithRetry } from "../../utils/fetch.js";
+import { createLogger } from "../../utils/log.js";
 
 const logger = createLogger("ca-vig-archive");
 
@@ -112,7 +112,9 @@ async function scrapeElection(el: VigElection): Promise<VigArchiveProp[]> {
     });
   }
 
-  logger.info(`${el.path}: parsed ${props.length}/${numbers.length} propositions.`);
+  logger.info(
+    `${el.path}: parsed ${props.length}/${numbers.length} propositions.`,
+  );
   return props;
 }
 
@@ -172,7 +174,15 @@ async function scrape(): Promise<void> {
     }
   }
 
-  logger.success(`CA VIG archive: cached ${total} propositions across ${elections.length} elections.`);
+  logger.success(
+    `CA VIG archive: cached ${total} propositions across ${elections.length} elections.`,
+  );
 }
 
-export const caVigArchive: Scraper = { name: "ca-vig-archive", scrape };
+export const caVigArchive: Scraper = {
+  id: "ca-vig-archive",
+  name: "ca-vig-archive",
+  source: "California Secretary of State voter-guide archive",
+  environment: { required: ["POSTGRES_URL"] },
+  scrape,
+};

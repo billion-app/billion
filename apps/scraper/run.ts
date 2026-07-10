@@ -5,7 +5,8 @@
  */
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { config } from "dotenv";
+
+import { loadRepoEnv } from "@acme/env/load";
 
 import {
   createLogger,
@@ -20,8 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load .env from project root
-const envPath = join(__dirname, "../../.env");
-const result = config({ path: envPath });
+const result = loadRepoEnv(join(__dirname, "../.."));
 
 if (result.error) {
   logger.error("Error loading .env", result.error);

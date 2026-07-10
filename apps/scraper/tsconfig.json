@@ -1,13 +1,8 @@
 {
-	"extends": "../../tooling/typescript/base.json",
-	"compilerOptions": {
-		"module": "NodeNext",
-		"moduleResolution": "NodeNext",
-		"noEmit": false,
-		"outDir": "dist",
-		"rootDir": "src",
-		"noUnusedLocals": false,
-		"noUnusedParameters": false
-	},
-	"include": ["./src/**/*"]
+  "extends": "../../tooling/typescript/base.json",
+  "compilerOptions": {
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["./src/**/*", "./vite.config.ts"]
 }

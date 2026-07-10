@@ -24,21 +24,23 @@ import { generateObject } from "ai";
 import { getDocumentProxy } from "unpdf";
 import { z } from "zod/v4";
 
-import { db } from "@acme/db/client";
-import { CivicApiCache } from "@acme/db/schema";
+import type {
+  SccCvigPayload,
+  SccCvigStatement,
+} from "@acme/api/lib/candidate-sources/scc-cvig-cache";
 import {
   SCC_CVIG_ADDRESS_HASH,
   SCC_CVIG_ENDPOINT,
   sccCvigCacheParams,
 } from "@acme/api/lib/candidate-sources/scc-cvig-cache";
-import type {
-  SccCvigPayload,
-  SccCvigStatement,
-} from "@acme/api/lib/candidate-sources/scc-cvig-cache";
+import { db } from "@acme/db/client";
+import { CivicApiCache } from "@acme/db/schema";
 
 import type { Scraper } from "../utils/types.js";
-import { createLogger } from "../utils/log.js";
 import { visionLlm } from "../utils/ai/provider.js";
+import { trackVisionUsage } from "../utils/costs.js";
+import { createLogger } from "../utils/log.js";
+import { sccCvigConfig } from "./scc-cvig.config.js";
 
 const logger = createLogger("scc-cvig");
 
@@ -145,11 +147,15 @@ async function extractColumnAwareText(pdf: Uint8Array): Promise<string> {
  * Qualifications: <body>` block, ending the body at the next candidate name, the
  * next office heading, a `CS-####` doc code, or a page footer.
  */
-function segmentStatements(text: string, sourceUrl: string): SccCvigStatement[] {
+function segmentStatements(
+  text: string,
+  sourceUrl: string,
+): SccCvigStatement[] {
   const out: SccCvigStatement[] = [];
 
   // Split the doc by office headings so each candidate inherits its office.
-  const headingRe = /CANDIDATE STATEMENTS? FOR\s+([^\n]+?)(?=\s+[A-Z][A-Z.'' -]+\s+Occupation:)/g;
+  const headingRe =
+    /CANDIDATE STATEMENTS? FOR\s+([^\n]+?)(?=\s+[A-Z][A-Z.'' -]+\s+Occupation:)/g;
   // Within a section, a candidate block runs from a CAPS name + "Occupation:"
   // through "Education and Qualifications:" and its body, up to the next such
   // name, the next office heading, a CS-#### code, or a page footer.
@@ -178,10 +184,9 @@ function segmentStatements(text: string, sourceUrl: string): SccCvigStatement[] 
     const occupation = cm[2]?.split(/\s+Age:/)[0]?.trim();
     const body = cm[3]?.trim().replace(/\s+/g, " ");
     if (!name || !body || body.length < 40) continue;
-    const parts = [
-      occupation ? `Occupation: ${occupation}` : "",
-      body,
-    ].filter(Boolean);
+    const parts = [occupation ? `Occupation: ${occupation}` : "", body].filter(
+      Boolean,
+    );
     out.push({
       name,
       office: officeAt(cm.index),
@@ -204,7 +209,10 @@ function cleanName(raw: string | undefined): string {
     .trim()
     .replace(/\s+/g, " ")
     .replace(/^(?:CITY|COUNTY|TOWN)\s+OF\s+SANTA\s+CLARA\s+/i, "")
-    .replace(/^(?:CITY|COUNTY|TOWN)\s+OF\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+/, "")
+    .replace(
+      /^(?:CITY|COUNTY|TOWN)\s+OF\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+/,
+      "",
+    )
     .trim();
 }
 
@@ -233,7 +241,7 @@ async function extractWithVision(
     return null;
   }
   try {
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: visionLlm,
       schema: StatementSchema,
       temperature: 0.2,
@@ -250,6 +258,7 @@ async function extractWithVision(
         },
       ],
     });
+    trackVisionUsage(usage.inputTokens, usage.outputTokens);
     return object.statements
       .filter((s) => s.statement.trim().length >= 40)
       .map((s) => ({
@@ -308,21 +317,32 @@ function dedupe(statements: SccCvigStatement[]): SccCvigStatement[] {
   return [...byKey.values()];
 }
 
-async function scrape(): Promise<void> {
+async function scrape(maxItems = 10): Promise<void> {
   const years = Object.keys(SCC_GUIDES).map(Number);
   if (years.length === 0) {
     logger.warn("No SCC guides configured — nothing to scrape.");
     return;
   }
 
+  let remaining = maxItems;
   for (const year of years) {
+    if (remaining <= 0) break;
     const guide = SCC_GUIDES[year];
     if (!guide) continue;
     logger.info(`Scraping SCC ${year} guide (election ${guide.electionId})…`);
 
-    const statements = dedupe(await scrapeGuide(year, guide));
+    const docCodes = guide.docCodes.slice(0, remaining);
+    remaining -= docCodes.length;
+    const statements = dedupe(
+      await scrapeGuide(year, {
+        ...guide,
+        docCodes,
+      }),
+    );
     if (statements.length === 0) {
-      logger.warn(`SCC ${year}: no statements extracted — skipping cache write.`);
+      logger.warn(
+        `SCC ${year}: no statements extracted — skipping cache write.`,
+      );
       continue;
     }
 
@@ -359,4 +379,8 @@ async function scrape(): Promise<void> {
   }
 }
 
-export const sccCvig: Scraper = { name: "scc-cvig", scrape };
+export const sccCvig: Scraper = {
+  ...sccCvigConfig,
+  scrape: (options) =>
+    scrape((options?.maxItems ?? Number(process.env.SCC_CVIG_MAX_ITEMS)) || 10),
+};

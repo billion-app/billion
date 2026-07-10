@@ -1,12 +1,14 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod/v4";
 
+import { envSchemas } from "@acme/env";
+
 export function authEnv() {
   return createEnv({
     server: {
-      AUTH_DISCORD_ID: z.string().min(1).optional(),
-      AUTH_DISCORD_SECRET: z.string().min(1).optional(),
-      BETTER_AUTH_SECRET: z.string().min(1),
+      AUTH_DISCORD_ID: envSchemas.AUTH_DISCORD_ID!.optional(),
+      AUTH_DISCORD_SECRET: envSchemas.AUTH_DISCORD_SECRET!.optional(),
+      BETTER_AUTH_SECRET: envSchemas.BETTER_AUTH_SECRET!,
       NODE_ENV: z.enum(["development", "production"]).optional(),
     },
     experimental__runtimeEnv: {},
