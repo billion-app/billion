@@ -15,7 +15,7 @@ export default function TabLayout() {
       <Tabs.Screen name="elections" options={{ title: "Elections" }} />
       <Tabs.Screen
         name="settings"
-        options={{ title: "Settings", href: null }}
+        options={{ title: "Settings", href: __DEV__ ? undefined : null }}
       />
     </Tabs>
   );
