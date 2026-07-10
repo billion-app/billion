@@ -66,6 +66,9 @@ export default function ArticleDetailScreen() {
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
+  const [failedHeaderImageUri, setFailedHeaderImageUri] = useState<
+    string | undefined
+  >();
 
   const {
     data: content,
@@ -75,6 +78,7 @@ export default function ArticleDetailScreen() {
     ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
     enabled: !!articleId,
   });
+  const headerImageUri = content?.imageUri ?? content?.thumbnailUrl;
 
   // content.saved.isSaved is a protected procedure — only query it when signed in,
   // otherwise it throws UNAUTHORIZED.
@@ -255,12 +259,26 @@ export default function ArticleDetailScreen() {
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Placeholder
-          label={`${t.label.toLowerCase()} · header art`}
-          height={170}
-          radius={16}
-          style={{ marginBottom: 18 }}
-        />
+        {headerImageUri && headerImageUri !== failedHeaderImageUri ? (
+          <View style={s.headerArt}>
+            <Image
+              source={{ uri: headerImageUri }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={200}
+              onError={() => setFailedHeaderImageUri(headerImageUri)}
+              accessible
+              accessibilityLabel={`Header image for ${content.title}`}
+            />
+          </View>
+        ) : (
+          <Placeholder
+            label={`${t.label.toLowerCase()} · header art`}
+            height={170}
+            radius={16}
+            style={{ marginBottom: 18 }}
+          />
+        )}
 
         <View style={s.badgeRow}>
           <Badge type={typeKey} />
@@ -409,6 +427,13 @@ const s = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  headerArt: {
+    height: 170,
+    marginBottom: 18,
+    overflow: "hidden",
+    borderRadius: 16,
+    backgroundColor: planes.surface,
+  },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",
