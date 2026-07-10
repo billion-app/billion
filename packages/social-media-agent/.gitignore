@@ -2,6 +2,11 @@
 screenshots/
 test-screenshots/
 
+# Local video source footage and generated renders
+video-projects/**/input/
+video-projects/**/assets/
+video-projects/**/output/
+
 # Playwright
 test-results/
 playwright-report/

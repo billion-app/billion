@@ -1,0 +1,24 @@
+{
+  "presenter": "input/presenter.mov",
+  "captions": "input/captions.srt",
+  "script": "script.md",
+  "output": "output/final.mp4",
+  "hook": "This bill changes who qualifies for rental help",
+  "cta": "Read the proposal, sources, and caveats",
+  "ctaSubtext": "Open Billion",
+  "cutaways": [
+    {
+      "source": "input/app-screen-recording.mov",
+      "rights": "owned",
+      "after": "here is what the bill changes",
+      "duration": 4,
+      "sourceStart": 2.5
+    },
+    {
+      "source": "assets/eligibility-diagram.png",
+      "rights": "owned",
+      "after": "the income limit would rise",
+      "duration": 3
+    }
+  ]
+}

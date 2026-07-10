@@ -9,6 +9,8 @@
     "test": "playwright test",
     "agent:run": "tsx src/entry.ts run",
     "instagram": "tsx src/entry.ts instagram",
+    "video": "tsx src/entry.ts video",
+    "test:video": "tsx --test src/video/*.test.ts",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "license": "MIT",

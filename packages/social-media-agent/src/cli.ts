@@ -10,6 +10,7 @@ import {
   verifyInstagramLogin,
 } from "./instagram-poster";
 import { resolvePackagePath } from "./paths";
+import { initializeVideoProject, renderMarketingVideo } from "./video/render";
 
 const program = new Command();
 
@@ -66,6 +67,49 @@ program
     } catch (error) {
       console.error("Error generating Instagram posts:", error);
       process.exit(1);
+    }
+  });
+
+const videoProgram = program
+  .command("video")
+  .description("Initialize or render a vertical Billion marketing video");
+
+videoProgram
+  .command("init")
+  .description("Create a new video project folder and editable manifest")
+  .argument("<directory>", "Project directory")
+  .action(async (directory: string) => {
+    try {
+      const manifest = await initializeVideoProject(directory);
+      console.log(`Created ${manifest}`);
+      console.log(
+        "Add presenter footage, captions, and approved cutaways, then run video render.",
+      );
+    } catch (error) {
+      console.error("Error initializing video project:", error);
+      process.exitCode = 1;
+    }
+  });
+
+videoProgram
+  .command("render")
+  .description("Render an upload-ready 1080x1920 MP4 from project.json")
+  .argument("<directory>", "Project directory containing project.json")
+  .action(async (directory: string) => {
+    try {
+      const result = await renderMarketingVideo(directory);
+      console.log(`Rendered: ${result.output}`);
+      console.log(`Captions: ${result.captions}`);
+      console.log(`Technical QA: ${result.qa}`);
+      console.log(
+        `Duration: ${result.duration.toFixed(1)}s; cutaways: ${result.cutawayCount}`,
+      );
+      console.log(
+        "A human editorial and rights review is still required before posting.",
+      );
+    } catch (error) {
+      console.error("Error rendering marketing video:", error);
+      process.exitCode = 1;
     }
   });
 
