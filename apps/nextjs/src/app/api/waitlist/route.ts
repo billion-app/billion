@@ -37,7 +37,43 @@ export async function POST(req: Request) {
     );
   }
 
+  // A confirmation is transactional: it is sent only once, when the Contact
+  // is first created. A delivery problem should never prevent someone from
+  // joining the waitlist.
+  if (result === "joined") {
+    await sendWaitlistConfirmation(email).catch((err: unknown) => {
+      console.error("waitlist confirmation email failed", err);
+    });
+  }
+
   return NextResponse.json({ ok: true, result });
+}
+
+async function sendWaitlistConfirmation(email: string) {
+  const from = env.RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL;
+  if (!from) return;
+
+  const response = await fetch(`${RESEND_API_BASE_URL}/emails`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject: "You're on the Billion waitlist",
+      text: "You're on the Billion waitlist. We'll email you when there's an update. Thanks for being early.",
+      html: [
+        "<p>You're on the Billion waitlist.</p>",
+        "<p>We'll email you when there's an update. Thanks for being early.</p>",
+      ].join(""),
+    }),
+  });
+
+  if (response.ok) return;
+
+  throwResendError([["send confirmation", await parseResendError(response)]]);
 }
 
 async function addWaitlistContact(

@@ -23,6 +23,8 @@ export const env = createEnv({
       envSchemas.RESEND_LAUNCH_UPDATES_TOPIC_ID!.optional(),
     RESEND_WAITLIST_SEGMENT_ID:
       envSchemas.RESEND_WAITLIST_SEGMENT_ID!.optional(),
+    RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL:
+      envSchemas.RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL!.optional(),
   },
 
   /**

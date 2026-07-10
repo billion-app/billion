@@ -172,6 +172,16 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL",
+    description:
+      "Verified Resend sender for the immediate waitlist confirmation email.",
+    group: "Email",
+    secret: false,
+    setupUrl: "https://resend.com/docs/dashboard/domains/introduction",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
     key: "NEXT_PUBLIC_POSTHOG_KEY",
     description: "PostHog project API key used by the Next.js client.",
     group: "Analytics",
