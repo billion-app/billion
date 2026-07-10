@@ -61,7 +61,7 @@ per-scraper matrix, provider setup links, defaults, and production guidance.
 
 ```bash
 pnpm install
-pnpm --filter @acme/scraper run start -- congress --concurrency 1
+pnpm --filter @acme/scraper run start congress --concurrency 1
 ```
 
 ### Production build
@@ -95,10 +95,10 @@ that run. It overrides the selected scraper's environment default:
 
 ```bash
 # Process at most ten Congress.gov bills in this run
-pnpm --filter @acme/scraper run start -- congress --max-items 10
+pnpm --filter @acme/scraper run start congress --max-items 10
 
 # If scheduled once per day, this is effectively ten bills per day
-CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start -- congress
+CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 ```
 
 | Variable                        | Default | Counts                                              |

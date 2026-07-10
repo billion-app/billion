@@ -86,7 +86,10 @@ async function scrape(maxDocuments = 20) {
 
   const res = await fetchWithRetry(url.toString(), { timeoutMs: 30_000 });
   const data = (await res.json()) as FrListResponse;
-  const documents = data.results ?? [];
+  // The Federal Register API may return its minimum page size even when a
+  // smaller `per_page` value is requested. Enforce the CLI limit locally so
+  // `--max-items 1` cannot accidentally process a full page of documents.
+  const documents = (data.results ?? []).slice(0, maxDocuments);
 
   logger.info(`Fetched ${documents.length} presidential documents`);
   setExpectedTotal(documents.length);

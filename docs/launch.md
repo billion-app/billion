@@ -294,7 +294,7 @@ The normal scraper development command loads root `.env.local` first, then root
 `.env`. Existing shell values win:
 
 ```bash
-pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
+pnpm --filter @acme/scraper run start federalregister --concurrency 1
 ```
 
 `pnpm --filter @acme/scraper build` uses Vite to produce Node ESM artifacts.
@@ -362,17 +362,17 @@ Running the scrapers one at a time makes a missing source-specific key or
 upstream outage obvious:
 
 ```bash
-pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
-pnpm --filter @acme/scraper run start -- scotus --concurrency 1
-pnpm --filter @acme/scraper run start -- congress --concurrency 1
-pnpm --filter @acme/scraper run start -- scc-cvig --concurrency 1
-pnpm --filter @acme/scraper run start -- ca-sos-statements --concurrency 1
+pnpm --filter @acme/scraper run start federalregister --concurrency 1
+pnpm --filter @acme/scraper run start scotus --concurrency 1
+pnpm --filter @acme/scraper run start congress --concurrency 1
+pnpm --filter @acme/scraper run start scc-cvig --concurrency 1
+pnpm --filter @acme/scraper run start ca-sos-statements --concurrency 1
 ```
 
 Only after those pass, run the concurrent suite:
 
 ```bash
-pnpm --filter @acme/scraper run start -- all --concurrency 1
+pnpm --filter @acme/scraper run start all --concurrency 1
 ```
 
 ### 4. Inspect persisted content
