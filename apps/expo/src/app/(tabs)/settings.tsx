@@ -14,6 +14,7 @@ import {
   SettingsRow,
   TabScreen,
 } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import { colors, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -164,6 +165,8 @@ export default function SettingsScreen() {
         color={colors.red[500]}
         style={{ alignSelf: "center" }}
         onPress={() => {
+          posthog.capture("user_signed_out");
+          posthog.reset();
           void authClient.signOut();
         }}
       />

@@ -18,6 +18,7 @@ import type { VideoPost } from "@acme/api";
 
 import { Text } from "~/components/Themed";
 import { Badge, Icon, LensStrip, Placeholder } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import {
   colors,
   contentType,
@@ -274,9 +275,14 @@ export default function FeedScreen() {
             height={SCREEN_H}
             topInset={insets.top}
             bottomInset={insets.bottom}
-            onOpen={() =>
-              router.push(`/article-detail?id=${item.originalContentId}`)
-            }
+            onOpen={() => {
+              posthog.capture("feed_item_detail_opened", {
+                content_id: item.originalContentId,
+                content_type: item.type,
+                content_title: item.title,
+              });
+              router.push(`/article-detail?id=${item.originalContentId}`);
+            }}
           />
         )}
         pagingEnabled

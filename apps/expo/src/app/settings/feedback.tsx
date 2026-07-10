@@ -12,6 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker, PrimaryButton, ScreenShell } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
@@ -52,6 +53,12 @@ export default function FeedbackScreen() {
       {
         onSuccess: () => {
           setLastSubmittedAt(Date.now());
+          posthog.capture("feedback_submitted", {
+            category: cat,
+            message_length: message.length,
+            app_version: getAppVersion(),
+            platform: Platform.OS,
+          });
           setText("");
           Alert.alert("Feedback sent", "Thanks. We read every note.");
         },
