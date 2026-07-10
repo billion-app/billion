@@ -350,6 +350,7 @@ export const contentRouter = {
                   id: Bill.id,
                   title: Bill.title,
                   description: Bill.description,
+                  thumbnailUrl: Bill.thumbnailUrl,
                 })
                 .from(Bill)
                 .where(eq(Bill.id, s.contentId))
@@ -364,6 +365,7 @@ export const contentRouter = {
                   id: GovernmentContent.id,
                   title: GovernmentContent.title,
                   description: GovernmentContent.description,
+                  thumbnailUrl: GovernmentContent.thumbnailUrl,
                 })
                 .from(GovernmentContent)
                 .where(eq(GovernmentContent.id, s.contentId))
@@ -381,6 +383,7 @@ export const contentRouter = {
                 id: CourtCase.id,
                 title: CourtCase.title,
                 description: CourtCase.description,
+                thumbnailUrl: CourtCase.thumbnailUrl,
               })
               .from(CourtCase)
               .where(eq(CourtCase.id, s.contentId))
