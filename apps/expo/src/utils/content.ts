@@ -7,6 +7,8 @@ export interface ContentItem {
   title: string;
   description: string;
   type: "bill" | "government_content" | "court_case" | "general";
+  thumbnailUrl?: string;
+  imageUri?: string;
 }
 
 const STATUS_LABEL: Record<ContentItem["type"], string> = {
@@ -24,5 +26,7 @@ export function toCardItem(item: ContentItem): ContentCardItem {
     title: item.title,
     gist: item.description,
     status: STATUS_LABEL[item.type],
+    thumbnailUrl: item.thumbnailUrl,
+    imageUri: item.imageUri,
   };
 }
