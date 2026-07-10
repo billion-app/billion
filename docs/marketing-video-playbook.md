@@ -33,6 +33,228 @@ For a month-long campaign, start with approximately 50% “bill in 45 seconds,�
 
 Use [Trial Reels](https://about.fb.com/news/2024/12/trial-reels-try-content-non-followers-first-see-what-perfoms-best/) for format experiments when the account has access. Trial Reels are shown to non-followers first, expose early metrics after about 24 hours, and can be configured to share successful trials more broadly.
 
+## Format playbooks and example scripts
+
+The examples below all use a fictional proposal, **HB 214**, which would raise a rental-assistance income limit from 50% to 60% of area median income. They demonstrate structure and wording only. Replace every bill number, percentage, status, date, and consequence with verified information.
+
+Every format should make three facts understandable even with the sound off:
+
+1. What would change?
+2. Is it currently in effect?
+3. Where can the viewer verify it?
+
+### The bill in 45 seconds
+
+Use this for the daily workhorse: one compact overview covering the consequence, identity, major changes, caveat, and status.
+
+Suggested sequence:
+
+| Time      | Purpose                  | Picture                           |
+| --------- | ------------------------ | --------------------------------- |
+| 0:00–0:03 | Consequence-first hook   | Presenter                         |
+| 0:03–0:08 | Bill identity and status | Billion bill card                 |
+| 0:08–0:25 | Two important changes    | App evidence and a simple diagram |
+| 0:25–0:35 | Who would be affected    | Presenter or documentary visual   |
+| 0:35–0:40 | Most important caveat    | Presenter                         |
+| 0:40–0:45 | One CTA                  | Presenter and end card            |
+
+Example script:
+
+> More renters could qualify for housing assistance under this proposal.
+>
+> This is HB 214. As of July 10, it is still in committee, so it is not law.
+>
+> Right now, the program is limited to households earning up to 50% of the area median income. This bill would raise that limit to 60%.
+>
+> It would also require agencies to review eligibility annually instead of every six months.
+>
+> That could help some families qualify and reduce paperwork—but funding would still depend on the state budget.
+>
+> You can read the proposal and its current status in Billion.
+
+Recommended visuals:
+
+- show the Billion bill card on “This is HB 214”;
+- hold on the status and as-of date;
+- animate a restrained `50% → 60%` comparison;
+- return to the presenter for the funding caveat;
+- use `Who could qualify now?` as the cover text.
+
+Useful phrase anchors for the editor include `This is HB 214`, `raise that limit to 60%`, and `depend on the state budget`.
+
+Do not list every provision. Select the two changes with the clearest real-world consequences.
+
+### Wait, that's in the bill?
+
+Use this for one surprising but genuinely important and verifiable clause. It should feel like a useful discovery, not manufactured outrage.
+
+Suggested sequence:
+
+1. State the surprising detail immediately.
+2. Show the exact app section or official text.
+3. Translate the clause into an everyday consequence.
+4. Clarify its scope and current status.
+
+Example script:
+
+> Buried in this rental-assistance bill is a change to how often families have to prove they still qualify.
+>
+> HB 214 would move eligibility reviews from every six months to once a year.
+>
+> That means less paperwork—but it does not guarantee anyone assistance, and the bill is still in committee as of July 10.
+>
+> The full provision and source are in Billion.
+
+Recommended visuals:
+
+- cut from the presenter to the exact relevant provision;
+- highlight only the sentence being discussed;
+- show a small calendar comparison: `Every 6 months → Once a year`;
+- return to the presenter for “does not guarantee”;
+- use `This clause changes the paperwork` as the cover text.
+
+Useful phrase anchors include `every six months`, `once a year`, and `does not guarantee`.
+
+Do not call routine language “shocking,” omit nearby exceptions, or isolate a clause from the section that defines it.
+
+### Who gains / who pays?
+
+Use this for benefits, eligibility expansions, taxes, appropriations, mandates, and administrative costs. Separate who becomes eligible, who receives a direct benefit, and where the money or burden would come from.
+
+Example script:
+
+> Here is who could benefit from HB 214—and what it could cost.
+>
+> The bill would expand rental-assistance eligibility from 50% to 60% of area median income.
+>
+> The likely beneficiaries are renters who currently earn too much to qualify but still struggle with local housing costs.
+>
+> The bill does not create unlimited funding. More eligible households could mean a larger state appropriation, smaller benefits per household, or a waiting list.
+>
+> So the benefit is broader eligibility. The unresolved question is how lawmakers would fund it.
+>
+> Read the fiscal analysis and current text in Billion.
+
+Recommended visual:
+
+| Who could gain                  | Who pays or administers                |
+| ------------------------------- | -------------------------------------- |
+| Newly eligible renters          | State housing budget                   |
+| Applicants facing fewer reviews | Local agencies processing applications |
+
+Animate the eligibility line moving from 50% to 60%, and show a clearly labeled question mark when funding remains unresolved. Suggested phrase anchors are `likely beneficiaries`, `does not create unlimited funding`, and `how lawmakers would fund it`. Cover text: `Who benefits—and who pays?`
+
+Never present a speculative cost as settled. Attribute estimates to the fiscal analysis and use precise language such as “could require” or “funding has not been specified.”
+
+### Myth versus text
+
+Use this when a meaningful claim is circulating in comments, headlines, speeches, or other coverage. Do not invent an implausible “myth” simply to defeat it.
+
+Example script:
+
+> You may have heard that HB 214 gives rental assistance to every household earning below the new income limit.
+>
+> That is not what the bill says.
+>
+> It would make more households eligible to apply by raising the income limit from 50% to 60% of area median income.
+>
+> Eligibility is not the same as receiving a benefit. Applicants could still face other requirements, limited funding, and a waiting list.
+>
+> The accurate version is: more people could apply—not that everyone automatically receives assistance.
+
+Recommended visuals:
+
+- show the real circulating claim, anonymized when necessary, and label it `CLAIM` rather than `LIE`;
+- display the relevant bill text or Billion source trail;
+- compare `Everyone receives assistance` with `More households may apply`;
+- let the presenter deliver the final distinction;
+- use `Eligibility ≠ guaranteed payment` as the cover text.
+
+Useful phrase anchors include `not what the bill says`, `eligible to apply`, and `not the same as receiving a benefit`.
+
+Do not label a claim false when it is merely incomplete, and do not crop away qualifying language from the source.
+
+### Three taps to understand it
+
+Use this for a product-led walkthrough. The viewer should learn how to verify one real question rather than receive a tour of unrelated features.
+
+Example script:
+
+> Here is how to check what HB 214 actually does in three taps.
+>
+> First, search for the bill and open its card.
+>
+> Second, check the status and the plain-English explanation. This proposal would raise the rental-assistance income limit from 50% to 60%.
+>
+> Third, open the original text and verify the provision yourself.
+>
+> The important part: it is still in committee as of July 10, so none of these changes are in effect yet.
+>
+> That is the full trail—from headline to source—in Billion.
+
+Screen-recording sequence:
+
+1. Search for the bill.
+2. Tap the correct result.
+3. Pause on the status and date.
+4. Scroll to the relevant summary.
+5. Open the original text or external source.
+6. Pause on the provision that supports the explanation.
+
+Keep the presenter visible for the opening and final status warning. Useful phrase anchors are `First, search for the bill`, `Second, check the status`, and `Third, open the original text`. Cover text: `Check a bill in 3 taps`.
+
+### Comment response
+
+Use this to answer genuine audience questions, build recurring conversation, and choose follow-up topics. Show the authentic comment while hiding personal information or the username when permission is unclear.
+
+Example comment:
+
+> Does this mean everyone under the limit automatically gets rental assistance?
+
+Example script:
+
+> Good question. No—being eligible is not the same as automatically receiving assistance.
+>
+> HB 214 would raise the income cutoff, meaning more households could apply.
+>
+> Applicants could still need to meet other requirements, and the program would still be limited by available funding.
+>
+> Also, this is a proposal, not a current benefit. It remains in committee as of July 10.
+>
+> If you want, I can do a second video explaining the other eligibility requirements.
+
+Recommended visuals:
+
+- show the comment for the first two seconds;
+- have the presenter answer immediately rather than beginning with a long thank-you;
+- display `Eligible to apply ≠ guaranteed assistance`;
+- show the app's status and funding information;
+- finish by inviting one specific follow-up question;
+- use a shortened version of the question, such as `Does everyone qualify?`, as the cover text.
+
+Useful phrase anchors include `being eligible`, `limited by available funding`, and `proposal, not a current benefit`.
+
+Do not sound condescending or prioritize an obvious bad-faith comment over a useful audience question.
+
+### Pre-script worksheet
+
+Before recording any format, complete this block:
+
+```text
+Bill or measure:
+Jurisdiction:
+Current status:
+As-of date:
+Official source:
+Current rule:
+Proposed change:
+Affected group:
+Most important caveat:
+What must happen next:
+Visual evidence available:
+CTA:
+```
+
 ## Before recording: research and script
 
 ### 1. Create the evidence sheet
