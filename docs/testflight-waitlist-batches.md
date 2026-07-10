@@ -16,6 +16,8 @@ TestFlight round as its own immutable recipient Segment.
 4. Create a `Local updates` Topic and set its ID as
    `RESEND_LAUNCH_UPDATES_TOPIC_ID`. Send the Broadcast scoped to that Topic so
    people who opt out do not receive future marketing updates.
+5. Set `RESEND_TESTFLIGHT_BATCH_SEGMENT_ID` to the batch segment ID. While it is
+   configured, every new waitlist signup joins both `Waitlist` and that batch.
 
 ## Batch 1 Broadcast draft
 
@@ -47,9 +49,11 @@ record for batch 1; do not clone and send it again.
 ## Subsequent rounds without duplicates
 
 For every later round, create a new segment—for example `TestFlight — batch 2`
-or `TestFlight — July 2026`—and add **only contacts who are not already in any
-earlier TestFlight batch segment**. Target that new segment alone. This makes a
-mistaken resend visually obvious and prevents overlap by construction.
+or `TestFlight — July 2026`—then change
+`RESEND_TESTFLIGHT_BATCH_SEGMENT_ID` to the new segment ID. Do not change
+`RESEND_LAUNCH_UPDATES_TOPIC_ID`: that Topic represents the user's ongoing
+email preference, not a recipient batch. Target only the new batch segment for
+that round's Broadcast.
 
 For a higher-volume workflow, add a custom Contact Property such as
 `testflight_invited_at` for reporting, but continue to use the immutable batch

@@ -25,6 +25,8 @@ export const env = createEnv({
       envSchemas.RESEND_WAITLIST_SEGMENT_ID!.optional(),
     RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL:
       envSchemas.RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL!.optional(),
+    RESEND_TESTFLIGHT_BATCH_SEGMENT_ID:
+      envSchemas.RESEND_TESTFLIGHT_BATCH_SEGMENT_ID!.optional(),
   },
 
   /**

@@ -79,7 +79,10 @@ async function sendWaitlistConfirmation(email: string) {
 async function addWaitlistContact(
   email: string,
 ): Promise<WaitlistSignupResult> {
-  const segmentId = env.RESEND_WAITLIST_SEGMENT_ID;
+  const segmentIds = [
+    env.RESEND_WAITLIST_SEGMENT_ID,
+    env.RESEND_TESTFLIGHT_BATCH_SEGMENT_ID,
+  ].filter((id, index, ids): id is string => !!id && ids.indexOf(id) === index);
   const topicId = env.RESEND_LAUNCH_UPDATES_TOPIC_ID;
   const encodedEmail = encodeURIComponent(email);
   const topics = topicId
@@ -88,7 +91,7 @@ async function addWaitlistContact(
 
   const existing = await resendRequest("GET", `/contacts/${encodedEmail}`);
   if (!existing.error) {
-    await updateWaitlistContact(encodedEmail, segmentId, topics);
+    await updateWaitlistContact(encodedEmail, segmentIds, topics);
     return "already_joined";
   }
 
@@ -98,7 +101,9 @@ async function addWaitlistContact(
 
   const created = await resendRequest("POST", "/contacts", {
     email,
-    ...(segmentId ? { segments: [{ id: segmentId }] } : {}),
+    ...(segmentIds.length
+      ? { segments: segmentIds.map((id) => ({ id })) }
+      : {}),
     ...(topics ? { topics } : {}),
     unsubscribed: false,
   });
@@ -112,7 +117,7 @@ async function addWaitlistContact(
 
 async function updateWaitlistContact(
   encodedEmail: string,
-  segmentId: string | undefined,
+  segmentIds: string[],
   topics: WaitlistTopic[] | undefined,
 ) {
   const updated = await resendRequest("PATCH", `/contacts/${encodedEmail}`, {
@@ -121,14 +126,14 @@ async function updateWaitlistContact(
 
   if (updated.error) throwResendError([["update", updated.error]]);
 
-  if (segmentId) {
-    await ensureWaitlistSegment(encodedEmail, segmentId);
+  for (const segmentId of segmentIds) {
+    await ensureSegment(encodedEmail, segmentId);
   }
 
   await ensureLaunchUpdatesTopic(encodedEmail, topics);
 }
 
-async function ensureWaitlistSegment(encodedEmail: string, segmentId: string) {
+async function ensureSegment(encodedEmail: string, segmentId: string) {
   const segmented = await resendRequest(
     "POST",
     `/contacts/${encodedEmail}/segments/${encodeURIComponent(segmentId)}`,

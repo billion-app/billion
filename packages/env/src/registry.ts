@@ -182,6 +182,16 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "RESEND_TESTFLIGHT_BATCH_SEGMENT_ID",
+    description:
+      "Optional active TestFlight batch segment assigned to new waitlist contacts.",
+    group: "Email",
+    secret: false,
+    setupUrl: "https://resend.com/docs/dashboard/segments/introduction",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
     key: "NEXT_PUBLIC_POSTHOG_KEY",
     description: "PostHog project API key used by the Next.js client.",
     group: "Analytics",
