@@ -46,7 +46,7 @@ There is one contract, but not one universal loader:
   behavior and client-variable rules are framework-owned.
 - Expo keeps its native `EXPO_PUBLIC_*` replacement because those values are
   compiled into the app bundle.
-- Local Node tools (scrapers, Drizzle, seeds, and the social agent) call the
+- Local Node tools (scrapers, Drizzle, and seeds) call the
   shared `@acme/env/load` loader. It reads root `.env.local`, then root `.env`,
   without overwriting variables already supplied by the shell.
 - Production processes do not load files. The hosting platform, container
@@ -68,13 +68,12 @@ Add the variable to the registry and use the loader appropriate to the runtime.
 
 ## Where variables belong
 
-| Runtime                 | Configure variables in                                             | Important boundary                                                                              |
-| ----------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| Next.js website and API | Vercel project settings; root `.env` locally                       | Server secrets only. This app currently exposes no `NEXT_PUBLIC_*` variables.                   |
-| Expo mobile app         | EAS environment variables; root `.env` locally                     | Every `EXPO_PUBLIC_*` value is compiled into the client and is public. Never put secrets there. |
-| Scraper container/jobs  | Container or scheduler secret store; root `.env` locally           | All keys are server-side. The development command loads the root `.env`.                        |
-| Database tooling        | Shell/CI secret store; root `.env` locally                         | `POSTGRES_URL` grants direct database access and must remain secret.                            |
-| Social-media agent      | The machine or secret store running the agent; root `.env` locally | Instagram credentials and Gemini keys are operational secrets, not app-client configuration.    |
+| Runtime                 | Configure variables in                                   | Important boundary                                                                              |
+| ----------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Next.js website and API | Vercel project settings; root `.env` locally             | Server secrets only. This app currently exposes no `NEXT_PUBLIC_*` variables.                   |
+| Expo mobile app         | EAS environment variables; root `.env` locally           | Every `EXPO_PUBLIC_*` value is compiled into the client and is public. Never put secrets there. |
+| Scraper container/jobs  | Container or scheduler secret store; root `.env` locally | All keys are server-side. The development command loads the root `.env`.                        |
+| Database tooling        | Shell/CI secret store; root `.env` locally               | `POSTGRES_URL` grants direct database access and must remain secret.                            |
 
 Do not commit a populated `.env`. Use separate keys for development and
 production where providers support it, restrict keys to only the APIs they
@@ -188,16 +187,16 @@ scheduled because the app does not consume their output.
 
 ### Shared scraper variables
 
-| Variable                       | Requirement                      | Used for                                                                                   | Missing behavior                                                                                                                    | Where to get it                                                                                                                                         |
-| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DEEPSEEK_API_KEY`             | Required for content enrichment  | Shared `deepseek-v4-flash` provider for articles, summaries, image keywords, and feed copy | Environment validation fails before `federalregister`, `congress`, or `scotus` starts. Cache-only civic scrapers do not require it. | [DeepSeek API platform](https://platform.deepseek.com/api_keys).                                                                                        |
-| `POSTGRES_URL`                 | Required for all active scrapers | Raw content, civic cache, AI fields, and feed rows                                         | Zod validation fails before a scraper starts.                                                                                       | Copy a provider connection string. When substituting credentials yourself, percent-encode only the username/password components, not the whole URL.     |
-| `BFL_API_KEY`                  | Recommended                      | FLUX-generated feed-card images for content scrapers                                       | Image generation logs an error and returns `null`; raw content, AI text, and any Google thumbnail can still persist.                | Create a key under API → Keys in the [BFL dashboard](https://dashboard.bfl.ai); see the [BFL quick start](https://docs.bfl.ai/quick_start/get_started). |
-| `BFL_MODEL`                    | Optional                         | Selects the BFL image model                                                                | Defaults to `flux-2-klein-9b`. Only change this to a model endpoint supported by the current request payload.                       | [BFL model documentation](https://docs.bfl.ai/).                                                                                                        |
-| `GOOGLE_API_KEY`               | Optional pair                    | Google Custom Search image thumbnails                                                      | Image search is skipped unless both Google variables are present. Existing customers get 100 free queries/day; the API is scheduled for discontinuation on January 1, 2027. This key is also a Places fallback in the API. | Create a restricted server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials) and enable Custom Search JSON API. |
-| `GOOGLE_SEARCH_ENGINE_ID`      | Optional pair                    | Programmable Search Engine identifier (`cx`)                                               | Image search is skipped unless both Google variables are present.                                                                   | Create a search engine in [Programmable Search Engine](https://programmablesearchengine.google.com/).                                                   |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Optional                         | Gemini vision fallback for PDF candidate statements                                        | `scc-cvig` uses text-layer PDF extraction only and skips the vision fallback.                                                       | Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey).                                                                             |
-| `SCRAPER_FORCE_AI_REGEN`       | Optional operational flag        | Forces AI field regeneration for unchanged rows                                            | Default is off. Set exactly `1` for a deliberate backfill; it can incur substantial API cost.                                       | Set manually for one controlled job.                                                                                                                    |
+| Variable                       | Requirement                      | Used for                                                                                   | Missing behavior                                                                                                                                                                                                           | Where to get it                                                                                                                                         |
+| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEEPSEEK_API_KEY`             | Required for content enrichment  | Shared `deepseek-v4-flash` provider for articles, summaries, image keywords, and feed copy | Environment validation fails before `federalregister`, `congress`, or `scotus` starts. Cache-only civic scrapers do not require it.                                                                                        | [DeepSeek API platform](https://platform.deepseek.com/api_keys).                                                                                        |
+| `POSTGRES_URL`                 | Required for all active scrapers | Raw content, civic cache, AI fields, and feed rows                                         | Zod validation fails before a scraper starts.                                                                                                                                                                              | Copy a provider connection string. When substituting credentials yourself, percent-encode only the username/password components, not the whole URL.     |
+| `BFL_API_KEY`                  | Recommended                      | FLUX-generated feed-card images for content scrapers                                       | Image generation logs an error and returns `null`; raw content, AI text, and any Google thumbnail can still persist.                                                                                                       | Create a key under API → Keys in the [BFL dashboard](https://dashboard.bfl.ai); see the [BFL quick start](https://docs.bfl.ai/quick_start/get_started). |
+| `BFL_MODEL`                    | Optional                         | Selects the BFL image model                                                                | Defaults to `flux-2-klein-9b`. Only change this to a model endpoint supported by the current request payload.                                                                                                              | [BFL model documentation](https://docs.bfl.ai/).                                                                                                        |
+| `GOOGLE_API_KEY`               | Optional pair                    | Google Custom Search image thumbnails                                                      | Image search is skipped unless both Google variables are present. Existing customers get 100 free queries/day; the API is scheduled for discontinuation on January 1, 2027. This key is also a Places fallback in the API. | Create a restricted server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials) and enable Custom Search JSON API.      |
+| `GOOGLE_SEARCH_ENGINE_ID`      | Optional pair                    | Programmable Search Engine identifier (`cx`)                                               | Image search is skipped unless both Google variables are present.                                                                                                                                                          | Create a search engine in [Programmable Search Engine](https://programmablesearchengine.google.com/).                                                   |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Optional                         | Gemini vision fallback for PDF candidate statements                                        | `scc-cvig` uses text-layer PDF extraction only and skips the vision fallback.                                                                                                                                              | Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey).                                                                             |
+| `SCRAPER_FORCE_AI_REGEN`       | Optional operational flag        | Forces AI field regeneration for unchanged rows                                            | Default is off. Set exactly `1` for a deliberate backfill; it can incur substantial API cost.                                                                                                                              | Set manually for one controlled job.                                                                                                                    |
 
 ### Per-scraper requirements
 
@@ -239,26 +238,14 @@ beyond that enrichment budget are still stored and can be enriched later.
 These do not alter provider billing; they only change the estimates printed by
 the scraper. Invalid, empty, or zero values fall back to the defaults shown.
 
-| Variable              | Default | Tracks                                  |
-| --------------------- | ------: | --------------------------------------- |
+| Variable              | Default | Tracks                                                          |
+| --------------------- | ------: | --------------------------------------------------------------- |
 | `LLM_INPUT_PRICE`     |  `0.14` | DeepSeek V4 Flash input estimate ($/1M tokens, cache-miss rate) |
-| `LLM_OUTPUT_PRICE`    |  `0.28` | DeepSeek V4 Flash output estimate ($/1M tokens) |
-| `VISION_INPUT_PRICE`  |  `0.30` | Gemini 2.5 Flash vision input estimate ($/1M tokens) |
-| `VISION_OUTPUT_PRICE` |  `2.50` | Gemini 2.5 Flash vision output estimate ($/1M tokens) |
-| `FLUX_IMAGE_PRICE`    | `0.015` | Cost estimate per generated BFL image   |
-| `GOOGLE_SEARCH_PRICE` | `0.005` | Cost estimate per Custom Search request after the free quota |
-
-## Social-media agent
-
-The root launch does not require this separate operational tool. Configure
-these only on the machine that generates or publishes social content.
-
-| Variable             | Requirement                  | Used for                                | Default / missing behavior                                                                                                                          |
-| -------------------- | ---------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BASE_URL`           | Optional                     | Web app origin that Playwright captures | Defaults to `http://localhost:8081`.                                                                                                                |
-| `GEMINI_API_KEY`     | Feature required             | AI-generated Instagram captions         | Caption generation is unavailable or can be disabled with `--no-gemini`. Get a key from [Google AI Studio](https://aistudio.google.com/app/apikey). |
-| `INSTAGRAM_USERNAME` | Feature required for posting | Instagram browser login                 | Generation still works; `--post`, login verification, and posting fail without both Instagram credentials.                                          |
-| `INSTAGRAM_PASSWORD` | Feature required for posting | Instagram browser login                 | Store only in an operational secret manager.                                                                                                        |
+| `LLM_OUTPUT_PRICE`    |  `0.28` | DeepSeek V4 Flash output estimate ($/1M tokens)                 |
+| `VISION_INPUT_PRICE`  |  `0.30` | Gemini 2.5 Flash vision input estimate ($/1M tokens)            |
+| `VISION_OUTPUT_PRICE` |  `2.50` | Gemini 2.5 Flash vision output estimate ($/1M tokens)           |
+| `FLUX_IMAGE_PRICE`    | `0.015` | Cost estimate per generated BFL image                           |
+| `GOOGLE_SEARCH_PRICE` | `0.005` | Cost estimate per Custom Search request after the free quota    |
 
 ## Build, CI, and framework-owned variables
 
