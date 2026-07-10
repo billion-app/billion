@@ -31,13 +31,13 @@ import { posthog } from "~/config/posthog";
 import {
   colors,
   contentType,
+  darkTheme,
   fontBody,
   fontDisplay,
   getMarkdownStyles,
   hair,
   planes,
   resolveType,
-  useTheme,
 } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -62,7 +62,6 @@ const PLACEHOLDER_LENS = {
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -191,7 +190,10 @@ export default function ArticleDetailScreen() {
 
   const typeKey = resolveType(content.type);
   const t = contentType[typeKey];
-  const markdownStyles = getMarkdownStyles(theme);
+  // This screen is always rendered on the dark navy canvas, independent of
+  // the phone's appearance setting. Using the light system theme here made
+  // valid article markdown navy-on-navy and appear completely empty.
+  const markdownStyles = getMarkdownStyles(darkTheme);
   const markdownRules: RenderRules = {
     image: (
       node,

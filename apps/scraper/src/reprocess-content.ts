@@ -16,6 +16,7 @@ import {
 import { getThumbnailImage } from "./utils/api/google-images.js";
 import { getCostSummary, resetCosts } from "./utils/costs.js";
 import { generateVideoForContent } from "./utils/db/video-operations.js";
+import { createContentHash } from "./utils/hash.js";
 import {
   createLogger,
   printFooter,
@@ -28,6 +29,7 @@ import {
   isUsableSourceText,
   needsReprocessing,
 } from "./utils/reprocessing-policy.js";
+import { refreshSourceText } from "./utils/source-refresh.js";
 
 const logger = createLogger("reprocess");
 
@@ -185,20 +187,56 @@ async function updateContentAssets(
   }
 }
 
+async function updateSourceText(
+  item: ContentItem,
+  fullText: string,
+  contentHash: string,
+): Promise<void> {
+  const update = { fullText, contentHash, updatedAt: new Date() };
+  if (item.type === "bill") {
+    await db.update(Bill).set(update).where(eq(Bill.id, item.id));
+  } else if (item.type === "government_content") {
+    await db
+      .update(GovernmentContent)
+      .set(update)
+      .where(eq(GovernmentContent.id, item.id));
+  } else {
+    await db.update(CourtCase).set(update).where(eq(CourtCase.id, item.id));
+  }
+}
+
 async function processItem(
   item: ContentItem,
   mode: ReprocessMode,
+  assets: "all" | "images",
 ): Promise<ProcessResult> {
-  if (!isUsableSourceText(item.fullText)) {
-    return { id: item.id, type: item.type, status: "skipped", errors: [] };
+  let fullText = item.fullText;
+  let contentHash = item.contentHash;
+  if (!isUsableSourceText(fullText)) {
+    logger.start(`${item.type}:${item.id} re-fetching missing source text`);
+    const refreshed = await refreshSourceText(item);
+    if (!isUsableSourceText(refreshed)) {
+      return {
+        id: item.id,
+        type: item.type,
+        status: "partial",
+        errors: ["source text is empty and re-fetch did not recover it"],
+      };
+    }
+    fullText = refreshed;
+    contentHash = createContentHash(
+      JSON.stringify({ previous: item.contentHash, fullText }),
+    );
+    await updateSourceText(item, fullText, contentHash);
+    logger.success(`${item.type}:${item.id} recovered source text`);
   }
-  const fullText = item.fullText;
 
   const errors: string[] = [];
   let replacementArticle: string | undefined;
   let replacementThumbnail: string | undefined;
   const shouldGenerateArticle =
-    mode === "replace" || !isUsableAIArticle(item.aiGeneratedArticle);
+    assets === "all" &&
+    (mode === "replace" || !isUsableAIArticle(item.aiGeneratedArticle));
   const imageSearchReady = Boolean(
     process.env.GOOGLE_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID,
   );
@@ -269,10 +307,10 @@ async function processItem(
       item.id,
       item.title,
       fullText,
-      item.contentHash,
+      contentHash,
       item.author,
       effectiveThumbnail,
-      { force: mode === "replace" },
+      { force: mode === "replace", preserveCopy: assets === "images" },
     );
     videoHasImage = video.hasImage;
     if (!videoHasImage) errors.push("video has no generated or fallback image");
@@ -308,6 +346,7 @@ function printInventory(
   printHeader(type);
   printKeyValue("Rows", items.length);
   printKeyValue("Usable source text", usable.length);
+  printKeyValue("Missing/invalid source text", items.length - usable.length);
   printKeyValue(
     "Invalid/missing article",
     items.filter((item) => !isUsableAIArticle(item.aiGeneratedArticle)).length,
@@ -341,11 +380,21 @@ const argv = await yargs(hideBin(process.argv))
     type: "string",
     description: "Resume after this UUID (only valid with one content type)",
   })
+  .option("id", {
+    type: "array",
+    string: true,
+    description: "Process only these content UUIDs (repeatable)",
+  })
   .option("concurrency", {
     alias: "c",
     type: "number",
     default: 1,
     description: "Concurrent AI jobs (1-5)",
+  })
+  .option("assets", {
+    choices: ["all", "images"] as const,
+    default: "all" as const,
+    description: "Regenerate every derived asset or feed imagery only",
   })
   .option("apply", {
     type: "boolean",
@@ -374,6 +423,9 @@ const argv = await yargs(hideBin(process.argv))
     }
     if (args.afterId && args.type === "all") {
       throw new Error("--after-id requires a specific --type");
+    }
+    if (args.afterId && args.id?.length) {
+      throw new Error("--after-id and --id cannot be combined");
     }
     return true;
   })
@@ -417,6 +469,7 @@ async function main(): Promise<void> {
 
   const selected = [...inventory.values()].flatMap((items) =>
     items
+      .filter((item) => !argv.id?.length || argv.id.includes(item.id))
       .filter((item) => needsReprocessing(rowState(item), argv.mode))
       .slice(0, argv.limit),
   );
@@ -425,6 +478,7 @@ async function main(): Promise<void> {
   printKeyValue("Mode", argv.mode);
   printKeyValue("Selected rows", selected.length);
   printKeyValue("Concurrency", argv.concurrency);
+  printKeyValue("Assets", argv.assets);
   printKeyValue("Writes", argv.apply ? "enabled" : "disabled (inventory only)");
   printFooter();
 
@@ -437,7 +491,7 @@ async function main(): Promise<void> {
       limit(async () => {
         logger.start(`${item.type}:${item.id} ${item.title.substring(0, 80)}`);
         try {
-          const result = await processItem(item, argv.mode);
+          const result = await processItem(item, argv.mode, argv.assets);
           if (result.status === "updated") {
             logger.success(
               `${item.type}:${item.id} replaced and verified in-process`,
