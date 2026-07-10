@@ -38,6 +38,11 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
     >
       <View style={s.inner}>
         {state.routes.map((route, index) => {
+          // Do not expose Settings in production. `href: null` is retained on
+          // the route as a second guard, but custom tab bars cannot rely on
+          // Expo Router forwarding that value into runtime descriptors.
+          if (!__DEV__ && route.name === "settings") return null;
+
           const descriptor = descriptors[route.key];
           if (!descriptor) return null;
           const { options } = descriptor;
