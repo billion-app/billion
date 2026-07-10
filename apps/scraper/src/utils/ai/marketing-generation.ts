@@ -40,8 +40,8 @@ const logger = createLogger("ai");
 // whole call throw and discards otherwise-usable copy. Instead we generate
 // freely and truncate to fit the column below.
 const TITLE_MAX_LENGTH = 100;
-const MAX_GENERATION_ATTEMPTS = 2;
-const MAX_OUTPUT_TOKENS = 700;
+const MAX_GENERATION_ATTEMPTS = 3;
+const MAX_OUTPUT_TOKENS = 1200;
 
 const MarketingCopySchema = z.object({
   title: z.string(),
@@ -161,12 +161,8 @@ export async function generateMarketingCopy(
       throw new AIRateLimitError();
     }
     logger.error("Marketing copy generation failed", error);
-
-    // Fallback to simple extraction
-    return {
-      title: articleTitle.substring(0, TITLE_MAX_LENGTH),
-      description: articleContent.substring(0, 200) + "...",
-      imagePrompt: `A dynamic, cinematic editorial photo about ${articleTitle}. Dramatic lighting, vivid colors.`,
-    };
+    throw new Error(
+      `Marketing copy did not pass structured-output validation: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
