@@ -295,6 +295,17 @@ export interface VoterInfoResponse {
   mailOnly?: boolean;
 }
 
+export interface CivicDivision {
+  name: string;
+  alsoKnownAs?: string[];
+}
+
+export interface DivisionByAddressResponse {
+  kind: string;
+  normalizedInput: Address;
+  divisions: Record<string, CivicDivision>;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -324,6 +335,15 @@ async function fetchCivicApi<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+/** Resolve an address to its current Open Civic Data political divisions. */
+export async function getDivisionsByAddress(
+  address: string,
+): Promise<DivisionByAddressResponse> {
+  return fetchCivicApi<DivisionByAddressResponse>("divisionsByAddress", {
+    address,
+  });
 }
 
 // ============================================================================

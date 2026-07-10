@@ -33,6 +33,13 @@ void test("Expo surface never includes secrets", () => {
   assert.equal(definitionsFor("expo")[0]?.definition.secret, false);
 });
 
+void test("Next.js requires the Google Civic key", () => {
+  const civic = definitionsFor("nextjs").find(
+    ({ definition }) => definition.key === "GOOGLE_CIVIC_API_KEY",
+  );
+  assert.equal(civic?.requirement, "required");
+});
+
 void test("Congress validation requires only its relevant core keys", () => {
   const result = validateEnvironment({
     environment: {},
