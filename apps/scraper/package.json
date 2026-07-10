@@ -39,6 +39,7 @@
     "build": "pnpm run typecheck && vite build",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
+    "reprocess-content": "tsx src/reprocess-content-entry.ts",
     "retroactive-videos": "tsx src/retroactive-videos-entry.ts"
   },
   "author": "It's not you it's me",
