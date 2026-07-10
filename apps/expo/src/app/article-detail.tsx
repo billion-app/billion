@@ -39,11 +39,13 @@ import {
   planes,
   resolveType,
 } from "~/styles";
+import { formatDate } from "~/utils/dates";
 import { queryClient, trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 
 // TODO(backend): real per-side framing per content item.
 const PLACEHOLDER_LENS = {
+  framing: "proponent_opponent" as const,
   left: {
     stance: "Supporters argue",
     points: [
@@ -66,6 +68,7 @@ export default function ArticleDetailScreen() {
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
+  const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [failedHeaderImageUri, setFailedHeaderImageUri] = useState<
     string | undefined
   >();
@@ -261,22 +264,26 @@ export default function ArticleDetailScreen() {
     "actions" in content
       ? (content.actions as { date: string; text: string }[])
       : [];
-  const timeline =
-    actions.length > 0
-      ? actions
-          .slice()
-          .sort((a, b) => a.date.localeCompare(b.date))
-          .map((a, i, arr) => ({
-            label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
-            done: true,
-            current: i === arr.length - 1,
-          }))
-      : [
-          { label: "Introduced", done: true, current: false },
-          { label: "Committee review", done: true, current: false },
-          { label: "Latest action", done: true, current: true },
-          { label: "Becomes law", done: false, current: false },
-        ];
+  const hasRealActions = actions.length > 0;
+  const timeline = hasRealActions
+    ? actions
+        .slice()
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((a, i, arr) => ({
+          label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
+          fullText: a.text,
+          date: a.date,
+          done: true,
+          current: i === arr.length - 1,
+        }))
+    : [
+        { label: "Introduced", fullText: "", date: "", done: true, current: false },
+        { label: "Committee review", fullText: "", date: "", done: true, current: false },
+        { label: "Latest action", fullText: "", date: "", done: true, current: true },
+        { label: "Becomes law", fullText: "", date: "", done: false, current: false },
+      ];
+  // Actions are the official legislative record from the source (congress.gov).
+  const timelineSourceUrl = hasRealActions ? content.url : undefined;
 
   return (
     <View style={s.screen}>
@@ -382,46 +389,87 @@ export default function ArticleDetailScreen() {
 
         {/* Dual-Lens — signature */}
         <View style={{ marginVertical: 24 }}>
-          <LensPanel data={PLACEHOLDER_LENS} />
+          <LensPanel data={content.lensData ?? PLACEHOLDER_LENS} />
         </View>
 
         {/* timeline */}
         <Kicker>Where it stands</Kicker>
         <Card style={{ marginBottom: 24 }}>
-          {timeline.map((step, i) => (
-            <View key={i} style={s.timelineRow}>
-              <View style={s.timelineMarker}>
-                <View
-                  style={[
-                    s.timelineDot,
-                    {
-                      borderColor: step.done ? t.color : hair[3],
-                      backgroundColor: step.current ? t.color : "transparent",
-                    },
-                  ]}
-                />
-                {i < timeline.length - 1 && (
+          {timeline.map((step, i) => {
+            const expandable = !!step.fullText && step.label !== step.fullText;
+            const isExpanded = expandedStep === i;
+            return (
+              <TouchableOpacity
+                key={i}
+                style={s.timelineRow}
+                activeOpacity={expandable ? 0.6 : 1}
+                onPress={() =>
+                  expandable && setExpandedStep(isExpanded ? null : i)
+                }
+                accessibilityRole={expandable ? "button" : undefined}
+              >
+                <View style={s.timelineMarker}>
                   <View
                     style={[
-                      s.timelineLine,
-                      { backgroundColor: step.done ? t.color : hair[2] },
+                      s.timelineDot,
+                      {
+                        borderColor: step.done ? t.color : hair[3],
+                        backgroundColor: step.current ? t.color : "transparent",
+                      },
                     ]}
                   />
-                )}
-              </View>
-              <Text
-                style={[
-                  s.timelineLabel,
-                  {
-                    color: step.done ? colors.white : colors.textSecondary,
-                    fontFamily: step.current ? fontBody.bold : fontBody.medium,
-                  },
-                ]}
-              >
-                {step.label}
+                  {i < timeline.length - 1 && (
+                    <View
+                      style={[
+                        s.timelineLine,
+                        { backgroundColor: step.done ? t.color : hair[2] },
+                      ]}
+                    />
+                  )}
+                </View>
+                <View style={s.timelineBody}>
+                  {!!step.date && (
+                    <Text style={s.timelineDate}>{formatDate(step.date)}</Text>
+                  )}
+                  <View style={s.timelineLabelRow}>
+                    <Text
+                      style={[
+                        s.timelineLabel,
+                        {
+                          color: step.done ? colors.white : colors.textSecondary,
+                          fontFamily: step.current
+                            ? fontBody.bold
+                            : fontBody.medium,
+                        },
+                      ]}
+                    >
+                      {isExpanded ? step.fullText : step.label}
+                    </Text>
+                    {expandable && (
+                      <Icon
+                        name={isExpanded ? "chevD" : "chevR"}
+                        size={13}
+                        color={colors.textSecondary}
+                      />
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+          {timelineSourceUrl && (
+            <TouchableOpacity
+              style={s.timelineSource}
+              activeOpacity={0.7}
+              onPress={() => void Linking.openURL(timelineSourceUrl)}
+            >
+              <Icon name="info" size={13} color={colors.textSecondary} />
+              <Text style={s.timelineSourceText}>
+                Official record · congress.gov
               </Text>
-            </View>
-          ))}
+              <Icon name="chevR" size={12} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
         </Card>
 
         {/* dig-deeper exit */}
@@ -529,7 +577,35 @@ const s = StyleSheet.create({
   timelineMarker: { alignItems: "center" },
   timelineDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
   timelineLine: { width: 2, flex: 1, minHeight: 22 },
-  timelineLabel: { fontSize: 14, paddingBottom: 14 },
+  timelineBody: { flex: 1, paddingBottom: 14 },
+  timelineDate: {
+    fontFamily: fontBody.medium,
+    fontSize: 10.5,
+    letterSpacing: 0.3,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  timelineLabelRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
+  timelineLabel: { flex: 1, fontSize: 14, lineHeight: 19 },
+  timelineSource: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginTop: 4,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: hair[1],
+  },
+  timelineSourceText: {
+    flex: 1,
+    fontFamily: fontBody.regular,
+    fontSize: 11.5,
+    color: colors.textSecondary,
+  },
   exit: {
     backgroundColor: planes.slate,
     borderWidth: 1,

@@ -5,6 +5,7 @@ import { and, desc, eq, inArray, or } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
+  ContentLens,
   CourtCase,
   GovernmentContent,
   SavedArticle,
@@ -87,6 +88,25 @@ async function attachVideoImages<T extends ContentImageRef>(
       imageUri: thumbnailUrl ? undefined : video?.imageUri,
     };
   });
+}
+
+// Look up cached dual-lens perspectives for a content item. Returns null when
+// none have been generated yet (the client falls back to a placeholder).
+async function getLensData(
+  contentId: string,
+  contentType: "bill" | "government_content" | "court_case",
+) {
+  const [lens] = await db
+    .select({ lensData: ContentLens.lensData })
+    .from(ContentLens)
+    .where(
+      and(
+        eq(ContentLens.contentId, contentId),
+        eq(ContentLens.contentType, contentType),
+      ),
+    )
+    .limit(1);
+  return lens?.lensData ?? null;
 }
 
 // Helper function to get thumbnail URL for any content
@@ -359,6 +379,7 @@ export const contentRouter = {
               type?: string;
             }[],
             status: b.status ?? undefined,
+            lensData: await getLensData(b.id, "bill"),
           },
         ]);
         if (!result) throw new Error(`Failed to decorate bill ${b.id}`);
@@ -385,6 +406,7 @@ export const contentRouter = {
               c.aiGeneratedArticle ?? c.fullText ?? "No content available",
             originalContent: c.fullText ?? "Full text not available",
             url: c.url,
+            lensData: await getLensData(c.id, "government_content"),
           },
         ]);
         if (!result) {
@@ -413,6 +435,7 @@ export const contentRouter = {
               c.aiGeneratedArticle ?? c.fullText ?? "No content available",
             originalContent: c.fullText ?? "Full text not available",
             url: c.url,
+            lensData: await getLensData(c.id, "court_case"),
           },
         ]);
         if (!result) throw new Error(`Failed to decorate court case ${c.id}`);

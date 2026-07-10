@@ -281,11 +281,12 @@ The normal scraper development command loads root `.env.local` first, then root
 `.env`. Existing shell values win:
 
 ```bash
-pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
+pnpm --filter @acme/scraper run start federalregister --concurrency 1
 ```
 
 `pnpm --filter @acme/scraper build` uses Vite to produce Node ESM artifacts.
-The stable production entries are `dist/main.js` for the scraper CLI and
+The stable production entries are `dist/main.js` for the scraper CLI,
+`dist/retroactive-lenses.js` for the dual-lens backfill, and
 `dist/retroactive-videos.js` for the retroactive-video job; Vite may also emit
 shared chunks, so deploy the complete `dist/` directory. The production scraper
 command remains `node dist/main.js`. It does **not** load an env file or contain
@@ -327,10 +328,11 @@ pnpm typecheck
 pnpm build
 pnpm --filter @acme/scraper build
 test -f apps/scraper/dist/main.js
+test -f apps/scraper/dist/retroactive-lenses.js
 test -f apps/scraper/dist/retroactive-videos.js
 ```
 
-The final two checks exercise the scraper's Vite build directly and verify only
+The final three checks exercise the scraper's Vite build directly and verify only
 its stable entry-point contract. Shared chunk names are intentionally not part
 of launch verification.
 
@@ -349,17 +351,17 @@ Running the scrapers one at a time makes a missing source-specific key or
 upstream outage obvious:
 
 ```bash
-pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
-pnpm --filter @acme/scraper run start -- scotus --concurrency 1
-pnpm --filter @acme/scraper run start -- congress --concurrency 1
-pnpm --filter @acme/scraper run start -- scc-cvig --concurrency 1
-pnpm --filter @acme/scraper run start -- ca-sos-statements --concurrency 1
+pnpm --filter @acme/scraper run start federalregister --concurrency 1
+pnpm --filter @acme/scraper run start scotus --concurrency 1
+pnpm --filter @acme/scraper run start congress --concurrency 1
+pnpm --filter @acme/scraper run start scc-cvig --concurrency 1
+pnpm --filter @acme/scraper run start ca-sos-statements --concurrency 1
 ```
 
 Only after those pass, run the concurrent suite:
 
 ```bash
-pnpm --filter @acme/scraper run start -- all --concurrency 1
+pnpm --filter @acme/scraper run start all --concurrency 1
 ```
 
 ### 4. Inspect persisted content
