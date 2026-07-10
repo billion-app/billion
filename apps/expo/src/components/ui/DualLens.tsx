@@ -3,6 +3,7 @@
  * LensStrip: compact spectrum read-out (tap to expand).
  * LensPanel: two-column "both sides, side by side" card.
  */
+import { useState } from "react";
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { colors, fontBody, hair, planes } from "~/styles";
@@ -131,23 +132,7 @@ export function LensPanel({ data }: { data: LensData }) {
         ))}
       </View>
       {sources.length > 0 ? (
-        <View style={s.sources}>
-          <Text style={s.sourcesLabel}>SOURCES</Text>
-          {sources.map((src) => (
-            <TouchableOpacity
-              key={src.id}
-              style={s.sourceRow}
-              activeOpacity={0.7}
-              onPress={() => void Linking.openURL(src.url)}
-            >
-              <Text style={s.sourceNum}>{src.id}</Text>
-              <Text style={s.sourceTitle} numberOfLines={1}>
-                {src.title}
-              </Text>
-              <Icon name="chevR" size={13} color={colors.textSecondary} />
-            </TouchableOpacity>
-          ))}
-        </View>
+        <SourcesAccordion sources={sources} />
       ) : (
         <View style={s.footer}>
           <Icon name="info" size={14} color={colors.textSecondary} />
@@ -156,6 +141,46 @@ export function LensPanel({ data }: { data: LensData }) {
           </Text>
         </View>
       )}
+    </View>
+  );
+}
+
+/* ---------- SourcesAccordion ---------- */
+// Sources can run to 20+ items, so keep them collapsed behind a tappable header
+// (count + chevron) and expand on demand.
+function SourcesAccordion({ sources }: { sources: LensSource[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={s.sources}>
+      <TouchableOpacity
+        style={s.sourcesHeader}
+        activeOpacity={0.7}
+        onPress={() => setOpen((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+      >
+        <Text style={s.sourcesLabel}>SOURCES</Text>
+        <Text style={s.sourcesCount}>{sources.length}</Text>
+        <View style={s.sourcesSpacer} />
+        <View style={open ? s.chevFlip : undefined}>
+          <Icon name="chevD" size={15} color={colors.textSecondary} />
+        </View>
+      </TouchableOpacity>
+      {open &&
+        sources.map((src) => (
+          <TouchableOpacity
+            key={src.id}
+            style={s.sourceRow}
+            activeOpacity={0.7}
+            onPress={() => void Linking.openURL(src.url)}
+          >
+            <Text style={s.sourceNum}>{src.id}</Text>
+            <Text style={s.sourceTitle} numberOfLines={1}>
+              {src.title}
+            </Text>
+            <Icon name="chevR" size={13} color={colors.textSecondary} />
+          </TouchableOpacity>
+        ))}
     </View>
   );
 }
@@ -300,13 +325,25 @@ const s = StyleSheet.create({
     borderTopColor: hair[1],
     gap: 6,
   },
+  sourcesHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 2,
+  },
   sourcesLabel: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 10,
     letterSpacing: 1,
     color: colors.textSecondary,
-    marginBottom: 2,
   },
+  sourcesCount: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 10,
+    color: colors.civicBlue,
+  },
+  sourcesSpacer: { flex: 1 },
+  chevFlip: { transform: [{ rotate: "180deg" }] },
   sourceRow: {
     flexDirection: "row",
     alignItems: "center",
