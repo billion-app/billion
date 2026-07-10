@@ -2,6 +2,33 @@ import { envSchemas, validateEnvironment } from "@acme/env";
 
 import type { Scraper } from "./utils/types.js";
 
+const LOCAL_DATABASE_HOSTS = new Set([
+  "localhost",
+  "127.0.0.1",
+  "::1",
+  "[::1]",
+]);
+
+export type DatabaseTarget = "local" | "production";
+
+export function databaseTarget(databaseUrl: string): {
+  target: DatabaseTarget;
+  host: string;
+} {
+  const host = new URL(databaseUrl).hostname;
+  return {
+    target: LOCAL_DATABASE_HOSTS.has(host) ? "local" : "production",
+    host,
+  };
+}
+
+export function databaseTargetMessage(databaseUrl: string): string {
+  const { target, host } = databaseTarget(databaseUrl);
+  return target === "local"
+    ? `This job writes to a local host database (${host}).`
+    : `This job writes to the PRODUCTION database (${host}).`;
+}
+
 export function validateScraperEnv(
   scrapers: readonly Scraper[],
   environment: NodeJS.ProcessEnv = process.env,
