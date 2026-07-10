@@ -17,6 +17,7 @@ import {
   SearchInput,
   TabScreen,
 } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, fontDisplay } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -35,6 +36,21 @@ export default function BrowseScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<VideoPost["type"] | "all">("all");
   const [query, setQuery] = useState("");
+
+  const handleFilterChange = (f: VideoPost["type"] | "all") => {
+    setFilter(f);
+    posthog.capture("content_filter_applied", { filter_type: f });
+  };
+
+  const handleSearch = (text: string) => {
+    setQuery(text);
+    if (text.trim().length >= 3) {
+      posthog.capture("content_searched", {
+        query: text.trim(),
+        filter_type: filter,
+      });
+    }
+  };
 
   // Derive the banner from the user's actual location, not the nationwide
   // election list (which surfaced out-of-state elections like "North Dakota
@@ -80,7 +96,7 @@ export default function BrowseScreen() {
           <SearchInput
             placeholder="Search bills, cases, orders…"
             value={query}
-            onChangeText={setQuery}
+            onChangeText={handleSearch}
             clearButtonMode="while-editing"
             returnKeyType="search"
             style={{ marginBottom: 16 }}
@@ -94,7 +110,7 @@ export default function BrowseScreen() {
             key={f.id}
             label={f.label}
             active={filter === f.id}
-            onPress={() => setFilter(f.id)}
+            onPress={() => handleFilterChange(f.id)}
           />
         ))}
       </Pills>

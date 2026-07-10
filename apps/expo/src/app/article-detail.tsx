@@ -1,5 +1,5 @@
 import type { RenderRules } from "@ronradtke/react-native-markdown-display";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -27,6 +27,7 @@ import {
   PrimaryButton,
   Segmented,
 } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import {
   colors,
   contentType,
@@ -70,6 +71,15 @@ export default function ArticleDetailScreen() {
     string | undefined
   >();
 
+  const handleModeChange = (newMode: "explainer" | "source") => {
+    setMode(newMode);
+    posthog.capture("article_view_mode_toggled", {
+      content_id: articleId ?? null,
+      content_type: content?.type ?? null,
+      new_mode: newMode,
+    });
+  };
+
   const {
     data: content,
     isLoading,
@@ -78,6 +88,17 @@ export default function ArticleDetailScreen() {
     ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
     enabled: !!articleId,
   });
+
+  useEffect(() => {
+    if (content) {
+      posthog.capture("article_viewed", {
+        content_id: content.id,
+        content_type: content.type,
+        content_title: content.title,
+        is_ai_generated: content.isAIGenerated,
+      });
+    }
+  }, [content]);
   const headerImageUri = content?.imageUri ?? content?.thumbnailUrl;
 
   // content.saved.isSaved is a protected procedure — only query it when signed in,
@@ -129,8 +150,18 @@ export default function ArticleDetailScreen() {
     }
     if (saved) {
       unsaveMutation.mutate({ contentId: articleId });
+      posthog.capture("content_unsaved", {
+        content_id: articleId,
+        content_type: content.type,
+        content_title: content.title,
+      });
     } else {
       saveMutation.mutate({ contentId: articleId, contentType: content.type });
+      posthog.capture("content_saved", {
+        content_id: articleId,
+        content_type: content.type,
+        content_title: content.title,
+      });
     }
   };
 
@@ -195,11 +226,18 @@ export default function ArticleDetailScreen() {
 
   const handleOpenOriginal = async () => {
     if (!content.url) return;
+    posthog.capture("original_source_opened", {
+      content_id: content.id,
+      content_type: content.type,
+      content_title: content.title,
+      source_url: content.url,
+    });
     try {
       if (await Linking.canOpenURL(content.url)) {
         await Linking.openURL(content.url);
       }
     } catch (e) {
+      posthog.captureException(e as Error, { content_id: content.id });
       console.error("Error opening URL:", e);
     }
   };
@@ -298,7 +336,7 @@ export default function ArticleDetailScreen() {
         <View style={{ marginTop: 18, marginBottom: 18 }}>
           <Segmented
             value={mode}
-            onChange={setMode}
+            onChange={handleModeChange}
             options={[
               { id: "explainer", label: "Plain explainer", icon: "sparkle" },
               { id: "source", label: "Original text", icon: "doc" },
