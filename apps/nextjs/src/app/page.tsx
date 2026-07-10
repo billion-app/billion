@@ -8,6 +8,7 @@ import {
   useScroll,
   useTransform,
 } from "motion/react";
+import posthog from "posthog-js";
 
 import {
   AnimatedSection,
@@ -459,6 +460,7 @@ export default function LandingPage() {
         <Link
           href="#waitlist"
           className="text-muted-foreground hover:text-gold font-sans text-[15px] font-medium no-underline transition-colors duration-200"
+          onClick={() => posthog.capture("nav_early_access_clicked")}
         >
           Get Early Access
         </Link>
@@ -494,6 +496,7 @@ export default function LandingPage() {
             <Link
               href="#approach"
               className="text-muted-foreground hover:text-gold inline-flex h-[52px] items-center justify-center px-1 font-sans text-[16px] font-medium no-underline transition-colors duration-200"
+              onClick={() => posthog.capture("hero_see_how_it_works_clicked")}
             >
               See How It Works
             </Link>
@@ -584,6 +587,7 @@ export default function LandingPage() {
           href="#waitlist"
           className="bg-primary text-primary-foreground inline-flex h-[52px] cursor-pointer items-center justify-center rounded-full border-none px-7 font-sans text-[16px] font-medium whitespace-nowrap no-underline transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
           style={{ boxShadow: `0 0 24px ${goldGlow}` }}
+          onClick={() => posthog.capture("explore_source_cta_clicked")}
         >
           Explore the source
         </Link>

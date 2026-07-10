@@ -14,6 +14,8 @@ import { env } from "~/env";
 import { TRPCReactProvider } from "~/trpc/react";
 import { IntroProvider } from "./_components/intro-context";
 import { IntroOverlay } from "./_components/intro-overlay";
+import { PostHogAuthTracker } from "./_components/posthog-auth-tracker";
+import { PostHogProvider } from "./_components/posthog-provider";
 
 import "~/app/globals.css";
 
@@ -86,11 +88,14 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           enableSystem={false}
           disableTransitionOnChange
         >
-          <IntroProvider>
-            <TRPCReactProvider>{props.children}</TRPCReactProvider>
-            <IntroOverlay />
-          </IntroProvider>
-          <Toaster />
+          <PostHogProvider>
+            <PostHogAuthTracker />
+            <IntroProvider>
+              <TRPCReactProvider>{props.children}</TRPCReactProvider>
+              <IntroOverlay />
+            </IntroProvider>
+            <Toaster />
+          </PostHogProvider>
         </ThemeProvider>
       </body>
     </html>

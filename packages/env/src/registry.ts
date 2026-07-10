@@ -65,8 +65,16 @@ const define = (definition: EnvDefinition) => definition;
 const scraperCostDefinitions = [
   ["LLM_INPUT_PRICE", "Estimated DeepSeek V4 Flash input price.", "0.14"],
   ["LLM_OUTPUT_PRICE", "Estimated DeepSeek V4 Flash output price.", "0.28"],
-  ["VISION_INPUT_PRICE", "Estimated Gemini 2.5 Flash vision input price.", "0.30"],
-  ["VISION_OUTPUT_PRICE", "Estimated Gemini 2.5 Flash vision output price.", "2.50"],
+  [
+    "VISION_INPUT_PRICE",
+    "Estimated Gemini 2.5 Flash vision input price.",
+    "0.30",
+  ],
+  [
+    "VISION_OUTPUT_PRICE",
+    "Estimated Gemini 2.5 Flash vision output price.",
+    "2.50",
+  ],
   ["FLUX_IMAGE_PRICE", "Estimated price per generated BFL image.", "0.015"],
   [
     "GOOGLE_SEARCH_PRICE",
@@ -168,6 +176,43 @@ export const envRegistry = [
     setupUrl: "https://resend.com/docs/knowledge-base/why-use-topics",
     requirements: { nextjs: "optional" },
     schema: string,
+  }),
+  define({
+    key: "NEXT_PUBLIC_POSTHOG_KEY",
+    description: "PostHog project API key used by the Next.js client.",
+    group: "Analytics",
+    secret: false,
+    setupUrl: "https://us.posthog.com/project/settings",
+    requirements: { nextjs: "required" },
+    schema: string,
+  }),
+  define({
+    key: "NEXT_PUBLIC_POSTHOG_HOST",
+    description: "PostHog ingestion host used by the Next.js client.",
+    group: "Analytics",
+    secret: false,
+    example: "https://us.i.posthog.com",
+    requirements: { nextjs: "required" },
+    schema: url,
+  }),
+  define({
+    key: "POSTHOG_API_KEY",
+    description:
+      "PostHog personal API key with write access for production source-map uploads.",
+    group: "Analytics",
+    secret: true,
+    setupUrl: "https://us.posthog.com/settings/user-api-keys",
+    requirements: { nextjs: "recommended" },
+    schema: string,
+  }),
+  define({
+    key: "POSTHOG_PROJECT_ID",
+    description: "PostHog project ID used for production source-map uploads.",
+    group: "Analytics",
+    secret: false,
+    example: "489046",
+    requirements: { nextjs: "recommended" },
+    schema: positiveInteger,
   }),
   define({
     key: "EXPO_PUBLIC_API_URL",
