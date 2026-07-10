@@ -70,7 +70,6 @@ packages/
   api/         tRPC router definitions + civic data integrations + AI grounding
   auth/        better-auth configuration (web cookies + Expo deep-link bridge)
   db/          Drizzle schema, migrations, lazy client
-  social-media-agent/  Instagram posting automation (Playwright + Gemini)
   ui/          Shared Radix/shadcn components + theme tokens (web + native)
   validators/  Shared Zod schemas (placeholder — drizzle-zod covers most needs)
 tooling/
@@ -93,7 +92,7 @@ This was bootstrapped from [create-t3-turbo](https://github.com/t3-oss/create-t3
 - **CI** (`.github/workflows/ci.yml`): lint (+ `sherif` workspace lint), format check, typecheck, and an Expo iOS/Android export, all on a shared `tooling/github/setup` action with Turbo remote caching.
 - **Deployment:** Next.js → Vercel; scraper → `Dockerfile.scraper`; Expo release flow via `Justfile` (`bump` / `build` / `release`) and `scripts/bump.mjs` — see [iOS release builds](./ios-release.md).
 
-`packages/validators/` is currently a placeholder — most validation is handled by drizzle-zod, with this package reserved for future cross-platform schemas. `packages/social-media-agent/` is an operational Playwright + Gemini package that automates Instagram posts for the app.
+`packages/validators/` is currently a placeholder — most validation is handled by drizzle-zod, with this package reserved for future cross-platform schemas.
 
 ## Considered Alternatives
 
