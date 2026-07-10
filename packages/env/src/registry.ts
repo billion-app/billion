@@ -1,12 +1,6 @@
 import { z } from "zod/v4";
 
-export const surfaces = [
-  "nextjs",
-  "expo",
-  "scraper",
-  "database",
-  "social",
-] as const;
+export const surfaces = ["nextjs", "expo", "scraper", "database"] as const;
 export type EnvSurface = (typeof surfaces)[number];
 
 export type Requirement = "required" | "recommended" | "optional";
@@ -388,40 +382,6 @@ export const envRegistry = [
       schema: positiveNumber,
     }),
   ),
-  define({
-    key: "BASE_URL",
-    description: "Web origin captured by the social-media agent.",
-    group: "Social media",
-    secret: false,
-    defaultValue: "http://localhost:8081",
-    requirements: { social: "optional" },
-    schema: url,
-  }),
-  define({
-    key: "GEMINI_API_KEY",
-    description: "Google AI Studio key for social caption generation.",
-    group: "Social media",
-    secret: true,
-    setupUrl: "https://aistudio.google.com/app/apikey",
-    requirements: { social: "optional" },
-    schema: string,
-  }),
-  define({
-    key: "INSTAGRAM_USERNAME",
-    description: "Instagram login used only by the posting workflow.",
-    group: "Social media",
-    secret: true,
-    requirements: { social: "optional" },
-    schema: string,
-  }),
-  define({
-    key: "INSTAGRAM_PASSWORD",
-    description: "Instagram password used only by the posting workflow.",
-    group: "Social media",
-    secret: true,
-    requirements: { social: "optional" },
-    schema: string,
-  }),
 ] satisfies EnvDefinition[];
 
 export const envSchemas = Object.fromEntries(
