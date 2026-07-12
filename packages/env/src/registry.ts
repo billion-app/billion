@@ -172,6 +172,26 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL",
+    description:
+      "Verified Resend sender for the immediate waitlist confirmation email.",
+    group: "Email",
+    secret: false,
+    setupUrl: "https://resend.com/docs/dashboard/domains/introduction",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "RESEND_TESTFLIGHT_BATCH_SEGMENT_ID",
+    description:
+      "Optional active TestFlight batch segment assigned to new waitlist contacts.",
+    group: "Email",
+    secret: false,
+    setupUrl: "https://resend.com/docs/dashboard/segments/introduction",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
     key: "NEXT_PUBLIC_POSTHOG_KEY",
     description: "PostHog project API key used by the Next.js client.",
     group: "Analytics",
@@ -226,7 +246,7 @@ export const envRegistry = [
     group: "Civic data",
     secret: true,
     setupUrl: "https://developers.google.com/civic-information/docs/using_api",
-    requirements: { nextjs: "recommended" },
+    requirements: { nextjs: "required" },
     schema: string,
   }),
   define({

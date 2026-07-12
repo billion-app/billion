@@ -59,6 +59,7 @@
     "dev": "tsc",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
+    "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
@@ -80,6 +81,7 @@
     "@types/pg": "^8.20.0",
     "eslint": "catalog:",
     "prettier": "catalog:",
+    "tsx": "^4.21.0",
     "typescript": "catalog:"
   },
   "prettier": "@acme/prettier-config"

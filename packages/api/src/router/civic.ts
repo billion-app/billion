@@ -9,6 +9,7 @@ import {
   getElections,
   getVoterInfo,
 } from "../lib/civic";
+import { getElectedOfficials } from "../lib/elected-officials";
 import { publicProcedure } from "../trpc";
 
 const STATEWIDE_OFFICE = z.enum(
@@ -117,6 +118,24 @@ export const civicRouter = {
             error instanceof Error
               ? error.message
               : "Failed to fetch voter info",
+          cause: error,
+        });
+      }
+    }),
+
+  /** Current federal and state lawmakers for a residential address. */
+  getElectedOfficials: publicProcedure
+    .input(z.object({ address: z.string().trim().min(5).max(300) }))
+    .query(async ({ input }) => {
+      try {
+        return await getElectedOfficials(input.address);
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch elected officials",
           cause: error,
         });
       }

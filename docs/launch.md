@@ -126,12 +126,14 @@ string copied from the provider is normally already safe to paste.
 
 ### Email behavior
 
-| Variable                         | Requirement | Used for                                                       | Default / missing behavior                                                                                                                                                    | Where to get it                                                                                                                  |
-| -------------------------------- | ----------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `FEEDBACK_TO_EMAIL`              | Recommended | Feedback recipient list                                        | Defaults to the maintainer address currently hard-coded in `packages/api/src/router/feedback.ts`. Set this explicitly for production; comma-separated addresses are accepted. | An inbox monitored by the team.                                                                                                  |
-| `FEEDBACK_FROM_EMAIL`            | Recommended | Feedback sender identity                                       | Defaults to `Billion Feedback <onboarding@resend.dev>`, which is unsuitable for a general production sender.                                                                  | Verify a domain in [Resend Domains](https://resend.com/docs/dashboard/domains/introduction), then use an address on it.          |
-| `RESEND_WAITLIST_SEGMENT_ID`     | Optional    | Adds waitlist contacts to an internal segment                  | Contacts are still created globally, but are not assigned to a segment.                                                                                                       | Create/copy a segment in the Resend Audience dashboard; see [Segments](https://resend.com/docs/dashboard/segments/introduction). |
-| `RESEND_LAUNCH_UPDATES_TOPIC_ID` | Optional    | Opts waitlist contacts into a user-facing launch-updates topic | Contacts are created without that topic subscription.                                                                                                                         | Create/copy a topic in Resend; see [Topics](https://resend.com/docs/knowledge-base/why-use-topics).                              |
+| Variable                                  | Requirement | Used for                                                            | Default / missing behavior                                                                                                                                                    | Where to get it                                                                                                                         |
+| ----------------------------------------- | ----------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `FEEDBACK_TO_EMAIL`                       | Recommended | Feedback recipient list                                             | Defaults to the maintainer address currently hard-coded in `packages/api/src/router/feedback.ts`. Set this explicitly for production; comma-separated addresses are accepted. | An inbox monitored by the team.                                                                                                         |
+| `FEEDBACK_FROM_EMAIL`                     | Recommended | Feedback sender identity                                            | Defaults to `Billion Feedback <onboarding@resend.dev>`, which is unsuitable for a general production sender.                                                                  | Verify a domain in [Resend Domains](https://resend.com/docs/dashboard/domains/introduction), then use an address on it.                 |
+| `RESEND_WAITLIST_SEGMENT_ID`              | Optional    | Adds waitlist contacts to an internal segment                       | Contacts are still created globally, but are not assigned to a segment.                                                                                                       | Create/copy a segment in the Resend Audience dashboard; see [Segments](https://resend.com/docs/dashboard/segments/introduction).        |
+| `RESEND_LAUNCH_UPDATES_TOPIC_ID`          | Optional    | Opts waitlist contacts into a user-facing launch-updates topic      | Contacts are created without that topic subscription.                                                                                                                         | Create/copy a topic in Resend; see [Topics](https://resend.com/docs/knowledge-base/why-use-topics).                                     |
+| `RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL` | Optional    | Sends a one-time confirmation after a new waitlist signup           | New signups are still stored if it is missing; no confirmation email is sent. Existing/repeated signups never receive this email again.                                       | Verify a domain in [Resend Domains](https://resend.com/docs/dashboard/domains/introduction), then use `Billion <hello@yourdomain.com>`. |
+| `RESEND_TESTFLIGHT_BATCH_SEGMENT_ID`      | Optional    | Adds new waitlist contacts to the currently active TestFlight batch | New signups still join Waitlist, but no TestFlight batch, when missing. Change this for each new batch; do not change the Topic ID.                                           | Create a segment in Resend for each TestFlight batch and copy its ID.                                                                   |
 
 ### Civic and address data
 
@@ -282,11 +284,12 @@ The normal scraper development command loads root `.env.local` first, then root
 `.env`. Existing shell values win:
 
 ```bash
-pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
+pnpm --filter @acme/scraper run start federalregister --concurrency 1
 ```
 
 `pnpm --filter @acme/scraper build` uses Vite to produce Node ESM artifacts.
-The stable production entries are `dist/main.js` for the scraper CLI and
+The stable production entries are `dist/main.js` for the scraper CLI,
+`dist/retroactive-lenses.js` for the dual-lens backfill, and
 `dist/retroactive-videos.js` for the retroactive-video job; Vite may also emit
 shared chunks, so deploy the complete `dist/` directory. The production scraper
 command remains `node dist/main.js`. It does **not** load an env file or contain
@@ -328,10 +331,11 @@ pnpm typecheck
 pnpm build
 pnpm --filter @acme/scraper build
 test -f apps/scraper/dist/main.js
+test -f apps/scraper/dist/retroactive-lenses.js
 test -f apps/scraper/dist/retroactive-videos.js
 ```
 
-The final two checks exercise the scraper's Vite build directly and verify only
+The final three checks exercise the scraper's Vite build directly and verify only
 its stable entry-point contract. Shared chunk names are intentionally not part
 of launch verification.
 
@@ -350,17 +354,17 @@ Running the scrapers one at a time makes a missing source-specific key or
 upstream outage obvious:
 
 ```bash
-pnpm --filter @acme/scraper run start -- federalregister --concurrency 1
-pnpm --filter @acme/scraper run start -- scotus --concurrency 1
-pnpm --filter @acme/scraper run start -- congress --concurrency 1
-pnpm --filter @acme/scraper run start -- scc-cvig --concurrency 1
-pnpm --filter @acme/scraper run start -- ca-sos-statements --concurrency 1
+pnpm --filter @acme/scraper run start federalregister --concurrency 1
+pnpm --filter @acme/scraper run start scotus --concurrency 1
+pnpm --filter @acme/scraper run start congress --concurrency 1
+pnpm --filter @acme/scraper run start scc-cvig --concurrency 1
+pnpm --filter @acme/scraper run start ca-sos-statements --concurrency 1
 ```
 
 Only after those pass, run the concurrent suite:
 
 ```bash
-pnpm --filter @acme/scraper run start -- all --concurrency 1
+pnpm --filter @acme/scraper run start all --concurrency 1
 ```
 
 ### 4. Inspect persisted content

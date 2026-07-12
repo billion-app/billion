@@ -76,7 +76,7 @@ export default function LocalElectionsScreen() {
           <KeyDatesSection electionDate={upcomingElection.electionDay} />
         )}
 
-        <RepsSection contests={voterInfoQuery.data?.contests} />
+        <RepsSection address={address} />
 
         <LocalBillsSection />
 

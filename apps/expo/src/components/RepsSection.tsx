@@ -1,16 +1,13 @@
 /**
- * RepsSection — the state legislators for the user's address. Google retired
- * the Civic representatives endpoint (404 "Method not found"), so we derive the
- * user's State Assembly/Senate districts from the ballot contests (Civic leaves
- * the district OCD id null, but the office / district.name carry the chamber +
- * number, e.g. "28th Assembly District") and look the members up via Open
- * States, which the app already integrates. Shared Card/Icon design system.
+ * Current federal and state lawmakers for a user's registered address.
+ * Districts come from Google Civic's supported divisionsByAddress endpoint;
+ * office-holder data comes from Open States' nightly public exports.
  */
 import { ActivityIndicator, Linking, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
-import { useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
-import type { Contest } from "@acme/api";
+import type { ElectedOfficial } from "@acme/api";
 
 import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
@@ -18,66 +15,15 @@ import { colors, fontBody } from "~/styles";
 import { trpc } from "~/utils/api";
 
 interface RepsSectionProps {
-  /** Ballot contests — their district OCD ids tell us which districts to look up. */
-  contests?: Contest[];
+  address?: string | null;
+  enabled?: boolean;
 }
 
-interface DistrictRef {
-  chamber: "upper" | "lower";
-  number: string;
+function openUrl(url: string) {
+  void Linking.openURL(url);
 }
 
-/**
- * Pull the user's State Senate + Assembly districts out of the ballot contests.
- * Civic leaves the district OCD id null, so we read the chamber + number from
- * the office string or district.name — e.g. "Member of the State Assembly,
- * District 28" / "28th Assembly District" → { lower, "28" }.
- */
-function extractDistricts(contests: Contest[]): DistrictRef[] {
-  const seen = new Set<string>();
-  const out: DistrictRef[] = [];
-  for (const c of contests) {
-    const text = `${c.office ?? ""} ${c.district?.name ?? ""}`;
-    // Skip federal seats — those aren't in the CA state jurisdiction we query.
-    if (/\b(u\.?s\.?|united states|congress|representative)\b/i.test(text)) {
-      continue;
-    }
-    const chamber: DistrictRef["chamber"] | null = /assembly/i.test(text)
-      ? "lower"
-      : /senate|senator/i.test(text)
-        ? "upper"
-        : null;
-    if (!chamber) continue;
-    // "District 28" or "28th ... District" → 28
-    const number = (/district\s+(\d+)/i.exec(text) ??
-      /\b(\d+)(?:st|nd|rd|th)\b/i.exec(text))?.[1];
-    if (!number) continue;
-    const key = `${chamber}:${number}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push({ chamber, number });
-    }
-  }
-  return out;
-}
-
-const CHAMBER_LABEL: Record<DistrictRef["chamber"], string> = {
-  upper: "State Senate",
-  lower: "State Assembly",
-};
-
-function RepCard({
-  rep,
-}: {
-  rep: {
-    name: string;
-    party?: string;
-    image?: string;
-    title: string;
-    phone?: string;
-    url?: string;
-  };
-}) {
+function RepCard({ rep }: { rep: ElectedOfficial }) {
   return (
     <Card style={styles.repCard}>
       {rep.image ? (
@@ -89,7 +35,7 @@ function RepCard({
       )}
       <View style={styles.repBody}>
         <Text style={styles.office} numberOfLines={1}>
-          {rep.title}
+          {rep.office}
         </Text>
         <Text style={styles.name} numberOfLines={1}>
           {rep.name}
@@ -99,24 +45,33 @@ function RepCard({
             {rep.party}
           </Text>
         ) : null}
-        {(rep.phone ?? rep.url) && (
+        {(rep.phone ?? rep.email ?? rep.url) && (
           <View style={styles.actions}>
             {rep.phone ? (
               <Text
                 style={styles.action}
                 suppressHighlighting
-                onPress={() => void Linking.openURL(`tel:${rep.phone}`)}
+                onPress={() => openUrl(`tel:${rep.phone}`)}
               >
-                <Icon name="message" size={12} color={colors.bill} /> Call
+                Call
+              </Text>
+            ) : null}
+            {rep.email ? (
+              <Text
+                style={styles.action}
+                suppressHighlighting
+                onPress={() => openUrl(`mailto:${rep.email}`)}
+              >
+                Email
               </Text>
             ) : null}
             {rep.url ? (
               <Text
                 style={styles.action}
                 suppressHighlighting
-                onPress={() => void Linking.openURL(rep.url ?? "")}
+                onPress={() => openUrl(rep.url ?? "")}
               >
-                <Icon name="external" size={12} color={colors.bill} /> Website
+                Website
               </Text>
             ) : null}
           </View>
@@ -126,50 +81,37 @@ function RepCard({
   );
 }
 
-export function RepsSection({ contests }: RepsSectionProps) {
-  const districts = extractDistricts(contests ?? []);
-
-  // One lookup per district, run at the parent so it can own the loading /
-  // empty state — otherwise the heading renders above children that each
-  // bail to null, leaving an orphaned title with nothing under it.
-  const queries = useQueries({
-    queries: districts.map((d) =>
-      trpc.openStates.getLegislators.queryOptions({
-        stateCode: "ca",
-        district: d.number,
-        orgClassification: d.chamber,
-      }),
-    ),
+export function RepsSection({ address, enabled = true }: RepsSectionProps) {
+  const query = useQuery({
+    ...trpc.civic.getElectedOfficials.queryOptions({ address: address ?? "" }),
+    enabled: enabled && !!address,
   });
 
-  // Nothing to look up until the ballot has resolved with district info.
-  if (districts.length === 0) return null;
-
-  const isLoading = queries.some((q) => q.isLoading);
-  const reps = districts.flatMap((d, i) =>
-    (queries[i]?.data?.results ?? []).map((p) => ({
-      key: `${p.id}-${d.chamber}-${d.number}`,
-      name: p.name,
-      party: p.party,
-      image: p.image,
-      title: `${CHAMBER_LABEL[d.chamber]} · District ${d.number}`,
-      phone: p.offices?.find((o) => o.voice)?.voice,
-      url: p.links?.[0]?.url,
-    })),
-  );
-
-  // Don't show a bare heading while loading produces nothing yet, and drop the
-  // section entirely if no legislators came back for any district.
-  if (!isLoading && reps.length === 0) return null;
+  if (!enabled || !address) return null;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Your State Legislators</Text>
-      {isLoading && reps.length === 0 ? (
+      <Text style={styles.sectionTitle}>Your Elected Officials</Text>
+      {query.isLoading ? (
         <ActivityIndicator color={colors.bill} style={styles.loader} />
+      ) : query.isError ? (
+        <Card>
+          <Text style={styles.empty}>
+            We couldn&apos;t load elected officials for this address right now.
+          </Text>
+        </Card>
       ) : (
-        reps.map(({ key, ...rep }) => <RepCard key={key} rep={rep} />)
+        query.data?.officials.map((rep) => <RepCard key={rep.id} rep={rep} />)
       )}
+      {query.data ? (
+        <Text
+          style={styles.source}
+          suppressHighlighting
+          onPress={() => openUrl(query.data.source.url)}
+        >
+          Current legislator data: Open States
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -186,6 +128,12 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   loader: { marginVertical: 12 },
+  empty: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
   repCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   photo: { width: 48, height: 48, borderRadius: 24 },
   photoPlaceholder: {
@@ -215,5 +163,11 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: 12.5,
     color: colors.bill,
+  },
+  source: {
+    fontFamily: fontBody.regular,
+    color: colors.textSecondary,
+    fontSize: 11.5,
+    textDecorationLine: "underline",
   },
 });
