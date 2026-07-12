@@ -40,6 +40,7 @@ function getApiKey(): string | null {
 const CACHE_TTL = {
   elections: 7 * 24 * 60 * 60 * 1000,
   voterinfo: 24 * 60 * 60 * 1000,
+  divisions: 30 * 24 * 60 * 60 * 1000,
   // Live results move fast on/after election night — keep it short so the feed
   // stays current, but long enough to shield the SOS source from every client.
   electionResults: 5 * 60 * 1000,
@@ -295,6 +296,17 @@ export interface VoterInfoResponse {
   mailOnly?: boolean;
 }
 
+export interface CivicDivision {
+  name: string;
+  alsoKnownAs?: string[];
+}
+
+export interface DivisionByAddressResponse {
+  kind: string;
+  normalizedInput: Address;
+  divisions: Record<string, CivicDivision>;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -324,6 +336,30 @@ async function fetchCivicApi<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+/** Resolve an address to its current Open Civic Data political divisions. */
+export async function getDivisionsByAddress(
+  address: string,
+): Promise<DivisionByAddressResponse> {
+  const cached = await getCached<DivisionByAddressResponse>(
+    address,
+    "divisionsByAddress",
+  );
+  if (cached) return cached;
+
+  const response = await fetchCivicApi<DivisionByAddressResponse>(
+    "divisionsByAddress",
+    { address },
+  );
+  await setCache(
+    address,
+    "divisionsByAddress",
+    {},
+    response,
+    CACHE_TTL.divisions,
+  );
+  return response;
 }
 
 // ============================================================================

@@ -12,6 +12,8 @@ export type {
   Address,
   Election,
   VoterInfoResponse,
+  DivisionByAddressResponse,
+  CivicDivision,
   PollingLocation,
   Contest,
   Candidate,
@@ -26,7 +28,16 @@ export {
   getElectionResults,
   getDistrictElectionResults,
   getVoterInfo,
+  getDivisionsByAddress,
 } from "./lib/civic";
+
+export type {
+  ElectedOfficial,
+  ElectedOfficialsResponse,
+  OfficialLevel,
+  OfficialChamber,
+} from "./lib/elected-officials";
+export { getElectedOfficials } from "./lib/elected-officials";
 
 // California Secretary of State live election-results feed
 export type {

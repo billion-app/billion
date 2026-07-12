@@ -246,7 +246,7 @@ export const envRegistry = [
     group: "Civic data",
     secret: true,
     setupUrl: "https://developers.google.com/civic-information/docs/using_api",
-    requirements: { nextjs: "recommended" },
+    requirements: { nextjs: "required" },
     schema: string,
   }),
   define({

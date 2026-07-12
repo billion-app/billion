@@ -18,6 +18,8 @@ export const env = createEnv({
    */
   server: {
     POSTGRES_URL: envSchemas.POSTGRES_URL!,
+    GOOGLE_CIVIC_API_KEY: envSchemas.GOOGLE_CIVIC_API_KEY!,
+    GOOGLE_PLACES_API_KEY: envSchemas.GOOGLE_PLACES_API_KEY!.optional(),
     RESEND_API_KEY: envSchemas.RESEND_API_KEY!.optional(),
     RESEND_LAUNCH_UPDATES_TOPIC_ID:
       envSchemas.RESEND_LAUNCH_UPDATES_TOPIC_ID!.optional(),
@@ -43,7 +45,6 @@ export const env = createEnv({
    */
   experimental__runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
-
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,

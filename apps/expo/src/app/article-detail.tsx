@@ -39,9 +39,9 @@ import {
   planes,
   resolveType,
 } from "~/styles";
-import { formatDate } from "~/utils/dates";
 import { queryClient, trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
+import { formatDate } from "~/utils/dates";
 
 // TODO(backend): real per-side framing per content item.
 const PLACEHOLDER_LENS = {
@@ -277,10 +277,34 @@ export default function ArticleDetailScreen() {
           current: i === arr.length - 1,
         }))
     : [
-        { label: "Introduced", fullText: "", date: "", done: true, current: false },
-        { label: "Committee review", fullText: "", date: "", done: true, current: false },
-        { label: "Latest action", fullText: "", date: "", done: true, current: true },
-        { label: "Becomes law", fullText: "", date: "", done: false, current: false },
+        {
+          label: "Introduced",
+          fullText: "",
+          date: "",
+          done: true,
+          current: false,
+        },
+        {
+          label: "Committee review",
+          fullText: "",
+          date: "",
+          done: true,
+          current: false,
+        },
+        {
+          label: "Latest action",
+          fullText: "",
+          date: "",
+          done: true,
+          current: true,
+        },
+        {
+          label: "Becomes law",
+          fullText: "",
+          date: "",
+          done: false,
+          current: false,
+        },
       ];
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
@@ -436,7 +460,9 @@ export default function ArticleDetailScreen() {
                       style={[
                         s.timelineLabel,
                         {
-                          color: step.done ? colors.white : colors.textSecondary,
+                          color: step.done
+                            ? colors.white
+                            : colors.textSecondary,
                           fontFamily: step.current
                             ? fontBody.bold
                             : fontBody.medium,

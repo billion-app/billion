@@ -14,6 +14,7 @@ import type { Contest } from "@acme/api";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { posthog } from "~/config/posthog";
@@ -204,6 +205,9 @@ export default function ElectionsScreen() {
     !!voterInfoQuery.data &&
     voterInfoQuery.data.normalizedInput.state !== "CA";
 
+  const hasVerifiedCaliforniaAddress =
+    !!voterInfoQuery.data && voterInfoQuery.data.normalizedInput.state === "CA";
+
   // The address-specific election the ballot belongs to.
   const selected = unsupportedState ? undefined : voterInfoQuery.data?.election;
 
@@ -288,9 +292,15 @@ export default function ElectionsScreen() {
       {/* live results (CA SOS feed): statewide + the voter's district races,
           scoped from their ballot. Self-hides when off-season. Only
           meaningful once we know the voter is in a state we cover. */}
-      {hasAddress && !unsupportedState && (
-        <ElectionResultsSection contests={contests} />
+      {hasVerifiedCaliforniaAddress && selected && (
+        <ElectionResultsSection
+          contests={contests}
+          electionDay={selected.electionDay}
+          electionName={selected.name}
+        />
       )}
+
+      <RepsSection address={storedAddress} />
 
       {voterInfoQuery.isLoading && (
         <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />
