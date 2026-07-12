@@ -4,7 +4,13 @@
  * LensPanel: two-column "both sides, side by side" card.
  */
 import { useState } from "react";
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { colors, fontBody, hair, planes } from "~/styles";
 import { Icon } from "./Icon";
