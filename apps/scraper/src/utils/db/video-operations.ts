@@ -55,6 +55,8 @@ async function checkExistingVideo(
 
 export interface GenerateVideoOptions {
   force?: boolean;
+  /** Generate a fresh image prompt without changing existing feed copy. */
+  preserveCopy?: boolean;
 }
 
 export interface GenerateVideoResult {
@@ -111,12 +113,12 @@ export async function generateVideoForContent(
   if (!generatedImage && !thumbnailUrl && !existing?.hasImage) {
     const safeFallbackPrompt =
       contentType === "court_case"
-        ? "A neutral photorealistic editorial photograph of a stately American courthouse exterior at golden hour, with stone columns, broad steps, legal folders on a foreground bench, no people, no text, no logos, no watermark."
+        ? "A richly illustrated civic tableau: a monumental courthouse transformed into a balancing scale, with expressive citizens, legal folders, and story clues arranged across the steps in a bold, slightly surreal composition."
         : contentType === "bill"
-          ? "A neutral photorealistic editorial photograph of the United States Capitol exterior at golden hour, with legislative papers and reading glasses on a foreground desk, no people, no text, no logos, no watermark."
-          : "A neutral photorealistic editorial photograph of a federal government building and press lectern at golden hour, no people, no text, no logos, no watermark.";
+          ? "A richly illustrated civic machine built around the United States Capitol, with gears, expressive citizens, symbolic objects, and layered policy clues in a colorful, witty, slightly surreal composition."
+          : "A richly illustrated civic tableau where a government building opens into a miniature world of expressive people and story-specific public-life details, colorful, layered, witty, and slightly surreal.";
     logger.warn(
-      `Primary image unavailable for ${contentType}:${contentId}; trying a neutral fallback`,
+      `Primary image unavailable for ${contentType}:${contentId}; trying an illustrated fallback`,
     );
     generatedImage = await generateImage(safeFallbackPrompt);
   }
@@ -168,8 +170,10 @@ export async function generateVideoForContent(
       .onConflictDoUpdate({
         target: [Video.contentType, Video.contentId],
         set: {
-          title: safeTitle,
-          description: marketingCopy.description,
+          ...(!options.preserveCopy && {
+            title: safeTitle,
+            description: marketingCopy.description,
+          }),
           // Never erase a working image when a replacement provider fails.
           ...replacementImage,
           sourceContentHash: contentHash,

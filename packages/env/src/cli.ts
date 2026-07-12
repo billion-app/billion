@@ -129,7 +129,6 @@ async function chooseTarget(current?: EnvSurface | "all") {
         { value: "expo", label: "Expo mobile build" },
         { value: "scraper", label: "Scraper jobs" },
         { value: "database", label: "Database tooling" },
-        { value: "social", label: "Social-media agent" },
       ],
     }),
   );

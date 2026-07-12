@@ -66,10 +66,10 @@ export function needsReprocessing(
   state: ReprocessingState,
   mode: ReprocessMode,
 ): boolean {
-  if (!isUsableSourceText(state.fullText)) return false;
   if (mode === "replace") return true;
 
   return (
+    !isUsableSourceText(state.fullText) ||
     !isUsableAIArticle(state.aiGeneratedArticle) ||
     !state.videoId ||
     !hasVideoImage(state)

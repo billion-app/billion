@@ -50,4 +50,8 @@ void test("missing mode selects incomplete derived assets only", () => {
     true,
   );
   assert.equal(needsReprocessing(completeState, "replace"), true);
+  assert.equal(
+    needsReprocessing({ ...completeState, fullText: null }, "missing"),
+    true,
+  );
 });

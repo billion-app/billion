@@ -6,7 +6,7 @@
 
 Invoke via CLI: `pnpm start [scraper|all] [--concurrency N]` (default
 concurrency 3, via `p-limit`). From the repo root, use
-`pnpm --filter @acme/scraper run start -- [scraper] --concurrency N`. It ships
+`pnpm --filter @acme/scraper run start [scraper] --concurrency N`. It ships
 as a multi-stage `Dockerfile.scraper` (Node 22-slim). Vite builds the Node ESM
 production entries, bundles linked workspace source, and leaves ordinary
 runtime dependencies external for the production install. The container starts

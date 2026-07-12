@@ -18,6 +18,30 @@ the schema, and optionally prepares the Expo native projects. See
 [CONTRIBUTING.md](./CONTRIBUTING.md) for the exact steps and non-interactive
 flags.
 
+### Environment variables
+
+The root `.env` is the local, gitignored value file. Set up missing values or
+update existing ones with the interactive environment helper:
+
+```bash
+pnpm env:setup                         # choose an app surface interactively
+pnpm env:setup --target all --file .env # configure every surface in .env
+pnpm env:setup --target nextjs         # configure only the Next.js app/API
+pnpm env:setup --target scraper        # configure scraper keys and choose scrapers
+pnpm env:setup --include-optional      # include optional variables
+pnpm env:setup --overwrite             # prompt for values already configured
+```
+
+Check a file without printing its values:
+
+```bash
+pnpm env:doctor --target all --file .env
+```
+
+`.env.example` is generated; regenerate it with `pnpm env:example` rather than
+editing it by hand. To manage a different dotenv file, pass its path with
+`--file`.
+
 
 ### If already set up...
 

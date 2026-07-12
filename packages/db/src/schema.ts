@@ -604,4 +604,35 @@ export const CivicApiCache = pgTable(
   }),
 );
 
+// Dual-lens perspectives cache — one row per content item
+export const ContentLens = pgTable(
+  "content_lens",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
+    contentId: t.uuid().notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    lensData: t
+      .jsonb()
+      .$type<{
+        framing?: "proponent_opponent" | "left_right";
+        left: { stance: string; points: { text: string; sourceIds: number[] }[] };
+        right: { stance: string; points: { text: string; sourceIds: number[] }[] };
+        sources: { id: number; title: string; url: string }[];
+        generatedAt: string;
+        modelVersion: string;
+      }>()
+      .notNull(),
+    modelVersion: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueContentLens: unique().on(table.contentType, table.contentId),
+    contentIdIndex: index("content_lens_content_id_idx").on(table.contentId),
+  }),
+);
+
 export * from "./auth-schema";
