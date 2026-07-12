@@ -62,7 +62,7 @@ Each adapter fetches over a shared, defensive helper (`measure-sources/fetch.ts`
 
 - **YES** — summarize official fiscal-impact analyses into plain language; reconcile and structure existing source text.
 - **NO** — invent a summary or arguments when no source material exists (the UI shows "No information available"). AI pro/con is allowed only as a grounded last resort, flagged AI-generated.
-- **Fallback only** — when there _is_ fetched source text but no human summary, an AI summary is generated and **flagged** (`Contest.summaryIsAiGenerated`) so the app labels it "AI-generated — not from an official source", and cited at tier `ai_generated`. Generation goes through the generic `llm` provider (`ai-provider.ts`): DeepSeek by default, OpenAI fallback.
+- **Fallback only** — when there _is_ fetched source text but no human summary, an AI summary is generated and **flagged** (`Contest.summaryIsAiGenerated`) so the app labels it "AI-generated — not from an official source", and cited at tier `ai_generated`. Generation goes through the generic `llm` provider (`ai-provider.ts`): Groq by default, then DeepSeek, then OpenAI.
 
 ```mermaid
 flowchart TD

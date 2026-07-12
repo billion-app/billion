@@ -39,7 +39,7 @@ Ballot measures and candidates returned by `getVoterInfo` are run through cross-
 
 ## LLM Provider
 
-`packages/api/src/lib/ai-provider.ts` exports a single swappable `llm` via the Vercel AI SDK: **DeepSeek `deepseek-v4-flash`** when `DEEPSEEK_API_KEY` is set, falling back to OpenAI `gpt-4o-mini` when only `OPENAI_API_KEY` is present, and `null` otherwise. Callers treat `null` as "AI unavailable" and skip generation rather than throw.
+`packages/api/src/lib/ai-provider.ts` exports a single swappable `llm` via the Vercel AI SDK: **Groq** when `GROQ_API_KEY` is set, then **DeepSeek `deepseek-v4-flash`** when `DEEPSEEK_API_KEY` is present, then **OpenAI `gpt-4o-mini`** when only `OPENAI_API_KEY` is present, and `null` otherwise. Callers treat `null` as "AI unavailable" and skip generation rather than throw.
 
 ## Why Next.js as the Single API Host
 
