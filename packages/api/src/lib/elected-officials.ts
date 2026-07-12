@@ -158,21 +158,30 @@ function segment(ocdId: string, name: string): string | undefined {
 export function extractDistricts(
   response: DivisionByAddressResponse,
 ): Districts {
-  const ids = Object.keys(response.divisions);
+  const entries = Object.entries(response.divisions);
+  const ids = entries.flatMap(([id, division]) => [
+    id,
+    ...(division.alsoKnownAs ?? []),
+  ]);
   const stateId = ids.find((id) => segment(id, "state"));
   const stateCode = stateId ? segment(stateId, "state") : undefined;
   if (!stateCode) {
     throw new Error("Google Civic did not return a state for this address");
   }
 
-  const stateDivision =
-    response.divisions[`ocd-division/country:us/state:${stateCode}`];
+  const canonicalStateId = `ocd-division/country:us/state:${stateCode}`;
+  const stateDivision = entries.find(
+    ([id, division]) =>
+      id === canonicalStateId ||
+      division.alsoKnownAs?.includes(canonicalStateId),
+  )?.[1];
+  const congressional = ids
+    .map((id) => segment(id, "cd"))
+    .find((value) => value !== undefined);
   return {
     stateCode: stateCode.toUpperCase(),
     stateName: stateDivision?.name ?? response.normalizedInput.state,
-    congressional: ids
-      .map((id) => segment(id, "cd"))
-      .find((value) => value !== undefined),
+    congressional: congressional === "0" ? "AL" : congressional,
     stateUpper: ids
       .map((id) => segment(id, "sldu"))
       .find((value) => value !== undefined),

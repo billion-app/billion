@@ -61,6 +61,35 @@ void test("extractDistricts reads federal and state OCD division IDs", () => {
   });
 });
 
+void test("extractDistricts follows D.C. aliases and normalizes at-large seats", () => {
+  const response: DivisionByAddressResponse = {
+    kind: "civicinfo#divisionsByAddressResponse",
+    normalizedInput: {
+      line1: "1600 Pennsylvania Ave NW",
+      city: "Washington",
+      state: "DC",
+      zip: "20500",
+    },
+    divisions: {
+      "ocd-division/country:us/district:dc": {
+        name: "District of Columbia",
+        alsoKnownAs: ["ocd-division/country:us/state:dc"],
+      },
+      "ocd-division/country:us/district:dc/cd:0": {
+        name: "District of Columbia At-Large Congressional District",
+      },
+    },
+  };
+
+  assert.deepEqual(extractDistricts(response), {
+    stateCode: "DC",
+    stateName: "District of Columbia",
+    congressional: "AL",
+    stateUpper: undefined,
+    stateLower: undefined,
+  });
+});
+
 void test("selectOfficials returns the address-scoped federal and state delegation", () => {
   const row = (overrides: Record<string, string>) => ({
     id: "id",
