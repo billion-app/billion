@@ -16,10 +16,10 @@ import type {
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import {
   AIRateLimitError,
+  framingForContentType,
   generateAIArticle,
   generateAISummary,
   generateDualLens,
-  framingForContentType,
 } from "../ai/text-generation.js";
 import { getThumbnailImage } from "../api/google-images.js";
 import { createContentHash } from "../hash.js";
@@ -69,6 +69,7 @@ function hashFields(input: ContentData): string {
         status: input.data.status,
         summary: input.data.summary,
         fullText: input.data.fullText,
+        actions: input.data.actions,
       });
     case "government_content":
       return JSON.stringify({
@@ -220,6 +221,7 @@ export async function upsertContent(
           chamber: d.chamber,
           summary: d.summary,
           fullText: d.fullText,
+          actions: d.actions,
           url: d.url,
           contentHash: newContentHash,
           updatedAt: new Date(),

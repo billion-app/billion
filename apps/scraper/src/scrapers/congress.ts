@@ -1,3 +1,4 @@
+import type { BillAction } from "@acme/db/schema";
 import { eq, max } from "@acme/db";
 import { db } from "@acme/db/client";
 import { Bill } from "@acme/db/schema";
@@ -193,23 +194,102 @@ interface ApiAction {
   text: string;
   type?: string;
   actionCode?: string;
+  sourceSystem?: {
+    code?: number;
+    name?: string;
+  };
+  recordedVotes?: Array<{
+    rollNumber?: number;
+    url?: string;
+  }>;
+}
+
+interface ApiPagination {
+  count?: number;
+}
+
+interface ApiActionsPage {
+  actions?: ApiAction[];
+  pagination?: ApiPagination;
+}
+
+type FetchActionsPage = (
+  offset: number,
+  limit: number,
+) => Promise<ApiActionsPage>;
+
+export function buildActionSourceUrl(billUrl: string): string {
+  return `${billUrl.replace(/\/$/, "")}/all-actions`;
+}
+
+function actionSourceLocator(action: ApiAction): string {
+  const parts = [action.actionDate];
+  if (action.sourceSystem?.name) parts.push(action.sourceSystem.name);
+  if (action.actionCode) parts.push(`action code ${action.actionCode}`);
+  const rollNumber = officialVote(action)?.rollNumber;
+  if (rollNumber !== undefined) parts.push(`roll call ${rollNumber}`);
+  return parts.join(" · ");
+}
+
+function officialVote(action: ApiAction) {
+  return (
+    action.recordedVotes?.find((vote) => vote.url) ?? action.recordedVotes?.[0]
+  );
+}
+
+export async function collectCongressActions(
+  fetchPage: FetchActionsPage,
+  billUrl: string,
+): Promise<BillAction[]> {
+  const pageSize = 250;
+  const allActions: ApiAction[] = [];
+  let offset = 0;
+
+  while (true) {
+    const data = await fetchPage(offset, pageSize);
+    const page = data.actions ?? [];
+    allActions.push(...page);
+
+    const total = data.pagination?.count;
+    const reachedReportedTotal =
+      total !== undefined && allActions.length >= total;
+    const reachedLastPage = total === undefined && page.length < pageSize;
+    if (page.length === 0 || reachedReportedTotal || reachedLastPage) break;
+
+    offset += page.length;
+  }
+
+  const actionRecordUrl = buildActionSourceUrl(billUrl);
+  return allActions.map((action) => {
+    const vote = officialVote(action);
+    return {
+      date: action.actionDate,
+      text: action.text,
+      type: action.type,
+      actionCode: action.actionCode,
+      sourceSystem: action.sourceSystem?.name,
+      // Congress.gov supplies a vote-specific official URL for recorded votes.
+      // Other actions have no individual public URL, so cite the stable action
+      // record instead of fabricating an anchor that Congress.gov does not expose.
+      sourceUrl: vote?.url ?? actionRecordUrl,
+      sourceLocator: actionSourceLocator(action),
+      textKind: "official",
+    };
+  });
 }
 
 async function fetchActions(
   congress: number,
   billType: string,
   billNumber: string,
-): Promise<{ date: string; text: string; type?: string }[]> {
+  billUrl: string,
+): Promise<BillAction[]> {
   try {
-    const data = await congressFetch<{ actions: ApiAction[] }>(
-      `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/actions`,
+    const path = `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/actions`;
+    return await collectCongressActions(
+      (offset, limit) => congressFetch<ApiActionsPage>(path, { offset, limit }),
+      billUrl,
     );
-    if (!data.actions?.length) return [];
-    return data.actions.map((a) => ({
-      date: a.actionDate,
-      text: a.text,
-      type: a.type,
-    }));
   } catch {
     return [];
   }
@@ -312,7 +392,12 @@ async function scrape(config: CongressScraperConfig = {}) {
 
           const summary = await fetchSummary(congress, billType, billNumber);
           const fullText = await fetchFullText(congress, billType, billNumber);
-          const actions = await fetchActions(congress, billType, billNumber);
+          const actions = await fetchActions(
+            congress,
+            billType,
+            billNumber,
+            billUrl,
+          );
 
           await upsertContent(
             {

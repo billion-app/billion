@@ -62,13 +62,21 @@ const PLACEHOLDER_LENS = {
   },
 };
 
+interface TimelineAction {
+  date: string;
+  text: string;
+  sourceUrl?: string;
+  sourceLocator?: string;
+  textKind?: "official" | "derived";
+}
+
 export default function ArticleDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
-  const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [failedHeaderImageUri, setFailedHeaderImageUri] = useState<
     string | undefined
   >();
@@ -247,6 +255,26 @@ export default function ArticleDetailScreen() {
     }
   };
 
+  const handleOpenTimelineSource = async (
+    sourceUrl: string,
+    sourceLocator: string | undefined,
+  ) => {
+    posthog.capture("timeline_source_opened", {
+      content_id: content.id,
+      content_type: content.type,
+      source_url: sourceUrl,
+      source_locator: sourceLocator ?? null,
+    });
+    try {
+      if (await Linking.canOpenURL(sourceUrl)) {
+        await Linking.openURL(sourceUrl);
+      }
+    } catch (e) {
+      posthog.captureException(e as Error, { content_id: content.id });
+      console.error("Error opening timeline source URL:", e);
+    }
+  };
+
   const activeContent =
     mode === "explainer" ? content.articleContent : content.originalContent;
   const looksLikeMarkdown =
@@ -261,9 +289,7 @@ export default function ArticleDetailScreen() {
     (content.isAIGenerated || looksLikeMarkdown);
 
   const actions =
-    "actions" in content
-      ? (content.actions as { date: string; text: string }[])
-      : [];
+    "actions" in content ? (content.actions as TimelineAction[]) : [];
   const hasRealActions = actions.length > 0;
   const timeline = hasRealActions
     ? actions
@@ -273,6 +299,15 @@ export default function ArticleDetailScreen() {
           label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
           fullText: a.text,
           date: a.date,
+          key: `${a.date}:${a.sourceLocator ?? a.text}:${i}`,
+          sourceUrl: a.sourceUrl,
+          sourceLocator: a.sourceLocator,
+          textKind:
+            a.textKind === "official"
+              ? ("official" as const)
+              : a.textKind === "derived"
+                ? ("derived" as const)
+                : ("legacy" as const),
           done: true,
           current: i === arr.length - 1,
         }))
@@ -281,6 +316,10 @@ export default function ArticleDetailScreen() {
           label: "Introduced",
           fullText: "",
           date: "",
+          key: "derived:introduced",
+          sourceUrl: undefined,
+          sourceLocator: undefined,
+          textKind: "derived" as const,
           done: true,
           current: false,
         },
@@ -288,6 +327,10 @@ export default function ArticleDetailScreen() {
           label: "Committee review",
           fullText: "",
           date: "",
+          key: "derived:committee-review",
+          sourceUrl: undefined,
+          sourceLocator: undefined,
+          textKind: "derived" as const,
           done: true,
           current: false,
         },
@@ -295,6 +338,10 @@ export default function ArticleDetailScreen() {
           label: "Latest action",
           fullText: "",
           date: "",
+          key: "derived:latest-action",
+          sourceUrl: undefined,
+          sourceLocator: undefined,
+          textKind: "derived" as const,
           done: true,
           current: true,
         },
@@ -302,12 +349,17 @@ export default function ArticleDetailScreen() {
           label: "Becomes law",
           fullText: "",
           date: "",
+          key: "derived:becomes-law",
+          sourceUrl: undefined,
+          sourceLocator: undefined,
+          textKind: "derived" as const,
           done: false,
           current: false,
         },
       ];
-  // Actions are the official legislative record from the source (congress.gov).
-  const timelineSourceUrl = hasRealActions ? content.url : undefined;
+  // The original bill record remains a fallback for legacy events without a
+  // sourceUrl, while new events link to their action record individually.
+  const timelineSourceUrl = content.type === "bill" ? content.url : undefined;
 
   return (
     <View style={s.screen}>
@@ -421,17 +473,10 @@ export default function ArticleDetailScreen() {
         <Card style={{ marginBottom: 24 }}>
           {timeline.map((step, i) => {
             const expandable = !!step.fullText && step.label !== step.fullText;
-            const isExpanded = expandedStep === i;
+            const isExpanded = expandedStep === step.key;
+            const sourceUrl = step.sourceUrl;
             return (
-              <TouchableOpacity
-                key={i}
-                style={s.timelineRow}
-                activeOpacity={expandable ? 0.6 : 1}
-                onPress={() =>
-                  expandable && setExpandedStep(isExpanded ? null : i)
-                }
-                accessibilityRole={expandable ? "button" : undefined}
-              >
+              <View key={step.key} style={s.timelineRow}>
                 <View style={s.timelineMarker}>
                   <View
                     style={[
@@ -455,7 +500,19 @@ export default function ArticleDetailScreen() {
                   {!!step.date && (
                     <Text style={s.timelineDate}>{formatDate(step.date)}</Text>
                   )}
-                  <View style={s.timelineLabelRow}>
+                  <TouchableOpacity
+                    style={s.timelineLabelRow}
+                    activeOpacity={expandable ? 0.6 : 1}
+                    disabled={!expandable}
+                    onPress={() =>
+                      expandable &&
+                      setExpandedStep(isExpanded ? null : step.key)
+                    }
+                    accessibilityRole={expandable ? "button" : undefined}
+                    accessibilityState={
+                      expandable ? { expanded: isExpanded } : undefined
+                    }
+                  >
                     <Text
                       style={[
                         s.timelineLabel,
@@ -478,9 +535,44 @@ export default function ArticleDetailScreen() {
                         color={colors.textSecondary}
                       />
                     )}
+                  </TouchableOpacity>
+                  <View style={s.timelineMeta}>
+                    <Text style={s.timelineKind}>
+                      {step.textKind === "official"
+                        ? "Official status text"
+                        : step.textKind === "derived"
+                          ? "Derived milestone"
+                          : "Legacy status text"}
+                    </Text>
+                    <Text style={s.timelineMetaSeparator}>·</Text>
+                    {sourceUrl ? (
+                      <TouchableOpacity
+                        style={s.timelineCitation}
+                        activeOpacity={0.7}
+                        onPress={() =>
+                          void handleOpenTimelineSource(
+                            sourceUrl,
+                            step.sourceLocator,
+                          )
+                        }
+                        accessibilityRole="link"
+                        accessibilityLabel={`Open official source for ${step.fullText}`}
+                      >
+                        <Icon name="external" size={11} color={t.color} />
+                        <Text
+                          style={[s.timelineCitationText, { color: t.color }]}
+                        >
+                          Source
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <Text style={s.timelineMissingSource}>
+                        No event-level source
+                      </Text>
+                    )}
                   </View>
                 </View>
-              </TouchableOpacity>
+              </View>
             );
           })}
           {timelineSourceUrl && (
@@ -491,7 +583,7 @@ export default function ArticleDetailScreen() {
             >
               <Icon name="info" size={13} color={colors.textSecondary} />
               <Text style={s.timelineSourceText}>
-                Official record · congress.gov
+                Full official bill record · congress.gov
               </Text>
               <Icon name="chevR" size={12} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -617,6 +709,36 @@ const s = StyleSheet.create({
     gap: 6,
   },
   timelineLabel: { flex: 1, fontSize: 14, lineHeight: 19 },
+  timelineMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 5,
+    marginTop: 5,
+  },
+  timelineKind: {
+    fontFamily: fontBody.medium,
+    fontSize: 10.5,
+    color: colors.textSecondary,
+  },
+  timelineMetaSeparator: {
+    fontFamily: fontBody.regular,
+    fontSize: 10.5,
+    color: colors.textSecondary,
+  },
+  timelineCitation: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  timelineCitationText: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+  },
+  timelineMissingSource: {
+    fontFamily: fontBody.regular,
+    fontSize: 10.5,
+    color: colors.textSecondary,
+  },
   timelineSource: {
     flexDirection: "row",
     alignItems: "center",
