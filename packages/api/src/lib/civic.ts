@@ -176,6 +176,15 @@ export interface MeasureArgumentRef {
   sourceUrl?: string;
 }
 
+export interface MeasureExpertAnalysisRef {
+  sourceName: string;
+  sourceUrl?: string;
+  background?: string;
+  equityImpacts?: string;
+  recommendation?: string;
+  recommendationRationale?: string;
+}
+
 export interface Contest {
   type: string;
   primaryParty?: string;
@@ -214,6 +223,8 @@ export interface Contest {
   proArguments?: MeasureArgumentRef[];
   /** Structured, attributed con arguments. */
   conArguments?: MeasureArgumentRef[];
+  /** Position-taking expert analysis, kept separate from official measure data. */
+  expertAnalyses?: MeasureExpertAnalysisRef[];
   /** Per-field source attribution for everything above. */
   citations?: MeasureCitationRef[];
 }
@@ -672,6 +683,9 @@ async function enrichContest(
         : undefined;
       contest.conArguments = merged.conArguments.length
         ? merged.conArguments
+        : undefined;
+      contest.expertAnalyses = merged.expertAnalyses.length
+        ? merged.expertAnalyses
         : undefined;
       contest.citations = merged.citations.length
         ? merged.citations

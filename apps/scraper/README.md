@@ -14,6 +14,9 @@ Pulls in government content like bills, court cases, and White House content and
 | `ca-sos-statements.ts` | CA Secretary of State voter guide | Official candidate-statement pages |
 | `ca-lao-fiscal.ts`     | CA Legislative Analyst's Office   | Proposition fiscal analyses        |
 | `ca-vig-archive.ts`    | CA SOS voter-guide archive        | Historical proposition guide pages |
+| `fl-dos-initiatives.ts` | Florida Division of Elections     | Searchable HTML + full-text PDFs    |
+| `spur-voter-guide.ts`   | SPUR Bay Area voter guide         | HTML expert analysis                |
+| `ca-governor-eos.ts`    | California Governor               | Executive-order HTML + signed PDFs  |
 
 ---
 

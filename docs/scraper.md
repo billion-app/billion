@@ -22,6 +22,9 @@ the scraper, rewrites package exports to `dist/`, and runs `node dist/main.js`.
 | `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages                     |
 | `ca-lao-fiscal.ts`     | CA LAO ballot analyses         | `civic_api_cache`    | proposition fiscal analyses via HTML parse             |
 | `ca-vig-archive.ts`    | CA SOS voter-guide archive     | `civic_api_cache`    | historical proposition guide pages via HTML parse      |
+| `fl-dos-initiatives.ts` | Florida Division of Elections | `civic_api_cache`    | permission-gated HTML tracking + full-text PDF extraction |
+| `spur-voter-guide.ts`   | SPUR Bay Area voter guide     | `civic_api_cache`    | attributed background, equity, pro/con, and recommendation HTML |
+| `ca-governor-eos.ts`    | California Governor           | `government_content` | paginated HTML discovery + signed-PDF extraction                 |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 

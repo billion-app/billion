@@ -21,6 +21,7 @@ export type SourceTier =
   | "lwv"
   | "ballotpedia"
   | "wikipedia"
+  | "expert_analysis"
   | "vote_smart"
   | "google_civic"
   | "ai_generated";
@@ -31,6 +32,7 @@ export const SOURCE_TIER_RANK: Record<SourceTier, number> = {
   lwv: 6,
   ballotpedia: 5,
   wikipedia: 4,
+  expert_analysis: 4,
   vote_smart: 3,
   google_civic: 2,
   ai_generated: 1,
@@ -77,6 +79,22 @@ export interface MeasureSourceData {
   /** Single pro/con statement (Google Civic shape) when no list is available. */
   proStatement?: string;
   conStatement?: string;
+  /** Clearly attributed analysis from a position-taking civic organization. */
+  expertAnalysis?: {
+    background?: string;
+    equityImpacts?: string;
+    recommendation?: string;
+    recommendationRationale?: string;
+  };
+}
+
+export interface MeasureExpertAnalysis {
+  sourceName: string;
+  sourceUrl?: string;
+  background?: string;
+  equityImpacts?: string;
+  recommendation?: string;
+  recommendationRationale?: string;
 }
 
 /**
@@ -97,6 +115,7 @@ export interface CanonicalMeasure {
   fullTextUrl?: string;
   proArguments: MeasureArgument[];
   conArguments: MeasureArgument[];
+  expertAnalyses: MeasureExpertAnalysis[];
   citations: MeasureCitation[];
   /** Fields where sources disagreed, flagged for human review. */
   discrepancies?: string[];

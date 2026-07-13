@@ -10,6 +10,9 @@ import { caSosStatements } from "./scrapers/ca-sos-statements.js";
 import { caLaoFiscal } from "./scrapers/ca-lao-fiscal.js";
 import { caVigArchive } from "./scrapers/ca-vig-archive.js";
 import { sfDatasf } from "./scrapers/sf-datasf.js";
+import { flDosInitiatives } from "./scrapers/fl-dos-initiatives.js";
+import { spurVoterGuide } from "./scrapers/spur-voter-guide.js";
+import { caGovernorEos } from "./scrapers/ca-governor-eos.js";
 import type { Scraper } from "./utils/types.js";
 import { createLogger } from "./utils/log.js";
 import { setConcurrency } from "./utils/concurrency.js";
@@ -27,6 +30,9 @@ const scrapers: Scraper[] = [
   caLaoFiscal,
   caVigArchive,
   sfDatasf,
+  flDosInitiatives,
+  spurVoterGuide,
+  caGovernorEos,
 ];
 const scraperNames = scrapers.map((s) => s.name);
 

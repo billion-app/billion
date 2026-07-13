@@ -27,6 +27,8 @@ import { SOURCE_TIER_RANK } from "./measure-sources/types";
 import { enrichFromWikipedia } from "./measure-sources/wikipedia";
 import { enrichFromVoteSmart } from "./votesmart";
 import { enrichFromSfDataSf } from "./measure-sources/sf-datasf";
+import { enrichFromFlDos } from "./measure-sources/fl-dos-initiatives";
+import { enrichFromSpur } from "./measure-sources/spur";
 
 export interface CrossValidateContext {
   stateAbbrev?: string;
@@ -143,7 +145,7 @@ export async function crossValidateMeasure(
   input: CivicMeasureInput,
   ctx: CrossValidateContext,
 ): Promise<CanonicalMeasure> {
-  const [sos, lwv, bp, wiki, vs, lao, sf] = await Promise.all([
+  const [sos, lwv, bp, wiki, vs, lao, sf, flDos, spur] = await Promise.all([
     enrichFromCaSos(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
       () => null,
     ),
@@ -165,6 +167,12 @@ export async function crossValidateMeasure(
     enrichFromSfDataSf(input.title, ctx.stateAbbrev, ctx.county, ctx.electionYear).catch(
       () => null,
     ),
+    enrichFromFlDos(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
+      () => null,
+    ),
+    enrichFromSpur(input.title, ctx.stateAbbrev, ctx.county, ctx.electionYear).catch(
+      () => null,
+    ),
   ]);
 
   const sources: MeasureSourceData[] = [
@@ -175,6 +183,8 @@ export async function crossValidateMeasure(
     vs,
     lao,
     sf,
+    flDos,
+    spur,
     civicAsSource(input),
   ].filter((s): s is MeasureSourceData => s !== null);
   sources.sort(byTierDesc);
@@ -225,6 +235,13 @@ export async function crossValidateMeasure(
   // --- Pro / con arguments: collect from all sources, dedupe, attribute. ---
   const proArguments = collectArguments(sources, "pro", citations);
   const conArguments = collectArguments(sources, "con", citations);
+  const expertAnalyses = sources
+    .filter((source) => source.expertAnalysis)
+    .map((source) => ({
+      sourceName: source.sourceName,
+      sourceUrl: source.sourceUrl,
+      ...source.expertAnalysis!,
+    }));
 
   // Short/long summaries default to the chosen summary; the AI fallback below
   // upgrades them to a one-sentence preview + a fuller paragraph when it runs.
@@ -386,6 +403,7 @@ export async function crossValidateMeasure(
     fullTextUrl,
     proArguments,
     conArguments,
+    expertAnalyses,
     citations,
     discrepancies: discrepancies.length ? discrepancies : undefined,
   };

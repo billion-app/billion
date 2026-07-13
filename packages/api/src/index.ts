@@ -100,9 +100,16 @@ export type {
   MeasureSourceData,
   MeasureCitation,
   MeasureArgument,
+  MeasureExpertAnalysis,
   SourceTier,
 } from "./lib/measure-sources/types";
 export { SOURCE_TIER_RANK } from "./lib/measure-sources/types";
+export { enrichFromFlDos } from "./lib/measure-sources/fl-dos-initiatives";
+export type {
+  FlDosInitiative,
+  FlDosPayload,
+  FlDosSearchResult,
+} from "./lib/measure-sources/fl-dos-initiatives";
 
 /**
  * Inference helpers for input types

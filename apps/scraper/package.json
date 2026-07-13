@@ -34,7 +34,7 @@
     "start:prod": "node dist/main.js",
     "start:dev": "pnpm with-env tsx src/main.ts",
     "build": "tsc",
-    "test": "echo \"Error: oops, the actor has no tests yet, sad!\" && exit 1",
+    "test": "tsx --test src/scrapers/*.test.ts",
     "retroactive-videos": "tsx src/retroactive-videos.ts"
   },
   "author": "It's not you it's me",

@@ -50,6 +50,14 @@
     "./lib/measure-sources/vig-archive": {
       "types": "./dist/lib/measure-sources/vig-archive.d.ts",
       "default": "./src/lib/measure-sources/vig-archive.ts"
+    },
+    "./lib/measure-sources/fl-dos-initiatives": {
+      "types": "./dist/lib/measure-sources/fl-dos-initiatives.d.ts",
+      "default": "./src/lib/measure-sources/fl-dos-initiatives.ts"
+    },
+    "./lib/measure-sources/spur": {
+      "types": "./dist/lib/measure-sources/spur.d.ts",
+      "default": "./src/lib/measure-sources/spur.ts"
     }
   },
   "license": "MIT",
