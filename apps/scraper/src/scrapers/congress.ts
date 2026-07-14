@@ -126,6 +126,34 @@ function formatBillNumber(type: string, number: string): string {
   return `${prefix} ${number}`;
 }
 
+const urlSlugToApiType: Record<string, string> = {
+  "house-bill": "hr",
+  "senate-bill": "s",
+  "house-joint-resolution": "hjres",
+  "senate-joint-resolution": "sjres",
+  "house-concurrent-resolution": "hconres",
+  "senate-concurrent-resolution": "sconres",
+  "house-simple-resolution": "hres",
+  "senate-simple-resolution": "sres",
+};
+
+/**
+ * Recover the congress.gov API's {billType, billNumber} from a stored bill
+ * URL (built by `scrape()` as .../bill/{congress}th-congress/{slug}/{number}).
+ * The Bill row only persists the human-formatted billNumber (e.g. "H.R. 1234"),
+ * not the raw API type/number, so this is the only way to re-hit the API later.
+ */
+export function parseBillUrl(
+  url: string,
+): { billType: string; billNumber: string } | undefined {
+  const match = /\/bill\/\d+\w{2}-congress\/([a-z-]+)\/(\d+)/.exec(url);
+  if (!match) return undefined;
+  const [, slug, number] = match;
+  const billType = urlSlugToApiType[slug!];
+  if (!billType || !number) return undefined;
+  return { billType, billNumber: number };
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
@@ -137,7 +165,7 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-async function fetchSummary(
+export async function fetchSummary(
   congress: number,
   billType: string,
   billNumber: string,
@@ -154,7 +182,7 @@ async function fetchSummary(
   }
 }
 
-async function fetchFullText(
+export async function fetchFullText(
   congress: number,
   billType: string,
   billNumber: string,
