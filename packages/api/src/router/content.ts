@@ -1,7 +1,7 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, desc, eq, inArray, or } from "@acme/db";
+import { and, desc, eq, inArray, or, sql, unionAll } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -234,64 +234,77 @@ export const contentRouter = {
     return attachVideoImages(allContent);
   }),
 
-  // Get content filtered by type from database
+  // Get content filtered by type from database, paginated for infinite scroll.
   getByType: publicProcedure
     .input(
       z.object({
         type: z
           .enum(["all", "bill", "government_content", "court_case", "general"])
           .optional(),
+        limit: z.number().int().min(1).max(50).default(20),
+        cursor: z.number().int().min(0).optional(),
       }),
     )
     .query(async ({ input }) => {
+      const { limit } = input;
+      const cursor = input.cursor ?? 0;
+
       if (!input.type || input.type === "all") {
-        const bills = await db
-          .select()
-          .from(Bill)
-          .orderBy(desc(Bill.createdAt))
-          .limit(20);
-        const governmentContent = await db
-          .select()
-          .from(GovernmentContent)
-          .orderBy(desc(GovernmentContent.createdAt))
-          .limit(20);
-        const courtCases = await db
-          .select()
-          .from(CourtCase)
-          .orderBy(desc(CourtCase.createdAt))
-          .limit(20);
+        // Merge all three source tables into one chronological feed at the
+        // database level (rather than concatenating fixed-size blocks) so
+        // pagination advances correctly across types.
+        const rows = await unionAll(
+          db
+            .select({
+              id: Bill.id,
+              title: Bill.title,
+              description: sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`,
+              type: sql<string>`'bill'`,
+              thumbnailUrl: Bill.thumbnailUrl,
+              createdAt: Bill.createdAt,
+            })
+            .from(Bill),
+          db
+            .select({
+              id: GovernmentContent.id,
+              title: GovernmentContent.title,
+              description: sql<string>`coalesce(${GovernmentContent.description}, '')`,
+              type: sql<string>`'government_content'`,
+              thumbnailUrl: GovernmentContent.thumbnailUrl,
+              createdAt: GovernmentContent.createdAt,
+            })
+            .from(GovernmentContent),
+          db
+            .select({
+              id: CourtCase.id,
+              title: CourtCase.title,
+              description: sql<string>`coalesce(${CourtCase.description}, '')`,
+              type: sql<string>`'court_case'`,
+              thumbnailUrl: CourtCase.thumbnailUrl,
+              createdAt: CourtCase.createdAt,
+            })
+            .from(CourtCase),
+        )
+          .orderBy(sql`"created_at" desc`)
+          .limit(limit + 1)
+          .offset(cursor);
 
-        const allContent: ContentCard[] = [
-          // Bills from database
-          ...bills.map((bill) => ({
-            id: bill.id,
-            title: bill.title,
-            description: bill.description ?? bill.summary ?? "",
-            type: "bill" as const,
-            isAIGenerated: false,
-            thumbnailUrl: bill.thumbnailUrl ?? undefined,
-          })),
-          // Government content from database
-          ...governmentContent.map((content) => ({
-            id: content.id,
-            title: content.title,
-            description: content.description ?? "",
-            type: "government_content" as const,
-            isAIGenerated: false,
-            thumbnailUrl: content.thumbnailUrl ?? undefined,
-          })),
-          // Court cases from database
-          ...courtCases.map((courtCase) => ({
-            id: courtCase.id,
-            title: courtCase.title,
-            description: courtCase.description ?? "",
-            type: "court_case" as const,
-            isAIGenerated: false,
-            thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
-          })),
-        ];
+        const hasMore = rows.length > limit;
+        const page = hasMore ? rows.slice(0, limit) : rows;
 
-        return attachVideoImages(allContent);
+        const items: ContentCard[] = page.map((row) => ({
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          type: row.type as ContentCard["type"],
+          isAIGenerated: false,
+          thumbnailUrl: row.thumbnailUrl ?? undefined,
+        }));
+
+        return {
+          items: await attachVideoImages(items),
+          nextCursor: hasMore ? cursor + limit : undefined,
+        };
       }
 
       if (input.type === "bill") {
@@ -299,7 +312,118 @@ export const contentRouter = {
           .select()
           .from(Bill)
           .orderBy(desc(Bill.createdAt))
-          .limit(50);
+          .limit(limit + 1)
+          .offset(cursor);
+        const hasMore = bills.length > limit;
+        const page = hasMore ? bills.slice(0, limit) : bills;
+        const items: ContentCard[] = page.map((bill) => ({
+          id: bill.id,
+          title: bill.title,
+          description: bill.description ?? bill.summary ?? "",
+          type: "bill" as const,
+          isAIGenerated: false,
+          thumbnailUrl: bill.thumbnailUrl ?? undefined,
+        }));
+        return {
+          items: await attachVideoImages(items),
+          nextCursor: hasMore ? cursor + limit : undefined,
+        };
+      }
+
+      if (input.type === "government_content" || input.type === "general") {
+        const governmentContent = await db
+          .select()
+          .from(GovernmentContent)
+          .orderBy(desc(GovernmentContent.createdAt))
+          .limit(limit + 1)
+          .offset(cursor);
+        const hasMore = governmentContent.length > limit;
+        const page = hasMore
+          ? governmentContent.slice(0, limit)
+          : governmentContent;
+        const items: ContentCard[] = page.map((content) => ({
+          id: content.id,
+          title: content.title,
+          description: content.description ?? "",
+          type: "government_content" as const,
+          isAIGenerated: false,
+          thumbnailUrl: content.thumbnailUrl ?? undefined,
+        }));
+        return {
+          items: await attachVideoImages(items),
+          nextCursor: hasMore ? cursor + limit : undefined,
+        };
+      }
+
+      // input.type === "court_case" — only remaining branch
+      const courtCases = await db
+        .select()
+        .from(CourtCase)
+        .orderBy(desc(CourtCase.createdAt))
+        .limit(limit + 1)
+        .offset(cursor);
+      const hasMore = courtCases.length > limit;
+      const page = hasMore ? courtCases.slice(0, limit) : courtCases;
+      const items: ContentCard[] = page.map((courtCase) => ({
+        id: courtCase.id,
+        title: courtCase.title,
+        description: courtCase.description ?? "",
+        type: "court_case" as const,
+        isAIGenerated: false,
+        thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
+      }));
+      return {
+        items: await attachVideoImages(items),
+        nextCursor: hasMore ? cursor + limit : undefined,
+      };
+    }),
+
+  // Full-text search across bills, government content, and court cases.
+  // Matches against the generated `search_vector` tsvector column (title,
+  // summary/description, full text) and, for bill/case numbers, a pg_trgm
+  // trigram similarity match so loose codes like "hr1234" still find
+  // "H.R. 1234".
+  search: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1).max(200),
+        type: z
+          .enum(["all", "bill", "government_content", "court_case", "general"])
+          .optional(),
+        limit: z.number().int().min(1).max(50).default(20),
+      }),
+    )
+    .query(async ({ input }) => {
+      const { limit, query } = input;
+      const type = input.type ?? "all";
+      const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
+
+      const billRank = sql<number>`greatest(
+        ts_rank_cd(${Bill.searchVector}, ${tsQuery}),
+        similarity(${Bill.billNumber}, ${query})
+      )`;
+      const billMatch = sql`(
+        ${Bill.searchVector} @@ ${tsQuery} or ${Bill.billNumber} % ${query}
+      )`;
+
+      const govRank = sql<number>`ts_rank_cd(${GovernmentContent.searchVector}, ${tsQuery})`;
+      const govMatch = sql`${GovernmentContent.searchVector} @@ ${tsQuery}`;
+
+      const caseRank = sql<number>`greatest(
+        ts_rank_cd(${CourtCase.searchVector}, ${tsQuery}),
+        similarity(${CourtCase.caseNumber}, ${query})
+      )`;
+      const caseMatch = sql`(
+        ${CourtCase.searchVector} @@ ${tsQuery} or ${CourtCase.caseNumber} % ${query}
+      )`;
+
+      if (type === "bill") {
+        const bills = await db
+          .select()
+          .from(Bill)
+          .where(billMatch)
+          .orderBy(desc(billRank))
+          .limit(limit);
         const items: ContentCard[] = bills.map((bill) => ({
           id: bill.id,
           title: bill.title,
@@ -311,12 +435,13 @@ export const contentRouter = {
         return attachVideoImages(items);
       }
 
-      if (input.type === "government_content" || input.type === "general") {
+      if (type === "government_content" || type === "general") {
         const governmentContent = await db
           .select()
           .from(GovernmentContent)
-          .orderBy(desc(GovernmentContent.createdAt))
-          .limit(50);
+          .where(govMatch)
+          .orderBy(desc(govRank))
+          .limit(limit);
         const items: ContentCard[] = governmentContent.map((content) => ({
           id: content.id,
           title: content.title,
@@ -328,19 +453,70 @@ export const contentRouter = {
         return attachVideoImages(items);
       }
 
-      // input.type === "court_case" — only remaining branch
-      const courtCases = await db
-        .select()
-        .from(CourtCase)
-        .orderBy(desc(CourtCase.createdAt))
-        .limit(50);
-      const items: ContentCard[] = courtCases.map((courtCase) => ({
-        id: courtCase.id,
-        title: courtCase.title,
-        description: courtCase.description ?? "",
-        type: "court_case" as const,
+      if (type === "court_case") {
+        const courtCases = await db
+          .select()
+          .from(CourtCase)
+          .where(caseMatch)
+          .orderBy(desc(caseRank))
+          .limit(limit);
+        const items: ContentCard[] = courtCases.map((courtCase) => ({
+          id: courtCase.id,
+          title: courtCase.title,
+          description: courtCase.description ?? "",
+          type: "court_case" as const,
+          isAIGenerated: false,
+          thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
+        }));
+        return attachVideoImages(items);
+      }
+
+      // "all" — union matches from all three tables, re-ranked together.
+      const rows = await unionAll(
+        db
+          .select({
+            id: Bill.id,
+            title: Bill.title,
+            description: sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`,
+            type: sql<string>`'bill'`,
+            thumbnailUrl: Bill.thumbnailUrl,
+            rank: billRank,
+          })
+          .from(Bill)
+          .where(billMatch),
+        db
+          .select({
+            id: GovernmentContent.id,
+            title: GovernmentContent.title,
+            description: sql<string>`coalesce(${GovernmentContent.description}, '')`,
+            type: sql<string>`'government_content'`,
+            thumbnailUrl: GovernmentContent.thumbnailUrl,
+            rank: govRank,
+          })
+          .from(GovernmentContent)
+          .where(govMatch),
+        db
+          .select({
+            id: CourtCase.id,
+            title: CourtCase.title,
+            description: sql<string>`coalesce(${CourtCase.description}, '')`,
+            type: sql<string>`'court_case'`,
+            thumbnailUrl: CourtCase.thumbnailUrl,
+            rank: caseRank,
+          })
+          .from(CourtCase)
+          .where(caseMatch),
+      )
+        .orderBy(sql`"rank" desc`)
+        .limit(limit);
+
+      const items: ContentCard[] = rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        type: row.type as ContentCard["type"],
         isAIGenerated: false,
-        thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
+        thumbnailUrl: row.thumbnailUrl ?? undefined,
       }));
       return attachVideoImages(items);
     }),
