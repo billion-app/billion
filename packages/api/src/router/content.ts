@@ -472,15 +472,20 @@ export const contentRouter = {
       }
 
       // "all" — union matches from all three tables, re-ranked together.
+      // Postgres derives a UNION's output column names from the first
+      // branch's select list, so the raw sql expressions below need an
+      // explicit `.as(...)` alias for the outer ORDER BY to reference them.
       const rows = await unionAll(
         db
           .select({
             id: Bill.id,
             title: Bill.title,
-            description: sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`,
-            type: sql<string>`'bill'`,
+            description: sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`.as(
+              "description",
+            ),
+            type: sql<string>`'bill'`.as("type"),
             thumbnailUrl: Bill.thumbnailUrl,
-            rank: billRank,
+            rank: billRank.as("rank"),
           })
           .from(Bill)
           .where(billMatch),
@@ -488,10 +493,12 @@ export const contentRouter = {
           .select({
             id: GovernmentContent.id,
             title: GovernmentContent.title,
-            description: sql<string>`coalesce(${GovernmentContent.description}, '')`,
-            type: sql<string>`'government_content'`,
+            description: sql<string>`coalesce(${GovernmentContent.description}, '')`.as(
+              "description",
+            ),
+            type: sql<string>`'government_content'`.as("type"),
             thumbnailUrl: GovernmentContent.thumbnailUrl,
-            rank: govRank,
+            rank: govRank.as("rank"),
           })
           .from(GovernmentContent)
           .where(govMatch),
@@ -499,10 +506,12 @@ export const contentRouter = {
           .select({
             id: CourtCase.id,
             title: CourtCase.title,
-            description: sql<string>`coalesce(${CourtCase.description}, '')`,
-            type: sql<string>`'court_case'`,
+            description: sql<string>`coalesce(${CourtCase.description}, '')`.as(
+              "description",
+            ),
+            type: sql<string>`'court_case'`.as("type"),
             thumbnailUrl: CourtCase.thumbnailUrl,
-            rank: caseRank,
+            rank: caseRank.as("rank"),
           })
           .from(CourtCase)
           .where(caseMatch),
