@@ -65,6 +65,7 @@ async function main() {
       billNumber: Bill.billNumber,
       actions: Bill.actions,
       url: Bill.url,
+      updatedAt: Bill.updatedAt,
     })
     .from(Bill)
     .where(eq(Bill.sourceWebsite, "congress.gov"));
@@ -115,7 +116,9 @@ async function main() {
     if (argv.apply) {
       await db
         .update(Bill)
-        .set({ actions, updatedAt: new Date() })
+        // Preserve the ingestion watermark: Bill.updatedAt is currently used
+        // to calculate Congress.gov's next incremental fromDateTime.
+        .set({ actions, updatedAt: row.updatedAt })
         .where(eq(Bill.id, row.id));
     }
     updatedBills += 1;
