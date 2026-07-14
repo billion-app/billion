@@ -4,7 +4,6 @@ import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import Fuse from "fuse.js";
 
 import type { VideoPost } from "@acme/api";
 
@@ -13,11 +12,16 @@ import { ElectionBanner } from "~/components/ElectionBanner";
 import { Text } from "~/components/Themed";
 import { ContentCard, Pill, Pills, SearchInput } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useDebounced } from "~/hooks/useDebounce";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
+
+// Below this length a query is treated as "not searching yet" to avoid
+// hammering the server-side full-text search on the first keystroke.
+const MIN_SEARCH_LENGTH = 2;
 
 const PAGE_SIZE = 20;
 
@@ -87,18 +91,27 @@ export default function BrowseScreen() {
     [data],
   );
 
-  const fuse = useMemo(
-    () =>
-      new Fuse(allItems, { keys: ["title", "description"], threshold: 0.3 }),
-    [allItems],
-  );
+  // Server-side full-text search (bill/case codes + title/summary/full text)
+  // replaces the old title/description-only client-side Fuse match once the
+  // query is long enough to be worth a round trip.
+  const debouncedQuery = useDebounced(query, 300);
+  const isSearching = debouncedQuery.trim().length >= MIN_SEARCH_LENGTH;
+  const searchQuery = useQuery({
+    ...trpc.content.search.queryOptions({
+      query: debouncedQuery,
+      type: filter,
+    }),
+    enabled: isSearching,
+  });
 
-  const items = useMemo<ContentItem[]>(() => {
-    if (!query.trim()) return allItems as ContentItem[];
-    return fuse.search(query).map((r) => r.item) as ContentItem[];
-  }, [allItems, query, fuse]);
+  const items = (
+    isSearching ? (searchQuery.data ?? []) : allItems
+  ) as ContentItem[];
+  const listIsLoading = isSearching ? searchQuery.isLoading : isLoading;
+  const listError = isSearching ? searchQuery.error : error;
 
   const loadMore = () => {
+    if (isSearching) return;
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
   };
 
@@ -150,11 +163,11 @@ export default function BrowseScreen() {
               />
             )}
 
-            {!isLoading && !error && items.length > 0 && (
+            {!listIsLoading && !listError && items.length > 0 && (
               <View style={s.resultsCountWrap}>
                 <Text style={s.resultsCount}>
-                  {items.length} result{items.length === 1 ? "" : "s"} · sorted
-                  by recent
+                  {items.length} result{items.length === 1 ? "" : "s"} ·{" "}
+                  {isSearching ? "sorted by relevance" : "sorted by recent"}
                 </Text>
               </View>
             )}
@@ -172,7 +185,7 @@ export default function BrowseScreen() {
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          isFetchingNextPage ? (
+          !isSearching && isFetchingNextPage ? (
             <ActivityIndicator
               color={colors.white}
               style={{ marginVertical: 16 }}
@@ -180,13 +193,13 @@ export default function BrowseScreen() {
           ) : null
         }
         ListEmptyComponent={
-          isLoading ? (
+          listIsLoading ? (
             <ActivityIndicator
               size="large"
               color={colors.white}
               style={{ marginTop: 48 }}
             />
-          ) : error ? (
+          ) : listError ? (
             <View style={s.center}>
               <Text style={s.errorText}>Unable to load content</Text>
             </View>
