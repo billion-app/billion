@@ -8,7 +8,7 @@
  * then calls onSubmit with that address to feed Civic's getVoterInfo. Replaces
  * the bare text field so users can't submit malformed addresses.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   LayoutAnimation,
@@ -21,6 +21,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
+import { useDebounced } from "~/hooks/useDebounce";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 
@@ -29,16 +30,6 @@ interface AddressAutocompleteProps {
   initialValue?: string;
   /** Commit a final address (suggestion tap or Look Up press). */
   onSubmit: (address: string) => void;
-}
-
-/** Debounce a value by `delay` ms. */
-function useDebounced<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return debounced;
 }
 
 /**
