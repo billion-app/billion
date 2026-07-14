@@ -290,9 +290,16 @@ export default function ArticleDetailScreen() {
 
   const actions =
     "actions" in content ? (content.actions as TimelineAction[]) : [];
-  const hasRealActions = actions.length > 0;
+  const seenActions = new Set<string>();
+  const uniqueActions = actions.filter((action) => {
+    const identity = `${action.date}:${action.text.trim().toLowerCase()}`;
+    if (seenActions.has(identity)) return false;
+    seenActions.add(identity);
+    return true;
+  });
+  const hasRealActions = uniqueActions.length > 0;
   const timeline = hasRealActions
-    ? actions
+    ? uniqueActions
         .slice()
         .sort((a, b) => a.date.localeCompare(b.date))
         .map((a, i, arr) => ({
@@ -539,15 +546,14 @@ export default function ArticleDetailScreen() {
                   <View style={s.timelineMeta}>
                     <Text style={s.timelineKind}>
                       {step.textKind === "official"
-                        ? "Official status text"
+                        ? "OFFICIAL"
                         : step.textKind === "derived"
-                          ? "Derived milestone"
-                          : "Legacy status text"}
+                          ? "ESTIMATED"
+                          : "LEGACY"}
                     </Text>
-                    <Text style={s.timelineMetaSeparator}>·</Text>
                     {sourceUrl ? (
                       <TouchableOpacity
-                        style={s.timelineCitation}
+                        style={[s.timelineCitation, { borderColor: t.color }]}
                         activeOpacity={0.7}
                         onPress={() =>
                           void handleOpenTimelineSource(
@@ -562,13 +568,20 @@ export default function ArticleDetailScreen() {
                         <Text
                           style={[s.timelineCitationText, { color: t.color }]}
                         >
-                          Source
+                          View source
                         </Text>
                       </TouchableOpacity>
                     ) : (
-                      <Text style={s.timelineMissingSource}>
-                        No event-level source
-                      </Text>
+                      <View style={s.timelineMissingSourceRow}>
+                        <Icon
+                          name="info"
+                          size={11}
+                          color={colors.textSecondary}
+                        />
+                        <Text style={s.timelineMissingSource}>
+                          Source unavailable
+                        </Text>
+                      </View>
                     )}
                   </View>
                 </View>
@@ -697,11 +710,11 @@ const s = StyleSheet.create({
   timelineLine: { width: 2, flex: 1, minHeight: 22 },
   timelineBody: { flex: 1, paddingBottom: 14 },
   timelineDate: {
-    fontFamily: fontBody.medium,
-    fontSize: 10.5,
-    letterSpacing: 0.3,
-    color: colors.textSecondary,
-    marginBottom: 2,
+    fontFamily: fontBody.bold,
+    fontSize: 12,
+    letterSpacing: 0.2,
+    color: "rgba(255,255,255,0.68)",
+    marginBottom: 5,
   },
   timelineLabelRow: {
     flexDirection: "row",
@@ -713,26 +726,36 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 5,
-    marginTop: 5,
+    gap: 7,
+    marginTop: 8,
   },
   timelineKind: {
-    fontFamily: fontBody.medium,
-    fontSize: 10.5,
+    fontFamily: fontBody.bold,
+    fontSize: 9.5,
+    letterSpacing: 0.7,
     color: colors.textSecondary,
-  },
-  timelineMetaSeparator: {
-    fontFamily: fontBody.regular,
-    fontSize: 10.5,
-    color: colors.textSecondary,
+    backgroundColor: planes.ink,
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
   },
   timelineCitation: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   timelineCitationText: {
     fontFamily: fontBody.bold,
     fontSize: 10.5,
+  },
+  timelineMissingSourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   timelineMissingSource: {
     fontFamily: fontBody.regular,

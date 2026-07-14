@@ -15,6 +15,17 @@ import { congressConfig } from "./congress.config.js";
 const BASE_URL = "https://api.congress.gov/v3";
 const logger = createLogger("Congress.gov");
 
+const BILL_URL_SLUGS: Record<string, string> = {
+  HR: "house-bill",
+  S: "senate-bill",
+  HJRES: "house-joint-resolution",
+  SJRES: "senate-joint-resolution",
+  HCONRES: "house-concurrent-resolution",
+  SCONRES: "senate-concurrent-resolution",
+  HRES: "house-simple-resolution",
+  SRES: "senate-simple-resolution",
+};
+
 interface CongressScraperConfig {
   maxBills?: number;
   congress?: number;
@@ -99,17 +110,33 @@ function ordinalSuffix(n: number): string {
 }
 
 function billTypeToUrlSlug(type: string): string {
-  const slugMap: Record<string, string> = {
-    HR: "house-bill",
-    S: "senate-bill",
-    HJRES: "house-joint-resolution",
-    SJRES: "senate-joint-resolution",
-    HCONRES: "house-concurrent-resolution",
-    SCONRES: "senate-concurrent-resolution",
-    HRES: "house-simple-resolution",
-    SRES: "senate-simple-resolution",
+  return BILL_URL_SLUGS[type.toUpperCase()] ?? `${type.toLowerCase()}-bill`;
+}
+
+export interface CongressBillLocator {
+  congress: number;
+  billType: string;
+  billNumber: string;
+}
+
+export function parseCongressBillUrl(
+  billUrl: string,
+): CongressBillLocator | undefined {
+  const match = new URL(billUrl).pathname.match(
+    /^\/bill\/(\d+)(?:st|nd|rd|th)-congress\/([^/]+)\/(\d+)/i,
+  );
+  if (!match) return undefined;
+
+  const billType = Object.entries(BILL_URL_SLUGS).find(
+    ([, slug]) => slug === match[2]?.toLowerCase(),
+  )?.[0];
+  if (!billType) return undefined;
+
+  return {
+    congress: Number(match[1]),
+    billType: billType.toLowerCase(),
+    billNumber: match[3]!,
   };
-  return slugMap[type.toUpperCase()] ?? `${type.toLowerCase()}-bill`;
 }
 
 function formatBillNumber(type: string, number: string): string {
@@ -278,7 +305,7 @@ export async function collectCongressActions(
   });
 }
 
-async function fetchActions(
+export async function fetchCongressActions(
   congress: number,
   billType: string,
   billNumber: string,
@@ -392,7 +419,7 @@ async function scrape(config: CongressScraperConfig = {}) {
 
           const summary = await fetchSummary(congress, billType, billNumber);
           const fullText = await fetchFullText(congress, billType, billNumber);
-          const actions = await fetchActions(
+          const actions = await fetchCongressActions(
             congress,
             billType,
             billNumber,

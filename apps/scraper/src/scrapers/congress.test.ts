@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildActionSourceUrl, collectCongressActions } from "./congress.js";
+import {
+  buildActionSourceUrl,
+  collectCongressActions,
+  parseCongressBillUrl,
+} from "./congress.js";
 
 void test("buildActionSourceUrl creates the stable Congress.gov action record URL", () => {
   assert.equal(
@@ -9,6 +13,19 @@ void test("buildActionSourceUrl creates the stable Congress.gov action record UR
       "https://www.congress.gov/bill/119th-congress/house-bill/4090",
     ),
     "https://www.congress.gov/bill/119th-congress/house-bill/4090/all-actions",
+  );
+});
+
+void test("parseCongressBillUrl resolves supported canonical bill URLs", () => {
+  assert.deepEqual(
+    parseCongressBillUrl(
+      "https://www.congress.gov/bill/119th-congress/house-bill/4090",
+    ),
+    { congress: 119, billType: "hr", billNumber: "4090" },
+  );
+  assert.equal(
+    parseCongressBillUrl("https://www.congress.gov/committee/house-energy"),
+    undefined,
   );
 });
 
