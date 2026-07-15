@@ -47,7 +47,11 @@ export function HeroExperience() {
             opacity: 0.7,
             y: 0,
             rotate: -3,
-            transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1], delay: 0.16 },
+            transition: {
+              duration: 0.55,
+              ease: [0.16, 1, 0.3, 1],
+              delay: 0.16,
+            },
           }}
         >
           <motion.div
@@ -79,7 +83,11 @@ export function HeroExperience() {
             opacity: 1,
             y: 0,
             rotate: 2,
-            transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1], delay: 0.26 },
+            transition: {
+              duration: 0.55,
+              ease: [0.16, 1, 0.3, 1],
+              delay: 0.26,
+            },
           }}
         >
           <motion.div

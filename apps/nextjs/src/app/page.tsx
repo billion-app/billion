@@ -1,9 +1,9 @@
 "use client";
 
+import type { MotionValue } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "motion/react";
-import type { MotionValue } from "motion/react";
 
 import {
   AnimatedSection,
@@ -94,15 +94,10 @@ function HeroSubheading() {
     >
       Browse summaries of{" "}
       <UnderlineWord progress={billsUnderline}>bills</UnderlineWord>,{" "}
-      <UnderlineWord progress={ordersUnderline}>
-        executive orders
-      </UnderlineWord>
-      ,{" "}
-      and{" "}
-      <UnderlineWord progress={rulingsUnderline}>
-        court rulings
-      </UnderlineWord>{" "}
-      — all linked to verifiable sources.
+      <UnderlineWord progress={ordersUnderline}>executive orders</UnderlineWord>
+      , and{" "}
+      <UnderlineWord progress={rulingsUnderline}>court rulings</UnderlineWord> —
+      all linked to verifiable sources.
     </p>
   );
 }
@@ -196,13 +191,14 @@ export default function LandingPage() {
           style={{ fontSize: "clamp(2rem, 4vw, 3.5rem)" }}
         >
           Our mission is helping people{" "}
-          <em className="text-accent italic">understand the world around them.</em>
+          <em className="text-accent italic">
+            understand the world around them.
+          </em>
         </h2>
         <p className="text-muted-foreground mx-auto mb-0 max-w-[46ch] font-sans text-[18px] leading-[1.6]">
           Most people find out what their government did only after it&apos;s
-          already changed their lives. Billion exists to increase
-          people&apos;s civic understanding and draw attention to prevalent
-          societal issues.
+          already changed their lives. Billion exists to increase people&apos;s
+          civic understanding and draw attention to prevalent societal issues.
         </p>
       </AnimatedSection>
 

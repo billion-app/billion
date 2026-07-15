@@ -198,11 +198,10 @@ const browseExamples = [
 // mounted, and filtering just dims the rows that don't match (a persistent
 // opacity animation, not mount/unmount) rather than swapping content.
 function BrowseDemo() {
-  const [filter, setFilter] =
-    useState<(typeof browseFilters)[number]>("All");
+  const [filter, setFilter] = useState<(typeof browseFilters)[number]>("All");
 
   return (
-    <div className="w-full max-w-[420px] rounded-[14px] border border-white/10 bg-card p-5 sm:p-6">
+    <div className="bg-card w-full max-w-[420px] rounded-[14px] border border-white/10 p-5 sm:p-6">
       <div className="mb-4 flex items-center gap-2 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2.5">
         <SearchIcon className="h-4 w-4 shrink-0 text-white/35" />
         <span className="font-sans text-[13px] text-white/35">
@@ -396,7 +395,7 @@ function StanceRow({
 // DESIGN.md, not invented colors.
 function MeasureCard() {
   return (
-    <div className="w-full max-w-[360px] rounded-[14px] border border-white/10 bg-card p-4 sm:p-5">
+    <div className="bg-card w-full max-w-[360px] rounded-[14px] border border-white/10 p-4 sm:p-5">
       <p className="font-editorial text-foreground mb-3 text-[13px] font-bold">
         Prop 12 — Water Infrastructure Bond
       </p>
@@ -461,7 +460,8 @@ const topics: [Topic, ...Topic[]] = [
   {
     id: "hr4021",
     title: "H.R. 4021 — Authorization Extension",
-    summary: "Extends an expiring program's authorization to prevent a funding gap.",
+    summary:
+      "Extends an expiring program's authorization to prevent a funding gap.",
     balance: 64,
     left: {
       stance: "Supporters argue",
@@ -545,7 +545,7 @@ function FeedDemo() {
     <div className="relative w-full max-w-[380px] pt-3">
       <div
         aria-hidden="true"
-        className="absolute inset-0 rounded-[16px] border border-white/8 bg-card"
+        className="bg-card absolute inset-0 rounded-[16px] border border-white/8"
         style={{
           transform: "rotate(-9deg) translateX(-22px) translateY(2px)",
           transformOrigin: "bottom center",
@@ -554,7 +554,7 @@ function FeedDemo() {
       />
       <div
         aria-hidden="true"
-        className="absolute inset-0 rounded-[16px] border border-white/10 bg-card"
+        className="bg-card absolute inset-0 rounded-[16px] border border-white/10"
         style={{
           transform: "rotate(6deg) translateX(16px) translateY(1px)",
           transformOrigin: "bottom center",
@@ -562,7 +562,7 @@ function FeedDemo() {
         }}
       />
 
-      <div className="relative rounded-[16px] border border-white/10 bg-card p-5 sm:p-6">
+      <div className="bg-card relative rounded-[16px] border border-white/10 p-5 sm:p-6">
         <div className="mb-4 flex items-center gap-2.5">
           <div
             role="group"
@@ -693,11 +693,7 @@ const sourceSystems = [
   },
 ];
 
-function SourceColumn({
-  system,
-}: {
-  system: (typeof sourceSystems)[number];
-}) {
+function SourceColumn({ system }: { system: (typeof sourceSystems)[number] }) {
   return (
     <div className="flex flex-1 flex-col items-center text-center">
       <h4
