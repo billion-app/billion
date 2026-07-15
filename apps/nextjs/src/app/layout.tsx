@@ -5,6 +5,7 @@ import {
   IBM_Plex_Serif,
   Inria_Serif,
 } from "next/font/google";
+import { MotionConfig } from "motion/react";
 
 import { cn } from "@acme/ui";
 import { ThemeProvider } from "@acme/ui/theme";
@@ -12,8 +13,6 @@ import { Toaster } from "@acme/ui/toast";
 
 import { env } from "~/env";
 import { TRPCReactProvider } from "~/trpc/react";
-import { IntroProvider } from "./_components/intro-context";
-import { IntroOverlay } from "./_components/intro-overlay";
 import { PostHogAuthTracker } from "./_components/posthog-auth-tracker";
 import { PostHogProvider } from "./_components/posthog-provider";
 
@@ -90,10 +89,9 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         >
           <PostHogProvider>
             <PostHogAuthTracker />
-            <IntroProvider>
+            <MotionConfig reducedMotion="user">
               <TRPCReactProvider>{props.children}</TRPCReactProvider>
-              <IntroOverlay />
-            </IntroProvider>
+            </MotionConfig>
             <Toaster />
           </PostHogProvider>
         </ThemeProvider>

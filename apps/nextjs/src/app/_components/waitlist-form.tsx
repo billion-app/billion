@@ -82,11 +82,11 @@ export function WaitlistForm({
       : {
           key: "success",
           message: "You're on the list — we'll be in touch!",
-          tone: "rgba(196,163,90,0.1)",
-          border: "rgba(196,163,90,0.3)",
-          iconFill: "rgba(196,163,90,0.2)",
-          iconStroke: gold,
-          textColor: gold,
+          tone: "rgba(74,124,255,0.1)",
+          border: "rgba(74,124,255,0.3)",
+          iconFill: "rgba(74,124,255,0.2)",
+          iconStroke: "#4A7CFF",
+          textColor: "#9DB8FF",
         };
 
   return (
@@ -94,9 +94,9 @@ export function WaitlistForm({
       {status === "success" || status === "already" ? (
         <motion.div
           key={confirmation.key}
-          initial={{ opacity: 0, scale: 0.95, height: 0 }}
-          animate={{ opacity: 1, scale: 1, height: "auto" }}
-          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className={`mx-auto flex w-full items-center gap-3 rounded-full px-6 py-3.5 ${formWidth}`}
           style={{
             backgroundColor: confirmation.tone,
@@ -104,15 +104,7 @@ export function WaitlistForm({
           }}
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <motion.circle
-              cx="9"
-              cy="9"
-              r="9"
-              fill={confirmation.iconFill}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.1, duration: 0.3 }}
-            />
+            <circle cx="9" cy="9" r="9" fill={confirmation.iconFill} />
             <motion.path
               d="M5.5 9l2.5 2.5 4.5-4.5"
               stroke={confirmation.iconStroke}
@@ -122,7 +114,7 @@ export function WaitlistForm({
               fill="none"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
+              transition={{ delay: 0.1, duration: 0.35, ease: "easeOut" }}
               strokeDasharray="1 1"
             />
           </svg>
@@ -140,6 +132,7 @@ export function WaitlistForm({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
           className={`mx-auto flex w-full flex-col items-stretch sm:flex-row sm:items-center ${gapClass} ${formWidth}`}
         >
           <div className="relative min-w-0 flex-1">
@@ -150,7 +143,7 @@ export function WaitlistForm({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={status === "loading"}
-              className="border-border bg-input text-foreground placeholder:text-muted-foreground focus:border-gold w-full rounded-full border font-sans transition-all duration-200 outline-none focus:[box-shadow:0_0_0_3px_rgba(196,163,90,0.1)] disabled:opacity-60"
+              className="border-border bg-input text-foreground placeholder:text-muted-foreground focus:border-accent w-full rounded-full border font-sans transition-all duration-200 outline-none focus:[box-shadow:0_0_0_3px_rgba(74,124,255,0.15)] disabled:opacity-60"
               style={{
                 height: controlHeight,
                 fontSize,
@@ -200,9 +193,10 @@ export function WaitlistForm({
           <AnimatePresence>
             {status === "error" && (
               <motion.p
-                initial={{ opacity: 0, y: -8 }}
+                initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
                 className="w-full text-center font-sans text-[13px]"
                 style={{ color: "#ef4444" }}
               >
@@ -215,8 +209,6 @@ export function WaitlistForm({
     </AnimatePresence>
   );
 }
-
-const gold = "#c4a35a";
 
 type WaitlistStatus = "idle" | "loading" | "success" | "already" | "error";
 
