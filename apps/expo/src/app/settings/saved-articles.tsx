@@ -23,6 +23,7 @@ interface SavedItem {
   title: string;
   description: string | null;
   type: "bill" | "government_content" | "court_case";
+  billNumber?: string;
 }
 
 function SwipeableSavedCard({
@@ -60,6 +61,7 @@ function SwipeableSavedCard({
           title: item.title,
           description: item.description ?? "",
           type: item.type,
+          billNumber: item.billNumber,
         })}
         onPress={onPress}
       />

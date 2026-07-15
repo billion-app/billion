@@ -353,6 +353,11 @@ export default function ArticleDetailScreen() {
 
         <View style={s.badgeRow}>
           <Badge type={typeKey} />
+          {content.billNumber ? (
+            <Text style={s.billNumber} testID="article-bill-number">
+              {content.billNumber}
+            </Text>
+          ) : null}
         </View>
 
         <Text style={s.title} testID="article-title">
@@ -553,6 +558,12 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 9,
     marginBottom: 14,
+  },
+  billNumber: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+    letterSpacing: 0.3,
+    color: colors.textSecondary,
   },
   title: {
     fontFamily: fontDisplay.bold,

@@ -169,6 +169,7 @@ const ContentCardSchema = z.object({
   isAIGenerated: z.boolean(),
   thumbnailUrl: z.string().optional(),
   imageUri: z.string().optional(), // Add support for AI-generated data URIs
+  billNumber: z.string().optional(), // Human-readable bill identifier, e.g. "H.R. 1234"
 });
 
 export type ContentCard = z.infer<typeof ContentCardSchema>;
@@ -210,6 +211,7 @@ export const contentRouter = {
         type: "bill" as const,
         isAIGenerated: false,
         thumbnailUrl: bill.thumbnailUrl ?? undefined,
+        billNumber: bill.billNumber,
       })),
       // Government content (news articles, executive orders, etc.) from database
       ...governmentContent.map((content) => ({
@@ -261,6 +263,7 @@ export const contentRouter = {
               description: sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`,
               type: sql<string>`'bill'`,
               thumbnailUrl: Bill.thumbnailUrl,
+              billNumber: sql<string | null>`${Bill.billNumber}`,
               createdAt: Bill.createdAt,
             })
             .from(Bill),
@@ -271,6 +274,7 @@ export const contentRouter = {
               description: sql<string>`coalesce(${GovernmentContent.description}, '')`,
               type: sql<string>`'government_content'`,
               thumbnailUrl: GovernmentContent.thumbnailUrl,
+              billNumber: sql<string | null>`null`,
               createdAt: GovernmentContent.createdAt,
             })
             .from(GovernmentContent),
@@ -281,6 +285,7 @@ export const contentRouter = {
               description: sql<string>`coalesce(${CourtCase.description}, '')`,
               type: sql<string>`'court_case'`,
               thumbnailUrl: CourtCase.thumbnailUrl,
+              billNumber: sql<string | null>`null`,
               createdAt: CourtCase.createdAt,
             })
             .from(CourtCase),
@@ -299,6 +304,7 @@ export const contentRouter = {
           type: row.type as ContentCard["type"],
           isAIGenerated: false,
           thumbnailUrl: row.thumbnailUrl ?? undefined,
+          billNumber: row.billNumber ?? undefined,
         }));
 
         return {
@@ -323,6 +329,7 @@ export const contentRouter = {
           type: "bill" as const,
           isAIGenerated: false,
           thumbnailUrl: bill.thumbnailUrl ?? undefined,
+          billNumber: bill.billNumber,
         }));
         return {
           items: await attachVideoImages(items),
@@ -431,6 +438,7 @@ export const contentRouter = {
           type: "bill" as const,
           isAIGenerated: false,
           thumbnailUrl: bill.thumbnailUrl ?? undefined,
+          billNumber: bill.billNumber,
         }));
         return attachVideoImages(items);
       }
@@ -480,11 +488,13 @@ export const contentRouter = {
           .select({
             id: Bill.id,
             title: Bill.title,
-            description: sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`.as(
-              "description",
-            ),
+            description:
+              sql<string>`coalesce(${Bill.description}, ${Bill.summary}, '')`.as(
+                "description",
+              ),
             type: sql<string>`'bill'`.as("type"),
             thumbnailUrl: Bill.thumbnailUrl,
+            billNumber: sql<string | null>`${Bill.billNumber}`,
             rank: billRank.as("rank"),
           })
           .from(Bill)
@@ -493,11 +503,13 @@ export const contentRouter = {
           .select({
             id: GovernmentContent.id,
             title: GovernmentContent.title,
-            description: sql<string>`coalesce(${GovernmentContent.description}, '')`.as(
-              "description",
-            ),
+            description:
+              sql<string>`coalesce(${GovernmentContent.description}, '')`.as(
+                "description",
+              ),
             type: sql<string>`'government_content'`.as("type"),
             thumbnailUrl: GovernmentContent.thumbnailUrl,
+            billNumber: sql<string | null>`null`,
             rank: govRank.as("rank"),
           })
           .from(GovernmentContent)
@@ -511,6 +523,7 @@ export const contentRouter = {
             ),
             type: sql<string>`'court_case'`.as("type"),
             thumbnailUrl: CourtCase.thumbnailUrl,
+            billNumber: sql<string | null>`null`,
             rank: caseRank.as("rank"),
           })
           .from(CourtCase)
@@ -526,6 +539,7 @@ export const contentRouter = {
         type: row.type as ContentCard["type"],
         isAIGenerated: false,
         thumbnailUrl: row.thumbnailUrl ?? undefined,
+        billNumber: row.billNumber ?? undefined,
       }));
       return attachVideoImages(items);
     }),
@@ -554,6 +568,7 @@ export const contentRouter = {
             type: "bill" as const,
             isAIGenerated: !!b.aiGeneratedArticle,
             thumbnailUrl: b.thumbnailUrl ?? undefined,
+            billNumber: b.billNumber,
             articleContent:
               b.aiGeneratedArticle ?? b.fullText ?? "No content available",
             originalContent: b.fullText ?? "Full text not available",
@@ -587,6 +602,7 @@ export const contentRouter = {
             type: "government_content" as const,
             isAIGenerated: !!c.aiGeneratedArticle,
             thumbnailUrl: c.thumbnailUrl ?? undefined,
+            billNumber: undefined,
             articleContent:
               c.aiGeneratedArticle ?? c.fullText ?? "No content available",
             originalContent: c.fullText ?? "Full text not available",
@@ -616,6 +632,7 @@ export const contentRouter = {
             type: "court_case" as const,
             isAIGenerated: !!c.aiGeneratedArticle,
             thumbnailUrl: c.thumbnailUrl ?? undefined,
+            billNumber: undefined,
             articleContent:
               c.aiGeneratedArticle ?? c.fullText ?? "No content available",
             originalContent: c.fullText ?? "Full text not available",
@@ -664,6 +681,7 @@ export const contentRouter = {
                   title: Bill.title,
                   description: Bill.description,
                   thumbnailUrl: Bill.thumbnailUrl,
+                  billNumber: Bill.billNumber,
                 })
                 .from(Bill)
                 .where(eq(Bill.id, s.contentId))
