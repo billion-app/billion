@@ -315,13 +315,15 @@ export default function ArticleDetailScreen() {
         title={t.label}
         onBack={() => router.back()}
         action={
-          <TouchableOpacity onPress={toggleSave} hitSlop={8}>
-            <Icon
-              name={saved ? "bookmarkFill" : "bookmark"}
-              size={21}
-              color={saved ? colors.white : colors.textSecondary}
-            />
-          </TouchableOpacity>
+          __DEV__ ? (
+            <TouchableOpacity onPress={toggleSave} hitSlop={8}>
+              <Icon
+                name={saved ? "bookmarkFill" : "bookmark"}
+                size={21}
+                color={saved ? colors.white : colors.textSecondary}
+              />
+            </TouchableOpacity>
+          ) : undefined
         }
       />
 
