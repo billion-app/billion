@@ -27,9 +27,6 @@ Generic AI-generated SaaS landing pages — the specific tells this project alre
 - Glow/shimmer bubbles, glassmorphism panels, identical fade-up-on-scroll reveals applied uniformly to every block.
 - Hero-metric templates and generic pill-badge decoration.
 
-Reference points to chase instead, translated into a serious civic register (not copied literally):
-- **usecardboard.com** — fluid, scroll-linked storytelling and a real interactive "editor" embedded directly in the page: content that responds to the user's input, not just their scroll position.
-- **godrift.ai** — confident, single scroll choreography rather than scattered micro-animations. (Its generative interactive background is explicitly out of scope — wrong tone for Billion.)
 
 ## Design Principles
 
