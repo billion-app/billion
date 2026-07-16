@@ -72,6 +72,13 @@ async function scrapeAllOffices(
     all.push(...statements);
   }
   if (all.length === 0) {
+  logger.warn(`No statements from HTML or PDF fallback. Ensuring office coverage...`);
+  const missingOffices = OFFICE_SLUGS.map(o => o.slug).filter(slug => !slugs.includes(slug));
+  if (missingOffices.length > 0) {
+    logger.error(`Missing offices in fallback: ${missingOffices.join(', ')}`);
+  }
+  // Preserve existing PDF fallback logic
+
     if (unavailable.length > 0) {
       logger.warn(
         `SOS candidate HTML unavailable for ${unavailable.length}/${Math.min(maxItems, slugs.length)} offices; falling back to the official VIG PDF.`,
@@ -81,9 +88,18 @@ async function scrapeAllOffices(
         "SOS candidate HTML returned no statements; falling back to the official VIG PDF.",
       );
     }
-    const allowedSlugs = new Set(slugs.slice(0, maxItems));
-    const pdfStatements = await fetchVigPdf(electionYear, allowedSlugs);
-    if (pdfStatements.length > 0) {
+  const allowedSlugs = new Set(slugs.slice(0, maxItems));
+  const pdfStatements = await fetchVigPdf(electionYear, allowedSlugs);
+  if (pdfStatements.length > 0) {
+    logger.info(`Official VIG PDF: parsed ${pdfStatements.length} statements.`);
+    all.push(...pdfStatements);
+  } else {
+    logger.error(`PDF fallback failed for ${Array.from(allowedSlugs).join(', ')}`);
+  }
+  const missingOffices = OFFICE_SLUGS.map(o => o.slug).filter(slug => !allowedSlugs.has(slug));
+  if (missingOffices.length > 0) {
+    logger.warn(`Unprocessed offices: ${missingOffices.join(', ')}`);
+  }
       logger.info(
         `Official VIG PDF: parsed ${pdfStatements.length} statements.`,
       );
