@@ -25,9 +25,12 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^25.5.0",
     "@types/turndown": "^5.0.6",
     "@types/yargs": "^17.0.35",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.21.0",
     "typescript": "catalog:",
     "vite": "^8.1.4"
