@@ -64,7 +64,7 @@ function getLocalTextModel(baseURL: string): V3Model {
         ...params,
         providerOptions: {
           ...params.providerOptions,
-          local: { think: false },
+          local: { think: false, reasoningEffort: "none" },
         },
       }),
     },
