@@ -1,6 +1,5 @@
 /**
- * AI image generation using Black Forest Labs FLUX.2 Klein 9B (BFL direct API)
- * Generates images from text prompts and converts them to JPEG format
+ * AI image generation using BFL-hosted FLUX with a local FLUX HTTP fallback.
  */
 
 import { trackFluxImage } from "../costs.js";
@@ -13,6 +12,11 @@ const BFL_API_KEY = process.env.BFL_API_KEY;
 // Klein 9B is the cost-efficient default for high-volume feed imagery.
 const BFL_MODEL = process.env.BFL_MODEL || "flux-2-klein-9b";
 const BFL_BASE_URL = "https://api.bfl.ai/v1";
+const LOCAL_FLUX_BASE_URL = process.env.LOCAL_FLUX_BASE_URL?.trim().replace(
+  /\/$/,
+  "",
+);
+const LOCAL_FLUX_MODEL = process.env.LOCAL_FLUX_MODEL?.trim() || "klein";
 
 // Signed result URLs are valid for 10 minutes, so cap polling well within that.
 const POLL_INTERVAL_MS = 1000;
@@ -109,6 +113,46 @@ async function generateViaFlux(prompt: string): Promise<string> {
   throw new Error(`BFL generation timed out after ${POLL_TIMEOUT_MS}ms`);
 }
 
+async function generateViaLocalFlux(
+  prompt: string,
+): Promise<GeneratedImage | null> {
+  if (!LOCAL_FLUX_BASE_URL) return null;
+
+  try {
+    logger.start(
+      `Generating image with local FLUX (${LOCAL_FLUX_MODEL}): ${prompt.substring(0, 50)}...`,
+    );
+    const response = await fetch(`${LOCAL_FLUX_BASE_URL}/generate`, {
+      method: "POST",
+      headers: { accept: "image/*", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        model: LOCAL_FLUX_MODEL,
+        width: 768,
+        height: 768,
+      }),
+      signal: AbortSignal.timeout(10 * 60 * 1000),
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Local FLUX failed (${response.status}): ${(await response.text()).slice(0, 500)}`,
+      );
+    }
+
+    const data = Buffer.from(await response.arrayBuffer());
+    logger.success(`Local FLUX image generated: ${data.length} bytes`);
+    return {
+      data,
+      mimeType: response.headers.get("content-type") ?? "image/png",
+      width: 768,
+      height: 768,
+    };
+  } catch (error) {
+    logger.error("Local FLUX fallback failed", error);
+    return null;
+  }
+}
+
 /**
  * Generate an image using FLUX.2 Klein 9B with retry logic for rate limits
  * @param prompt - Text description of desired image
@@ -119,9 +163,16 @@ export async function generateImage(
   prompt: string,
   maxRetries = 3,
 ): Promise<GeneratedImage | null> {
+  const fullPrompt = `Imaginative editorial illustration with the playful, information-dense, slightly surreal character of early generative artwork: ${prompt}. Build one memorable composition with a strong focal point and multiple story-specific details across foreground, subject, and background. Use bold color, expressive characters, visual metaphor, symbolic scale, witty or uncanny juxtapositions, and tactile illustrated texture where useful. The image should reveal more on a second look while still clearly communicating the real civic issue. Avoid corporate stock photography, sterile meeting-room staging, generic handshakes, glossy ad aesthetics, and photorealistic paperwork. No readable text, captions, labels, logos, UI, or watermark.`;
+
   if (!BFL_API_KEY) {
-    logger.error("BFL_API_KEY is not set — cannot generate images");
-    return null;
+    const localImage = await generateViaLocalFlux(fullPrompt);
+    if (!localImage && !LOCAL_FLUX_BASE_URL) {
+      logger.error(
+        "BFL_API_KEY and LOCAL_FLUX_BASE_URL are not set — cannot generate images",
+      );
+    }
+    return localImage;
   }
 
   let lastError: Error | null = null;
@@ -138,7 +189,6 @@ export async function generateImage(
         );
       }
 
-      const fullPrompt = `Imaginative editorial illustration with the playful, information-dense, slightly surreal character of early generative artwork: ${prompt}. Build one memorable composition with a strong focal point and multiple story-specific details across foreground, subject, and background. Use bold color, expressive characters, visual metaphor, symbolic scale, witty or uncanny juxtapositions, and tactile illustrated texture where useful. The image should reveal more on a second look while still clearly communicating the real civic issue. Avoid corporate stock photography, sterile meeting-room staging, generic handshakes, glossy ad aesthetics, and photorealistic paperwork. No readable text, captions, labels, logos, UI, or watermark.`;
       const sampleUrl = await generateViaFlux(fullPrompt);
 
       // The sample URL is a short-lived signed link — download the bytes now.
@@ -189,6 +239,8 @@ export async function generateImage(
 
       // If it's the last attempt or not a rate limit error, break
       if (attempt === maxRetries) {
+        const localImage = await generateViaLocalFlux(fullPrompt);
+        if (localImage) return localImage;
         if (isRateLimitError) {
           setRateLimitHit(true);
           throw new AIRateLimitError();
@@ -203,7 +255,7 @@ export async function generateImage(
       // For other errors, don't retry
       if (!isRateLimitError) {
         logger.error("Image generation failed", lastError);
-        return null;
+        return generateViaLocalFlux(fullPrompt);
       }
     }
   }

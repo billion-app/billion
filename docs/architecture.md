@@ -43,7 +43,9 @@ flowchart TB
     fedreg --> scraper
     courtlistener --> scraper
     scraper -->|"summary, article,<br/>marketing copy"| openrouter
+    scraper -.->|"local text fallback"| localai["Ollama / local LLM"]
     scraper -->|"generated image"| imagen
+    scraper -.->|"local image fallback"| localflux["FLUX.2 Klein"]
     scraper -->|"direct Drizzle writes"| db
 
     gcivic --> api

@@ -32,6 +32,9 @@ export default defineConfig({
         "reprocess-content": fileURLToPath(
           new URL("./src/reprocess-content.ts", import.meta.url),
         ),
+        "backfill-bill-descriptions": fileURLToPath(
+          new URL("./src/backfill-bill-descriptions.ts", import.meta.url),
+        ),
         "retroactive-videos": fileURLToPath(
           new URL("./src/retroactive-videos.ts", import.meta.url),
         ),

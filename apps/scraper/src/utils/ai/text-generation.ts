@@ -84,7 +84,10 @@ Summary (max 100 characters):`,
       throw new AIRateLimitError();
     }
     logger.error("Error generating AI summary", error);
-    return content.substring(0, 97) + "...";
+    throw new Error(
+      `AI summary generation failed: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
   }
 }
 

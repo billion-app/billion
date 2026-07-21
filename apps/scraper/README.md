@@ -49,9 +49,11 @@ work:
 | `POSTGRES_URL`                               | Every active scraper                    | Your Postgres connection. If inserting credentials manually, percent-encode only the username/password components. |
 | `OPENROUTER_API_KEY`                         | `federalregister`, `congress`, `scotus` | Preferred provider for article, summary, image-keyword, feed-copy, and web-research generation.                    |
 | `OPENROUTER_MODEL`                           | Optional                                | OpenRouter model slug; defaults to `deepseek/deepseek-v4-flash`.                                                   |
+| `LOCAL_LLM_BASE_URL` / `LOCAL_LLM_MODEL`     | Local fallback                          | OpenAI-compatible local text endpoint and model; the Big Mac deployment uses bounded-context Qwen.                 |
 | `DEEPSEEK_API_KEY`                           | Deprecated fallback                     | Keeps direct DeepSeek generation working during the OpenRouter credential migration.                               |
 | `CONGRESS_API_KEY`                           | `congress`                              | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/).                                             |
 | `BFL_API_KEY`                                | Optional                                | FLUX feed images; raw content and AI text still persist without it.                                                |
+| `LOCAL_FLUX_BASE_URL` / `LOCAL_FLUX_MODEL`   | Optional                                | Local FLUX HTTP fallback; the Big Mac deployment uses FLUX.2 Klein.                                                |
 | `COURTLISTENER_API_KEY`                      | Optional                                | Higher CourtListener limits for `scotus`.                                                                          |
 | `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional pair                           | Google Custom Search article thumbnails.                                                                           |
 | `GOOGLE_GENERATIVE_AI_API_KEY`               | Optional                                | Gemini vision fallback for `scc-cvig` PDF extraction.                                                              |
@@ -75,7 +77,9 @@ pnpm --filter @acme/scraper build
 ```
 
 Vite writes the scraper CLI to `dist/main.js`, the dual-lens backfill to
-`dist/retroactive-lenses.js`, and the retroactive-video job to
+`dist/retroactive-lenses.js`, the incomplete-content repair job to
+`dist/reprocess-content.js`, the missing bill-description repair job to
+`dist/backfill-bill-descriptions.js`, and the retroactive-video job to
 `dist/retroactive-videos.js`. The build can also emit shared chunks; deploy the
 whole `dist/` directory rather than copying only an entry file. Linked
 `@acme/*` workspace source is included in the build, while normal third-party
@@ -129,8 +133,9 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
 day to obtain a daily cap. If the scheduler retries or runs multiple times, each
 invocation gets a fresh allowance. Source limits cap API/page work;
-`SCRAPER_MAX_NEW_ITEMS_PER_RUN` separately caps expensive enrichment while
-still storing additional raw records for later backfill.
+`SCRAPER_MAX_NEW_ITEMS_PER_RUN` separately caps expensive enrichment. Extra
+bills that require a generated description are deferred before insertion;
+other content may still be stored raw for later backfill.
 
 ---
 
@@ -180,3 +185,7 @@ All scrapers call into `src/utils/db/operations.ts`. Each time a bill or case is
 - If **nothing changed** → backfills any missing AI summary/article/thumbnail fields, otherwise skips AI generation
 
 Set `SCRAPER_FORCE_AI_REGEN=1` to force a full AI refresh even when the record already has AI content.
+
+For a new bill whose description must be generated, the summary is now created
+before insertion. If every configured text provider fails, the insert fails and
+the next scheduled scrape retries it instead of leaving a blank bill row.

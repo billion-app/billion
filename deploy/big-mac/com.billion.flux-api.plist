@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.billion.flux-api</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/bhu/Developer/flux/.venv12/bin/python</string>
+    <string>/Users/bhu/Developer/flux/api_server.py</string>
+    <string>--host</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>8080</string>
+    <string>--preload</string>
+    <string>klein</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/bhu/Developer/flux</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/Users/bhu/Library/Logs/billion/flux-api.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/bhu/Library/Logs/billion/flux-api.error.log</string>
+</dict>
+</plist>

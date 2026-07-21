@@ -37,13 +37,14 @@ All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fe
 1. Compute a SHA-256 over the type-specific key fields (title, summary, full text, status…).
 2. Look up the existing row by its natural key (`(billNumber, sourceWebsite)`, `url`, or `caseNumber`).
 3. **Unchanged hash** → skip AI entirely; backfill only missing AI assets.
-4. **New or changed** → run the AI pipeline, upsert via `onConflictDoUpdate`, append to `versions`.
+4. **New bill without a source description** → generate the required description first; defer the insert if source text or every provider is unavailable.
+5. **New or changed** → run the remaining AI pipeline, upsert via `onConflictDoUpdate`, append to `versions`.
 
 `SCRAPER_FORCE_AI_REGEN=1` overrides the cache. A `isUsableText()` gate refuses to feed AI any text under 200 chars or that's mostly blank/all-caps/single-word lines — keeps the model from "summarizing" garbage.
 
 ## AI Pipeline
 
-Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **OpenRouter** (Vercel AI SDK) using `OPENROUTER_MODEL`, which defaults to **`deepseek/deepseek-v4-flash`**; deprecated direct DeepSeek credentials remain a migration fallback. PDF vision fallback uses **Gemini `gemini-2.5-flash`**, and images use **Black Forest Labs FLUX.2 Klein 9B**. Provider usage and image costs are tracked per run.
+Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text uses **OpenRouter** first, then an OpenAI-compatible local endpoint (`LOCAL_LLM_BASE_URL`, such as Ollama), with direct DeepSeek retained only as a deprecated last resort. PDF vision fallback uses **Gemini `gemini-2.5-flash`**. Images use hosted **Black Forest Labs FLUX.2 Klein 9B**, then `LOCAL_FLUX_BASE_URL` as a local fallback. Provider usage and hosted-image costs are tracked per run.
 
 Each new/changed item runs through:
 
@@ -52,10 +53,12 @@ Each new/changed item runs through:
 3. **Marketing copy** (`marketing-generation.ts`) — Zod-validated `{ title ≤25 chars, description ≤25 words, imagePrompt }` for the `video` feed card.
 4. **Imagery** — multiple sources:
    - _Scraped thumbnail_ (preferred, free): source-provided image URL → `thumbnail_url`.
-   - _Generated_: FLUX.2 Klein 9B produces a 1024×1024 image from the marketing image prompt; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Up to 3 retries with backoff; moderation blocks return `null` silently.
+   - _Generated_: hosted FLUX.2 Klein 9B produces a 1024×1024 image, falling back to the configured local FLUX server at 768×768; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Hosted calls retry with backoff; moderation blocks return `null` silently.
    - _Stock-photo fallback_: `image-keywords.ts` → Google Custom Search (`GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`) can supply a thumbnail URL.
 
-> The earlier design used **Gemini for text and DALL-E/Imagen for images**; both were replaced. Text now routes through OpenRouter (DeepSeek V4 Flash by default), while FLUX.2 Klein 9B handles images.
+New bills that need an AI description generate it before the initial insert. A
+provider outage therefore leaves the source item eligible for the next scrape
+instead of persisting an incomplete bill that requires a manual repair.
 
 ## Pipeline Flow
 
