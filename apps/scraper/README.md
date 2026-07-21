@@ -47,7 +47,9 @@ work:
 | Variable                                     | Required by                             | Why it matters                                                                                                     |
 | -------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `POSTGRES_URL`                               | Every active scraper                    | Your Postgres connection. If inserting credentials manually, percent-encode only the username/password components. |
-| `DEEPSEEK_API_KEY`                           | `federalregister`, `congress`, `scotus` | Article, summary, image-keyword, and feed-copy generation.                                                         |
+| `OPENROUTER_API_KEY`                         | `federalregister`, `congress`, `scotus` | Preferred provider for article, summary, image-keyword, feed-copy, and web-research generation.                    |
+| `OPENROUTER_MODEL`                           | Optional                                | OpenRouter model slug; defaults to `deepseek/deepseek-v4-flash`.                                                   |
+| `DEEPSEEK_API_KEY`                           | Deprecated fallback                     | Keeps direct DeepSeek generation working during the OpenRouter credential migration.                               |
 | `CONGRESS_API_KEY`                           | `congress`                              | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/).                                             |
 | `BFL_API_KEY`                                | Optional                                | FLUX feed images; raw content and AI text still persist without it.                                                |
 | `COURTLISTENER_API_KEY`                      | Optional                                | Higher CourtListener limits for `scotus`.                                                                          |

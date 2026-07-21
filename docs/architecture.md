@@ -29,7 +29,7 @@ flowchart TB
     end
 
     subgraph ai["AI Providers"]
-        deepseek["DeepSeek v4-flash<br/>(text)"]
+        openrouter["OpenRouter<br/>(text; DeepSeek v4-flash default)"]
         imagen["Vertex Imagen 3<br/>(images)"]
     end
 
@@ -42,7 +42,7 @@ flowchart TB
     congress --> scraper
     fedreg --> scraper
     courtlistener --> scraper
-    scraper -->|"summary, article,<br/>marketing copy"| deepseek
+    scraper -->|"summary, article,<br/>marketing copy"| openrouter
     scraper -->|"generated image"| imagen
     scraper -->|"direct Drizzle writes"| db
 
@@ -51,7 +51,7 @@ flowchart TB
     openstates --> api
     measuresrc --> api
     candsrc --> api
-    api -->|"grounded summaries"| deepseek
+    api -->|"grounded summaries"| openrouter
     api <-->|"queries + civic cache"| db
 
     api --- nextjs
@@ -86,7 +86,7 @@ This was bootstrapped from [create-t3-turbo](https://github.com/t3-oss/create-t3
 
 ## Build & Tooling
 
-- **Turborepo** (`turbo.json`) defines `build` / `dev` / `lint` / `format` / `typecheck` / `push` / `studio` pipelines with caching where safe. `globalEnv` declares every secret the build is allowed to see — `POSTGRES_URL`, the auth secrets, all the civic/government API keys, and the AI provider keys (`DEEPSEEK_API_KEY`, `OPENAI_API_KEY`).
+- **Turborepo** (`turbo.json`) defines `build` / `dev` / `lint` / `format` / `typecheck` / `push` / `studio` pipelines with caching where safe. `globalEnv` declares every secret the build is allowed to see — `POSTGRES_URL`, the auth secrets, all the civic/government API keys, and the AI provider keys (`OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`).
 - **pnpm catalog** pins shared versions (tRPC 11.16, React 19, Drizzle 0.45, better-auth 1.5.6, Zod 4, Tailwind 4, TypeScript 6); `overrides` apply security patches and pin the Expo Metro stack.
 - **tooling/** packages share ESLint presets (`base`/`nextjs`/`react`), the Tailwind v4 **OKLCH** design-token theme (`theme.css`: navy-base dark-first palette, Civic Blue accent, content-type colors, brand fonts), tsconfig bases, and Prettier config.
 - **CI** (`.github/workflows/ci.yml`): lint (+ `sherif` workspace lint), format check, typecheck, and an Expo iOS/Android export, all on a shared `tooling/github/setup` action with Turbo remote caching.
@@ -101,7 +101,7 @@ This was bootstrapped from [create-t3-turbo](https://github.com/t3-oss/create-t3
 | ORM                | Drizzle                                                                                            | Supabase client, Prisma               | Supabase types are too loose; Prisma needs codegen and adds overhead                                                                    |
 | API protocol       | tRPC                                                                                               | REST, GraphQL                         | REST needs manual type upkeep; GraphQL is heavy for this scale                                                                          |
 | Mobile DB access   | tRPC over HTTP                                                                                     | Supabase PostgREST + RLS              | Would force migrating auth + business logic out of the API layer                                                                        |
-| AI text model      | Groq-hosted model (then DeepSeek v4-flash, then GPT-4o mini)                                        | Gemini, GPT-4o                        | Cost/quality ratio; swappable via the Vercel AI SDK (Groq is the configured default, with DeepSeek and OpenAI fallbacks)               |
+| AI text model      | Groq-hosted model, then OpenRouter, GPT-4o mini, and deprecated direct DeepSeek                    | Gemini, GPT-4o                        | Swappable through the Vercel AI SDK; OpenRouter adds model/provider routing while preserving the current DeepSeek V4 Flash default      |
 | AI image model     | Vertex Imagen 3                                                                                    | DALL-E 3                              | Migrated off DALL-E; Imagen integrates via the same Vertex/AI-SDK tooling                                                               |
 | Measure summaries  | Cross-validate sources, AI only as grounded last resort                                            | AI-generate everything                | Official records must win; AI is barred from authoring on a bare title (hallucination risk)                                             |
 | Candidate bios     | Source-supplied only (Open States / Vote Smart / Ballotpedia / Wikipedia), cross-validated by tier | AI-author bios from name              | A bio is a factual record about a real person; AI authoring on a bare name risks fabrication — show sparse UI instead                   |

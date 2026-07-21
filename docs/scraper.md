@@ -43,7 +43,7 @@ All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fe
 
 ## AI Pipeline
 
-Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **DeepSeek `deepseek-v4-flash`** (Vercel AI SDK), PDF vision fallback via **Gemini `gemini-2.5-flash`**, and images via **Black Forest Labs FLUX.2 Klein 9B**. Provider usage and image costs are tracked per run.
+Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **OpenRouter** (Vercel AI SDK) using `OPENROUTER_MODEL`, which defaults to **`deepseek/deepseek-v4-flash`**; deprecated direct DeepSeek credentials remain a migration fallback. PDF vision fallback uses **Gemini `gemini-2.5-flash`**, and images use **Black Forest Labs FLUX.2 Klein 9B**. Provider usage and image costs are tracked per run.
 
 Each new/changed item runs through:
 
@@ -55,7 +55,7 @@ Each new/changed item runs through:
    - _Generated_: FLUX.2 Klein 9B produces a 1024×1024 image from the marketing image prompt; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Up to 3 retries with backoff; moderation blocks return `null` silently.
    - _Stock-photo fallback_: `image-keywords.ts` → Google Custom Search (`GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`) can supply a thumbnail URL.
 
-> The earlier design used **Gemini for text and DALL-E/Imagen for images**; both were replaced (DeepSeek for cost/quality on text, FLUX.2 Klein 9B for images).
+> The earlier design used **Gemini for text and DALL-E/Imagen for images**; both were replaced. Text now routes through OpenRouter (DeepSeek V4 Flash by default), while FLUX.2 Klein 9B handles images.
 
 ## Pipeline Flow
 
@@ -70,7 +70,7 @@ flowchart TD
     changed -->|no| backfill["Backfill missing<br/>AI assets only"]
     changed -->|yes| usable{"isUsableText()?<br/>(≥200 chars, not boilerplate)"}
     usable -->|no| skipai["Upsert raw content,<br/>skip AI"]
-    usable -->|yes| ai["AI pipeline (DeepSeek)"]
+    usable -->|yes| ai["AI pipeline (OpenRouter)"]
 
     ai --> summary["Summary (≤100 chars)"]
     summary --> article["Article (4-section markdown)<br/>→ ai_generated_article"]

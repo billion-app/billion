@@ -14,12 +14,13 @@ import type {
   GovernmentContentData,
 } from "../types.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
+import { getTextModelVersion } from "../ai/provider.js";
 import {
   AIRateLimitError,
+  framingForContentType,
   generateAIArticle,
   generateAISummary,
   generateDualLens,
-  framingForContentType,
 } from "../ai/text-generation.js";
 import { getThumbnailImage } from "../api/google-images.js";
 import { createContentHash } from "../hash.js";
@@ -493,7 +494,7 @@ export async function upsertContentLens(
     return;
   }
 
-  const modelVersion = "deepseek-v4-flash";
+  const modelVersion = getTextModelVersion();
   await db
     .insert(ContentLens)
     .values({

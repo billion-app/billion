@@ -441,8 +441,14 @@ async function main(): Promise<void> {
   if (argv.apply && target.target === "production" && !argv.yes) {
     throw new Error("Production writes require both --apply and --yes");
   }
-  if (argv.apply && !process.env.DEEPSEEK_API_KEY) {
-    throw new Error("DEEPSEEK_API_KEY is required when --apply is set");
+  if (
+    argv.apply &&
+    !process.env.OPENROUTER_API_KEY &&
+    !process.env.DEEPSEEK_API_KEY
+  ) {
+    throw new Error(
+      "OPENROUTER_API_KEY or deprecated DEEPSEEK_API_KEY is required when --apply is set",
+    );
   }
   if (argv.apply && !process.env.BFL_API_KEY) {
     throw new Error(

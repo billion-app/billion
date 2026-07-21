@@ -59,5 +59,27 @@ export function validateEnvironment(options: {
     }
     return { definition, requirement, state: "configured" as const };
   });
+
+  if (options.surface === "scraper") {
+    const contracts = options.scraperContracts ?? [];
+    const selected = options.scrapers?.length
+      ? contracts.filter((contract) => options.scrapers?.includes(contract.id))
+      : contracts;
+    const seen = new Set<string>();
+    for (const contract of selected) {
+      for (const keys of contract.environment.requiredAny ?? []) {
+        const issueKey = [...keys].sort().join("|");
+        if (seen.has(issueKey)) continue;
+        seen.add(issueKey);
+        if (!keys.some((key) => Boolean(options.environment[key]?.trim()))) {
+          issues.push({
+            key: issueKey,
+            requirement: "required",
+            message: `one of ${keys.join(", ")} is required but all are missing`,
+          });
+        }
+      }
+    }
+  }
   return { issues, statuses, success: issues.length === 0 };
 }

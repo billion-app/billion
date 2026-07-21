@@ -9,7 +9,10 @@ export interface ScraperEnvContract {
   id: string;
   name: string;
   source: string;
-  environment: Partial<Record<Requirement, readonly string[]>>;
+  environment: Partial<Record<Requirement, readonly string[]>> & {
+    /** Every group requires at least one configured key. */
+    requiredAny?: readonly (readonly string[])[];
+  };
 }
 
 export interface EnvDefinition {
@@ -280,8 +283,27 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "OPENROUTER_API_KEY",
+    description: "Preferred key for AI text generation through OpenRouter.",
+    group: "AI",
+    secret: true,
+    setupUrl: "https://openrouter.ai/settings/keys",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "OPENROUTER_MODEL",
+    description: "OpenRouter model slug used for AI text generation.",
+    group: "AI",
+    secret: false,
+    defaultValue: "deepseek/deepseek-v4-flash",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
     key: "DEEPSEEK_API_KEY",
-    description: "DeepSeek key for AI text generation.",
+    description:
+      "Deprecated direct DeepSeek key; use OPENROUTER_API_KEY for AI text generation.",
     group: "AI",
     secret: true,
     setupUrl: "https://platform.deepseek.com/api_keys",

@@ -10,6 +10,7 @@
     "@ai-sdk/anthropic": "^3.0.92",
     "@ai-sdk/deepseek": "^1.0.0",
     "@ai-sdk/google": "^3.0.53",
+    "@openrouter/ai-sdk-provider": "^2.10.0",
     "ai": "^6.0.141",
     "cheerio": "^1.2.0",
     "consola": "^3.4.2",

@@ -69,6 +69,7 @@
     "@ai-sdk/deepseek": "^1.0.0",
     "@ai-sdk/groq": "^1.0.0",
     "@ai-sdk/openai": "^2.0.0",
+    "@openrouter/ai-sdk-provider": "^2.10.0",
     "@trpc/server": "catalog:",
     "ai": "^6.0.141",
     "superjson": "2.2.6",

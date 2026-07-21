@@ -18,7 +18,10 @@ import {
   fetchSummary,
   parseBillUrl,
 } from "./scrapers/congress.js";
-import { AIRateLimitError, generateAISummary } from "./utils/ai/text-generation.js";
+import {
+  AIRateLimitError,
+  generateAISummary,
+} from "./utils/ai/text-generation.js";
 import { getCostSummary, resetCosts } from "./utils/costs.js";
 import {
   createLogger,
@@ -37,7 +40,6 @@ interface Candidate {
   url: string;
   fullText: string | null;
 }
-
 type Outcome = "congress-summary" | "ai-summary" | "skipped" | "failed";
 
 interface Result {
@@ -71,7 +73,10 @@ async function resolve(candidate: Candidate): Promise<{
 }> {
   const parsed = candidate.congress ? parseBillUrl(candidate.url) : undefined;
   if (!parsed || !candidate.congress) {
-    return { outcome: "skipped", detail: "could not parse congress/type/number from url" };
+    return {
+      outcome: "skipped",
+      detail: "could not parse congress/type/number from url",
+    };
   }
 
   const summary = await fetchSummary(
@@ -85,7 +90,11 @@ async function resolve(candidate: Candidate): Promise<{
 
   let fullText = candidate.fullText ?? undefined;
   const fetchedFullText = !fullText
-    ? await fetchFullText(candidate.congress, parsed.billType, parsed.billNumber)
+    ? await fetchFullText(
+        candidate.congress,
+        parsed.billType,
+        parsed.billNumber,
+      )
     : undefined;
   fullText ??= fetchedFullText;
 
@@ -158,8 +167,14 @@ async function main(): Promise<void> {
   if (argv.apply && !process.env.CONGRESS_API_KEY) {
     throw new Error("CONGRESS_API_KEY is required when --apply is set");
   }
-  if (argv.apply && !process.env.DEEPSEEK_API_KEY) {
-    throw new Error("DEEPSEEK_API_KEY is required when --apply is set");
+  if (
+    argv.apply &&
+    !process.env.OPENROUTER_API_KEY &&
+    !process.env.DEEPSEEK_API_KEY
+  ) {
+    throw new Error(
+      "OPENROUTER_API_KEY or deprecated DEEPSEEK_API_KEY is required when --apply is set",
+    );
   }
 
   logger[target.target === "production" ? "warn" : "info"](
@@ -179,7 +194,9 @@ async function main(): Promise<void> {
   const results = await Promise.all(
     candidates.map((candidate) =>
       limit(async (): Promise<Result> => {
-        logger.start(`${candidate.billNumber} ${candidate.title.substring(0, 70)}`);
+        logger.start(
+          `${candidate.billNumber} ${candidate.title.substring(0, 70)}`,
+        );
         try {
           const resolved = await resolve(candidate);
           if (resolved.description) {
@@ -200,10 +217,15 @@ async function main(): Promise<void> {
               `${candidate.billNumber} resolved via ${resolved.outcome}`,
             );
           }
-          return { candidate, outcome: resolved.outcome, detail: resolved.detail };
+          return {
+            candidate,
+            outcome: resolved.outcome,
+            detail: resolved.detail,
+          };
         } catch (error) {
           if (error instanceof AIRateLimitError) throw error;
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           logger.error(`${candidate.billNumber} failed: ${message}`);
           return { candidate, outcome: "failed", detail: message };
         }
@@ -221,7 +243,10 @@ async function main(): Promise<void> {
     "From AI summary",
     results.filter((r) => r.outcome === "ai-summary").length,
   );
-  printKeyValue("Skipped (no source yet)", results.filter((r) => r.outcome === "skipped").length);
+  printKeyValue(
+    "Skipped (no source yet)",
+    results.filter((r) => r.outcome === "skipped").length,
+  );
   printKeyValue("Failed", results.filter((r) => r.outcome === "failed").length);
   printKeyValue("Estimated API cost", `$${costs.totalCost.toFixed(4)}`);
   printFooter();
