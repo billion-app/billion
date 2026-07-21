@@ -16,6 +16,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import {
+  Avatar,
   Badge,
   Card,
   GhostButton,
@@ -308,6 +309,20 @@ export default function ArticleDetailScreen() {
       ];
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
+  const sponsor = content.type === "bill" ? content.sponsor : undefined;
+
+  const openSponsorProfile = () => {
+    if (!sponsor) return;
+    posthog.capture("bill_sponsor_profile_opened", {
+      content_id: content.id,
+      bill_number: content.billNumber ?? null,
+      sponsor_name: sponsor.name,
+    });
+    router.push({
+      pathname: "/bill-sponsor-profile",
+      params: { id: content.id },
+    });
+  };
 
   return (
     <View style={s.screen}>
@@ -370,6 +385,31 @@ export default function ArticleDetailScreen() {
           <Text style={s.desc} testID="article-description">
             {content.description}
           </Text>
+        ) : null}
+
+        {sponsor ? (
+          <TouchableOpacity
+            style={s.sponsorCard}
+            activeOpacity={0.75}
+            onPress={openSponsorProfile}
+            accessibilityRole="button"
+            accessibilityLabel={`View sponsor profile for ${sponsor.name}`}
+            testID="bill-sponsor-card"
+          >
+            <Avatar name={sponsor.initials} size={44} />
+            <View style={s.sponsorBody}>
+              <Text style={s.sponsorLabel}>Sponsored by</Text>
+              <Text style={s.sponsorName} numberOfLines={1}>
+                {sponsor.name}
+              </Text>
+              <Text style={s.sponsorMeta} numberOfLines={1}>
+                {[sponsor.role, sponsor.party, sponsor.state]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </Text>
+            </View>
+            <Icon name="chevR" size={17} color={colors.textSecondary} />
+          </TouchableOpacity>
         ) : null}
 
         {/* explainer / source toggle */}
@@ -579,6 +619,35 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
     lineHeight: 22,
+  },
+  sponsorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 18,
+    padding: 14,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 14,
+  },
+  sponsorBody: { flex: 1, gap: 1 },
+  sponsorLabel: {
+    fontFamily: fontBody.medium,
+    fontSize: 10.5,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: colors.textSecondary,
+  },
+  sponsorName: {
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+    color: colors.white,
+  },
+  sponsorMeta: {
+    fontFamily: fontBody.regular,
+    fontSize: 11.5,
+    color: colors.textSecondary,
   },
   disclaimer: {
     flexDirection: "row",

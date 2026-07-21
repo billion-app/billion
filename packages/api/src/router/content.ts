@@ -12,6 +12,7 @@ import {
   Video,
 } from "@acme/db/schema";
 
+import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
 const SAVED_CONTENT_TYPES = [
@@ -560,6 +561,12 @@ export const contentRouter = {
         .limit(1);
       if (bill[0]) {
         const b = bill[0];
+        const sponsor = b.sponsor
+          ? {
+              ...parseBillSponsor(b.sponsor),
+              role: sponsorRole(b.chamber),
+            }
+          : undefined;
         const [result] = await attachVideoImages([
           {
             id: b.id,
@@ -569,6 +576,7 @@ export const contentRouter = {
             isAIGenerated: !!b.aiGeneratedArticle,
             thumbnailUrl: b.thumbnailUrl ?? undefined,
             billNumber: b.billNumber,
+            sponsor,
             articleContent:
               b.aiGeneratedArticle ?? b.fullText ?? "No content available",
             originalContent: b.fullText ?? "Full text not available",
@@ -645,6 +653,53 @@ export const contentRouter = {
       }
 
       throw new Error(`Content with id ${input.id} not found`);
+    }),
+
+  // Profile and related legislation for the member who formally sponsored a bill.
+  getSponsorProfile: publicProcedure
+    .input(z.object({ billId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      const [bill] = await db
+        .select()
+        .from(Bill)
+        .where(eq(Bill.id, input.billId))
+        .limit(1);
+
+      if (!bill) throw new Error(`Bill with id ${input.billId} not found`);
+      if (!bill.sponsor) return null;
+
+      const sponsoredBills = await db
+        .select({
+          id: Bill.id,
+          title: Bill.title,
+          description: Bill.description,
+          summary: Bill.summary,
+          billNumber: Bill.billNumber,
+          status: Bill.status,
+          thumbnailUrl: Bill.thumbnailUrl,
+          introducedDate: Bill.introducedDate,
+        })
+        .from(Bill)
+        .where(eq(Bill.sponsor, bill.sponsor))
+        .orderBy(desc(Bill.introducedDate), desc(Bill.createdAt))
+        .limit(20);
+
+      return {
+        sponsor: {
+          ...parseBillSponsor(bill.sponsor),
+          role: sponsorRole(bill.chamber),
+        },
+        sourceUrl: bill.url,
+        sponsoredBills: sponsoredBills.map((item) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description ?? item.summary ?? "",
+          billNumber: item.billNumber,
+          status: item.status ?? undefined,
+          thumbnailUrl: item.thumbnailUrl ?? undefined,
+          introducedDate: item.introducedDate?.toISOString(),
+        })),
+      };
     }),
 
   // --- Saved Articles ---
