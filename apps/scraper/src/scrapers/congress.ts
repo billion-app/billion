@@ -348,7 +348,9 @@ async function scrape(config: CongressScraperConfig = {}) {
               data: {
                 billNumber: formattedBillNumber,
                 title,
-                description: summary,
+                // Keep the official CRS summary as source material. The DB
+                // pipeline generates the compact, app-facing description.
+                description: undefined,
                 sponsor,
                 status,
                 introducedDate,

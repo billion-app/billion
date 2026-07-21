@@ -8,7 +8,7 @@ import pLimit from "p-limit";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { eq, isNull, or } from "@acme/db";
+import { eq, isNull, or, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import { Bill } from "@acme/db/schema";
 
@@ -22,6 +22,7 @@ import {
   AIRateLimitError,
   generateAISummary,
 } from "./utils/ai/text-generation.js";
+import { BILL_DESCRIPTION_MAX_CHARS } from "./utils/bill-description.js";
 import { getCostSummary, resetCosts } from "./utils/costs.js";
 import {
   createLogger,
@@ -38,6 +39,7 @@ interface Candidate {
   title: string;
   congress: number | null;
   url: string;
+  summary: string | null;
   fullText: string | null;
 }
 type Outcome = "congress-summary" | "ai-summary" | "skipped" | "failed";
@@ -56,10 +58,17 @@ async function loadCandidates(limit?: number): Promise<Candidate[]> {
       title: Bill.title,
       congress: Bill.congress,
       url: Bill.url,
+      summary: Bill.summary,
       fullText: Bill.fullText,
     })
     .from(Bill)
-    .where(or(isNull(Bill.description), eq(Bill.description, "")));
+    .where(
+      or(
+        isNull(Bill.description),
+        eq(Bill.description, ""),
+        sql`char_length(${Bill.description}) > ${BILL_DESCRIPTION_MAX_CHARS}`,
+      ),
+    );
   const rows = limit ? await query.limit(limit) : await query;
   return rows;
 }
@@ -79,13 +88,20 @@ async function resolve(candidate: Candidate): Promise<{
     };
   }
 
-  const summary = await fetchSummary(
-    candidate.congress,
-    parsed.billType,
-    parsed.billNumber,
-  );
+  const fetchedSummary = candidate.summary
+    ? undefined
+    : await fetchSummary(
+        candidate.congress,
+        parsed.billType,
+        parsed.billNumber,
+      );
+  const summary = candidate.summary ?? fetchedSummary;
   if (summary) {
-    return { description: summary, summary, outcome: "congress-summary" };
+    return {
+      description: await generateAISummary(candidate.title, summary),
+      summary: fetchedSummary,
+      outcome: "congress-summary",
+    };
   }
 
   let fullText = candidate.fullText ?? undefined;
@@ -184,7 +200,7 @@ async function main(): Promise<void> {
 
   const candidates = await loadCandidates(argv.limit);
   printHeader("Inventory");
-  printKeyValue("Bills missing description", candidates.length);
+  printKeyValue("Bills missing/overlong description", candidates.length);
   printKeyValue("Writes", argv.apply ? "enabled" : "disabled (dry run)");
   printFooter();
 
@@ -237,7 +253,7 @@ async function main(): Promise<void> {
   const costs = getCostSummary();
   printHeader("Result");
   printKeyValue(
-    "From congress.gov summary",
+    "Shortened from congress.gov summary",
     results.filter((r) => r.outcome === "congress-summary").length,
   );
   printKeyValue(

@@ -14,6 +14,7 @@ import {
 } from "ai";
 import { z } from "zod";
 
+import { clampBillDescription } from "../bill-description.js";
 import { trackLLMUsage } from "../costs.js";
 import { createLogger } from "../log.js";
 import { getSearchModel, getTextLlm, getWebSearchTool } from "./provider.js";
@@ -77,7 +78,7 @@ Summary (max 100 characters):`,
     });
     trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
-    return text.trim().substring(0, 100);
+    return clampBillDescription(text);
   } catch (error) {
     if (isRateLimitError(error)) {
       rateLimitHit = true;
