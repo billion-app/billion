@@ -21,8 +21,9 @@ import {
 import { posthog } from "~/config/posthog";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
+import { buildFeedbackFormUrl } from "~/utils/feedback-form";
 
-// Point of contact for feedback while there's no server-side intake yet.
+// Direct contact remains available as a fallback to the guided form.
 const CONTACT_EMAIL = "billionnewsapp@gmail.com";
 
 type FeedbackCategory = "bug" | "idea" | "content";
@@ -65,14 +66,57 @@ async function openMailto(url: string): Promise<boolean> {
   return false;
 }
 
+async function openFeedbackForm(url: string): Promise<boolean> {
+  try {
+    if (await Linking.canOpenURL(url)) {
+      await Linking.openURL(url);
+      return true;
+    }
+  } catch {
+    // fall through to the failure alert below
+  }
+  Alert.alert(
+    "Couldn’t open the feedback form",
+    "Please try again in a moment.",
+  );
+  return false;
+}
+
 export default function FeedbackScreen() {
   const [cat, setCat] = useState<FeedbackCategory>("bug");
   const [text, setText] = useState("");
   const message = text.trim();
-  const canSubmit = message.length >= 5;
+  const formKind = cat === "bug" ? "bug" : cat === "idea" ? "feature" : null;
+  const canSubmit = formKind !== null || message.length >= 5;
 
   const submit = () => {
     if (!canSubmit) return;
+
+    if (formKind) {
+      const details = message
+        ? [
+            message,
+            "",
+            "———",
+            `App version: ${getAppVersion()} (${getAppBuildNumber()})`,
+            `Platform: ${Platform.OS} ${String(Platform.Version)}`,
+          ].join("\n")
+        : undefined;
+
+      void openFeedbackForm(buildFeedbackFormUrl(formKind, details)).then(
+        (opened) => {
+          if (!opened) return;
+          posthog.capture("feedback_form_opened", {
+            category: cat,
+            message_length: message.length,
+            app_version: getAppVersion(),
+            platform: Platform.OS,
+          });
+        },
+      );
+      return;
+    }
+
     void openMailto(buildMailto(cat, message)).then((opened) => {
       if (!opened) return;
       posthog.capture("feedback_submitted", {
@@ -96,8 +140,8 @@ export default function FeedbackScreen() {
       <View style={s.body}>
         <Text style={s.title}>What&apos;s on your mind?</Text>
         <Text style={s.intro}>
-          We read every note — it shapes what we build next. Your message opens
-          in your mail app addressed to us.
+          We read every note — it shapes what we build next. Bug reports and
+          feature ideas open in our guided feedback form.
         </Text>
 
         <Kicker>Category</Kicker>
@@ -158,7 +202,13 @@ export default function FeedbackScreen() {
         </Text>
 
         <PrimaryButton
-          label="Send via email"
+          label={
+            cat === "bug"
+              ? "Continue to bug report"
+              : cat === "idea"
+                ? "Continue to feature request"
+                : "Send content issue via email"
+          }
           onPress={submit}
           style={{ opacity: canSubmit ? 1 : 0.55 }}
         />
