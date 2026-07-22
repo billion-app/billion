@@ -93,6 +93,11 @@ const scraperSourceLimitDefinitions = [
     "100",
   ],
   [
+    "MISSOURI_LEGISLATURE_MAX_ITEMS",
+    "Missouri General Assembly changed bills per current-session run.",
+    "100",
+  ],
+  [
     "CEDAR_PARK_COUNCIL_MAX_ITEMS",
     "Cedar Park City Council meetings per run.",
     "100",

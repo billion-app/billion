@@ -1,0 +1,16 @@
+<ROOT><BillInformation>
+  <BillNumber>HB42</BillNumber><CurrentBillString>HCS HB 42</CurrentBillString>
+  <Title><ShortTitle>PUBLIC SAFETY</ShortTitle><LongTitle>Modifies provisions relating to public safety</LongTitle></Title>
+  <ProposedEffectiveDate>2026-08-28</ProposedEffectiveDate><LastAction>04/03/2026 - Reported Do Pass (H)</LastAction>
+  <Action><Link>https://house.mo.gov/bill.aspx?bill=HB42&amp;year=2026&amp;code=R</Link><Description>Introduced and Read First Time (H)</Description><Guid>100</Guid><ActivitySequence>100</ActivitySequence><PubDate>2026-01-08</PubDate></Action>
+  <Action><Link>https://house.mo.gov/bill.aspx?bill=HB42&amp;year=2026&amp;code=R</Link><Description>Reported Do Pass (H)</Description><Guid>200</Guid><ActivitySequence>200</ActivitySequence><PubDate>2026-04-03</PubDate><RollCall><TotalYes>10</TotalYes><TotalNo>2</TotalNo><TotalPresent>1</TotalPresent></RollCall></Action>
+  <Sponsor><SponsorType>Sponsor</SponsorType><FullName>Jamie Example</FullName><District>12</District></Sponsor>
+  <Sponsor><SponsorType>Co-Sponsor</SponsorType><FullName>Alex Example</FullName><District>13</District></Sponsor>
+  <BillText><BillTextLink>https://documents.house.mo.gov/billtracking/HB42P.pdf</BillTextLink><LRNumber>1000H.01P</LRNumber><DocumentName>Perfected</DocumentName></BillText>
+  <BillSummary><SummaryTextLink>https://documents.house.mo.gov/billtracking/HB42-summary.pdf</SummaryTextLink><DocumentName>Perfected</DocumentName></BillSummary>
+  <FiscalNote><FiscalNoteLink>https://documents.house.mo.gov/billtracking/HB42-fiscal.pdf</FiscalNoteLink></FiscalNote>
+  <Amendment><AmendmentText>https://documents.house.mo.gov/billtracking/HB42-amendment.pdf</AmendmentText><AmendmentDescription>HA 1</AmendmentDescription></Amendment>
+  <Hearings><CommitteeName>Crime Prevention and Public Safety</CommitteeName><NoticeDate>2026-02-01</NoticeDate></Hearings>
+  <SubjectIndex><SubjectName>PUBLIC SAFETY</SubjectName></SubjectIndex>
+  <Witness><WitnessFormsLink>https://documents.house.mo.gov/billtracking/HB42-witness.pdf</WitnessFormsLink><WitnessFormsLinkDescription>Public testimony</WitnessFormsLinkDescription></Witness>
+</BillInformation></ROOT>

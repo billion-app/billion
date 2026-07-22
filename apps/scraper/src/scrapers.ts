@@ -5,6 +5,7 @@ import { congress } from "./scrapers/congress.js";
 import { durhamBocc } from "./scrapers/durham-bocc.js";
 import { durhamOnBase } from "./scrapers/durham-onbase.js";
 import { federalregister } from "./scrapers/federalregister.js";
+import { missouriLegislature } from "./scrapers/missouri-legislature.js";
 import { ncsbe } from "./scrapers/ncsbe.js";
 import { sccCvig } from "./scrapers/scc-cvig.js";
 import { scotus } from "./scrapers/scotus.js";
@@ -19,6 +20,7 @@ export const scrapers: readonly Scraper[] = [
   sccCvig,
   caSosStatements,
   ncsbe,
+  missouriLegislature,
   texasCurrentElection,
   texasLegislature,
   cedarParkCouncil,
