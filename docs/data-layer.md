@@ -80,9 +80,10 @@ All three content tables share a common pattern:
 
 **Provider-neutral local government** — `local_government_meeting`,
 `local_government_document`, `local_government_agenda_item`, and
-`local_government_vote`. These hold systems that do not expose Legistar
-semantics, including Durham's OnBase instance and Cedar Park's CivicEngage
-source. Meetings are keyed by `(source, jurisdiction, external_id)`; documents
+`local_government_vote`. These form the provider-neutral scheduled-source
+contract for Durham's OnBase/Legistar sources, Cedar Park's CivicEngage source,
+and Kansas City's current-term Council Legistar source. Meetings are keyed by
+`(source, jurisdiction, external_id)`; documents
 are versionable rows and agenda items carry official motion, outcome, and vote
 text. The API reads persisted rows instead of scraping during a user request.
 

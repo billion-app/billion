@@ -104,6 +104,11 @@ const scraperSourceLimitDefinitions = [
     "24",
   ],
   ["DURHAM_BOCC_MAX_ITEMS", "Durham County BOCC meetings per run.", "100"],
+  [
+    "KANSAS_CITY_COUNCIL_MAX_ITEMS",
+    "Kansas City Council meetings per current-term run.",
+    "250",
+  ],
 ] as const;
 
 export const envRegistry = [

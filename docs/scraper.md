@@ -30,6 +30,7 @@ process environment at runtime, not embedded during the build.
 | `civicengage.ts`            | Cedar Park official council page | local-government tables    | CivicEngage entry page + Municode embed; deterministic HTML/PDF parsing |
 | `durham-onbase.ts`          | Durham OnBase Agenda Online      | local-government tables    | current-cycle meetings, items, attachments, and official actions        |
 | `durham-bocc.ts`            | Durham County Legistar API       | local-government tables    | current-cycle meetings, items, actions, votes, and documents            |
+| `kansas-city-council.ts`    | Kansas City Legistar API         | local-government tables    | current-term Council meetings, legislation, documents, and named votes  |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
@@ -62,6 +63,28 @@ product does not expose historical election cycles or run an OnBase backfill.
 `durham-bocc` reads Durham County's official structured Legistar feed for BOCC body ID `138`. It bounds discovery to the current two-year election cycle, upserts stable provider IDs, and stores checksums/source row versions so replaced agendas update the existing meeting. Cancellations and explicit amendments remain visible; Spanish attachments are tagged separately. Agenda/minutes PDFs are retained as official links and are not sent through AI or OCR when structured item/action fields are available.
 
 Run it with `pnpm --filter @acme/scraper run start durham-bocc`. The default cap is 100 meetings and can be changed with `DURHAM_BOCC_MAX_ITEMS` or `--max-items`.
+
+### Kansas City Council
+
+`kansas-city-council` reads the official `kansascity` Legistar Web API and
+limits discovery to body ID `138` (`Council`, Primary Legislative Body) and the
+active four-year Council term, anchored at August 1, 2023. Hidden test rows are
+excluded. Meetings are processed sequentially; at most two vote requests run
+concurrently and all requests use the shared retry/backoff client.
+
+Stable Event, EventItem, Matter, attachment, and Vote identifiers feed the
+existing provider-neutral local-government tables. The adapter records Central
+Time with DST, locations, cancellations, revised publication states, official
+agenda/minutes/packet-or-attachment links, video media IDs, legislation file
+numbers, actions/outcomes, and named votes. Kansas City publishes votes on some
+actioned items even when its roll-call flag is zero, so those items are checked
+too. Document descriptor checksums include the official row version/publication
+timestamp; replaced URLs make old documents non-current. No PDF OCR, AI, or
+archive backfill is used, and no schema migration is required.
+
+Run `pnpm --filter @acme/scraper run start kansas-city-council`. The default
+current-term cap is 250 meetings and can be changed with
+`KANSAS_CITY_COUNCIL_MAX_ITEMS` or `--max-items`.
 
 ## Upsert + Change Detection
 
