@@ -1,5 +1,5 @@
 import type { RenderRules } from "@ronradtke/react-native-markdown-display";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import {
+  Avatar,
   Badge,
   Card,
   GhostButton,
@@ -27,22 +28,25 @@ import {
   PrimaryButton,
   Segmented,
 } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import {
   colors,
   contentType,
+  darkTheme,
   fontBody,
   fontDisplay,
   getMarkdownStyles,
   hair,
   planes,
   resolveType,
-  useTheme,
 } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
+import { formatDate } from "~/utils/dates";
 
 // TODO(backend): real per-side framing per content item.
 const PLACEHOLDER_LENS = {
+  framing: "proponent_opponent" as const,
   left: {
     stance: "Supporters argue",
     points: [
@@ -61,11 +65,23 @@ const PLACEHOLDER_LENS = {
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
+  const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  const [failedHeaderImageUri, setFailedHeaderImageUri] = useState<
+    string | undefined
+  >();
+
+  const handleModeChange = (newMode: "explainer" | "source") => {
+    setMode(newMode);
+    posthog.capture("article_view_mode_toggled", {
+      content_id: articleId ?? null,
+      content_type: content?.type ?? null,
+      new_mode: newMode,
+    });
+  };
 
   const {
     data: content,
@@ -75,6 +91,18 @@ export default function ArticleDetailScreen() {
     ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
     enabled: !!articleId,
   });
+
+  useEffect(() => {
+    if (content) {
+      posthog.capture("article_viewed", {
+        content_id: content.id,
+        content_type: content.type,
+        content_title: content.title,
+        is_ai_generated: content.isAIGenerated,
+      });
+    }
+  }, [content]);
+  const headerImageUri = content?.imageUri ?? content?.thumbnailUrl;
 
   // content.saved.isSaved is a protected procedure — only query it when signed in,
   // otherwise it throws UNAUTHORIZED.
@@ -125,8 +153,18 @@ export default function ArticleDetailScreen() {
     }
     if (saved) {
       unsaveMutation.mutate({ contentId: articleId });
+      posthog.capture("content_unsaved", {
+        content_id: articleId,
+        content_type: content.type,
+        content_title: content.title,
+      });
     } else {
       saveMutation.mutate({ contentId: articleId, contentType: content.type });
+      posthog.capture("content_saved", {
+        content_id: articleId,
+        content_type: content.type,
+        content_title: content.title,
+      });
     }
   };
 
@@ -156,7 +194,10 @@ export default function ArticleDetailScreen() {
 
   const typeKey = resolveType(content.type);
   const t = contentType[typeKey];
-  const markdownStyles = getMarkdownStyles(theme);
+  // This screen is always rendered on the dark navy canvas, independent of
+  // the phone's appearance setting. Using the light system theme here made
+  // valid article markdown navy-on-navy and appear completely empty.
+  const markdownStyles = getMarkdownStyles(darkTheme);
   const markdownRules: RenderRules = {
     image: (
       node,
@@ -191,11 +232,18 @@ export default function ArticleDetailScreen() {
 
   const handleOpenOriginal = async () => {
     if (!content.url) return;
+    posthog.capture("original_source_opened", {
+      content_id: content.id,
+      content_type: content.type,
+      content_title: content.title,
+      source_url: content.url,
+    });
     try {
       if (await Linking.canOpenURL(content.url)) {
         await Linking.openURL(content.url);
       }
     } catch (e) {
+      posthog.captureException(e as Error, { content_id: content.id });
       console.error("Error opening URL:", e);
     }
   };
@@ -217,22 +265,64 @@ export default function ArticleDetailScreen() {
     "actions" in content
       ? (content.actions as { date: string; text: string }[])
       : [];
-  const timeline =
-    actions.length > 0
-      ? actions
-          .slice()
-          .sort((a, b) => a.date.localeCompare(b.date))
-          .map((a, i, arr) => ({
-            label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
-            done: true,
-            current: i === arr.length - 1,
-          }))
-      : [
-          { label: "Introduced", done: true, current: false },
-          { label: "Committee review", done: true, current: false },
-          { label: "Latest action", done: true, current: true },
-          { label: "Becomes law", done: false, current: false },
-        ];
+  const hasRealActions = actions.length > 0;
+  const timeline = hasRealActions
+    ? actions
+        .slice()
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((a, i, arr) => ({
+          label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
+          fullText: a.text,
+          date: a.date,
+          done: true,
+          current: i === arr.length - 1,
+        }))
+    : [
+        {
+          label: "Introduced",
+          fullText: "",
+          date: "",
+          done: true,
+          current: false,
+        },
+        {
+          label: "Committee review",
+          fullText: "",
+          date: "",
+          done: true,
+          current: false,
+        },
+        {
+          label: "Latest action",
+          fullText: "",
+          date: "",
+          done: true,
+          current: true,
+        },
+        {
+          label: "Becomes law",
+          fullText: "",
+          date: "",
+          done: false,
+          current: false,
+        },
+      ];
+  // Actions are the official legislative record from the source (congress.gov).
+  const timelineSourceUrl = hasRealActions ? content.url : undefined;
+  const sponsor = content.type === "bill" ? content.sponsor : undefined;
+
+  const openSponsorProfile = () => {
+    if (!sponsor) return;
+    posthog.capture("bill_sponsor_profile_opened", {
+      content_id: content.id,
+      bill_number: content.billNumber ?? null,
+      sponsor_name: sponsor.name,
+    });
+    router.push({
+      pathname: "/bill-sponsor-profile",
+      params: { id: content.id },
+    });
+  };
 
   return (
     <View style={s.screen}>
@@ -240,13 +330,15 @@ export default function ArticleDetailScreen() {
         title={t.label}
         onBack={() => router.back()}
         action={
-          <TouchableOpacity onPress={toggleSave} hitSlop={8}>
-            <Icon
-              name={saved ? "bookmarkFill" : "bookmark"}
-              size={21}
-              color={saved ? colors.white : colors.textSecondary}
-            />
-          </TouchableOpacity>
+          __DEV__ ? (
+            <TouchableOpacity onPress={toggleSave} hitSlop={8}>
+              <Icon
+                name={saved ? "bookmarkFill" : "bookmark"}
+                size={21}
+                color={saved ? colors.white : colors.textSecondary}
+              />
+            </TouchableOpacity>
+          ) : undefined
         }
       />
 
@@ -255,28 +347,76 @@ export default function ArticleDetailScreen() {
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Placeholder
-          label={`${t.label.toLowerCase()} · header art`}
-          height={170}
-          radius={16}
-          style={{ marginBottom: 18 }}
-        />
+        {headerImageUri && headerImageUri !== failedHeaderImageUri ? (
+          <View style={s.headerArt}>
+            <Image
+              source={{ uri: headerImageUri }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={200}
+              onError={() => setFailedHeaderImageUri(headerImageUri)}
+              accessible
+              accessibilityLabel={`Header image for ${content.title}`}
+            />
+          </View>
+        ) : (
+          <Placeholder
+            label={`${t.label.toLowerCase()} · header art`}
+            height={170}
+            radius={16}
+            style={{ marginBottom: 18 }}
+          />
+        )}
 
         <View style={s.badgeRow}>
           <Badge type={typeKey} />
+          {content.billNumber ? (
+            <Text style={s.billNumber} testID="article-bill-number">
+              {content.billNumber}
+            </Text>
+          ) : null}
         </View>
 
-        <Text style={s.title}>{content.title}</Text>
+        <Text style={s.title} testID="article-title">
+          {content.title}
+        </Text>
 
         {content.description ? (
-          <Text style={s.desc}>{content.description}</Text>
+          <Text style={s.desc} testID="article-description">
+            {content.description}
+          </Text>
+        ) : null}
+
+        {sponsor ? (
+          <TouchableOpacity
+            style={s.sponsorCard}
+            activeOpacity={0.75}
+            onPress={openSponsorProfile}
+            accessibilityRole="button"
+            accessibilityLabel={`View sponsor profile for ${sponsor.name}`}
+            testID="bill-sponsor-card"
+          >
+            <Avatar name={sponsor.initials} size={44} />
+            <View style={s.sponsorBody}>
+              <Text style={s.sponsorLabel}>Sponsored by</Text>
+              <Text style={s.sponsorName} numberOfLines={1}>
+                {sponsor.name}
+              </Text>
+              <Text style={s.sponsorMeta} numberOfLines={1}>
+                {[sponsor.role, sponsor.party, sponsor.state]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </Text>
+            </View>
+            <Icon name="chevR" size={17} color={colors.textSecondary} />
+          </TouchableOpacity>
         ) : null}
 
         {/* explainer / source toggle */}
         <View style={{ marginTop: 18, marginBottom: 18 }}>
           <Segmented
             value={mode}
-            onChange={setMode}
+            onChange={handleModeChange}
             options={[
               { id: "explainer", label: "Plain explainer", icon: "sparkle" },
               { id: "source", label: "Original text", icon: "doc" },
@@ -305,7 +445,10 @@ export default function ArticleDetailScreen() {
           />
         )}
 
-        <View style={mode === "source" ? s.sourcePanel : undefined}>
+        <View
+          testID="article-content"
+          style={mode === "source" ? s.sourcePanel : undefined}
+        >
           {renderMarkdown ? (
             <Markdown style={markdownStyles} rules={markdownRules}>
               {activeContent}
@@ -317,46 +460,89 @@ export default function ArticleDetailScreen() {
 
         {/* Dual-Lens — signature */}
         <View style={{ marginVertical: 24 }}>
-          <LensPanel data={PLACEHOLDER_LENS} />
+          <LensPanel data={content.lensData ?? PLACEHOLDER_LENS} />
         </View>
 
         {/* timeline */}
         <Kicker>Where it stands</Kicker>
         <Card style={{ marginBottom: 24 }}>
-          {timeline.map((step, i) => (
-            <View key={i} style={s.timelineRow}>
-              <View style={s.timelineMarker}>
-                <View
-                  style={[
-                    s.timelineDot,
-                    {
-                      borderColor: step.done ? t.color : hair[3],
-                      backgroundColor: step.current ? t.color : "transparent",
-                    },
-                  ]}
-                />
-                {i < timeline.length - 1 && (
+          {timeline.map((step, i) => {
+            const expandable = !!step.fullText && step.label !== step.fullText;
+            const isExpanded = expandedStep === i;
+            return (
+              <TouchableOpacity
+                key={i}
+                style={s.timelineRow}
+                activeOpacity={expandable ? 0.6 : 1}
+                onPress={() =>
+                  expandable && setExpandedStep(isExpanded ? null : i)
+                }
+                accessibilityRole={expandable ? "button" : undefined}
+              >
+                <View style={s.timelineMarker}>
                   <View
                     style={[
-                      s.timelineLine,
-                      { backgroundColor: step.done ? t.color : hair[2] },
+                      s.timelineDot,
+                      {
+                        borderColor: step.done ? t.color : hair[3],
+                        backgroundColor: step.current ? t.color : "transparent",
+                      },
                     ]}
                   />
-                )}
-              </View>
-              <Text
-                style={[
-                  s.timelineLabel,
-                  {
-                    color: step.done ? colors.white : colors.textSecondary,
-                    fontFamily: step.current ? fontBody.bold : fontBody.medium,
-                  },
-                ]}
-              >
-                {step.label}
+                  {i < timeline.length - 1 && (
+                    <View
+                      style={[
+                        s.timelineLine,
+                        { backgroundColor: step.done ? t.color : hair[2] },
+                      ]}
+                    />
+                  )}
+                </View>
+                <View style={s.timelineBody}>
+                  {!!step.date && (
+                    <Text style={s.timelineDate}>{formatDate(step.date)}</Text>
+                  )}
+                  <View style={s.timelineLabelRow}>
+                    <Text
+                      style={[
+                        s.timelineLabel,
+                        {
+                          color: step.done
+                            ? colors.white
+                            : colors.textSecondary,
+                          fontFamily: step.current
+                            ? fontBody.bold
+                            : fontBody.medium,
+                        },
+                      ]}
+                    >
+                      {isExpanded ? step.fullText : step.label}
+                    </Text>
+                    {expandable && (
+                      <Icon
+                        name={isExpanded ? "chevD" : "chevR"}
+                        size={13}
+                        color={colors.textSecondary}
+                      />
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+          {timelineSourceUrl && (
+            <TouchableOpacity
+              style={s.timelineSource}
+              activeOpacity={0.7}
+              onPress={() => void Linking.openURL(timelineSourceUrl)}
+            >
+              <Icon name="info" size={13} color={colors.textSecondary} />
+              <Text style={s.timelineSourceText}>
+                Official record · congress.gov
               </Text>
-            </View>
-          ))}
+              <Icon name="chevR" size={12} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
         </Card>
 
         {/* dig-deeper exit */}
@@ -402,11 +588,24 @@ const s = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  headerArt: {
+    height: 170,
+    marginBottom: 18,
+    overflow: "hidden",
+    borderRadius: 16,
+    backgroundColor: planes.surface,
+  },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
     marginBottom: 14,
+  },
+  billNumber: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+    letterSpacing: 0.3,
+    color: colors.textSecondary,
   },
   title: {
     fontFamily: fontDisplay.bold,
@@ -420,6 +619,35 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
     lineHeight: 22,
+  },
+  sponsorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 18,
+    padding: 14,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 14,
+  },
+  sponsorBody: { flex: 1, gap: 1 },
+  sponsorLabel: {
+    fontFamily: fontBody.medium,
+    fontSize: 10.5,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: colors.textSecondary,
+  },
+  sponsorName: {
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+    color: colors.white,
+  },
+  sponsorMeta: {
+    fontFamily: fontBody.regular,
+    fontSize: 11.5,
+    color: colors.textSecondary,
   },
   disclaimer: {
     flexDirection: "row",
@@ -457,7 +685,35 @@ const s = StyleSheet.create({
   timelineMarker: { alignItems: "center" },
   timelineDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
   timelineLine: { width: 2, flex: 1, minHeight: 22 },
-  timelineLabel: { fontSize: 14, paddingBottom: 14 },
+  timelineBody: { flex: 1, paddingBottom: 14 },
+  timelineDate: {
+    fontFamily: fontBody.medium,
+    fontSize: 10.5,
+    letterSpacing: 0.3,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  timelineLabelRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
+  timelineLabel: { flex: 1, fontSize: 14, lineHeight: 19 },
+  timelineSource: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginTop: 4,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: hair[1],
+  },
+  timelineSourceText: {
+    flex: 1,
+    fontFamily: fontBody.regular,
+    fontSize: 11.5,
+    color: colors.textSecondary,
+  },
   exit: {
     backgroundColor: planes.slate,
     borderWidth: 1,

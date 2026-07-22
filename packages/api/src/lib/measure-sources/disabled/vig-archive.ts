@@ -18,8 +18,8 @@
  * fields, never a throw — matching the rest of measure-sources/.
  */
 
-import { stableStringify } from "../candidate-sources/types";
-import { htmlToText } from "./html";
+import { stableStringify } from "../../candidate-sources/types";
+import { htmlToText } from "../html";
 
 export const VIG_ARCHIVE_ROOT = "https://vigarchive.sos.ca.gov";
 export const VIG_ARCHIVE_SOURCE_NAME =

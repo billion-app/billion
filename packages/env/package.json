@@ -10,6 +10,10 @@
     "./load": {
       "types": "./dist/load.d.ts",
       "default": "./src/load.ts"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "default": "./src/cli.ts"
     }
   },
   "scripts": {

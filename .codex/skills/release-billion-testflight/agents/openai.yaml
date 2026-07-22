@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release Billion to TestFlight"
+  short_description: "Build and submit Billion iOS releases"
+  default_prompt: "Use $release-billion-testflight to create and verify a new Billion TestFlight release."

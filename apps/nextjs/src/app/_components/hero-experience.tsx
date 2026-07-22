@@ -1,7 +1,9 @@
 "use client";
 
-import Image from "next/image";
-import { motion } from "motion/react";
+import { motion, useScroll, useTransform } from "motion/react";
+
+import { EASE_OUT_QUART } from "./animations";
+import { PhoneScreenshot } from "./phone-screenshot";
 
 const browseScreenshot = {
   src: "/app-screenshots/browse.png",
@@ -13,43 +15,20 @@ const electionsScreenshot = {
   alt: "Billion iOS Elections screen showing ballot information",
 };
 
-function PhoneScreenshot({
-  src,
-  alt,
-  className,
-  priority = false,
-  sizes,
-}: {
-  src: string;
-  alt: string;
-  className: string;
-  priority?: boolean;
-  sizes: string;
-}) {
-  return (
-    <div
-      className={`${className} overflow-hidden rounded-[34px] border border-white/12 bg-[#070b1a] p-2 shadow-[0_26px_70px_rgba(0,0,0,0.38)]`}
-    >
-      <div className="relative aspect-[1179/2556] overflow-hidden rounded-[28px] bg-[#0e1530]">
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          priority={priority}
-          sizes={sizes}
-          className="object-cover"
-        />
-      </div>
-    </div>
-  );
-}
-
 export function HeroExperience() {
+  const { scrollY } = useScroll();
+  // Gentle scroll-linked parallax — the two phones drift at slightly
+  // different rates as the hero scrolls past, a quiet depth cue rather
+  // than a gimmick. MotionConfig's reducedMotion="user" neutralizes this
+  // transform-based motion automatically for reduced-motion users.
+  const backY = useTransform(scrollY, [0, 600], [0, 46]);
+  const frontY = useTransform(scrollY, [0, 600], [0, -26]);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut", delay: 0.08 }}
+      initial={{ opacity: 0, y: 18, filter: "blur(12px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      transition={{ duration: 0.65, ease: EASE_OUT_QUART, delay: 0.1 }}
       className="relative mx-auto flex min-h-[500px] w-full max-w-[600px] items-start justify-center pt-4 md:min-h-[560px] md:items-center md:pt-0 lg:mx-0 lg:ml-auto lg:min-h-[650px] lg:justify-end"
       data-testid="hero-screenshot-stack"
     >
@@ -58,20 +37,78 @@ export function HeroExperience() {
         aria-hidden="true"
       />
 
-      <PhoneScreenshot
-        src={electionsScreenshot.src}
-        alt={electionsScreenshot.alt}
-        sizes="(min-width: 1024px) 248px, 210px"
-        className="absolute top-20 left-0 hidden w-[230px] -rotate-3 opacity-70 md:block lg:top-24 lg:w-[248px]"
-      />
+      <motion.div
+        style={{ y: backY }}
+        className="absolute top-20 left-0 hidden md:block lg:top-24"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 26, rotate: -3 }}
+          animate={{
+            opacity: 0.7,
+            y: 0,
+            rotate: -3,
+            transition: {
+              duration: 0.55,
+              ease: [0.16, 1, 0.3, 1],
+              delay: 0.16,
+            },
+          }}
+        >
+          <motion.div
+            animate={{ y: [0, -8, 0] }}
+            transition={{
+              duration: 5.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1,
+            }}
+          >
+            <PhoneScreenshot
+              src={electionsScreenshot.src}
+              alt={electionsScreenshot.alt}
+              sizes="(min-width: 1024px) 248px, 210px"
+              className="w-[230px] lg:w-[248px]"
+            />
+          </motion.div>
+        </motion.div>
+      </motion.div>
 
-      <PhoneScreenshot
-        src={browseScreenshot.src}
-        alt={browseScreenshot.alt}
-        priority
-        sizes="(min-width: 1024px) 340px, 270px"
-        className="relative z-10 w-[min(72vw,270px)] rotate-2 md:w-[310px] lg:w-[340px]"
-      />
+      <motion.div
+        style={{ y: frontY }}
+        className="relative z-10 w-[min(72vw,270px)] md:w-[310px] lg:w-[340px]"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 24, rotate: 2 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            rotate: 2,
+            transition: {
+              duration: 0.55,
+              ease: [0.16, 1, 0.3, 1],
+              delay: 0.26,
+            },
+          }}
+        >
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.6,
+            }}
+          >
+            <PhoneScreenshot
+              src={browseScreenshot.src}
+              alt={browseScreenshot.alt}
+              priority
+              sizes="(min-width: 1024px) 340px, 270px"
+              className="w-full"
+            />
+          </motion.div>
+        </motion.div>
+      </motion.div>
     </motion.div>
   );
 }

@@ -7,12 +7,18 @@
     "@acme/api": "workspace:*",
     "@acme/db": "workspace:*",
     "@acme/env": "workspace:*",
+    "@ai-sdk/anthropic": "^3.0.92",
     "@ai-sdk/deepseek": "^1.0.0",
     "@ai-sdk/google": "^3.0.53",
+    "@ai-sdk/openai-compatible": "2.0.59",
+    "@openrouter/ai-sdk-provider": "^2.10.0",
     "ai": "^6.0.141",
     "cheerio": "^1.2.0",
     "consola": "^3.4.2",
+    "drizzle-orm": "^0.45.2",
+    "drizzle-zod": "^0.8.3",
     "p-limit": "^7.3.0",
+    "pg": "^8.20.0",
     "playwright": "^1.58.2",
     "sharp": "^0.34.5",
     "turndown": "^7.2.2",
@@ -25,16 +31,21 @@
     "@types/turndown": "^5.0.6",
     "@types/yargs": "^17.0.35",
     "tsx": "^4.21.0",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vite": "^8.1.4"
   },
   "scripts": {
     "dev": "pnpm run start:dev",
     "start": "pnpm run start:dev",
     "start:prod": "node dist/main.js",
     "start:dev": "tsx src/entry.ts",
-    "build": "tsc",
+    "build": "pnpm run typecheck && vite build",
+    "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
-    "retroactive-videos": "tsx src/retroactive-videos-entry.ts"
+    "retroactive-lenses": "tsx src/retroactive-lenses-entry.ts",
+    "reprocess-content": "tsx src/reprocess-content-entry.ts",
+    "retroactive-videos": "tsx src/retroactive-videos-entry.ts",
+    "backfill-bill-descriptions": "tsx src/backfill-bill-descriptions-entry.ts"
   },
   "author": "It's not you it's me",
   "license": "ISC"

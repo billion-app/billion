@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
-import { Swipeable } from "react-native-gesture-handler";
 
 import { Text } from "~/components/Themed";
 import { ContentCard, Icon, NavHeader } from "~/components/ui";
@@ -23,6 +23,7 @@ interface SavedItem {
   title: string;
   description: string | null;
   type: "bill" | "government_content" | "court_case";
+  billNumber?: string;
 }
 
 function SwipeableSavedCard({
@@ -60,6 +61,7 @@ function SwipeableSavedCard({
           title: item.title,
           description: item.description ?? "",
           type: item.type,
+          billNumber: item.billNumber,
         })}
         onPress={onPress}
       />
@@ -116,8 +118,8 @@ export default function SavedArticlesScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <Text style={s.intro}>
-              {list.length} article{list.length === 1 ? "" : "s"} saved to
-              read later.
+              {list.length} article{list.length === 1 ? "" : "s"} saved to read
+              later.
             </Text>
           }
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}

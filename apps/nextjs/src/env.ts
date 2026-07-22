@@ -18,11 +18,17 @@ export const env = createEnv({
    */
   server: {
     POSTGRES_URL: envSchemas.POSTGRES_URL!,
+    GOOGLE_CIVIC_API_KEY: envSchemas.GOOGLE_CIVIC_API_KEY!,
+    GOOGLE_PLACES_API_KEY: envSchemas.GOOGLE_PLACES_API_KEY!.optional(),
     RESEND_API_KEY: envSchemas.RESEND_API_KEY!.optional(),
     RESEND_LAUNCH_UPDATES_TOPIC_ID:
       envSchemas.RESEND_LAUNCH_UPDATES_TOPIC_ID!.optional(),
     RESEND_WAITLIST_SEGMENT_ID:
       envSchemas.RESEND_WAITLIST_SEGMENT_ID!.optional(),
+    RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL:
+      envSchemas.RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL!.optional(),
+    RESEND_TESTFLIGHT_BATCH_SEGMENT_ID:
+      envSchemas.RESEND_TESTFLIGHT_BATCH_SEGMENT_ID!.optional(),
   },
 
   /**
@@ -31,14 +37,17 @@ export const env = createEnv({
    */
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_POSTHOG_KEY: z.string(),
+    NEXT_PUBLIC_POSTHOG_HOST: z.string().url(),
   },
   /**
    * Destructure all variables from `process.env` to make sure they aren't tree-shaken away.
    */
   experimental__runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
-
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   },
   skipValidation:
     !!process.env.CI || process.env.npm_lifecycle_event === "lint",

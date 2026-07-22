@@ -4,9 +4,8 @@
  * into Civic's getVoterInfo({ address }).
  *
  * Reuses the existing Google Cloud key (GOOGLE_API_KEY, falling back to the
- * Civic key) — both live on the same project. When no key is configured we
- * return a small mock list so the dropdown still works in local dev, mirroring
- * the mock-fallback pattern in civic.ts.
+ * Civic key) — both live on the same project. Mock predictions are strictly a
+ * local-development aid; production must never synthesize a user's address.
  *
  * Docs: https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places/autocomplete
  */
@@ -56,6 +55,10 @@ const MOCK_SUGGESTIONS: AddressSuggestion[] = [
   },
 ];
 
+export function canUseDevelopmentMocks(): boolean {
+  return process.env.NODE_ENV !== "production" && !process.env.VERCEL;
+}
+
 /**
  * Return US-address suggestions for a partial query string. Empty/short
  * queries short-circuit to an empty list (no point hitting the API for one
@@ -74,7 +77,9 @@ export async function getAddressSuggestions(
 
   const apiKey = getApiKey();
   if (!apiKey) {
-    // Local-dev fallback: filter the mock list so the UI behaves realistically.
+    // Fail closed in production. Users may still submit a fully typed address,
+    // but the app will never present a fabricated Google prediction.
+    if (!canUseDevelopmentMocks()) return [];
     const q = input.toLowerCase();
     return MOCK_SUGGESTIONS.filter((s) =>
       s.description.toLowerCase().includes(q),
@@ -130,8 +135,8 @@ interface PlaceDetailsResponse {
  * `sessionToken` used for the autocomplete calls closes that billing session,
  * so the keystroke requests are charged as one unit rather than individually.
  *
- * Returns null when no key is configured (local-dev mock path): callers fall
- * back to the suggestion's own description string.
+ * Returns null when no key is configured. Production autocomplete never emits
+ * mock place IDs, so the description fallback is local-development-only.
  */
 export async function getPlaceDetails(
   placeId: string,

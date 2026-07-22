@@ -1,64 +1,49 @@
+import { and, eq } from "@acme/db";
 import { db } from "@acme/db/client";
-import { eq } from "@acme/db";
-import { Bill, GovernmentContent, CourtCase } from "@acme/db/schema";
+import {
+  Bill,
+  ContentLens,
+  CourtCase,
+  GovernmentContent,
+} from "@acme/db/schema";
+
+import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
   BillData,
-  GovernmentContentData,
   CourtCaseData,
+  GovernmentContentData,
 } from "../types.js";
-import { createContentHash } from "../hash.js";
-import {
-  generateAISummary,
-  generateAIArticle,
-  AIRateLimitError,
-} from "../ai/text-generation.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
+import { getTextModelVersion } from "../ai/provider.js";
+import {
+  AIRateLimitError,
+  framingForContentType,
+  generateAIArticle,
+  generateAISummary,
+  generateDualLens,
+} from "../ai/text-generation.js";
 import { getThumbnailImage } from "../api/google-images.js";
+import { createContentHash } from "../hash.js";
+import { createLogger } from "../log.js";
+import { tickProgress } from "../progress.js";
+import { isUsableSourceText } from "../reprocessing-policy.js";
 import {
   checkExistingBill,
-  checkExistingGovernmentContent,
   checkExistingCourtCase,
+  checkExistingGovernmentContent,
 } from "./helpers.js";
 import {
-  incrementTotalProcessed,
-  incrementNewEntries,
-  incrementExistingUnchanged,
-  incrementExistingChanged,
   incrementAIArticlesGenerated,
+  incrementExistingChanged,
+  incrementExistingUnchanged,
   incrementImagesSearched,
+  incrementNewEntries,
+  incrementTotalProcessed,
 } from "./metrics.js";
 import { generateVideoForContent } from "./video-operations.js";
-import { tickProgress } from "../progress.js";
-import { createLogger } from "../log.js";
 
 const logger = createLogger("db");
 const forceAIRegeneration = process.env.SCRAPER_FORCE_AI_REGEN === "1";
-
-function isUsableText(text: string | undefined | null): text is string {
-  if (!text || text.length < 200) return false;
-  if (/[A-Z]:\\/.test(text)) return false;
-
-  const lines = text.split("\n");
-  const boilerplateLines = lines.filter((line) => {
-    const trimmed = line.trim();
-    // Blank lines
-    if (trimmed === "") return true;
-    // Single-word lines (section numbers, lone tokens)
-    if (trimmed.split(/\s+/).length === 1) return true;
-    // Fully uppercase lines that are NOT legislative section headers
-    // (e.g. "SEC. 1." or "CHAPTER 2—" are expected in bill text — don't penalise them)
-    const isAllCaps =
-      /[a-zA-Z]/.test(trimmed) &&
-      trimmed === trimmed.toUpperCase() &&
-      trimmed.length > 2;
-    const isLegislativeHeader = /^(SEC\.|SECTION|CHAPTER|TITLE|PART|SUBPART|ART\.|ARTICLE)\s/i.test(trimmed);
-    return isAllCaps && !isLegislativeHeader;
-  });
-  // Raise threshold: bill/order text is legitimately header-heavy (50% instead of 30%)
-  if (boilerplateLines.length / lines.length >= 0.5) return false;
-
-  return true;
-}
 
 type ContentData =
   | { type: "bill"; data: BillData }
@@ -124,7 +109,10 @@ function getUpdateTable(input: ContentData) {
   }
 }
 
-export async function upsertContent(input: ContentData) {
+export async function upsertContent(
+  input: ContentData,
+  options?: { newItemLimiter?: NewItemLimiter },
+) {
   const newContentHash = createContentHash(hashFields(input));
   const existing = await checkExisting(input);
   const label = contentLabel(input);
@@ -136,9 +124,11 @@ export async function upsertContent(input: ContentData) {
   const url = input.data.url;
   const sourceDescription = input.data.description;
 
-  const hasUsableText = isUsableText(fullText);
+  const hasUsableText = isUsableSourceText(fullText);
   if (!hasUsableText && fullText) {
-    logger.debug(`${label} fullText failed usability check (too short or boilerplate-heavy) — AI article will be skipped`);
+    logger.debug(
+      `${label} fullText failed usability check (too short or boilerplate-heavy) — AI article will be skipped`,
+    );
   }
   const hasSummarySource = Boolean(
     fullText || (input.type === "bill" && input.data.summary),
@@ -146,7 +136,7 @@ export async function upsertContent(input: ContentData) {
   const persistedDescription = existing?.description;
   const hasPersistedSummary = Boolean(
     (sourceDescription && sourceDescription.trim()) ||
-      (persistedDescription && persistedDescription.trim()),
+    (persistedDescription && persistedDescription.trim()),
   );
   let shouldGenerateSummary = false;
   let shouldGenerateArticle = false;
@@ -157,7 +147,6 @@ export async function upsertContent(input: ContentData) {
     shouldGenerateSummary = !sourceDescription && hasSummarySource;
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = hasUsableText;
-    incrementNewEntries();
     progressKind = "new";
     logger.info(`New ${label} detected`);
   } else if (existing.contentHash !== newContentHash) {
@@ -169,7 +158,6 @@ export async function upsertContent(input: ContentData) {
       : hasUsableText && !existing.hasArticle;
     shouldGenerateImage =
       (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
-    incrementExistingChanged();
     progressKind = "changed";
     logger.info(`Content changed for ${label}`);
   } else {
@@ -181,7 +169,6 @@ export async function upsertContent(input: ContentData) {
       : hasUsableText && !existing.hasArticle;
     shouldGenerateImage =
       (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
-    incrementExistingUnchanged();
     progressKind = "unchanged";
     logger.debug(
       shouldGenerateSummary || shouldGenerateArticle || shouldGenerateImage
@@ -190,7 +177,48 @@ export async function upsertContent(input: ContentData) {
     );
   }
 
-  // Phase 1: always persist raw content first (no AI fields)
+  // New items beyond the run's daily budget skip AI enrichment. Bills that
+  // need a generated description are deferred before insertion; other content
+  // can persist raw and look like "needs backfill" work next run.
+  const budgetExhausted =
+    progressKind === "new" &&
+    options?.newItemLimiter !== undefined &&
+    !options.newItemLimiter.tryConsume();
+  if (budgetExhausted) {
+    shouldGenerateSummary = false;
+    shouldGenerateArticle = false;
+    shouldGenerateImage = false;
+    logger.info(
+      `${label}: daily new-item cap reached, deferring AI enrichment to a later run`,
+    );
+  }
+
+  // A generated bill description is part of the bill's minimum usable record,
+  // not an optional derived asset. Generate it before the insert so provider
+  // failure cannot leave a new, summarizable bill permanently blank.
+  let preGeneratedDescription: string | undefined;
+  if (!existing && input.type === "bill" && !sourceDescription) {
+    if (budgetExhausted || !hasSummarySource) {
+      logger.warn(
+        `${label}: deferring insert until a summary can be generated`,
+      );
+      return undefined;
+    }
+    const summarySource = input.data.summary || input.data.fullText || "";
+    logger.start(`Generating required AI summary for ${label}`);
+    preGeneratedDescription = await generateAISummary(title, summarySource);
+    if (!preGeneratedDescription.trim()) {
+      throw new Error(`AI returned an empty required summary for ${label}`);
+    }
+    shouldGenerateSummary = false;
+  }
+
+  if (progressKind === "new") incrementNewEntries();
+  else if (progressKind === "changed") incrementExistingChanged();
+  else incrementExistingUnchanged();
+
+  // Phase 1: persist source fields (plus the required pre-generated bill
+  // description when applicable) before optional derived assets.
   let result: { id: string; thumbnailUrl: string | null } | undefined;
 
   if (input.type === "bill") {
@@ -199,6 +227,7 @@ export async function upsertContent(input: ContentData) {
       .insert(Bill)
       .values({
         ...d,
+        description: preGeneratedDescription || d.description,
         contentHash: newContentHash,
         versions: [],
       })
@@ -286,6 +315,7 @@ export async function upsertContent(input: ContentData) {
   // Phase 2: AI enrichment — skipped entirely if rate-limited
   try {
     const existingDescription = sourceDescription || persistedDescription;
+    const effectiveDescription = preGeneratedDescription || existingDescription;
     const articleType =
       input.type === "bill"
         ? "bill"
@@ -296,8 +326,8 @@ export async function upsertContent(input: ContentData) {
     const [description, aiGeneratedArticle, thumbnailUrl] = await Promise.all([
       // Summary generation
       (async (): Promise<string | undefined> => {
-        if (existingDescription) {
-          return existingDescription;
+        if (effectiveDescription) {
+          return effectiveDescription;
         } else if (shouldGenerateSummary) {
           const summarySource =
             input.type === "bill"
@@ -323,7 +353,9 @@ export async function upsertContent(input: ContentData) {
             incrementAIArticlesGenerated();
             return article;
           }
-          logger.warn(`AI article generation returned empty result for ${label}`);
+          logger.warn(
+            `AI article generation returned empty result for ${label}`,
+          );
         } else if (existing?.hasArticle) {
           logger.debug(`Using existing AI article for ${label}`);
         }
@@ -346,7 +378,9 @@ export async function upsertContent(input: ContentData) {
             return thumbnailResult;
           } catch (error) {
             if (error instanceof AIRateLimitError) throw error;
-            logger.warn(`Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`);
+            logger.warn(
+              `Failed to fetch thumbnail for ${label}: ${error instanceof Error ? error.message : error}`,
+            );
             return null;
           }
         } else if (existing?.hasThumbnail) {
@@ -358,7 +392,7 @@ export async function upsertContent(input: ContentData) {
 
     // Only UPDATE if something was generated
     const hasNewDescription =
-      description !== undefined && description !== existingDescription;
+      description !== undefined && description !== effectiveDescription;
     if (
       hasNewDescription ||
       aiGeneratedArticle !== undefined ||
@@ -378,15 +412,29 @@ export async function upsertContent(input: ContentData) {
         .where(eq(idCol, result.id));
       logger.success(`${label} enriched with AI content`);
     }
+
+    // Generate and cache dual-lens perspectives
+    if (hasUsableText && result?.id) {
+      await upsertContentLens(
+        result.id,
+        input.type,
+        newContentHash,
+        title,
+        fullText!,
+        articleType,
+      );
+    }
   } catch (error) {
     if (error instanceof AIRateLimitError) {
-      logger.warn(`AI rate limit hit — ${label} saved without AI content, will retry next run`);
+      logger.warn(
+        `AI rate limit hit — ${label} saved without AI content, will retry next run`,
+      );
     } else {
       throw error;
     }
   }
 
-  if (fullText) {
+  if (fullText && !budgetExhausted) {
     try {
       const videoSource =
         input.type === "bill"
@@ -405,12 +453,16 @@ export async function upsertContent(input: ContentData) {
       );
     } catch (error) {
       if (error instanceof AIRateLimitError) {
-        logger.warn(`AI rate limit hit — ${label} saved without video, will retry next run`);
+        logger.warn(
+          `AI rate limit hit — ${label} saved without video, will retry next run`,
+        );
       } else {
         // Video generation is supplementary — a failure here must not abort
         // content processing or propagate the raw DB error (which can contain
         // binary image data) up to the scraper's generic error handler
-        logger.warn(`Video generation failed for ${label} — content was saved successfully: ${error instanceof Error ? error.message : error}`);
+        logger.warn(
+          `Video generation failed for ${label} — content was saved successfully: ${error instanceof Error ? error.message : error}`,
+        );
       }
     }
   }
@@ -422,4 +474,76 @@ export async function upsertContent(input: ContentData) {
   });
 
   return result;
+}
+
+/**
+ * Generate (or refresh) the cached dual-lens perspectives for a content item.
+ * Skips generation when a row already exists for the current contentHash, so
+ * unchanged content never re-pays for an LLM call. AIRateLimitError propagates
+ * to the caller's rate-limit handler.
+ */
+export async function upsertContentLens(
+  contentId: string,
+  contentType: "bill" | "government_content" | "court_case",
+  contentHash: string,
+  title: string,
+  fullText: string,
+  articleType: string,
+): Promise<void> {
+  const [existing] = await db
+    .select({ contentHash: ContentLens.contentHash })
+    .from(ContentLens)
+    .where(
+      and(
+        eq(ContentLens.contentId, contentId),
+        eq(ContentLens.contentType, contentType),
+      ),
+    )
+    .limit(1);
+
+  if (existing?.contentHash === contentHash) {
+    logger.debug(`Dual-lens already cached for ${contentId}`);
+    return;
+  }
+
+  const lens = await generateDualLens(
+    title,
+    fullText,
+    articleType,
+    framingForContentType(contentType),
+  );
+  if (!lens) {
+    logger.warn(`Dual-lens generation returned null for ${contentId}`);
+    return;
+  }
+
+  const modelVersion = getTextModelVersion();
+  await db
+    .insert(ContentLens)
+    .values({
+      contentId,
+      contentType,
+      contentHash,
+      lensData: {
+        ...lens,
+        generatedAt: new Date().toISOString(),
+        modelVersion,
+      },
+      modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: [ContentLens.contentType, ContentLens.contentId],
+      set: {
+        contentHash,
+        lensData: {
+          ...lens,
+          generatedAt: new Date().toISOString(),
+          modelVersion,
+        },
+        modelVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+  logger.success(`Cached dual-lens for ${contentId}`);
 }

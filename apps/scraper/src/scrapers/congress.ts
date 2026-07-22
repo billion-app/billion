@@ -8,9 +8,10 @@ import { setExpectedTotal } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
+import { createNewItemLimiter } from "../utils/new-item-limit.js";
+import { congressConfig } from "./congress.config.js";
 
 const BASE_URL = "https://api.congress.gov/v3";
-const NAME = "congress";
 const logger = createLogger("Congress.gov");
 
 interface CongressScraperConfig {
@@ -125,6 +126,34 @@ function formatBillNumber(type: string, number: string): string {
   return `${prefix} ${number}`;
 }
 
+const urlSlugToApiType: Record<string, string> = {
+  "house-bill": "hr",
+  "senate-bill": "s",
+  "house-joint-resolution": "hjres",
+  "senate-joint-resolution": "sjres",
+  "house-concurrent-resolution": "hconres",
+  "senate-concurrent-resolution": "sconres",
+  "house-simple-resolution": "hres",
+  "senate-simple-resolution": "sres",
+};
+
+/**
+ * Recover the congress.gov API's {billType, billNumber} from a stored bill
+ * URL (built by `scrape()` as .../bill/{congress}th-congress/{slug}/{number}).
+ * The Bill row only persists the human-formatted billNumber (e.g. "H.R. 1234"),
+ * not the raw API type/number, so this is the only way to re-hit the API later.
+ */
+export function parseBillUrl(
+  url: string,
+): { billType: string; billNumber: string } | undefined {
+  const match = /\/bill\/\d+\w{2}-congress\/([a-z-]+)\/(\d+)/.exec(url);
+  if (!match) return undefined;
+  const [, slug, number] = match;
+  const billType = urlSlugToApiType[slug!];
+  if (!billType || !number) return undefined;
+  return { billType, billNumber: number };
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
@@ -136,7 +165,7 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-async function fetchSummary(
+export async function fetchSummary(
   congress: number,
   billType: string,
   billNumber: string,
@@ -153,7 +182,7 @@ async function fetchSummary(
   }
 }
 
-async function fetchFullText(
+export async function fetchFullText(
   congress: number,
   billType: string,
   billNumber: string,
@@ -273,6 +302,7 @@ async function scrape(config: CongressScraperConfig = {}) {
   setExpectedTotal(bills.length);
 
   const limit = getItemLimit();
+  const newItemLimiter = createNewItemLimiter();
   await Promise.allSettled(
     bills.map((item) =>
       limit(async () => {
@@ -312,24 +342,29 @@ async function scrape(config: CongressScraperConfig = {}) {
           const fullText = await fetchFullText(congress, billType, billNumber);
           const actions = await fetchActions(congress, billType, billNumber);
 
-          await upsertContent({
-            type: "bill",
-            data: {
-              billNumber: formattedBillNumber,
-              title,
-              description: summary,
-              sponsor,
-              status,
-              introducedDate,
-              congress,
-              chamber: chamberValue,
-              summary,
-              fullText,
-              actions,
-              url: billUrl,
-              sourceWebsite: "congress.gov",
+          await upsertContent(
+            {
+              type: "bill",
+              data: {
+                billNumber: formattedBillNumber,
+                title,
+                // Keep the official CRS summary as source material. The DB
+                // pipeline generates the compact, app-facing description.
+                description: undefined,
+                sponsor,
+                status,
+                introducedDate,
+                congress,
+                chamber: chamberValue,
+                summary,
+                fullText,
+                actions,
+                url: billUrl,
+                sourceWebsite: "congress.gov",
+              },
             },
-          });
+            { newItemLimiter },
+          );
 
           logger.success(`Processed: ${formattedBillNumber} — ${title}`);
         } catch (error) {
@@ -346,6 +381,10 @@ async function scrape(config: CongressScraperConfig = {}) {
 }
 
 export const congress: Scraper = {
-  name: NAME,
-  scrape: () => scrape(),
+  ...congressConfig,
+  scrape: (options) =>
+    scrape({
+      maxBills:
+        (options?.maxItems ?? Number(process.env.CONGRESS_MAX_ITEMS)) || 100,
+    }),
 };

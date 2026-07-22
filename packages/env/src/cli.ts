@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import {
   cancel,
   confirm,
@@ -22,13 +23,12 @@ import type {
   EnvDefinition,
   EnvSurface,
   Requirement,
-  ScraperName,
+  ScraperEnvContract,
 } from "./index";
 import { readEnvFile, repoRoot, writeEnvValues } from "./files";
 import {
   definitionsFor,
   definitionsForAll,
-  scraperNames,
   surfaces,
   validateEnvironment,
 } from "./index";
@@ -36,7 +36,7 @@ import {
 interface CliOptions {
   command: "doctor" | "setup" | "template";
   target?: EnvSurface | "all";
-  scrapers?: ScraperName[];
+  scrapers?: string[];
   file: string;
   source: "file" | "process";
   output?: string;
@@ -52,7 +52,11 @@ function stopIfCancelled<T>(value: T | symbol): T {
   return value;
 }
 
-function parseArgs(argv: string[]): CliOptions {
+function parseArgs(
+  argv: string[],
+  scraperContracts: readonly ScraperEnvContract[],
+): CliOptions {
+  const scraperNames = scraperContracts.map((contract) => contract.id);
   const parsed = yargs(argv.filter((argument) => argument !== "--"))
     .scriptName("pnpm env")
     .usage("$0 <doctor|setup|template> [options]")
@@ -106,7 +110,7 @@ function parseArgs(argv: string[]): CliOptions {
   return {
     command: String(parsed._[0]) as CliOptions["command"],
     target: parsed.target,
-    scrapers: parsed.scraper as ScraperName[] | undefined,
+    scrapers: parsed.scraper,
     file: resolve(repoRoot, parsed.file),
     source: parsed.source as CliOptions["source"],
     output: parsed.output ? resolve(repoRoot, parsed.output) : undefined,
@@ -125,32 +129,44 @@ async function chooseTarget(current?: EnvSurface | "all") {
         { value: "expo", label: "Expo mobile build" },
         { value: "scraper", label: "Scraper jobs" },
         { value: "database", label: "Database tooling" },
-        { value: "social", label: "Social-media agent" },
       ],
     }),
   );
 }
 
-async function chooseScrapers(current?: ScraperName[]) {
+async function chooseScrapers(
+  current: string[] | undefined,
+  scraperContracts: readonly ScraperEnvContract[],
+) {
   if (current?.length) return current;
   return stopIfCancelled(
-    await multiselect<ScraperName>({
+    await multiselect<string>({
       message: "Which scrapers will this environment run?",
-      options: scraperNames.map((name) => ({ value: name, label: name })),
-      initialValues: [...scraperNames],
+      options: scraperContracts.map((contract) => ({
+        value: contract.id,
+        label: contract.name,
+        hint: contract.source,
+      })),
+      initialValues: scraperContracts.map((contract) => contract.id),
       required: true,
     }),
   );
 }
 
 function displayStatus(
-  state: "configured" | "missing" | "invalid",
-  key: string,
-  requirement: Requirement,
+  status: {
+    state: "configured" | "default" | "missing" | "invalid";
+    definition: EnvDefinition;
+    requirement: Requirement;
+  },
   message?: string,
 ) {
+  const { state, definition, requirement } = status;
+  const key = definition.key;
   const suffix = `${key.padEnd(33)} ${requirement}`;
   if (state === "configured") log.success(suffix);
+  else if (state === "default")
+    log.info(`${suffix} — default: ${definition.defaultValue}`);
   else if (state === "invalid")
     log.error(`${suffix} — ${message ?? "invalid"}`);
   else if (requirement === "required") log.error(`${suffix} — missing`);
@@ -181,7 +197,10 @@ function extraConsistencyIssues(
   return issues;
 }
 
-function runDoctor(options: CliOptions) {
+function runDoctor(
+  options: CliOptions,
+  scraperContracts: readonly ScraperEnvContract[],
+) {
   const environment =
     options.source === "process"
       ? (process.env as Record<string, string | undefined>)
@@ -197,18 +216,20 @@ function runDoctor(options: CliOptions) {
       environment,
       surface,
       scrapers: surface === "scraper" ? options.scrapers : undefined,
+      scraperContracts,
     });
     log.step(surface);
     for (const status of result.statuses) {
       const issue = result.issues.find(
         (item) => item.key === status.definition.key,
       );
-      displayStatus(
-        status.state,
-        status.definition.key,
-        status.requirement,
-        issue?.message,
-      );
+      displayStatus(status, issue?.message);
+    }
+    const definitionKeys = new Set(
+      result.statuses.map((status) => status.definition.key),
+    );
+    for (const issue of result.issues) {
+      if (!definitionKeys.has(issue.key)) log.error(issue.message);
     }
     if (!result.success) failed = true;
   }
@@ -247,6 +268,12 @@ async function promptForValue(
     );
     if (generate) return randomBytes(32).toString("base64url");
   }
+  if (definition.key === "POSTGRES_URL") {
+    note(
+      "If you substitute a username or password yourself, percent-encode only those components (for example, p@ss becomes p%40ss). Do not encode the entire URL. Provider-copied connection strings are usually ready to paste.",
+      "Special characters",
+    );
+  }
   const promptOptions = {
     message: `Enter ${definition.key} (leave empty to skip)`,
     validate(value: string | undefined) {
@@ -268,12 +295,23 @@ async function promptForValue(
   );
 }
 
-async function runSetup(options: CliOptions) {
+async function runSetup(
+  options: CliOptions,
+  scraperContracts: readonly ScraperEnvContract[],
+) {
+  if (options.target === "all") {
+    for (const surface of surfaces) {
+      await runSetup({ ...options, target: surface }, scraperContracts);
+    }
+    return;
+  }
   const surface = await chooseTarget(options.target);
   const selectedScrapers =
-    surface === "scraper" ? await chooseScrapers(options.scrapers) : undefined;
+    surface === "scraper"
+      ? await chooseScrapers(options.scrapers, scraperContracts)
+      : undefined;
   const existing = readEnvFile(options.file);
-  const pending = definitionsFor(surface, selectedScrapers);
+  const pending = definitionsFor(surface, selectedScrapers, scraperContracts);
 
   intro(`env setup · ${surface}`);
   note(
@@ -296,7 +334,12 @@ async function runSetup(options: CliOptions) {
 
   const updates: Record<string, string> = {};
   for (const { definition, requirement } of pending) {
-    if (requirement === "optional" && !includeOptional) continue;
+    if (
+      requirement === "optional" &&
+      !includeOptional &&
+      !definition.defaultValue
+    )
+      continue;
     const current = existing[definition.key];
     if (
       current &&
@@ -323,23 +366,31 @@ async function runSetup(options: CliOptions) {
   }
   writeEnvValues(options.file, updates);
   outro(`Updated ${Object.keys(updates).length} value(s) in ${options.file}.`);
-  runDoctor({
-    ...options,
-    command: "doctor",
-    target: surface,
-    scrapers: selectedScrapers,
-  });
+  runDoctor(
+    {
+      ...options,
+      command: "doctor",
+      target: surface,
+      scrapers: selectedScrapers,
+    },
+    scraperContracts,
+  );
 }
 
-function renderTemplate(options: CliOptions) {
+function renderTemplate(
+  options: CliOptions,
+  scraperContracts: readonly ScraperEnvContract[],
+) {
   if (!options.target) throw new Error("template requires --target");
   const definitions =
     options.target === "all"
-      ? definitionsForAll()
-      : definitionsFor(options.target, options.scrapers);
+      ? definitionsForAll(scraperContracts)
+      : definitionsFor(options.target, options.scrapers, scraperContracts);
   const lines = [
-    `# Generated environment template for ${options.target}.`,
-    "# Source of truth: packages/env/src/registry.ts",
+    "# THIS FILE IS GENERATED. DO NOT EDIT IT BY HAND.",
+    "# Regenerate it with: pnpm env:example",
+    `# Environment template for ${options.target}.`,
+    "# Sources of truth: packages/env/src/registry.ts and each scraper's environment declaration.",
     "# Contains no secret values. Run pnpm env:setup to configure a value file.",
     "",
   ];
@@ -364,16 +415,23 @@ function renderTemplate(options: CliOptions) {
   }
 }
 
-async function main() {
+export async function runEnvCli(
+  argv = process.argv.slice(2),
+  scraperContracts: readonly ScraperEnvContract[] = [],
+) {
   try {
-    const options = parseArgs(process.argv.slice(2));
-    if (options.command === "doctor") runDoctor(options);
-    else if (options.command === "setup") await runSetup(options);
-    else renderTemplate(options);
+    const options = parseArgs(argv, scraperContracts);
+    if (options.command === "doctor") runDoctor(options, scraperContracts);
+    else if (options.command === "setup")
+      await runSetup(options, scraperContracts);
+    else renderTemplate(options, scraperContracts);
   } catch (error) {
     log.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 2;
   }
 }
 
-await main();
+const entry = process.argv[1]
+  ? pathToFileURL(resolve(process.argv[1])).href
+  : "";
+if (entry === import.meta.url) await runEnvCli();

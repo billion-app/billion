@@ -6,9 +6,12 @@
 
 Invoke via CLI: `pnpm start [scraper|all] [--concurrency N]` (default
 concurrency 3, via `p-limit`). From the repo root, use
-`pnpm --filter @acme/scraper run start -- [scraper] --concurrency N`. It ships
-as a multi-stage `Dockerfile.scraper` (Node 20-slim) that builds `@acme/db` +
-the scraper, rewrites package exports to `dist/`, and runs `node dist/main.js`.
+`pnpm --filter @acme/scraper run start [scraper] --concurrency N`. It ships
+as a multi-stage `Dockerfile.scraper` (Node 22-slim). Vite builds the Node ESM
+production entries, bundles linked workspace source, and leaves ordinary
+runtime dependencies external for the production install. The container starts
+the CLI with `node dist/main.js`; production configuration is read from the
+process environment at runtime, not embedded during the build.
 
 ## Scrapers
 
@@ -34,13 +37,14 @@ All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fe
 1. Compute a SHA-256 over the type-specific key fields (title, summary, full text, status…).
 2. Look up the existing row by its natural key (`(billNumber, sourceWebsite)`, `url`, or `caseNumber`).
 3. **Unchanged hash** → skip AI entirely; backfill only missing AI assets.
-4. **New or changed** → run the AI pipeline, upsert via `onConflictDoUpdate`, append to `versions`.
+4. **New bill without a source description** → generate the required description first; defer the insert if source text or every provider is unavailable.
+5. **New or changed** → run the remaining AI pipeline, upsert via `onConflictDoUpdate`, append to `versions`.
 
 `SCRAPER_FORCE_AI_REGEN=1` overrides the cache. A `isUsableText()` gate refuses to feed AI any text under 200 chars or that's mostly blank/all-caps/single-word lines — keeps the model from "summarizing" garbage.
 
 ## AI Pipeline
 
-Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text via **DeepSeek `deepseek-v4-flash`** (Vercel AI SDK), images via **Black Forest Labs FLUX.2 Pro**. Token and image costs are tracked per run.
+Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text uses **OpenRouter** first, then an OpenAI-compatible local endpoint (`LOCAL_LLM_BASE_URL`, such as Ollama), with direct DeepSeek retained only as a deprecated last resort. PDF vision fallback uses **Gemini `gemini-2.5-flash`**. Images use hosted **Black Forest Labs FLUX.2 Klein 9B**, then `LOCAL_FLUX_BASE_URL` as a local fallback. Provider usage and hosted-image costs are tracked per run.
 
 Each new/changed item runs through:
 
@@ -49,10 +53,12 @@ Each new/changed item runs through:
 3. **Marketing copy** (`marketing-generation.ts`) — Zod-validated `{ title ≤25 chars, description ≤25 words, imagePrompt }` for the `video` feed card.
 4. **Imagery** — multiple sources:
    - _Scraped thumbnail_ (preferred, free): source-provided image URL → `thumbnail_url`.
-   - _Generated_: FLUX.2 Pro produces a 1024×1024 image from the marketing image prompt; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Up to 3 retries with backoff; moderation blocks return `null` silently.
+   - _Generated_: hosted FLUX.2 Klein 9B produces a 1024×1024 image, falling back to the configured local FLUX server at 768×768; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Hosted calls retry with backoff; moderation blocks return `null` silently.
    - _Stock-photo fallback_: `image-keywords.ts` → Google Custom Search (`GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`) can supply a thumbnail URL.
 
-> The earlier design used **Gemini for text and DALL-E/Imagen for images**; both were replaced (DeepSeek for cost/quality on text, FLUX.2 Pro for images).
+New bills that need an AI description generate it before the initial insert. A
+provider outage therefore leaves the source item eligible for the next scrape
+instead of persisting an incomplete bill that requires a manual repair.
 
 ## Pipeline Flow
 
@@ -67,7 +73,7 @@ flowchart TD
     changed -->|no| backfill["Backfill missing<br/>AI assets only"]
     changed -->|yes| usable{"isUsableText()?<br/>(≥200 chars, not boilerplate)"}
     usable -->|no| skipai["Upsert raw content,<br/>skip AI"]
-    usable -->|yes| ai["AI pipeline (DeepSeek)"]
+    usable -->|yes| ai["AI pipeline (OpenRouter)"]
 
     ai --> summary["Summary (≤100 chars)"]
     summary --> article["Article (4-section markdown)<br/>→ ai_generated_article"]
@@ -75,7 +81,7 @@ flowchart TD
     marketing --> img{"Scraped<br/>thumbnail?"}
 
     img -->|yes| thumburl["thumbnail_url"]
-    img -->|no| flux["FLUX.2 Pro → sharp JPEG<br/>→ image_data (bytea)"]
+    img -->|no| flux["FLUX.2 Klein 9B → sharp JPEG<br/>→ image_data (bytea)"]
     flux -.->|moderation block / fail| stock["Google Custom Search<br/>stock thumbnail URL"]
 
     thumburl --> upsert["upsertContent()<br/>onConflictDoUpdate + append versions"]

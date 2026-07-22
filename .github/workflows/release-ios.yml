@@ -1,0 +1,71 @@
+name: Release iOS (TestFlight)
+
+# Mirrors the release-billion-testflight skill: on a pushed vX.Y.Z tag, validate
+# the release and run an EAS production build that auto-submits to TestFlight.
+# The human still owns bumping the version + creating/pushing the tag; this
+# workflow reacts to that tag.
+on:
+  push:
+    tags:
+      - "v*"
+
+# Never run two TestFlight submissions at once.
+concurrency:
+  group: release-ios
+  cancel-in-progress: false
+
+env:
+  FORCE_COLOR: 3
+
+jobs:
+  build-submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup and install
+        uses: ./tooling/github/setup
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # --- Preflight (acceptance gate before spending a build) ---
+      - name: Verify version matches tag
+        working-directory: apps/expo
+        run: |
+          CONFIG_VERSION="$(node -p "require('./app.config.base.json').version")"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "config=$CONFIG_VERSION tag=$TAG_VERSION"
+          if [ "$CONFIG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::app.config.base.json version ($CONFIG_VERSION) does not match tag ($TAG_VERSION). Bump the version before tagging."
+            exit 1
+          fi
+
+      - name: Typecheck
+        working-directory: apps/expo
+        run: pnpm typecheck
+
+      - name: Lint
+        working-directory: apps/expo
+        run: pnpm lint
+
+      - name: Expo Doctor
+        working-directory: apps/expo
+        run: pnpm dlx expo-doctor@latest .
+
+      # --- Build + submit ---
+      # iOS signing credentials and the App Store Connect API key live on EAS
+      # servers; app runtime env vars (EXPO_PUBLIC_API_URL, POSTHOG_*) come from
+      # the EAS "production" environment. So EXPO_TOKEN is the only secret needed.
+      - name: EAS build + auto-submit to TestFlight
+        working-directory: apps/expo
+        run: |
+          eas build \
+            --platform ios \
+            --profile production \
+            --auto-submit \
+            --non-interactive \
+            --message "Release ${GITHUB_REF_NAME}"

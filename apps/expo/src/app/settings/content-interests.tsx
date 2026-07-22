@@ -12,6 +12,7 @@ import {
   ScreenShell,
   Toggle,
 } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import { colors, fontBody, hair } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 
@@ -63,6 +64,11 @@ export default function ContentInterestsScreen() {
       saveMutation.mutate({
         topics: [...newTopics],
         contentTypes: [...newCats],
+      });
+      posthog.capture("content_interests_updated", {
+        topic_count: newTopics.size,
+        topics: [...newTopics],
+        content_types: [...newCats],
       });
     },
     [saveMutation],

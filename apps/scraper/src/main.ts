@@ -1,42 +1,25 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import type { Scraper } from "./utils/types.js";
-import { validateScraperEnv } from "./env.js";
-import { caLaoFiscal } from "./scrapers/ca-lao-fiscal.js";
-import { caSosStatements } from "./scrapers/ca-sos-statements.js";
-import { caVigArchive } from "./scrapers/ca-vig-archive.js";
-import { congress } from "./scrapers/congress.js";
-import { federalregister } from "./scrapers/federalregister.js";
-import { sccCvig } from "./scrapers/scc-cvig.js";
-import { scotus } from "./scrapers/scotus.js";
-import { vote411 } from "./scrapers/vote411.js";
+import {
+  databaseTarget,
+  databaseTargetMessage,
+  validateScraperEnv,
+} from "./env.js";
+import { scrapers } from "./scrapers.js";
 import { setConcurrency } from "./utils/concurrency.js";
 import { printMetricsSummary, resetMetrics } from "./utils/db/metrics.js";
 import { createLogger } from "./utils/log.js";
 
 const logger = createLogger("main");
 
-const scrapers: Scraper[] = [
-  federalregister,
-  congress,
-  scotus,
-  vote411,
-  sccCvig,
-  caSosStatements,
-  caLaoFiscal,
-  caVigArchive,
-];
-const scraperNames = scrapers.map((s) => s.name);
+const scraperNames = scrapers.map((scraper) => scraper.id);
 
 const argv = await yargs(hideBin(process.argv))
   .command("$0 [scraper]", "Run government data scrapers", (yargs) =>
     yargs.positional("scraper", {
       describe: "Which scraper to run",
-      choices: [
-        ...scraperNames.map((n) => n.toLowerCase().replace(/[.\s]/g, "")),
-        "all",
-      ] as const,
+      choices: [...scraperNames, "all"] as const,
       default: "all" as const,
     }),
   )
@@ -46,11 +29,39 @@ const argv = await yargs(hideBin(process.argv))
     default: 3,
     describe: "Number of items to process concurrently within each scraper",
   })
+  .option("max-items", {
+    alias: "n",
+    type: "number",
+    describe:
+      "Maximum source records per scraper for this run; overrides the scraper-specific env value",
+  })
+  .check((args) => {
+    const maxItems = args.maxItems;
+    if (
+      maxItems !== undefined &&
+      (typeof maxItems !== "number" ||
+        !Number.isInteger(maxItems) ||
+        maxItems <= 0)
+    ) {
+      throw new Error("--max-items must be a positive integer");
+    }
+    return true;
+  })
   .help()
   .parse();
 
 const arg = argv.scraper as string;
 const concurrency = (argv as { concurrency: number }).concurrency;
+const maxItems = (argv as { maxItems?: number }).maxItems;
+
+function logDatabaseTarget(): void {
+  const target = databaseTarget(process.env.POSTGRES_URL!);
+  if (target.target === "production") {
+    logger.warn(databaseTargetMessage(process.env.POSTGRES_URL!));
+  } else {
+    logger.info(databaseTargetMessage(process.env.POSTGRES_URL!));
+  }
+}
 
 setConcurrency(concurrency);
 
@@ -58,8 +69,11 @@ async function main() {
   resetMetrics();
   if (arg === "all") {
     validateScraperEnv(scrapers);
+    logDatabaseTarget();
     logger.info("Running all scrapers...");
-    const results = await Promise.allSettled(scrapers.map((s) => s.scrape()));
+    const results = await Promise.allSettled(
+      scrapers.map((scraper) => scraper.scrape({ maxItems })),
+    );
     const failed = results
       .map((result, i) => ({ result, scraper: scrapers[i] }))
       .filter(({ result }) => result.status === "rejected");
@@ -76,15 +90,14 @@ async function main() {
     }
     printMetricsSummary("All Scrapers");
   } else {
-    const scraper = scrapers.find(
-      (s) => s.name.toLowerCase().replace(/[.\s]/g, "") === arg,
-    );
+    const scraper = scrapers.find((scraper) => scraper.id === arg);
     if (!scraper) {
       logger.error(`Unknown scraper: "${arg}"`);
       process.exit(1);
     }
     validateScraperEnv([scraper]);
-    await scraper.scrape();
+    logDatabaseTarget();
+    await scraper.scrape({ maxItems });
     printMetricsSummary(scraper.name);
   }
 }

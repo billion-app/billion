@@ -93,6 +93,32 @@ interface ElectionResultsSectionProps {
    * the voter — without them, only the statewide marquee races show.
    */
   contests?: Contest[];
+  /** Address-specific Civic election used to reject a different-cycle feed. */
+  electionDay: string;
+  electionName: string;
+}
+
+const ELECTION_MATCH_DAYS = 14;
+
+function resultsMatchElection(
+  contests: ElectionContestResult[],
+  electionDay: string,
+): boolean {
+  const electionDate = new Date(`${electionDay}T12:00:00`);
+  if (Number.isNaN(electionDate.getTime())) return false;
+  return contests.some((contest) => {
+    const reported = parseAsOfDate(contest.asOf);
+    if (!reported) return false;
+    const difference = Math.abs(reported.getTime() - electionDate.getTime());
+    return difference / (1000 * 60 * 60 * 24) <= ELECTION_MATCH_DAYS;
+  });
+}
+
+function electionBadge(name: string): string {
+  if (/primary/i.test(name)) return "CA Primary";
+  if (/general/i.test(name)) return "CA General";
+  if (/special/i.test(name)) return "CA Special";
+  return "CA Election";
 }
 
 const CHAMBER_LABEL: Record<DistrictRef["chamber"], string> = {
@@ -254,7 +280,9 @@ function ContestCard({ contest }: { contest: ElectionContestResult }) {
 
 export function ElectionResultsSection({
   contests: ballotContests,
-}: ElectionResultsSectionProps = {}) {
+  electionDay,
+  electionName,
+}: ElectionResultsSectionProps) {
   const statewideQuery = useQuery({
     ...trpc.civic.getElectionResults.queryOptions({}),
     refetchInterval: POLL_MS,
@@ -289,7 +317,10 @@ export function ElectionResultsSection({
   // Gate on recency: only surface while the feed's own "as of" timestamp is
   // within the window. Keeps results from lingering, mislabeled as live, once a
   // cycle passes — the section self-hides until the next election reports.
-  const current = useMemo(() => resultsAreCurrent(all), [all]);
+  const current = useMemo(
+    () => resultsAreCurrent(all) && resultsMatchElection(all, electionDay),
+    [all, electionDay],
+  );
 
   // Still "live" while any race is below 100% precincts reporting; once every
   // shown race is fully reported, drop the live framing to plain "Results".
@@ -311,7 +342,7 @@ export function ElectionResultsSection({
         </Text>
         <View style={s.liveBadge}>
           {stillCounting ? <View style={s.liveDot} /> : null}
-          <Text style={s.liveText}>CA Primary</Text>
+          <Text style={s.liveText}>{electionBadge(electionName)}</Text>
         </View>
       </View>
 

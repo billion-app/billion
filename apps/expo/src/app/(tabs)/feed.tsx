@@ -18,6 +18,7 @@ import type { VideoPost } from "@acme/api";
 
 import { Text } from "~/components/Themed";
 import { Badge, Icon, LensStrip, Placeholder } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import {
   colors,
   contentType,
@@ -119,6 +120,7 @@ function FeedCard({
 
   return (
     <LinearGradient
+      testID="feed-card"
       colors={[planes.navy, "#181F38"]}
       style={[
         s.card,
@@ -131,7 +133,9 @@ function FeedCard({
     >
       {/* top meta */}
       <View style={s.meta}>
-        <Badge type={typeKey} />
+        <View testID="feed-badge">
+          <Badge type={typeKey} />
+        </View>
         <Text style={s.tag}>{TYPE_TAG[item.type] ?? "Briefing"}</Text>
         <Text style={s.time}>Recent</Text>
       </View>
@@ -154,11 +158,13 @@ function FeedCard({
       )}
 
       {/* headline */}
-      <Text style={s.headline}>{item.title}</Text>
+      <Text style={s.headline} testID="feed-title">
+        {item.title}
+      </Text>
 
       {/* gist */}
       {item.articlePreview ? (
-        <Text style={s.gist} numberOfLines={4}>
+        <Text style={s.gist} numberOfLines={4} testID="feed-description">
           {item.articlePreview}
         </Text>
       ) : null}
@@ -191,7 +197,7 @@ function FeedCard({
           <Text style={s.ctaText}>Dig into the source</Text>
           <Icon name="external" size={17} color={planes.ink} />
         </TouchableOpacity>
-        {canSave && (
+        {__DEV__ && canSave && (
           <TouchableOpacity
             style={s.saveBtn}
             onPress={toggleSave}
@@ -269,9 +275,14 @@ export default function FeedScreen() {
             height={SCREEN_H}
             topInset={insets.top}
             bottomInset={insets.bottom}
-            onOpen={() =>
-              router.push(`/article-detail?id=${item.originalContentId}`)
-            }
+            onOpen={() => {
+              posthog.capture("feed_item_detail_opened", {
+                content_id: item.originalContentId,
+                content_type: item.type,
+                content_title: item.title,
+              });
+              router.push(`/article-detail?id=${item.originalContentId}`);
+            }}
           />
         )}
         pagingEnabled

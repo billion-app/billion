@@ -1,27 +1,19 @@
 import { z } from "zod/v4";
 
-export const surfaces = [
-  "nextjs",
-  "expo",
-  "scraper",
-  "database",
-  "social",
-] as const;
+export const surfaces = ["nextjs", "expo", "scraper", "database"] as const;
 export type EnvSurface = (typeof surfaces)[number];
 
-export const scraperNames = [
-  "federalregister",
-  "congress",
-  "scotus",
-  "vote411",
-  "scc-cvig",
-  "ca-sos-statements",
-  "ca-lao-fiscal",
-  "ca-vig-archive",
-] as const;
-export type ScraperName = (typeof scraperNames)[number];
-
 export type Requirement = "required" | "recommended" | "optional";
+
+export interface ScraperEnvContract {
+  id: string;
+  name: string;
+  source: string;
+  environment: Partial<Record<Requirement, readonly string[]>> & {
+    /** Every group requires at least one configured key. */
+    requiredAny?: readonly (readonly string[])[];
+  };
+}
 
 export interface EnvDefinition {
   key: string;
@@ -32,16 +24,24 @@ export interface EnvDefinition {
   example?: string;
   defaultValue?: string;
   requirements: Partial<Record<EnvSurface, Requirement>>;
-  scraperRequirements?: Partial<Record<ScraperName, Requirement>>;
   schema: z.ZodType<string>;
 }
 
 const string = z.string().trim().min(1, "must not be empty");
 const url = z.url("must be a valid URL");
-const postgresUrl = string.refine(
-  (value) => /^postgres(?:ql)?:\/\//i.test(value),
-  "must start with postgres:// or postgresql://",
-);
+const postgresUrl = string
+  .refine(
+    (value) => /^postgres(?:ql)?:\/\//i.test(value),
+    "must start with postgres:// or postgresql://",
+  )
+  .refine((value) => {
+    try {
+      const parsed = new URL(value);
+      return Boolean(parsed.hostname) && !/%(?![0-9a-f]{2})/i.test(value);
+    } catch {
+      return false;
+    }
+  }, "must be a valid connection URL; percent-encode special characters in username/password components");
 const emailList = string.refine(
   (value) =>
     value
@@ -53,35 +53,51 @@ const positiveNumber = string.refine(
   (value) => Number.isFinite(Number(value)) && Number(value) >= 0,
   "must be a non-negative number",
 );
+const positiveInteger = string.refine(
+  (value) => Number.isInteger(Number(value)) && Number(value) > 0,
+  "must be a positive integer",
+);
 
 const define = (definition: EnvDefinition) => definition;
 const scraperCostDefinitions = [
-  ["LLM_INPUT_PRICE", "Estimated LLM input price.", "0.10"],
-  ["LLM_OUTPUT_PRICE", "Estimated LLM output price.", "0.30"],
-  ["FLUX_IMAGE_PRICE", "Estimated price per generated BFL image.", "0.03"],
+  ["LLM_INPUT_PRICE", "Estimated DeepSeek V4 Flash input price.", "0.14"],
+  ["LLM_OUTPUT_PRICE", "Estimated DeepSeek V4 Flash output price.", "0.28"],
+  [
+    "VISION_INPUT_PRICE",
+    "Estimated Gemini 2.5 Flash vision input price.",
+    "0.30",
+  ],
+  [
+    "VISION_OUTPUT_PRICE",
+    "Estimated Gemini 2.5 Flash vision output price.",
+    "2.50",
+  ],
+  ["FLUX_IMAGE_PRICE", "Estimated price per generated BFL image.", "0.015"],
   [
     "GOOGLE_SEARCH_PRICE",
     "Estimated price per Custom Search request.",
     "0.005",
   ],
 ] as const;
+const scraperSourceLimitDefinitions = [
+  ["FEDERALREGISTER_MAX_ITEMS", "Federal Register documents per run.", "20"],
+  ["CONGRESS_MAX_ITEMS", "Congress.gov bills per run.", "100"],
+  ["SCOTUS_MAX_ITEMS", "CourtListener opinion clusters per run.", "50"],
+  ["SCC_CVIG_MAX_ITEMS", "Santa Clara voter-guide PDFs per run.", "10"],
+  ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
+] as const;
 
 export const envRegistry = [
   define({
     key: "POSTGRES_URL",
     description:
-      "Postgres connection used by the API, auth, DB tools, and DB-writing scrapers.",
+      "Postgres connection used by the API, auth, DB tools, and DB-writing scrapers. Percent-encode special characters only inside substituted username/password components.",
     group: "Database",
     secret: true,
     setupUrl:
       "https://supabase.com/docs/guides/database/connecting-to-postgres",
     example: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
     requirements: { nextjs: "required", database: "required" },
-    scraperRequirements: Object.fromEntries(
-      scraperNames
-        .filter((name) => name !== "vote411")
-        .map((name) => [name, "required"]),
-    ) as Partial<Record<ScraperName, Requirement>>,
     schema: postgresUrl,
   }),
   define({
@@ -159,6 +175,63 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL",
+    description:
+      "Verified Resend sender for the immediate waitlist confirmation email.",
+    group: "Email",
+    secret: false,
+    setupUrl: "https://resend.com/docs/dashboard/domains/introduction",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "RESEND_TESTFLIGHT_BATCH_SEGMENT_ID",
+    description:
+      "Optional active TestFlight batch segment assigned to new waitlist contacts.",
+    group: "Email",
+    secret: false,
+    setupUrl: "https://resend.com/docs/dashboard/segments/introduction",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "NEXT_PUBLIC_POSTHOG_KEY",
+    description: "PostHog project API key used by the Next.js client.",
+    group: "Analytics",
+    secret: false,
+    setupUrl: "https://us.posthog.com/project/settings",
+    requirements: { nextjs: "required" },
+    schema: string,
+  }),
+  define({
+    key: "NEXT_PUBLIC_POSTHOG_HOST",
+    description: "PostHog ingestion host used by the Next.js client.",
+    group: "Analytics",
+    secret: false,
+    example: "https://us.i.posthog.com",
+    requirements: { nextjs: "required" },
+    schema: url,
+  }),
+  define({
+    key: "POSTHOG_API_KEY",
+    description:
+      "PostHog personal API key with write access for production source-map uploads.",
+    group: "Analytics",
+    secret: true,
+    setupUrl: "https://us.posthog.com/settings/user-api-keys",
+    requirements: { nextjs: "recommended" },
+    schema: string,
+  }),
+  define({
+    key: "POSTHOG_PROJECT_ID",
+    description: "PostHog project ID used for production source-map uploads.",
+    group: "Analytics",
+    secret: false,
+    example: "489046",
+    requirements: { nextjs: "recommended" },
+    schema: positiveInteger,
+  }),
+  define({
     key: "EXPO_PUBLIC_API_URL",
     description:
       "Public HTTPS origin of the Next.js API; compiled into Expo builds.",
@@ -176,7 +249,7 @@ export const envRegistry = [
     group: "Civic data",
     secret: true,
     setupUrl: "https://developers.google.com/civic-information/docs/using_api",
-    requirements: { nextjs: "recommended" },
+    requirements: { nextjs: "required" },
     schema: string,
   }),
   define({
@@ -210,17 +283,68 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "OPENROUTER_API_KEY",
+    description: "Preferred key for AI text generation through OpenRouter.",
+    group: "AI",
+    secret: true,
+    setupUrl: "https://openrouter.ai/settings/keys",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "OPENROUTER_MODEL",
+    description: "OpenRouter model slug used for AI text generation.",
+    group: "AI",
+    secret: false,
+    defaultValue: "deepseek/deepseek-v4-flash",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
     key: "DEEPSEEK_API_KEY",
-    description: "DeepSeek key for AI text generation.",
+    description:
+      "Deprecated direct DeepSeek key; use OPENROUTER_API_KEY for AI text generation.",
     group: "AI",
     secret: true,
     setupUrl: "https://platform.deepseek.com/api_keys",
     requirements: { nextjs: "optional" },
-    scraperRequirements: {
-      federalregister: "required",
-      congress: "required",
-      scotus: "required",
-    },
+    schema: string,
+  }),
+  define({
+    key: "LOCAL_LLM_BASE_URL",
+    description:
+      "OpenAI-compatible local inference base URL used after OpenRouter, for example Ollama's /v1 endpoint.",
+    group: "AI",
+    secret: false,
+    example: "http://host.docker.internal:11434/v1",
+    requirements: { scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "LOCAL_LLM_MODEL",
+    description: "Model served by the local OpenAI-compatible endpoint.",
+    group: "AI",
+    secret: false,
+    defaultValue: "billion-scraper:latest",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "LOCAL_LLM_API_KEY",
+    description:
+      "Optional bearer token for the local inference endpoint; Ollama ignores the default placeholder.",
+    group: "AI",
+    secret: true,
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "GROQ_API_KEY",
+    description: "Groq key for AI text generation.",
+    group: "AI",
+    secret: true,
+    setupUrl: "https://console.groq.com/keys",
+    requirements: { nextjs: "optional" },
     schema: string,
   }),
   define({
@@ -239,7 +363,6 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://api.congress.gov/sign-up/",
     requirements: {},
-    scraperRequirements: { congress: "required" },
     schema: string,
   }),
   define({
@@ -249,7 +372,6 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://www.courtlistener.com/sign-in/",
     requirements: {},
-    scraperRequirements: { scotus: "recommended" },
     schema: string,
   }),
   define({
@@ -266,7 +388,26 @@ export const envRegistry = [
     description: "BFL image model endpoint.",
     group: "Scraper images",
     secret: false,
-    defaultValue: "flux-2-pro",
+    defaultValue: "flux-2-klein-9b",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "LOCAL_FLUX_BASE_URL",
+    description:
+      "Local FLUX API base URL used when BFL is unavailable or unconfigured.",
+    group: "Scraper images",
+    secret: false,
+    example: "http://host.docker.internal:8080",
+    requirements: { scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "LOCAL_FLUX_MODEL",
+    description: "Model name accepted by the local FLUX API.",
+    group: "Scraper images",
+    secret: false,
+    defaultValue: "klein",
     requirements: { scraper: "optional" },
     schema: string,
   }),
@@ -296,7 +437,6 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://aistudio.google.com/app/apikey",
     requirements: {},
-    scraperRequirements: { "scc-cvig": "optional" },
     schema: string,
   }),
   define({
@@ -308,6 +448,27 @@ export const envRegistry = [
     requirements: { scraper: "optional" },
     schema: z.enum(["0", "1"]),
   }),
+  define({
+    key: "SCRAPER_MAX_NEW_ITEMS_PER_RUN",
+    description:
+      "Max brand-new items (per data source) that get AI enrichment in one run; extras roll over to the next run.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "10",
+    requirements: { scraper: "optional" },
+    schema: positiveNumber,
+  }),
+  ...scraperSourceLimitDefinitions.map(([key, description, defaultValue]) =>
+    define({
+      key,
+      description,
+      group: "Scraper source limits",
+      secret: false,
+      defaultValue,
+      requirements: {},
+      schema: positiveInteger,
+    }),
+  ),
   ...scraperCostDefinitions.map(([key, description, defaultValue]) =>
     define({
       key,
@@ -319,40 +480,6 @@ export const envRegistry = [
       schema: positiveNumber,
     }),
   ),
-  define({
-    key: "BASE_URL",
-    description: "Web origin captured by the social-media agent.",
-    group: "Social media",
-    secret: false,
-    defaultValue: "http://localhost:8081",
-    requirements: { social: "optional" },
-    schema: url,
-  }),
-  define({
-    key: "GEMINI_API_KEY",
-    description: "Google AI Studio key for social caption generation.",
-    group: "Social media",
-    secret: true,
-    setupUrl: "https://aistudio.google.com/app/apikey",
-    requirements: { social: "optional" },
-    schema: string,
-  }),
-  define({
-    key: "INSTAGRAM_USERNAME",
-    description: "Instagram login used only by the posting workflow.",
-    group: "Social media",
-    secret: true,
-    requirements: { social: "optional" },
-    schema: string,
-  }),
-  define({
-    key: "INSTAGRAM_PASSWORD",
-    description: "Instagram password used only by the posting workflow.",
-    group: "Social media",
-    secret: true,
-    requirements: { social: "optional" },
-    schema: string,
-  }),
 ] satisfies EnvDefinition[];
 
 export const envSchemas = Object.fromEntries(
@@ -368,15 +495,28 @@ const rank: Record<Requirement, number> = {
 export function requirementFor(
   definition: EnvDefinition,
   surface: EnvSurface,
-  selectedScrapers: readonly ScraperName[] = scraperNames,
+  selectedScrapers: readonly string[] = [],
+  scraperContracts: readonly ScraperEnvContract[] = [],
 ): Requirement | null {
   const requirements: Requirement[] = [];
   const surfaceRequirement = definition.requirements[surface];
   if (surfaceRequirement) requirements.push(surfaceRequirement);
-  if (surface === "scraper" && definition.scraperRequirements) {
-    for (const scraper of selectedScrapers) {
-      const requirement = definition.scraperRequirements[scraper];
-      if (requirement) requirements.push(requirement);
+  if (surface === "scraper") {
+    const selected = selectedScrapers.length
+      ? scraperContracts.filter((contract) =>
+          selectedScrapers.includes(contract.id),
+        )
+      : scraperContracts;
+    for (const contract of selected) {
+      for (const requirement of [
+        "required",
+        "recommended",
+        "optional",
+      ] as const) {
+        if (contract.environment[requirement]?.includes(definition.key)) {
+          requirements.push(requirement);
+        }
+      }
     }
   }
   return (
@@ -386,12 +526,18 @@ export function requirementFor(
 
 export function definitionsFor(
   surface: EnvSurface,
-  selectedScrapers: readonly ScraperName[] = scraperNames,
+  selectedScrapers: readonly string[] = [],
+  scraperContracts: readonly ScraperEnvContract[] = [],
 ) {
   return envRegistry
     .map((definition) => ({
       definition,
-      requirement: requirementFor(definition, surface, selectedScrapers),
+      requirement: requirementFor(
+        definition,
+        surface,
+        selectedScrapers,
+        scraperContracts,
+      ),
     }))
     .filter(
       (item): item is { definition: EnvDefinition; requirement: Requirement } =>
@@ -399,10 +545,14 @@ export function definitionsFor(
     );
 }
 
-export function definitionsForAll() {
+export function definitionsForAll(
+  scraperContracts: readonly ScraperEnvContract[] = [],
+) {
   return envRegistry.map((definition) => {
     const requirements = surfaces
-      .map((surface) => requirementFor(definition, surface))
+      .map((surface) =>
+        requirementFor(definition, surface, [], scraperContracts),
+      )
       .filter((value): value is Requirement => value !== null);
     return {
       definition,

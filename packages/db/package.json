@@ -26,7 +26,7 @@
     "push": "drizzle-kit push",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
-    "db-check": "drizzle-kit check",
+    "db-check": "drizzle-kit check --dialect postgresql --out drizzle",
     "baseline": "tsx baseline.ts",
     "seed": "tsx seed-entry.ts",
     "studio": "drizzle-kit studio",

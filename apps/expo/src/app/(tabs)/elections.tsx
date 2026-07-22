@@ -14,8 +14,10 @@ import type { Contest } from "@acme/api";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -174,8 +176,17 @@ export default function ElectionsScreen() {
   );
 
   const toggleMeasure = useCallback(
-    (idx: number) => toggleSet(setExpandedMeasures, idx),
-    [toggleSet],
+    (idx: number, measure: Contest) => {
+      toggleSet(setExpandedMeasures, idx);
+      const isExpanding = !expandedMeasures.has(idx);
+      if (isExpanding) {
+        posthog.capture("ballot_measure_expanded", {
+          measure_title: measure.referendumTitle ?? null,
+          is_statewide: measureIsStatewide(measure),
+        });
+      }
+    },
+    [toggleSet, expandedMeasures],
   );
 
   const hasAddress = !!storedAddress;
@@ -188,10 +199,21 @@ export default function ElectionsScreen() {
     enabled: hasAddress,
   });
 
-  // The address-specific election the ballot belongs to.
-  const selected = voterInfoQuery.data?.election;
+  // We only have ballot/results data sourced for California right now.
+  const unsupportedState =
+    hasAddress &&
+    !!voterInfoQuery.data &&
+    voterInfoQuery.data.normalizedInput.state !== "CA";
 
-  const contests = voterInfoQuery.data?.contests ?? [];
+  const hasVerifiedCaliforniaAddress =
+    !!voterInfoQuery.data && voterInfoQuery.data.normalizedInput.state === "CA";
+
+  // The address-specific election the ballot belongs to.
+  const selected = unsupportedState ? undefined : voterInfoQuery.data?.election;
+
+  const contests = unsupportedState
+    ? []
+    : (voterInfoQuery.data?.contests ?? []);
   const measures = contests.filter((c: Contest) => c.referendumTitle);
   const candidateContests = contests.filter(
     (c: Contest) => c.candidates && c.candidates.length > 0,
@@ -211,6 +233,9 @@ export default function ElectionsScreen() {
             onSubmit={(addr) => {
               void setAddress(addr);
               setEditing(false);
+              posthog.capture("voter_address_set", {
+                is_update: !!storedAddress,
+              });
             }}
           />
         ) : (
@@ -240,12 +265,42 @@ export default function ElectionsScreen() {
         </View>
       )}
 
+      {hasAddress && voterInfoQuery.isError && (
+        <View style={s.section}>
+          <Card>
+            <Text style={s.empty}>
+              We couldn't look up your ballot. Check your address and try again.
+            </Text>
+          </Card>
+        </View>
+      )}
+
+      {unsupportedState && (
+        <View style={s.section}>
+          <Card>
+            <Text style={s.empty}>
+              We only cover California elections right now. Support for your
+              state is coming soon.
+            </Text>
+          </Card>
+        </View>
+      )}
+
       {/* election hero — what election is happening, what it means */}
       {selected && <ElectionHero election={selected} />}
 
       {/* live results (CA SOS feed): statewide + the voter's district races,
-          scoped from their ballot. Self-hides when off-season. */}
-      <ElectionResultsSection contests={contests} />
+          scoped from their ballot. Self-hides when off-season. Only
+          meaningful once we know the voter is in a state we cover. */}
+      {hasVerifiedCaliforniaAddress && selected && (
+        <ElectionResultsSection
+          contests={contests}
+          electionDay={selected.electionDay}
+          electionName={selected.name}
+        />
+      )}
+
+      <RepsSection address={storedAddress} />
 
       {voterInfoQuery.isLoading && (
         <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />
@@ -289,7 +344,13 @@ export default function ElectionsScreen() {
                   <TouchableOpacity
                     key={`${group.key}-${i}`}
                     activeOpacity={0.85}
-                    onPress={() =>
+                    onPress={() => {
+                      posthog.capture("contest_detail_opened", {
+                        office: c.office ?? null,
+                        district: c.district?.name ?? null,
+                        candidate_count: c.candidates?.length ?? 0,
+                        government_level: group.label,
+                      });
                       router.push({
                         pathname: "/contest-detail",
                         params: {
@@ -300,8 +361,8 @@ export default function ElectionsScreen() {
                           districtName: c.district?.name ?? "",
                           roleDescription: c.roleDescription ?? "",
                         },
-                      })
-                    }
+                      });
+                    }}
                   >
                     <Card
                       style={{
@@ -349,8 +410,14 @@ export default function ElectionsScreen() {
                     key={`sw-${measures.indexOf(m)}`}
                     measure={m}
                     expanded={expandedMeasures.has(measures.indexOf(m))}
-                    onToggle={() => toggleMeasure(measures.indexOf(m))}
-                    onReadMore={() => router.push(measureRoute(m))}
+                    onToggle={() => toggleMeasure(measures.indexOf(m), m)}
+                    onReadMore={() => {
+                      posthog.capture("ballot_measure_detail_opened", {
+                        measure_title: m.referendumTitle ?? null,
+                        is_statewide: true,
+                      });
+                      router.push(measureRoute(m));
+                    }}
                   />
                 ))}
               </View>
@@ -370,8 +437,14 @@ export default function ElectionsScreen() {
                     key={`lo-${measures.indexOf(m)}`}
                     measure={m}
                     expanded={expandedMeasures.has(measures.indexOf(m))}
-                    onToggle={() => toggleMeasure(measures.indexOf(m))}
-                    onReadMore={() => router.push(measureRoute(m))}
+                    onToggle={() => toggleMeasure(measures.indexOf(m), m)}
+                    onReadMore={() => {
+                      posthog.capture("ballot_measure_detail_opened", {
+                        measure_title: m.referendumTitle ?? null,
+                        is_statewide: false,
+                      });
+                      router.push(measureRoute(m));
+                    }}
                   />
                 ))}
               </View>
@@ -380,16 +453,20 @@ export default function ElectionsScreen() {
         </View>
       )}
 
-      {hasAddress && contests.length === 0 && !voterInfoQuery.isLoading && (
-        <View style={s.section}>
-          <Card>
-            <Text style={s.empty}>
-              No ballot information for this address yet. Tap Edit above to try
-              a different registered address.
-            </Text>
-          </Card>
-        </View>
-      )}
+      {hasAddress &&
+        !unsupportedState &&
+        contests.length === 0 &&
+        !voterInfoQuery.isLoading &&
+        !voterInfoQuery.isError && (
+          <View style={s.section}>
+            <Card>
+              <Text style={s.empty}>
+                No ballot information for this address yet. Tap Edit above to
+                try a different registered address.
+              </Text>
+            </Card>
+          </View>
+        )}
 
       {/* polling place exit */}
       <View style={s.section}>

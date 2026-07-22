@@ -1,4 +1,5 @@
 import nextEnv from "@next/env";
+import { withPostHogConfig } from "@posthog/nextjs-config";
 import { createJiti } from "jiti";
 
 const { loadEnvConfig } = nextEnv;
@@ -31,4 +32,21 @@ const config = {
   typescript: { ignoreBuildErrors: true },
 };
 
-export default config;
+const canUploadPostHogSourceMaps =
+  Boolean(process.env.POSTHOG_API_KEY) &&
+  Boolean(process.env.POSTHOG_PROJECT_ID);
+
+export default canUploadPostHogSourceMaps
+  ? withPostHogConfig(config, {
+      personalApiKey: process.env.POSTHOG_API_KEY ?? "",
+      projectId: process.env.POSTHOG_PROJECT_ID,
+      host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+      sourcemaps: {
+        enabled: true,
+        releaseName: "billion-nextjs",
+        releaseVersion:
+          process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA,
+        deleteAfterUpload: true,
+      },
+    })
+  : config;

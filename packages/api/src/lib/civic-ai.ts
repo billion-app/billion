@@ -1,6 +1,7 @@
 /**
- * AI generation for civic content, via the generic `llm` provider (DeepSeek by
- * default, OpenAI fallback — see ai-provider.ts).
+ * AI generation for civic content, via the generic `llm` provider (Groq by
+ * default, then OpenRouter, OpenAI, and deprecated direct DeepSeek — see
+ * ai-provider.ts).
  *
  * Scope is deliberately narrow. AI **structures and summarizes existing source
  * text**; it never authors measure content from a bare title. `generateMeasureSummary`

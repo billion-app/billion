@@ -1,9 +1,10 @@
 // ThatXliner: I genuinely have no idea why both
 // this file and the other one (in (tabs)) is required.
 // Surely I'm not doing the provider twice... right??
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Font from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 // Albert Sans fonts
@@ -28,20 +29,50 @@ import {
   InriaSerif_700Bold_Italic,
 } from "@expo-google-fonts/inria-serif";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { PostHogProvider } from "posthog-react-native";
 
+import { posthog } from "~/config/posthog";
 import { useTheme } from "~/styles";
 import { queryClient } from "~/utils/api";
+import { authClient } from "~/utils/auth";
 
 import "../styles.css";
 
 // Keep splash screen visible while fonts load
 void SplashScreen.preventAutoHideAsync();
 
+function PostHogAuthSync() {
+  const { data: session } = authClient.useSession();
+  const user = session?.user;
+
+  useEffect(() => {
+    if (user) {
+      posthog.identify(user.id, {
+        $set: { name: user.name },
+        $set_once: { first_seen_at: new Date().toISOString() },
+      });
+    }
+  }, [user]);
+  return null;
+}
+
 // This is the main layout of the app
 // It wraps your pages with the providers they need
 export default function RootLayout() {
   const { theme } = useTheme();
+  const pathname = usePathname();
+  const params = useGlobalSearchParams();
+  const previousPathname = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (previousPathname.current !== pathname) {
+      void posthog.screen(pathname, {
+        previous_screen: previousPathname.current ?? null,
+        ...params,
+      });
+      previousPathname.current = pathname;
+    }
+  }, [pathname, params]);
 
   useEffect(() => {
     async function loadFonts() {
@@ -90,17 +121,28 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: {
-              backgroundColor: theme.background,
-            },
-          }}
-        />
-        <StatusBar style="light" />
-      </GestureHandlerRootView>
+      <PostHogProvider
+        client={posthog}
+        autocapture={{
+          captureScreens: false,
+          captureTouches: true,
+          propsToCapture: ["testID"],
+          maxElementsCaptured: 20,
+        }}
+      >
+        <PostHogAuthSync />
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: {
+                backgroundColor: theme.background,
+              },
+            }}
+          />
+          <StatusBar style="light" />
+        </GestureHandlerRootView>
+      </PostHogProvider>
     </QueryClientProvider>
   );
 }

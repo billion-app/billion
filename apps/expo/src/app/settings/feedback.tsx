@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Alert,
+  Linking,
   Platform,
   StyleSheet,
   TextInput,
@@ -11,10 +12,18 @@ import { useMutation } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
-import { Icon, Kicker, PrimaryButton, ScreenShell } from "~/components/ui";
+import {
+  GhostButton,
+  Icon,
+  Kicker,
+  PrimaryButton,
+  ScreenShell,
+} from "~/components/ui";
+import { posthog } from "~/config/posthog";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
+import { buildFeedbackFormUrl } from "~/utils/feedback-form";
 
 type FeedbackCategory = "bug" | "idea" | "content";
 
@@ -31,6 +40,7 @@ export default function FeedbackScreen() {
   const submitMutation = useMutation(trpc.feedback.submit.mutationOptions());
   const message = text.trim();
   const canSubmit = message.length >= 5 && !submitMutation.isPending;
+  const formKind = cat === "bug" ? "bug" : cat === "idea" ? "feature" : null;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -52,6 +62,12 @@ export default function FeedbackScreen() {
       {
         onSuccess: () => {
           setLastSubmittedAt(Date.now());
+          posthog.capture("feedback_submitted", {
+            category: cat,
+            message_length: message.length,
+            app_version: getAppVersion(),
+            platform: Platform.OS,
+          });
           setText("");
           Alert.alert("Feedback sent", "Thanks. We read every note.");
         },
@@ -63,6 +79,37 @@ export default function FeedbackScreen() {
         },
       },
     );
+  };
+
+  const openGuidedForm = async () => {
+    if (!formKind) return;
+
+    const details = message
+      ? [
+          message,
+          "",
+          "———",
+          `App version: ${getAppVersion()} (${getAppBuildNumber()})`,
+          `Platform: ${Platform.OS} ${String(Platform.Version)}`,
+        ].join("\n")
+      : undefined;
+    const url = buildFeedbackFormUrl(formKind, details);
+
+    try {
+      if (!(await Linking.canOpenURL(url))) throw new Error("Unsupported URL");
+      await Linking.openURL(url);
+      posthog.capture("feedback_form_opened", {
+        category: cat,
+        message_length: message.length,
+        app_version: getAppVersion(),
+        platform: Platform.OS,
+      });
+    } catch {
+      Alert.alert(
+        "Couldn’t open the feedback form",
+        "Please try again in a moment.",
+      );
+    }
   };
 
   return (
@@ -134,6 +181,21 @@ export default function FeedbackScreen() {
         onPress={submit}
         style={{ opacity: canSubmit ? 1 : 0.55 }}
       />
+
+      {formKind && (
+        <>
+          <Text style={s.orDivider}>or</Text>
+          <GhostButton
+            label={
+              formKind === "bug"
+                ? "Use guided bug report form"
+                : "Use guided feature request form"
+            }
+            onPress={() => void openGuidedForm()}
+            style={{ alignSelf: "center" }}
+          />
+        </>
+      )}
     </ScreenShell>
   );
 }
@@ -193,5 +255,12 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
     marginVertical: 10,
     marginBottom: 20,
+  },
+  orDivider: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginVertical: 14,
   },
 });

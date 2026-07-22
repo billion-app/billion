@@ -2,7 +2,9 @@
  * ContentCard — Browse / Saved / search-result card.
  * Spine + badge + tag + bookmark + serif title + gist + status + timestamp.
  */
+import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
 
 import type { ContentTypeKey } from "~/styles";
 import { colors, contentType, fontBody, hair, planes } from "~/styles";
@@ -17,6 +19,8 @@ export interface ContentCardItem {
   gist?: string;
   status?: string;
   updated?: string;
+  thumbnailUrl?: string;
+  imageUri?: string;
 }
 
 export function ContentCard({
@@ -31,6 +35,8 @@ export function ContentCard({
   saved?: boolean;
 }) {
   const t = contentType[item.type];
+  const imageUri = item.imageUri ?? item.thumbnailUrl;
+  const [imageFailed, setImageFailed] = useState(false);
   return (
     <TouchableOpacity
       style={s.card}
@@ -41,7 +47,9 @@ export function ContentCard({
       <Spine type={item.type} />
       <View style={s.top}>
         <View style={s.topLeft}>
-          <Badge type={item.type} />
+          <View testID="content-card-badge">
+            <Badge type={item.type} />
+          </View>
           {item.tag && <Text style={s.tag}>{item.tag}</Text>}
         </View>
         {onSave && (
@@ -54,18 +62,37 @@ export function ContentCard({
           </TouchableOpacity>
         )}
       </View>
-      <Text style={s.title} testID="content-card-title">
-        {item.title}
-      </Text>
-      {item.gist ? (
-        <Text
-          style={s.gist}
-          numberOfLines={3}
-          testID="content-card-description"
-        >
-          {item.gist}
-        </Text>
-      ) : null}
+      <View style={s.contentRow}>
+        <View style={s.copy}>
+          <Text style={s.title} numberOfLines={3} testID="content-card-title">
+            {item.title}
+          </Text>
+          {item.gist ? (
+            <Text
+              style={s.gist}
+              numberOfLines={2}
+              testID="content-card-description"
+            >
+              {item.gist}
+            </Text>
+          ) : null}
+        </View>
+        <View style={s.thumbnail} testID="content-card-thumbnail">
+          {imageUri && !imageFailed ? (
+            <Image
+              source={{ uri: imageUri }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={200}
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <View style={[s.thumbnailFallback, { backgroundColor: t.color }]}>
+              <Text style={s.thumbnailFallbackText}>{t.label}</Text>
+            </View>
+          )}
+        </View>
+      </View>
       <View style={s.bottom}>
         {item.status ? (
           <Text style={[s.status, { color: t.color }]}>{item.status}</Text>
@@ -101,6 +128,33 @@ const s = StyleSheet.create({
     marginBottom: 11,
   },
   topLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
+  contentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+  },
+  copy: { flex: 1, minWidth: 0 },
+  thumbnail: {
+    width: 78,
+    aspectRatio: 1,
+    borderRadius: 11,
+    overflow: "hidden",
+    backgroundColor: planes.surface,
+    borderWidth: 1,
+    borderColor: hair[2],
+  },
+  thumbnailFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  thumbnailFallbackText: {
+    fontFamily: fontBody.bold,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    color: colors.white,
+  },
   tag: {
     fontFamily: fontBody.semibold,
     fontSize: 12,
@@ -112,15 +166,15 @@ const s = StyleSheet.create({
     fontFamily: "InriaSerif-Bold",
     fontSize: 19,
     color: colors.white,
-    marginBottom: 8,
+    marginBottom: 7,
     lineHeight: 23,
   },
   gist: {
     fontFamily: "AlbertSans-Regular",
     fontSize: 14,
     color: "rgba(255,255,255,0.7)",
-    lineHeight: 21,
-    marginBottom: 14,
+    lineHeight: 19,
+    marginBottom: 12,
   },
   bottom: {
     flexDirection: "row",
