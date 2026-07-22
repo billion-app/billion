@@ -15,6 +15,7 @@ These data sources are registered and run by `all`:
 | `scc-cvig`               | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
 | `ca-sos-statements`      | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
 | `ncsbe`                  | Current-cycle NCSBE candidate CSV, referendum PDFs, and result ZIPs                        | Provider-neutral election tables; powers `civic.getNcElectionData` with exact file provenance         |
+| `missouri-sos`           | Missouri SOS 2026 certified candidates, measures, and active results                       | Provider-neutral current-cycle snapshot; powers `civic.getMissouriCurrentElection`                    |
 | `texas-legislature`      | Texas Legislative Council anonymous FTP: current-session history XML and bulk documents    | State-aware `bill` rows; read through `content.texasBills` and `content.getById`                      |
 | `texas-current-election` | Texas SOS structured election feed and TLC amendment analyses                              | Current-cycle snapshots; powers `civic.getTexasCurrentElection` and measure enrichment                |
 | `cedar-park-council`     | Cedar Park's CivicEngage City Council page and its official Municode Meetings embed        | Provider-neutral local meetings, documents, agenda items, motions, outcomes, and votes                |
@@ -135,6 +136,7 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Voter-guide PDF documents                           |
 | `CA_SOS_MAX_ITEMS`              |       9 | Statewide-office candidate-statement pages          |
 | `NCSBE_MAX_ITEMS`               |       4 | Current-cycle candidate/referendum/result files     |
+| `MISSOURI_SOS_MAX_ITEMS`        |    1000 | Certified current-cycle Missouri candidates         |
 | `TEXAS_LEGISLATURE_MAX_ITEMS`   |     100 | Bills from the latest Texas bulk session            |
 | `TX_SOS_MAX_ITEMS`              |      12 | Current-cycle Texas SOS election payloads           |
 | `CEDAR_PARK_COUNCIL_MAX_ITEMS`  |     100 | Council meetings (after the 12-month cutoff)        |
@@ -152,6 +154,12 @@ The NCSBE integration is intentionally current-cycle only and excludes voter
 history plus candidate contact/address fields. See
 [`docs/ncsbe-election-data.md`](../../docs/ncsbe-election-data.md) for discovery,
 idempotency, provenance, API, and deterministic Civic-matching details.
+
+The Missouri integration is also current-cycle only. It follows the dynamic
+2026 SOS election code, parses the cumulative certified list without candidate
+address/contact cells, persists certified measures and result availability, and
+has no voter-level or historical reader. See
+[`docs/missouri-sos-election-data.md`](../../docs/missouri-sos-election-data.md).
 
 ## Cedar Park City Council (`civicengage.ts`)
 

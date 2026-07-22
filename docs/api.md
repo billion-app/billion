@@ -13,17 +13,17 @@ The API is a [tRPC v11](https://trpc.io/) router in `packages/api/`, served by N
 
 The root router (`packages/api/src/root.ts`) composes **nine** sub-routers:
 
-| Router       | Procedures (Q = query, M = mutation, 🔒 = protected)                                                                                                                                  |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth`       | `getSession` (Q), `getSecretMessage` (Q 🔒)                                                                                                                                           |
-| `civic`      | `getElections`, `getVoterInfo`, `getTexasCurrentElection`, `getRepresentatives`, `getRepresentativesEnriched` (all Q) — Google Civic + official current-cycle Texas data + enrichment |
-| `places`     | `autocomplete` (Q), `details` (M) — Google Places address autocomplete for the ballot lookup                                                                                          |
-| `legistar`   | `getLocalBills`, `getMeetings`, `getAgenda`, `getVotes`, `getBodies`, `getMeetingVotes` (all Q) — local councils                                                                      |
-| `openStates` | `searchBills`, `getBillDetails`, `getLegislators`, `getBillVotes` (all Q) — CA state legislature (Open States v3)                                                                     |
-| `content`    | `getAll`, `getByType`, `getById` (all Q) — aggregates bill / government_content / court_case                                                                                          |
-| `video`      | `getInfinite` (Q) — cursor-paginated feed; converts `bytea` images to data URIs                                                                                                       |
-| `post`       | `all`, `byId` (Q); `create`, `delete` (M 🔒)                                                                                                                                          |
-| `user`       | preferences, blocked content, settings, profile, and saved-article CRUD (all 🔒)                                                                                                      |
+| Router       | Procedures (Q = query, M = mutation, 🔒 = protected)                                                                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth`       | `getSession` (Q), `getSecretMessage` (Q 🔒)                                                                                                                                                                         |
+| `civic`      | `getElections`, `getVoterInfo`, `getTexasCurrentElection`, `getMissouriCurrentElection`, `getRepresentatives`, `getRepresentativesEnriched` (all Q) — Google Civic + official current-cycle state data + enrichment |
+| `places`     | `autocomplete` (Q), `details` (M) — Google Places address autocomplete for the ballot lookup                                                                                                                        |
+| `legistar`   | `getLocalBills`, `getMeetings`, `getAgenda`, `getVotes`, `getBodies`, `getMeetingVotes` (all Q) — local councils                                                                                                    |
+| `openStates` | `searchBills`, `getBillDetails`, `getLegislators`, `getBillVotes` (all Q) — CA state legislature (Open States v3)                                                                                                   |
+| `content`    | `getAll`, `getByType`, `getById` (all Q) — aggregates bill / government_content / court_case                                                                                                                        |
+| `video`      | `getInfinite` (Q) — cursor-paginated feed; converts `bytea` images to data URIs                                                                                                                                     |
+| `post`       | `all`, `byId` (Q); `create`, `delete` (M 🔒)                                                                                                                                                                        |
+| `user`       | preferences, blocked content, settings, profile, and saved-article CRUD (all 🔒)                                                                                                                                    |
 
 ## Civic Data & External Sources
 
@@ -44,6 +44,12 @@ candidates and results plus the latest constitutional-amendment analyses. SOS
 facts and TLC explanation are separately cited. Historical election browsing is
 intentionally not part of this procedure; see
 [Texas current-election data](./texas-current-election.md).
+
+`civic.getMissouriCurrentElection` is an input-free reader over the validated
+2026 Missouri SOS snapshot. It returns certified candidates and measures plus
+either official active-election result contests or a clear unavailable
+diagnostic. It accepts no historical-cycle parameter. See
+[Missouri SOS election data](./missouri-sos-election-data.md).
 
 ## LLM Provider
 

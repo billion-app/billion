@@ -223,6 +223,7 @@ validation consume those declarations. An `all` run validates their union.
 | `scotus`            | `POSTGRES_URL`; one of the two AI keys                            | `COURTLISTENER_API_KEY`, `BFL_API_KEY`; Google image-search pair | Runs anonymously at lower CourtListener rate limits when its token is absent.              |
 | `scc-cvig`          | `POSTGRES_URL`                                                    | `GOOGLE_GENERATIVE_AI_API_KEY`                                   | Text-layer PDF extraction still runs; Gemini is only a fallback.                           |
 | `ca-sos-statements` | `POSTGRES_URL`                                                    | None                                                             | Uses public California SOS voter-guide pages.                                              |
+| `missouri-sos`      | `POSTGRES_URL`                                                    | `MISSOURI_SOS_MAX_ITEMS`                                         | Uses keyless official SOS pages; no voter-level data.                                      |
 
 ### Per-run source limits
 
@@ -237,6 +238,7 @@ limit; retries and additional invocations each receive a fresh allowance.
 | `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters      |
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Santa Clara voter-guide PDFs        |
 | `CA_SOS_MAX_ITEMS`              |       9 | California SOS office pages         |
+| `MISSOURI_SOS_MAX_ITEMS`        |    1000 | Certified 2026 Missouri candidates  |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving AI/image work |
 
 The last setting is an enrichment budget, not a source-fetch limit. Raw records

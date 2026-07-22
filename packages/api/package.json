@@ -55,6 +55,10 @@
       "types": "./dist/lib/texas-election-data.d.ts",
       "default": "./src/lib/texas-election-data.ts"
     },
+    "./lib/missouri-election-data": {
+      "types": "./dist/lib/missouri-election-data.d.ts",
+      "default": "./src/lib/missouri-election-data.ts"
+    },
     "./lib/measure-sources/disabled/vig-archive": {
       "types": "./dist/lib/measure-sources/disabled/vig-archive.d.ts",
       "default": "./src/lib/measure-sources/disabled/vig-archive.ts"

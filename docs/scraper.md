@@ -26,6 +26,7 @@ process environment at runtime, not embedded during the build.
 | `ca-lao-fiscal.ts`          | CA LAO ballot analyses           | `civic_api_cache`          | proposition fiscal analyses via HTML parse                              |
 | `ca-vig-archive.ts`         | CA SOS voter-guide archive       | `civic_api_cache`          | historical proposition guide pages via HTML parse                       |
 | `texas-current-election.ts` | Texas SOS + TLC                  | `election_source_snapshot` | current-cycle JSON + deterministic PDF text parsing                     |
+| `missouri-sos.ts`           | Missouri Secretary of State      | `election_source_snapshot` | current-2026 certified HTML + deterministic result parsing              |
 | `texas-legislature.ts`      | Texas Legislative Council FTP    | `bill`                     | current-session XML + bulk HTML; no site mining                         |
 | `civicengage.ts`            | Cedar Park official council page | local-government tables    | CivicEngage entry page + Municode embed; deterministic HTML/PDF parsing |
 | `durham-onbase.ts`          | Durham OnBase Agenda Online      | local-government tables    | current-cycle meetings, items, attachments, and official actions        |
@@ -38,6 +39,10 @@ All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fe
 The Texas scraper is intentionally current-cycle only. SOS election facts and
 TLC explanatory text remain separate provider snapshots and separate citations;
 see [Texas current-election data](./texas-current-election.md).
+
+The Missouri scraper is likewise current-cycle only and excludes voter-level
+data plus candidate address/contact fields. See
+[Missouri SOS election data](./missouri-sos-election-data.md).
 
 The Cedar Park pilot is deliberately limited to City Council meetings from the
 latest 12 months. It stores meetings, versioned documents, agenda items,
