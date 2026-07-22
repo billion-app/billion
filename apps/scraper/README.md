@@ -10,6 +10,7 @@ These data sources are registered and run by `all`:
 | ------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `federalregister`        | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article/summary and feed-image enrichment                                    |
 | `durham-bocc`            | Durham County's official Legistar API (current election cycle only)                        | Provider-neutral meetings, agenda items, actions, votes, and official document links; no AI required  |
+| `kansas-city-council`    | Kansas City's official Legistar API (current Council term and body ID 138 only)            | Provider-neutral meetings, revisions, documents, legislation, actions, and named votes                |
 | `congress`               | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI/feed enrichment                                            |
 | `scotus`                 | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
 | `scc-cvig`               | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
@@ -139,6 +140,7 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `TX_SOS_MAX_ITEMS`              |      12 | Current-cycle Texas SOS election payloads           |
 | `CEDAR_PARK_COUNCIL_MAX_ITEMS`  |     100 | Council meetings (after the 12-month cutoff)        |
 | `DURHAM_BOCC_MAX_ITEMS`         |     100 | Current-cycle Durham County BOCC meetings           |
+| `KANSAS_CITY_COUNCIL_MAX_ITEMS` |     250 | Current-term Kansas City Council meetings           |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
@@ -152,6 +154,25 @@ The NCSBE integration is intentionally current-cycle only and excludes voter
 history plus candidate contact/address fields. See
 [`docs/ncsbe-election-data.md`](../../docs/ncsbe-election-data.md) for discovery,
 idempotency, provenance, API, and deterministic Civic-matching details.
+
+## Kansas City Council (`kansas-city-council.ts`)
+
+This keyless adapter uses `webapi.legistar.com/v1/kansascity`, restricted to
+Council body ID `138` and the active term beginning August 1, 2023. It stores
+stable Event/EventItem/Vote IDs, Central Time/DST, cancellations and revisions,
+locations, official agenda/minutes/attachment links, video media IDs,
+legislation file numbers, actions/outcomes, and named votes. It also checks
+actioned items because Kansas City can publish a vote while leaving the
+Legistar roll-call flag unset. Hidden test events are excluded.
+
+Meetings are serialized and vote lookups are capped at two concurrent requests.
+Reruns upsert natural keys, mark replaced documents non-current, replace a
+successfully refreshed roll call atomically, and preserve last-known votes when
+the vote endpoint is temporarily unavailable.
+
+```bash
+pnpm --filter @acme/scraper run start kansas-city-council --max-items 5
+```
 
 ## Cedar Park City Council (`civicengage.ts`)
 

@@ -179,11 +179,13 @@ const legislators = await getLegislators({ state: "ca" });
 **Sources:** persisted local-government records plus the Legistar Web API
 **Entry points:** `packages/api/src/lib/local-government.ts`, `packages/api/src/integrations/legistar.ts`
 **Auth:** None (public API)  
-**Persisted jurisdiction:** Cedar Park (`cedar-park-tx`); live Legistar jurisdictions: San Jose, Santa Clara County, Sunnyvale
+**Persisted jurisdictions:** Cedar Park (`cedar-park-tx`), Durham County
+(`durham-county-nc`), and Kansas City (`kansas-city-mo`); live provider-specific
+Legistar jurisdictions: San Jose, Santa Clara County, Sunnyvale
 
-The product-facing reader uses normalized persisted records. Cedar Park's
-scheduled scraper populates these from the city's official CivicEngage page and
-embedded Municode Meetings publication:
+The product-facing reader uses normalized persisted records. Scheduled source
+adapters populate these from official systems; Kansas City uses the structured
+Legistar feed for current-term Council body `138`:
 
 ```ts
 import {
@@ -192,7 +194,7 @@ import {
 } from "@acme/api";
 
 const meetings = await getLocalGovernmentMeetings({
-  jurisdiction: "cedar-park-tx",
+  jurisdiction: "kansas-city-mo",
   limit: 20,
 });
 const detail = meetings[0]
@@ -233,10 +235,10 @@ To add a city: add its `*.legistar.com` subdomain to `JURISDICTIONS` in `integra
 - **Reader:** `packages/api/src/lib/local-government.ts`
 - **tRPC:** `localGovernment.meetings`, `localGovernment.meeting`
 
-The Durham and Cedar Park scrapers persist meetings, agenda or minutes item
-outlines, supporting-document URLs, and official action/vote text. The reader
-is provider-neutral and serves only cached database records; it does not
-contact upstream meeting systems in the request path.
+The Durham, Cedar Park, and Kansas City scrapers persist meetings, agenda or
+minutes item outlines, supporting-document URLs, and official action/vote text.
+The reader is provider-neutral and serves only cached database records; it does
+not contact upstream meeting systems in the request path.
 
 ```ts
 const meetings = await getLocalGovernmentMeetings({
