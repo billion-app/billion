@@ -11,13 +11,14 @@
  * Trust tiers, highest to lowest. The cross-validation engine prefers data
  * from a higher tier when multiple sources cover the same field.
  *
- * County registrar / State SOS (official) > League of Women Voters
+ * County registrar / State SOS / legislative council (official) > League of Women Voters
  * (nonpartisan) > Ballotpedia (aggregator) > Wikipedia (encyclopedic) >
  * Vote Smart > Google Civic > AI grounded on fetched text (last resort).
  */
 export type SourceTier =
   | "county_registrar"
   | "state_sos"
+  | "legislative_council"
   | "lwv"
   | "ballotpedia"
   | "wikipedia"
@@ -28,6 +29,7 @@ export type SourceTier =
 export const SOURCE_TIER_RANK: Record<SourceTier, number> = {
   county_registrar: 8,
   state_sos: 7,
+  legislative_council: 7,
   lwv: 6,
   ballotpedia: 5,
   wikipedia: 4,
@@ -77,6 +79,18 @@ export interface MeasureSourceData {
   /** Single pro/con statement (Google Civic shape) when no list is available. */
   proStatement?: string;
   conStatement?: string;
+  /** Official election result facts; explanatory sources leave this absent. */
+  result?: MeasureResult;
+}
+
+export interface MeasureResult {
+  status: "upcoming" | "reporting" | "complete" | "official";
+  outcome?: "adopted" | "rejected";
+  totalVotes: number;
+  choices: { name: string; votes: number; percent: number }[];
+  asOf?: string;
+  sourceName: string;
+  sourceUrl: string;
 }
 
 /**
@@ -97,6 +111,7 @@ export interface CanonicalMeasure {
   fullTextUrl?: string;
   proArguments: MeasureArgument[];
   conArguments: MeasureArgument[];
+  result?: MeasureResult;
   citations: MeasureCitation[];
   /** Fields where sources disagreed, flagged for human review. */
   discrepancies?: string[];

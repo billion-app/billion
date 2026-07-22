@@ -15,20 +15,25 @@ process environment at runtime, not embedded during the build.
 
 ## Scrapers
 
-| Scraper                | Source                         | Content type         | Method                                                 |
-| ---------------------- | ------------------------------ | -------------------- | ------------------------------------------------------ |
-| `congress.ts`          | congress.gov REST API          | `bill`               | REST (`CONGRESS_API_KEY`), incremental by `updateDate` |
-| `federalregister.ts`   | federalregister.gov REST API   | `government_content` | REST; HTML→Markdown via Turndown                       |
-| `scotus.ts`            | CourtListener REST API         | `court_case`         | REST (`COURTLISTENER_API_KEY`, optional)               |
-| `vote411.ts`           | vote411.org                    | (cached locally)     | cheerio HTML parse; does **not** write to the main DB  |
-| `scc-cvig.ts`          | Santa Clara County voter guide | `civic_api_cache`    | PDF extraction; optional Gemini fallback               |
-| `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages                     |
-| `ca-lao-fiscal.ts`     | CA LAO ballot analyses         | `civic_api_cache`    | proposition fiscal analyses via HTML parse             |
-| `ca-vig-archive.ts`    | CA SOS voter-guide archive     | `civic_api_cache`    | historical proposition guide pages via HTML parse      |
+| Scraper                     | Source                         | Content type               | Method                                                 |
+| --------------------------- | ------------------------------ | -------------------------- | ------------------------------------------------------ |
+| `congress.ts`               | congress.gov REST API          | `bill`                     | REST (`CONGRESS_API_KEY`), incremental by `updateDate` |
+| `federalregister.ts`        | federalregister.gov REST API   | `government_content`       | REST; HTML→Markdown via Turndown                       |
+| `scotus.ts`                 | CourtListener REST API         | `court_case`               | REST (`COURTLISTENER_API_KEY`, optional)               |
+| `vote411.ts`                | vote411.org                    | (cached locally)           | cheerio HTML parse; does **not** write to the main DB  |
+| `scc-cvig.ts`               | Santa Clara County voter guide | `civic_api_cache`          | PDF extraction; optional Gemini fallback               |
+| `ca-sos-statements.ts`      | CA Secretary of State guide    | `civic_api_cache`          | official candidate-statement pages                     |
+| `ca-lao-fiscal.ts`          | CA LAO ballot analyses         | `civic_api_cache`          | proposition fiscal analyses via HTML parse             |
+| `ca-vig-archive.ts`         | CA SOS voter-guide archive     | `civic_api_cache`          | historical proposition guide pages via HTML parse      |
+| `texas-current-election.ts` | Texas SOS + TLC                | `election_source_snapshot` | current-cycle JSON + deterministic PDF text parsing    |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
 > Note: `whitehouse.gov` cheerio scraping was replaced by the structured **Federal Register** REST API. `vote411-ballot.ts` exists for address-based ballot lookup (needs Playwright) but isn't wired into the CLI.
+
+The Texas scraper is intentionally current-cycle only. SOS election facts and
+TLC explanatory text remain separate provider snapshots and separate citations;
+see [Texas current-election data](./texas-current-election.md).
 
 ## Upsert + Change Detection
 

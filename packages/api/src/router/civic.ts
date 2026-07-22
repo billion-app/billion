@@ -11,6 +11,7 @@ import {
 } from "../lib/civic";
 import { getElectedOfficials } from "../lib/elected-officials";
 import { getCurrentNcElectionData } from "../lib/ncsbe-election-data";
+import { getTexasCurrentElectionData } from "../lib/texas-election-data";
 import { publicProcedure } from "../trpc";
 
 const STATEWIDE_OFFICE = z.enum(
@@ -38,6 +39,25 @@ export const civicRouter = {
         code: "INTERNAL_SERVER_ERROR",
         message:
           error instanceof Error ? error.message : "Failed to fetch elections",
+        cause: error,
+      });
+    }
+  }),
+
+  /**
+   * Current-cycle Texas statewide election data from the persisted SOS/TLC
+   * handoff. This intentionally exposes no historical browsing parameter.
+   */
+  getTexasCurrentElection: publicProcedure.query(async () => {
+    try {
+      return await getTexasCurrentElectionData();
+    } catch (error) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to read current Texas election data",
         cause: error,
       });
     }

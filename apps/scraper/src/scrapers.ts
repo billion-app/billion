@@ -5,6 +5,7 @@ import { federalregister } from "./scrapers/federalregister.js";
 import { ncsbe } from "./scrapers/ncsbe.js";
 import { sccCvig } from "./scrapers/scc-cvig.js";
 import { scotus } from "./scrapers/scotus.js";
+import { texasCurrentElection } from "./scrapers/texas-current-election.js";
 
 export const scrapers: readonly Scraper[] = [
   federalregister,
@@ -13,4 +14,5 @@ export const scrapers: readonly Scraper[] = [
   sccCvig,
   caSosStatements,
   ncsbe,
+  texasCurrentElection,
 ];
