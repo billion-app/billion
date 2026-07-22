@@ -10,6 +10,7 @@ import {
   getVoterInfo,
 } from "../lib/civic";
 import { getElectedOfficials } from "../lib/elected-officials";
+import { getMissouriCurrentElectionData } from "../lib/missouri-election-data";
 import { getCurrentNcElectionData } from "../lib/ncsbe-election-data";
 import { getTexasCurrentElectionData } from "../lib/texas-election-data";
 import { publicProcedure } from "../trpc";
@@ -58,6 +59,22 @@ export const civicRouter = {
           error instanceof Error
             ? error.message
             : "Failed to read current Texas election data",
+        cause: error,
+      });
+    }
+  }),
+
+  /** Official, current-cycle-only Missouri SOS election data. */
+  getMissouriCurrentElection: publicProcedure.query(async () => {
+    try {
+      return await getMissouriCurrentElectionData();
+    } catch (error) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to read current Missouri election data",
         cause: error,
       });
     }
