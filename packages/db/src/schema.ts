@@ -873,7 +873,7 @@ export const LocalGovernmentMeeting = pgTable(
   (t) => ({
     id: t.uuid().notNull().primaryKey().defaultRandom(),
     source: t.varchar({ length: 50 }).notNull(),
-    sourceVersion: t.varchar({ length: 50 }).notNull(),
+    sourceVersion: t.varchar({ length: 100 }).notNull(),
     jurisdiction: t.varchar({ length: 100 }).notNull(),
     governingBody: t.varchar({ length: 256 }).notNull(),
     externalId: t.varchar({ length: 128 }).notNull(),
@@ -881,9 +881,14 @@ export const LocalGovernmentMeeting = pgTable(
     meetingType: t.varchar({ length: 50 }).notNull(),
     status: t.varchar({ length: 50 }).notNull(),
     startsAt: t.timestamp({ mode: "date", withTimezone: true }).notNull(),
+    timezone: t.varchar({ length: 64 }),
     location: t.text(),
+    isCancelled: t.boolean().notNull().default(false),
+    isAmended: t.boolean().notNull().default(false),
     canonicalUrl: t.text().notNull(),
+    videoUrl: t.text(),
     contentHash: t.varchar({ length: 64 }).notNull(),
+    sourceUpdatedAt: t.timestamp({ mode: "date", withTimezone: true }),
     fetchedAt: t
       .timestamp({ mode: "date", withTimezone: true })
       .defaultNow()
@@ -953,10 +958,17 @@ export const LocalGovernmentAgendaItem = pgTable(
     itemType: t.varchar({ length: 50 }).notNull(),
     title: t.text().notNull(),
     description: t.text(),
+    minutesNote: t.text(),
     consent: t.boolean().notNull().default(false),
+    action: t.text(),
     motion: t.text(),
     outcome: t.varchar({ length: 100 }),
     voteSummary: t.text(),
+    mover: t.varchar({ length: 256 }),
+    seconder: t.varchar({ length: 256 }),
+    sourceVersion: t.varchar({ length: 100 }),
+    contentHash: t.varchar({ length: 64 }),
+    sourceUpdatedAt: t.timestamp({ mode: "date", withTimezone: true }),
     sourceUrl: t.text().notNull(),
     createdAt: t.timestamp().defaultNow().notNull(),
     updatedAt: t
@@ -979,8 +991,16 @@ export const LocalGovernmentVote = pgTable(
       .uuid()
       .notNull()
       .references(() => LocalGovernmentAgendaItem.id, { onDelete: "cascade" }),
+    externalId: t.varchar({ length: 128 }),
+    voterExternalId: t.varchar({ length: 128 }),
     voterName: t.varchar({ length: 256 }).notNull(),
     value: t.varchar({ length: 50 }).notNull(),
+    sort: t.integer().notNull().default(0),
+    sourceUpdatedAt: t.timestamp({ mode: "date", withTimezone: true }),
+    fetchedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
     createdAt: t.timestamp().defaultNow().notNull(),
   }),
   (table) => ({

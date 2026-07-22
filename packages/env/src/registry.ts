@@ -103,6 +103,7 @@ const scraperSourceLimitDefinitions = [
     "Hours before a Durham OnBase meeting is refreshed.",
     "24",
   ],
+  ["DURHAM_BOCC_MAX_ITEMS", "Durham County BOCC meetings per run.", "100"],
 ] as const;
 
 export const envRegistry = [

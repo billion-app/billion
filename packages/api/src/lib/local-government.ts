@@ -25,12 +25,35 @@ export async function getLocalGovernmentMeetings(
     filters.push(gte(LocalGovernmentMeeting.startsAt, query.start));
   if (query.end) filters.push(lte(LocalGovernmentMeeting.startsAt, query.end));
 
-  return db
+  const meetings = await db
     .select()
     .from(LocalGovernmentMeeting)
     .where(filters.length > 0 ? and(...filters) : undefined)
     .orderBy(desc(LocalGovernmentMeeting.startsAt))
     .limit(Math.min(query.limit ?? 50, 100));
+  if (meetings.length === 0) return [];
+
+  const documents = await db
+    .select({
+      id: LocalGovernmentDocument.id,
+      meetingId: LocalGovernmentDocument.meetingId,
+      type: LocalGovernmentDocument.type,
+      title: LocalGovernmentDocument.title,
+      url: LocalGovernmentDocument.url,
+    })
+    .from(LocalGovernmentDocument)
+    .where(
+      inArray(
+        LocalGovernmentDocument.meetingId,
+        meetings.map((meeting) => meeting.id),
+      ),
+    )
+    .orderBy(asc(LocalGovernmentDocument.type));
+
+  return meetings.map((meeting) => ({
+    ...meeting,
+    documents: documents.filter((document) => document.meetingId === meeting.id),
+  }));
 }
 
 export async function getLocalGovernmentMeeting(id: string) {

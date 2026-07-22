@@ -28,7 +28,8 @@ process environment at runtime, not embedded during the build.
 | `texas-current-election.ts` | Texas SOS + TLC                  | `election_source_snapshot` | current-cycle JSON + deterministic PDF text parsing                     |
 | `texas-legislature.ts`      | Texas Legislative Council FTP    | `bill`                     | current-session XML + bulk HTML; no site mining                         |
 | `civicengage.ts`            | Cedar Park official council page | local-government tables    | CivicEngage entry page + Municode embed; deterministic HTML/PDF parsing |
-| `durham-onbase.ts`     | Durham OnBase Agenda Online    | `local_*` tables     | meetings, items, attachments, and official actions     |
+| `durham-onbase.ts`           | Durham OnBase Agenda Online      | local-government tables    | current-cycle meetings, items, attachments, and official actions        |
+| `durham-bocc.ts`             | Durham County Legistar API       | local-government tables    | current-cycle meetings, items, actions, votes, and documents            |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
@@ -55,6 +56,12 @@ Only meetings in the current calendar-year council cycle are ingested. The
 product does not expose historical election cycles or run an OnBase backfill.
 `DURHAM_ONBASE_MAX_ITEMS` (default `100`) limits meetings and
 `DURHAM_ONBASE_CACHE_TTL_HOURS` (default `24`) controls refresh frequency.
+
+### Durham County BOCC
+
+`durham-bocc` reads Durham County's official structured Legistar feed for BOCC body ID `138`. It bounds discovery to the current two-year election cycle, upserts stable provider IDs, and stores checksums/source row versions so replaced agendas update the existing meeting. Cancellations and explicit amendments remain visible; Spanish attachments are tagged separately. Agenda/minutes PDFs are retained as official links and are not sent through AI or OCR when structured item/action fields are available.
+
+Run it with `pnpm --filter @acme/scraper run start durham-bocc`. The default cap is 100 meetings and can be changed with `DURHAM_BOCC_MAX_ITEMS` or `--max-items`.
 
 ## Upsert + Change Detection
 
