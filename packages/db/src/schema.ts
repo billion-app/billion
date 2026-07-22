@@ -645,6 +645,146 @@ export const LegistarVote = pgTable(
   }),
 );
 
+// Provider-neutral local government meetings. Source adapters (Legistar,
+// CivicPlus, etc.) retain their native IDs while readers use one stable shape.
+export interface LocalGovernmentDocument {
+  kind: "agenda" | "minutes" | "packet" | "attachment" | "notice" | "other";
+  title: string;
+  url: string;
+  language?: string;
+}
+
+export const LocalGovernmentMeeting = pgTable(
+  "local_government_meeting",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    provider: t.varchar({ length: 50 }).notNull(),
+    jurisdiction: t.varchar({ length: 100 }).notNull(),
+    sourceId: t.varchar({ length: 100 }).notNull(),
+    bodyName: t.varchar({ length: 256 }).notNull(),
+    title: t.text().notNull(),
+    meetingType: t.varchar({ length: 100 }),
+    startsAt: t.timestamp({ mode: "date", withTimezone: true }).notNull(),
+    timezone: t.varchar({ length: 64 }).notNull(),
+    location: t.text(),
+    status: t.varchar({ length: 100 }).notNull(),
+    isCancelled: t.boolean().notNull().default(false),
+    isAmended: t.boolean().notNull().default(false),
+    sourceUrl: t.text().notNull(),
+    videoUrl: t.text(),
+    documents: t
+      .jsonb()
+      .$type<LocalGovernmentDocument[]>()
+      .notNull()
+      .default([]),
+    sourceVersion: t.varchar({ length: 100 }).notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    sourceUpdatedAt: t.timestamp({ mode: "date", withTimezone: true }).notNull(),
+    fetchedAt: t.timestamp({ mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueSourceMeeting: unique().on(
+      table.provider,
+      table.jurisdiction,
+      table.sourceId,
+    ),
+    startsAtIdx: index("local_government_meeting_starts_at_idx").on(
+      table.startsAt,
+    ),
+  }),
+);
+
+export const LocalGovernmentMeetingItem = pgTable(
+  "local_government_meeting_item",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    provider: t.varchar({ length: 50 }).notNull(),
+    jurisdiction: t.varchar({ length: 100 }).notNull(),
+    sourceId: t.varchar({ length: 100 }).notNull(),
+    meetingSourceId: t.varchar({ length: 100 }).notNull(),
+    sequence: t.integer().notNull(),
+    agendaNumber: t.varchar({ length: 50 }),
+    title: t.text().notNull(),
+    agendaNote: t.text(),
+    minutesNote: t.text(),
+    isConsent: t.boolean().notNull().default(false),
+    action: t.text(),
+    actionText: t.text(),
+    outcome: t.varchar({ length: 100 }),
+    tally: t.varchar({ length: 100 }),
+    mover: t.varchar({ length: 256 }),
+    seconder: t.varchar({ length: 256 }),
+    documents: t
+      .jsonb()
+      .$type<LocalGovernmentDocument[]>()
+      .notNull()
+      .default([]),
+    sourceVersion: t.varchar({ length: 100 }).notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    sourceUpdatedAt: t.timestamp({ mode: "date", withTimezone: true }).notNull(),
+    fetchedAt: t.timestamp({ mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueSourceItem: unique().on(
+      table.provider,
+      table.jurisdiction,
+      table.sourceId,
+    ),
+    meetingSourceIdx: index("local_government_item_meeting_source_idx").on(
+      table.provider,
+      table.jurisdiction,
+      table.meetingSourceId,
+    ),
+  }),
+);
+
+export const LocalGovernmentVote = pgTable(
+  "local_government_vote",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    provider: t.varchar({ length: 50 }).notNull(),
+    jurisdiction: t.varchar({ length: 100 }).notNull(),
+    sourceId: t.varchar({ length: 100 }).notNull(),
+    itemSourceId: t.varchar({ length: 100 }).notNull(),
+    personSourceId: t.varchar({ length: 100 }),
+    personName: t.varchar({ length: 256 }).notNull(),
+    value: t.varchar({ length: 100 }).notNull(),
+    sort: t.integer().notNull().default(0),
+    sourceUpdatedAt: t.timestamp({ mode: "date", withTimezone: true }).notNull(),
+    fetchedAt: t.timestamp({ mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueSourceVote: unique().on(
+      table.provider,
+      table.jurisdiction,
+      table.sourceId,
+    ),
+    itemSourceIdx: index("local_government_vote_item_source_idx").on(
+      table.provider,
+      table.jurisdiction,
+      table.itemSourceId,
+    ),
+  }),
+);
+
 // Google Civic API response cache
 export const CivicApiCache = pgTable(
   "civic_api_cache",

@@ -7,16 +7,16 @@ import {
 import { FontAwesome } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 
-import type { LegistarMeeting } from "@acme/api/integrations/legistar";
+import type { RouterOutputs } from "@acme/api";
 
 import { Text, View } from "~/components/Themed";
 import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
 import { trpc } from "~/utils/api";
 
+type Meeting = RouterOutputs["localGovernment"]["listMeetings"][number];
+
 interface UpcomingMeetingsSectionProps {
-  onMeetingPress?: (
-    meeting: LegistarMeeting & { jurisdiction: string },
-  ) => void;
+  onMeetingPress?: (meeting: Meeting) => void;
 }
 
 function formatDate(iso: string): string {
@@ -34,7 +34,7 @@ export function UpcomingMeetingsSection({
   const { theme } = useTheme();
 
   const meetingsQuery = useQuery(
-    trpc.legistar.getMeetings.queryOptions({ daysAhead: 30 }),
+    trpc.localGovernment.listMeetings.queryOptions({ daysAhead: 90 }),
   );
 
   return (
@@ -47,30 +47,37 @@ export function UpcomingMeetingsSection({
 
       {meetingsQuery.data?.slice(0, 8).map((meeting, index) => (
         <TouchableOpacity
-          key={`${meeting.EventId}-${index}`}
+          key={`${meeting.provider}-${meeting.sourceId}-${index}`}
           style={[styles.card, { backgroundColor: theme.card }]}
-          onPress={() => onMeetingPress?.(meeting)}
+          onPress={() =>
+            onMeetingPress
+              ? onMeetingPress(meeting)
+              : void Linking.openURL(meeting.sourceUrl)
+          }
           activeOpacity={0.8}
         >
           <View style={styles.cardAccent} />
           <View style={styles.cardContent}>
             <View style={styles.meta}>
               <Text style={styles.jurisdiction}>{meeting.jurisdiction}</Text>
-              <Text style={styles.date}>{formatDate(meeting.EventDate)}</Text>
+              <Text style={styles.date}>{formatDate(meeting.startsAt.toString())}</Text>
             </View>
             <Text style={styles.title} numberOfLines={2}>
-              {meeting.EventBodyName}
+              {meeting.isCancelled ? "Cancelled: " : ""}
+              {meeting.title}
             </Text>
-            {meeting.EventLocation && (
+            {meeting.location && (
               <Text style={styles.location} numberOfLines={1}>
-                {meeting.EventLocation}
+                {meeting.location}
               </Text>
             )}
             <View style={styles.icons}>
-              {meeting.EventAgendaFile && (
+              {meeting.documents.find((document) => document.kind === "agenda") && (
                 <TouchableOpacity
                   onPress={() =>
-                    void Linking.openURL(meeting.EventAgendaFile ?? "")
+                    void Linking.openURL(
+                      meeting.documents.find((document) => document.kind === "agenda")?.url ?? "",
+                    )
                   }
                   hitSlop={8}
                 >
@@ -81,10 +88,10 @@ export function UpcomingMeetingsSection({
                   />
                 </TouchableOpacity>
               )}
-              {meeting.EventVideoPath && (
+              {meeting.videoUrl && (
                 <TouchableOpacity
                   onPress={() =>
-                    void Linking.openURL(meeting.EventVideoPath ?? "")
+                    void Linking.openURL(meeting.videoUrl ?? "")
                   }
                   hitSlop={8}
                 >
@@ -95,10 +102,12 @@ export function UpcomingMeetingsSection({
                   />
                 </TouchableOpacity>
               )}
-              {meeting.EventMinutesFile && (
+              {meeting.documents.find((document) => document.kind === "minutes") && (
                 <TouchableOpacity
                   onPress={() =>
-                    void Linking.openURL(meeting.EventMinutesFile ?? "")
+                    void Linking.openURL(
+                      meeting.documents.find((document) => document.kind === "minutes")?.url ?? "",
+                    )
                   }
                   hitSlop={8}
                 >

@@ -9,6 +9,7 @@ Only these five are registered and run by `all`:
 | CLI name            | Source and data fetched                                                                    | Stored/used as                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `federalregister`   | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article/summary and feed-image enrichment                                    |
+| `durham-bocc`       | Durham County's official Legistar API (current election cycle only)                         | Provider-neutral meetings, agenda items, actions, votes, and official document links; no AI required   |
 | `congress`          | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI/feed enrichment                                            |
 | `scotus`            | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
 | `scc-cvig`          | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
@@ -124,6 +125,7 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters                      |
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Voter-guide PDF documents                           |
 | `CA_SOS_MAX_ITEMS`              |       9 | Statewide-office candidate-statement pages          |
+| `DURHAM_BOCC_MAX_ITEMS`         |     100 | Current-cycle Durham County BOCC meetings           |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per

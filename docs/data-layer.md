@@ -59,6 +59,8 @@ All three content tables share a common pattern:
 
 **Local government (Legistar cache)** — `legistar_body`, `legistar_matter`, `legistar_meeting`, `legistar_agenda_item`, `legistar_vote`. These cache San Jose / Santa Clara / Sunnyvale council data (ordinances, meetings, agenda items, votes) keyed by `(jurisdiction, *_id)` with a `fetched_at` timestamp.
 
+**Provider-neutral local government** — `local_government_meeting`, `local_government_meeting_item`, and `local_government_vote`. Source adapters retain `(provider, jurisdiction, source_id)` while readers receive one shape containing cancellation/amendment state, official documents, actions, outcomes, and named votes. Durham County BOCC is the first writer. Apply `packages/db/migrations/add_local_government_meetings.sql` before running that scraper.
+
 **User engagement & caching:**
 
 | Table             | Purpose                                                                                                                                                                                                                     |
