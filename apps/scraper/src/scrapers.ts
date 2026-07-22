@@ -2,6 +2,7 @@ import type { Scraper } from "./utils/types.js";
 import { caSosStatements } from "./scrapers/ca-sos-statements.js";
 import { cedarParkCouncil } from "./scrapers/civicengage.js";
 import { congress } from "./scrapers/congress.js";
+import { durhamOnBase } from "./scrapers/durham-onbase.js";
 import { federalregister } from "./scrapers/federalregister.js";
 import { ncsbe } from "./scrapers/ncsbe.js";
 import { sccCvig } from "./scrapers/scc-cvig.js";
@@ -19,4 +20,5 @@ export const scrapers: readonly Scraper[] = [
   texasCurrentElection,
   texasLegislature,
   cedarParkCouncil,
+  durhamOnBase,
 ];

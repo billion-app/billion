@@ -97,6 +97,12 @@ const scraperSourceLimitDefinitions = [
     "Cedar Park City Council meetings per run.",
     "100",
   ],
+  ["DURHAM_ONBASE_MAX_ITEMS", "Durham OnBase meetings per run.", "100"],
+  [
+    "DURHAM_ONBASE_CACHE_TTL_HOURS",
+    "Hours before a Durham OnBase meeting is refreshed.",
+    "24",
+  ],
 ] as const;
 
 export const envRegistry = [

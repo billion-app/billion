@@ -28,6 +28,7 @@ process environment at runtime, not embedded during the build.
 | `texas-current-election.ts` | Texas SOS + TLC                  | `election_source_snapshot` | current-cycle JSON + deterministic PDF text parsing                     |
 | `texas-legislature.ts`      | Texas Legislative Council FTP    | `bill`                     | current-session XML + bulk HTML; no site mining                         |
 | `civicengage.ts`            | Cedar Park official council page | local-government tables    | CivicEngage entry page + Municode embed; deterministic HTML/PDF parsing |
+| `durham-onbase.ts`     | Durham OnBase Agenda Online    | `local_*` tables     | meetings, items, attachments, and official actions     |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
@@ -41,6 +42,19 @@ The Cedar Park pilot is deliberately limited to City Council meetings from the
 latest 12 months. It stores meetings, versioned documents, agenda items,
 motions/outcomes, and named roll-call votes in provider-neutral tables. It does
 not browse or backfill historical election cycles.
+
+### Durham OnBase
+
+Run `pnpm -F @acme/scraper start:dev -- durham-onbase`. The scraper reads the
+official OnBase embedded meeting JSON, agenda/minutes HTML outlines, and agenda
+item detail endpoints. It does not use AI or PDF vision. Requests are serialized
+at a minimum 250 ms interval, use the shared retry/backoff client, and skip rows
+refreshed in the last 24 hours by default.
+
+Only meetings in the current calendar-year council cycle are ingested. The
+product does not expose historical election cycles or run an OnBase backfill.
+`DURHAM_ONBASE_MAX_ITEMS` (default `100`) limits meetings and
+`DURHAM_ONBASE_CACHE_TTL_HOURS` (default `24`) controls refresh frequency.
 
 ## Upsert + Change Detection
 
