@@ -4,15 +4,16 @@ Pulls in government content like bills, court cases, and White House content and
 
 ## Active data sources
 
-Only these five are registered and run by `all`:
+Only these six are registered and run by `all`:
 
-| CLI name            | Source and data fetched                                                                    | Stored/used as                                                                                        |
-| ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `federalregister`   | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article/summary and feed-image enrichment                                    |
-| `congress`          | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI/feed enrichment                                            |
-| `scotus`            | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
-| `scc-cvig`          | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
-| `ca-sos-statements` | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
+| CLI name             | Source and data fetched                                                                    | Stored/used as                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `federalregister`    | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article/summary and feed-image enrichment                                    |
+| `congress`           | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI/feed enrichment                                            |
+| `scotus`             | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
+| `scc-cvig`           | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
+| `ca-sos-statements`  | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
+| `cedar-park-council` | Cedar Park's CivicEngage City Council page and its official Municode Meetings embed        | Provider-neutral local meetings, documents, agenda items, motions, outcomes, and votes                |
 
 `vote411`, `ca-lao-fiscal`, and `ca-vig-archive` remain under
 `src/scrapers/disabled/` and do not run. Their caches had no application
@@ -124,6 +125,7 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters                      |
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Voter-guide PDF documents                           |
 | `CA_SOS_MAX_ITEMS`              |       9 | Statewide-office candidate-statement pages          |
+| `CEDAR_PARK_COUNCIL_MAX_ITEMS`  |     100 | Council meetings (after the 12-month cutoff)        |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
@@ -131,6 +133,28 @@ day to obtain a daily cap. If the scheduler retries or runs multiple times, each
 invocation gets a fresh allowance. Source limits cap API/page work;
 `SCRAPER_MAX_NEW_ITEMS_PER_RUN` separately caps expensive enrichment while
 still storing additional raw records for later backfill.
+
+## Cedar Park City Council (`civicengage.ts`)
+
+Cedar Park's public site is CivicEngage, but the City Council records page now
+embeds a keyless Municode Meetings publish page. The adapter follows that
+official embed, keeps a 12-month Council-only window, downloads at most two
+documents concurrently, and deterministically parses PDF text. AI/vision is not
+used. Agendas, packets, minutes, and later document URLs are versioned beneath
+one provider-neutral meeting record; unchanged reruns produce the same natural
+keys and checksums.
+
+```bash
+pnpm --filter @acme/scraper run start cedar-park-council --max-items 1
+```
+
+To add a second CivicEngage jurisdiction using the same kind of official
+Municode embed, add a `CivicEngageJurisdictionConfig` beside
+`cedarParkCouncilSource` with its CivicEngage host/path, IANA timezone,
+Municode `cid`/`ppid`, and governing-body matcher, then instantiate the same
+discovery/parser pipeline. If its records page uses Agenda Center, Legistar, or
+another provider, implement that provider behind the same local-government
+persistence contract instead.
 
 ---
 

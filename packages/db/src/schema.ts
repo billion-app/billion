@@ -645,6 +645,132 @@ export const LegistarVote = pgTable(
   }),
 );
 
+// Provider-neutral local-government records populated by scheduled source
+// adapters. Provider-specific tables above remain as the Legistar live cache;
+// these tables are the durable contract consumed by the product.
+export const LocalGovernmentMeeting = pgTable(
+  "local_government_meeting",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    source: t.varchar({ length: 50 }).notNull(),
+    sourceVersion: t.varchar({ length: 50 }).notNull(),
+    jurisdiction: t.varchar({ length: 100 }).notNull(),
+    governingBody: t.varchar({ length: 256 }).notNull(),
+    externalId: t.varchar({ length: 128 }).notNull(),
+    title: t.text().notNull(),
+    meetingType: t.varchar({ length: 50 }).notNull(),
+    status: t.varchar({ length: 50 }).notNull(),
+    startsAt: t.timestamp({ mode: "date", withTimezone: true }).notNull(),
+    location: t.text(),
+    canonicalUrl: t.text().notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    fetchedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueSourceMeeting: unique().on(
+      table.source,
+      table.jurisdiction,
+      table.externalId,
+    ),
+    jurisdictionDateIdx: index(
+      "local_government_meeting_jurisdiction_date_idx",
+    ).on(table.jurisdiction, table.startsAt),
+  }),
+);
+
+export const LocalGovernmentDocument = pgTable(
+  "local_government_document",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    meetingId: t
+      .uuid()
+      .notNull()
+      .references(() => LocalGovernmentMeeting.id, { onDelete: "cascade" }),
+    type: t.varchar({ length: 30 }).notNull(),
+    title: t.text().notNull(),
+    url: t.text().notNull(),
+    mediaType: t.varchar({ length: 100 }),
+    checksum: t.varchar({ length: 64 }),
+    extractedText: t.text(),
+    isCurrent: t.boolean().notNull().default(true),
+    discoveredAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    fetchedAt: t.timestamp({ mode: "date", withTimezone: true }),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueMeetingDocument: unique().on(table.meetingId, table.type, table.url),
+    meetingDocumentIdx: index("local_government_document_meeting_idx").on(
+      table.meetingId,
+    ),
+  }),
+);
+
+export const LocalGovernmentAgendaItem = pgTable(
+  "local_government_agenda_item",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    meetingId: t
+      .uuid()
+      .notNull()
+      .references(() => LocalGovernmentMeeting.id, { onDelete: "cascade" }),
+    externalId: t.varchar({ length: 128 }).notNull(),
+    sequence: t.integer().notNull(),
+    itemNumber: t.varchar({ length: 50 }),
+    section: t.varchar({ length: 100 }),
+    itemType: t.varchar({ length: 50 }).notNull(),
+    title: t.text().notNull(),
+    description: t.text(),
+    consent: t.boolean().notNull().default(false),
+    motion: t.text(),
+    outcome: t.varchar({ length: 100 }),
+    voteSummary: t.text(),
+    sourceUrl: t.text().notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueMeetingItem: unique().on(table.meetingId, table.externalId),
+    meetingItemSequenceIdx: index(
+      "local_government_agenda_item_meeting_sequence_idx",
+    ).on(table.meetingId, table.sequence),
+  }),
+);
+
+export const LocalGovernmentVote = pgTable(
+  "local_government_vote",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    agendaItemId: t
+      .uuid()
+      .notNull()
+      .references(() => LocalGovernmentAgendaItem.id, { onDelete: "cascade" }),
+    voterName: t.varchar({ length: 256 }).notNull(),
+    value: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueItemVoter: unique().on(table.agendaItemId, table.voterName),
+    agendaItemVoteIdx: index("local_government_vote_agenda_item_idx").on(
+      table.agendaItemId,
+    ),
+  }),
+);
+
 // Google Civic API response cache
 export const CivicApiCache = pgTable(
   "civic_api_cache",
