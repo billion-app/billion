@@ -9,10 +9,11 @@ loadRepoEnv();
  * One-off baseline for databases that already contain the full schema because
  * it was applied with `drizzle-kit push` before we adopted generate/migrate.
  *
- * It records every existing migration in `drizzle.__drizzle_migrations` as
- * already-applied — using the exact table shape, hash and `created_at` value
- * that `drizzle-orm`'s migrator expects — so a subsequent `pnpm db:migrate`
- * skips them instead of trying to re-`CREATE TABLE` objects that already exist.
+ * It records the two fixed adoption migrations in
+ * `drizzle.__drizzle_migrations` as already-applied — using the exact table
+ * shape, hash and `created_at` value that `drizzle-orm`'s migrator expects — so
+ * a subsequent `pnpm db:migrate` skips them instead of trying to re-`CREATE
+ * TABLE` objects that already exist. Migrations added later remain pending.
  *
  * It is idempotent: migrations already recorded are left untouched. Run it once
  * per pre-existing database (prod + any dev DB seeded via push). Brand-new
@@ -22,6 +23,12 @@ loadRepoEnv();
 const MIGRATIONS_FOLDER = new URL("drizzle", import.meta.url).pathname;
 const MIGRATIONS_SCHEMA = "drizzle";
 const MIGRATIONS_TABLE = "__drizzle_migrations";
+
+// Existing databases adopted migration tracking after these two migrations had
+// already been applied with drizzle-kit push. Keep this cutoff fixed so running
+// the baseline utility in the future cannot mark a newer migration as applied.
+const BASELINE_THROUGH_MILLIS = 1784735846676; // 0001_premium_famine
+const EXPECTED_BASELINE_MIGRATIONS = 2;
 
 async function baseline() {
   if (!process.env.POSTGRES_URL) {
@@ -37,9 +44,16 @@ async function baseline() {
       migrationsFolder: MIGRATIONS_FOLDER,
     });
 
-    if (migrations.length === 0) {
-      console.log("No migrations found — nothing to baseline.");
-      return;
+    const baselineMigrations = migrations.filter(
+      (migration) => migration.folderMillis <= BASELINE_THROUGH_MILLIS,
+    );
+
+    if (baselineMigrations.length !== EXPECTED_BASELINE_MIGRATIONS) {
+      throw new Error(
+        `Expected ${EXPECTED_BASELINE_MIGRATIONS} adoption migrations through ` +
+          `${BASELINE_THROUGH_MILLIS}, found ${baselineMigrations.length}. ` +
+          "The initial migration history may have changed; refusing to baseline.",
+      );
     }
 
     // Match drizzle-orm's migrator: create schema + tracking table.
@@ -53,7 +67,7 @@ async function baseline() {
     );
 
     let inserted = 0;
-    for (const migration of migrations) {
+    for (const migration of baselineMigrations) {
       const existing = await pool.query(
         `SELECT 1 FROM "${MIGRATIONS_SCHEMA}"."${MIGRATIONS_TABLE}" WHERE hash = $1 LIMIT 1`,
         [migration.hash],
@@ -72,8 +86,15 @@ async function baseline() {
 
     console.log(
       `\nDone. ${inserted} migration(s) marked as applied; ` +
-        `${migrations.length - inserted} already present.`,
+        `${baselineMigrations.length - inserted} already present.`,
     );
+
+    const newerMigrations = migrations.length - baselineMigrations.length;
+    if (newerMigrations > 0) {
+      console.log(
+        `${newerMigrations} newer migration(s) left pending; run pnpm db:migrate.`,
+      );
+    }
   } finally {
     await pool.end();
   }

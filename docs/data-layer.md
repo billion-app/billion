@@ -100,19 +100,20 @@ and timestamps expected by Drizzle into `drizzle.__drizzle_migrations`. It is
 idempotent and leaves hashes that are already present alone.
 
 > **Important:** `db:baseline` does not inspect or repair the live schema. It
-> marks every migration currently present in `packages/db/drizzle/` as applied.
-> Run it only when the database is known to already contain all of those schema
-> changes. Running it against a new, partial, or drifted database can hide
-> missing DDL from future `db:migrate` runs.
+> marks only the two fixed adoption migrations, `0000_baseline` and
+> `0001_premium_famine`, as applied. Run it only when the database is known to
+> already contain both migrations' schema changes. Running it against a new,
+> partial, or drifted database can hide missing DDL from future `db:migrate`
+> runs. Newer migrations remain pending and are applied by `db:migrate`.
 
 For each pre-migration development, staging, or production database:
 
-1. Confirm that the database was previously kept current with `db:push` and matches the schema represented by the migrations in this checkout.
+1. Confirm that the database was previously kept current with `db:push` and contains the schema represented by `0000_baseline` and `0001_premium_famine`.
 2. Take a backup or confirm that a recent backup can be restored.
 3. Set and verify `POSTGRES_URL` for that specific environment.
 4. Run `pnpm db:baseline` exactly once during adoption of this workflow.
-5. Inspect `drizzle.__drizzle_migrations` and confirm that the expected initial migrations were recorded.
-6. Run `pnpm db:migrate`; it should report no pending initial schema work.
+5. Inspect `drizzle.__drizzle_migrations` and confirm that the two adoption migrations were recorded.
+6. Run `pnpm db:migrate`; it applies any migrations added after the fixed adoption cutoff.
 7. Start the application and smoke-test database-backed flows.
 
 Brand-new databases skip baselining and run `pnpm db:migrate` directly.
