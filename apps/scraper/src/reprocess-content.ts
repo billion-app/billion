@@ -441,12 +441,23 @@ async function main(): Promise<void> {
   if (argv.apply && target.target === "production" && !argv.yes) {
     throw new Error("Production writes require both --apply and --yes");
   }
-  if (argv.apply && !process.env.DEEPSEEK_API_KEY) {
-    throw new Error("DEEPSEEK_API_KEY is required when --apply is set");
-  }
-  if (argv.apply && !process.env.BFL_API_KEY) {
+  if (
+    argv.apply &&
+    !process.env.OPENROUTER_API_KEY &&
+    !process.env.LOCAL_LLM_BASE_URL &&
+    !process.env.DEEPSEEK_API_KEY
+  ) {
     throw new Error(
-      "BFL_API_KEY is required to guarantee generated feed images",
+      "OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, or deprecated DEEPSEEK_API_KEY is required when --apply is set",
+    );
+  }
+  if (
+    argv.apply &&
+    !process.env.BFL_API_KEY &&
+    !process.env.LOCAL_FLUX_BASE_URL
+  ) {
+    throw new Error(
+      "BFL_API_KEY or LOCAL_FLUX_BASE_URL is required to guarantee generated feed images",
     );
   }
 

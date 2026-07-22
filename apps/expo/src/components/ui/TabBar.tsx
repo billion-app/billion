@@ -25,6 +25,7 @@ const ICONS: Record<string, IconName> = {
   index: "search",
   feed: "layers",
   elections: "vote",
+  feedback: "message",
   settings: "settings",
 };
 

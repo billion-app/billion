@@ -31,7 +31,11 @@ if (result.error) {
 const check = (v: string | undefined) => (v ? "Set" : "Missing");
 printHeader("Environment");
 printKeyValue("POSTGRES_URL", check(process.env.POSTGRES_URL));
-printKeyValue("DEEPSEEK_API_KEY", check(process.env.DEEPSEEK_API_KEY));
+printKeyValue("OPENROUTER_API_KEY", check(process.env.OPENROUTER_API_KEY));
+printKeyValue(
+  "DEEPSEEK_API_KEY (deprecated)",
+  check(process.env.DEEPSEEK_API_KEY),
+);
 printKeyValue("BFL_API_KEY", check(process.env.BFL_API_KEY));
 printKeyValue("CONGRESS_API_KEY", check(process.env.CONGRESS_API_KEY));
 printFooter();

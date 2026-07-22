@@ -47,6 +47,15 @@ export function validateScraperEnv(
         }
       }
     }
+    for (const keys of scraper.environment.requiredAny ?? []) {
+      for (const key of keys) {
+        if (!envSchemas[key]) {
+          throw new Error(
+            `Scraper "${scraper.id}" declares unknown environment variable ${key}`,
+          );
+        }
+      }
+    }
   }
   const result = validateEnvironment({
     environment,

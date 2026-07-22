@@ -9,7 +9,10 @@ export interface ScraperEnvContract {
   id: string;
   name: string;
   source: string;
-  environment: Partial<Record<Requirement, readonly string[]>>;
+  environment: Partial<Record<Requirement, readonly string[]>> & {
+    /** Every group requires at least one configured key. */
+    requiredAny?: readonly (readonly string[])[];
+  };
 }
 
 export interface EnvDefinition {
@@ -280,12 +283,59 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "OPENROUTER_API_KEY",
+    description: "Preferred key for AI text generation through OpenRouter.",
+    group: "AI",
+    secret: true,
+    setupUrl: "https://openrouter.ai/settings/keys",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "OPENROUTER_MODEL",
+    description: "OpenRouter model slug used for AI text generation.",
+    group: "AI",
+    secret: false,
+    defaultValue: "deepseek/deepseek-v4-flash",
+    requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
     key: "DEEPSEEK_API_KEY",
-    description: "DeepSeek key for AI text generation.",
+    description:
+      "Deprecated direct DeepSeek key; use OPENROUTER_API_KEY for AI text generation.",
     group: "AI",
     secret: true,
     setupUrl: "https://platform.deepseek.com/api_keys",
     requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "LOCAL_LLM_BASE_URL",
+    description:
+      "OpenAI-compatible local inference base URL used after OpenRouter, for example Ollama's /v1 endpoint.",
+    group: "AI",
+    secret: false,
+    example: "http://host.docker.internal:11434/v1",
+    requirements: { scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "LOCAL_LLM_MODEL",
+    description: "Model served by the local OpenAI-compatible endpoint.",
+    group: "AI",
+    secret: false,
+    defaultValue: "billion-scraper:latest",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "LOCAL_LLM_API_KEY",
+    description:
+      "Optional bearer token for the local inference endpoint; Ollama ignores the default placeholder.",
+    group: "AI",
+    secret: true,
+    requirements: { scraper: "optional" },
     schema: string,
   }),
   define({
@@ -339,6 +389,25 @@ export const envRegistry = [
     group: "Scraper images",
     secret: false,
     defaultValue: "flux-2-klein-9b",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "LOCAL_FLUX_BASE_URL",
+    description:
+      "Local FLUX API base URL used when BFL is unavailable or unconfigured.",
+    group: "Scraper images",
+    secret: false,
+    example: "http://host.docker.internal:8080",
+    requirements: { scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "LOCAL_FLUX_MODEL",
+    description: "Model name accepted by the local FLUX API.",
+    group: "Scraper images",
+    secret: false,
+    defaultValue: "klein",
     requirements: { scraper: "optional" },
     schema: string,
   }),

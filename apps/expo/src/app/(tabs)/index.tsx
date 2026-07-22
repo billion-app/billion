@@ -1,28 +1,29 @@
 import type { Href } from "expo-router";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
-import Fuse from "fuse.js";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import type { VideoPost } from "@acme/api";
 
 import type { ContentItem } from "~/utils/content";
 import { ElectionBanner } from "~/components/ElectionBanner";
 import { Text } from "~/components/Themed";
-import {
-  ContentCard,
-  Pill,
-  Pills,
-  SearchInput,
-  TabScreen,
-} from "~/components/ui";
+import { ContentCard, Pill, Pills, SearchInput } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useDebounced } from "~/hooks/useDebounce";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, fontDisplay } from "~/styles";
+import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
+
+// Below this length a query is treated as "not searching yet" to avoid
+// hammering the server-side full-text search on the first keystroke.
+const MIN_SEARCH_LENGTH = 2;
+
+const PAGE_SIZE = 20;
 
 const FILTERS: { id: VideoPost["type"] | "all"; label: string }[] = [
   { id: "all", label: "All" },
@@ -66,100 +67,163 @@ export default function BrowseScreen() {
   const upcomingElection =
     election && isWithinDays(election.electionDay, 30) ? election : undefined;
 
-  const { data, isLoading, error } = useQuery(
-    trpc.content.getByType.queryOptions({ type: filter }),
+  const insets = useSafeAreaInsets();
+
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery(
+    trpc.content.getByType.infiniteQueryOptions(
+      { type: filter, limit: PAGE_SIZE },
+      {
+        initialCursor: 0,
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+      },
+    ),
   );
 
-  const fuse = useMemo(
-    () =>
-      data
-        ? new Fuse(data, { keys: ["title", "description"], threshold: 0.3 })
-        : null,
+  const allItems = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
     [data],
   );
 
-  const items = useMemo<ContentItem[]>(() => {
-    if (!data) return [];
-    if (!query.trim() || !fuse) return data as ContentItem[];
-    return fuse.search(query).map((r) => r.item) as ContentItem[];
-  }, [data, query, fuse]);
+  // Server-side full-text search (bill/case codes + title/summary/full text)
+  // replaces the old title/description-only client-side Fuse match once the
+  // query is long enough to be worth a round trip.
+  const debouncedQuery = useDebounced(query, 300);
+  const isSearching = debouncedQuery.trim().length >= MIN_SEARCH_LENGTH;
+  const searchQuery = useQuery({
+    ...trpc.content.search.queryOptions({
+      query: debouncedQuery,
+      type: filter,
+    }),
+    enabled: isSearching,
+  });
+
+  const items = (
+    isSearching ? (searchQuery.data ?? []) : allItems
+  ) as ContentItem[];
+  const listIsLoading = isSearching ? searchQuery.isLoading : isLoading;
+  const listError = isSearching ? searchQuery.error : error;
+
+  const loadMore = () => {
+    if (isSearching) return;
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  };
 
   return (
-    <TabScreen
-      title="Browse"
-      headerExtra={
-        <>
-          <Text style={s.subtitle}>
-            What your government is <Text style={s.subtitleEm}>actually</Text>{" "}
-            doing.
-          </Text>
-          <SearchInput
-            placeholder="Search bills, cases, orders…"
-            value={query}
-            onChangeText={handleSearch}
-            clearButtonMode="while-editing"
-            returnKeyType="search"
-            style={{ marginBottom: 16 }}
-          />
-        </>
-      }
-    >
-      <Pills>
-        {FILTERS.map((f) => (
-          <Pill
-            key={f.id}
-            label={f.label}
-            active={filter === f.id}
-            onPress={() => handleFilterChange(f.id)}
-          />
-        ))}
-      </Pills>
-
-      {upcomingElection && (
-        <ElectionBanner
-          daysUntil={daysUntil(upcomingElection.electionDay)}
-          electionName={upcomingElection.name}
-          onPress={() => router.push("/elections" as Href)}
-        />
-      )}
-
-      <View style={s.results}>
-        {isLoading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.white}
-            style={{ marginTop: 48 }}
-          />
-        ) : error ? (
-          <View style={s.center}>
-            <Text style={s.errorText}>Unable to load content</Text>
-          </View>
-        ) : items.length === 0 ? (
-          <View style={s.center}>
-            <Text style={s.emptyTitle}>Nothing found</Text>
-            <Text style={s.emptySub}>Try a different search or filter</Text>
-          </View>
-        ) : (
+    <View style={s.screen}>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{
+          paddingTop: insets.top + 4,
+          paddingBottom: 120,
+        }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
           <>
-            <Text style={s.resultsCount}>
-              {items.length} result{items.length === 1 ? "" : "s"} · sorted by
-              recent
-            </Text>
-            {items.map((item) => (
-              <ContentCard
-                key={item.id}
-                item={toCardItem(item)}
-                onPress={() => router.push(`/article-detail?id=${item.id}`)}
+            <View style={s.headerPad}>
+              <Text style={s.display}>Browse</Text>
+              <Text style={s.subtitle}>
+                What your government is{" "}
+                <Text style={s.subtitleEm}>actually</Text> doing.
+              </Text>
+              <SearchInput
+                placeholder="Search bills, cases, orders…"
+                value={query}
+                onChangeText={handleSearch}
+                clearButtonMode="while-editing"
+                returnKeyType="search"
+                style={{ marginBottom: 16 }}
               />
-            ))}
+            </View>
+
+            <Pills>
+              {FILTERS.map((f) => (
+                <Pill
+                  key={f.id}
+                  label={f.label}
+                  active={filter === f.id}
+                  onPress={() => handleFilterChange(f.id)}
+                />
+              ))}
+            </Pills>
+
+            {upcomingElection && (
+              <ElectionBanner
+                daysUntil={daysUntil(upcomingElection.electionDay)}
+                electionName={upcomingElection.name}
+                onPress={() => router.push("/elections" as Href)}
+              />
+            )}
+
+            {!listIsLoading && !listError && items.length > 0 && (
+              <View style={s.resultsCountWrap}>
+                <Text style={s.resultsCount}>
+                  {items.length} result{items.length === 1 ? "" : "s"} ·{" "}
+                  {isSearching ? "sorted by relevance" : "sorted by recent"}
+                </Text>
+              </View>
+            )}
           </>
+        }
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        renderItem={({ item }) => (
+          <View style={s.cardWrap}>
+            <ContentCard
+              item={toCardItem(item)}
+              onPress={() => router.push(`/article-detail?id=${item.id}`)}
+            />
+          </View>
         )}
-      </View>
-    </TabScreen>
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          !isSearching && isFetchingNextPage ? (
+            <ActivityIndicator
+              color={colors.white}
+              style={{ marginVertical: 16 }}
+            />
+          ) : null
+        }
+        ListEmptyComponent={
+          listIsLoading ? (
+            <ActivityIndicator
+              size="large"
+              color={colors.white}
+              style={{ marginTop: 48 }}
+            />
+          ) : listError ? (
+            <View style={s.center}>
+              <Text style={s.errorText}>Unable to load content</Text>
+            </View>
+          ) : (
+            <View style={s.center}>
+              <Text style={s.emptyTitle}>Nothing found</Text>
+              <Text style={s.emptySub}>Try a different search or filter</Text>
+            </View>
+          )
+        }
+      />
+    </View>
   );
 }
 
 const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: planes.navy },
+  headerPad: { paddingHorizontal: 20 },
+  display: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 36,
+    color: colors.white,
+    lineHeight: 40,
+  },
   subtitle: {
     fontFamily: "AlbertSans-Regular",
     fontSize: 14.5,
@@ -172,15 +236,22 @@ const s = StyleSheet.create({
     fontStyle: "italic",
     color: "rgba(255,255,255,0.85)",
   },
-  results: { paddingHorizontal: 20, paddingTop: 18, gap: 12 },
+  cardWrap: { paddingHorizontal: 20 },
+  resultsCountWrap: { paddingHorizontal: 20, paddingTop: 18 },
   resultsCount: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
     letterSpacing: 0.6,
     textTransform: "uppercase",
     color: colors.textSecondary,
+    marginBottom: 12,
   },
-  center: { alignItems: "center", paddingVertical: 64, gap: 8 },
+  center: {
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 64,
+    gap: 8,
+  },
   errorText: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 16,

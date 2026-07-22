@@ -3,12 +3,21 @@
  * Generates summaries and full articles from government content
  */
 
-import { generateText, generateObject, tool, stepCountIs, APICallError, RetryError } from 'ai';
-import type { Tool } from 'ai';
-import { z } from 'zod';
-import { createLogger } from '../log.js';
-import { trackLLMUsage } from '../costs.js';
-import { getSearchModel, getTextLlm, getWebSearchTool } from './provider.js';
+import type { Tool } from "ai";
+import {
+  APICallError,
+  generateObject,
+  generateText,
+  RetryError,
+  stepCountIs,
+  tool,
+} from "ai";
+import { z } from "zod";
+
+import { clampBillDescription } from "../bill-description.js";
+import { trackLLMUsage } from "../costs.js";
+import { createLogger } from "../log.js";
+import { getSearchModel, getTextLlm, getWebSearchTool } from "./provider.js";
 
 const logger = createLogger("ai");
 
@@ -18,7 +27,6 @@ export class AIRateLimitError extends Error {
     this.name = "AIRateLimitError";
   }
 }
-
 export let rateLimitHit = false;
 
 export function setRateLimitHit(v: boolean) {
@@ -70,14 +78,17 @@ Summary (max 100 characters):`,
     });
     trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
-    return text.trim().substring(0, 100);
+    return clampBillDescription(text);
   } catch (error) {
     if (isRateLimitError(error)) {
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
     logger.error("Error generating AI summary", error);
-    return content.substring(0, 97) + "...";
+    throw new Error(
+      `AI summary generation failed: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
   }
 }
 
@@ -234,7 +245,9 @@ interface SdkSource {
 }
 
 /** Dedupe web-search sources by URL and assign stable 1-based citation ids. */
-function numberSources(raw: readonly SdkSource[] | undefined): DualLensSource[] {
+function numberSources(
+  raw: readonly SdkSource[] | undefined,
+): DualLensSource[] {
   const byUrl = new Map<string, number>();
   const out: DualLensSource[] = [];
   for (const s of raw ?? []) {
@@ -288,10 +301,10 @@ function stripHtml(html: string): string {
 }
 
 /**
- * Client tool: web search. Wraps DeepSeek's native server-side web_search (which
- * completes in one shot) so the OUTER model drives a genuine multi-step loop —
- * it can search, read a page, then search again. Keeps us on DeepSeek only (no
- * third-party search service). The native search sub-call is tracked separately.
+ * Client tool: web search. Wraps the active provider's server-side web search
+ * (which completes in one shot) so the OUTER model drives a genuine multi-step
+ * loop — it can search, read a page, then search again. The native search
+ * sub-call is tracked separately.
  */
 const webResearchTool = tool({
   description:
@@ -321,7 +334,9 @@ const fetchPageTool = tool({
   description:
     "Fetch the readable text of a web page by URL to read a source in depth. Use after web_search to open the most relevant results.",
   inputSchema: z.object({
-    url: z.string().describe("The full URL to fetch, from a web_search result."),
+    url: z
+      .string()
+      .describe("The full URL to fetch, from a web_search result."),
   }),
   execute: async ({ url }: { url: string }) => {
     try {
@@ -333,7 +348,10 @@ const fetchPageTool = tool({
       const text = stripHtml(await res.text()).slice(0, 4000);
       return { url, text };
     } catch (err) {
-      return { url, error: err instanceof Error ? err.message : "fetch failed" };
+      return {
+        url,
+        error: err instanceof Error ? err.message : "fetch failed",
+      };
     }
   },
 });
@@ -354,10 +372,19 @@ function collectLoopSources(steps: unknown): SdkSource[] {
       };
       if (rr.toolName === "web_search" && Array.isArray(rr.output?.results)) {
         for (const it of rr.output.results) {
-          if (it.url) out.push({ sourceType: "url", url: it.url, title: it.title });
+          if (it.url)
+            out.push({ sourceType: "url", url: it.url, title: it.title });
         }
-      } else if (rr.toolName === "fetch_page" && rr.output?.url && rr.output.text) {
-        out.push({ sourceType: "url", url: rr.output.url, title: rr.output.url });
+      } else if (
+        rr.toolName === "fetch_page" &&
+        rr.output?.url &&
+        rr.output.text
+      ) {
+        out.push({
+          sourceType: "url",
+          url: rr.output.url,
+          title: rr.output.url,
+        });
       }
     }
   }
@@ -408,10 +435,10 @@ const RESEARCH_MAX_STEPS = 6;
 
 /**
  * Generate a cited dual-lens for a content item.
- *   (1) A real agentic loop: DeepSeek drives a multi-step tool loop
+ *   (1) A real agentic loop: the active text model drives a multi-step tool loop
  *       (web_search + fetch_page, capped by stopWhen) — it searches, opens and
  *       reads sources, and searches again until it can brief both sides.
- *   (2) DeepSeek structures the briefing into schema-validated perspectives with
+ *   (2) The text model structures the briefing into schema-validated perspectives with
  *       per-point citations (generateObject; no manual JSON parsing).
  * Falls back to source-text-only structuring if web research is unavailable.
  */
@@ -426,7 +453,7 @@ export async function generateDualLens(
   }
 
   // Step 1 — model-driven agentic research loop. The standard model drives it
-  // (web_search here is a client tool wrapping DeepSeek's native search), so it
+  // (web_search here is a client tool wrapping provider-side search), so it
   // genuinely multi-steps: search -> read a page -> search again -> brief.
   let research = "";
   let sources: DualLensSource[] = [];
@@ -448,12 +475,17 @@ export async function generateDualLens(
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
-    logger.warn(`Dual-lens web research failed for "${title}" — falling back to source text`, error);
+    logger.warn(
+      `Dual-lens web research failed for "${title}" — falling back to source text`,
+      error,
+    );
   }
 
   // Step 2 — structured synthesis (schema-validated; no manual JSON parsing).
   const grounding = research.trim() || fullText.substring(0, 4000);
-  const sourceList = sources.map((s) => `[${s.id}] ${s.title} — ${s.url}`).join("\n");
+  const sourceList = sources
+    .map((s) => `[${s.id}] ${s.title} — ${s.url}`)
+    .join("\n");
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const { object, usage } = await generateObject({
@@ -468,7 +500,10 @@ export async function generateDualLens(
         rateLimitHit = true;
         throw new AIRateLimitError();
       }
-      logger.warn(`Dual-lens structuring failed on attempt ${attempt + 1} for "${title}"`, error);
+      logger.warn(
+        `Dual-lens structuring failed on attempt ${attempt + 1} for "${title}"`,
+        error,
+      );
       if (attempt === 1) return null;
     }
   }

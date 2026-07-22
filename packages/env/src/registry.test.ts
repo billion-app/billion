@@ -9,7 +9,10 @@ const scraperContracts = [
     name: "Congress.gov",
     source: "Congress.gov API",
     environment: {
-      required: ["POSTGRES_URL", "DEEPSEEK_API_KEY", "CONGRESS_API_KEY"],
+      required: ["POSTGRES_URL", "CONGRESS_API_KEY"],
+      requiredAny: [["OPENROUTER_API_KEY", "DEEPSEEK_API_KEY"]],
+      recommended: ["OPENROUTER_API_KEY"],
+      optional: ["DEEPSEEK_API_KEY"],
     },
   },
   {
@@ -49,9 +52,28 @@ void test("Congress validation requires only its relevant core keys", () => {
   });
   assert.deepEqual(result.issues.map((issue) => issue.key).sort(), [
     "CONGRESS_API_KEY",
-    "DEEPSEEK_API_KEY",
+    "DEEPSEEK_API_KEY|OPENROUTER_API_KEY",
     "POSTGRES_URL",
   ]);
+});
+
+void test("Congress validation accepts either AI provider key", () => {
+  for (const aiEnvironment of [
+    { OPENROUTER_API_KEY: "openrouter-test-key" },
+    { DEEPSEEK_API_KEY: "deprecated-deepseek-test-key" },
+  ]) {
+    const result = validateEnvironment({
+      environment: {
+        POSTGRES_URL: "postgres://user:password@example.com:5432/postgres",
+        CONGRESS_API_KEY: "congress-test-key",
+        ...aiEnvironment,
+      },
+      surface: "scraper",
+      scrapers: ["congress"],
+      scraperContracts,
+    });
+    assert.equal(result.success, true);
+  }
 });
 
 void test("a cache-only scraper requires just Postgres", () => {

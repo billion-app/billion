@@ -84,17 +84,26 @@ test("aggregates requirements for an all run", () => {
       validateScraperEnv(
         [
           scraper("federalregister", {
-            required: ["POSTGRES_URL", "DEEPSEEK_API_KEY"],
+            required: ["POSTGRES_URL"],
+            requiredAny: [["OPENROUTER_API_KEY", "DEEPSEEK_API_KEY"]],
+            recommended: ["OPENROUTER_API_KEY"],
+            optional: ["DEEPSEEK_API_KEY"],
           }),
           scraper("congress", {
-            required: ["POSTGRES_URL", "DEEPSEEK_API_KEY", "CONGRESS_API_KEY"],
+            required: ["POSTGRES_URL", "CONGRESS_API_KEY"],
+            requiredAny: [["OPENROUTER_API_KEY", "DEEPSEEK_API_KEY"]],
+            recommended: ["OPENROUTER_API_KEY"],
+            optional: ["DEEPSEEK_API_KEY"],
           }),
         ],
         {},
       ),
     (error: Error) => {
       assert.match(error.message, /POSTGRES_URL: is required but missing/);
-      assert.match(error.message, /DEEPSEEK_API_KEY: is required but missing/);
+      assert.match(
+        error.message,
+        /one of OPENROUTER_API_KEY, DEEPSEEK_API_KEY is required but all are missing/,
+      );
       assert.match(error.message, /CONGRESS_API_KEY: is required but missing/);
       return true;
     },
@@ -106,13 +115,35 @@ test("accepts a complete Congress environment", () => {
     validateScraperEnv(
       [
         scraper("congress", {
-          required: ["POSTGRES_URL", "DEEPSEEK_API_KEY", "CONGRESS_API_KEY"],
+          required: ["POSTGRES_URL", "CONGRESS_API_KEY"],
+          requiredAny: [["OPENROUTER_API_KEY", "DEEPSEEK_API_KEY"]],
+          recommended: ["OPENROUTER_API_KEY"],
+          optional: ["DEEPSEEK_API_KEY"],
         }),
       ],
       {
         POSTGRES_URL: "postgres://user:password@example.com:5432/postgres",
-        DEEPSEEK_API_KEY: "deepseek-test-key",
+        OPENROUTER_API_KEY: "openrouter-test-key",
         CONGRESS_API_KEY: "congress-test-key",
+      },
+    ),
+  );
+});
+
+test("accepts deprecated DeepSeek during the OpenRouter migration", () => {
+  assert.doesNotThrow(() =>
+    validateScraperEnv(
+      [
+        scraper("federalregister", {
+          required: ["POSTGRES_URL"],
+          requiredAny: [["OPENROUTER_API_KEY", "DEEPSEEK_API_KEY"]],
+          recommended: ["OPENROUTER_API_KEY"],
+          optional: ["DEEPSEEK_API_KEY"],
+        }),
+      ],
+      {
+        POSTGRES_URL: "postgres://user:password@example.com:5432/postgres",
+        DEEPSEEK_API_KEY: "deprecated-deepseek-test-key",
       },
     ),
   );

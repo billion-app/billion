@@ -225,6 +225,12 @@ function runDoctor(
       );
       displayStatus(status, issue?.message);
     }
+    const definitionKeys = new Set(
+      result.statuses.map((status) => status.definition.key),
+    );
+    for (const issue of result.issues) {
+      if (!definitionKeys.has(issue.key)) log.error(issue.message);
+    }
     if (!result.success) failed = true;
   }
   for (const issue of extraConsistencyIssues(environment)) {

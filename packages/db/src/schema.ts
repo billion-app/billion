@@ -1,3 +1,4 @@
+import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { customType, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -24,6 +25,13 @@ const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
   },
   fromDriver(value: unknown): Buffer {
     return value as Buffer;
+  },
+});
+
+// Custom tsvector type for generated full-text search columns
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
   },
 });
 
@@ -81,9 +89,29 @@ export const Bill = pgTable(
     updatedAt: t
       .timestamp({ mode: "date", withTimezone: true })
       .$onUpdateFn(() => sql`now()`),
+    // Weighted full-text search vector: bill number + title (A), sponsor +
+    // summary/description (B), full text (C). Backs the `content.search`
+    // procedure alongside the trigram index below for loose code matching.
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      (): SQL => sql`(
+        setweight(to_tsvector('english', coalesce(bill_number, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(sponsor, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(summary, '') || ' ' || coalesce(description, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(full_text, '')), 'C')
+      )`,
+    ),
   }),
   (table) => ({
     uniqueBillNumberSource: unique().on(table.billNumber, table.sourceWebsite),
+    searchVectorIdx: index("bill_search_vector_idx").using(
+      "gin",
+      table.searchVector,
+    ),
+    billNumberTrgmIdx: index("bill_number_trgm_idx").using(
+      "gin",
+      table.billNumber.op("gin_trgm_ops"),
+    ),
   }),
 );
 
@@ -94,31 +122,50 @@ export const CreateBillSchema = createInsertSchema(Bill).omit({
 });
 
 // Government Content table (executive orders, memoranda, proclamations, news articles, briefings, etc.)
-export const GovernmentContent = pgTable("government_content", (t) => ({
-  id: t.uuid().notNull().primaryKey().defaultRandom(),
-  title: t.text().notNull(),
-  type: t.varchar({ length: 50 }).notNull(), // "Executive Order", "Memorandum", "Proclamation", "News Article", "Fact Sheet", "Briefing", etc.
-  publishedDate: t.timestamp().notNull(),
-  description: t.text(),
-  fullText: t.text(),
-  aiGeneratedArticle: t.text(), // AI-generated accessible article version
-  thumbnailUrl: t.text(), // URL of the thumbnail image
-  images: t
-    .jsonb()
-    .$type<{ url: string; alt: string; source: string; sourceUrl: string }[]>()
-    .default([]), // Array of relevant images for the article
-  url: t.text().notNull().unique(), // Unique constraint for upsert by URL
-  source: t.varchar({ length: 100 }).notNull().default("whitehouse.gov"), // Source website
-  contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
-  versions: t
-    .jsonb()
-    .$type<{ hash: string; updatedAt: string; changes: string }[]>()
-    .default([]), // Version history
-  createdAt: t.timestamp().defaultNow().notNull(),
-  updatedAt: t
-    .timestamp({ mode: "date", withTimezone: true })
-    .$onUpdateFn(() => sql`now()`),
-}));
+export const GovernmentContent = pgTable(
+  "government_content",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    title: t.text().notNull(),
+    type: t.varchar({ length: 50 }).notNull(), // "Executive Order", "Memorandum", "Proclamation", "News Article", "Fact Sheet", "Briefing", etc.
+    publishedDate: t.timestamp().notNull(),
+    description: t.text(),
+    fullText: t.text(),
+    aiGeneratedArticle: t.text(), // AI-generated accessible article version
+    thumbnailUrl: t.text(), // URL of the thumbnail image
+    images: t
+      .jsonb()
+      .$type<
+        { url: string; alt: string; source: string; sourceUrl: string }[]
+      >()
+      .default([]), // Array of relevant images for the article
+    url: t.text().notNull().unique(), // Unique constraint for upsert by URL
+    source: t.varchar({ length: 100 }).notNull().default("whitehouse.gov"), // Source website
+    contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
+    versions: t
+      .jsonb()
+      .$type<{ hash: string; updatedAt: string; changes: string }[]>()
+      .default([]), // Version history
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+    // Weighted full-text search vector: title (A), description (B), full text (C).
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      (): SQL => sql`(
+        setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(description, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(full_text, '')), 'C')
+      )`,
+    ),
+  }),
+  (table) => ({
+    searchVectorIdx: index("government_content_search_vector_idx").using(
+      "gin",
+      table.searchVector,
+    ),
+  }),
+);
 
 export const CreateGovernmentContentSchema = createInsertSchema(
   GovernmentContent,
@@ -162,9 +209,26 @@ export const CourtCase = pgTable(
     updatedAt: t
       .timestamp({ mode: "date", withTimezone: true })
       .$onUpdateFn(() => sql`now()`),
+    // Weighted full-text search vector: case number + title (A), description (B), full text (C).
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      (): SQL => sql`(
+        setweight(to_tsvector('english', coalesce(case_number, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(description, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(full_text, '')), 'C')
+      )`,
+    ),
   }),
   (table) => ({
     uniqueCaseNumber: unique().on(table.caseNumber),
+    searchVectorIdx: index("court_case_search_vector_idx").using(
+      "gin",
+      table.searchVector,
+    ),
+    caseNumberTrgmIdx: index("court_case_number_trgm_idx").using(
+      "gin",
+      table.caseNumber.op("gin_trgm_ops"),
+    ),
   }),
 );
 

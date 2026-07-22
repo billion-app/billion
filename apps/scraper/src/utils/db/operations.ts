@@ -14,6 +14,7 @@ import type {
   GovernmentContentData,
 } from "../types.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
+import { getTextModelVersion } from "../ai/provider.js";
 import {
   AIRateLimitError,
   framingForContentType,
@@ -147,7 +148,6 @@ export async function upsertContent(
     shouldGenerateSummary = !sourceDescription && hasSummarySource;
     shouldGenerateArticle = hasUsableText;
     shouldGenerateImage = hasUsableText;
-    incrementNewEntries();
     progressKind = "new";
     logger.info(`New ${label} detected`);
   } else if (existing.contentHash !== newContentHash) {
@@ -159,7 +159,6 @@ export async function upsertContent(
       : hasUsableText && !existing.hasArticle;
     shouldGenerateImage =
       (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
-    incrementExistingChanged();
     progressKind = "changed";
     logger.info(`Content changed for ${label}`);
   } else {
@@ -171,7 +170,6 @@ export async function upsertContent(
       : hasUsableText && !existing.hasArticle;
     shouldGenerateImage =
       (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
-    incrementExistingUnchanged();
     progressKind = "unchanged";
     logger.debug(
       shouldGenerateSummary || shouldGenerateArticle || shouldGenerateImage
@@ -180,10 +178,9 @@ export async function upsertContent(
     );
   }
 
-  // A new item beyond the run's daily budget still gets its raw content saved
-  // (Phase 1 below) but skips AI enrichment/video generation entirely — it
-  // will look like a "needs backfill" item next run and consume that day's
-  // budget instead.
+  // New items beyond the run's daily budget skip AI enrichment. Bills that
+  // need a generated description are deferred before insertion; other content
+  // can persist raw and look like "needs backfill" work next run.
   const budgetExhausted =
     progressKind === "new" &&
     options?.newItemLimiter !== undefined &&
@@ -197,7 +194,32 @@ export async function upsertContent(
     );
   }
 
-  // Phase 1: always persist raw content first (no AI fields)
+  // A generated bill description is part of the bill's minimum usable record,
+  // not an optional derived asset. Generate it before the insert so provider
+  // failure cannot leave a new, summarizable bill permanently blank.
+  let preGeneratedDescription: string | undefined;
+  if (!existing && input.type === "bill" && !sourceDescription) {
+    if (budgetExhausted || !hasSummarySource) {
+      logger.warn(
+        `${label}: deferring insert until a summary can be generated`,
+      );
+      return undefined;
+    }
+    const summarySource = input.data.summary || input.data.fullText || "";
+    logger.start(`Generating required AI summary for ${label}`);
+    preGeneratedDescription = await generateAISummary(title, summarySource);
+    if (!preGeneratedDescription.trim()) {
+      throw new Error(`AI returned an empty required summary for ${label}`);
+    }
+    shouldGenerateSummary = false;
+  }
+
+  if (progressKind === "new") incrementNewEntries();
+  else if (progressKind === "changed") incrementExistingChanged();
+  else incrementExistingUnchanged();
+
+  // Phase 1: persist source fields (plus the required pre-generated bill
+  // description when applicable) before optional derived assets.
   let result: { id: string; thumbnailUrl: string | null } | undefined;
 
   if (input.type === "bill") {
@@ -206,6 +228,7 @@ export async function upsertContent(
       .insert(Bill)
       .values({
         ...d,
+        description: preGeneratedDescription || d.description,
         contentHash: newContentHash,
         versions: [],
       })
@@ -294,6 +317,7 @@ export async function upsertContent(
   // Phase 2: AI enrichment — skipped entirely if rate-limited
   try {
     const existingDescription = sourceDescription || persistedDescription;
+    const effectiveDescription = preGeneratedDescription || existingDescription;
     const articleType =
       input.type === "bill"
         ? "bill"
@@ -304,8 +328,8 @@ export async function upsertContent(
     const [description, aiGeneratedArticle, thumbnailUrl] = await Promise.all([
       // Summary generation
       (async (): Promise<string | undefined> => {
-        if (existingDescription) {
-          return existingDescription;
+        if (effectiveDescription) {
+          return effectiveDescription;
         } else if (shouldGenerateSummary) {
           const summarySource =
             input.type === "bill"
@@ -370,7 +394,7 @@ export async function upsertContent(
 
     // Only UPDATE if something was generated
     const hasNewDescription =
-      description !== undefined && description !== existingDescription;
+      description !== undefined && description !== effectiveDescription;
     if (
       hasNewDescription ||
       aiGeneratedArticle !== undefined ||
@@ -495,7 +519,7 @@ export async function upsertContentLens(
     return;
   }
 
-  const modelVersion = "deepseek-v4-flash";
+  const modelVersion = getTextModelVersion();
   await db
     .insert(ContentLens)
     .values({

@@ -197,7 +197,7 @@ function FeedCard({
           <Text style={s.ctaText}>Dig into the source</Text>
           <Icon name="external" size={17} color={planes.ink} />
         </TouchableOpacity>
-        {canSave && (
+        {__DEV__ && canSave && (
           <TouchableOpacity
             style={s.saveBtn}
             onPress={toggleSave}

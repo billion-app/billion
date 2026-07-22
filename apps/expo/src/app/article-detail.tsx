@@ -16,6 +16,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import {
+  Avatar,
   Badge,
   Card,
   GhostButton,
@@ -367,6 +368,20 @@ export default function ArticleDetailScreen() {
   // The original bill record remains a fallback for legacy events without a
   // sourceUrl, while new events link to their action record individually.
   const timelineSourceUrl = content.type === "bill" ? content.url : undefined;
+  const sponsor = content.type === "bill" ? content.sponsor : undefined;
+
+  const openSponsorProfile = () => {
+    if (!sponsor) return;
+    posthog.capture("bill_sponsor_profile_opened", {
+      content_id: content.id,
+      bill_number: content.billNumber ?? null,
+      sponsor_name: sponsor.name,
+    });
+    router.push({
+      pathname: "/bill-sponsor-profile",
+      params: { id: content.id },
+    });
+  };
 
   return (
     <View style={s.screen}>
@@ -374,13 +389,15 @@ export default function ArticleDetailScreen() {
         title={t.label}
         onBack={() => router.back()}
         action={
-          <TouchableOpacity onPress={toggleSave} hitSlop={8}>
-            <Icon
-              name={saved ? "bookmarkFill" : "bookmark"}
-              size={21}
-              color={saved ? colors.white : colors.textSecondary}
-            />
-          </TouchableOpacity>
+          __DEV__ ? (
+            <TouchableOpacity onPress={toggleSave} hitSlop={8}>
+              <Icon
+                name={saved ? "bookmarkFill" : "bookmark"}
+                size={21}
+                color={saved ? colors.white : colors.textSecondary}
+              />
+            </TouchableOpacity>
+          ) : undefined
         }
       />
 
@@ -412,6 +429,11 @@ export default function ArticleDetailScreen() {
 
         <View style={s.badgeRow}>
           <Badge type={typeKey} />
+          {content.billNumber ? (
+            <Text style={s.billNumber} testID="article-bill-number">
+              {content.billNumber}
+            </Text>
+          ) : null}
         </View>
 
         <Text style={s.title} testID="article-title">
@@ -422,6 +444,31 @@ export default function ArticleDetailScreen() {
           <Text style={s.desc} testID="article-description">
             {content.description}
           </Text>
+        ) : null}
+
+        {sponsor ? (
+          <TouchableOpacity
+            style={s.sponsorCard}
+            activeOpacity={0.75}
+            onPress={openSponsorProfile}
+            accessibilityRole="button"
+            accessibilityLabel={`View sponsor profile for ${sponsor.name}`}
+            testID="bill-sponsor-card"
+          >
+            <Avatar name={sponsor.initials} size={44} />
+            <View style={s.sponsorBody}>
+              <Text style={s.sponsorLabel}>Sponsored by</Text>
+              <Text style={s.sponsorName} numberOfLines={1}>
+                {sponsor.name}
+              </Text>
+              <Text style={s.sponsorMeta} numberOfLines={1}>
+                {[sponsor.role, sponsor.party, sponsor.state]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </Text>
+            </View>
+            <Icon name="chevR" size={17} color={colors.textSecondary} />
+          </TouchableOpacity>
         ) : null}
 
         {/* explainer / source toggle */}
@@ -659,6 +706,12 @@ const s = StyleSheet.create({
     gap: 9,
     marginBottom: 14,
   },
+  billNumber: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+    letterSpacing: 0.3,
+    color: colors.textSecondary,
+  },
   title: {
     fontFamily: fontDisplay.bold,
     fontSize: 30,
@@ -671,6 +724,35 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
     lineHeight: 22,
+  },
+  sponsorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 18,
+    padding: 14,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 14,
+  },
+  sponsorBody: { flex: 1, gap: 1 },
+  sponsorLabel: {
+    fontFamily: fontBody.medium,
+    fontSize: 10.5,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: colors.textSecondary,
+  },
+  sponsorName: {
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+    color: colors.white,
+  },
+  sponsorMeta: {
+    fontFamily: fontBody.regular,
+    fontSize: 11.5,
+    color: colors.textSecondary,
   },
   disclaimer: {
     flexDirection: "row",

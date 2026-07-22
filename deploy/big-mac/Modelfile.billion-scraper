@@ -1,0 +1,5 @@
+FROM gemma4:12b
+
+# The source model advertises a much larger context than scraper prompts need.
+# Keeping this at 32K materially reduces startup latency and memory pressure.
+PARAMETER num_ctx 32768
