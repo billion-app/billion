@@ -197,8 +197,7 @@ export const contentRouter = {
         .optional(),
     )
     .query(async ({ input }) => {
-      const jurisdiction =
-        "ocd-jurisdiction/country:us/state:tx/government";
+      const jurisdiction = "ocd-jurisdiction/country:us/state:tx/government";
       const [latest] = await db
         .select({ legislativeSession: Bill.legislativeSession })
         .from(Bill)
