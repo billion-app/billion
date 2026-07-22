@@ -22,21 +22,118 @@ Because the driver opens a raw TCP socket via Node's `net`/`tls`, **only server-
 
 Migrations use `drizzle-kit` with versioned SQL files under `packages/db/drizzle/`. `drizzle.config.ts` strips the pooler port `:6543` down to direct `:5432`, since DDL doesn't play well with the transaction pooler.
 
-The workflow is **schema-first, migration-applied**:
+### Why this workflow exists
+
+The database workflow is **schema-first, migration-applied**. `schema.ts` remains
+the source of truth for application types, but shared databases are changed by
+committed SQL migrations instead of being synchronized directly from whatever
+schema happens to be in a developer's checkout.
+
+| Previously (`db:push`)                              | Migration workflow                                                    |
+| --------------------------------------------------- | --------------------------------------------------------------------- |
+| Drizzle changed the target database directly.       | Drizzle generates a numbered SQL file for review.                     |
+| There was no committed record of the operation.     | The SQL and its schema snapshot are committed together.               |
+| Environments could receive different changes.       | Every environment applies the same migrations in the same order.      |
+| The operator had to infer whether a change had run. | Drizzle records applied migrations in `drizzle.__drizzle_migrations`. |
+
+`db:push` remains useful for disposable local experimentation, but never use it
+against a shared, staging, or production database. Anything intended to ship
+must use the migration workflow below.
+
+### Authoring a schema change
 
 1. Edit `packages/db/src/schema.ts`.
-2. `pnpm db:generate` — diffs the schema against the last snapshot and writes a new `NNNN_*.sql` migration + `meta/` snapshot. Commit these.
-3. `pnpm db:migrate` — applies pending migrations to the database pointed at by `POSTGRES_URL`. Drizzle records applied migrations in `drizzle.__drizzle_migrations` and skips ones already run.
+2. Run `pnpm db:generate`. Drizzle diffs the schema against the last snapshot and writes a new `NNNN_*.sql` migration plus a `meta/` snapshot.
+3. Review the generated SQL. Pay particular attention to drops, renames, `NOT NULL` changes, long-running index creation, extension requirements, and operations that rewrite or lock large tables.
+4. Run `pnpm db:check` to validate the committed migration history for collisions.
+5. Commit the SQL migration and its `meta/` snapshot together with the schema change.
+6. Apply the change to a development database with `pnpm db:migrate` and exercise the affected application paths.
 
-Supporting commands: `pnpm db:check` validates the migration history for collisions; `pnpm db:studio` opens the data browser.
+Do not edit or reorder a migration after it has been applied to a shared
+database. Add a new forward migration instead. `db:check` validates migration
+history; it does **not** compare that history with the live database or detect
+schema drift. `pnpm db:studio` opens the data browser.
 
-**`db:push` is for local prototyping only.** It applies the schema directly without writing a migration file, which is handy while iterating on a dev DB but leaves no history — never use it against shared or production databases. Anything meant to reach prod must go through `db:generate` → commit → `db:migrate`.
+Data backfills and other changes that cannot safely be represented by generated
+schema DDL need an explicit rollout plan. Historical one-off operations live in
+`packages/db/manual-sql/`; they are provenance, not an automatically replayed
+migration queue.
+
+### Applying migrations
+
+`pnpm db:migrate` applies pending migrations to the database selected by the
+root `POSTGRES_URL`. Drizzle records each successful migration in
+`drizzle.__drizzle_migrations` and skips it on subsequent runs. Confirm the
+environment represented by `POSTGRES_URL` before any migration or baseline
+command; both commands mutate that database.
+
+For a **brand-new database**:
+
+1. Set `POSTGRES_URL` for the new database.
+2. Run `pnpm db:migrate` to create the schema from the complete history.
+3. Seed the database if the environment requires seed data.
+4. Start the application and smoke-test database-backed flows.
+
+For a normal **staging or production deployment** after migration tracking has
+been adopted:
+
+1. Review the migration SQL and its operational impact before deployment.
+2. Take a backup or confirm a recent restorable backup for destructive or difficult-to-reverse changes.
+3. Apply the migration to staging and run application smoke tests.
+4. Confirm `POSTGRES_URL` targets the intended production database.
+5. Run `pnpm db:migrate` once as an explicit deployment step, before releasing code that depends on the new schema unless the change was designed to be backward-compatible.
+6. Verify the application and the new schema behavior after deployment.
+
+This repository does not currently run production migrations automatically.
+The person or deployment system performing a release owns the `db:migrate`
+step. Running it more than once is safe because already-recorded migrations are
+skipped.
 
 ### Baselining an existing database
 
-Databases created before this workflow (their schema was applied with `db:push`) already contain every table, so `db:migrate` would fail trying to re-create them. Run `pnpm db:baseline` **once** against such a database: it records the existing migrations in `drizzle.__drizzle_migrations` as already-applied, using the exact hashes drizzle expects, so future `db:migrate` runs pick up only genuinely new migrations. Brand-new databases skip this and just run `db:migrate`.
+Databases created before this workflow had their schema applied with `db:push`.
+They already contain the objects represented by the initial migration history,
+so running `db:migrate` first would try to create those objects again and fail.
 
-One-off data fixes that can't be expressed as schema DDL live in `packages/db/manual-sql/` (see its README) and are applied by hand.
+`pnpm db:baseline` adopts one of these databases by inserting the exact hashes
+and timestamps expected by Drizzle into `drizzle.__drizzle_migrations`. It is
+idempotent and leaves hashes that are already present alone.
+
+> **Important:** `db:baseline` does not inspect or repair the live schema. It
+> marks every migration currently present in `packages/db/drizzle/` as applied.
+> Run it only when the database is known to already contain all of those schema
+> changes. Running it against a new, partial, or drifted database can hide
+> missing DDL from future `db:migrate` runs.
+
+For each pre-migration development, staging, or production database:
+
+1. Confirm that the database was previously kept current with `db:push` and matches the schema represented by the migrations in this checkout.
+2. Take a backup or confirm that a recent backup can be restored.
+3. Set and verify `POSTGRES_URL` for that specific environment.
+4. Run `pnpm db:baseline` exactly once during adoption of this workflow.
+5. Inspect `drizzle.__drizzle_migrations` and confirm that the expected initial migrations were recorded.
+6. Run `pnpm db:migrate`; it should report no pending initial schema work.
+7. Start the application and smoke-test database-backed flows.
+
+Brand-new databases skip baselining and run `pnpm db:migrate` directly.
+
+The initial history is intentionally split into two migrations:
+
+- `0000_baseline.sql` describes the complete schema that existed when migration tracking was introduced.
+- `0001_premium_famine.sql` captures the subsequently generated content-lens, full-text search, trigram extension, and index changes that were already present in databases kept current with `db:push`.
+
+### Failure and recovery
+
+Drizzle does not provide an automatic down-migration workflow here. If a
+migration fails, preserve its output, determine whether PostgreSQL rolled back
+the operation, and inspect both the affected objects and
+`drizzle.__drizzle_migrations` before retrying. Do not manually insert or delete
+migration records merely to make the next run proceed.
+
+For a migration that has already succeeded on a shared database, correct it
+with a new forward migration. For destructive changes where a forward repair is
+not sufficient, restore the verified backup according to the environment's
+database recovery procedure before redeploying compatible application code.
 
 ## Schema Overview
 
