@@ -70,6 +70,14 @@ function hashFields(input: ContentData): string {
         status: input.data.status,
         summary: input.data.summary,
         fullText: input.data.fullText,
+        jurisdiction: input.data.jurisdiction,
+        legislativeSession: input.data.legislativeSession,
+        openStatesId: input.data.openStatesId,
+        subjects: input.data.subjects,
+        sponsorships: input.data.sponsorships,
+        documents: input.data.documents,
+        votes: input.data.votes,
+        actions: input.data.actions,
       });
     case "government_content":
       return JSON.stringify({
@@ -90,7 +98,11 @@ function hashFields(input: ContentData): string {
 async function checkExisting(input: ContentData) {
   switch (input.type) {
     case "bill":
-      return checkExistingBill(input.data.billNumber, input.data.sourceWebsite);
+      return checkExistingBill(
+        input.data.billNumber,
+        input.data.sourceWebsite,
+        input.data.legislativeSession,
+      );
     case "government_content":
       return checkExistingGovernmentContent(input.data.url);
     case "court_case":
@@ -111,7 +123,7 @@ function getUpdateTable(input: ContentData) {
 
 export async function upsertContent(
   input: ContentData,
-  options?: { newItemLimiter?: NewItemLimiter },
+  options?: { newItemLimiter?: NewItemLimiter; skipEnrichment?: boolean },
 ) {
   const newContentHash = createContentHash(hashFields(input));
   const existing = await checkExisting(input);
@@ -232,7 +244,11 @@ export async function upsertContent(
         versions: [],
       })
       .onConflictDoUpdate({
-        target: [Bill.billNumber, Bill.sourceWebsite],
+        target: [
+          Bill.billNumber,
+          Bill.sourceWebsite,
+          Bill.legislativeSession,
+        ],
         set: {
           title: d.title,
           description: d.description,
@@ -241,8 +257,16 @@ export async function upsertContent(
           introducedDate: d.introducedDate,
           congress: d.congress,
           chamber: d.chamber,
+          jurisdiction: d.jurisdiction,
+          legislativeSession: d.legislativeSession,
+          openStatesId: d.openStatesId,
+          subjects: d.subjects,
+          sponsorships: d.sponsorships,
+          documents: d.documents,
+          votes: d.votes,
           summary: d.summary,
           fullText: d.fullText,
+          actions: d.actions,
           url: d.url,
           contentHash: newContentHash,
           updatedAt: new Date(),
@@ -304,6 +328,15 @@ export async function upsertContent(
   logger.debug(`${label} upserted (raw)`);
 
   if (!result) {
+    tickProgress({
+      newEntries: progressKind === "new" ? 1 : 0,
+      unchanged: progressKind === "unchanged" ? 1 : 0,
+      changed: progressKind === "changed" ? 1 : 0,
+    });
+    return result;
+  }
+
+  if (options?.skipEnrichment) {
     tickProgress({
       newEntries: progressKind === "new" ? 1 : 0,
       unchanged: progressKind === "unchanged" ? 1 : 0,

@@ -67,15 +67,24 @@ All three content tables share a common pattern:
 
 **Civic / elections** — the voter-information model:
 
-| Table              | Purpose                                                                                                                                                                                                                                                                                     |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `election`         | Election records (external id, date, type, OCD division, deadlines JSONB)                                                                                                                                                                                                                   |
-| `contest`          | Races _and_ ballot measures. `type` = candidate \| referendum. For measures: `referendum_title`, pro/con statements, `summary`, `summary_is_ai_generated`, `fiscal_impact`, and a `citations` JSONB array (per-field source attribution: field, source name/url, trust tier, official flag) |
-| `candidate`        | Candidates within a contest (party, incumbent, contact, bio)                                                                                                                                                                                                                                |
-| `polling_location` | Polling places / early-vote sites / drop boxes, geo-located (lat/long), with hours                                                                                                                                                                                                          |
-| `role_description` | Reusable descriptions of offices/roles by level (seeded with ~18 federal→local roles)                                                                                                                                                                                                       |
+| Table                      | Purpose                                                                                                                                                                                                                                                                                     |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `election`                 | Election records (external id, date, type, OCD division, deadlines JSONB)                                                                                                                                                                                                                   |
+| `contest`                  | Races _and_ ballot measures. `type` = candidate \| referendum. For measures: `referendum_title`, pro/con statements, `summary`, `summary_is_ai_generated`, `fiscal_impact`, and a `citations` JSONB array (per-field source attribution: field, source name/url, trust tier, official flag) |
+| `candidate`                | Candidates within a contest (party, incumbent, contact, bio)                                                                                                                                                                                                                                |
+| `polling_location`         | Polling places / early-vote sites / drop boxes, geo-located (lat/long), with hours                                                                                                                                                                                                          |
+| `role_description`         | Reusable descriptions of offices/roles by level (seeded with ~18 federal→local roles)                                                                                                                                                                                                       |
+| `election_source_snapshot` | Provider-neutral, idempotent current-cycle election snapshots with source version, checksum, diagnostics, and source URLs. Texas SOS facts and TLC analyses occupy separate rows.                                                                                                           |
 
 **Local government (Legistar cache)** — `legistar_body`, `legistar_matter`, `legistar_meeting`, `legistar_agenda_item`, `legistar_vote`. These cache San Jose / Santa Clara / Sunnyvale council data (ordinances, meetings, agenda items, votes) keyed by `(jurisdiction, *_id)` with a `fetched_at` timestamp.
+
+**Provider-neutral local government** — `local_government_meeting`,
+`local_government_document`, `local_government_agenda_item`, and
+`local_government_vote`. These hold systems that do not expose Legistar
+semantics, including Durham's OnBase instance and Cedar Park's CivicEngage
+source. Meetings are keyed by `(source, jurisdiction, external_id)`; documents
+are versionable rows and agenda items carry official motion, outcome, and vote
+text. The API reads persisted rows instead of scraping during a user request.
 
 **User engagement & caching:**
 

@@ -221,6 +221,7 @@ export async function enrichFromVoteSmart(
   referendumTitle: string,
   stateAbbrev: string,
   electionYear: number,
+  electionDate?: string,
 ): Promise<VoteSmartEnrichment | null> {
   if (!getApiKey()) return null;
 
@@ -238,6 +239,18 @@ export async function enrichFromVoteSmart(
     let best: VoteSmartMeasure | null = null;
     let bestScore = 0;
     for (const m of measures) {
+      if (electionDate && m.electionDate) {
+        const requested = new Date(electionDate);
+        const candidate = new Date(m.electionDate);
+        if (
+          !Number.isNaN(requested.getTime()) &&
+          !Number.isNaN(candidate.getTime()) &&
+          requested.toISOString().slice(0, 10) !==
+            candidate.toISOString().slice(0, 10)
+        ) {
+          continue;
+        }
+      }
       const score = titleSimilarity(referendumTitle, m.title);
       if (score > bestScore) {
         bestScore = score;
