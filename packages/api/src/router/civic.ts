@@ -10,6 +10,7 @@ import {
   getVoterInfo,
 } from "../lib/civic";
 import { getElectedOfficials } from "../lib/elected-officials";
+import { getCurrentNcElectionData } from "../lib/ncsbe-election-data";
 import { publicProcedure } from "../trpc";
 
 const STATEWIDE_OFFICE = z.enum(
@@ -136,6 +137,42 @@ export const civicRouter = {
             error instanceof Error
               ? error.message
               : "Failed to fetch elected officials",
+          cause: error,
+        });
+      }
+    }),
+
+  /** Authoritative current-cycle NC candidates, referenda, and results by county. */
+  getNcElectionData: publicProcedure
+    .input(
+      z.object({
+        county: z.string().trim().min(2).max(100),
+        electionDate: z.iso.date(),
+        civicContests: z
+          .array(
+            z.object({
+              title: z.string().trim().min(1).max(300),
+              candidates: z
+                .array(z.string().trim().min(1).max(200))
+                .max(50)
+                .optional(),
+            }),
+          )
+          .max(100)
+          .optional(),
+        includePrecincts: z.boolean().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        return await getCurrentNcElectionData(input);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to read NCSBE election data",
           cause: error,
         });
       }
