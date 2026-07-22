@@ -25,10 +25,24 @@ process environment at runtime, not embedded during the build.
 | `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages                     |
 | `ca-lao-fiscal.ts`     | CA LAO ballot analyses         | `civic_api_cache`    | proposition fiscal analyses via HTML parse             |
 | `ca-vig-archive.ts`    | CA SOS voter-guide archive     | `civic_api_cache`    | historical proposition guide pages via HTML parse      |
+| `durham-onbase.ts`     | Durham OnBase Agenda Online    | `local_*` tables     | meetings, items, attachments, and official actions     |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
 > Note: `whitehouse.gov` cheerio scraping was replaced by the structured **Federal Register** REST API. `vote411-ballot.ts` exists for address-based ballot lookup (needs Playwright) but isn't wired into the CLI.
+
+### Durham OnBase
+
+Run `pnpm -F @acme/scraper start:dev -- durham-onbase`. The scraper reads the
+official OnBase embedded meeting JSON, agenda/minutes HTML outlines, and agenda
+item detail endpoints. It does not use AI or PDF vision. Requests are serialized
+at a minimum 250 ms interval, use the shared retry/backoff client, and skip rows
+refreshed in the last 24 hours by default.
+
+Only meetings in the current calendar-year council cycle are ingested. The
+product does not expose historical election cycles or run an OnBase backfill.
+`DURHAM_ONBASE_MAX_ITEMS` (default `100`) limits meetings and
+`DURHAM_ONBASE_CACHE_TTL_HOURS` (default `24`) controls refresh frequency.
 
 ## Upsert + Change Detection
 

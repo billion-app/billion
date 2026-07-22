@@ -88,6 +88,17 @@ export {
   LegistarError,
   JURISDICTIONS,
 } from "./integrations/legistar";
+
+// Provider-neutral persisted local meetings (OnBase and future systems).
+export {
+  getLocalMeeting,
+  getLocalMeetings,
+} from "./integrations/local-government";
+export type {
+  LocalMeetingQuery,
+  LocalMeetingRecord,
+  LocalMeetingDetail,
+} from "./integrations/local-government";
 export type {
   Jurisdiction,
   LegistarMeeting,

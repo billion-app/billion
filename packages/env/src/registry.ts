@@ -85,6 +85,12 @@ const scraperSourceLimitDefinitions = [
   ["SCOTUS_MAX_ITEMS", "CourtListener opinion clusters per run.", "50"],
   ["SCC_CVIG_MAX_ITEMS", "Santa Clara voter-guide PDFs per run.", "10"],
   ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
+  ["DURHAM_ONBASE_MAX_ITEMS", "Durham OnBase meetings per run.", "100"],
+  [
+    "DURHAM_ONBASE_CACHE_TTL_HOURS",
+    "Hours before a Durham OnBase meeting is refreshed.",
+    "24",
+  ],
 ] as const;
 
 export const envRegistry = [

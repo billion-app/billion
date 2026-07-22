@@ -202,6 +202,25 @@ const votes = await legistar.getVotes("sanjose", matterId);
 
 To add a city: add its `*.legistar.com` subdomain to `JURISDICTIONS` in `integrations/legistar.ts`.
 
+### Provider-neutral local meetings (Durham OnBase)
+
+- **Source:** [City of Durham OnBase Agenda Online](https://cityordinances.durhamnc.gov/OnBaseAgendaOnline/)
+- **Reader:** `packages/api/src/integrations/local-government.ts`
+- **tRPC:** `localGovernment.meetings`, `localGovernment.meeting`
+
+The Durham scraper persists City Council meetings and work sessions, agenda or
+minutes item outlines, supporting-document URLs, and official action/vote text.
+The reader is provider-neutral and serves only cached database records; it does
+not contact OnBase in the request path.
+
+```ts
+const meetings = await getLocalMeetings({
+  provider: "onbase",
+  jurisdiction: "durham-nc",
+});
+const meeting = await getLocalMeeting("onbase", "durham-nc", "748");
+```
+
 ---
 
 ## CA election results

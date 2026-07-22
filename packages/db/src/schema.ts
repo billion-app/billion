@@ -645,6 +645,86 @@ export const LegistarVote = pgTable(
   }),
 );
 
+// Provider-neutral local government cache. Unlike the Legistar-specific tables
+// above, these records can represent public meeting systems such as OnBase.
+export const LocalMeeting = pgTable(
+  "local_meeting",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    provider: t.varchar({ length: 50 }).notNull(),
+    jurisdiction: t.varchar({ length: 100 }).notNull(),
+    externalId: t.varchar({ length: 100 }).notNull(),
+    name: t.text().notNull(),
+    meetingType: t.varchar({ length: 100 }).notNull(),
+    date: t.timestamp({ mode: "date", withTimezone: true }).notNull(),
+    location: t.text(),
+    sourceUrl: t.text().notNull(),
+    agendaUrl: t.text(),
+    minutesUrl: t.text(),
+    actionAgendaUrl: t.text(),
+    fetchedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueLocalMeeting: unique().on(
+      table.provider,
+      table.jurisdiction,
+      table.externalId,
+    ),
+    localMeetingDateIdx: index("local_meeting_date_idx").on(table.date),
+  }),
+);
+
+export interface LocalMeetingAttachment {
+  externalId: string;
+  title: string;
+  url: string;
+}
+
+export const LocalAgendaItem = pgTable(
+  "local_agenda_item",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    meetingId: t
+      .uuid()
+      .notNull()
+      .references(() => LocalMeeting.id, { onDelete: "cascade" }),
+    externalId: t.varchar({ length: 100 }).notNull(),
+    section: t.text(),
+    agendaNumber: t.varchar({ length: 50 }),
+    title: t.text().notNull(),
+    actionText: t.text(),
+    voteText: t.text(),
+    attachments: t
+      .jsonb()
+      .$type<LocalMeetingAttachment[]>()
+      .default([])
+      .notNull(),
+    sourceUrl: t.text().notNull(),
+    sortOrder: t.integer().notNull(),
+    fetchedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueLocalAgendaItem: unique().on(table.meetingId, table.externalId),
+    localAgendaMeetingIdx: index("local_agenda_item_meeting_idx").on(
+      table.meetingId,
+    ),
+  }),
+);
+
 // Google Civic API response cache
 export const CivicApiCache = pgTable(
   "civic_api_cache",

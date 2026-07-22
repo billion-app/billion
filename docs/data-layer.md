@@ -59,6 +59,14 @@ All three content tables share a common pattern:
 
 **Local government (Legistar cache)** — `legistar_body`, `legistar_matter`, `legistar_meeting`, `legistar_agenda_item`, `legistar_vote`. These cache San Jose / Santa Clara / Sunnyvale council data (ordinances, meetings, agenda items, votes) keyed by `(jurisdiction, *_id)` with a `fetched_at` timestamp.
 
+**Provider-neutral local government** — `local_meeting` and
+`local_agenda_item`. These hold systems that do not expose Legistar semantics,
+starting with Durham's public OnBase Agenda Online instance. Meetings are keyed
+by `(provider, jurisdiction, external_id)`; items are keyed by
+`(meeting_id, external_id)` and carry structured attachment links plus official
+action/vote text. The API reads persisted rows instead of scraping during a
+user request.
+
 **User engagement & caching:**
 
 | Table             | Purpose                                                                                                                                                                                                                     |
