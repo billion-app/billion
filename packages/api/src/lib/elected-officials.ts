@@ -221,6 +221,57 @@ function normalizeOfficial(
   };
 }
 
+function personNameKey(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(?:rep(?:resentative)?|sen(?:ator)?)\b\.?/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/** Match a current federal lawmaker without requiring the user's address. */
+export function selectFederalOfficialByName(
+  rows: PeopleRow[],
+  name: string,
+  chamber?: string | null,
+): ElectedOfficial | undefined {
+  const expectedChamber =
+    chamber?.toLowerCase() === "senate" ? "upper" : "lower";
+  const nameKey = personNameKey(name);
+  const edgeNameKey = (value: string) => {
+    const parts = personNameKey(value).split(" ").filter(Boolean);
+    return [parts[0], parts.at(-1)].filter(Boolean).join(" ");
+  };
+  const row = rows.find(
+    (person) =>
+      person.current_chamber === expectedChamber &&
+      (personNameKey(person.name) === nameKey ||
+        edgeNameKey(person.name) === edgeNameKey(name)),
+  );
+  if (!row) return undefined;
+
+  const district =
+    expectedChamber === "lower"
+      ? row.current_district.split("-").at(-1)
+      : undefined;
+  return normalizeOfficial(
+    row,
+    expectedChamber === "upper" ? "U.S. Senator" : "U.S. Representative",
+    "country",
+    district,
+  );
+}
+
+/** Load and find a current federal lawmaker without the user's address. */
+export async function getFederalOfficialByName(
+  name: string,
+  chamber?: string | null,
+): Promise<ElectedOfficial | undefined> {
+  return selectFederalOfficialByName(await getPeople("us"), name, chamber);
+}
+
 export function selectOfficials(
   federalRows: PeopleRow[],
   stateRows: PeopleRow[],

@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 
 import type { IconName } from "./Icon";
 import type { ContentTypeKey } from "~/styles";
@@ -53,24 +54,46 @@ export function Avatar({
   name = "JA",
   size = 44,
   color = colors.bill,
+  imageUri,
 }: {
   name?: string;
   size?: number;
   color?: string;
+  imageUri?: string;
 }) {
+  const [failedImageUri, setFailedImageUri] = useState<string>();
+
   return (
     <View
-      style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }]}
+      style={[
+        s.avatar,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          overflow: "hidden",
+        },
+      ]}
     >
-      <Text
-        style={{
-          fontFamily: "InriaSerif-Bold",
-          fontSize: size * 0.36,
-          color,
-        }}
-      >
-        {name}
-      </Text>
+      {imageUri && failedImageUri !== imageUri ? (
+        <Image
+          source={{ uri: imageUri }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={200}
+          onError={() => setFailedImageUri(imageUri)}
+        />
+      ) : (
+        <Text
+          style={{
+            fontFamily: "InriaSerif-Bold",
+            fontSize: size * 0.36,
+            color,
+          }}
+        >
+          {name}
+        </Text>
+      )}
     </View>
   );
 }

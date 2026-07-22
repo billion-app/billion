@@ -72,7 +72,11 @@ export default function BillSponsorProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Card style={s.hero}>
-          <Avatar name={sponsor.initials} size={76} />
+          <Avatar
+            name={sponsor.initials}
+            imageUri={sponsor.imageUrl}
+            size={88}
+          />
           <Text style={s.eyebrow}>Primary sponsor</Text>
           <Text style={s.name}>{sponsor.name}</Text>
           <Text style={s.role}>{sponsor.role}</Text>
@@ -111,6 +115,7 @@ export default function BillSponsorProfileScreen() {
                     ? `Introduced ${formatDate(bill.introducedDate)}`
                     : undefined,
                   thumbnailUrl: bill.thumbnailUrl,
+                  imageUri: bill.imageUri,
                 }}
                 onPress={() =>
                   router.push({

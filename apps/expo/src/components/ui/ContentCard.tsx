@@ -95,11 +95,17 @@ export function ContentCard({
       </View>
       <View style={s.bottom}>
         {item.status ? (
-          <Text style={[s.status, { color: t.color }]}>{item.status}</Text>
+          <Text style={[s.status, { color: t.color }]} numberOfLines={2}>
+            {item.status}
+          </Text>
         ) : (
           <View />
         )}
-        {item.updated ? <Text style={s.updated}>{item.updated}</Text> : null}
+        {item.updated ? (
+          <Text style={s.updated} numberOfLines={1}>
+            {item.updated}
+          </Text>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -177,12 +183,18 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   bottom: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 4,
+    marginTop: 1,
   },
-  status: { fontFamily: fontBody.semibold, fontSize: 12.5 },
+  status: {
+    width: "100%",
+    fontFamily: fontBody.semibold,
+    fontSize: 12.5,
+    lineHeight: 17,
+  },
   updated: {
+    width: "100%",
     fontFamily: "AlbertSans-Medium",
     fontSize: 12,
     color: colors.textSecondary,

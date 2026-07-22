@@ -5,6 +5,7 @@ import type { DivisionByAddressResponse } from "./civic";
 import {
   extractDistricts,
   parseCsv,
+  selectFederalOfficialByName,
   selectOfficials,
 } from "./elected-officials";
 import { canUseDevelopmentMocks } from "./places";
@@ -143,4 +144,36 @@ void test("selectOfficials returns the address-scoped federal and state delegati
     officials.map((official) => official.id),
     ["sen-1", "sen-2", "house", "state-sen", "assembly"],
   );
+});
+
+void test("selectFederalOfficialByName matches chamber and first/last name", () => {
+  const row = (overrides: Record<string, string>) => ({
+    id: "id",
+    name: "Name",
+    current_party: "Republican",
+    current_district: "TX-5",
+    current_chamber: "lower",
+    image: "https://example.com/headshot.jpg",
+    email: "",
+    links: "https://example.com",
+    capitol_address: "",
+    capitol_voice: "",
+    district_address: "",
+    district_voice: "",
+    ...overrides,
+  });
+
+  const official = selectFederalOfficialByName(
+    [
+      row({ id: "senator", name: "Lance Gooden", current_chamber: "upper" }),
+      row({ id: "representative", name: "Lance E. Gooden" }),
+    ],
+    "Rep. Lance Gooden",
+    "House",
+  );
+
+  assert.ok(official);
+  assert.equal(official.id, "representative");
+  assert.equal(official.image, "https://example.com/headshot.jpg");
+  assert.equal(official.district, "5");
 });

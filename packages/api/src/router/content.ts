@@ -13,6 +13,7 @@ import {
 } from "@acme/db/schema";
 
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
+import { getFederalOfficialByName } from "../lib/elected-officials";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
 const SAVED_CONTENT_TYPES = [
@@ -668,26 +669,40 @@ export const contentRouter = {
       if (!bill) throw new Error(`Bill with id ${input.billId} not found`);
       if (!bill.sponsor) return null;
 
-      const sponsoredBills = await db
-        .select({
-          id: Bill.id,
-          title: Bill.title,
-          description: Bill.description,
-          summary: Bill.summary,
-          billNumber: Bill.billNumber,
-          status: Bill.status,
-          thumbnailUrl: Bill.thumbnailUrl,
-          introducedDate: Bill.introducedDate,
-        })
-        .from(Bill)
-        .where(eq(Bill.sponsor, bill.sponsor))
-        .orderBy(desc(Bill.introducedDate), desc(Bill.createdAt))
-        .limit(20);
+      const sponsorIdentity = parseBillSponsor(bill.sponsor);
+      const [sponsoredBillRows, official] = await Promise.all([
+        db
+          .select({
+            id: Bill.id,
+            title: Bill.title,
+            description: Bill.description,
+            summary: Bill.summary,
+            billNumber: Bill.billNumber,
+            status: Bill.status,
+            thumbnailUrl: Bill.thumbnailUrl,
+            introducedDate: Bill.introducedDate,
+          })
+          .from(Bill)
+          .where(eq(Bill.sponsor, bill.sponsor))
+          .orderBy(desc(Bill.introducedDate), desc(Bill.createdAt))
+          .limit(20),
+        getFederalOfficialByName(sponsorIdentity.name, bill.chamber).catch(
+          () => undefined,
+        ),
+      ]);
+      const sponsoredBills = await attachVideoImages(
+        sponsoredBillRows.map((item) => ({
+          ...item,
+          type: "bill" as const,
+          thumbnailUrl: item.thumbnailUrl ?? undefined,
+        })),
+      );
 
       return {
         sponsor: {
-          ...parseBillSponsor(bill.sponsor),
+          ...sponsorIdentity,
           role: sponsorRole(bill.chamber),
+          imageUrl: official?.image,
         },
         sourceUrl: bill.url,
         sponsoredBills: sponsoredBills.map((item) => ({
@@ -696,7 +711,8 @@ export const contentRouter = {
           description: item.description ?? item.summary ?? "",
           billNumber: item.billNumber,
           status: item.status ?? undefined,
-          thumbnailUrl: item.thumbnailUrl ?? undefined,
+          thumbnailUrl: item.thumbnailUrl,
+          imageUri: item.imageUri,
           introducedDate: item.introducedDate?.toISOString(),
         })),
       };
