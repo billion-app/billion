@@ -85,6 +85,7 @@ const scraperSourceLimitDefinitions = [
   ["SCOTUS_MAX_ITEMS", "CourtListener opinion clusters per run.", "50"],
   ["SCC_CVIG_MAX_ITEMS", "Santa Clara voter-guide PDFs per run.", "10"],
   ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
+  ["TX_SOS_MAX_ITEMS", "Texas SOS election payloads per run.", "12"],
 ] as const;
 
 export const envRegistry = [

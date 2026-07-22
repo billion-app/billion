@@ -308,6 +308,44 @@ export const ElectionRecord = pgTable(
   }),
 );
 
+// Provider-neutral snapshots for official election feeds that do not map
+// cleanly onto the legacy relational election tables. Each provider owns one
+// idempotent row per jurisdiction/cycle/scope; readers normalize and join rows
+// without mixing their source attribution.
+export const ElectionSourceSnapshot = pgTable(
+  "election_source_snapshot",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    jurisdiction: t.varchar({ length: 20 }).notNull(),
+    cycleYear: t.integer().notNull(),
+    provider: t.varchar({ length: 50 }).notNull(),
+    scope: t.varchar({ length: 50 }).notNull().default("current"),
+    sourceVersion: t.varchar({ length: 150 }).notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    data: t.jsonb().$type<Record<string, unknown>>().notNull(),
+    diagnostics: t.jsonb().$type<string[]>().notNull().default([]),
+    sourceUrls: t.jsonb().$type<string[]>().notNull().default([]),
+    fetchedAt: t.timestamp({ mode: "date", withTimezone: true }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueProviderSnapshot: unique().on(
+      table.jurisdiction,
+      table.cycleYear,
+      table.provider,
+      table.scope,
+    ),
+    currentCycleIdx: index("election_snapshot_current_cycle_idx").on(
+      table.jurisdiction,
+      table.scope,
+      table.cycleYear,
+    ),
+  }),
+);
+
 // Role descriptions — reusable across elections, keyed by (role, level)
 export const RoleDescriptionRecord = pgTable(
   "role_description",

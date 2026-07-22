@@ -4,15 +4,16 @@ Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for dev setup. These docs go de
 
 ## How the system works
 
-| Doc                                                  | What it covers                                                                                       |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| [Architecture overview](./architecture.md)           | The big picture: system diagram, monorepo layout, build tooling, and why the key decisions were made |
-| [Data layer](./data-layer.md)                        | Drizzle + Supabase Postgres, the schema (~20 tables), migrations                                     |
-| [API layer](./api.md)                                | The tRPC router, civic data integrations, request path, LLM provider                                 |
-| [Ballot-measure enrichment](./measure-enrichment.md) | How measure summaries are cross-validated across official sources, adapter by adapter                |
-| [Candidate enrichment](./candidate-enrichment.md)    | The same cross-validation pattern applied to candidate bios/photos/contact info                      |
-| [Scraper pipeline](./scraper.md)                     | The standalone content scraper: sources, change detection, AI generation                             |
-| [Frontend apps](./frontend.md)                       | Expo mobile app, Next.js web, shared UI, cross-platform auth                                         |
+| Doc                                                        | What it covers                                                                                       |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [Architecture overview](./architecture.md)                 | The big picture: system diagram, monorepo layout, build tooling, and why the key decisions were made |
+| [Data layer](./data-layer.md)                              | Drizzle + Supabase Postgres, the schema (~20 tables), migrations                                     |
+| [API layer](./api.md)                                      | The tRPC router, civic data integrations, request path, LLM provider                                 |
+| [Ballot-measure enrichment](./measure-enrichment.md)       | How measure summaries are cross-validated across official sources, adapter by adapter                |
+| [Candidate enrichment](./candidate-enrichment.md)          | The same cross-validation pattern applied to candidate bios/photos/contact info                      |
+| [Texas current-election data](./texas-current-election.md) | Current-cycle SOS results/candidates and separately cited TLC amendment analyses                     |
+| [Scraper pipeline](./scraper.md)                           | The standalone content scraper: sources, change detection, AI generation                             |
+| [Frontend apps](./frontend.md)                             | Expo mobile app, Next.js web, shared UI, cross-platform auth                                         |
 
 ## How to do things
 
