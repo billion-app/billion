@@ -1,7 +1,8 @@
 import type { BillData, Scraper } from "../utils/types.js";
+import type { TexasBulkClient } from "./texas-legislature-source.js";
+import { setExpectedTotal } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
 import { createLogger } from "../utils/log.js";
-import { setExpectedTotal } from "../utils/progress.js";
 import {
   htmlToText,
   openStatesSessionName,
@@ -13,7 +14,6 @@ import {
   listFilesRecursively,
   selectCurrentTexasSession,
   TexasFtpClient,
-  type TexasBulkClient,
 } from "./texas-legislature-source.js";
 import { texasLegislatureConfig } from "./texas-legislature.config.js";
 
@@ -86,10 +86,9 @@ export async function scrapeTexasLegislature(
   }
 
   logger.info(`Reading official Texas bulk data for ${session}...`);
-  const paths = (await listFilesRecursively(
-    client,
-    `/bills/${session}/billhistory`,
-  ))
+  const paths = (
+    await listFilesRecursively(client, `/bills/${session}/billhistory`)
+  )
     .filter(
       (path) =>
         path.toLowerCase().endsWith(".xml") &&
@@ -106,7 +105,11 @@ export async function scrapeTexasLegislature(
         (await client.download(path)).toString("utf8"),
         session,
       );
-      const documents = await enrichDocuments(client, session, parsed.documents);
+      const documents = await enrichDocuments(
+        client,
+        session,
+        parsed.documents,
+      );
       const latestBillText = documents
         .filter((document) => document.type === "bill_text" && document.text)
         .at(-1)?.text;
@@ -125,10 +128,7 @@ export async function scrapeTexasLegislature(
         ...(openStatesId && { openStatesId }),
         sourceWebsite: "capitol.texas.gov",
       };
-      await upsertContent(
-        { type: "bill", data },
-        { skipEnrichment: true },
-      );
+      await upsertContent({ type: "bill", data }, { skipEnrichment: true });
       persisted += 1;
     } catch (error) {
       logger.error(
@@ -136,7 +136,9 @@ export async function scrapeTexasLegislature(
       );
     }
   }
-  logger.success(`Persisted ${persisted}/${paths.length} Texas bills from ${session}.`);
+  logger.success(
+    `Persisted ${persisted}/${paths.length} Texas bills from ${session}.`,
+  );
 }
 
 async function scrape(options?: { maxItems?: number }): Promise<void> {

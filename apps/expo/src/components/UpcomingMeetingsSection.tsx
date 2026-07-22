@@ -60,7 +60,9 @@ export function UpcomingMeetingsSection({
           <View style={styles.cardContent}>
             <View style={styles.meta}>
               <Text style={styles.jurisdiction}>{meeting.jurisdiction}</Text>
-              <Text style={styles.date}>{formatDate(meeting.startsAt.toString())}</Text>
+              <Text style={styles.date}>
+                {formatDate(meeting.startsAt.toString())}
+              </Text>
             </View>
             <Text style={styles.title} numberOfLines={2}>
               {meeting.isCancelled ? "Cancelled: " : ""}
@@ -72,11 +74,15 @@ export function UpcomingMeetingsSection({
               </Text>
             )}
             <View style={styles.icons}>
-              {meeting.documents.find((document) => document.type === "agenda") && (
+              {meeting.documents.find(
+                (document) => document.type === "agenda",
+              ) && (
                 <TouchableOpacity
                   onPress={() =>
                     void Linking.openURL(
-                      meeting.documents.find((document) => document.type === "agenda")?.url ?? "",
+                      meeting.documents.find(
+                        (document) => document.type === "agenda",
+                      )?.url ?? "",
                     )
                   }
                   hitSlop={8}
@@ -90,9 +96,7 @@ export function UpcomingMeetingsSection({
               )}
               {meeting.videoUrl && (
                 <TouchableOpacity
-                  onPress={() =>
-                    void Linking.openURL(meeting.videoUrl ?? "")
-                  }
+                  onPress={() => void Linking.openURL(meeting.videoUrl ?? "")}
                   hitSlop={8}
                 >
                   <FontAwesome
@@ -102,11 +106,15 @@ export function UpcomingMeetingsSection({
                   />
                 </TouchableOpacity>
               )}
-              {meeting.documents.find((document) => document.type === "minutes") && (
+              {meeting.documents.find(
+                (document) => document.type === "minutes",
+              ) && (
                 <TouchableOpacity
                   onPress={() =>
                     void Linking.openURL(
-                      meeting.documents.find((document) => document.type === "minutes")?.url ?? "",
+                      meeting.documents.find(
+                        (document) => document.type === "minutes",
+                      )?.url ?? "",
                     )
                   }
                   hitSlop={8}

@@ -52,7 +52,9 @@ export async function getLocalGovernmentMeetings(
 
   return meetings.map((meeting) => ({
     ...meeting,
-    documents: documents.filter((document) => document.meetingId === meeting.id),
+    documents: documents.filter(
+      (document) => document.meetingId === meeting.id,
+    ),
   }));
 }
 

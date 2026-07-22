@@ -6,18 +6,18 @@ Pulls in government content like bills, court cases, and White House content and
 
 These data sources are registered and run by `all`:
 
-| CLI name            | Source and data fetched                                                                    | Stored/used as                                                                                        |
-| ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `federalregister`   | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article/summary and feed-image enrichment                                    |
-| `durham-bocc`       | Durham County's official Legistar API (current election cycle only)                         | Provider-neutral meetings, agenda items, actions, votes, and official document links; no AI required   |
-| `congress`          | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI/feed enrichment                                            |
-| `scotus`            | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
-| `scc-cvig`          | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
-| `ca-sos-statements` | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
-| `ncsbe`             | Current-cycle NCSBE candidate CSV, referendum PDFs, and result ZIPs                        | Provider-neutral election tables; powers `civic.getNcElectionData` with exact file provenance         |
-| `texas-legislature` | Texas Legislative Council anonymous FTP: current-session history XML and bulk documents     | State-aware `bill` rows; read through `content.texasBills` and `content.getById`                       |
-| `texas-current-election` | Texas SOS structured election feed and TLC amendment analyses                         | Current-cycle snapshots; powers `civic.getTexasCurrentElection` and measure enrichment                |
-| `cedar-park-council` | Cedar Park's CivicEngage City Council page and its official Municode Meetings embed        | Provider-neutral local meetings, documents, agenda items, motions, outcomes, and votes                |
+| CLI name                 | Source and data fetched                                                                    | Stored/used as                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `federalregister`        | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article/summary and feed-image enrichment                                    |
+| `durham-bocc`            | Durham County's official Legistar API (current election cycle only)                        | Provider-neutral meetings, agenda items, actions, votes, and official document links; no AI required  |
+| `congress`               | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI/feed enrichment                                            |
+| `scotus`                 | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
+| `scc-cvig`               | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
+| `ca-sos-statements`      | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
+| `ncsbe`                  | Current-cycle NCSBE candidate CSV, referendum PDFs, and result ZIPs                        | Provider-neutral election tables; powers `civic.getNcElectionData` with exact file provenance         |
+| `texas-legislature`      | Texas Legislative Council anonymous FTP: current-session history XML and bulk documents    | State-aware `bill` rows; read through `content.texasBills` and `content.getById`                      |
+| `texas-current-election` | Texas SOS structured election feed and TLC amendment analyses                              | Current-cycle snapshots; powers `civic.getTexasCurrentElection` and measure enrichment                |
+| `cedar-park-council`     | Cedar Park's CivicEngage City Council page and its official Municode Meetings embed        | Provider-neutral local meetings, documents, agenda items, motions, outcomes, and votes                |
 
 `vote411`, `ca-lao-fiscal`, and `ca-vig-archive` remain under
 `src/scrapers/disabled/` and do not run. Their caches had no application

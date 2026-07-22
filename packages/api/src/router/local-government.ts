@@ -49,12 +49,12 @@ async function getMeeting(id: string) {
 }
 
 export const localGovernmentRouter = {
-  meetings: publicProcedure.input(meetingListInput).query(({ input }) =>
-    listMeetings(input),
-  ),
-  listMeetings: publicProcedure.input(meetingListInput).query(({ input }) =>
-    listMeetings(input),
-  ),
+  meetings: publicProcedure
+    .input(meetingListInput)
+    .query(({ input }) => listMeetings(input)),
+  listMeetings: publicProcedure
+    .input(meetingListInput)
+    .query(({ input }) => listMeetings(input)),
   meeting: publicProcedure
     .input(z.object({ id: z.uuid() }))
     .query(({ input }) => getMeeting(input.id)),

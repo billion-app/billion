@@ -162,9 +162,7 @@ function documentLanguage(title: string): string | undefined {
   return /\b(spanish|español|espanol)\b/i.test(title) ? "es" : undefined;
 }
 
-function visibleAttachmentDocuments(
-  item: DurhamItem,
-): DurhamDocument[] {
+function visibleAttachmentDocuments(item: DurhamItem): DurhamDocument[] {
   const kind = /\bminutes?\b/i.test(item.EventItemTitle ?? "")
     ? ("minutes" as const)
     : ("attachment" as const);
@@ -309,15 +307,13 @@ async function upsertMeeting(meeting: ReturnType<typeof adaptDurhamMeeting>) {
       set: { ...meetingRow, fetchedAt },
     })
     .returning({ id: LocalGovernmentMeeting.id });
-  if (!stored) throw new Error(`Failed to persist meeting ${meeting.externalId}`);
+  if (!stored)
+    throw new Error(`Failed to persist meeting ${meeting.externalId}`);
   await upsertDocuments(stored.id, documents);
   return stored.id;
 }
 
-async function upsertDocuments(
-  meetingId: string,
-  documents: DurhamDocument[],
-) {
+async function upsertDocuments(meetingId: string, documents: DurhamDocument[]) {
   for (const document of documents) {
     await db
       .insert(LocalGovernmentDocument)

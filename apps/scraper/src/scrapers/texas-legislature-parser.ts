@@ -111,7 +111,9 @@ function parseDocuments($: ReturnType<typeof load>): TexasDocument[] {
       const ftpHtmlUrl = normalizeSpace(
         version.find("FTPHTMLURL").first().text(),
       );
-      const ftpPdfUrl = normalizeSpace(version.find("FTPPDFURL").first().text());
+      const ftpPdfUrl = normalizeSpace(
+        version.find("FTPPDFURL").first().text(),
+      );
       if (htmlUrl || pdfUrl || ftpHtmlUrl || ftpPdfUrl) {
         documents.push({
           type,
@@ -161,22 +163,26 @@ function parseVotes($: ReturnType<typeof load>): TexasVote[] {
           count.attr("option") ?? count.find("option").first().text(),
         );
         const value = Number(
-          normalizeSpace(count.attr("value") ?? count.find("value").first().text()),
+          normalizeSpace(
+            count.attr("value") ?? count.find("value").first().text(),
+          ),
         );
         if (option && Number.isInteger(value)) counts.push({ option, value });
       });
       const memberVotes: TexasVote["votes"] = [];
-      vote.find("voters > voter, memberVotes > vote").each((__, voterElement) => {
-        const voter = $(voterElement);
-        const voterName = normalizeSpace(
-          voter.attr("name") ??
-            voter.find("name, voterName, memberName").first().text(),
-        );
-        const option = normalizeSpace(
-          voter.attr("option") ?? voter.find("option, vote").first().text(),
-        );
-        if (voterName && option) memberVotes.push({ voterName, option });
-      });
+      vote
+        .find("voters > voter, memberVotes > vote")
+        .each((__, voterElement) => {
+          const voter = $(voterElement);
+          const voterName = normalizeSpace(
+            voter.attr("name") ??
+              voter.find("name, voterName, memberName").first().text(),
+          );
+          const option = normalizeSpace(
+            voter.attr("option") ?? voter.find("option, vote").first().text(),
+          );
+          if (voterName && option) memberVotes.push({ voterName, option });
+        });
       votes.push({
         identifier,
         ...(parseTexasDate(text(["date", "voteDate"])) && {
@@ -199,12 +205,17 @@ function parseVotes($: ReturnType<typeof load>): TexasVote[] {
   );
   $("actions > action").each((_, element) => {
     const action = $(element);
-    if (normalizeSpace(action.find("description").first().text()) !== "Record vote") {
+    if (
+      normalizeSpace(action.find("description").first().text()) !==
+      "Record vote"
+    ) {
       return;
     }
     const identifier = normalizeSpace(action.find("comment").first().text());
     if (!identifier) return;
-    const actionNumber = normalizeSpace(action.find("actionNumber").first().text());
+    const actionNumber = normalizeSpace(
+      action.find("actionNumber").first().text(),
+    );
     votes.push({
       identifier,
       ...(parseTexasDate(action.find("date").first().text()) && {
@@ -221,7 +232,8 @@ function parseVotes($: ReturnType<typeof load>): TexasVote[] {
     const committee = $(element);
     const name = normalizeSpace(committee.attr("name"));
     if (!name) return;
-    const chamber = element.tagName.toLowerCase() === "house" ? "House" : "Senate";
+    const chamber =
+      element.tagName.toLowerCase() === "house" ? "House" : "Senate";
     const countAttributes = [
       ["Yea", "ayeVotes"],
       ["Nay", "nayVotes"],
@@ -252,7 +264,8 @@ export function parseTexasBillHistory(
   const $ = load(xml, { xml: true });
   const root = $.root().children().first();
   const rawIdentifier = root.attr("bill") ?? firstText($, ["billNumber"]);
-  if (!rawIdentifier) throw new Error("Texas bill history is missing bill identity");
+  if (!rawIdentifier)
+    throw new Error("Texas bill history is missing bill identity");
   const billNumber = normalizeTexasBillNumber(rawIdentifier);
   const title = firstText($, ["caption"]);
   if (!title || title.includes("Bill does not exist")) {
@@ -278,7 +291,9 @@ export function parseTexasBillHistory(
     const date = parseTexasDate(action.find("date").first().text());
     const text = normalizeSpace(action.find("description").first().text());
     if (!date || !text) return;
-    const actionNumber = normalizeSpace(action.find("actionNumber").first().text());
+    const actionNumber = normalizeSpace(
+      action.find("actionNumber").first().text(),
+    );
     actions.push({ date, text, ...(actionNumber && { type: actionNumber }) });
   });
   actions.sort((left, right) => left.date.localeCompare(right.date));
@@ -315,6 +330,9 @@ export function parseTexasBillHistory(
 export function htmlToText(html: string): string {
   const $ = load(html);
   $("script, style, nav, header, footer").remove();
+  $("br, p, div, h1, h2, h3, h4, h5, h6, li, tr").each((_, element) => {
+    $(element).append(" ");
+  });
   return $.root().text().replace(/\s+/g, " ").trim();
 }
 
