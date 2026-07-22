@@ -12,6 +12,7 @@ import {
   Video,
 } from "@acme/db/schema";
 
+import { toBillTimelineActions } from "../lib/bill-actions";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
@@ -581,11 +582,7 @@ export const contentRouter = {
               b.aiGeneratedArticle ?? b.fullText ?? "No content available",
             originalContent: b.fullText ?? "Full text not available",
             url: b.url,
-            actions: (b.actions ?? []) as {
-              date: string;
-              text: string;
-              type?: string;
-            }[],
+            actions: toBillTimelineActions(b.actions ?? []),
             status: b.status ?? undefined,
             lensData: await getLensData(b.id, "bill"),
           },

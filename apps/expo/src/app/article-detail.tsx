@@ -270,12 +270,11 @@ export default function ArticleDetailScreen() {
     ? actions
         .slice()
         .sort((a, b) => a.date.localeCompare(b.date))
-        .map((a, i, arr) => ({
+        .map((a) => ({
           label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
           fullText: a.text,
           date: a.date,
           done: true,
-          current: i === arr.length - 1,
         }))
     : [
         {
@@ -283,30 +282,27 @@ export default function ArticleDetailScreen() {
           fullText: "",
           date: "",
           done: true,
-          current: false,
         },
         {
           label: "Committee review",
           fullText: "",
           date: "",
           done: true,
-          current: false,
         },
         {
           label: "Latest action",
           fullText: "",
           date: "",
           done: true,
-          current: true,
         },
         {
           label: "Becomes law",
           fullText: "",
           date: "",
           done: false,
-          current: false,
         },
       ];
+  const currentTimelineIndex = hasRealActions ? timeline.length - 1 : 2;
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
@@ -469,6 +465,7 @@ export default function ArticleDetailScreen() {
           {timeline.map((step, i) => {
             const expandable = !!step.fullText && step.label !== step.fullText;
             const isExpanded = expandedStep === i;
+            const isCurrent = i === currentTimelineIndex;
             return (
               <TouchableOpacity
                 key={i}
@@ -485,7 +482,7 @@ export default function ArticleDetailScreen() {
                       s.timelineDot,
                       {
                         borderColor: step.done ? t.color : hair[3],
-                        backgroundColor: step.current ? t.color : "transparent",
+                        backgroundColor: isCurrent ? t.color : "transparent",
                       },
                     ]}
                   />
@@ -510,7 +507,7 @@ export default function ArticleDetailScreen() {
                           color: step.done
                             ? colors.white
                             : colors.textSecondary,
-                          fontFamily: step.current
+                          fontFamily: isCurrent
                             ? fontBody.bold
                             : fontBody.medium,
                         },

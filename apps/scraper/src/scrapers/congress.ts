@@ -227,7 +227,9 @@ async function fetchActions(
   congress: number,
   billType: string,
   billNumber: string,
-): Promise<{ date: string; text: string; type?: string }[]> {
+): Promise<
+  { date: string; text: string; type?: string; actionCode?: string }[]
+> {
   try {
     const data = await congressFetch<{ actions: ApiAction[] }>(
       `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/actions`,
@@ -237,6 +239,7 @@ async function fetchActions(
       date: a.actionDate,
       text: a.text,
       type: a.type,
+      actionCode: a.actionCode,
     }));
   } catch {
     return [];

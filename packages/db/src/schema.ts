@@ -68,7 +68,9 @@ export const Bill = pgTable(
       .default([]), // Array of relevant images for the article
     actions: t
       .jsonb()
-      .$type<{ date: string; text: string; type?: string }[]>()
+      .$type<
+        { date: string; text: string; type?: string; actionCode?: string }[]
+      >()
       .default([]),
     url: t.text().notNull(),
     sourceWebsite: t.varchar({ length: 50 }).notNull(), // "congress.gov"
