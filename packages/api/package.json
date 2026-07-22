@@ -11,6 +11,10 @@
       "types": "./dist/integrations/legistar.d.ts",
       "default": "./src/integrations/legistar.ts"
     },
+    "./lib/local-government": {
+      "types": "./dist/lib/local-government.d.ts",
+      "default": "./src/lib/local-government.ts"
+    },
     "./lib/civic": {
       "types": "./dist/lib/civic.d.ts",
       "default": "./src/lib/civic.ts"

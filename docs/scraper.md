@@ -15,18 +15,19 @@ process environment at runtime, not embedded during the build.
 
 ## Scrapers
 
-| Scraper                     | Source                         | Content type               | Method                                                 |
-| --------------------------- | ------------------------------ | -------------------------- | ------------------------------------------------------ |
-| `congress.ts`               | congress.gov REST API          | `bill`                     | REST (`CONGRESS_API_KEY`), incremental by `updateDate` |
-| `federalregister.ts`        | federalregister.gov REST API   | `government_content`       | REST; HTML→Markdown via Turndown                       |
-| `scotus.ts`                 | CourtListener REST API         | `court_case`               | REST (`COURTLISTENER_API_KEY`, optional)               |
-| `vote411.ts`                | vote411.org                    | (cached locally)           | cheerio HTML parse; does **not** write to the main DB  |
-| `scc-cvig.ts`               | Santa Clara County voter guide | `civic_api_cache`          | PDF extraction; optional Gemini fallback               |
-| `ca-sos-statements.ts`      | CA Secretary of State guide    | `civic_api_cache`          | official candidate-statement pages                     |
-| `ca-lao-fiscal.ts`          | CA LAO ballot analyses         | `civic_api_cache`          | proposition fiscal analyses via HTML parse             |
-| `ca-vig-archive.ts`         | CA SOS voter-guide archive     | `civic_api_cache`          | historical proposition guide pages via HTML parse      |
-| `texas-current-election.ts` | Texas SOS + TLC                | `election_source_snapshot` | current-cycle JSON + deterministic PDF text parsing    |
-| `texas-legislature.ts` | Texas Legislative Council FTP  | `bill`               | current-session XML + bulk HTML; no site mining         |
+| Scraper                     | Source                           | Content type               | Method                                                                  |
+| --------------------------- | -------------------------------- | -------------------------- | ----------------------------------------------------------------------- |
+| `congress.ts`               | congress.gov REST API            | `bill`                     | REST (`CONGRESS_API_KEY`), incremental by `updateDate`                  |
+| `federalregister.ts`        | federalregister.gov REST API     | `government_content`       | REST; HTML→Markdown via Turndown                                        |
+| `scotus.ts`                 | CourtListener REST API           | `court_case`               | REST (`COURTLISTENER_API_KEY`, optional)                                |
+| `vote411.ts`                | vote411.org                      | (cached locally)           | cheerio HTML parse; does **not** write to the main DB                   |
+| `scc-cvig.ts`               | Santa Clara County voter guide   | `civic_api_cache`          | PDF extraction; optional Gemini fallback                                |
+| `ca-sos-statements.ts`      | CA Secretary of State guide      | `civic_api_cache`          | official candidate-statement pages                                      |
+| `ca-lao-fiscal.ts`          | CA LAO ballot analyses           | `civic_api_cache`          | proposition fiscal analyses via HTML parse                              |
+| `ca-vig-archive.ts`         | CA SOS voter-guide archive       | `civic_api_cache`          | historical proposition guide pages via HTML parse                       |
+| `texas-current-election.ts` | Texas SOS + TLC                  | `election_source_snapshot` | current-cycle JSON + deterministic PDF text parsing                     |
+| `texas-legislature.ts`      | Texas Legislative Council FTP    | `bill`                     | current-session XML + bulk HTML; no site mining                         |
+| `civicengage.ts`            | Cedar Park official council page | local-government tables    | CivicEngage entry page + Municode embed; deterministic HTML/PDF parsing |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
@@ -35,6 +36,11 @@ All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fe
 The Texas scraper is intentionally current-cycle only. SOS election facts and
 TLC explanatory text remain separate provider snapshots and separate citations;
 see [Texas current-election data](./texas-current-election.md).
+
+The Cedar Park pilot is deliberately limited to City Council meetings from the
+latest 12 months. It stores meetings, versioned documents, agenda items,
+motions/outcomes, and named roll-call votes in provider-neutral tables. It does
+not browse or backfill historical election cycles.
 
 ## Upsert + Change Detection
 

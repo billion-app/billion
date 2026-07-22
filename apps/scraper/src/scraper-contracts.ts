@@ -1,6 +1,7 @@
 import type { ScraperEnvContract } from "@acme/env";
 
 import { caSosStatementsConfig } from "./scrapers/ca-sos-statements.config.js";
+import { cedarParkCouncilConfig } from "./scrapers/civicengage.config.js";
 import { congressConfig } from "./scrapers/congress.config.js";
 import { federalregisterConfig } from "./scrapers/federalregister.config.js";
 import { ncsbeConfig } from "./scrapers/ncsbe.config.js";
@@ -18,4 +19,5 @@ export const scraperContracts: readonly ScraperEnvContract[] = [
   ncsbeConfig,
   texasCurrentElectionConfig,
   texasLegislatureConfig,
+  cedarParkCouncilConfig,
 ];

@@ -92,6 +92,11 @@ const scraperSourceLimitDefinitions = [
     "Texas Legislature bills per current-session run.",
     "100",
   ],
+  [
+    "CEDAR_PARK_COUNCIL_MAX_ITEMS",
+    "Cedar Park City Council meetings per run.",
+    "100",
+  ],
 ] as const;
 
 export const envRegistry = [

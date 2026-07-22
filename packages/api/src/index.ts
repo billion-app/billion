@@ -97,6 +97,13 @@ export {
   LegistarError,
   JURISDICTIONS,
 } from "./integrations/legistar";
+
+// Provider-neutral local-government records persisted by source scrapers.
+export {
+  getLocalGovernmentMeeting,
+  getLocalGovernmentMeetings,
+} from "./lib/local-government";
+export type { LocalGovernmentMeetingQuery } from "./lib/local-government";
 export type {
   Jurisdiction,
   LegistarMeeting,

@@ -8,16 +8,16 @@ All live-API functions come from `@acme/api`. Scrapers run as CLI jobs in `apps/
 
 ## Quick index
 
-| Category | What you get | Import |
-|---|---|---|
-| [Ballot & elections](#ballot--elections) | Contests, candidates, polling places, ballot measures | `@acme/api` |
-| [Ballot-measure enrichment](#ballot-measure-enrichment) | Summaries, fiscal impact, pro/con arguments, citations | `@acme/api` |
-| [State legislation](#state-legislation) | CA bills, legislators, votes | `@acme/api` |
-| [Local government](#local-government) | City/county meetings, ordinances, votes | `@acme/api` |
-| [CA election results](#ca-election-results) | Statewide vote counts (live JSON feed) | `@acme/api` |
-| [Address autocomplete](#address-autocomplete) | Street-address suggestions + place details | `@acme/api` |
-| [Corpus content (DB)](#corpus-content-db) | Bills, court cases, government content articles | tRPC `content` router |
-| [Scrapers (background jobs)](#scrapers-background-jobs) | Congress bills, SCOTUS, Federal Register, LAO, CA SOS | `apps/scraper` CLI |
+| Category                                                | What you get                                           | Import                |
+| ------------------------------------------------------- | ------------------------------------------------------ | --------------------- |
+| [Ballot & elections](#ballot--elections)                | Contests, candidates, polling places, ballot measures  | `@acme/api`           |
+| [Ballot-measure enrichment](#ballot-measure-enrichment) | Summaries, fiscal impact, pro/con arguments, citations | `@acme/api`           |
+| [State legislation](#state-legislation)                 | CA bills, legislators, votes                           | `@acme/api`           |
+| [Local government](#local-government)                   | City/county meetings, ordinances, votes                | `@acme/api`           |
+| [CA election results](#ca-election-results)             | Statewide vote counts (live JSON feed)                 | `@acme/api`           |
+| [Address autocomplete](#address-autocomplete)           | Street-address suggestions + place details             | `@acme/api`           |
+| [Corpus content (DB)](#corpus-content-db)               | Bills, court cases, government content articles        | tRPC `content` router |
+| [Scrapers (background jobs)](#scrapers-background-jobs) | Congress bills, SCOTUS, Federal Register, LAO, CA SOS  | `apps/scraper` CLI    |
 
 ---
 
@@ -32,26 +32,27 @@ All live-API functions come from `@acme/api`. Scrapers run as CLI jobs in `apps/
 
 ```ts
 import {
+  getDistrictElectionResults,
+  getElectionResults,
   getElections,
   getVoterInfo,
-  getElectionResults,
-  getDistrictElectionResults,
 } from "@acme/api";
 
 // Or, for direct tRPC consumption:
 // civic.getVoterInfo({ address, electionId })
 ```
 
-| Function | Args | Returns |
-|---|---|---|
-| `getElections()` | — | `Election[]` — all elections Google knows about |
-| `getVoterInfo(address, electionId)` | street address string, election ID | `VoterInfoResponse` — contests, polling places, drop boxes, enriched measures |
-| `getElectionResults(stateFips, countyFips)` | FIPS codes | CA SOS results for the matching jurisdiction |
-| `getDistrictElectionResults(districtRef)` | `DistrictRef` | narrowed by district |
+| Function                                    | Args                               | Returns                                                                       |
+| ------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------- |
+| `getElections()`                            | —                                  | `Election[]` — all elections Google knows about                               |
+| `getVoterInfo(address, electionId)`         | street address string, election ID | `VoterInfoResponse` — contests, polling places, drop boxes, enriched measures |
+| `getElectionResults(stateFips, countyFips)` | FIPS codes                         | CA SOS results for the matching jurisdiction                                  |
+| `getDistrictElectionResults(districtRef)`   | `DistrictRef`                      | narrowed by district                                                          |
 
 **`getVoterInfo` runs the full enrichment pipeline** — ballot measures come back with summaries, fiscal impact, pro/con arguments, and per-field citations from the cross-validation engine. The raw Google Civic response alone omits nearly all content fields; this is what fills them.
 
 Key return types (all exported from `@acme/api`):
+
 - `Contest` — a race or measure on the ballot (includes enriched `CanonicalMeasure` fields when present)
 - `Candidate` — name, party, photo, channels, incumbency, Vote Smart bio
 - `PollingLocation` — address, hours, type
@@ -67,22 +68,21 @@ Key return types (all exported from `@acme/api`):
 **When to call directly:** when you need enriched measure data outside the `getVoterInfo` flow — e.g. article generation, batch enrichment scripts
 
 ```ts
-import {
-  crossValidateMeasure,
-  type CanonicalMeasure,
-  type MeasureSourceData,
-  type MeasureCitation,
-  type SourceTier,
-  SOURCE_TIER_RANK,
+import type {
+  CanonicalMeasure,
+  MeasureCitation,
+  MeasureSourceData,
+  SourceTier,
 } from "@acme/api";
+import type { CanonicalMeasure } from "@acme/api/lib/measure-sources/types";
+import { crossValidateMeasure, SOURCE_TIER_RANK } from "@acme/api";
 // or via the named subpath:
 import { crossValidateMeasure } from "@acme/api/lib/measure-crossvalidate";
-import type { CanonicalMeasure } from "@acme/api/lib/measure-sources/types";
 
 const result: CanonicalMeasure = await crossValidateMeasure(
   {
     title: "Proposition 1",
-    subtitle: "...",     // optional — Google Civic's own text, used as last-resort
+    subtitle: "...", // optional — Google Civic's own text, used as last-resort
     text: "...",
     url: "...",
   },
@@ -96,32 +96,32 @@ const result: CanonicalMeasure = await crossValidateMeasure(
 
 `CanonicalMeasure` fields:
 
-| Field | Type | Notes |
-|---|---|---|
-| `title` | `string` | Measure title (passed through) |
-| `summary` | `string \| undefined` | Best available summary; cite `citations` for the source |
-| `summaryShort` | `string \| undefined` | One-sentence card preview |
-| `summaryLong` | `string \| undefined` | Fuller detail-screen paragraph |
-| `summaryIsAiGenerated` | `boolean` | True when AI grounded on fetched text — UI should label it |
-| `fiscalImpact` | `string \| undefined` | Official fiscal analysis (LAO for CA props, else Ballotpedia) |
-| `fullText` | `string \| undefined` | Full measure text when available |
-| `fullTextUrl` | `string \| undefined` | Link to the official text |
-| `proArguments` | `MeasureArgument[]` | Attributed pro arguments |
-| `conArguments` | `MeasureArgument[]` | Attributed con arguments |
-| `citations` | `MeasureCitation[]` | One entry per populated field — `{field, sourceName, sourceUrl, tier, official}` |
-| `discrepancies` | `string[] \| undefined` | Fields where top-2 sources disagreed; for human review |
+| Field                  | Type                    | Notes                                                                            |
+| ---------------------- | ----------------------- | -------------------------------------------------------------------------------- |
+| `title`                | `string`                | Measure title (passed through)                                                   |
+| `summary`              | `string \| undefined`   | Best available summary; cite `citations` for the source                          |
+| `summaryShort`         | `string \| undefined`   | One-sentence card preview                                                        |
+| `summaryLong`          | `string \| undefined`   | Fuller detail-screen paragraph                                                   |
+| `summaryIsAiGenerated` | `boolean`               | True when AI grounded on fetched text — UI should label it                       |
+| `fiscalImpact`         | `string \| undefined`   | Official fiscal analysis (LAO for CA props, else Ballotpedia)                    |
+| `fullText`             | `string \| undefined`   | Full measure text when available                                                 |
+| `fullTextUrl`          | `string \| undefined`   | Link to the official text                                                        |
+| `proArguments`         | `MeasureArgument[]`     | Attributed pro arguments                                                         |
+| `conArguments`         | `MeasureArgument[]`     | Attributed con arguments                                                         |
+| `citations`            | `MeasureCitation[]`     | One entry per populated field — `{field, sourceName, sourceUrl, tier, official}` |
+| `discrepancies`        | `string[] \| undefined` | Fields where top-2 sources disagreed; for human review                           |
 
 **Sources wired into the engine** (in trust-tier order):
 
-| Source | Tier | Scope |
-|---|---|---|
-| CA SOS Official Voter Guide | `state_sos` | CA statewide props — AG summary, official pro/con |
-| CA LAO Fiscal Analyses | `state_sos` | CA statewide props — nonpartisan fiscal impact |
-| LWV / CaVotes | `lwv` | CA statewide props — nonpartisan pros & cons |
-| Ballotpedia | `ballotpedia` | Statewide + local lettered measures (all states) |
-| Wikipedia | `wikipedia` | CA statewide props — encyclopedic overview |
-| Vote Smart | `vote_smart` | State-level measures — summary + pro/con URLs |
-| Google Civic | `google_civic` | The original input — lowest trust, always present |
+| Source                      | Tier           | Scope                                             |
+| --------------------------- | -------------- | ------------------------------------------------- |
+| CA SOS Official Voter Guide | `state_sos`    | CA statewide props — AG summary, official pro/con |
+| CA LAO Fiscal Analyses      | `state_sos`    | CA statewide props — nonpartisan fiscal impact    |
+| LWV / CaVotes               | `lwv`          | CA statewide props — nonpartisan pros & cons      |
+| Ballotpedia                 | `ballotpedia`  | Statewide + local lettered measures (all states)  |
+| Wikipedia                   | `wikipedia`    | CA statewide props — encyclopedic overview        |
+| Vote Smart                  | `vote_smart`   | State-level measures — summary + pro/con URLs     |
+| Google Civic                | `google_civic` | The original input — lowest trust, always present |
 
 When no human source has a summary, the engine falls back to grounded AI (SPUR Bay Area voter guide as source text), flagged `summaryIsAiGenerated: true`.
 
@@ -135,55 +135,80 @@ When no human source has a summary, the engine falls back to grounded AI (SPUR B
 **Scope:** California state bills and legislators (expandable to other states)
 
 ```ts
+import type {
+  GetBillsOptions,
+  OpenStatesBill,
+  OpenStatesPerson,
+} from "@acme/api";
 import {
-  getBills,
   getBillDetails,
-  getLegislators,
-  getVotes,
+  getBills,
+  getBillsBySponsor,
   getCurrentSessions,
   getLegislatorById,
-  getBillsBySponsor,
+  getLegislators,
+  getVotes,
   openStatesClient,
-  type OpenStatesBill,
-  type OpenStatesPerson,
-  type GetBillsOptions,
 } from "@acme/api";
 // or
 import { getBills } from "@acme/api/clients/open-states";
 
-const bills = await getBills({ state: "ca", session: "20232024", query: "housing" });
+const bills = await getBills({
+  state: "ca",
+  session: "20232024",
+  query: "housing",
+});
 const detail = await getBillDetails("ocd-bill/...");
 const legislators = await getLegislators({ state: "ca" });
 ```
 
-| Function | What it returns |
-|---|---|
-| `getBills(opts)` | `OpenStatesBillSearchResult[]` — paginated bill search |
-| `getBillDetails(billId)` | `OpenStatesBill` — full bill with actions, sponsors, versions |
-| `getLegislators(opts)` | `OpenStatesPerson[]` — legislators matching the query |
-| `getVotes(billId)` | `OpenStatesVote[]` — roll-call votes for a bill |
-| `getCurrentSessions(state)` | Active legislative sessions |
-| `getBillsBySponsor(personId)` | Bills sponsored by a legislator |
-| `openStatesClient` | Raw client for custom queries |
+| Function                      | What it returns                                               |
+| ----------------------------- | ------------------------------------------------------------- |
+| `getBills(opts)`              | `OpenStatesBillSearchResult[]` — paginated bill search        |
+| `getBillDetails(billId)`      | `OpenStatesBill` — full bill with actions, sponsors, versions |
+| `getLegislators(opts)`        | `OpenStatesPerson[]` — legislators matching the query         |
+| `getVotes(billId)`            | `OpenStatesVote[]` — roll-call votes for a bill               |
+| `getCurrentSessions(state)`   | Active legislative sessions                                   |
+| `getBillsBySponsor(personId)` | Bills sponsored by a legislator                               |
+| `openStatesClient`            | Raw client for custom queries                                 |
 
 ---
 
 ## Local government
 
-**Source:** Legistar Web API  
-**Entry point:** `packages/api/src/integrations/legistar.ts`  
+**Sources:** persisted local-government records plus the Legistar Web API
+**Entry points:** `packages/api/src/lib/local-government.ts`, `packages/api/src/integrations/legistar.ts`
 **Auth:** None (public API)  
-**Jurisdictions wired:** San Jose (`sanjose`), Santa Clara County (`santaclara`), Sunnyvale (`sunnyvale`)
+**Persisted jurisdiction:** Cedar Park (`cedar-park-tx`); live Legistar jurisdictions: San Jose, Santa Clara County, Sunnyvale
+
+The product-facing reader uses normalized persisted records. Cedar Park's
+scheduled scraper populates these from the city's official CivicEngage page and
+embedded Municode Meetings publication:
 
 ```ts
 import {
-  legistar,
-  LegistarClient,
-  JURISDICTIONS,
-  type LegistarMeeting,
-  type LegistarMatter,
-  type LegistarVote,
+  getLocalGovernmentMeeting,
+  getLocalGovernmentMeetings,
 } from "@acme/api";
+
+const meetings = await getLocalGovernmentMeetings({
+  jurisdiction: "cedar-park-tx",
+  limit: 20,
+});
+const detail = meetings[0]
+  ? await getLocalGovernmentMeeting(meetings[0].id)
+  : null;
+```
+
+The equivalent tRPC procedures are `localGovernment.meetings` and
+`localGovernment.meeting`. Detail includes official/versioned documents,
+agenda items, motions, outcomes, tally text, and named votes when published.
+
+Legistar remains available as a provider-specific live client:
+
+```ts
+import type { LegistarMatter, LegistarMeeting, LegistarVote } from "@acme/api";
+import { JURISDICTIONS, legistar, LegistarClient } from "@acme/api";
 // or
 import { legistar } from "@acme/api/integrations/legistar";
 
@@ -192,13 +217,13 @@ const matters = await legistar.getMatters("santaclara", { keywords: "budget" });
 const votes = await legistar.getVotes("sanjose", matterId);
 ```
 
-| Method | Returns |
-|---|---|
-| `legistar.getMeetings(jurisdiction, opts?)` | `LegistarMeeting[]` — council meetings with agendas |
-| `legistar.getMatters(jurisdiction, opts?)` | `LegistarMatter[]` — ordinances, resolutions, items |
-| `legistar.getVotes(jurisdiction, matterId)` | `LegistarVote[]` — how each member voted |
-| `legistar.getBodies(jurisdiction)` | `LegistarBody[]` — committees and boards |
-| `legistar.getAttachments(jurisdiction, matterId)` | `LegistarAttachment[]` — PDFs, staff reports |
+| Method                                            | Returns                                             |
+| ------------------------------------------------- | --------------------------------------------------- |
+| `legistar.getMeetings(jurisdiction, opts?)`       | `LegistarMeeting[]` — council meetings with agendas |
+| `legistar.getMatters(jurisdiction, opts?)`        | `LegistarMatter[]` — ordinances, resolutions, items |
+| `legistar.getVotes(jurisdiction, matterId)`       | `LegistarVote[]` — how each member voted            |
+| `legistar.getBodies(jurisdiction)`                | `LegistarBody[]` — committees and boards            |
+| `legistar.getAttachments(jurisdiction, matterId)` | `LegistarAttachment[]` — PDFs, staff reports        |
 
 To add a city: add its `*.legistar.com` subdomain to `JURISDICTIONS` in `integrations/legistar.ts`.
 
@@ -211,11 +236,8 @@ To add a city: add its `*.legistar.com` subdomain to `JURISDICTIONS` in `integra
 **Auth:** None
 
 ```ts
-import {
-  SOS_RESULTS_HOME,
-  type ElectionContestResult,
-  type ResultCandidate,
-} from "@acme/api";
+import type { ElectionContestResult, ResultCandidate } from "@acme/api";
+import { SOS_RESULTS_HOME } from "@acme/api";
 // or
 import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 ```
@@ -231,11 +253,8 @@ import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 **Auth:** `GOOGLE_PLACES_API_KEY` (falls back through `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`)
 
 ```ts
-import {
-  getAddressSuggestions,
-  getPlaceDetails,
-  type AddressSuggestion,
-} from "@acme/api";
+import type { AddressSuggestion } from "@acme/api";
+import { getAddressSuggestions, getPlaceDetails } from "@acme/api";
 
 const suggestions = await getAddressSuggestions("123 Main St");
 const details = await getPlaceDetails(suggestions[0].placeId);
@@ -261,24 +280,24 @@ const typed = await trpc.content.getByType.query({ type: "court_case" });
 
 `ContentCard` shape (returned by all three procedures):
 
-| Field | Type |
-|---|---|
-| `id` | `string` |
-| `title` | `string` |
-| `description` | `string \| null` |
-| `type` | `"bill" \| "court_case" \| "government_content"` |
-| `isAIGenerated` | `boolean` |
-| `thumbnailUrl` | `string \| null` |
+| Field           | Type                                             |
+| --------------- | ------------------------------------------------ |
+| `id`            | `string`                                         |
+| `title`         | `string`                                         |
+| `description`   | `string \| null`                                 |
+| `type`          | `"bill" \| "court_case" \| "government_content"` |
+| `isAIGenerated` | `boolean`                                        |
+| `thumbnailUrl`  | `string \| null`                                 |
 
 `getThumbnailForContent(id, type)` is also exported from `@acme/api` for cases where only the thumbnail is needed.
 
 **DB tables populated by scrapers:**
 
-| Table | Populated by | Content |
-|---|---|---|
-| `Bill` | `congress.ts` scraper | Federal bills, actions, sponsor, status, full text |
-| `GovernmentContent` | `federalregister.ts` scraper | EOs, proclamations, presidential memos |
-| `CourtCase` | `scotus.ts` scraper | SCOTUS opinions via CourtListener |
+| Table               | Populated by                 | Content                                            |
+| ------------------- | ---------------------------- | -------------------------------------------------- |
+| `Bill`              | `congress.ts` scraper        | Federal bills, actions, sponsor, status, full text |
+| `GovernmentContent` | `federalregister.ts` scraper | EOs, proclamations, presidential memos             |
+| `CourtCase`         | `scotus.ts` scraper          | SCOTUS opinions via CourtListener                  |
 
 ---
 
@@ -286,15 +305,15 @@ const typed = await trpc.content.getByType.query({ type: "court_case" });
 
 These run as CLI jobs (`bun run scrape -- --scrapers <name>`) in `apps/scraper` and are **not importable as functions at request time**. They populate `CivicApiCache` rows or DB tables that the live API reads.
 
-| Scraper | Populates | Cadence |
-|---|---|---|
-| `congress` | `Bill` table | Periodic |
-| `federalregister` | `GovernmentContent` table | Periodic |
-| `scotus` | `CourtCase` table | Periodic |
-| `vote411` | `CivicApiCache` (VOTE411 voter guides) | Pre-election |
-| `sccCvig` | `CivicApiCache` (SCC county voter guide) | Pre-election |
-| `caSosStatements` | `CivicApiCache` (CA SOS candidate statements) | Pre-election |
-| `caLaoFiscal` | `CivicApiCache` (LAO fiscal analyses) | Pre-election (~90 days out) |
+| Scraper           | Populates                                     | Cadence                     |
+| ----------------- | --------------------------------------------- | --------------------------- |
+| `congress`        | `Bill` table                                  | Periodic                    |
+| `federalregister` | `GovernmentContent` table                     | Periodic                    |
+| `scotus`          | `CourtCase` table                             | Periodic                    |
+| `vote411`         | `CivicApiCache` (VOTE411 voter guides)        | Pre-election                |
+| `sccCvig`         | `CivicApiCache` (SCC county voter guide)      | Pre-election                |
+| `caSosStatements` | `CivicApiCache` (CA SOS candidate statements) | Pre-election                |
+| `caLaoFiscal`     | `CivicApiCache` (LAO fiscal analyses)         | Pre-election (~90 days out) |
 
 **How the cache-warmer pattern works:** a scraper pre-fetches expensive HTML pages and stores structured JSON in `CivicApiCache`. When a user triggers `getVoterInfo`, the measure-source adapters read the cache row (sub-millisecond DB read) instead of doing a live HTML fetch inside the request. Cache TTL is 30 days for LAO; 24 hours for voter info responses.
 

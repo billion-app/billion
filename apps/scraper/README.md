@@ -16,6 +16,7 @@ These data sources are registered and run by `all`:
 | `ncsbe`             | Current-cycle NCSBE candidate CSV, referendum PDFs, and result ZIPs                        | Provider-neutral election tables; powers `civic.getNcElectionData` with exact file provenance         |
 | `texas-legislature` | Texas Legislative Council anonymous FTP: current-session history XML and bulk documents     | State-aware `bill` rows; read through `content.texasBills` and `content.getById`                       |
 | `texas-current-election` | Texas SOS structured election feed and TLC amendment analyses                         | Current-cycle snapshots; powers `civic.getTexasCurrentElection` and measure enrichment                |
+| `cedar-park-council` | Cedar Park's CivicEngage City Council page and its official Municode Meetings embed        | Provider-neutral local meetings, documents, agenda items, motions, outcomes, and votes                |
 
 `vote411`, `ca-lao-fiscal`, and `ca-vig-archive` remain under
 `src/scrapers/disabled/` and do not run. Their caches had no application
@@ -135,6 +136,7 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `NCSBE_MAX_ITEMS`               |       4 | Current-cycle candidate/referendum/result files     |
 | `TEXAS_LEGISLATURE_MAX_ITEMS`   |     100 | Bills from the latest Texas bulk session            |
 | `TX_SOS_MAX_ITEMS`              |      12 | Current-cycle Texas SOS election payloads           |
+| `CEDAR_PARK_COUNCIL_MAX_ITEMS`  |     100 | Council meetings (after the 12-month cutoff)        |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
@@ -148,6 +150,28 @@ The NCSBE integration is intentionally current-cycle only and excludes voter
 history plus candidate contact/address fields. See
 [`docs/ncsbe-election-data.md`](../../docs/ncsbe-election-data.md) for discovery,
 idempotency, provenance, API, and deterministic Civic-matching details.
+
+## Cedar Park City Council (`civicengage.ts`)
+
+Cedar Park's public site is CivicEngage, but the City Council records page now
+embeds a keyless Municode Meetings publish page. The adapter follows that
+official embed, keeps a 12-month Council-only window, downloads at most two
+documents concurrently, and deterministically parses PDF text. AI/vision is not
+used. Agendas, packets, minutes, and later document URLs are versioned beneath
+one provider-neutral meeting record; unchanged reruns produce the same natural
+keys and checksums.
+
+```bash
+pnpm --filter @acme/scraper run start cedar-park-council --max-items 1
+```
+
+To add a second CivicEngage jurisdiction using the same kind of official
+Municode embed, add a `CivicEngageJurisdictionConfig` beside
+`cedarParkCouncilSource` with its CivicEngage host/path, IANA timezone,
+Municode `cid`/`ppid`, and governing-body matcher, then instantiate the same
+discovery/parser pipeline. If its records page uses Agenda Center, Legistar, or
+another provider, implement that provider behind the same local-government
+persistence contract instead.
 
 ---
 

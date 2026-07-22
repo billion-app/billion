@@ -9,6 +9,7 @@ How to obtain keys/access for every civic integration. For local dev, copy `.env
 | Google Places (address autocomplete)   | Yes          | Pay-as-you-go   | `GOOGLE_PLACES_API_KEY` (→ `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`) |
 | Vote Smart                             | Yes          | Free (org tier) | `VOTE_SMART_API_KEY`                                                  |
 | Legistar (local councils)              | No           | Free            | —                                                                     |
+| Cedar Park council records             | No           | Free            | —                                                                     |
 | VOTE411 / LWV (scraper)                | No           | Free            | —                                                                     |
 | CA SOS Voter Guide (scraper)           | No           | Free            | —                                                                     |
 | Santa Clara measure pipeline (scraper) | No           | Free            | —                                                                     |
@@ -26,6 +27,15 @@ How to obtain keys/access for every civic integration. For local dev, copy `.env
 **Vote Smart** — voting records, candidate bios, measure pro/con. Access is **member vs. business/organizational** (not nonprofit vs. for-profit) — org fees apply; ToS bars use "in any campaign activity". [Register](https://votesmart.org/share/api). → `VOTE_SMART_API_KEY`.
 
 **Legistar Web API** — local council meetings, legislation, votes, agendas; no key, unlimited public data. Supported jurisdictions (client id): San Jose (`sanjose`), Santa Clara County (`santaclara`), Sunnyvale (`sunnyvale`). Add a city by extracting its `*.legistar.com` subdomain into the `JURISDICTIONS` constant in `packages/api/src/integrations/legistar.ts`. Base: <https://webapi.legistar.com/> (OData-compatible).
+
+**Cedar Park City Council** — the official CivicEngage City Council page embeds
+a Municode Meetings publish page. The `cedar-park-council` scraper follows that
+embed for the latest 12 months, uses deterministic HTML/PDF parsing, and writes
+the provider-neutral local-government tables read by the `localGovernment`
+tRPC router. No AI key is needed. Configuration lives in
+`apps/scraper/src/scrapers/civicengage.config.ts`; a second jurisdiction using
+the same embed supplies a new CivicEngage host/path, timezone, Municode
+`cid`/`ppid`, and body matcher.
 
 **VOTE411 / League of Women Voters** — nonpartisan voter guides, candidate questionnaires, measure explanations; no key (scraper, rate-limited + cached). ⚠️ ToS bars commercial use without **written consent** and prohibits automated queries — a negotiated partnership is the only compliant path (tracked in the Outreach Tracker). Also `cavotes.org/easy-voter-guide/` for CA.
 
