@@ -24,6 +24,10 @@
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
     "push": "drizzle-kit push",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "db-check": "drizzle-kit check --dialect postgresql --out drizzle",
+    "baseline": "tsx baseline.ts",
     "seed": "tsx seed-entry.ts",
     "studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
