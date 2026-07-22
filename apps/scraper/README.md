@@ -16,6 +16,7 @@ These data sources are registered and run by `all`:
 | `ca-sos-statements`      | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
 | `ncsbe`                  | Current-cycle NCSBE candidate CSV, referendum PDFs, and result ZIPs                        | Provider-neutral election tables; powers `civic.getNcElectionData` with exact file provenance         |
 | `texas-legislature`      | Texas Legislative Council anonymous FTP: current-session history XML and bulk documents    | State-aware `bill` rows; read through `content.texasBills` and `content.getById`                      |
+| `missouri-legislature`   | Missouri House current-session XML exports                                                 | Shared state-aware `bill` rows; read through `content.stateBills` and `content.getById`               |
 | `texas-current-election` | Texas SOS structured election feed and TLC amendment analyses                              | Current-cycle snapshots; powers `civic.getTexasCurrentElection` and measure enrichment                |
 | `cedar-park-council`     | Cedar Park's CivicEngage City Council page and its official Municode Meetings embed        | Provider-neutral local meetings, documents, agenda items, motions, outcomes, and votes                |
 
@@ -62,7 +63,7 @@ work:
 | `COURTLISTENER_API_KEY`                      | Optional                                | Higher CourtListener limits for `scotus`.                                                                          |
 | `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional pair                           | Google Custom Search article thumbnails.                                                                           |
 | `GOOGLE_GENERATIVE_AI_API_KEY`               | Optional                                | Gemini vision fallback for `scc-cvig` PDF extraction.                                                              |
-| `OPEN_STATES_API_KEY`                        | Optional                                | Adds an exact Open States bill ID when Texas jurisdiction/session/identifier match.                                |
+| `OPEN_STATES_API_KEY`                        | Optional                                | Adds an exact Open States bill ID when Texas or Missouri jurisdiction/session/identifier match.                    |
 
 See [the launch environment guide](../../docs/launch.md) for the complete
 per-scraper matrix, provider setup links, defaults, and production guidance.
@@ -127,19 +128,20 @@ pnpm --filter @acme/scraper run start congress --max-items 10
 CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 ```
 
-| Variable                        | Default | Counts                                              |
-| ------------------------------- | ------: | --------------------------------------------------- |
-| `FEDERALREGISTER_MAX_ITEMS`     |      20 | Presidential documents                              |
-| `CONGRESS_MAX_ITEMS`            |     100 | Bills                                               |
-| `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters                      |
-| `SCC_CVIG_MAX_ITEMS`            |      10 | Voter-guide PDF documents                           |
-| `CA_SOS_MAX_ITEMS`              |       9 | Statewide-office candidate-statement pages          |
-| `NCSBE_MAX_ITEMS`               |       4 | Current-cycle candidate/referendum/result files     |
-| `TEXAS_LEGISLATURE_MAX_ITEMS`   |     100 | Bills from the latest Texas bulk session            |
-| `TX_SOS_MAX_ITEMS`              |      12 | Current-cycle Texas SOS election payloads           |
-| `CEDAR_PARK_COUNCIL_MAX_ITEMS`  |     100 | Council meetings (after the 12-month cutoff)        |
-| `DURHAM_BOCC_MAX_ITEMS`         |     100 | Current-cycle Durham County BOCC meetings           |
-| `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
+| Variable                         | Default | Counts                                              |
+| -------------------------------- | ------: | --------------------------------------------------- |
+| `FEDERALREGISTER_MAX_ITEMS`      |      20 | Presidential documents                              |
+| `CONGRESS_MAX_ITEMS`             |     100 | Bills                                               |
+| `SCOTUS_MAX_ITEMS`               |      50 | CourtListener opinion clusters                      |
+| `SCC_CVIG_MAX_ITEMS`             |      10 | Voter-guide PDF documents                           |
+| `CA_SOS_MAX_ITEMS`               |       9 | Statewide-office candidate-statement pages          |
+| `NCSBE_MAX_ITEMS`                |       4 | Current-cycle candidate/referendum/result files     |
+| `TEXAS_LEGISLATURE_MAX_ITEMS`    |     100 | Bills from the latest Texas bulk session            |
+| `MISSOURI_LEGISLATURE_MAX_ITEMS` |     100 | Changed bills from active Missouri sessions         |
+| `TX_SOS_MAX_ITEMS`               |      12 | Current-cycle Texas SOS election payloads           |
+| `CEDAR_PARK_COUNCIL_MAX_ITEMS`   |     100 | Council meetings (after the 12-month cutoff)        |
+| `DURHAM_BOCC_MAX_ITEMS`          |     100 | Current-cycle Durham County BOCC meetings           |
+| `SCRAPER_MAX_NEW_ITEMS_PER_RUN`  |      10 | New records receiving expensive AI/image enrichment |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
 day to obtain a daily cap. If the scheduler retries or runs multiple times, each
@@ -220,6 +222,38 @@ Apply `packages/db/migrations/add_state_legislation_fields.sql` before the first
 run. The public `content.texasBills` procedure lists only the newest persisted
 Texas session; `content.getById` returns its documents, actions, and votes. This
 work deliberately does not provide historical-session browsing or backfills.
+
+---
+
+## Missouri General Assembly (`missouri-legislature.ts`)
+
+Discovers the active regular and any enabled special sessions from the official
+[`SessionSet.js`](https://documents.house.mo.gov/SessionSet.js); no session code
+is configured or hard-coded. Each run observes
+the House's no-more-than-once-per-30-minutes rule through a durable database
+guard, fetches `BillList.XML`, and downloads only individual House bill XML rows
+whose `LastTimeRun` changed. At most two bill XML requests run concurrently.
+
+`SenateActList.XML` is also imported, but it is explicitly incomplete: it only
+contains Senate bills with House activity. Their latest shared `bill.versions`
+entry carries `changes = senate_with_house_actions_only`. Official actions, sponsors,
+committees, proposed effective dates, roll-call totals, bill versions,
+summaries, fiscal notes, amendments, veto letters, and witness documents are
+stored in the shared `bill` contract. `OPEN_STATES_API_KEY` optionally adds an
+exact identity match and is never required for official ingestion.
+
+```bash
+pnpm --filter @acme/scraper run start missouri-legislature --max-items 10
+```
+
+`content.stateBills({ stateCode: "MO" })` returns the active rows retained by
+the latest official session descriptor; the scraper removes prior Missouri
+sessions, so historical browsing is not provided.
+
+Source format and coverage references: [XML export overview](https://documents.house.mo.gov/),
+[BillList fields](https://documents.house.mo.gov/XMLBillList.html),
+[individual bill fields](https://documents.house.mo.gov/XMLBillExports.html),
+and [Senate bills with House actions](https://documents.house.mo.gov/XMLSenateBillsWithHouseActions.html).
 
 ---
 

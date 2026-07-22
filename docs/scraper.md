@@ -27,6 +27,7 @@ process environment at runtime, not embedded during the build.
 | `ca-vig-archive.ts`         | CA SOS voter-guide archive       | `civic_api_cache`          | historical proposition guide pages via HTML parse                       |
 | `texas-current-election.ts` | Texas SOS + TLC                  | `election_source_snapshot` | current-cycle JSON + deterministic PDF text parsing                     |
 | `texas-legislature.ts`      | Texas Legislative Council FTP    | `bill`                     | current-session XML + bulk HTML; no site mining                         |
+| `missouri-legislature.ts`   | Missouri House XML exports       | `bill`                     | active sessions; Senate coverage is House-actions-only                  |
 | `civicengage.ts`            | Cedar Park official council page | local-government tables    | CivicEngage entry page + Municode embed; deterministic HTML/PDF parsing |
 | `durham-onbase.ts`          | Durham OnBase Agenda Online      | local-government tables    | current-cycle meetings, items, attachments, and official actions        |
 | `durham-bocc.ts`            | Durham County Legistar API       | local-government tables    | current-cycle meetings, items, actions, votes, and documents            |
@@ -80,6 +81,18 @@ an OCD jurisdiction, legislative session, subjects, sponsorships, documents,
 votes, and an optional exact Open States ID. The scraper selects only the latest
 FTP session and sets `skipEnrichment`; the API exposes only that newest session
 through `content.texasBills`, with full supporting material in `content.getById`.
+
+Missouri uses the same rows and `content.stateBills` reader. Active session
+codes come from the official
+[`SessionSet.js`](https://documents.house.mo.gov/SessionSet.js);
+[`BillList.XML` fields](https://documents.house.mo.gov/XMLBillList.html),
+including `LastTimeRun`, drive
+individual XML change detection. A `CivicApiCache` refresh lease enforces the
+official 30-minute minimum interval, and fetch concurrency is capped at two.
+Senate rows come only from `SenateActList.XML` and retain the explicit
+`senate_with_house_actions_only` coverage marker in `bill.versions`.
+The [official export guidance](https://documents.house.mo.gov/) documents the
+hourly generation schedule and the 30-minute minimum polling interval.
 
 ## AI Pipeline
 
