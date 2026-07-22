@@ -43,6 +43,15 @@ void test("Next.js requires the Google Civic key", () => {
   assert.equal(civic?.requirement, "required");
 });
 
+void test("Next.js requires Discord credentials", () => {
+  for (const key of ["AUTH_DISCORD_ID", "AUTH_DISCORD_SECRET"]) {
+    const credential = definitionsFor("nextjs").find(
+      ({ definition }) => definition.key === key,
+    );
+    assert.equal(credential?.requirement, "required");
+  }
+});
+
 void test("Congress validation requires only its relevant core keys", () => {
   const result = validateEnvironment({
     environment: {},

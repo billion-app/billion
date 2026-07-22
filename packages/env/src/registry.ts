@@ -116,7 +116,7 @@ export const envRegistry = [
     group: "Authentication",
     secret: false,
     setupUrl: "https://discord.com/developers/applications",
-    requirements: { nextjs: "optional" },
+    requirements: { nextjs: "required" },
     schema: string,
   }),
   define({
@@ -125,7 +125,7 @@ export const envRegistry = [
     group: "Authentication",
     secret: true,
     setupUrl: "https://discord.com/developers/applications",
-    requirements: { nextjs: "optional" },
+    requirements: { nextjs: "required" },
     schema: string,
   }),
   define({

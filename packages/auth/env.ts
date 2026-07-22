@@ -6,8 +6,8 @@ import { envSchemas } from "@acme/env";
 export function authEnv() {
   return createEnv({
     server: {
-      AUTH_DISCORD_ID: envSchemas.AUTH_DISCORD_ID!.optional(),
-      AUTH_DISCORD_SECRET: envSchemas.AUTH_DISCORD_SECRET!.optional(),
+      AUTH_DISCORD_ID: envSchemas.AUTH_DISCORD_ID!,
+      AUTH_DISCORD_SECRET: envSchemas.AUTH_DISCORD_SECRET!,
       BETTER_AUTH_SECRET: envSchemas.BETTER_AUTH_SECRET!,
       NODE_ENV: z.enum(["development", "production"]).optional(),
     },
