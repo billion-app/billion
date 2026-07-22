@@ -184,6 +184,60 @@ const _ContentDetailSchema = ContentCardSchema.extend({
 export type ContentDetail = z.infer<typeof _ContentDetailSchema>;
 
 export const contentRouter = {
+  // Read the latest Texas bulk session persisted by the scraper. This route is
+  // intentionally current-session only; it is not a historical session browser.
+  texasBills: publicProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(50).default(20),
+          cursor: z.number().int().min(0).default(0),
+        })
+        .optional(),
+    )
+    .query(async ({ input }) => {
+      const jurisdiction =
+        "ocd-jurisdiction/country:us/state:tx/government";
+      const [latest] = await db
+        .select({ legislativeSession: Bill.legislativeSession })
+        .from(Bill)
+        .where(eq(Bill.jurisdiction, jurisdiction))
+        .orderBy(desc(Bill.updatedAt), desc(Bill.createdAt))
+        .limit(1);
+      if (!latest) return { items: [], nextCursor: undefined };
+      const limit = input?.limit ?? 20;
+      const cursor = input?.cursor ?? 0;
+      const rows = await db
+        .select({
+          id: Bill.id,
+          billNumber: Bill.billNumber,
+          title: Bill.title,
+          description: Bill.description,
+          summary: Bill.summary,
+          status: Bill.status,
+          chamber: Bill.chamber,
+          legislativeSession: Bill.legislativeSession,
+          openStatesId: Bill.openStatesId,
+          subjects: Bill.subjects,
+          updatedAt: Bill.updatedAt,
+        })
+        .from(Bill)
+        .where(
+          and(
+            eq(Bill.jurisdiction, jurisdiction),
+            eq(Bill.legislativeSession, latest.legislativeSession),
+          ),
+        )
+        .orderBy(desc(Bill.updatedAt), desc(Bill.billNumber))
+        .limit(limit + 1)
+        .offset(cursor);
+      const hasMore = rows.length > limit;
+      return {
+        items: hasMore ? rows.slice(0, limit) : rows,
+        nextCursor: hasMore ? cursor + limit : undefined,
+      };
+    }),
+
   // Get all content from database
   getAll: publicProcedure.query(async () => {
     const bills = await db
@@ -579,6 +633,13 @@ export const contentRouter = {
               type?: string;
             }[],
             status: b.status ?? undefined,
+            jurisdiction: b.jurisdiction,
+            legislativeSession: b.legislativeSession || undefined,
+            openStatesId: b.openStatesId ?? undefined,
+            subjects: b.subjects ?? [],
+            sponsorships: b.sponsorships ?? [],
+            documents: b.documents ?? [],
+            votes: b.votes ?? [],
             lensData: await getLensData(b.id, "bill"),
           },
         ]);

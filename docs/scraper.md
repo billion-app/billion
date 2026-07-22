@@ -25,6 +25,7 @@ process environment at runtime, not embedded during the build.
 | `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages                     |
 | `ca-lao-fiscal.ts`     | CA LAO ballot analyses         | `civic_api_cache`    | proposition fiscal analyses via HTML parse             |
 | `ca-vig-archive.ts`    | CA SOS voter-guide archive     | `civic_api_cache`    | historical proposition guide pages via HTML parse      |
+| `texas-legislature.ts` | Texas Legislative Council FTP  | `bill`               | current-session XML + bulk HTML; no site mining         |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
@@ -35,11 +36,17 @@ All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fe
 `apps/scraper/src/utils/db/operations.ts` centralizes writes behind a discriminated-union `upsertContent(type, data)` (`type` ∈ bill | government_content | court_case). Each run:
 
 1. Compute a SHA-256 over the type-specific key fields (title, summary, full text, status…).
-2. Look up the existing row by its natural key (`(billNumber, sourceWebsite)`, `url`, or `caseNumber`).
+2. Look up the existing row by its natural key (`(billNumber, sourceWebsite, legislativeSession)`, `url`, or `caseNumber`).
 3. **Unchanged hash** → skip AI entirely; backfill only missing AI assets.
 4. **New or changed** → run the AI pipeline, upsert via `onConflictDoUpdate`, append to `versions`.
 
 `SCRAPER_FORCE_AI_REGEN=1` overrides the cache. A `isUsableText()` gate refuses to feed AI any text under 200 chars or that's mostly blank/all-caps/single-word lines — keeps the model from "summarizing" garbage.
+
+Texas is the provider-neutral state-bill extension to this flow. Its rows carry
+an OCD jurisdiction, legislative session, subjects, sponsorships, documents,
+votes, and an optional exact Open States ID. The scraper selects only the latest
+FTP session and sets `skipEnrichment`; the API exposes only that newest session
+through `content.texasBills`, with full supporting material in `content.getById`.
 
 ## AI Pipeline
 

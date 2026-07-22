@@ -5,6 +5,7 @@ import { congressConfig } from "./scrapers/congress.config.js";
 import { federalregisterConfig } from "./scrapers/federalregister.config.js";
 import { sccCvigConfig } from "./scrapers/scc-cvig.config.js";
 import { scotusConfig } from "./scrapers/scotus.config.js";
+import { texasLegislatureConfig } from "./scrapers/texas-legislature.config.js";
 
 export const scraperContracts: readonly ScraperEnvContract[] = [
   federalregisterConfig,
@@ -12,4 +13,5 @@ export const scraperContracts: readonly ScraperEnvContract[] = [
   scotusConfig,
   sccCvigConfig,
   caSosStatementsConfig,
+  texasLegislatureConfig,
 ];

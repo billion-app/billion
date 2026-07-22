@@ -56,6 +56,52 @@ export const Bill = pgTable(
     introducedDate: t.timestamp(),
     congress: t.integer(), // e.g., 118 for 118th Congress
     chamber: t.varchar({ length: 50 }), // "House" or "Senate"
+    jurisdiction: t
+      .varchar({ length: 100 })
+      .notNull()
+      .default("ocd-jurisdiction/country:us/government"),
+    legislativeSession: t.varchar({ length: 20 }).notNull().default(""),
+    openStatesId: t.text(),
+    subjects: t.jsonb().$type<string[]>().default([]),
+    sponsorships: t
+      .jsonb()
+      .$type<
+        {
+          name: string;
+          classification: "primary" | "cosponsor";
+          chamber: "House" | "Senate";
+        }[]
+      >()
+      .default([]),
+    documents: t
+      .jsonb()
+      .$type<
+        {
+          type: "bill_text" | "analysis" | "fiscal_note";
+          description: string;
+          htmlUrl?: string;
+          pdfUrl?: string;
+          ftpHtmlUrl?: string;
+          ftpPdfUrl?: string;
+          text?: string;
+        }[]
+      >()
+      .default([]),
+    votes: t
+      .jsonb()
+      .$type<
+        {
+          identifier: string;
+          date?: string;
+          chamber?: "House" | "Senate";
+          motion?: string;
+          result?: string;
+          sourceUrl?: string;
+          counts: { option: string; value: number }[];
+          votes: { option: string; voterName: string; openStatesId?: string }[];
+        }[]
+      >()
+      .default([]),
     summary: t.text(),
     fullText: t.text(),
     aiGeneratedArticle: t.text(), // AI-generated accessible article version
@@ -95,7 +141,11 @@ export const Bill = pgTable(
     ),
   }),
   (table) => ({
-    uniqueBillNumberSource: unique().on(table.billNumber, table.sourceWebsite),
+    uniqueBillNumberSourceSession: unique().on(
+      table.billNumber,
+      table.sourceWebsite,
+      table.legislativeSession,
+    ),
     searchVectorIdx: index("bill_search_vector_idx").using(
       "gin",
       table.searchVector,
