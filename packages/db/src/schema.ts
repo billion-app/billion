@@ -645,6 +645,138 @@ export const LegistarVote = pgTable(
   }),
 );
 
+// Provider-neutral public election data. Source metadata is separated from
+// normalized records so every API response can cite the exact upstream file.
+// These tables intentionally exclude voter history and candidate contact/address
+// fields; election scrapers should persist only public ballot/result facts.
+export const ElectionSource = pgTable(
+  "election_source",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    provider: t.varchar({ length: 50 }).notNull(),
+    sourceKind: t.varchar({ length: 30 }).notNull(),
+    electionDate: t.date({ mode: "string" }).notNull(),
+    sourceUrl: t.text().notNull(),
+    checksum: t.varchar({ length: 64 }).notNull(),
+    structureVersion: t.varchar({ length: 50 }).notNull(),
+    certificationStatus: t.varchar({ length: 30 }).notNull().default("unknown"),
+    fetchedAt: t.timestamp({ mode: "date", withTimezone: true }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueProviderFile: unique().on(
+      table.provider,
+      table.sourceKind,
+      table.electionDate,
+      table.sourceUrl,
+    ),
+    electionDateIdx: index("election_source_date_idx").on(table.electionDate),
+  }),
+);
+
+export const ElectionCandidate = pgTable(
+  "election_candidate",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    sourceId: t
+      .uuid()
+      .notNull()
+      .references(() => ElectionSource.id, { onDelete: "cascade" }),
+    electionDate: t.date({ mode: "string" }).notNull(),
+    county: t.varchar({ length: 100 }).notNull(),
+    contest: t.text().notNull(),
+    name: t.text().notNull(),
+    party: t.varchar({ length: 30 }),
+    voteFor: t.integer(),
+    termYears: t.integer(),
+    hasPrimary: t.boolean(),
+    isPartisan: t.boolean(),
+  }),
+  (table) => ({
+    uniqueCandidate: unique().on(
+      table.sourceId,
+      table.county,
+      table.contest,
+      table.name,
+      table.party,
+    ),
+    lookupIdx: index("election_candidate_lookup_idx").on(
+      table.electionDate,
+      table.county,
+    ),
+  }),
+);
+
+export const ElectionReferendum = pgTable(
+  "election_referendum",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    sourceId: t
+      .uuid()
+      .notNull()
+      .references(() => ElectionSource.id, { onDelete: "cascade" }),
+    electionDate: t.date({ mode: "string" }).notNull(),
+    county: t.varchar({ length: 100 }).notNull(),
+    contest: t.text().notNull(),
+    choice: t.text().notNull(),
+    description: t.text(),
+  }),
+  (table) => ({
+    uniqueChoice: unique().on(
+      table.sourceId,
+      table.county,
+      table.contest,
+      table.choice,
+    ),
+    lookupIdx: index("election_referendum_lookup_idx").on(
+      table.electionDate,
+      table.county,
+    ),
+  }),
+);
+
+export const ElectionResult = pgTable(
+  "election_result",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    sourceId: t
+      .uuid()
+      .notNull()
+      .references(() => ElectionSource.id, { onDelete: "cascade" }),
+    electionDate: t.date({ mode: "string" }).notNull(),
+    county: t.varchar({ length: 100 }).notNull(),
+    precinct: t.varchar({ length: 100 }).notNull(),
+    contestId: t.varchar({ length: 100 }),
+    contestType: t.varchar({ length: 30 }),
+    contest: t.text().notNull(),
+    choice: t.text().notNull(),
+    party: t.varchar({ length: 30 }),
+    voteFor: t.integer(),
+    electionDayVotes: t.integer().notNull(),
+    earlyVotingVotes: t.integer().notNull(),
+    absenteeMailVotes: t.integer().notNull(),
+    provisionalVotes: t.integer().notNull(),
+    totalVotes: t.integer().notNull(),
+    realPrecinct: t.boolean(),
+  }),
+  (table) => ({
+    uniqueResult: unique().on(
+      table.sourceId,
+      table.county,
+      table.precinct,
+      table.contest,
+      table.choice,
+    ),
+    lookupIdx: index("election_result_lookup_idx").on(
+      table.electionDate,
+      table.county,
+    ),
+  }),
+);
+
 // Google Civic API response cache
 export const CivicApiCache = pgTable(
   "civic_api_cache",

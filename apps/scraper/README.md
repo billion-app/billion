@@ -4,7 +4,7 @@ Pulls in government content like bills, court cases, and White House content and
 
 ## Active data sources
 
-Only these five are registered and run by `all`:
+Only these six are registered and run by `all`:
 
 | CLI name            | Source and data fetched                                                                    | Stored/used as                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
@@ -13,6 +13,7 @@ Only these five are registered and run by `all`:
 | `scotus`            | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
 | `scc-cvig`          | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
 | `ca-sos-statements` | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
+| `ncsbe`             | Current-cycle NCSBE candidate CSV, referendum PDFs, and result ZIPs                        | Provider-neutral election tables; powers `civic.getNcElectionData` with exact file provenance         |
 
 `vote411`, `ca-lao-fiscal`, and `ca-vig-archive` remain under
 `src/scrapers/disabled/` and do not run. Their caches had no application
@@ -128,6 +129,7 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters                      |
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Voter-guide PDF documents                           |
 | `CA_SOS_MAX_ITEMS`              |       9 | Statewide-office candidate-statement pages          |
+| `NCSBE_MAX_ITEMS`               |       4 | Current-cycle candidate/referendum/result files     |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
@@ -136,6 +138,11 @@ invocation gets a fresh allowance. Source limits cap API/page work;
 `SCRAPER_MAX_NEW_ITEMS_PER_RUN` separately caps expensive enrichment. Extra
 bills that require a generated description are deferred before insertion;
 other content may still be stored raw for later backfill.
+
+The NCSBE integration is intentionally current-cycle only and excludes voter
+history plus candidate contact/address fields. See
+[`docs/ncsbe-election-data.md`](../../docs/ncsbe-election-data.md) for discovery,
+idempotency, provenance, API, and deterministic Civic-matching details.
 
 ---
 
