@@ -87,6 +87,11 @@ const scraperSourceLimitDefinitions = [
   ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
   ["NCSBE_MAX_ITEMS", "Current-cycle NCSBE source files per run.", "4"],
   ["TX_SOS_MAX_ITEMS", "Texas SOS election payloads per run.", "12"],
+  [
+    "TEXAS_LEGISLATURE_MAX_ITEMS",
+    "Texas Legislature bills per current-session run.",
+    "100",
+  ],
 ] as const;
 
 export const envRegistry = [
@@ -375,6 +380,15 @@ export const envRegistry = [
     setupUrl: "https://www.courtlistener.com/sign-in/",
     requirements: {},
     schema: string,
+  }),
+  define({
+    key: "TEXAS_LEGISLATURE_SESSION",
+    description:
+      "Optional current Texas bulk session assertion (for example 892); ingestion rejects historical sessions.",
+    group: "Scraper sources",
+    secret: false,
+    requirements: {},
+    schema: string.regex(/^\d{2}(?:R|\d)$/i, "must look like 89R or 892"),
   }),
   define({
     key: "BFL_API_KEY",

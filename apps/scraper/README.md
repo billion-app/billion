@@ -4,7 +4,7 @@ Pulls in government content like bills, court cases, and White House content and
 
 ## Active data sources
 
-Only these six are registered and run by `all`:
+These data sources are registered and run by `all`:
 
 | CLI name            | Source and data fetched                                                                    | Stored/used as                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
@@ -14,6 +14,8 @@ Only these six are registered and run by `all`:
 | `scc-cvig`          | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
 | `ca-sos-statements` | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
 | `ncsbe`             | Current-cycle NCSBE candidate CSV, referendum PDFs, and result ZIPs                        | Provider-neutral election tables; powers `civic.getNcElectionData` with exact file provenance         |
+| `texas-legislature` | Texas Legislative Council anonymous FTP: current-session history XML and bulk documents     | State-aware `bill` rows; read through `content.texasBills` and `content.getById`                       |
+| `texas-current-election` | Texas SOS structured election feed and TLC amendment analyses                         | Current-cycle snapshots; powers `civic.getTexasCurrentElection` and measure enrichment                |
 
 `vote411`, `ca-lao-fiscal`, and `ca-vig-archive` remain under
 `src/scrapers/disabled/` and do not run. Their caches had no application
@@ -58,6 +60,7 @@ work:
 | `COURTLISTENER_API_KEY`                      | Optional                                | Higher CourtListener limits for `scotus`.                                                                          |
 | `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional pair                           | Google Custom Search article thumbnails.                                                                           |
 | `GOOGLE_GENERATIVE_AI_API_KEY`               | Optional                                | Gemini vision fallback for `scc-cvig` PDF extraction.                                                              |
+| `OPEN_STATES_API_KEY`                        | Optional                                | Adds an exact Open States bill ID when Texas jurisdiction/session/identifier match.                                |
 
 See [the launch environment guide](../../docs/launch.md) for the complete
 per-scraper matrix, provider setup links, defaults, and production guidance.
@@ -130,6 +133,8 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Voter-guide PDF documents                           |
 | `CA_SOS_MAX_ITEMS`              |       9 | Statewide-office candidate-statement pages          |
 | `NCSBE_MAX_ITEMS`               |       4 | Current-cycle candidate/referendum/result files     |
+| `TEXAS_LEGISLATURE_MAX_ITEMS`   |     100 | Bills from the latest Texas bulk session            |
+| `TX_SOS_MAX_ITEMS`              |      12 | Current-cycle Texas SOS election payloads           |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
@@ -164,6 +169,34 @@ await scrapeCongress({
 
 ---
 
+## Texas Legislature Online (`texas-legislature.ts`)
+
+Uses only the Texas Legislative Council's anonymous FTP service at
+`ftp.legis.state.tx.us`; it does not crawl interactive TLO bill pages. The job:
+
+- discovers the newest session directory under `/bills` and rejects a stale
+  `TEXAS_LEGISLATURE_SESSION` assertion (official codes look like `89R` or
+  `892`);
+- parses bill-history XML for identity, caption, sponsors, subjects, actions,
+  structured votes when present, and document metadata;
+- downloads bill text, analyses, and fiscal notes from the matching FTP bulk
+  HTML paths and stores their extracted text alongside official HTML/PDF links;
+- optionally stores an exact Open States ID without using Open States as the
+  legislative data source.
+
+Run a small current-session import:
+
+```bash
+pnpm --filter @acme/scraper run start texas-legislature --max-items 10
+```
+
+Apply `packages/db/migrations/add_state_legislation_fields.sql` before the first
+run. The public `content.texasBills` procedure lists only the newest persisted
+Texas session; `content.getById` returns its documents, actions, and votes. This
+work deliberately does not provide historical-session browsing or backfills.
+
+---
+
 ## Court cases (`scotus.ts`)
 
 Uses the [CourtListener API](https://www.courtlistener.com/api/) — free, works without a key. Fetches recent opinions and pulls in the plain-text opinion content for AI article generation.
@@ -190,6 +223,9 @@ All scrapers call into `src/utils/db/operations.ts`. Each time a bill or case is
 - If it's **new** → saves it and generates an AI article + thumbnail
 - If the **content changed** → regenerates the article
 - If **nothing changed** → backfills any missing AI summary/article/thumbnail fields, otherwise skips AI generation
+
+The Texas importer passes `skipEnrichment` so official source data is persisted
+without AI summaries, generated imagery, or videos.
 
 Set `SCRAPER_FORCE_AI_REGEN=1` to force a full AI refresh even when the record already has AI content.
 
