@@ -4,6 +4,17 @@ import { customType, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+export interface BillAction {
+  date: string;
+  text: string;
+  type?: string;
+  actionCode?: string;
+  sourceSystem?: string;
+  sourceUrl?: string;
+  sourceLocator?: string;
+  textKind?: "official" | "derived";
+}
+
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
   dataType() {
@@ -66,12 +77,7 @@ export const Bill = pgTable(
         { url: string; alt: string; source: string; sourceUrl: string }[]
       >()
       .default([]), // Array of relevant images for the article
-    actions: t
-      .jsonb()
-      .$type<
-        { date: string; text: string; type?: string; actionCode?: string }[]
-      >()
-      .default([]),
+    actions: t.jsonb().$type<BillAction[]>().default([]),
     url: t.text().notNull(),
     sourceWebsite: t.varchar({ length: 50 }).notNull(), // "congress.gov"
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking

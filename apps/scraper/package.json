@@ -42,6 +42,7 @@
     "build": "pnpm run typecheck && vite build",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
+    "backfill-bill-action-sources": "tsx src/backfill-bill-action-sources-entry.ts",
     "retroactive-lenses": "tsx src/retroactive-lenses-entry.ts",
     "reprocess-content": "tsx src/reprocess-content-entry.ts",
     "retroactive-videos": "tsx src/retroactive-videos-entry.ts",

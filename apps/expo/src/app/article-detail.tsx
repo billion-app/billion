@@ -63,13 +63,21 @@ const PLACEHOLDER_LENS = {
   },
 };
 
+interface TimelineAction {
+  date: string;
+  text: string;
+  sourceUrl?: string;
+  sourceLocator?: string;
+  textKind?: "official" | "derived";
+}
+
 export default function ArticleDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
-  const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [failedHeaderImageUri, setFailedHeaderImageUri] = useState<
     string | undefined
   >();
@@ -248,6 +256,26 @@ export default function ArticleDetailScreen() {
     }
   };
 
+  const handleOpenTimelineSource = async (
+    sourceUrl: string,
+    sourceLocator: string | undefined,
+  ) => {
+    posthog.capture("timeline_source_opened", {
+      content_id: content.id,
+      content_type: content.type,
+      source_url: sourceUrl,
+      source_locator: sourceLocator ?? null,
+    });
+    try {
+      if (await Linking.canOpenURL(sourceUrl)) {
+        await Linking.openURL(sourceUrl);
+      }
+    } catch (e) {
+      posthog.captureException(e as Error, { content_id: content.id });
+      console.error("Error opening timeline source URL:", e);
+    }
+  };
+
   const activeContent =
     mode === "explainer" ? content.articleContent : content.originalContent;
   const looksLikeMarkdown =
@@ -262,18 +290,32 @@ export default function ArticleDetailScreen() {
     (content.isAIGenerated || looksLikeMarkdown);
 
   const actions =
-    "actions" in content
-      ? (content.actions as { date: string; text: string }[])
-      : [];
-  const hasRealActions = actions.length > 0;
+    "actions" in content ? (content.actions as TimelineAction[]) : [];
+  const seenActions = new Set<string>();
+  const uniqueActions = actions.filter((action) => {
+    const identity = `${action.date}:${action.text.trim().toLowerCase()}`;
+    if (seenActions.has(identity)) return false;
+    seenActions.add(identity);
+    return true;
+  });
+  const hasRealActions = uniqueActions.length > 0;
   const timeline = hasRealActions
-    ? actions
+    ? uniqueActions
         .slice()
         .sort((a, b) => a.date.localeCompare(b.date))
-        .map((a) => ({
+        .map((a, i) => ({
           label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
           fullText: a.text,
           date: a.date,
+          key: `${a.date}:${a.sourceLocator ?? a.text}:${i}`,
+          sourceUrl: a.sourceUrl,
+          sourceLocator: a.sourceLocator,
+          textKind:
+            a.textKind === "official"
+              ? ("official" as const)
+              : a.textKind === "derived"
+                ? ("derived" as const)
+                : ("legacy" as const),
           done: true,
         }))
     : [
@@ -281,30 +323,47 @@ export default function ArticleDetailScreen() {
           label: "Introduced",
           fullText: "",
           date: "",
+          key: "derived:introduced",
+          sourceUrl: undefined,
+          sourceLocator: undefined,
+          textKind: "derived" as const,
           done: true,
         },
         {
           label: "Committee review",
           fullText: "",
           date: "",
+          key: "derived:committee-review",
+          sourceUrl: undefined,
+          sourceLocator: undefined,
+          textKind: "derived" as const,
           done: true,
         },
         {
           label: "Latest action",
           fullText: "",
           date: "",
+          key: "derived:latest-action",
+          sourceUrl: undefined,
+          sourceLocator: undefined,
+          textKind: "derived" as const,
           done: true,
         },
         {
           label: "Becomes law",
           fullText: "",
           date: "",
+          key: "derived:becomes-law",
+          sourceUrl: undefined,
+          sourceLocator: undefined,
+          textKind: "derived" as const,
           done: false,
         },
       ];
   const currentTimelineIndex = hasRealActions ? timeline.length - 1 : 2;
-  // Actions are the official legislative record from the source (congress.gov).
-  const timelineSourceUrl = hasRealActions ? content.url : undefined;
+  // The original bill record remains a fallback for legacy events without a
+  // sourceUrl, while new events link to their action record individually.
+  const timelineSourceUrl = content.type === "bill" ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
 
   const openSponsorProfile = () => {
@@ -464,18 +523,11 @@ export default function ArticleDetailScreen() {
         <Card style={{ marginBottom: 24 }}>
           {timeline.map((step, i) => {
             const expandable = !!step.fullText && step.label !== step.fullText;
-            const isExpanded = expandedStep === i;
+            const isExpanded = expandedStep === step.key;
+            const sourceUrl = step.sourceUrl;
             const isCurrent = i === currentTimelineIndex;
             return (
-              <TouchableOpacity
-                key={i}
-                style={s.timelineRow}
-                activeOpacity={expandable ? 0.6 : 1}
-                onPress={() =>
-                  expandable && setExpandedStep(isExpanded ? null : i)
-                }
-                accessibilityRole={expandable ? "button" : undefined}
-              >
+              <View key={step.key} style={s.timelineRow}>
                 <View style={s.timelineMarker}>
                   <View
                     style={[
@@ -499,7 +551,19 @@ export default function ArticleDetailScreen() {
                   {!!step.date && (
                     <Text style={s.timelineDate}>{formatDate(step.date)}</Text>
                   )}
-                  <View style={s.timelineLabelRow}>
+                  <TouchableOpacity
+                    style={s.timelineLabelRow}
+                    activeOpacity={expandable ? 0.6 : 1}
+                    disabled={!expandable}
+                    onPress={() =>
+                      expandable &&
+                      setExpandedStep(isExpanded ? null : step.key)
+                    }
+                    accessibilityRole={expandable ? "button" : undefined}
+                    accessibilityState={
+                      expandable ? { expanded: isExpanded } : undefined
+                    }
+                  >
                     <Text
                       style={[
                         s.timelineLabel,
@@ -522,9 +586,50 @@ export default function ArticleDetailScreen() {
                         color={colors.textSecondary}
                       />
                     )}
+                  </TouchableOpacity>
+                  <View style={s.timelineMeta}>
+                    <Text style={s.timelineKind}>
+                      {step.textKind === "official"
+                        ? "OFFICIAL"
+                        : step.textKind === "derived"
+                          ? "ESTIMATED"
+                          : "LEGACY"}
+                    </Text>
+                    {sourceUrl ? (
+                      <TouchableOpacity
+                        style={[s.timelineCitation, { borderColor: t.color }]}
+                        activeOpacity={0.7}
+                        onPress={() =>
+                          void handleOpenTimelineSource(
+                            sourceUrl,
+                            step.sourceLocator,
+                          )
+                        }
+                        accessibilityRole="link"
+                        accessibilityLabel={`Open official source for ${step.fullText}`}
+                      >
+                        <Icon name="external" size={11} color={t.color} />
+                        <Text
+                          style={[s.timelineCitationText, { color: t.color }]}
+                        >
+                          View source
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={s.timelineMissingSourceRow}>
+                        <Icon
+                          name="info"
+                          size={11}
+                          color={colors.textSecondary}
+                        />
+                        <Text style={s.timelineMissingSource}>
+                          Source unavailable
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
-              </TouchableOpacity>
+              </View>
             );
           })}
           {timelineSourceUrl && (
@@ -535,7 +640,7 @@ export default function ArticleDetailScreen() {
             >
               <Icon name="info" size={13} color={colors.textSecondary} />
               <Text style={s.timelineSourceText}>
-                Official record · congress.gov
+                Full official bill record · congress.gov
               </Text>
               <Icon name="chevR" size={12} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -684,11 +789,11 @@ const s = StyleSheet.create({
   timelineLine: { width: 2, flex: 1, minHeight: 22 },
   timelineBody: { flex: 1, paddingBottom: 14 },
   timelineDate: {
-    fontFamily: fontBody.medium,
-    fontSize: 10.5,
-    letterSpacing: 0.3,
-    color: colors.textSecondary,
-    marginBottom: 2,
+    fontFamily: fontBody.bold,
+    fontSize: 12,
+    letterSpacing: 0.2,
+    color: "rgba(255,255,255,0.68)",
+    marginBottom: 5,
   },
   timelineLabelRow: {
     flexDirection: "row",
@@ -696,6 +801,46 @@ const s = StyleSheet.create({
     gap: 6,
   },
   timelineLabel: { flex: 1, fontSize: 14, lineHeight: 19 },
+  timelineMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 7,
+    marginTop: 8,
+  },
+  timelineKind: {
+    fontFamily: fontBody.bold,
+    fontSize: 9.5,
+    letterSpacing: 0.7,
+    color: colors.textSecondary,
+    backgroundColor: planes.ink,
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  timelineCitation: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  timelineCitationText: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+  },
+  timelineMissingSourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  timelineMissingSource: {
+    fontFamily: fontBody.regular,
+    fontSize: 10.5,
+    color: colors.textSecondary,
+  },
   timelineSource: {
     flexDirection: "row",
     alignItems: "center",

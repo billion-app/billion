@@ -121,6 +121,19 @@ pnpm --filter @acme/scraper run start congress --max-items 10
 CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 ```
 
+Existing Congress.gov rows can receive event-level action citations without
+rerunning AI enrichment. The command is read-only unless `--apply` is present,
+and production writes require a second explicit flag:
+
+```bash
+# Fetch and report one bill without writing
+pnpm --filter @acme/scraper backfill-bill-action-sources --limit 1
+pnpm --filter @acme/scraper backfill-bill-action-sources --bill "H.R. 9339"
+
+# Backfill all eligible production rows
+pnpm --filter @acme/scraper backfill-bill-action-sources --apply --confirm-production
+```
+
 | Variable                        | Default | Counts                                              |
 | ------------------------------- | ------: | --------------------------------------------------- |
 | `FEDERALREGISTER_MAX_ITEMS`     |      20 | Presidential documents                              |

@@ -70,6 +70,7 @@ function hashFields(input: ContentData): string {
         status: input.data.status,
         summary: input.data.summary,
         fullText: input.data.fullText,
+        actions: input.data.actions,
       });
     case "government_content":
       return JSON.stringify({
@@ -243,6 +244,7 @@ export async function upsertContent(
           chamber: d.chamber,
           summary: d.summary,
           fullText: d.fullText,
+          actions: d.actions,
           url: d.url,
           contentHash: newContentHash,
           updatedAt: new Date(),

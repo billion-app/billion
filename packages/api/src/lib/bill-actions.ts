@@ -3,12 +3,19 @@ export interface RawBillAction {
   text: string;
   type?: string;
   actionCode?: string;
+  sourceSystem?: string;
+  sourceUrl?: string;
+  sourceLocator?: string;
+  textKind?: "official" | "derived";
 }
 
 export interface BillTimelineAction {
   date: string;
   text: string;
   type?: string;
+  sourceUrl?: string;
+  sourceLocator?: string;
+  textKind?: "official" | "derived";
 }
 
 function visibleActionKey(action: RawBillAction): string {
@@ -29,6 +36,15 @@ export function toBillTimelineActions(
     const key = visibleActionKey(action);
     if (seen.has(key)) return [];
     seen.add(key);
-    return [{ date: action.date, text: action.text, type: action.type }];
+    return [
+      {
+        date: action.date,
+        text: action.text,
+        type: action.type,
+        sourceUrl: action.sourceUrl,
+        sourceLocator: action.sourceLocator,
+        textKind: action.textKind,
+      },
+    ];
   });
 }
