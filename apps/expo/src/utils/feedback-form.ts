@@ -1,18 +1,18 @@
 export type FeedbackFormKind = "bug" | "feature";
 
 const FEEDBACK_FORM_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSeUPexlBf76oNKX5CDTY_Gdnf3-VPhJK_gP6BoErllvJV_JBA/viewform";
+  "https://docs.google.com/forms/d/e/1FAIpQLSec5fSDEY7GWZEubxxb4Gq_uNGknBqpTdmHFHAW3JRZIBLI5A/viewform";
 
-const ROUTE_ENTRY = "entry.1028362839";
+const ROUTE_ENTRY = "entry.1736481134";
 
 const ROUTES: Record<
   FeedbackFormKind,
   { answer: string; detailEntry: string }
 > = {
-  bug: { answer: "Report a bug", detailEntry: "entry.1506167615" },
+  bug: { answer: "Report a bug", detailEntry: "entry.1085859937" },
   feature: {
     answer: "Request a feature",
-    detailEntry: "entry.963116649",
+    detailEntry: "entry.1748070861",
   },
 };
 

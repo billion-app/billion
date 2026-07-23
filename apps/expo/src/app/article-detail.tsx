@@ -303,7 +303,7 @@ export default function ArticleDetailScreen() {
     ? uniqueActions
         .slice()
         .sort((a, b) => a.date.localeCompare(b.date))
-        .map((a, i, arr) => ({
+        .map((a, i) => ({
           label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
           fullText: a.text,
           date: a.date,
@@ -317,7 +317,6 @@ export default function ArticleDetailScreen() {
                 ? ("derived" as const)
                 : ("legacy" as const),
           done: true,
-          current: i === arr.length - 1,
         }))
     : [
         {
@@ -329,7 +328,6 @@ export default function ArticleDetailScreen() {
           sourceLocator: undefined,
           textKind: "derived" as const,
           done: true,
-          current: false,
         },
         {
           label: "Committee review",
@@ -340,7 +338,6 @@ export default function ArticleDetailScreen() {
           sourceLocator: undefined,
           textKind: "derived" as const,
           done: true,
-          current: false,
         },
         {
           label: "Latest action",
@@ -351,7 +348,6 @@ export default function ArticleDetailScreen() {
           sourceLocator: undefined,
           textKind: "derived" as const,
           done: true,
-          current: true,
         },
         {
           label: "Becomes law",
@@ -362,9 +358,9 @@ export default function ArticleDetailScreen() {
           sourceLocator: undefined,
           textKind: "derived" as const,
           done: false,
-          current: false,
         },
       ];
+  const currentTimelineIndex = hasRealActions ? timeline.length - 1 : 2;
   // The original bill record remains a fallback for legacy events without a
   // sourceUrl, while new events link to their action record individually.
   const timelineSourceUrl = content.type === "bill" ? content.url : undefined;
@@ -529,6 +525,7 @@ export default function ArticleDetailScreen() {
             const expandable = !!step.fullText && step.label !== step.fullText;
             const isExpanded = expandedStep === step.key;
             const sourceUrl = step.sourceUrl;
+            const isCurrent = i === currentTimelineIndex;
             return (
               <View key={step.key} style={s.timelineRow}>
                 <View style={s.timelineMarker}>
@@ -537,7 +534,7 @@ export default function ArticleDetailScreen() {
                       s.timelineDot,
                       {
                         borderColor: step.done ? t.color : hair[3],
-                        backgroundColor: step.current ? t.color : "transparent",
+                        backgroundColor: isCurrent ? t.color : "transparent",
                       },
                     ]}
                   />
@@ -574,7 +571,7 @@ export default function ArticleDetailScreen() {
                           color: step.done
                             ? colors.white
                             : colors.textSecondary,
-                          fontFamily: step.current
+                          fontFamily: isCurrent
                             ? fontBody.bold
                             : fontBody.medium,
                         },

@@ -36,6 +36,19 @@
       "cache": false,
       "interactive": true
     },
+    "generate": {
+      "cache": false,
+      "interactive": true
+    },
+    "migrate": {
+      "cache": false
+    },
+    "db-check": {
+      "cache": false
+    },
+    "baseline": {
+      "cache": false
+    },
     "studio": {
       "cache": false,
       "persistent": true

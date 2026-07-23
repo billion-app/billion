@@ -352,12 +352,29 @@ of launch verification.
 
 ### 2. Apply and inspect the database schema
 
+For a brand-new database:
+
 ```bash
-pnpm db:push
+pnpm db:migrate
 ```
 
-Use a non-production database for rehearsal. `db:push` changes schema and
-should not be treated as a read-only connectivity check.
+For an existing database whose schema was previously managed with `db:push`,
+adopt migration tracking once before applying later migrations:
+
+```bash
+pnpm db:baseline
+pnpm db:migrate
+```
+
+`db:baseline` is only for databases that already contain the schema represented
+by `0000_baseline` and `0001_premium_famine`; it records those two migrations
+without executing their DDL. It does not verify the live schema. Rehearse the
+rollout with a non-production database or a restored production backup, verify
+the target selected by `POSTGRES_URL`, and follow the complete safety checklist
+in [Data layer — Migrations](./data-layer.md#migrations).
+
+Do not use `db:push` as a deployment command. It bypasses the committed
+migration history and should be limited to disposable local prototyping.
 
 ### 3. Run scraper smoke tests separately
 
