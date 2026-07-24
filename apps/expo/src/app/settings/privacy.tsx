@@ -6,7 +6,11 @@ import { Text } from "~/components/Themed";
 import { Card, GhostButton, Icon, Kicker, ScreenShell } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
 
-type Row = { icon: IconName; label: string; sub: string };
+interface Row {
+  icon: IconName;
+  label: string;
+  sub: string;
+}
 
 const NOTICE =
   "Billion works without an account. You can read summaries and check your ballot without signing in — we never ask for your name or email to use the app.";
