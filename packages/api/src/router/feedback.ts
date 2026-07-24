@@ -114,7 +114,7 @@ async function sendFeedbackEmail(input: FeedbackEmailInput) {
 }
 
 function feedbackRecipients() {
-  const raw = process.env.FEEDBACK_TO_EMAIL ?? "thatxliner@gmail.com";
+  const raw = process.env.FEEDBACK_TO_EMAIL ?? "billionnewsapp@gmail.com";
   return raw
     .split(",")
     .map((email) => email.trim())
