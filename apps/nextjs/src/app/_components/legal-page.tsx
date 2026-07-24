@@ -101,6 +101,12 @@ export function LegalPage({
         </span>
         <div className="flex items-center gap-5 font-sans text-[13px]">
           <Link
+            href="/support"
+            className="text-muted-foreground hover:text-accent no-underline transition-colors duration-200"
+          >
+            Support
+          </Link>
+          <Link
             href="/terms"
             className="text-muted-foreground hover:text-accent no-underline transition-colors duration-200"
           >

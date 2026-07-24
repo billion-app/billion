@@ -1,7 +1,8 @@
 # Billion — Verified Data Inventory & App Store Privacy Answers
 
-**Scope:** Summer 2026 read-only release (iOS app `app.billion-news.billion`, ASC app ID
-`6761675243`) and the marketing/legal website `billion-news.app`.
+**Scope:** Summer 2026 read-only release candidate on `main` (iOS app
+`app.billion-news.billion`, ASC app ID `6761675243`) and the marketing/legal website
+`billion-news.app`.
 
 **Review owner:** thatxliner (project owner, `thatxliner@gmail.com`)
 **Reviewed:** 2026-07-23 against the release candidate on `main`
@@ -21,22 +22,25 @@ all three stay in agreement.
 | Accounts                | **No account and no sign-in exist in the app.** There is no login / Discord / sign-up / waitlist screen anywhere in `apps/expo`; the only matches are inside the legal copy. `better-auth` (Discord OAuth) is wired server-side but never reachable from the app UI. Core use (feed, articles, ballot, feedback) needs no account. | `apps/expo/src/app/**` (no auth screens); `packages/auth/src/index.ts`; `packages/api/src/router/auth.ts`                     |
 | Analytics SDK           | **PostHog is the only analytics/telemetry SDK.** No Sentry, Firebase, Segment, Amplitude, ad SDKs, Facebook SDK, AppsFlyer/Adjust/Branch, and no IDFA/AppTrackingTransparency. US cloud (`https://us.i.posthog.com`).                                                                                                              | `apps/expo/package.json`; `apps/expo/src/config/posthog.ts`; `apps/expo/.env`                                                 |
 | PostHog config          | `captureAppLifecycleEvents: true`; autocapture `captureTouches: true` / `captureScreens: false`, `propsToCapture: ["testID"]`. Manual `screen()` on every navigation. `identify()` is called only when a user exists — which never happens (no sign-in), so events stay tied to the random install ID.                             | `apps/expo/src/app/_layout.tsx`                                                                                               |
-| Identifiers             | PostHog's randomly generated per-install **`distinct_id`** (a Device ID), plus automatic device/app properties: device model, OS + version, app version/build, locale, time zone, network type. PostHog Cloud derives approximate **city-level location from the request IP** by default. **No advertising identifier.**           | PostHog RN defaults; `expo-device`, `expo-application`, `expo-localization`, `expo-network`                                   |
+| Identifiers             | PostHog's randomly generated, persistent per-install **`distinct_id`** (a Device ID), plus automatic device/app properties: device type/model/manufacturer, OS + version, app name/version/build, locale, time zone, and emulator status. PostHog Cloud derives approximate **city-level location from the request IP** by default. **No advertising identifier.** Events tied to this ID are linked to the installation/device under Apple's App Privacy definition, even though they are not tied to a name or email. | PostHog RN defaults; `expo-device`, `expo-application`, `expo-localization` |
 | Event content           | Events include what you read and search: `article_viewed` sends `content_title`/`content_id`; `content_searched` sends the **raw query text**; plus saves, filters, ballot interactions, feedback events. So reading/search activity **does** leave the device.                                                                    | `apps/expo/src/app/article-detail.tsx`, `(tabs)/index.tsx`, `(tabs)/elections.tsx`                                            |
 | Election address        | **Typed by the user — the app never reads GPS.** No `expo-location`, no `NSLocation*` usage strings. Stored on-device in the iOS Keychain via `expo-secure-store`. Sent to the backend only for a lookup.                                                                                                                          | `apps/expo/src/hooks/useUserAddress.ts`; `apps/expo/src/utils/client-storage.ts`; `app.config.base.json` (no location plugin) |
-| Address → third parties | On lookup the address is forwarded to **Google Civic Information API**, **Google Places** (autocomplete), and **Open States** (representatives). The `voter_address_set` analytics event sends only `{ is_update }`, **not** the address.                                                                                          | `packages/api/src/lib/civic.ts`, `lib/places.ts`, `lib/elected-officials.ts`; `(tabs)/elections.tsx`                          |
-| Address retention       | Server caches lookup **results** in `CivicApiCache` keyed by **SHA-256 of the normalized address** (not the raw address). TTLs: voter info 24h, divisions 30d, elections 7d. The cached response body may contain normalized address components. Not linked to any account.                                                        | `packages/api/src/lib/civic.ts` (`hashAddress`, `getCache`/`setCache`, `CACHE_TTL`)                                           |
-| Feedback                | Sent via **Resend** email to `FEEDBACK_TO_EMAIL` (default `billionnewsapp@gmail.com`). Payload: message, category, app version/build, platform, OS version — plus `userId`/`userEmail` **only if a session exists** (never, in this release).                                                                                      | `packages/api/src/router/feedback.ts`; `apps/expo/src/app/settings/feedback.tsx`                                              |
+| Address → third parties | Partial address text is forwarded through the backend to **Google Places** for autocomplete. A selected/typed address is forwarded to the **Google Civic Information API** for ballot and district lookup. **Open States does not receive the street address**; the backend uses public Open States state-level data after Google resolves the relevant divisions. The `voter_address_set` analytics event sends only `{ is_update }`, **not** the address. | `packages/api/src/lib/civic.ts`, `lib/places.ts`, `lib/elected-officials.ts`; `(tabs)/elections.tsx` |
+| Address retention       | Server caches lookup **results** in `CivicApiCache` keyed by **SHA-256 of the normalized address** (not the raw address). TTLs: voter info 24h, divisions 30d, elections 7d. The cached response body may contain normalized address components. The cache is not joined to an app account or the PostHog installation ID, but a physical address is inherently identifying and is treated as linked under Apple's App Privacy definition. | `packages/api/src/lib/civic.ts` (`hashAddress`, `getCache`/`setCache`, `CACHE_TTL`) |
+| Feedback                | The production Feedback tab opens **Google Forms** for bug/feature feedback and the user's mail client for content issues or direct email. Prefilled details can include the message, category, app version/build, platform, and OS version. Email feedback also exposes the sender address and standard email headers. The otherwise hidden Settings feedback route can submit the same core fields through the backend and **Resend**. | `apps/expo/src/app/(tabs)/feedback.tsx`; `apps/expo/src/utils/feedback-form.ts`; `apps/expo/src/app/settings/feedback.tsx`; `packages/api/src/router/feedback.ts` |
 | Website waitlist        | `billion-news.app` collects an email via `/api/waitlist`, stored as a **Resend contact/audience** with a confirmation email. Website also runs PostHog (`posthog-js`). This is a **website** flow — not part of the iOS app's data collection.                                                                                     | `apps/nextjs/src/app/_components/waitlist-form.tsx`; `apps/nextjs/src/app/api/waitlist/route.ts`                              |
-| Crash reporting         | No dedicated crash SDK; exceptions go to PostHog via `captureException`.                                                                                                                                                                                                                                                           | `apps/expo/src/app/article-detail.tsx`                                                                                        |
+| Error diagnostics       | No dedicated crash SDK. PostHog automatic exception capture is disabled in the production project, and session replay is not enabled. One handled failure to open an original-source URL is sent with `captureException`. Lifecycle events record install/update/open/active/background state, not launch time, hang rate, energy use, or other performance measurements. | `apps/expo/src/app/article-detail.tsx`; production PostHog remote config verified 2026-07-24 |
 | Data sold               | No. No data brokers, no advertising, no cross-app tracking.                                                                                                                                                                                                                                                                        | —                                                                                                                             |
 
 ### Processors (sub-processors)
 
 - **PostHog** (US) — product analytics + diagnostics (app and website).
 - **Resend** — transactional/marketing email: feedback delivery + waitlist confirmation & audience.
-- **Google Civic Information API**, **Google Places** — address → ballot / autocomplete.
-- **Open States** (Plural Policy) — address → current representatives.
+- **Google Forms** — guided bug and feature feedback.
+- **Google Civic Information API**, **Google Places** — address → ballot/district lookup and
+  autocomplete.
+- **Open States** (Plural Policy) — public representative data; the user's street address is
+  not sent to Open States.
 
 ---
 
@@ -53,13 +57,14 @@ HTTPS** and match the repo (verified 2026-07-23).
 | App Store Connect field           | Value                              |
 | --------------------------------- | ---------------------------------- |
 | **Privacy Policy URL** (required) | `https://billion-news.app/privacy` |
-| **Support URL** (required)        | `https://billion-news.app`         |
+| **Support URL** (required)        | `https://billion-news.app/support` |
 | Marketing URL (optional)          | `https://billion-news.app`         |
 
 Reachability (acceptance criterion — "reachable over public HTTPS"):
 
 - `https://billion-news.app/privacy` → 200, "Privacy Policy" ✓ (route live)
 - `https://billion-news.app/terms` → 200, "Terms of Service" ✓ (route live)
+- `https://billion-news.app/support` → public support contact and FAQ
 - In-app (**production**): `Feedback tab → Terms and Privacy Policy` → `settings/terms` ✓
 - In-app (dev only): `Settings → Privacy → Read full Privacy Policy`, and
   `Settings → About Billion → Privacy policy / Terms of service`
@@ -76,8 +81,8 @@ Reachability (acceptance criterion — "reachable over public HTTPS"):
 > Review so the ASC privacy-policy URL matches the label. The in-app copy ships with the new
 > binary. Re-verify both pages show "Last updated July 23, 2026" after deploy.
 
-> These two URL fields are entered in App Store Connect's UI (see §5). They are **not** stored
-> in the repo today. If you adopt the `eas metadata` workflow, the template in §5 codifies them.
+> These URL fields are stored in `apps/expo/store.config.json` and can be synced with
+> `eas metadata:push` (see §5).
 
 ---
 
@@ -144,8 +149,8 @@ generated manifest:
 I can't sign in to App Store Connect. Steps:
 
 1. **App Privacy → Privacy Policy URL:** set `https://billion-news.app/privacy`.
-2. **App Information → Support URL:** set `https://billion-news.app`. (Optional Marketing URL:
-   same.)
+2. **App Information → Support URL:** set `https://billion-news.app/support`. (Optional
+   Marketing URL: `https://billion-news.app`.)
 3. **App Privacy → Data Collection:** answer "Yes", then enter exactly the eight types in §3
    with the listed purposes; for each set _Linked to You = No_ and _Used to Track You = No_.
    Resolve the two judgment calls in §3 first.
@@ -153,24 +158,22 @@ I can't sign in to App Store Connect. Steps:
 5. Cross-check the published label against `https://billion-news.app/privacy` so they agree
    (acceptance criterion).
 
-_Optional as-code path (only if you use `eas metadata`):_ create `apps/expo/store.config.json`
-and `eas metadata:push`. Minimal shape:
+The checked-in `apps/expo/store.config.json` codifies the public URLs. Sync it from
+`apps/expo` with `eas metadata:push`. Its minimal shape is:
 
 ```jsonc
 {
   "configVersion": 0,
   "apple": {
     "info": {
-      "en-US": { "privacyPolicyUrl": "https://billion-news.app/privacy" },
-    },
-    "advisory": {},
-    "version": {
       "en-US": {
+        "title": "Billion",
         "marketingUrl": "https://billion-news.app",
-        "supportUrl": "https://billion-news.app",
-      },
-    },
-  },
+        "supportUrl": "https://billion-news.app/support",
+        "privacyPolicyUrl": "https://billion-news.app/privacy"
+      }
+    }
+  }
 }
 ```
 
