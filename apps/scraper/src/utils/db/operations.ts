@@ -17,12 +17,15 @@ import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
   AIRateLimitError,
+  buildDualLensGrounding,
   framingForContentType,
   generateAIArticle,
   generateAISummary,
   generateDualLens,
+  isUsableDualLens,
 } from "../ai/text-generation.js";
 import { getThumbnailImage } from "../api/google-images.js";
+import { clampBillDescription } from "../bill-description.js";
 import { createContentHash } from "../hash.js";
 import { createLogger } from "../log.js";
 import { tickProgress } from "../progress.js";
@@ -224,11 +227,14 @@ export async function upsertContent(
 
   if (input.type === "bill") {
     const d = input.data;
+    const description = d.description
+      ? clampBillDescription(d.description)
+      : d.description;
     const [row] = await db
       .insert(Bill)
       .values({
         ...d,
-        description: preGeneratedDescription || d.description,
+        description: preGeneratedDescription || description,
         contentHash: newContentHash,
         versions: [],
       })
@@ -236,7 +242,7 @@ export async function upsertContent(
         target: [Bill.billNumber, Bill.sourceWebsite],
         set: {
           title: d.title,
-          description: d.description,
+          description,
           sponsor: d.sponsor,
           status: d.status,
           introducedDate: d.introducedDate,
@@ -424,6 +430,7 @@ export async function upsertContent(
         title,
         fullText!,
         articleType,
+        aiGeneratedArticle,
       );
     }
   } catch (error) {
@@ -491,9 +498,13 @@ export async function upsertContentLens(
   title: string,
   fullText: string,
   articleType: string,
-): Promise<void> {
+  aiGeneratedArticle?: string | null,
+): Promise<boolean> {
   const [existing] = await db
-    .select({ contentHash: ContentLens.contentHash })
+    .select({
+      contentHash: ContentLens.contentHash,
+      lensData: ContentLens.lensData,
+    })
     .from(ContentLens)
     .where(
       and(
@@ -503,20 +514,23 @@ export async function upsertContentLens(
     )
     .limit(1);
 
-  if (existing?.contentHash === contentHash) {
+  if (
+    existing?.contentHash === contentHash &&
+    isUsableDualLens(existing.lensData)
+  ) {
     logger.debug(`Dual-lens already cached for ${contentId}`);
-    return;
+    return true;
   }
 
   const lens = await generateDualLens(
     title,
-    fullText,
+    buildDualLensGrounding(fullText, aiGeneratedArticle),
     articleType,
     framingForContentType(contentType),
   );
   if (!lens) {
     logger.warn(`Dual-lens generation returned null for ${contentId}`);
-    return;
+    return false;
   }
 
   const modelVersion = getTextModelVersion();
@@ -548,4 +562,5 @@ export async function upsertContentLens(
     });
 
   logger.success(`Cached dual-lens for ${contentId}`);
+  return true;
 }

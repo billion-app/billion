@@ -1,0 +1,1 @@
+ALTER TABLE "bill" ADD CONSTRAINT "bill_description_max_100_chars" CHECK ("bill"."description" is null or char_length("bill"."description") <= 100);

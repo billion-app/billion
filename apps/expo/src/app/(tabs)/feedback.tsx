@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
@@ -83,6 +84,7 @@ async function openFeedbackForm(url: string): Promise<boolean> {
 }
 
 export default function FeedbackScreen() {
+  const router = useRouter();
   const [cat, setCat] = useState<FeedbackCategory>("bug");
   const [text, setText] = useState("");
   const message = text.trim();
@@ -220,6 +222,16 @@ export default function FeedbackScreen() {
           onPress={emailDirect}
           style={{ alignSelf: "center" }}
         />
+
+        {/* The Settings tab is hidden in production, so this is the only way
+            to reach the legal copy in a release build. */}
+        <TouchableOpacity
+          onPress={() => router.push("/settings/terms")}
+          activeOpacity={0.7}
+          style={s.legalLink}
+        >
+          <Text style={s.legalLinkText}>Terms and Privacy Policy</Text>
+        </TouchableOpacity>
       </View>
     </TabScreen>
   );
@@ -227,6 +239,13 @@ export default function FeedbackScreen() {
 
 const s = StyleSheet.create({
   body: { paddingHorizontal: 20, paddingTop: 18 },
+  legalLink: { alignSelf: "center", marginTop: 26, paddingVertical: 8 },
+  legalLinkText: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 12.5,
+    color: colors.textSecondary,
+    textDecorationLine: "underline",
+  },
   title: {
     fontFamily: "InriaSerif-Bold",
     fontSize: 19,
