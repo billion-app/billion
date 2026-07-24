@@ -1,6 +1,12 @@
 import type { Href } from "expo-router";
-import { useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -15,7 +21,7 @@ import { posthog } from "~/config/posthog";
 import { useDebounced } from "~/hooks/useDebounce";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
-import { trpc } from "~/utils/api";
+import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
 
@@ -37,6 +43,8 @@ export default function BrowseScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<VideoPost["type"] | "all">("all");
   const [query, setQuery] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshInFlight = useRef(false);
 
   const handleFilterChange = (f: VideoPost["type"] | "all") => {
     setFilter(f);
@@ -115,6 +123,52 @@ export default function BrowseScreen() {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
   };
 
+  const handleRefresh = async () => {
+    if (refreshInFlight.current) return;
+
+    refreshInFlight.current = true;
+    setIsRefreshing(true);
+
+    try {
+      if (isSearching) {
+        const input = {
+          query: debouncedQuery,
+          type: filter,
+        };
+        const refreshedItems = await trpcClient.content.search.query(input);
+        queryClient.setQueryData(
+          trpc.content.search.queryKey(input),
+          refreshedItems,
+        );
+      } else {
+        const input = { type: filter, limit: PAGE_SIZE };
+        const firstPage = await trpcClient.content.getByType.query({
+          ...input,
+          cursor: 0,
+        });
+        queryClient.setQueryData(
+          trpc.content.getByType.infiniteQueryKey(input),
+          {
+            pages: [firstPage],
+            pageParams: [0],
+          },
+        );
+      }
+    } catch {
+      Alert.alert(
+        "Unable to refresh",
+        "Your current results are still available.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Try Again", onPress: () => void handleRefresh() },
+        ],
+      );
+    } finally {
+      refreshInFlight.current = false;
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <View style={s.screen}>
       <FlatList
@@ -126,6 +180,8 @@ export default function BrowseScreen() {
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshing={isRefreshing}
+        onRefresh={() => void handleRefresh()}
         ListHeaderComponent={
           <>
             <View style={s.headerPad}>

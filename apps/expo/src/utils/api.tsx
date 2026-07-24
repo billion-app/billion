@@ -19,31 +19,33 @@ export const queryClient = new QueryClient({
 /**
  * A set of typesafe hooks for consuming your API.
  */
-export const trpc = createTRPCOptionsProxy<AppRouter>({
-  client: createTRPCClient<AppRouter>({
-    links: [
-      loggerLink({
-        enabled: (opts) =>
-          process.env.NODE_ENV === "development" ||
-          (opts.direction === "down" && opts.result instanceof Error),
-        colorMode: "ansi",
-      }),
-      httpBatchLink({
-        transformer: superjson,
-        url: `${getBaseUrl()}/api/trpc`,
-        headers() {
-          const headers = new Map<string, string>();
-          headers.set("x-trpc-source", "expo-react");
+export const trpcClient = createTRPCClient<AppRouter>({
+  links: [
+    loggerLink({
+      enabled: (opts) =>
+        process.env.NODE_ENV === "development" ||
+        (opts.direction === "down" && opts.result instanceof Error),
+      colorMode: "ansi",
+    }),
+    httpBatchLink({
+      transformer: superjson,
+      url: `${getBaseUrl()}/api/trpc`,
+      headers() {
+        const headers = new Map<string, string>();
+        headers.set("x-trpc-source", "expo-react");
 
-          const cookies = authClient.getCookie();
-          if (cookies) {
-            headers.set("Cookie", cookies);
-          }
-          return headers;
-        },
-      }),
-    ],
-  }),
+        const cookies = authClient.getCookie();
+        if (cookies) {
+          headers.set("Cookie", cookies);
+        }
+        return headers;
+      },
+    }),
+  ],
+});
+
+export const trpc = createTRPCOptionsProxy<AppRouter>({
+  client: trpcClient,
   queryClient,
 });
 

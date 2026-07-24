@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,7 +28,7 @@ import {
   planes,
   resolveType,
 } from "~/styles";
-import { queryClient, trpc } from "~/utils/api";
+import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
@@ -218,6 +218,8 @@ function FeedCard({
 export default function FeedScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshInFlight = useRef(false);
 
   const {
     data,
@@ -244,6 +246,37 @@ export default function FeedScreen() {
 
   const loadMore = () => {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  };
+
+  const handleRefresh = async () => {
+    if (refreshInFlight.current) return;
+
+    refreshInFlight.current = true;
+    setIsRefreshing(true);
+
+    try {
+      const input = { limit: 10 };
+      const firstPage = await trpcClient.video.getInfinite.query({
+        ...input,
+        cursor: 0,
+      });
+      queryClient.setQueryData(trpc.video.getInfinite.infiniteQueryKey(input), {
+        pages: [firstPage],
+        pageParams: [0],
+      });
+    } catch {
+      Alert.alert(
+        "Unable to refresh",
+        "Your current feed is still available.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Try Again", onPress: () => void handleRefresh() },
+        ],
+      );
+    } finally {
+      refreshInFlight.current = false;
+      setIsRefreshing(false);
+    }
   };
 
   if (isPending) {
@@ -290,7 +323,9 @@ export default function FeedScreen() {
         snapToInterval={SCREEN_H}
         snapToAlignment="start"
         decelerationRate="fast"
-        bounces={false}
+        alwaysBounceVertical
+        refreshing={isRefreshing}
+        onRefresh={() => void handleRefresh()}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         getItemLayout={(_d, index) => ({
