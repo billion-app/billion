@@ -60,8 +60,15 @@ Reachability (acceptance criterion — "reachable over public HTTPS"):
 
 - `https://billion-news.app/privacy` → 200, "Privacy Policy" ✓ (route live)
 - `https://billion-news.app/terms` → 200, "Terms of Service" ✓ (route live)
-- In-app: `Settings → Privacy → Read full Privacy Policy`, and `Settings → About Billion →
-Privacy policy / Terms of service` (`settings/terms`) ✓
+- In-app (**production**): `Feedback tab → Terms and Privacy Policy` → `settings/terms` ✓
+- In-app (dev only): `Settings → Privacy → Read full Privacy Policy`, and
+  `Settings → About Billion → Privacy policy / Terms of service`
+
+> ⚠️ **The Settings tab is hidden in release builds** (`(tabs)/_layout.tsx` sets
+> `href: __DEV__ ? undefined : null`, and `TabBar.tsx` skips it when `!__DEV__`). Settings was
+> the only route into the legal copy, so before the Feedback-tab link above, Terms and Privacy
+> were unreachable in production. Keep a legal entry point on a tab that ships, or this
+> acceptance criterion silently regresses.
 
 > ⚠️ **Redeploy required.** As of 2026-07-23 the live pages still serve the previous copy
 > ("Last updated April 5, 2026"). The revised text in this repo goes live only after
@@ -179,3 +186,11 @@ and `eas metadata:push`. Minimal shape:
 - **Stray `billion.app` references** in non-shipped code: scraper/measure-source `User-Agent`
   strings and a `civic@billion.app` address (`apps/scraper/...`, `packages/api/src/lib/measure-sources/*`,
   `candidate-sources/*`). Not user-visible, but they point at a domain we don't own.
+- **Two different contact addresses.** The legal copy tells users to email
+  `thatxliner@gmail.com`, but the production-visible Feedback tab uses
+  `billionnewsapp@gmail.com` (`(tabs)/feedback.tsx`). Pick one for the public-facing
+  privacy/support contact so the policy, the app, and the App Store Support URL agree.
+- **No acceptance gate.** There is no onboarding or first-launch flow, so users never
+  affirmatively accept the Terms. Not required by Apple for a no-account, read-only app, but a
+  first-launch notice ("By continuing you agree to…") linking both documents would materially
+  improve enforceability. Revisit before accounts, purchases, or EU availability.
