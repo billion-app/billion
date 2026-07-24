@@ -190,10 +190,7 @@
         "bill_billNumber_sourceWebsite_unique": {
           "name": "bill_billNumber_sourceWebsite_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "bill_number",
-            "source_website"
-          ]
+          "columns": ["bill_number", "source_website"]
         }
       },
       "policies": {},
@@ -265,11 +262,7 @@
         "blocked_content_userId_name_type_unique": {
           "name": "blocked_content_userId_name_type_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "name",
-            "type"
-          ]
+          "columns": ["user_id", "name", "type"]
         }
       },
       "policies": {},
@@ -454,11 +447,7 @@
         "civic_api_cache_addressHash_endpoint_params_unique": {
           "name": "civic_api_cache_addressHash_endpoint_params_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "address_hash",
-            "endpoint",
-            "params"
-          ]
+          "columns": ["address_hash", "endpoint", "params"]
         }
       },
       "policies": {},
@@ -543,10 +532,7 @@
         "content_lens_contentType_contentId_unique": {
           "name": "content_lens_contentType_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "content_type",
-            "content_id"
-          ]
+          "columns": ["content_type", "content_id"]
         }
       },
       "policies": {},
@@ -862,9 +848,7 @@
         "court_case_caseNumber_unique": {
           "name": "court_case_caseNumber_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "case_number"
-          ]
+          "columns": ["case_number"]
         }
       },
       "policies": {},
@@ -946,10 +930,7 @@
         "election_externalId_source_unique": {
           "name": "election_externalId_source_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "external_id",
-            "source"
-          ]
+          "columns": ["external_id", "source"]
         }
       },
       "policies": {},
@@ -1090,9 +1071,7 @@
         "government_content_url_unique": {
           "name": "government_content_url_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "url"
-          ]
+          "columns": ["url"]
         }
       },
       "policies": {},
@@ -1275,10 +1254,7 @@
         "legistar_agenda_item_jurisdiction_eventItemId_unique": {
           "name": "legistar_agenda_item_jurisdiction_eventItemId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "event_item_id"
-          ]
+          "columns": ["jurisdiction", "event_item_id"]
         }
       },
       "policies": {},
@@ -1391,10 +1367,7 @@
         "legistar_body_jurisdiction_bodyId_unique": {
           "name": "legistar_body_jurisdiction_bodyId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "body_id"
-          ]
+          "columns": ["jurisdiction", "body_id"]
         }
       },
       "policies": {},
@@ -1564,10 +1537,7 @@
         "legistar_matter_jurisdiction_matterId_unique": {
           "name": "legistar_matter_jurisdiction_matterId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "matter_id"
-          ]
+          "columns": ["jurisdiction", "matter_id"]
         }
       },
       "policies": {},
@@ -1725,10 +1695,7 @@
         "legistar_meeting_jurisdiction_eventId_unique": {
           "name": "legistar_meeting_jurisdiction_eventId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "event_id"
-          ]
+          "columns": ["jurisdiction", "event_id"]
         }
       },
       "policies": {},
@@ -1847,10 +1814,7 @@
         "legistar_vote_jurisdiction_voteId_unique": {
           "name": "legistar_vote_jurisdiction_voteId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "vote_id"
-          ]
+          "columns": ["jurisdiction", "vote_id"]
         }
       },
       "policies": {},
@@ -2093,10 +2057,7 @@
         "role_description_role_level_unique": {
           "name": "role_description_role_level_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "role",
-            "level"
-          ]
+          "columns": ["role", "level"]
         }
       },
       "policies": {},
@@ -2163,10 +2124,7 @@
         "saved_article_userId_contentId_unique": {
           "name": "saved_article_userId_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "content_id"
-          ]
+          "columns": ["user_id", "content_id"]
         }
       },
       "policies": {},
@@ -2225,9 +2183,7 @@
         "user_preference_userId_unique": {
           "name": "user_preference_userId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "policies": {},
@@ -2307,9 +2263,7 @@
         "user_settings_userId_unique": {
           "name": "user_settings_userId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "policies": {},
@@ -2452,10 +2406,7 @@
         "video_contentType_contentId_unique": {
           "name": "video_contentType_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "content_type",
-            "content_id"
-          ]
+          "columns": ["content_type", "content_id"]
         }
       },
       "policies": {},
@@ -2551,12 +2502,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2626,12 +2573,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2641,9 +2584,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -2704,9 +2645,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
