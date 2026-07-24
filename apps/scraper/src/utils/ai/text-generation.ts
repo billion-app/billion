@@ -92,6 +92,74 @@ Summary (max 100 characters):`,
   }
 }
 
+function buildAIArticlePrompt(
+  title: string,
+  fullText: string,
+  type: string,
+  url: string,
+): string {
+  return `You are an expert at making government and legal content accessible for everyday people. Transform the following ${type} into a well-structured, markdown-formatted article.
+
+Your job is to explain the policy, not promote or attack it. Treat the title, acronym, findings, purpose clauses, sponsor statements, and agency descriptions as claims about intent—not proof of results. Base factual statements on the supplied source text.
+
+Before writing, silently identify:
+1. The concrete policy mechanisms: what authority, rule, funding, eligibility, deadline, review, oversight, enforcement, or safeguard is added, removed, weakened, expanded, or transferred.
+2. The stated goal.
+3. Who gains discretion, money, rights, access, or speed.
+4. Who could lose protection, oversight, recourse, funding, or control.
+5. Important uncertainty, including effects the source does not establish.
+
+Use direct, descriptive terms when the text supports them. For example, removing or waiving rules, reviews, reporting, or oversight can accurately be described as deregulation or reduced oversight. Do not hide that mechanism behind a positive phrase such as "cuts red tape," "modernizes," "streamlines," or "speeds up." Likewise, do not use loaded labels unless the source supports the underlying mechanism.
+
+**Structure your article with these 4 sections:**
+
+## What This Means For You
+Write 1-2 short sentences (max 50 words) at a 5th-8th grade reading level.
+- Lead with what the measure would concretely change, not its advertised goal.
+- Name the most consequential benefit and cost, risk, removed safeguard, or shift in power when the source supports them.
+- If the effect on most people is indirect, say who is directly affected instead of inventing a personal impact.
+- Preserve legal status: a proposal "would" change policy; do not say it "will" unless it is already in force.
+- Do not predict that the measure will achieve its goal. Attribute intent with phrases such as "aims to" or "supporters say."
+
+Example of the required framing: "This bill would let the military skip some existing reviews—a form of deregulation intended to move faster. It could shorten procurement timelines, while reducing outside checks on those decisions." Use this as a style example only; do not copy its facts into unrelated articles.
+
+## Overview
+Provide a neutral, informative explanation of what this ${type} does. Start with its concrete mechanisms, then explain its stated rationale. Clearly distinguish current policy from the proposed change and stated goals from established effects. Define technical terms and provide context. Do not assume that official or sponsor framing is neutral. Aim for 200-400 words.
+
+## Impact & Implications
+Explain who is affected, how power or resources shift, and what changes in practice. Cover material benefits as well as costs, risks, implementation questions, and reduced protections or oversight. Separate source-supported effects from reasonable possibilities, and label uncertainty. Do not manufacture symmetry when evidence supports one consequence more strongly. Aim for 200-300 words.
+
+## The Debate
+Present the strongest source-supported arguments for and against the measure, not generic party talking points. Do not assume every issue maps cleanly onto a left-right split. Attribute predictions and value judgments to the people making them. If the supplied text does not contain evidence for a claim, say that rather than inventing a position. Structure this as:
+- **Supporters argue:** [their main points and stated goals]
+- **Critics contend:** [their main concerns, tradeoffs, or objections]
+
+Aim for 200-300 words, with detail proportional to the available evidence.
+
+---
+
+**Formatting Guidelines:**
+- Use markdown headers (##) for each section
+- Use **bold** sparingly for key terms
+- Use bullet points or numbered lists where appropriate
+- Include blockquotes (>) only for exact quotes from the original text
+- Keep paragraphs short (2-4 sentences) for readability
+- Use plain language and define necessary technical/legal terms inline
+- Never present an inference, prediction, or sponsor claim as settled fact
+
+**Original Content:**
+
+Title: ${title}
+Type: ${type}
+URL: ${url}
+
+${fullText}
+
+---
+
+Write the article now using the 4-section structure above:`;
+}
+
 /**
  * Generate a full AI article in accessible, engaging format
  * @param title - Content title
@@ -114,48 +182,7 @@ export async function generateAIArticle(
 
     const { text, usage } = await generateText({
       model: getTextLlm(),
-      prompt: `You are an expert at making government and legal content accessible and engaging for everyday people. Transform the following ${type} into a well-structured, markdown-formatted article.
-
-**Structure your article with these 4 sections:**
-
-## What This Means For You
-Write 1-2 very short, punchy sentences (max 50 words) that immediately tell a regular person how this affects their life. Use 5th-8th grade reading level. Completely avoid legal or technical terms. Focus on the "so what?"—the direct, practical result for everyday people. Make it feel human and relevant.
-
-## Overview
-Provide a balanced, neutral, and informative explanation of what this ${type} is about. Use engaging storytelling elements while remaining objective. Break down complex concepts, define technical terms, and provide context. Make it interesting to read while being thorough. Aim for 200-400 words.
-
-## Impact & Implications
-Explain what this means in practice. Who is affected and how? What are the short-term and long-term implications? What changes as a result? Use real-world examples when possible. Be specific about practical effects. Aim for 200-300 words.
-
-## The Debate
-Present both sides of the political spectrum's views on this matter. Give equal weight to supporters and critics. Quote or paraphrase key arguments from both perspectives. Remain objective and let readers understand different viewpoints. Structure this as:
-- **Supporters argue:** [their main points]
-- **Critics contend:** [their main points]
-
-Aim for 200-300 words, balanced between both sides.
-
----
-
-**Formatting Guidelines:**
-- Use markdown headers (##) for each section
-- Use **bold** for emphasis on key terms
-- Use bullet points or numbered lists where appropriate
-- Include blockquotes (>) for any direct quotes from the original text
-- Keep paragraphs short (2-4 sentences) for readability
-- Use 8th-grade reading level language
-- Define any necessary technical/legal terms inline
-
-**Original Content:**
-
-Title: ${title}
-Type: ${type}
-URL: ${url}
-
-${fullText}
-
----
-
-Write the article now using the 4-section structure above:`,
+      prompt: buildAIArticlePrompt(title, fullText, type, url),
     });
     trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
