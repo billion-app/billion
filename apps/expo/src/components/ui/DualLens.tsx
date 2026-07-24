@@ -143,7 +143,7 @@ export function LensPanel({ data }: { data: LensData }) {
         <View style={s.footer}>
           <Icon name="info" size={14} color={colors.textSecondary} />
           <Text style={s.footerText}>
-            Framing summarized from sources across the spectrum.
+            Framing summarized from the official source text.
           </Text>
         </View>
       )}

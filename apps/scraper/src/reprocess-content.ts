@@ -15,6 +15,7 @@ import {
 } from "./utils/ai/text-generation.js";
 import { getThumbnailImage } from "./utils/api/google-images.js";
 import { getCostSummary, resetCosts } from "./utils/costs.js";
+import { upsertContentLens } from "./utils/db/operations.js";
 import { generateVideoForContent } from "./utils/db/video-operations.js";
 import { createContentHash } from "./utils/hash.js";
 import {
@@ -299,6 +300,28 @@ async function processItem(
     ...(replacementThumbnail && { thumbnailUrl: replacementThumbnail }),
   });
 
+  const effectiveArticle = replacementArticle ?? item.aiGeneratedArticle;
+  if (assets === "all") {
+    try {
+      const lensGenerated = await upsertContentLens(
+        item.id,
+        item.type,
+        contentHash,
+        item.title,
+        fullText,
+        item.articleType,
+        effectiveArticle,
+      );
+      if (!lensGenerated) {
+        errors.push("Dual-Lens failed structural quality validation");
+      }
+    } catch (error) {
+      errors.push(
+        `Dual-Lens: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   const effectiveThumbnail = replacementThumbnail ?? item.thumbnailUrl;
   let videoHasImage = hasVideoImage(rowState(item));
   try {
@@ -318,9 +341,7 @@ async function processItem(
     errors.push(error instanceof Error ? error.message : String(error));
   }
 
-  const articleIsUsable = isUsableAIArticle(
-    replacementArticle ?? item.aiGeneratedArticle,
-  );
+  const articleIsUsable = isUsableAIArticle(effectiveArticle);
   return {
     id: item.id,
     type: item.type,

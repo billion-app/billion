@@ -1,6 +1,6 @@
 import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { customType, index, pgTable, unique } from "drizzle-orm/pg-core";
+import { check, customType, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -97,6 +97,10 @@ export const Bill = pgTable(
     ),
   }),
   (table) => ({
+    descriptionMaxLength: check(
+      "bill_description_max_100_chars",
+      sql`${table.description} is null or char_length(${table.description}) <= 100`,
+    ),
     uniqueBillNumberSource: unique().on(table.billNumber, table.sourceWebsite),
     searchVectorIdx: index("bill_search_vector_idx").using(
       "gin",

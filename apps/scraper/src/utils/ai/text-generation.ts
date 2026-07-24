@@ -6,8 +6,8 @@
 import type { Tool } from "ai";
 import {
   APICallError,
-  generateObject,
   generateText,
+  Output,
   RetryError,
   stepCountIs,
   tool,
@@ -243,26 +243,70 @@ export interface DualLens {
 }
 
 /**
+ * Give source-only lens generation the article's debate analysis when it is
+ * available. This is especially important for official bill text, which often
+ * describes proponents' goals but contains no explicit opposing arguments.
+ */
+export function buildDualLensGrounding(
+  fullText: string,
+  aiArticle?: string | null,
+): string {
+  if (!aiArticle) return fullText;
+
+  const debateStart = aiArticle.search(/^## The Debate\s*$/im);
+  if (debateStart < 0) return fullText;
+
+  const debate = aiArticle.slice(debateStart, debateStart + 4000).trim();
+  return `Generated debate analysis:\n${debate}\n\nOfficial source text:\n${fullText}`;
+}
+
+/**
  * Structured-output schema for the synthesis step. Replaces the old manual JSON
  * parsing — the AI SDK validates against this, so malformed output throws (and
  * we retry) instead of silently slipping through.
  */
+const LensPointTextSchema = z
+  .string()
+  .trim()
+  .min(12)
+  .refine(
+    (value) =>
+      !/^(?:n\/?a|none|unknown|not (?:available|provided|stated)|no (?:argument|information|position)(?: available| provided| stated)?)\.?$/i.test(
+        value,
+      ),
+    "Lens points must contain a substantive argument, not a placeholder",
+  );
+
 const DualLensSchema = z.object({
   left: z.object({
-    stance: z.string(),
+    stance: z.string().trim().min(3),
     points: z
-      .array(z.object({ text: z.string(), sourceIds: z.array(z.number()) }))
+      .array(
+        z.object({
+          text: LensPointTextSchema,
+          sourceIds: z.array(z.number()),
+        }),
+      )
       .min(2)
       .max(4),
   }),
   right: z.object({
-    stance: z.string(),
+    stance: z.string().trim().min(3),
     points: z
-      .array(z.object({ text: z.string(), sourceIds: z.array(z.number()) }))
+      .array(
+        z.object({
+          text: LensPointTextSchema,
+          sourceIds: z.array(z.number()),
+        }),
+      )
       .min(2)
       .max(4),
   }),
 });
+
+export function isUsableDualLens(value: unknown): boolean {
+  return DualLensSchema.safeParse(value).success;
+}
 
 /** Web-search results surfaced by the AI SDK, as returned by generateText. */
 interface SdkSource {
@@ -466,7 +510,7 @@ const RESEARCH_MAX_STEPS = 6;
  *       (web_search + fetch_page, capped by stopWhen) — it searches, opens and
  *       reads sources, and searches again until it can brief both sides.
  *   (2) The text model structures the briefing into schema-validated perspectives with
- *       per-point citations (generateObject; no manual JSON parsing).
+ *       per-point citations (AI SDK structured output; no manual JSON parsing).
  * Falls back to source-text-only structuring if web research is unavailable.
  */
 export async function generateDualLens(
@@ -515,13 +559,13 @@ export async function generateDualLens(
     .join("\n");
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const { object, usage } = await generateObject({
+      const { output, usage } = await generateText({
         model: getTextLlm(),
-        schema: DualLensSchema,
+        output: Output.object({ schema: DualLensSchema }),
         prompt: STRUCTURE_PROMPT(title, type, framing, grounding, sourceList),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
-      return verifyCitations(object, framing, sources);
+      return verifyCitations(output, framing, sources);
     } catch (error) {
       if (isRateLimitError(error)) {
         rateLimitHit = true;

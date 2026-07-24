@@ -44,25 +44,6 @@ import { queryClient, trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 import { formatDate } from "~/utils/dates";
 
-// TODO(backend): real per-side framing per content item.
-const PLACEHOLDER_LENS = {
-  framing: "proponent_opponent" as const,
-  left: {
-    stance: "Supporters argue",
-    points: [
-      "Frames this as closing a long-standing gap",
-      "Point to broad public benefit",
-    ],
-  },
-  right: {
-    stance: "Critics counter",
-    points: [
-      "Question the cost and scope",
-      "Prefer a narrower, state-led approach",
-    ],
-  },
-};
-
 export default function ArticleDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
@@ -454,10 +435,12 @@ export default function ArticleDetailScreen() {
           )}
         </View>
 
-        {/* Dual-Lens — signature */}
-        <View style={{ marginVertical: 24 }}>
-          <LensPanel data={content.lensData ?? PLACEHOLDER_LENS} />
-        </View>
+        {/* Never present generic copy as if it were generated analysis. */}
+        {content.lensData && (
+          <View style={{ marginVertical: 24 }}>
+            <LensPanel data={content.lensData} />
+          </View>
+        )}
 
         {/* timeline */}
         <Kicker>Where it stands</Kicker>

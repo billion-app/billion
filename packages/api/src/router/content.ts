@@ -2,6 +2,7 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { and, desc, eq, inArray, or, sql, unionAll } from "@acme/db";
+import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -22,6 +23,13 @@ const SAVED_CONTENT_TYPES = [
   "court_case",
 ] as const;
 type SavedContentType = (typeof SAVED_CONTENT_TYPES)[number];
+
+function billDescription(
+  description: string | null | undefined,
+  summary?: string | null,
+): string {
+  return clampBillDescription(description ?? summary ?? "");
+}
 
 interface ContentImageRef {
   id: string;
@@ -93,7 +101,7 @@ async function attachVideoImages<T extends ContentImageRef>(
 }
 
 // Look up cached dual-lens perspectives for a content item. Returns null when
-// none have been generated yet (the client falls back to a placeholder).
+// none have been generated yet; the client omits the panel until analysis exists.
 async function getLensData(
   contentId: string,
   contentType: "bill" | "government_content" | "court_case",
@@ -209,7 +217,7 @@ export const contentRouter = {
       ...bills.map((bill) => ({
         id: bill.id,
         title: bill.title,
-        description: bill.description ?? bill.summary ?? "",
+        description: billDescription(bill.description, bill.summary),
         type: "bill" as const,
         isAIGenerated: false,
         thumbnailUrl: bill.thumbnailUrl ?? undefined,
@@ -302,7 +310,10 @@ export const contentRouter = {
         const items: ContentCard[] = page.map((row) => ({
           id: row.id,
           title: row.title,
-          description: row.description,
+          description:
+            row.type === "bill"
+              ? billDescription(row.description)
+              : row.description,
           type: row.type as ContentCard["type"],
           isAIGenerated: false,
           thumbnailUrl: row.thumbnailUrl ?? undefined,
@@ -327,7 +338,7 @@ export const contentRouter = {
         const items: ContentCard[] = page.map((bill) => ({
           id: bill.id,
           title: bill.title,
-          description: bill.description ?? bill.summary ?? "",
+          description: billDescription(bill.description, bill.summary),
           type: "bill" as const,
           isAIGenerated: false,
           thumbnailUrl: bill.thumbnailUrl ?? undefined,
@@ -436,7 +447,7 @@ export const contentRouter = {
         const items: ContentCard[] = bills.map((bill) => ({
           id: bill.id,
           title: bill.title,
-          description: bill.description ?? bill.summary ?? "",
+          description: billDescription(bill.description, bill.summary),
           type: "bill" as const,
           isAIGenerated: false,
           thumbnailUrl: bill.thumbnailUrl ?? undefined,
@@ -537,7 +548,10 @@ export const contentRouter = {
       const items: ContentCard[] = rows.map((row) => ({
         id: row.id,
         title: row.title,
-        description: row.description,
+        description:
+          row.type === "bill"
+            ? billDescription(row.description)
+            : row.description,
         type: row.type as ContentCard["type"],
         isAIGenerated: false,
         thumbnailUrl: row.thumbnailUrl ?? undefined,
@@ -572,7 +586,7 @@ export const contentRouter = {
           {
             id: b.id,
             title: b.title,
-            description: b.description ?? b.summary ?? "",
+            description: billDescription(b.description, b.summary),
             type: "bill" as const,
             isAIGenerated: !!b.aiGeneratedArticle,
             thumbnailUrl: b.thumbnailUrl ?? undefined,
@@ -690,7 +704,7 @@ export const contentRouter = {
         sponsoredBills: sponsoredBills.map((item) => ({
           id: item.id,
           title: item.title,
-          description: item.description ?? item.summary ?? "",
+          description: billDescription(item.description, item.summary),
           billNumber: item.billNumber,
           status: item.status ?? undefined,
           thumbnailUrl: item.thumbnailUrl ?? undefined,
@@ -781,7 +795,10 @@ export const contentRouter = {
           .filter((item) => item != null)
           .map((item) => ({
             ...item,
-            description: item.description ?? "",
+            description:
+              item.type === "bill"
+                ? billDescription(item.description)
+                : (item.description ?? ""),
             thumbnailUrl: item.thumbnailUrl ?? undefined,
           }));
         return {
