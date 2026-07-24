@@ -21,13 +21,13 @@ const NOTICE =
 const COLLECT: Row[] = [
   {
     icon: "layers",
-    label: "Anonymous usage & diagnostics",
-    sub: "App usage and crash reports, tied to a random device ID — never to your name or email.",
+    label: "Usage & error diagnostics",
+    sub: "App activity and handled errors are linked to a random installation ID, not your name, email, or an advertising ID.",
   },
   {
     icon: "pin",
-    label: "Your address stays on your device",
-    sub: "The address you enter for your ballot is stored on this device and only sent out to look up your ballot and representatives.",
+    label: "Address-based ballot lookup",
+    sub: "Address text is sent through our servers for autocomplete and civic lookups; the selected address is also stored on this device.",
   },
   {
     icon: "shield",

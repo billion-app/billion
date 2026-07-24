@@ -7,7 +7,7 @@ import type { Theme } from "~/styles";
 import { Text, View } from "~/components/Themed";
 import { colors, fonts, sp, useTheme } from "~/styles";
 
-const LAST_UPDATED = "July 23, 2026";
+const LAST_UPDATED = "July 24, 2026";
 
 const TERMS_SECTIONS = [
   {
@@ -59,7 +59,7 @@ const TERMS_SECTIONS = [
 const PRIVACY_SECTIONS = [
   {
     title: "1. Information We Collect",
-    body: "Billion does not require an account, and the app does not ask for your name or email address to read summaries or view your ballot. What we collect depends on how you use Billion. On our website, if you join the waitlist we collect the email address you submit. In the app, if you enter a registered address to load your local ballot and representatives, that address is stored on your device and sent to our servers only to perform the lookup, as described in Section 4. If you send feedback, we receive your message, the category you choose, and basic technical details such as app version and build, platform, and operating-system version. When you use the app or website, our analytics automatically collect usage events (such as screens viewed, articles opened, and searches you run), crash and error diagnostics, and technical details like device model, operating system and version, app version, language, time zone, and network type, together with a randomly generated installation identifier. We do not collect your precise device location, and we do not use advertising identifiers.",
+    body: "Billion does not require an account, and the app does not ask for your name or email address to read summaries or view your ballot. What we collect depends on how you use Billion. On our website, if you join the waitlist we collect the email address you submit. In the app, if you enter a registered address to load your local ballot and representatives, address text is sent to our servers for autocomplete and lookup, as described in Section 4. If you send feedback, we may receive your message, the category you choose, basic technical details such as app version and build, platform, and operating-system version, and—when you contact us by email—your email address and standard email headers. When you use the app or website, our analytics automatically collect usage events (such as screens viewed, articles opened, and searches you run), handled error diagnostics, and technical details such as device model, operating system and version, app version, language, and time zone. These events are associated with a randomly generated, persistent installation identifier. We do not collect your precise device location, and we do not use advertising identifiers.",
   },
   {
     title: "2. Waitlist and Landing Page",
@@ -71,19 +71,19 @@ const PRIVACY_SECTIONS = [
   },
   {
     title: "4. Address and Location",
-    body: "Billion does not access your device's GPS or precise location. To show your local ballot and representatives, you type in a registered address. That address is stored on your device using the operating system's secure storage, and it is sent to our servers only when a lookup runs. To fulfill the lookup, we forward the address to trusted civic-data providers — the Google Civic Information API, Google Places for address autocomplete, and Open States. We cache lookup results on our servers using a one-way hashed key derived from the address rather than the address itself, and those cached results expire automatically. This processing is not linked to any account and is never used for advertising or cross-app tracking. You can change or clear your saved address in the app at any time.",
+    body: "Billion does not access your device's GPS or precise location. To show your local ballot and representatives, you type in a registered address. The selected address is stored on your device using the operating system's secure storage. As you type, address text is sent through our servers to Google Places for autocomplete; when a ballot or representative lookup runs, the address is sent through our servers to the Google Civic Information API. Open States supplies public representative data, but we do not send it your street address. We cache lookup results under a one-way hash of the address rather than storing the address as the cache key. Cached responses may contain normalized address components and expire automatically, within about thirty days. We do not join the address to an app account or to the analytics installation identifier, and we never use it for advertising or cross-app tracking. You can change or clear your saved address in the app at any time.",
   },
   {
     title: "5. Analytics and Diagnostics",
-    body: "We use PostHog to understand how Billion is used and to diagnose crashes and errors. Because the app has no accounts, this analytics data is associated with a randomly generated installation identifier rather than your real-world identity, and PostHog may infer an approximate, city-level location from your IP address. We do not use advertising identifiers, and we do not track you across other companies' apps or websites. Analytics data is processed by PostHog in the United States.",
+    body: "We use PostHog to understand how Billion is used and to diagnose handled application errors. The app does not automatically send crash reports or performance measurements such as hang rate or energy use. App analytics are associated with a randomly generated, persistent installation identifier, which links events from the same app installation or device but is not your name, email address, or an advertising identifier. PostHog may infer an approximate, city-level location from the request IP address. We do not use this information to track you across other companies' apps or websites. Analytics data is processed by PostHog in the United States.",
   },
   {
     title: "6. Data Sharing",
-    body: "We share information only with service providers that help us operate Billion, and only as needed to run the service: PostHog for analytics and diagnostics; Resend for waitlist and feedback email delivery; and civic-data providers for address lookups (the Google Civic Information API, Google Places, and Open States). We require these providers to protect your information and not use it for their own marketing. We may also disclose information if we are required to by law.",
+    body: "We share information only with service providers that help us operate Billion, and only as needed to run the service: PostHog for analytics and handled-error diagnostics; Resend for waitlist and some feedback email delivery; Google Forms for guided feedback; Google Places for address autocomplete; and the Google Civic Information API for address-based ballot and district lookups. Open States supplies public representative data without receiving your street address. We require these providers to protect information they process for us and not use it for their own marketing. We may also disclose information if we are required to by law.",
   },
   {
     title: "7. Data Retention",
-    body: "Because Billion has no user accounts, we do not build a personal profile about you. Waitlist email addresses are retained until you unsubscribe or ask us to delete them. Feedback you send is retained in our email so that we can act on it. Your registered address remains on your device until you change it, clear it, or uninstall the app; the hashed-key lookup caches on our servers expire automatically, within about thirty days. Analytics and diagnostic data are retained by our analytics provider according to its retention settings.",
+    body: "Because Billion has no app user accounts, we do not build an account-based profile about app users. Waitlist email addresses are retained until you unsubscribe or ask us to delete them. Feedback is retained in Google Forms or email so that we can act on it. Your selected registered address remains on your device until you change it, clear it, or uninstall the app; server lookup caches use a hashed address key, may contain normalized address components, and expire automatically within about thirty days. Analytics and handled-error diagnostic data are retained by our analytics provider according to its retention settings.",
   },
   {
     title: "8. Your Choices",
