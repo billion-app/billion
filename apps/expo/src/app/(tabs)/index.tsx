@@ -4,10 +4,11 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  RefreshControl,
   StyleSheet,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
@@ -74,8 +75,6 @@ export default function BrowseScreen() {
   const election = voterInfoQuery.data?.election;
   const upcomingElection =
     election && isWithinDays(election.electionDay, 30) ? election : undefined;
-
-  const insets = useSafeAreaInsets();
 
   const {
     data,
@@ -170,18 +169,23 @@ export default function BrowseScreen() {
   };
 
   return (
-    <View style={s.screen}>
+    <SafeAreaView style={s.screen} edges={["top"]}>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{
-          paddingTop: insets.top + 4,
+          paddingTop: 4,
           paddingBottom: 120,
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshing={isRefreshing}
-        onRefresh={() => void handleRefresh()}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void handleRefresh()}
+            tintColor={colors.white}
+          />
+        }
         ListHeaderComponent={
           <>
             <View style={s.headerPad}>
@@ -267,7 +271,7 @@ export default function BrowseScreen() {
           )
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
