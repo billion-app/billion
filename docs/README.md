@@ -12,6 +12,7 @@ Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for dev setup. These docs go de
 | [Ballot-measure enrichment](./measure-enrichment.md) | How measure summaries are cross-validated across official sources, adapter by adapter                |
 | [Candidate enrichment](./candidate-enrichment.md)    | The same cross-validation pattern applied to candidate bios/photos/contact info                      |
 | [Scraper pipeline](./scraper.md)                     | The standalone content scraper: sources, change detection, AI generation                             |
+| [Article generation](./article-generation.md)        | How a bill becomes a readable brief: the structured schema, quote verification, framing lint         |
 | [Frontend apps](./frontend.md)                       | Expo mobile app, Next.js web, shared UI, cross-platform auth                                         |
 
 ## How to do things

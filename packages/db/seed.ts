@@ -1,8 +1,16 @@
 import { createHash } from "node:crypto";
 
+import type { BillBriefRecord } from "@acme/validators";
+
 import { clampBillDescription } from "./src/bill-description";
 import { db } from "./src/client";
-import { Bill, CourtCase, GovernmentContent, Video } from "./src/schema";
+import {
+  Bill,
+  ContentBrief,
+  CourtCase,
+  GovernmentContent,
+  Video,
+} from "./src/schema";
 
 function hash(content: string) {
   return createHash("sha256").update(content).digest("hex");
@@ -410,6 +418,156 @@ Free speech advocates are split: some see algorithmic curation as protected expr
   versions: [],
 }));
 
+/**
+ * Structured briefs for the seeded bills, in the same shape the scraper writes.
+ * Seeded so local contributors can see the brief UI without an LLM key — and so
+ * the quote-verification contract is visible by example: every `quote.text`
+ * below appears verbatim in the matching bill's `fullText`, which is exactly
+ * what `verifyBriefQuotes` enforces in the pipeline.
+ *
+ * Indexed to match `bills` above.
+ */
+const billBriefs: (Omit<
+  BillBriefRecord,
+  "generatedAt" | "modelVersion"
+> | null)[] = [
+  {
+    version: 1,
+    legalStatus: "proposed",
+    verifiedQuotes: 1,
+    hook: "The bill would authorize $200 billion in federal infrastructure spending over ten years, distributed to states by formula rather than by project approval.",
+    facts: [
+      {
+        label: "Authorized funding",
+        value: "$200B",
+        note: "Over 10 years, subject to annual appropriations.",
+      },
+      { label: "Chamber status", value: "Passed House", note: "Senate next." },
+      { label: "Congress", value: "119th" },
+    ],
+    changes: [
+      {
+        kind: "funds",
+        title: "Ten years of formula funding for roads and bridges",
+        before:
+          "Federal surface transportation money is reauthorized in shorter cycles, so states plan against a funding horizon that reopens frequently.",
+        after:
+          "States would draw from a ten-year authorization allocated by a formula weighing population, road conditions, and transit ridership.",
+        quote: {
+          text: "Congress finds that the nation's infrastructure is in critical need of repair and modernization",
+          locator: "Sec. 2",
+        },
+      },
+      {
+        kind: "creates",
+        title: "New grant program for transit expansion",
+        before:
+          "Cities compete for transit capital through existing discretionary federal grant programs.",
+        after:
+          "A dedicated grant line would fund light rail and bus rapid transit builds, alongside rural broadband.",
+      },
+    ],
+    affected: [
+      {
+        group: "State transportation departments",
+        effect:
+          "They would receive a longer, formula-driven funding horizon, which shifts planning leverage toward states and away from project-by-project federal review.",
+        direction: "gains",
+      },
+      {
+        group: "Transit riders in mid-size cities",
+        effect:
+          "New grant money could fund expansions, though whether any specific city benefits depends on how the program is written and administered.",
+        direction: "unclear",
+      },
+    ],
+    unknowns: [
+      "The text does not specify the weights in the state allocation formula, which decides who actually gets the money.",
+      "Authorization is not appropriation — the $200 billion still depends on future annual spending bills.",
+      "The source does not establish the job estimates attributed to the bill by its sponsors.",
+    ],
+    terms: [
+      {
+        term: "Authorization",
+        plain:
+          "Permission for a program to exist and to spend up to a set amount. Congress still has to appropriate the money separately before any is actually spent.",
+      },
+      {
+        term: "Formula funding",
+        plain:
+          "Money split among states by a fixed calculation rather than awarded application by application.",
+      },
+    ],
+    sections: [
+      {
+        heading: "How the money would move",
+        body: "Federal infrastructure money generally reaches a road or a bridge in two steps. Congress first authorizes a program — setting a ceiling and the rules for who qualifies — and then appropriates actual dollars in a separate annual bill. This measure is the first step.\n\nThat distinction matters for reading any headline figure attached to it. A ten-year authorization signals intent and lets states plan, but a future Congress can appropriate less than the ceiling, or nothing at all. Supporters say the longer horizon is the point: state agencies can commit to multi-year projects they would otherwise defer. Critics of long authorizations note the same horizon reduces how often Congress revisits the formula.",
+      },
+    ],
+  },
+  {
+    version: 1,
+    legalStatus: "proposed",
+    verifiedQuotes: 1,
+    hook: "The bill would require companies to get consent before collecting personal data, and give people a right to see and delete what has already been gathered.",
+    facts: [{ label: "Chamber status", value: "In Committee" }],
+    changes: [
+      {
+        kind: "requires",
+        title: "Consent before collection",
+        before:
+          "Federal privacy rules are sector-specific — health, finance, children — with no general consent requirement for most consumer data.",
+        after:
+          "Companies would need affirmative consent before collecting or selling personal data across sectors.",
+        quote: {
+          text: "The purpose of this Act is to establish comprehensive federal data privacy protections",
+          locator: "Sec. 2",
+        },
+      },
+      {
+        kind: "creates",
+        title: "Access and deletion rights",
+        before:
+          "Whether a person can see or delete a company's data about them depends on the company and, in some cases, their state.",
+        after:
+          "A federal right to review and delete collected personal data would apply regardless of state.",
+      },
+    ],
+    affected: [
+      {
+        group: "People whose data is collected online",
+        effect:
+          "They would gain a federal right to review and delete personal data, and companies would have to ask before collecting it.",
+        direction: "gains",
+      },
+      {
+        group: "Companies that buy and sell consumer data",
+        effect:
+          "They would take on new consent, disclosure, and deletion obligations, with compliance costs falling hardest on firms whose model depends on data resale.",
+        direction: "loses",
+      },
+      {
+        group: "States with their own privacy laws",
+        effect:
+          "Whether a federal standard adds to or displaces state law changes how much protection residents end up with.",
+        direction: "unclear",
+      },
+    ],
+    unknowns: [
+      "The excerpt does not say whether the federal standard preempts stronger state privacy laws.",
+      "Enforcement is not described — whether by an agency, by individual lawsuits, or both.",
+    ],
+    terms: [
+      {
+        term: "Preemption",
+        plain:
+          "When a federal law overrides state laws on the same subject, replacing them rather than adding to them.",
+      },
+    ],
+    sections: [],
+  },
+];
+
 async function seed() {
   assertSeedTargetIsLocal();
 
@@ -426,6 +584,36 @@ async function seed() {
       contentHash: Bill.contentHash,
     });
   console.log(`  ${insertedBills.length} bills inserted`);
+
+  console.log("Inserting bill briefs...");
+  const briefRecords = insertedBills.flatMap((b, i) => {
+    const brief = billBriefs[i];
+    return brief
+      ? [
+          {
+            contentType: "bill" as const,
+            contentId: b.id,
+            contentHash: b.contentHash,
+            brief: {
+              ...brief,
+              generatedAt: now.toISOString(),
+              modelVersion: "seed",
+            },
+            modelVersion: "seed",
+          },
+        ]
+      : [];
+  });
+  if (briefRecords.length === 0) {
+    console.log("  0 briefs inserted (no new bills to link)");
+  } else {
+    const insertedBriefs = await db
+      .insert(ContentBrief)
+      .values(briefRecords)
+      .onConflictDoNothing()
+      .returning({ id: ContentBrief.id });
+    console.log(`  ${insertedBriefs.length} briefs inserted`);
+  }
 
   console.log("Inserting government content...");
   const insertedGov = await db

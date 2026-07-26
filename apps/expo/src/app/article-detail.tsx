@@ -18,6 +18,7 @@ import { Text } from "~/components/Themed";
 import {
   Avatar,
   Badge,
+  BillBrief,
   Card,
   GhostButton,
   Icon,
@@ -229,6 +230,12 @@ export default function ArticleDetailScreen() {
     }
   };
 
+  // A structured brief replaces the markdown explainer when one has been
+  // generated. Content without a brief (every type except bills, and bills the
+  // pipeline hasn't reached yet) keeps rendering the long-form article, so this
+  // is additive rather than a cutover.
+  const brief = "brief" in content ? content.brief : null;
+
   const activeContent =
     mode === "explainer" ? content.articleContent : content.originalContent;
   const looksLikeMarkdown =
@@ -395,7 +402,11 @@ export default function ArticleDetailScreen() {
             value={mode}
             onChange={handleModeChange}
             options={[
-              { id: "explainer", label: "Plain explainer", icon: "sparkle" },
+              {
+                id: "explainer",
+                label: brief ? "The brief" : "Plain explainer",
+                icon: "sparkle",
+              },
               { id: "source", label: "Original text", icon: "doc" },
             ]}
           />
@@ -405,7 +416,9 @@ export default function ArticleDetailScreen() {
           <View style={s.disclaimer}>
             <Icon name="sparkle" size={17} color={t.color} />
             <Text style={s.disclaimerText}>
-              Explained by Billion AI from the official text.{" "}
+              {brief
+                ? "Written by Billion AI from the official text. Quoted passages are verified against the source; everything else is analysis. "
+                : "Explained by Billion AI from the official text. "}
               <Text style={s.disclaimerEm}>
                 Always verify against the source below.
               </Text>
@@ -426,7 +439,9 @@ export default function ArticleDetailScreen() {
           testID="article-content"
           style={mode === "source" ? s.sourcePanel : undefined}
         >
-          {renderMarkdown ? (
+          {mode === "explainer" && brief ? (
+            <BillBrief data={brief} accent={t.color} />
+          ) : renderMarkdown ? (
             <Markdown style={markdownStyles} rules={markdownRules}>
               {activeContent}
             </Markdown>

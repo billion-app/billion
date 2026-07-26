@@ -16,4 +16,5 @@ export { Pills } from "./Pills";
 export { Segmented, type SegmentOption } from "./Segmented";
 export { SettingsRow } from "./SettingsRow";
 export { LensStrip, LensPanel, type LensData } from "./DualLens";
+export { BillBrief, type BillBriefData } from "./BillBrief";
 export { ContentCard, type ContentCardItem } from "./ContentCard";
