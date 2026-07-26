@@ -30,6 +30,7 @@ process environment at runtime, not embedded during the build.
 | `civicengage.ts`            | Cedar Park official council page | local-government tables    | CivicEngage entry page + Municode embed; deterministic HTML/PDF parsing |
 | `durham-onbase.ts`          | Durham OnBase Agenda Online      | local-government tables    | current-cycle meetings, items, attachments, and official actions        |
 | `durham-bocc.ts`            | Durham County Legistar API       | local-government tables    | current-cycle meetings, items, actions, votes, and documents            |
+| `st-louis-aldermen.ts`      | St. Louis + CivicClerk           | local-government tables    | selected active session; full-board/committee records; no archive crawl |
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
@@ -62,6 +63,18 @@ product does not expose historical election cycles or run an OnBase backfill.
 `durham-bocc` reads Durham County's official structured Legistar feed for BOCC body ID `138`. It bounds discovery to the current two-year election cycle, upserts stable provider IDs, and stores checksums/source row versions so replaced agendas update the existing meeting. Cancellations and explicit amendments remain visible; Spanish attachments are tagged separately. Agenda/minutes PDFs are retained as official links and are not sent through AI or OCR when structured item/action fields are available.
 
 Run it with `pnpm --filter @acme/scraper run start durham-bocc`. The default cap is 100 meetings and can be changed with `DURHAM_BOCC_MAX_ITEMS` or `--max-items`.
+
+### St. Louis Board of Aldermen
+
+The St. Louis adapter reads only the session selected in the official page
+metadata. It combines full-board agenda HTML, calendar/event HTML, legislative
+detail HTML, and the keyless CivicClerk JSON embedded by the City. The adapter
+keeps stable City event, `agendaViewID`, session, CivicClerk item/file, Board
+Bill, and resolution identifiers. Rotating signed file URLs update by stable
+file ID, while a new file ID creates a retained document revision.
+
+The API continues to read the shared local-government tables; it makes no live
+St. Louis calls. See [St. Louis Board of Aldermen](./st-louis-aldermen.md).
 
 ## Upsert + Change Detection
 

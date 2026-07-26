@@ -877,6 +877,8 @@ export const LocalGovernmentMeeting = pgTable(
     jurisdiction: t.varchar({ length: 100 }).notNull(),
     governingBody: t.varchar({ length: 256 }).notNull(),
     externalId: t.varchar({ length: 128 }).notNull(),
+    sessionId: t.varchar({ length: 128 }),
+    agendaViewId: t.varchar({ length: 128 }),
     title: t.text().notNull(),
     meetingType: t.varchar({ length: 50 }).notNull(),
     status: t.varchar({ length: 50 }).notNull(),
@@ -918,6 +920,8 @@ export const LocalGovernmentDocument = pgTable(
       .uuid()
       .notNull()
       .references(() => LocalGovernmentMeeting.id, { onDelete: "cascade" }),
+    externalId: t.varchar({ length: 128 }),
+    sourceVersion: t.varchar({ length: 100 }),
     type: t.varchar({ length: 30 }).notNull(),
     title: t.text().notNull(),
     url: t.text().notNull(),
@@ -937,6 +941,11 @@ export const LocalGovernmentDocument = pgTable(
   }),
   (table) => ({
     uniqueMeetingDocument: unique().on(table.meetingId, table.type, table.url),
+    uniqueMeetingSourceDocument: unique().on(
+      table.meetingId,
+      table.type,
+      table.externalId,
+    ),
     meetingDocumentIdx: index("local_government_document_meeting_idx").on(
       table.meetingId,
     ),
@@ -954,6 +963,8 @@ export const LocalGovernmentAgendaItem = pgTable(
     externalId: t.varchar({ length: 128 }).notNull(),
     sequence: t.integer().notNull(),
     itemNumber: t.varchar({ length: 50 }),
+    legislativeId: t.varchar({ length: 128 }),
+    sponsors: t.jsonb().$type<string[]>().default([]).notNull(),
     section: t.varchar({ length: 100 }),
     itemType: t.varchar({ length: 50 }).notNull(),
     title: t.text().notNull(),

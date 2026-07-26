@@ -1,0 +1,58 @@
+[
+  {
+    "id": 2409,
+    "name": "Health and Human Development Committee",
+    "meetingDate": "2026-07-23T09:00:00",
+    "files": [
+      {
+        "fileId": 3680,
+        "type": "Agenda",
+        "publishedOn": "2026-07-20T11:42:35.730",
+        "name": "Health and Human Development",
+        "url": "https://civicclerk.blob.core.windows.net/stream/STLOUISMO/agenda.pdf?sig=first"
+      },
+      {
+        "fileId": 3681,
+        "type": "Agenda Packet",
+        "publishedOn": "2026-07-20T11:42:35.730",
+        "name": "Health and Human Development Packet",
+        "url": "https://civicclerk.blob.core.windows.net/stream/STLOUISMO/packet.pdf?sig=first"
+      }
+    ],
+    "items": [
+      {
+        "id": 12326,
+        "idNumber": "",
+        "itemName": "Board Bills for Review",
+        "agendaObjectItemOutlineNumber": "IV.",
+        "agendaObjItemCategoryTypeDesc": null,
+        "agendaObjectItemDescription": "The committee will discuss the following.",
+        "isSection": true,
+        "customTextField8": { "name": "Minutes API Call", "value": "" },
+        "recommendedActions": [],
+        "attachmentsList": [],
+        "childItems": [
+          {
+            "id": 12336,
+            "idNumber": "2026-1798",
+            "itemName": "<strong>Item Number 1<br>Board Bill Number 63<br>Introduced by Alderwoman Clark Hubbard</strong><br>YouthBuild grant program.",
+            "agendaObjectItemOutlineNumber": "",
+            "agendaObjItemCategoryTypeDesc": "Board Bills",
+            "agendaObjectItemDescription": "",
+            "isSection": false,
+            "customTextField8": { "name": "Minutes API Call", "value": "[DISCUSSION]" },
+            "recommendedActions": [],
+            "attachmentsList": [
+              {
+                "id": 3724,
+                "name": "BB63 Combined",
+                "publicUrl": "https://civicclerk.blob.core.windows.net/stream/STLOUISMO/bill.pdf?sig=first"
+              }
+            ],
+            "childItems": null
+          }
+        ]
+      }
+    ]
+  }
+]

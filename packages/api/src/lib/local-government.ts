@@ -37,6 +37,8 @@ export async function getLocalGovernmentMeetings(
     .select({
       id: LocalGovernmentDocument.id,
       meetingId: LocalGovernmentDocument.meetingId,
+      externalId: LocalGovernmentDocument.externalId,
+      sourceVersion: LocalGovernmentDocument.sourceVersion,
       type: LocalGovernmentDocument.type,
       title: LocalGovernmentDocument.title,
       url: LocalGovernmentDocument.url,
@@ -71,6 +73,8 @@ export async function getLocalGovernmentMeeting(id: string) {
       .select({
         id: LocalGovernmentDocument.id,
         meetingId: LocalGovernmentDocument.meetingId,
+        externalId: LocalGovernmentDocument.externalId,
+        sourceVersion: LocalGovernmentDocument.sourceVersion,
         type: LocalGovernmentDocument.type,
         title: LocalGovernmentDocument.title,
         url: LocalGovernmentDocument.url,
