@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { clampBillDescription } from "./src/bill-description";
 import { db } from "./src/client";
 import { Bill, CourtCase, GovernmentContent, Video } from "./src/schema";
 
@@ -202,6 +203,12 @@ Housing advocates strongly support the bill but want even more aggressive zoning
   },
 ].map((b) => ({
   ...b,
+  // `bill.description` is capped at 100 characters by a check constraint, and
+  // every fixture above was written longer, so the very first insert aborted
+  // the whole seed. Clamp with the same helper the scraper and API use rather
+  // than hand-trimming the prose: the fixtures stay readable here, and what
+  // lands in the table matches what a real scraped row looks like.
+  description: clampBillDescription(b.description),
   contentHash: hash(b.title + b.fullText),
   versions: [],
 }));
