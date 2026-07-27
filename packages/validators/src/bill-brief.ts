@@ -127,6 +127,7 @@ export type BriefFact = z.infer<typeof BriefFactSchema>;
 export const BriefVisualSchema = z.enum([
   "infrastructure-repair",
   "public-transit",
+  "data-privacy",
 ]);
 export type BriefVisual = z.infer<typeof BriefVisualSchema>;
 
@@ -160,7 +161,7 @@ export const BriefChangeSchema = z.object({
       "What would happen under this measure, in concrete everyday language. Explain who acts, what they do, and what changes; avoid unexplained terms such as authorization, appropriation, discretionary grant, allocation formula, and funding horizon. Preserve legal status. At most two short **bold** spans may mark the phrases a scanner should retain.",
     ),
   visual: BriefVisualSchema.optional().describe(
-    "Optional curated editorial visual. Use infrastructure-repair for physical road or bridge work, public-transit for rail or bus expansion, and otherwise omit.",
+    "Optional curated editorial visual. Use infrastructure-repair for physical road or bridge work, public-transit for rail or bus expansion, data-privacy for personal-data collection or algorithm transparency, and otherwise omit.",
   ),
   quote: BriefQuoteSchema.optional().describe(
     "The provision this change is drawn from.",

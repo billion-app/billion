@@ -36,6 +36,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Image } from "expo-image";
@@ -52,6 +53,7 @@ import {
   hair,
   planes,
 } from "~/styles";
+import dataPrivacyImage from "../../../assets/article-brief/algorithm-transparency.jpg";
 import infrastructureRepairImage from "../../../assets/article-brief/infrastructure-repair.jpg";
 import publicTransitImage from "../../../assets/article-brief/public-transit.jpg";
 import { Icon } from "./Icon";
@@ -85,7 +87,7 @@ export interface BillBriefData {
     title: string;
     before: string;
     after: string;
-    visual?: "infrastructure-repair" | "public-transit";
+    visual?: "infrastructure-repair" | "public-transit" | "data-privacy";
     quote?: BriefQuote;
   }[];
   affected: {
@@ -133,6 +135,11 @@ const CHANGE_VISUALS = {
     source: publicTransitImage,
     alt: "A light-rail train and city bus serving the same transit station",
     caption: "Light rail and bus rapid transit",
+  },
+  "data-privacy": {
+    source: dataPrivacyImage,
+    alt: "A laptop showing an abstract network of connected personal data",
+    caption: "How companies collect, connect, and use personal data",
   },
 } as const;
 
@@ -373,78 +380,121 @@ function Changes({
   accent: string;
   onViewSource?: (quote: BriefQuote) => void;
 }) {
+  const { width: screenWidth } = useWindowDimensions();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const cardWidth = Math.max(260, Math.min(screenWidth - 64, 390));
+  const snapInterval = cardWidth + 12;
+
   return (
-    <View style={s.changeList} testID="brief-changes">
-      {changes.map((c, i) => (
-        <View key={i} style={s.changeCard}>
-          <View style={s.changeHead}>
-            <View style={[s.kindChip, { borderColor: accent }]}>
-              <Text style={[s.kindChipText, { color: accent }]}>
-                {CHANGE_KIND_LABEL[c.kind]}
+    <View style={s.changeCarouselWrap} testID="brief-changes">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.changeCarouselContent}
+        snapToInterval={snapInterval}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
+        nestedScrollEnabled
+        onMomentumScrollEnd={(event) => {
+          const next = Math.round(
+            event.nativeEvent.contentOffset.x / snapInterval,
+          );
+          setActiveIndex(Math.max(0, Math.min(changes.length - 1, next)));
+        }}
+      >
+        {changes.map((c, i) => (
+          <View key={i} style={[s.changeCard, { width: cardWidth }]}>
+            <View style={s.changeHead}>
+              <View style={[s.kindChip, { borderColor: accent }]}>
+                <Text style={[s.kindChipText, { color: accent }]}>
+                  {CHANGE_KIND_LABEL[c.kind]}
+                </Text>
+              </View>
+              <Text style={s.changeIndex}>
+                {i + 1}/{changes.length}
               </Text>
             </View>
-            <Text style={s.changeIndex}>
-              {i + 1}/{changes.length}
-            </Text>
-          </View>
-          <Text style={s.changeTitle}>{c.title}</Text>
+            <Text style={s.changeTitle}>{c.title}</Text>
 
-          {c.visual ? (
-            <View style={s.changeVisualWrap}>
-              <Image
-                source={CHANGE_VISUALS[c.visual].source}
-                style={s.changeVisual}
-                contentFit="cover"
-                transition={180}
-                accessible
-                accessibilityLabel={CHANGE_VISUALS[c.visual].alt}
-              />
-              <View style={s.changeVisualShade} />
-              <Text style={s.changeVisualCaption}>
-                {CHANGE_VISUALS[c.visual].caption}
-              </Text>
-            </View>
-          ) : null}
+            {c.visual ? (
+              <View style={s.changeVisualWrap}>
+                <Image
+                  source={CHANGE_VISUALS[c.visual].source}
+                  style={s.changeVisual}
+                  contentFit="cover"
+                  transition={180}
+                  accessible
+                  accessibilityLabel={CHANGE_VISUALS[c.visual].alt}
+                />
+                <View style={s.changeVisualShade} />
+                <Text style={s.changeVisualCaption}>
+                  {CHANGE_VISUALS[c.visual].caption}
+                </Text>
+              </View>
+            ) : null}
 
-          <View style={s.deltaStack}>
-            <View style={s.deltaBefore}>
-              <Text style={s.deltaLabel}>NOW</Text>
-              <EmphasizedText style={s.deltaText}>{c.before}</EmphasizedText>
-            </View>
-            <View style={s.deltaTransition}>
+            <View style={s.deltaStack}>
+              <View style={s.deltaBefore}>
+                <Text style={s.deltaLabel}>NOW</Text>
+                <EmphasizedText style={s.deltaText}>{c.before}</EmphasizedText>
+              </View>
+              <View style={s.deltaTransition}>
+                <View
+                  style={[s.deltaTransitionLine, { backgroundColor: accent }]}
+                />
+                <Icon name="arrowDown" size={13} color={accent} />
+                <Text style={[s.deltaTransitionText, { color: accent }]}>
+                  THE PROPOSAL CHANGES THIS
+                </Text>
+              </View>
               <View
-                style={[s.deltaTransitionLine, { backgroundColor: accent }]}
-              />
-              <Icon name="arrowDown" size={13} color={accent} />
-              <Text style={[s.deltaTransitionText, { color: accent }]}>
-                THE PROPOSAL CHANGES THIS
-              </Text>
+                style={[
+                  s.deltaAfter,
+                  {
+                    borderColor: `${accent}66`,
+                    backgroundColor: `${accent}18`,
+                  },
+                ]}
+              >
+                <Text style={s.deltaLabel}>UNDER THIS BILL</Text>
+                <EmphasizedText style={[s.deltaText, s.deltaTextAfter]}>
+                  {c.after}
+                </EmphasizedText>
+              </View>
             </View>
-            <View
-              style={[
-                s.deltaAfter,
-                {
-                  borderColor: `${accent}66`,
-                  backgroundColor: `${accent}18`,
-                },
-              ]}
-            >
-              <Text style={s.deltaLabel}>UNDER THIS BILL</Text>
-              <EmphasizedText style={[s.deltaText, s.deltaTextAfter]}>
-                {c.after}
-              </EmphasizedText>
-            </View>
-          </View>
 
-          {c.quote ? (
-            <QuoteDisclosure
-              quote={c.quote}
-              accent={accent}
-              onViewSource={onViewSource}
+            {c.quote ? (
+              <QuoteDisclosure
+                quote={c.quote}
+                accent={accent}
+                onViewSource={onViewSource}
+              />
+            ) : null}
+          </View>
+        ))}
+      </ScrollView>
+
+      {changes.length > 1 ? (
+        <View style={s.changePager}>
+          {changes.map((change, index) => (
+            <View
+              key={`${change.title}-${index}`}
+              style={[
+                s.changePagerDot,
+                index === activeIndex
+                  ? [s.changePagerDotActive, { backgroundColor: accent }]
+                  : null,
+              ]}
             />
-          ) : null}
+          ))}
+          <Text style={s.changePagerText}>
+            {activeIndex < changes.length - 1
+              ? `Swipe for change ${activeIndex + 2} of ${changes.length}`
+              : `Showing change ${activeIndex + 1} of ${changes.length}`}
+          </Text>
         </View>
-      ))}
+      ) : null}
     </View>
   );
 }
@@ -844,7 +894,12 @@ const s = StyleSheet.create({
   },
 
   /* changes */
-  changeList: { gap: 12 },
+  changeCarouselWrap: { gap: 10, marginHorizontal: -4 },
+  changeCarouselContent: {
+    gap: 12,
+    paddingHorizontal: 4,
+    paddingRight: 28,
+  },
   changeCard: {
     backgroundColor: planes.slate,
     borderWidth: 1,
@@ -852,6 +907,26 @@ const s = StyleSheet.create({
     borderRadius: 14,
     padding: 15,
     gap: 11,
+  },
+  changePager: {
+    minHeight: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+  },
+  changePagerDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: hair[2],
+  },
+  changePagerDotActive: { width: 18 },
+  changePagerText: {
+    marginLeft: 4,
+    fontFamily: fontBody.medium,
+    fontSize: 10.5,
+    color: colors.textSecondary,
   },
   changeHead: { flexDirection: "row", alignItems: "center" },
   kindChip: {

@@ -569,6 +569,7 @@ const billBriefs: (Omit<
           "Different federal rules cover health, financial, and children's data. **Most other personal data has no nationwide permission rule**.",
         after:
           "Companies would have to **ask before collecting or selling most personal information**.",
+        visual: "data-privacy",
         quote: {
           text: "The purpose of this Act is to establish comprehensive federal data privacy protections",
           locator: "Sec. 2",
