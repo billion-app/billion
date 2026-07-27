@@ -613,6 +613,7 @@ Rules that decide whether this brief ships:
 - **Quotes are verbatim.** Every "quote" field must be an exact, unedited span copied character-for-character from the source text below. Do not paraphrase, splice, trim mid-word, or fix grammar. Quotes that do not appear in the source are removed automatically, so a paraphrase in quotation marks just loses you a citation.
 - **No invented figures.** A number, date, or dollar amount goes in "facts" only if the source states it. Fewer facts is correct; a plausible-looking invented figure is not.
 - **No manufactured symmetry.** If the text supports one consequence more strongly than another, say so. Use "mixed" or "unclear" for an affected group rather than balancing the list for its own sake.
+- **Use only the allowed change kinds.** Every change "kind" must be exactly one of: "creates", "repeals", "expands", "restricts", "requires", "waives", "funds", or "transfers". Map synonyms such as "sets" or "establishes" to "creates", and "restructures" to the closest allowed mechanism.
 - **Neutral vocabulary.** In your own voice, avoid words that carry a verdict — "common sense", "radical", "landmark", "reckless", "burdensome", "handout", "much-needed". Attribute goals with "aims to" or "supporters say" rather than asserting them.
 - **Plain language.** Aim for an 8th-grade reading level everywhere. Prefer familiar verbs and concrete descriptions: "Congress approves the money each year", not "subject to annual appropriations"; "several federal programs", not "discretionary federal grants"; "how long states can plan ahead", not "funding horizon". If a general reader might have to look a term up, either translate it or define it in "terms". Even when defined, explain its practical meaning where it appears.
 - **Emphasis is a brief-wide scan aid, not decoration.** Every reader-facing prose field should identify the one phrase a scanner most needs to retain. Use **double asterisks** around one short, concrete phrase in each affected-group "takeaway" and "effect", each "unknowns" item, each term definition, each reading recommendation, the deep-dive preview, and each historical summary or point. "before" and "after" may use up to two short spans; "hook" may use two or three. In long-form deep-dive paragraphs, use one or two only when useful. Never bold a whole sentence, a heading, a verdict, loaded language, or any verbatim source quote.
@@ -684,6 +685,9 @@ export async function generateBillBrief(args: {
   let loadedPhrases: string[] | undefined;
   let jargonPhrases: string[] | undefined;
   let missingEmphasis: string[] | undefined;
+  let verifiedFallback:
+    | Omit<BillBriefRecord, "generatedAt" | "modelVersion">
+    | undefined;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
@@ -733,6 +737,12 @@ export async function generateBillBrief(args: {
         (loaded.length > 0 || jargon.length > 0 || missing.length > 0) &&
         attempt < MAX_ATTEMPTS
       ) {
+        verifiedFallback = {
+          ...brief,
+          version: BILL_BRIEF_VERSION,
+          legalStatus,
+          verifiedQuotes: verified,
+        };
         logger.warn(
           `Brief for ${args.billNumber}: reader-facing copy needs revision (${[...loaded, ...jargon, ...missing].join(", ")}) — regenerating`,
         );
@@ -775,7 +785,15 @@ export async function generateBillBrief(args: {
         `Brief structuring failed on attempt ${attempt} for ${args.billNumber}`,
         error,
       );
-      if (attempt === MAX_ATTEMPTS) return null;
+      if (attempt === MAX_ATTEMPTS) {
+        if (verifiedFallback) {
+          logger.warn(
+            `Brief for ${args.billNumber}: polishing retry failed; keeping the verified first draft`,
+          );
+          return verifiedFallback;
+        }
+        return null;
+      }
     }
   }
   return null;
