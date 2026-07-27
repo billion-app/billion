@@ -16,6 +16,7 @@ import Markdown from "@ronradtke/react-native-markdown-display";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import type { BillBriefData, BriefQuote } from "~/components/ui";
+import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { Text } from "~/components/Themed";
 import {
   Avatar,
@@ -48,6 +49,8 @@ import { queryClient, trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 import { formatDate } from "~/utils/dates";
 import { editorialVisualFor } from "~/utils/editorial-visuals";
+
+export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
@@ -274,8 +277,13 @@ export default function ArticleDetailScreen() {
   const brief: BillBriefData | null =
     "brief" in content ? (content.brief as BillBriefData | null) : null;
 
-  const activeContent =
+  const rawContent =
     mode === "explainer" ? content.articleContent : content.originalContent;
+  // The types say this is a string, but the router has no `.output()` schema,
+  // so nothing enforces that at runtime. `.includes`/`.length` on a null would
+  // take the whole app down rather than render an empty article.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- guards an unvalidated API response
+  const activeContent = rawContent ?? "";
   const looksLikeMarkdown =
     /^#{1,6}\s/m.test(activeContent) ||
     /\[[^\]]+\]\((https?:\/\/|\/)/.test(activeContent) ||

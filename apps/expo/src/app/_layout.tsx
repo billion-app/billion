@@ -31,12 +31,17 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PostHogProvider } from "posthog-react-native";
 
+import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { posthog } from "~/config/posthog";
 import { useTheme } from "~/styles";
 import { queryClient } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 
 import "../styles.css";
+
+// Last line of defence: catches render errors from any screen that doesn't
+// have its own boundary. Without one, React Native aborts the process.
+export const ErrorBoundary = createRouteErrorBoundary("root");
 
 // Keep splash screen visible while fonts load
 void SplashScreen.preventAutoHideAsync();
