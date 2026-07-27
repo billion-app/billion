@@ -97,7 +97,7 @@ export const BriefFactSchema = z.object({
     .string()
     .trim()
     .min(2)
-    .max(28)
+    .max(48)
     .describe('What the figure is — e.g. "Authorized funding", "Deadline".'),
   value: z
     .string()
