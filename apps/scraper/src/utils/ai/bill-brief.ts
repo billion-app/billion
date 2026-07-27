@@ -23,7 +23,17 @@ import type {
   BillBriefRecord,
   BriefLegalStatus,
 } from "@acme/validators";
-import { BILL_BRIEF_VERSION, BillBriefSchema } from "@acme/validators";
+import {
+  BILL_BRIEF_VERSION,
+  BillBriefSchema,
+  BriefChangeSchema,
+  BriefContextSchema,
+  BriefDeepDiveSchema,
+  BriefFactSchema,
+  BriefQuoteSchema,
+  BriefVisualSchema,
+} from "@acme/validators";
+import { z } from "zod";
 
 import type { DualLensSource } from "./text-generation.js";
 import { trackLLMUsage } from "../costs.js";
@@ -49,6 +59,46 @@ const SOURCE_WINDOW = 24_000;
 
 /** Attempts at structuring before giving up (each is one LLM call). */
 const MAX_ATTEMPTS = 2;
+
+/**
+ * Structured-output providers commonly serialize absent optional fields as
+ * JSON null. Accept that transport convention here, then remove nulls and
+ * validate against the canonical storage schema before verification/caching.
+ */
+const GeneratedBriefQuoteSchema = BriefQuoteSchema.extend({
+  locator: z.string().trim().max(120).nullish(),
+});
+const GeneratedBillBriefSchema = BillBriefSchema.extend({
+  facts: z
+    .array(
+      BriefFactSchema.extend({
+        note: z.string().trim().max(90).nullish(),
+        quote: GeneratedBriefQuoteSchema.nullish(),
+      }),
+    )
+    .max(4),
+  changes: z
+    .array(
+      BriefChangeSchema.extend({
+        visual: BriefVisualSchema.nullish(),
+        quote: GeneratedBriefQuoteSchema.nullish(),
+      }),
+    )
+    .min(1)
+    .max(5),
+  whyNotBefore: BriefContextSchema.nullish(),
+  deepDive: BriefDeepDiveSchema.nullish(),
+});
+
+function withoutNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutNulls);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, child]) => child !== null)
+      .map(([key, child]) => [key, withoutNulls(child)]),
+  );
+}
 
 function isRateLimitError(error: unknown): boolean {
   if (error instanceof APICallError) return error.statusCode === 429;
@@ -637,9 +687,9 @@ export async function generateBillBrief(args: {
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const { output, usage } = await generateText({
+      const { output: generatedOutput, usage } = await generateText({
         model: getStructuredLlm(),
-        output: Output.object({ schema: BillBriefSchema }),
+        output: Output.object({ schema: GeneratedBillBriefSchema }),
         prompt: buildBriefPrompt({
           title: args.title,
           billNumber: args.billNumber,
@@ -656,6 +706,7 @@ export async function generateBillBrief(args: {
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
+      const output = BillBriefSchema.parse(withoutNulls(generatedOutput));
       const quoteResult = verifyBriefQuotes(output, args.fullText);
       const briefWithReading = verifyBriefReading(
         quoteResult.brief,
