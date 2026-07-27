@@ -23,12 +23,22 @@ import type {
   BillBriefRecord,
   BriefLegalStatus,
 } from "@acme/validators";
-import { BILL_BRIEF_VERSION, BillBriefSchema } from "@acme/validators";
+import {
+  BILL_BRIEF_VERSION,
+  BillBriefSchema,
+  BriefChangeSchema,
+  BriefContextSchema,
+  BriefDeepDiveSchema,
+  BriefFactSchema,
+  BriefQuoteSchema,
+  BriefVisualSchema,
+} from "@acme/validators";
+import { z } from "zod";
 
 import type { DualLensSource } from "./text-generation.js";
 import { trackLLMUsage } from "../costs.js";
 import { createLogger } from "../log.js";
-import { getTextLlm } from "./provider.js";
+import { getStructuredLlm } from "./provider.js";
 import {
   AIRateLimitError,
   rateLimitHit,
@@ -49,6 +59,46 @@ const SOURCE_WINDOW = 24_000;
 
 /** Attempts at structuring before giving up (each is one LLM call). */
 const MAX_ATTEMPTS = 2;
+
+/**
+ * Structured-output providers commonly serialize absent optional fields as
+ * JSON null. Accept that transport convention here, then remove nulls and
+ * validate against the canonical storage schema before verification/caching.
+ */
+const GeneratedBriefQuoteSchema = BriefQuoteSchema.extend({
+  locator: z.string().trim().max(120).nullish(),
+});
+const GeneratedBillBriefSchema = BillBriefSchema.extend({
+  facts: z
+    .array(
+      BriefFactSchema.extend({
+        note: z.string().trim().max(90).nullish(),
+        quote: GeneratedBriefQuoteSchema.nullish(),
+      }),
+    )
+    .max(4),
+  changes: z
+    .array(
+      BriefChangeSchema.extend({
+        visual: BriefVisualSchema.nullish(),
+        quote: GeneratedBriefQuoteSchema.nullish(),
+      }),
+    )
+    .min(1)
+    .max(5),
+  whyNotBefore: BriefContextSchema.nullish(),
+  deepDive: BriefDeepDiveSchema.nullish(),
+});
+
+function withoutNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutNulls);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, child]) => child !== null)
+      .map(([key, child]) => [key, withoutNulls(child)]),
+  );
+}
 
 function isRateLimitError(error: unknown): boolean {
   if (error instanceof APICallError) return error.statusCode === 429;
@@ -563,16 +613,18 @@ Rules that decide whether this brief ships:
 - **Quotes are verbatim.** Every "quote" field must be an exact, unedited span copied character-for-character from the source text below. Do not paraphrase, splice, trim mid-word, or fix grammar. Quotes that do not appear in the source are removed automatically, so a paraphrase in quotation marks just loses you a citation.
 - **No invented figures.** A number, date, or dollar amount goes in "facts" only if the source states it. Fewer facts is correct; a plausible-looking invented figure is not.
 - **No manufactured symmetry.** If the text supports one consequence more strongly than another, say so. Use "mixed" or "unclear" for an affected group rather than balancing the list for its own sake.
+- **Use only the allowed change kinds.** Every change "kind" must be exactly one of: "creates", "repeals", "expands", "restricts", "requires", "waives", "funds", or "transfers". Map synonyms such as "sets" or "establishes" to "creates", and "restructures" to the closest allowed mechanism.
 - **Neutral vocabulary.** In your own voice, avoid words that carry a verdict — "common sense", "radical", "landmark", "reckless", "burdensome", "handout", "much-needed". Attribute goals with "aims to" or "supporters say" rather than asserting them.
 - **Plain language.** Aim for an 8th-grade reading level everywhere. Prefer familiar verbs and concrete descriptions: "Congress approves the money each year", not "subject to annual appropriations"; "several federal programs", not "discretionary federal grants"; "how long states can plan ahead", not "funding horizon". If a general reader might have to look a term up, either translate it or define it in "terms". Even when defined, explain its practical meaning where it appears.
 - **Emphasis is a brief-wide scan aid, not decoration.** Every reader-facing prose field should identify the one phrase a scanner most needs to retain. Use **double asterisks** around one short, concrete phrase in each affected-group "takeaway" and "effect", each "unknowns" item, each term definition, each reading recommendation, the deep-dive preview, and each historical summary or point. "before" and "after" may use up to two short spans; "hook" may use two or three. In long-form deep-dive paragraphs, use one or two only when useful. Never bold a whole sentence, a heading, a verdict, loaded language, or any verbatim source quote.
 - **Concise still means coherent.** Every visible field must make sense when read by itself. Never emit a noun phrase, dangling clause, missing subject, or sentence fragment merely to save words. Read each field independently before returning it.
+- **Length limits are hard.** Keep the hook at 600 characters or fewer; fact labels at 48, values at 60, and notes at 90; change titles at 70 and each before/after at 240; affected-group names at 80, takeaways at 240, and effects at 400; unknowns and term definitions at 220. Count conservatively, including **bold** markers. Prefer a shorter complete sentence over extra detail. Omit an optional field instead of returning an overlong value.
 
 Field notes:
 - "hook" is rendered under the heading "What this means for you" and replaces a grid of disconnected fact tiles. Write one coherent paragraph of 2–3 short sentences. First explain the most consequential practical changes; then state the most important limitation, condition, or uncertainty. Connect the ideas naturally instead of listing figures. Preserve legal status ("would" for proposals), and do not imply every reader is personally affected. Wrap two or three short, concrete phrases in **double asterisks** so a scanner can retain the key changes. Never bold a whole sentence, generic transition, verdict, or loaded language.
 - "changes" must contrast current law ("before") with the proposal ("after"). If the source does not establish current law, say that in "before" instead of guessing. Evaluate every change independently for a direct supporting quote; when the official text contains one, include it so every supported card has its own route back to the text. Never invent or stretch a quote merely to make the cards look consistent.
 - Each affected-group "takeaway" is the card's always-visible summary. Write one complete standalone sentence that names the group or a clear pronoun and states what would happen. For example: "States would get a **longer window to plan multi-year projects**." Do not return fragments such as "a longer funding horizon" or "depends on final rules." Put qualifications and mechanism detail in "effect".
-- "visual" is optional curated artwork. Use "infrastructure-repair" only for physical road or bridge work, "public-transit" only for rail or bus expansion, "data-privacy" only for company collection or use of personal data, and "data-control" only for a person's right to access or delete personal data. Evaluate each change independently and use different relevant visuals across cards when available; never repeat or force an image merely for visual parity.
+- "visual" is optional curated artwork. Use "infrastructure-repair" only for physical road or bridge work, "public-transit" only for rail or bus expansion, "data-privacy" only for company collection or use of personal data, and "data-control" only for a person's right to access or delete personal data. Evaluate each change independently and use different relevant visuals across cards when available; never repeat or force an image merely for visual parity. If none applies, omit the property; providers that cannot omit optional JSON fields may return null.
 - "unknowns" is required. Name what the text leaves open — undefined terms, delegated decisions, unfunded pieces, effects the source does not establish. Bold the exact unresolved choice or consequence, not a generic phrase such as "the text does not say."
 - "terms" appears near the top of the article. Include only essential vocabulary that changes how the reader understands the mechanism, and define it in one short everyday sentence. Bold the practical meaning, not the term again.
 - "whyNotBefore" is an optional expandable answer to "Why wasn't this implemented before?" Use it only when the research documents a real historical answer. Explain earlier attempts, disagreements, legal or budget constraints, implementation tradeoffs, or changed circumstances without speculating about motives. Bold only the documented barrier or tradeoff a scanner should retain. Every point needs at least one citation, the section needs at least two different opened sources overall, and every citation URL must exactly match a verified source below.
@@ -633,12 +685,15 @@ export async function generateBillBrief(args: {
   let loadedPhrases: string[] | undefined;
   let jargonPhrases: string[] | undefined;
   let missingEmphasis: string[] | undefined;
+  let verifiedFallback:
+    | Omit<BillBriefRecord, "generatedAt" | "modelVersion">
+    | undefined;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const { output, usage } = await generateText({
-        model: getTextLlm(),
-        output: Output.object({ schema: BillBriefSchema }),
+      const { output: generatedOutput, usage } = await generateText({
+        model: getStructuredLlm(),
+        output: Output.object({ schema: GeneratedBillBriefSchema }),
         prompt: buildBriefPrompt({
           title: args.title,
           billNumber: args.billNumber,
@@ -655,6 +710,7 @@ export async function generateBillBrief(args: {
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
+      const output = BillBriefSchema.parse(withoutNulls(generatedOutput));
       const quoteResult = verifyBriefQuotes(output, args.fullText);
       const briefWithReading = verifyBriefReading(
         quoteResult.brief,
@@ -681,6 +737,12 @@ export async function generateBillBrief(args: {
         (loaded.length > 0 || jargon.length > 0 || missing.length > 0) &&
         attempt < MAX_ATTEMPTS
       ) {
+        verifiedFallback = {
+          ...brief,
+          version: BILL_BRIEF_VERSION,
+          legalStatus,
+          verifiedQuotes: verified,
+        };
         logger.warn(
           `Brief for ${args.billNumber}: reader-facing copy needs revision (${[...loaded, ...jargon, ...missing].join(", ")}) — regenerating`,
         );
@@ -723,7 +785,15 @@ export async function generateBillBrief(args: {
         `Brief structuring failed on attempt ${attempt} for ${args.billNumber}`,
         error,
       );
-      if (attempt === MAX_ATTEMPTS) return null;
+      if (attempt === MAX_ATTEMPTS) {
+        if (verifiedFallback) {
+          logger.warn(
+            `Brief for ${args.billNumber}: polishing retry failed; keeping the verified first draft`,
+          );
+          return verifiedFallback;
+        }
+        return null;
+      }
     }
   }
   return null;
