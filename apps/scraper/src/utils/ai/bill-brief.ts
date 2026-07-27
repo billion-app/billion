@@ -28,7 +28,7 @@ import { BILL_BRIEF_VERSION, BillBriefSchema } from "@acme/validators";
 import type { DualLensSource } from "./text-generation.js";
 import { trackLLMUsage } from "../costs.js";
 import { createLogger } from "../log.js";
-import { getTextLlm } from "./provider.js";
+import { getStructuredLlm } from "./provider.js";
 import {
   AIRateLimitError,
   rateLimitHit,
@@ -637,7 +637,7 @@ export async function generateBillBrief(args: {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const { output, usage } = await generateText({
-        model: getTextLlm(),
+        model: getStructuredLlm(),
         output: Output.object({ schema: BillBriefSchema }),
         prompt: buildBriefPrompt({
           title: args.title,
