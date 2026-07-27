@@ -103,7 +103,7 @@ export const BriefFactSchema = z.object({
     .string()
     .trim()
     .min(1)
-    .max(28)
+    .max(60)
     .describe(
       'The figure itself, formatted for a tile — e.g. "$1.2B", "Jan 1, 2027", "38 states".',
     ),
@@ -161,7 +161,7 @@ export const BriefChangeSchema = z.object({
     .describe(
       "What would happen under this measure, in concrete everyday language. Explain who acts, what they do, and what changes; avoid unexplained terms such as authorization, appropriation, discretionary grant, allocation formula, and funding horizon. Preserve legal status. At most two short **bold** spans may mark the phrases a scanner should retain.",
     ),
-  visual: BriefVisualSchema.optional().describe(
+  visual: BriefVisualSchema.nullable().optional().describe(
     "Optional curated editorial visual. Use infrastructure-repair for physical road or bridge work, public-transit for rail or bus expansion, data-privacy for company collection or use of personal data, data-control for a person's right to access or delete personal data, and otherwise omit.",
   ),
   quote: BriefQuoteSchema.optional().describe(
@@ -179,7 +179,7 @@ export const BriefAffectedSchema = z.object({
     .string()
     .trim()
     .min(3)
-    .max(52)
+    .max(80)
     .describe(
       'A specific group — "Medicare Part D enrollees", not "the American people".',
     ),
@@ -187,7 +187,7 @@ export const BriefAffectedSchema = z.object({
     .string()
     .trim()
     .min(24)
-    .max(140)
+    .max(240)
     .describe(
       "A complete, standalone sentence summarizing the concrete effect for this group. It must name the subject and action, make sense without surrounding text, and never be a noun phrase or dangling clause. Mark one short, concrete phrase with **double asterisks**.",
     ),
@@ -195,7 +195,7 @@ export const BriefAffectedSchema = z.object({
     .string()
     .trim()
     .min(12)
-    .max(220)
+    .max(400)
     .describe(
       "Context explaining what concretely changes for this group, in one or two coherent sentences. One short **bold** span may mark the concrete consequence a scanner should retain, but the UI does not use that span as a headline.",
     ),
@@ -318,7 +318,7 @@ export const BillBriefSchema = z.object({
     .string()
     .trim()
     .min(60)
-    .max(420)
+    .max(600)
     .describe(
       "A coherent 2–3 sentence 'What this means for you' paragraph. Explain the bill's most consequential concrete changes and the most important limitation or uncertainty in plain language. It must stand alone, not read like a list of facts, and preserve proposed-versus-enacted status. Mark two or three short, concrete phrases with **double asterisks** so scanners can retain the key changes; never bold a whole sentence.",
     ),
