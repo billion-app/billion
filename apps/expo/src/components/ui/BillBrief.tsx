@@ -18,11 +18,10 @@
  *
  * Two brand constraints shape the visual language here:
  *
- *  - Nothing color-codes a verdict. A group that "loses" access is drawn with
- *    the same neutral treatment as one that "gains" it — direction is carried
- *    by an arrow and a word, never by green/red. Coloring outcomes would read
- *    as an editorial position, and red-vs-green sits one step from
- *    red-vs-blue.
+ *  - Outcome color is a navigation aid, not a verdict. Gains, losses, mixed
+ *    effects, and uncertainty each use a distinct nonpartisan hue, icon, and
+ *    written label. Color is never the only signal, and the palette avoids a
+ *    red-vs-green or red-vs-blue binary.
  *  - Every claim keeps a path back to the source. Change cards expose the
  *    verbatim provision that backs them, and the block ends by pointing at the
  *    official text rather than presenting itself as the last word.
@@ -153,19 +152,14 @@ const CHANGE_VISUALS = {
   },
 } as const;
 
-/**
- * Direction glyphs are all one neutral color on purpose — see the file header.
- * The arrow encodes flow (toward or away from the group); the label spells it
- * out for anyone who reads the arrow differently.
- */
 const DIRECTION: Record<
   BillBriefData["affected"][number]["direction"],
-  { icon: IconName; label: string }
+  { icon: IconName; label: string; color: string }
 > = {
-  gains: { icon: "arrowUp", label: "Gains" },
-  loses: { icon: "arrowDown", label: "Loses" },
-  mixed: { icon: "minus", label: "Mixed" },
-  unclear: { icon: "help", label: "Unclear" },
+  gains: { icon: "arrowUp", label: "Gains", color: "#55D6BE" },
+  loses: { icon: "arrowDown", label: "Loses", color: "#FF9575" },
+  mixed: { icon: "minus", label: "Mixed", color: "#B8A1FF" },
+  unclear: { icon: "help", label: "Unclear", color: "#F4C95D" },
 };
 
 /* ---------- Inline emphasis — useful phrases, not whole paragraphs ---------- */
@@ -513,32 +507,51 @@ function Changes({
 }
 
 /* ---------- Affected — who this lands on ---------- */
-function Affected({
-  affected,
-  accent,
-}: {
-  affected: BillBriefData["affected"];
-  accent: string;
-}) {
+function Affected({ affected }: { affected: BillBriefData["affected"] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   return (
     <View style={s.affectedList} testID="brief-affected">
       {affected.map((a, i) => {
         const d = DIRECTION[a.direction];
+        const outcomeColor = d.color;
         const takeaway = a.takeaway;
         const open = openIndex === i;
         return (
-          <View key={i} style={s.affectedRow}>
+          <View
+            key={i}
+            style={[
+              s.affectedRow,
+              {
+                backgroundColor: `${outcomeColor}0D`,
+                borderColor: `${outcomeColor}4A`,
+                borderLeftColor: outcomeColor,
+              },
+            ]}
+          >
             <View style={s.affectedBody}>
               <View style={s.affectedHead}>
                 <View
-                  style={[s.affectedIcon, { backgroundColor: `${accent}28` }]}
+                  style={[
+                    s.affectedIcon,
+                    {
+                      backgroundColor: `${outcomeColor}24`,
+                      borderColor: `${outcomeColor}4A`,
+                    },
+                  ]}
                 >
-                  <Icon name={d.icon} size={14} color={accent} />
+                  <Icon name={d.icon} size={14} color={outcomeColor} />
                 </View>
                 <Text style={s.affectedGroup}>{a.group}</Text>
-                <View style={[s.directionChip, { borderColor: `${accent}55` }]}>
-                  <Text style={[s.affectedDirection, { color: accent }]}>
+                <View
+                  style={[
+                    s.directionChip,
+                    {
+                      backgroundColor: `${outcomeColor}18`,
+                      borderColor: `${outcomeColor}70`,
+                    },
+                  ]}
+                >
+                  <Text style={[s.affectedDirection, { color: outcomeColor }]}>
                     {d.label}
                   </Text>
                 </View>
@@ -555,11 +568,11 @@ function Affected({
                     accessibilityRole="button"
                     accessibilityState={{ expanded: open }}
                   >
-                    <Text style={[s.affectedMoreText, { color: accent }]}>
+                    <Text style={[s.affectedMoreText, { color: outcomeColor }]}>
                       {open ? "Hide context" : "Why this matters"}
                     </Text>
                     <View style={open ? s.chevFlip : undefined}>
-                      <Icon name="chevD" size={13} color={accent} />
+                      <Icon name="chevD" size={13} color={outcomeColor} />
                     </View>
                   </TouchableOpacity>
                   {open ? (
@@ -828,7 +841,7 @@ export function BillBrief({
       />
 
       <BlockTitle>Who it lands on</BlockTitle>
-      <Affected affected={data.affected} accent={accent} />
+      <Affected affected={data.affected} />
 
       <Unknowns unknowns={data.unknowns} accent={accent} />
 
@@ -1182,6 +1195,7 @@ const s = StyleSheet.create({
   affectedIcon: {
     width: 28,
     height: 28,
+    borderWidth: 1,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
