@@ -73,7 +73,7 @@ export const BriefQuoteSchema = z.object({
     .string()
     .trim()
     .min(20)
-    .max(400)
+    .max(1200)
     .describe(
       "A verbatim, unedited span copied from the source text. Never paraphrase, reorder, or fix grammar inside a quote.",
     ),
@@ -81,7 +81,7 @@ export const BriefQuoteSchema = z.object({
     .string()
     .trim()
     .max(120)
-    .optional()
+    .nullish()
     .describe(
       'Where the quote appears, as written in the document — e.g. "Sec. 4(b)(2)" or "Title II". Omit if the source has no usable label.',
     ),
@@ -111,9 +111,9 @@ export const BriefFactSchema = z.object({
     .string()
     .trim()
     .max(90)
-    .optional()
+    .nullish()
     .describe("One short clause of context. Omit rather than padding."),
-  quote: BriefQuoteSchema.optional().describe(
+  quote: BriefQuoteSchema.nullish().describe(
     "The source span the figure was read from.",
   ),
 });
@@ -164,7 +164,7 @@ export const BriefChangeSchema = z.object({
   visual: BriefVisualSchema.nullable().optional().describe(
     "Optional curated editorial visual. Use infrastructure-repair for physical road or bridge work, public-transit for rail or bus expansion, data-privacy for company collection or use of personal data, data-control for a person's right to access or delete personal data, and otherwise omit.",
   ),
-  quote: BriefQuoteSchema.optional().describe(
+  quote: BriefQuoteSchema.nullish().describe(
     "The exact provision this change is drawn from. Include it whenever the source contains a direct supporting span; evaluate every change rather than citing only the first card.",
   ),
 });
@@ -360,10 +360,10 @@ export const BillBriefSchema = z.object({
     .array(BriefTermSchema)
     .max(5)
     .describe("Jargon a general reader would stumble on."),
-  whyNotBefore: BriefContextSchema.optional().describe(
+  whyNotBefore: BriefContextSchema.nullish().describe(
     "Optional cited historical context answering why this policy was not already implemented. Use only the supplied opened research sources; omit it when the research does not establish a clear answer.",
   ),
-  deepDive: BriefDeepDiveSchema.optional().describe(
+  deepDive: BriefDeepDiveSchema.nullish().describe(
     "One optional Billion explainer for a reader who wants more depth. Focus on the most important unresolved concept or consequence instead of repeating the entire brief.",
   ),
   reading: z
