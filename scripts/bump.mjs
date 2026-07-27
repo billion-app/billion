@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Usage: node scripts/bump.mjs [patch|minor|major]
-// Bumps version in apps/expo/app.config.json, commits, and tags.
+// Bumps version in apps/expo/app.config.base.json, commits, and tags.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -9,7 +9,7 @@ import { execSync } from "node:child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
-const CONFIG_PATH = resolve(ROOT, "apps/expo/app.config.json");
+const CONFIG_PATH = resolve(ROOT, "apps/expo/app.config.base.json");
 
 const BUMP_TYPES = ["patch", "minor", "major"];
 const bumpType = process.argv[2] ?? "patch";
@@ -23,7 +23,7 @@ const config = JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
 const current = config.version;
 
 if (!/^\d+\.\d+\.\d+$/.test(current)) {
-  console.error(`Error: version "${current}" in app.config.json is not valid semver (expected X.Y.Z).`);
+  console.error(`Error: version "${current}" in app.config.base.json is not valid semver (expected X.Y.Z).`);
   process.exit(1);
 }
 
@@ -37,7 +37,7 @@ config.version = next;
 writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
 console.log(`Bumped ${current} → ${next}`);
 
-execSync(`git add apps/expo/app.config.json`, { cwd: ROOT, stdio: "inherit" });
+execSync(`git add apps/expo/app.config.base.json`, { cwd: ROOT, stdio: "inherit" });
 execSync(`git commit -m "chore: bump version to ${next}"`, { cwd: ROOT, stdio: "inherit" });
 execSync(`git tag v${next}`, { cwd: ROOT, stdio: "inherit" });
 console.log(`Tagged v${next}`);
