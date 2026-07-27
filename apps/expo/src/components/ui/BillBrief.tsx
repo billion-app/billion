@@ -162,13 +162,15 @@ const DIRECTION: Record<
 function EmphasizedText({
   children,
   style,
+  testID,
 }: {
   children: string;
   style?: StyleProp<TextStyle>;
+  testID?: string;
 }) {
   const parts = children.split(/(\*\*[^*]+\*\*)/g);
   return (
-    <Text style={style}>
+    <Text style={style} testID={testID}>
       {parts.map((part, index) =>
         part.startsWith("**") && part.endsWith("**") ? (
           <Text key={index} style={s.inlineStrong}>
@@ -208,9 +210,9 @@ function Hook({
           </Text>
         </View>
       </View>
-      <Text style={s.summaryText} testID="brief-hook">
+      <EmphasizedText style={s.summaryText} testID="brief-hook">
         {text}
-      </Text>
+      </EmphasizedText>
     </View>
   );
 }

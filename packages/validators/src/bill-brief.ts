@@ -315,7 +315,7 @@ export const BillBriefSchema = z.object({
     .min(60)
     .max(420)
     .describe(
-      "A coherent 2–3 sentence 'What this means for you' paragraph. Explain the bill's most consequential concrete changes and the most important limitation or uncertainty in plain language. It must stand alone, not read like a list of facts, and must preserve proposed-versus-enacted status.",
+      "A coherent 2–3 sentence 'What this means for you' paragraph. Explain the bill's most consequential concrete changes and the most important limitation or uncertainty in plain language. It must stand alone, not read like a list of facts, and preserve proposed-versus-enacted status. Mark two or three short, concrete phrases with **double asterisks** so scanners can retain the key changes; never bold a whole sentence.",
     ),
   facts: z
     .array(BriefFactSchema)
