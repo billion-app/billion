@@ -7,7 +7,11 @@ import {
   CourtCase,
   GovernmentContent,
 } from "@acme/db/schema";
-import { isCurrentBillBrief, isCurrentCourtCaseBrief } from "@acme/validators";
+import {
+  isCurrentBillBrief,
+  isCurrentCourtCaseBrief,
+  isCurrentGovernmentActionBrief,
+} from "@acme/validators";
 
 import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
@@ -17,6 +21,11 @@ import type {
 } from "../types.js";
 import { generateBillBrief } from "../ai/bill-brief.js";
 import { generateCourtCaseBrief } from "../ai/court-case-brief.js";
+import {
+  generateGovernmentActionBrief,
+  isCeremonialGovernmentContent,
+  isGovernmentActionDocumentType,
+} from "../ai/government-action-brief.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
@@ -130,6 +139,9 @@ export async function upsertContent(
   const title = input.data.title;
   const url = input.data.url;
   const sourceDescription = input.data.description;
+  const ceremonialGovernmentContent =
+    input.type === "government_content" &&
+    isCeremonialGovernmentContent(title, input.data.type);
 
   const hasUsableText = isUsableSourceText(fullText);
   if (!hasUsableText && fullText) {
@@ -184,11 +196,18 @@ export async function upsertContent(
     );
   }
 
+  if (ceremonialGovernmentContent) {
+    shouldGenerateSummary = false;
+    shouldGenerateArticle = false;
+    shouldGenerateImage = false;
+  }
+
   // New items beyond the run's daily budget skip AI enrichment. Bills that
   // need a generated description are deferred before insertion; other content
   // can persist raw and look like "needs backfill" work next run.
   const budgetExhausted =
     progressKind === "new" &&
+    !ceremonialGovernmentContent &&
     options?.newItemLimiter !== undefined &&
     !options.newItemLimiter.tryConsume();
   if (budgetExhausted) {
@@ -424,7 +443,7 @@ export async function upsertContent(
     }
 
     // Generate and cache dual-lens perspectives
-    if (hasUsableText && result?.id) {
+    if (hasUsableText && result?.id && !ceremonialGovernmentContent) {
       await upsertContentLens(
         result.id,
         input.type,
@@ -459,6 +478,21 @@ export async function upsertContent(
         status: input.data.status,
         priorArticle: aiGeneratedArticle,
       });
+    } else if (
+      hasUsableText &&
+      result?.id &&
+      input.type === "government_content" &&
+      isGovernmentActionDocumentType(input.data.type)
+    ) {
+      await upsertGovernmentActionBrief({
+        contentId: result.id,
+        contentHash: newContentHash,
+        title,
+        documentType: input.data.type,
+        description: input.data.description,
+        fullText: fullText!,
+        priorArticle: aiGeneratedArticle,
+      });
     }
   } catch (error) {
     if (error instanceof AIRateLimitError) {
@@ -470,7 +504,7 @@ export async function upsertContent(
     }
   }
 
-  if (fullText && !budgetExhausted) {
+  if (fullText && !budgetExhausted && !ceremonialGovernmentContent) {
     try {
       const videoSource =
         input.type === "bill"
@@ -741,5 +775,78 @@ export async function upsertCourtCaseBrief(args: {
     });
 
   logger.success(`Cached court brief for ${args.caseNumber}`);
+  return true;
+}
+
+/** Generate or refresh a cached executive-action or ceremonial brief. */
+export async function upsertGovernmentActionBrief(args: {
+  contentId: string;
+  contentHash: string;
+  title: string;
+  documentType: string;
+  description?: string | null;
+  fullText: string;
+  priorArticle?: string | null;
+}): Promise<boolean> {
+  const [existing] = await db
+    .select({
+      contentHash: ContentBrief.contentHash,
+      brief: ContentBrief.brief,
+    })
+    .from(ContentBrief)
+    .where(
+      and(
+        eq(ContentBrief.contentId, args.contentId),
+        eq(ContentBrief.contentType, "government_content"),
+      ),
+    )
+    .limit(1);
+
+  if (
+    !forceAIRegeneration &&
+    existing?.contentHash === args.contentHash &&
+    isCurrentGovernmentActionBrief(existing.brief)
+  ) {
+    logger.debug(`Government brief already cached for "${args.title}"`);
+    return true;
+  }
+
+  const generated = await generateGovernmentActionBrief(args);
+  if (!generated) {
+    logger.warn(
+      `Government brief generation returned null for "${args.title}"`,
+    );
+    return false;
+  }
+
+  const modelVersion =
+    generated.presentation === "ceremonial"
+      ? "source-only:ceremonial-v1"
+      : `${getTextModelVersion()}:government-action-v1`;
+  const brief = {
+    ...generated,
+    generatedAt: new Date().toISOString(),
+    modelVersion,
+  };
+  await db
+    .insert(ContentBrief)
+    .values({
+      contentId: args.contentId,
+      contentType: "government_content",
+      contentHash: args.contentHash,
+      brief,
+      modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: [ContentBrief.contentType, ContentBrief.contentId],
+      set: {
+        contentHash: args.contentHash,
+        brief,
+        modelVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+  logger.success(`Cached government brief for "${args.title}"`);
   return true;
 }

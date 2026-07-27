@@ -9,8 +9,8 @@ import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 import { Icon } from "./Icon";
 
 export interface NarrativeBriefData {
-  kind: "court_case";
-  presentation: "court_case";
+  kind: "court_case" | "government_action";
+  presentation: "court_case" | "executive_action" | "ceremonial";
   badge: string;
   hook: string;
   facts: {
@@ -69,15 +69,27 @@ export function NarrativeBrief({
   onViewSource?: (quote: BriefQuote) => void;
 }) {
   const [termsOpen, setTermsOpen] = useState(false);
+  const heading =
+    data.presentation === "court_case"
+      ? "Why this case matters"
+      : data.presentation === "ceremonial"
+        ? "What this proclamation means"
+        : "What this action does";
+  const icon =
+    data.presentation === "court_case"
+      ? "scale"
+      : data.presentation === "ceremonial"
+        ? "flag"
+        : "doc";
 
   return (
     <View>
       <View style={[s.hook, { borderLeftColor: accent }]}>
         <View style={s.hookHead}>
           <View style={[s.iconTile, { backgroundColor: `${accent}22` }]}>
-            <Icon name="scale" size={20} color={accent} />
+            <Icon name={icon} size={20} color={accent} />
           </View>
-          <Text style={s.hookTitle}>Why this case matters</Text>
+          <Text style={s.hookTitle}>{heading}</Text>
           <View style={[s.badge, { borderColor: `${accent}88` }]}>
             <Text style={[s.badgeText, { color: accent }]}>{data.badge}</Text>
           </View>
@@ -172,7 +184,9 @@ export function NarrativeBrief({
         </View>
       ) : null}
 
-      {dualLens ? <View style={s.lens}>{dualLens}</View> : null}
+      {data.presentation !== "ceremonial" && dualLens ? (
+        <View style={s.lens}>{dualLens}</View>
+      ) : null}
     </View>
   );
 }

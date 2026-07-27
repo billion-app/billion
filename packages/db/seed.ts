@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { BillBriefRecord, CourtCaseBriefRecord } from "@acme/validators";
+import type {
+  BillBriefRecord,
+  CourtCaseBriefRecord,
+  GovernmentActionBriefRecord,
+} from "@acme/validators";
 
 import { clampBillDescription } from "./src/bill-description";
 import { db } from "./src/client";
@@ -331,6 +335,141 @@ The administration wants lower rates to boost the housing market and economic gr
   contentHash: hash(g.title + (g.fullText ?? "")),
   versions: [],
 }));
+
+const governmentBriefs: (Omit<
+  GovernmentActionBriefRecord,
+  "generatedAt" | "modelVersion"
+> | null)[] = [
+  {
+    kind: "government_action",
+    presentation: "executive_action",
+    version: 1,
+    verifiedQuotes: 0,
+    badge: "EXECUTIVE ORDER",
+    hook: "The order tells federal agencies to strengthen how they protect government systems and respond to cyberattacks. It would require **new security practices inside federal agencies** and could add **incident-reporting duties through agency rules and contracts**.",
+    facts: [
+      { label: "Document", value: "Executive order" },
+      { label: "Primary actors", value: "Federal agencies" },
+    ],
+    terms: [
+      {
+        term: "Zero-trust security",
+        plain:
+          "A security model that **checks each user and device instead of trusting them automatically**.",
+      },
+    ],
+    sections: [
+      {
+        title: "What the President directed",
+        items: [
+          {
+            text: "Federal agencies must **change how they verify access and share cyberattack information** across the government.",
+          },
+        ],
+      },
+      {
+        title: "How it takes effect",
+        items: [
+          {
+            text: "Agency leaders would carry out the order through **technology changes, federal contracts, and follow-up rules**.",
+          },
+        ],
+      },
+      {
+        title: "What it does not do",
+        items: [
+          {
+            text: "The order does **not itself pass a new cybersecurity law or guarantee new funding from Congress**.",
+          },
+        ],
+      },
+    ],
+    unknowns: [
+      "The excerpt does not establish **the final cost or exact reporting rule for every private operator**.",
+    ],
+  },
+  {
+    kind: "government_action",
+    presentation: "executive_action",
+    version: 1,
+    verifiedQuotes: 0,
+    badge: "MEMORANDUM",
+    hook: "The memorandum directs the Education Department to improve the system federal student-loan borrowers use for billing, repayment, and support. The practical changes depend on **what the department builds and requires from servicers**, rather than taking effect for borrowers immediately.",
+    facts: [
+      { label: "Document", value: "Memorandum" },
+      { label: "Lead agency", value: "Education Dept." },
+    ],
+    terms: [
+      {
+        term: "Loan servicer",
+        plain:
+          "A company hired to **send bills, process payments, and answer borrower questions** for federal loans.",
+      },
+    ],
+    sections: [
+      {
+        title: "What the President directed",
+        items: [
+          {
+            text: "The Education Department must **redesign federal loan servicing and improve how borrowers get help**.",
+          },
+        ],
+      },
+      {
+        title: "Who it reaches",
+        items: [
+          {
+            text: "Borrowers would experience changes only after the department and its contractors **put new systems and service standards into practice**.",
+          },
+        ],
+      },
+      {
+        title: "What it does not do",
+        items: [
+          {
+            text: "The memorandum does **not cancel student debt or change each borrower's loan balance by itself**.",
+          },
+        ],
+      },
+    ],
+    unknowns: [
+      "The source excerpt does not provide **a launch date for the new borrower experience**.",
+    ],
+  },
+  {
+    kind: "government_action",
+    presentation: "ceremonial",
+    version: 1,
+    verifiedQuotes: 0,
+    badge: "PROCLAMATION",
+    hook: "The proclamation recognizes May 2025 as National Wildfire Preparedness Month and encourages communities to prepare. This is **a ceremonial recognition and public call to awareness**; it does not by itself create a new law, spending program, or public requirement.",
+    facts: [
+      { label: "Document", value: "Proclamation" },
+      { label: "Legal effect", value: "No new mandate" },
+    ],
+    terms: [],
+    sections: [
+      {
+        title: "What it recognizes",
+        items: [
+          {
+            text: "The proclamation uses the presidency's public platform to **focus attention on wildfire preparation during May**.",
+          },
+        ],
+      },
+      {
+        title: "What it does not do",
+        items: [
+          {
+            text: "The designation does **not appropriate money, rewrite building codes, or require anyone to participate**.",
+          },
+        ],
+      },
+    ],
+    unknowns: [],
+  },
+  null,
+];
 
 const courtCases = [
   {
@@ -1068,6 +1207,65 @@ async function seed() {
       contentHash: GovernmentContent.contentHash,
     });
   console.log(`  ${insertedGov.length} government content items inserted`);
+
+  const seededGovernmentContent = await db
+    .select({
+      id: GovernmentContent.id,
+      url: GovernmentContent.url,
+      contentHash: GovernmentContent.contentHash,
+    })
+    .from(GovernmentContent)
+    .where(
+      inArray(
+        GovernmentContent.url,
+        govContent.map((content) => content.url),
+      ),
+    );
+
+  console.log("Inserting government action briefs...");
+  const governmentBriefRecords = seededGovernmentContent.flatMap((content) => {
+    const fixtureIndex = govContent.findIndex(
+      (fixture) => fixture.url === content.url,
+    );
+    const brief = governmentBriefs[fixtureIndex];
+    return brief
+      ? [
+          {
+            contentType: "government_content" as const,
+            contentId: content.id,
+            contentHash: content.contentHash,
+            brief: {
+              ...brief,
+              generatedAt: now.toISOString(),
+              modelVersion:
+                brief.presentation === "ceremonial"
+                  ? "source-only:ceremonial-v1"
+                  : "seed",
+            },
+            modelVersion:
+              brief.presentation === "ceremonial"
+                ? "source-only:ceremonial-v1"
+                : "seed",
+          },
+        ]
+      : [];
+  });
+  const insertedGovernmentBriefs = await db
+    .insert(ContentBrief)
+    .values(governmentBriefRecords)
+    .onConflictDoUpdate({
+      target: [ContentBrief.contentType, ContentBrief.contentId],
+      set: {
+        contentHash: sql`excluded.content_hash`,
+        brief: sql`excluded.brief`,
+        modelVersion: sql`excluded.model_version`,
+        updatedAt: now,
+      },
+    })
+    .returning({ id: ContentBrief.id });
+  console.log(
+    `  ${insertedGovernmentBriefs.length} government briefs inserted or refreshed`,
+  );
 
   console.log("Inserting court cases...");
   const insertedCases = await db
