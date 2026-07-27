@@ -9,6 +9,7 @@ import {
 } from "./bill-brief";
 
 export const COURT_CASE_BRIEF_VERSION = 1;
+export const GOVERNMENT_ACTION_BRIEF_VERSION = 1;
 
 export const NarrativeBriefItemSchema = z.object({
   text: z
@@ -59,6 +60,32 @@ export const CourtCaseBriefSchema = z.object({
 });
 export type CourtCaseBrief = z.infer<typeof CourtCaseBriefSchema>;
 
+// Executive actions use the same display primitives but receive distinct
+// editorial instructions; they are never forced into court terminology.
+export const GovernmentActionBriefSchema = CourtCaseBriefSchema.extend({
+  hook: z
+    .string()
+    .trim()
+    .min(60)
+    .max(420)
+    .describe(
+      "A coherent 2–3 sentence explanation of what the presidential action directs, who must carry it out, and its most important limitation. Bold two or three short key phrases.",
+    ),
+  unknowns: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(20)
+        .max(240)
+        .describe(
+          "A complete sentence explaining an implementation detail the official action does not settle. Bold one short key phrase.",
+        ),
+    )
+    .max(3),
+});
+export type GovernmentActionBrief = z.infer<typeof GovernmentActionBriefSchema>;
+
 export const CourtCaseBriefRecordSchema = CourtCaseBriefSchema.extend({
   kind: z.literal("court_case"),
   presentation: z.literal("court_case"),
@@ -69,9 +96,23 @@ export const CourtCaseBriefRecordSchema = CourtCaseBriefSchema.extend({
 });
 export type CourtCaseBriefRecord = z.infer<typeof CourtCaseBriefRecordSchema>;
 
+export const GovernmentActionBriefRecordSchema =
+  GovernmentActionBriefSchema.extend({
+    kind: z.literal("government_action"),
+    presentation: z.enum(["executive_action", "ceremonial"]),
+    version: z.literal(GOVERNMENT_ACTION_BRIEF_VERSION),
+    verifiedQuotes: z.number().int().min(0),
+    generatedAt: z.string(),
+    modelVersion: z.string(),
+  });
+export type GovernmentActionBriefRecord = z.infer<
+  typeof GovernmentActionBriefRecordSchema
+>;
+
 export const StoredContentBriefRecordSchema = z.union([
   BillBriefRecordSchema,
   CourtCaseBriefRecordSchema,
+  GovernmentActionBriefRecordSchema,
 ]);
 export type StoredContentBriefRecord = z.infer<
   typeof StoredContentBriefRecordSchema
@@ -79,7 +120,8 @@ export type StoredContentBriefRecord = z.infer<
 
 export type ContentBriefRecord =
   | ({ kind: "bill" } & z.infer<typeof BillBriefRecordSchema>)
-  | CourtCaseBriefRecord;
+  | CourtCaseBriefRecord
+  | GovernmentActionBriefRecord;
 
 export function parseContentBriefRecord(
   value: unknown,
@@ -88,9 +130,16 @@ export function parseContentBriefRecord(
   if (bill) return { kind: "bill", ...bill };
 
   const courtCase = CourtCaseBriefRecordSchema.safeParse(value);
-  return courtCase.success ? courtCase.data : null;
+  if (courtCase.success) return courtCase.data;
+
+  const governmentAction = GovernmentActionBriefRecordSchema.safeParse(value);
+  return governmentAction.success ? governmentAction.data : null;
 }
 
 export function isCurrentCourtCaseBrief(value: unknown): boolean {
   return CourtCaseBriefRecordSchema.safeParse(value).success;
+}
+
+export function isCurrentGovernmentActionBrief(value: unknown): boolean {
+  return GovernmentActionBriefRecordSchema.safeParse(value).success;
 }

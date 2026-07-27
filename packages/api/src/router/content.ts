@@ -650,6 +650,7 @@ export const contentRouter = {
             originalContent: c.fullText ?? "Full text not available",
             url: c.url,
             lensData: await getLensData(c.id, "government_content"),
+            brief: await getBrief(c.id, "government_content"),
           },
         ]);
         if (!result) {

@@ -1,6 +1,6 @@
 /**
- * Backfill structured briefs for bills and court cases that predate the brief
- * pipeline, or whose brief is stale relative to the source contentHash.
+ * Backfill structured briefs for bills, court cases, and government actions
+ * that predate the brief pipeline or have stale source content.
  *
  * Mirrors `retroactive-lenses.ts`. Existing long-form analysis is passed to
  * the content-specific generator as context, while quotes are still verified
@@ -9,14 +9,20 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { and, desc, eq, isNotNull, isNull, ne, or } from "@acme/db";
+import { and, desc, eq, inArray, isNotNull, isNull, ne, or } from "@acme/db";
 import { db } from "@acme/db/client";
-import { Bill, ContentBrief, CourtCase } from "@acme/db/schema";
+import {
+  Bill,
+  ContentBrief,
+  CourtCase,
+  GovernmentContent,
+} from "@acme/db/schema";
 
 import { AIRateLimitError } from "./utils/ai/text-generation.js";
 import {
   upsertBillBrief,
   upsertCourtCaseBrief,
+  upsertGovernmentActionBrief,
 } from "./utils/db/operations.js";
 import { createLogger } from "./utils/log.js";
 
@@ -46,7 +52,27 @@ interface CourtBriefCandidate {
   aiGeneratedArticle: string | null;
 }
 
-type BriefCandidate = BillBriefCandidate | CourtBriefCandidate;
+interface GovernmentBriefCandidate {
+  type: "government_content";
+  id: string;
+  contentHash: string;
+  title: string;
+  documentType: string;
+  description: string | null;
+  fullText: string;
+  aiGeneratedArticle: string | null;
+}
+
+type BriefCandidate =
+  | BillBriefCandidate
+  | CourtBriefCandidate
+  | GovernmentBriefCandidate;
+
+function candidateIdentifier(candidate: BriefCandidate): string {
+  if (candidate.type === "bill") return candidate.billNumber;
+  if (candidate.type === "court_case") return candidate.caseNumber;
+  return candidate.documentType;
+}
 
 async function findBills(limit: number): Promise<BillBriefCandidate[]> {
   const rows = await db
@@ -126,6 +152,58 @@ async function findCourtCases(limit: number): Promise<CourtBriefCandidate[]> {
   );
 }
 
+async function findGovernmentContent(
+  limit: number,
+): Promise<GovernmentBriefCandidate[]> {
+  const rows = await db
+    .select({
+      id: GovernmentContent.id,
+      contentHash: GovernmentContent.contentHash,
+      title: GovernmentContent.title,
+      documentType: GovernmentContent.type,
+      description: GovernmentContent.description,
+      fullText: GovernmentContent.fullText,
+      aiGeneratedArticle: GovernmentContent.aiGeneratedArticle,
+    })
+    .from(GovernmentContent)
+    .leftJoin(
+      ContentBrief,
+      and(
+        eq(ContentBrief.contentType, "government_content"),
+        eq(ContentBrief.contentId, GovernmentContent.id),
+      ),
+    )
+    .where(
+      and(
+        isNotNull(GovernmentContent.fullText),
+        inArray(GovernmentContent.type, [
+          "Executive Order",
+          "Memorandum",
+          "Proclamation",
+          "Presidential Proclamation",
+        ]),
+        or(
+          isNull(ContentBrief.id),
+          ne(ContentBrief.contentHash, GovernmentContent.contentHash),
+        ),
+      ),
+    )
+    .orderBy(desc(GovernmentContent.createdAt))
+    .limit(limit);
+
+  return rows.flatMap((row) =>
+    row.fullText
+      ? [
+          {
+            ...row,
+            type: "government_content" as const,
+            fullText: row.fullText,
+          },
+        ]
+      : [],
+  );
+}
+
 const argv = await yargs(hideBin(process.argv))
   .option("limit", {
     alias: "l",
@@ -140,7 +218,7 @@ const argv = await yargs(hideBin(process.argv))
     describe: "List candidates without generating briefs",
   })
   .option("type", {
-    choices: ["bill", "court_case", "all"] as const,
+    choices: ["bill", "court_case", "government_content", "all"] as const,
     default: "all" as const,
     describe: "Content type to backfill",
   })
@@ -154,8 +232,15 @@ const argv = await yargs(hideBin(process.argv))
   .parse();
 
 const candidates: BriefCandidate[] = [
-  ...(argv.type === "court_case" ? [] : await findBills(argv.limit)),
-  ...(argv.type === "bill" ? [] : await findCourtCases(argv.limit)),
+  ...(argv.type === "all" || argv.type === "bill"
+    ? await findBills(argv.limit)
+    : []),
+  ...(argv.type === "all" || argv.type === "court_case"
+    ? await findCourtCases(argv.limit)
+    : []),
+  ...(argv.type === "all" || argv.type === "government_content"
+    ? await findGovernmentContent(argv.limit)
+    : []),
 ].slice(0, argv.limit);
 logger.info(`Found ${candidates.length} missing/stale brief candidate(s)`);
 
@@ -164,35 +249,47 @@ let failed = 0;
 
 for (const candidate of candidates) {
   if (argv.dryRun) {
-    const identifier =
-      candidate.type === "bill" ? candidate.billNumber : candidate.caseNumber;
-    logger.info(`[dry run] ${identifier}: ${candidate.title}`);
+    logger.info(
+      `[dry run] ${candidateIdentifier(candidate)}: ${candidate.title}`,
+    );
     continue;
   }
 
   try {
-    const generated =
-      candidate.type === "bill"
-        ? await upsertBillBrief({
-            contentId: candidate.id,
-            contentHash: candidate.contentHash,
-            title: candidate.title,
-            billNumber: candidate.billNumber,
-            url: candidate.url,
-            fullText: candidate.fullText,
-            status: candidate.status,
-            priorArticle: candidate.aiGeneratedArticle,
-          })
-        : await upsertCourtCaseBrief({
-            contentId: candidate.id,
-            contentHash: candidate.contentHash,
-            title: candidate.title,
-            court: candidate.court,
-            caseNumber: candidate.caseNumber,
-            fullText: candidate.fullText,
-            status: candidate.status,
-            priorArticle: candidate.aiGeneratedArticle,
-          });
+    let generated: boolean;
+    if (candidate.type === "bill") {
+      generated = await upsertBillBrief({
+        contentId: candidate.id,
+        contentHash: candidate.contentHash,
+        title: candidate.title,
+        billNumber: candidate.billNumber,
+        url: candidate.url,
+        fullText: candidate.fullText,
+        status: candidate.status,
+        priorArticle: candidate.aiGeneratedArticle,
+      });
+    } else if (candidate.type === "court_case") {
+      generated = await upsertCourtCaseBrief({
+        contentId: candidate.id,
+        contentHash: candidate.contentHash,
+        title: candidate.title,
+        court: candidate.court,
+        caseNumber: candidate.caseNumber,
+        fullText: candidate.fullText,
+        status: candidate.status,
+        priorArticle: candidate.aiGeneratedArticle,
+      });
+    } else {
+      generated = await upsertGovernmentActionBrief({
+        contentId: candidate.id,
+        contentHash: candidate.contentHash,
+        title: candidate.title,
+        documentType: candidate.documentType,
+        description: candidate.description,
+        fullText: candidate.fullText,
+        priorArticle: candidate.aiGeneratedArticle,
+      });
+    }
     if (generated) processed++;
     else failed++;
   } catch (error) {
@@ -202,9 +299,7 @@ for (const candidate of candidates) {
       break;
     }
     failed++;
-    const identifier =
-      candidate.type === "bill" ? candidate.billNumber : candidate.caseNumber;
-    logger.error(`Failed brief for ${identifier}`, error);
+    logger.error(`Failed brief for ${candidateIdentifier(candidate)}`, error);
   }
 }
 

@@ -283,7 +283,10 @@ export default function ArticleDetailScreen() {
       ? ({ kind: "bill", ...rawBrief } as ArticleBrief)
       : rawBrief;
   const billBrief = brief?.kind === "bill" ? brief : null;
-  const narrativeBrief = brief?.kind === "court_case" ? brief : null;
+  const narrativeBrief =
+    brief?.kind === "court_case" || brief?.kind === "government_action"
+      ? brief
+      : null;
 
   const activeContent =
     mode === "explainer" ? content.articleContent : content.originalContent;
