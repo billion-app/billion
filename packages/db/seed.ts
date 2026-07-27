@@ -434,7 +434,7 @@ const billBriefs: (Omit<
   "generatedAt" | "modelVersion"
 > | null)[] = [
   {
-    version: 6,
+    version: 7,
     legalStatus: "proposed",
     verifiedQuotes: 1,
     hook: "If this bill becomes law, states would get **a longer window to plan road and bridge repairs**, while cities could apply for **new public-transit money**. The $200 billion is a maximum, not guaranteed money; Congress would still decide how much can actually be spent each year.",
@@ -479,7 +479,7 @@ const billBriefs: (Omit<
       {
         group: "State transportation departments",
         takeaway:
-          "States would get a longer window to plan and fund multi-year projects.",
+          "States would get a **longer window to plan and fund multi-year projects**.",
         effect:
           "State agencies could plan projects farther ahead because federal road and bridge support would be set for **ten years**. Federal officials would have fewer chances to approve projects one by one.",
         direction: "gains",
@@ -487,7 +487,7 @@ const billBriefs: (Omit<
       {
         group: "Transit riders in mid-size cities",
         takeaway:
-          "Whether riders benefit would depend on which cities ultimately receive grants.",
+          "Whether riders benefit would depend on **which cities ultimately receive grants**.",
         effect:
           "New money could pay for transit expansions, but **the final rules would decide which cities can apply and receive it**.",
         direction: "unclear",
@@ -496,21 +496,21 @@ const billBriefs: (Omit<
     unknowns: [
       "The bill does not say **how much each factor would count** when dividing road and bridge money among states.",
       "Congress would still need to **approve the actual spending each year**, so the full $200 billion is not guaranteed.",
-      "The bill itself does not support the job estimates cited by its sponsors.",
+      "The bill itself **does not support the job estimates** cited by its sponsors.",
     ],
     terms: [
       {
         term: "Authorization",
         plain:
-          "Congress sets a maximum amount a program may spend. This does not provide the money by itself; Congress must approve the actual spending later.",
+          "Congress sets a maximum amount a program may spend. This **does not provide the money by itself**; Congress must approve the actual spending later.",
       },
     ],
     whyNotBefore: {
       summary:
-        "Congress already funds highways and transit in multi-year laws. The recurring disputes are how long to promise money, which programs receive it, and how to cover a transportation fund that collects less than current plans require.",
+        "Congress already funds highways and transit in multi-year laws. The recurring disputes are **how long to promise money, which programs receive it, and how to pay for it**.",
       points: [
         {
-          text: "Recent transportation laws have generally lasted about five years, not ten. Several earlier laws expired before Congress agreed on replacements, so lawmakers temporarily extended the old programs while negotiations continued.",
+          text: "Recent transportation laws have generally lasted **about five years, not ten**. Several earlier laws expired before Congress agreed on replacements, so lawmakers temporarily extended the old programs while negotiations continued.",
           citations: [
             {
               title:
@@ -521,7 +521,7 @@ const billBriefs: (Omit<
           ],
         },
         {
-          text: "A longer promise also raises the question of how to pay for it. Federal fuel-tax revenue has not kept pace with planned highway and transit spending, and Congress has repeatedly transferred other federal money into the Highway Trust Fund.",
+          text: "A longer promise also raises the question of how to pay for it. **Federal fuel-tax revenue has not kept pace with planned spending**, and Congress has repeatedly transferred other federal money into the Highway Trust Fund.",
           citations: [
             {
               title:
@@ -535,7 +535,7 @@ const billBriefs: (Omit<
     },
     deepDive: {
       title: "Why the $200 billion is not guaranteed",
-      dek: "The bill could set a ten-year plan without putting the full amount in agencies' bank accounts.",
+      dek: "The bill could set a ten-year plan **without putting the full amount in agencies' bank accounts**.",
       body: "## The short answer\n\nThe bill would let Congress spend as much as **$200 billion over ten years** on the programs it creates. That number is a limit, not a deposit. Federal agencies could not start spending the entire amount simply because this bill passed.\n\nCongress would still make a separate spending decision—usually each year—to determine how much money agencies can actually use. It could approve the full amount, a smaller amount, or no money for a particular year.\n\n## Why write a large number into the bill?\n\nA ten-year limit tells states and federal agencies how large Congress expects the program could become. That can help them prepare project lists, hire staff, and plan repairs that take several years.\n\nBut planning certainty is not the same as cash. A future Congress could face different priorities, a recession, an emergency, or a dispute over the federal budget. Any of those could lead lawmakers to approve less money than the bill allows.\n\n## What should readers watch next?\n\nIf this bill moves forward, the next important documents would be the yearly spending bills. Those would show whether Congress is turning the headline promise into money that states and cities can actually use.\n\nThe useful question is not only, **“Did Congress pass the infrastructure bill?”** It is also, **“How much did Congress approve for these programs this year?”**",
     },
     reading: [
@@ -544,19 +544,19 @@ const billBriefs: (Omit<
         publisher: "Congressional Research Service",
         url: "https://www.congress.gov/crs-product/RS20371",
         whyRead:
-          "A short, nonpartisan explanation of why creating a program and paying for it are often separate votes.",
+          "A short, nonpartisan explanation of why **creating a program and paying for it are separate votes**.",
       },
       {
         title: "Authorizations and the Appropriations Process",
         publisher: "Congressional Research Service",
         url: "https://www.congress.gov/crs-product/R46497",
         whyRead:
-          "A fuller guide to how Congress sets spending limits and later decides how much money agencies may use.",
+          "A fuller guide to how Congress **sets spending limits and later approves usable money**.",
       },
     ],
   },
   {
-    version: 6,
+    version: 7,
     legalStatus: "proposed",
     verifiedQuotes: 2,
     hook: "If passed, the bill would require companies to **get permission before collecting or selling personal data**. People across the country could also **review and delete information held about them**, although the text does not settle whether **stronger state privacy laws** would remain in place.",
@@ -593,7 +593,7 @@ const billBriefs: (Omit<
       {
         group: "People whose data is collected online",
         takeaway:
-          "People would gain federal rights to review and delete data collected about them.",
+          "People would gain federal rights to **review and delete data collected about them**.",
         effect:
           "They could **see and delete personal information** that companies hold, and companies would have to ask before collecting it.",
         direction: "gains",
@@ -601,7 +601,7 @@ const billBriefs: (Omit<
       {
         group: "Companies that buy and sell consumer data",
         takeaway:
-          "Data brokers would have to ask permission and honor requests to see or delete data.",
+          "Data brokers would have to **ask permission and honor requests to see or delete data**.",
         effect:
           "They would have to **ask permission, explain what they collect, and delete data when required**. Companies built around selling data would face the biggest changes.",
         direction: "loses",
@@ -609,29 +609,29 @@ const billBriefs: (Omit<
       {
         group: "States with their own privacy laws",
         takeaway:
-          "State protections could remain in place or be replaced by the federal standard.",
+          "State protections **could remain in place or be replaced** by the federal standard.",
         effect:
           "Residents' protection would depend on whether the federal rules **add to or replace stronger state laws**.",
         direction: "unclear",
       },
     ],
     unknowns: [
-      "The excerpt does not say whether the federal rules would replace stronger state privacy laws.",
-      "The excerpt does not explain who would enforce the rules: a government agency, individuals filing lawsuits, or both.",
+      "The excerpt does not say whether **federal rules would replace stronger state privacy laws**.",
+      "The excerpt does not explain **who would enforce the rules**: a government agency, individuals filing lawsuits, or both.",
     ],
     terms: [
       {
         term: "Preemption",
         plain:
-          "When a federal law overrides state laws on the same subject, replacing them rather than adding to them.",
+          "When a federal law **overrides and replaces state laws** on the same subject rather than adding to them.",
       },
     ],
     whyNotBefore: {
       summary:
-        "Congress has considered nationwide privacy rules for years, but earlier proposals did not resolve whether federal law should replace stronger state protections or let individuals sue companies directly.",
+        "Congress has considered nationwide privacy rules for years, but earlier proposals **did not resolve the role of stronger state laws or private lawsuits**.",
       points: [
         {
-          text: "Federal privacy law has mostly covered particular industries and types of data, while states built broader consumer rules. Past federal proposals have taken sharply different approaches to whether those state laws would remain in force.",
+          text: "Federal privacy law has mostly covered particular industries and types of data, while states built broader consumer rules. Past proposals **disagreed over whether stronger state laws would remain in force**.",
           citations: [
             {
               title: "Preemption and Privacy Law",
@@ -641,7 +641,7 @@ const billBriefs: (Omit<
           ],
         },
         {
-          text: "Earlier comprehensive bills also differed over enforcement. Some would have allowed individuals to sue in certain circumstances, while others relied more heavily on government enforcement, making that choice another recurring point of disagreement.",
+          text: "Earlier comprehensive bills also **differed over who could enforce them**. Some would have allowed individuals to sue in certain circumstances, while others relied more heavily on government enforcement.",
           citations: [
             {
               title: "Overview of the American Data Privacy and Protection Act",

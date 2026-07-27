@@ -12,6 +12,7 @@ import {
 import {
   deriveLegalStatus,
   findLoadedLanguage,
+  findMissingEmphasis,
   findUnexplainedJargon,
   isQuoteGrounded,
   normalizeForQuoteMatch,
@@ -80,10 +81,14 @@ void test("older brief records stay renderable but are not current cache hits", 
     modelVersion: "legacy-model",
   };
   const v5 = { ...brief(), ...metadata, version: 5 };
+  const v6 = { ...brief(), ...metadata, version: 6 };
 
   assert.equal(isUsableBillBrief(v5), true);
   assert.equal(isCurrentBillBrief(v5), false);
   assert.equal(parseBillBriefRecord(v5)?.version, BILL_BRIEF_VERSION);
+  assert.equal(isUsableBillBrief(v6), true);
+  assert.equal(isCurrentBillBrief(v6), false);
+  assert.equal(parseBillBriefRecord(v6)?.version, BILL_BRIEF_VERSION);
 
   const current = {
     ...v5,
@@ -113,6 +118,43 @@ void test("v1 briefs receive client defaults at the API boundary", () => {
   assert.equal(normalized?.version, BILL_BRIEF_VERSION);
   assert.deepEqual(normalized?.reading, []);
   assert.equal(normalized?.affected[0]?.takeaway, current.affected[0]?.effect);
+});
+
+void test("brief-wide emphasis lint names every prose field that needs revision", () => {
+  const missing = findMissingEmphasis(brief());
+
+  assert.ok(missing.includes("hook"));
+  assert.ok(missing.includes("changes[0].before"));
+  assert.ok(missing.includes("affected[0].takeaway"));
+  assert.ok(missing.includes("unknowns[0]"));
+
+  const emphasized = brief({
+    hook: "The bill would let the Secretary **skip environmental reviews** for covered projects when an operational deadline is at risk.",
+    changes: [
+      {
+        kind: "waives",
+        title: "Environmental review can be skipped",
+        before:
+          "Covered projects must **complete an environmental review** under current law.",
+        after:
+          "The Secretary could **waive that review** to meet an operational deadline.",
+      },
+    ],
+    affected: [
+      {
+        group: "Communities near covered projects",
+        takeaway:
+          "Nearby communities would **lose a required opportunity for public comment**.",
+        effect:
+          "They would **lose the public comment step** that the review process provides.",
+        direction: "loses",
+      },
+    ],
+    unknowns: [
+      "The text does not define **what counts as an operational deadline**.",
+    ],
+  });
+  assert.deepEqual(findMissingEmphasis(emphasized), []);
 });
 
 void test("further reading keeps only URLs found by the research loop", () => {

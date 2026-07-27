@@ -31,8 +31,8 @@
  */
 import { z } from "zod";
 
-/** Bump when the shape changes in a way stored rows cannot satisfy. */
-export const BILL_BRIEF_VERSION = 6;
+/** Bump when the shape or generation contract requires cached rows to refresh. */
+export const BILL_BRIEF_VERSION = 7;
 
 /**
  * What a provision mechanically does. Deliberately descriptive: a reader can
@@ -189,7 +189,7 @@ export const BriefAffectedSchema = z.object({
     .min(24)
     .max(140)
     .describe(
-      "A complete, standalone sentence summarizing the concrete effect for this group. It must name the subject and action, make sense without surrounding text, and never be a noun phrase or dangling clause.",
+      "A complete, standalone sentence summarizing the concrete effect for this group. It must name the subject and action, make sense without surrounding text, and never be a noun phrase or dangling clause. Mark one short, concrete phrase with **double asterisks**.",
     ),
   effect: z
     .string()
@@ -215,7 +215,9 @@ export const BriefTermSchema = z.object({
     .trim()
     .min(15)
     .max(220)
-    .describe("A one-sentence definition in everyday words."),
+    .describe(
+      "A one-sentence definition in everyday words. Mark the practical meaning the reader should retain with one short **bold** span.",
+    ),
 });
 export type BriefTerm = z.infer<typeof BriefTermSchema>;
 
@@ -230,7 +232,7 @@ export const BriefReadingSchema = z.object({
     .min(20)
     .max(180)
     .describe(
-      "One plain-language sentence explaining what this article helps the reader understand.",
+      "One plain-language sentence explaining what this article helps the reader understand. Mark its specific added value with one short **bold** span.",
     ),
 });
 export type BriefReading = z.infer<typeof BriefReadingSchema>;
@@ -251,7 +253,7 @@ export const BriefContextPointSchema = z.object({
     .min(40)
     .max(420)
     .describe(
-      "A coherent, neutral explanation of one documented barrier, tradeoff, or earlier attempt. Do not speculate about motives.",
+      "A coherent, neutral explanation of one documented barrier, tradeoff, or earlier attempt. Do not speculate about motives. Mark one or two short, factual phrases with **double asterisks**.",
     ),
   citations: z
     .array(BriefContextCitationSchema)
@@ -271,7 +273,7 @@ export const BriefContextSchema = z.object({
     .min(40)
     .max(220)
     .describe(
-      "A one- or two-sentence preview of the main reason this proposal was not already adopted.",
+      "A one- or two-sentence preview of the main reason this proposal was not already adopted. Mark one short statement of the central barrier with **double asterisks**.",
     ),
   points: z
     .array(BriefContextPointSchema)
@@ -291,7 +293,9 @@ export const BriefDeepDiveSchema = z.object({
     .trim()
     .min(30)
     .max(220)
-    .describe("A plain-language preview of what the reader will learn."),
+    .describe(
+      "A plain-language preview of what the reader will learn. Mark its central question or insight with one short **bold** span.",
+    ),
   body: z
     .string()
     .trim()
@@ -343,7 +347,9 @@ export const BillBriefSchema = z.object({
         .trim()
         .min(15)
         .max(220)
-        .describe("One open question, stated plainly."),
+        .describe(
+          "One open question, stated plainly. Mark the unresolved decision or consequence with one short **bold** span.",
+        ),
     )
     .min(1)
     .max(3)
@@ -391,6 +397,12 @@ export const BillBriefRecordSchema = BillBriefSchema.extend({
   ...BriefRecordMetadataSchema,
 });
 export type BillBriefRecord = z.infer<typeof BillBriefRecordSchema>;
+
+/** The rich brief shape before emphasis became a brief-wide contract. */
+const BillBriefV6RecordSchema = BillBriefSchema.extend({
+  version: z.literal(6),
+  ...BriefRecordMetadataSchema,
+});
 
 /** The immediately preceding rich-brief shape, before cited history was added. */
 const BillBriefV5RecordSchema = BillBriefSchema.extend({
@@ -445,6 +457,11 @@ function conciseTakeaway(effect: string): string {
 export function parseBillBriefRecord(value: unknown): BillBriefRecord | null {
   const current = BillBriefRecordSchema.safeParse(value);
   if (current.success) return current.data;
+
+  const v6 = BillBriefV6RecordSchema.safeParse(value);
+  if (v6.success) {
+    return { ...v6.data, version: BILL_BRIEF_VERSION };
+  }
 
   const v5 = BillBriefV5RecordSchema.safeParse(value);
   if (v5.success) {

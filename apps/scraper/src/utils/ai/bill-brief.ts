@@ -416,6 +416,61 @@ export function findUnexplainedJargon(brief: BillBrief): string[] {
   return [...hits];
 }
 
+const EMPHASIS_PATTERN = /\*\*[^*\n]+\*\*/;
+
+/**
+ * Structured prose that should expose at least one concrete scan target.
+ * Titles, labels, figures, publishers, and verbatim quotes are intentionally
+ * excluded: emphasizing those would add noise or alter source material.
+ */
+export function findMissingEmphasis(brief: BillBrief): string[] {
+  const fields: { label: string; value: string }[] = [
+    { label: "hook", value: brief.hook },
+    ...brief.changes.flatMap((change, index) => [
+      { label: `changes[${index}].before`, value: change.before },
+      { label: `changes[${index}].after`, value: change.after },
+    ]),
+    ...brief.affected.flatMap((group, index) => [
+      { label: `affected[${index}].takeaway`, value: group.takeaway },
+      { label: `affected[${index}].effect`, value: group.effect },
+    ]),
+    ...brief.unknowns.map((value, index) => ({
+      label: `unknowns[${index}]`,
+      value,
+    })),
+    ...brief.terms.map((term, index) => ({
+      label: `terms[${index}].plain`,
+      value: term.plain,
+    })),
+    ...(brief.whyNotBefore
+      ? [
+          {
+            label: "whyNotBefore.summary",
+            value: brief.whyNotBefore.summary,
+          },
+          ...brief.whyNotBefore.points.map((point, index) => ({
+            label: `whyNotBefore.points[${index}].text`,
+            value: point.text,
+          })),
+        ]
+      : []),
+    ...(brief.deepDive
+      ? [
+          { label: "deepDive.dek", value: brief.deepDive.dek },
+          { label: "deepDive.body", value: brief.deepDive.body },
+        ]
+      : []),
+    ...brief.reading.map((item, index) => ({
+      label: `reading[${index}].whyRead`,
+      value: item.whyRead,
+    })),
+  ];
+
+  return fields
+    .filter(({ value }) => !EMPHASIS_PATTERN.test(value))
+    .map(({ label }) => label);
+}
+
 /* ------------------------------------------------------------------ *
  * Step 1 — structuring
  * ------------------------------------------------------------------ */
@@ -447,6 +502,7 @@ function buildBriefPrompt(args: {
   readingSources?: DualLensSource[];
   loadedPhrases?: string[];
   jargonPhrases?: string[];
+  missingEmphasis?: string[];
 }): string {
   const {
     title,
@@ -459,6 +515,7 @@ function buildBriefPrompt(args: {
     readingSources,
     loadedPhrases,
     jargonPhrases,
+    missingEmphasis,
   } = args;
 
   const tense =
@@ -479,6 +536,13 @@ function buildBriefPrompt(args: {
         .join(
           ", ",
         )}. Rewrite each in familiar everyday words. If a technical term is truly essential, add it to "terms", define it simply, and still explain the practical meaning where it appears.\n`
+    : "";
+  const emphasisRetryNote = missingEmphasis?.length
+    ? `\n\nYour previous attempt omitted the required selective emphasis in these fields: ${missingEmphasis
+        .map((field) => `"${field}"`)
+        .join(
+          ", ",
+        )}. Add one short **bold** span to each named field. Emphasize the concrete mechanism, consequence, unresolved choice, or source value a scanner should retain; never bold the whole field.\n`
     : "";
 
   return `You are a nonpartisan civic analyst writing a structured brief on a U.S. bill for a general audience. Your reader is a busy adult, not a policy professional. They will scan before they read, so every field must stand alone.
@@ -501,19 +565,19 @@ Rules that decide whether this brief ships:
 - **No manufactured symmetry.** If the text supports one consequence more strongly than another, say so. Use "mixed" or "unclear" for an affected group rather than balancing the list for its own sake.
 - **Neutral vocabulary.** In your own voice, avoid words that carry a verdict — "common sense", "radical", "landmark", "reckless", "burdensome", "handout", "much-needed". Attribute goals with "aims to" or "supporters say" rather than asserting them.
 - **Plain language.** Aim for an 8th-grade reading level everywhere. Prefer familiar verbs and concrete descriptions: "Congress approves the money each year", not "subject to annual appropriations"; "several federal programs", not "discretionary federal grants"; "how long states can plan ahead", not "funding horizon". If a general reader might have to look a term up, either translate it or define it in "terms". Even when defined, explain its practical meaning where it appears.
-- **Emphasis is a scan aid, not decoration.** In "before" and "after", wrap at most two short, concrete phrases in **double asterisks**. In each affected-group "effect", emphasize at most one short consequence. Never bold a whole sentence, a verdict, or loaded language.
+- **Emphasis is a brief-wide scan aid, not decoration.** Every reader-facing prose field should identify the one phrase a scanner most needs to retain. Use **double asterisks** around one short, concrete phrase in each affected-group "takeaway" and "effect", each "unknowns" item, each term definition, each reading recommendation, the deep-dive preview, and each historical summary or point. "before" and "after" may use up to two short spans; "hook" may use two or three. In long-form deep-dive paragraphs, use one or two only when useful. Never bold a whole sentence, a heading, a verdict, loaded language, or any verbatim source quote.
 - **Concise still means coherent.** Every visible field must make sense when read by itself. Never emit a noun phrase, dangling clause, missing subject, or sentence fragment merely to save words. Read each field independently before returning it.
 
 Field notes:
 - "hook" is rendered under the heading "What this means for you" and replaces a grid of disconnected fact tiles. Write one coherent paragraph of 2–3 short sentences. First explain the most consequential practical changes; then state the most important limitation, condition, or uncertainty. Connect the ideas naturally instead of listing figures. Preserve legal status ("would" for proposals), and do not imply every reader is personally affected. Wrap two or three short, concrete phrases in **double asterisks** so a scanner can retain the key changes. Never bold a whole sentence, generic transition, verdict, or loaded language.
 - "changes" must contrast current law ("before") with the proposal ("after"). If the source does not establish current law, say that in "before" instead of guessing. Evaluate every change independently for a direct supporting quote; when the official text contains one, include it so every supported card has its own route back to the text. Never invent or stretch a quote merely to make the cards look consistent.
-- Each affected-group "takeaway" is the card's always-visible summary. Write one complete standalone sentence that names the group or a clear pronoun and states what would happen. For example: "States would get a longer window to plan multi-year projects." Do not return fragments such as "a longer funding horizon" or "depends on final rules." Put qualifications and mechanism detail in "effect".
+- Each affected-group "takeaway" is the card's always-visible summary. Write one complete standalone sentence that names the group or a clear pronoun and states what would happen. For example: "States would get a **longer window to plan multi-year projects**." Do not return fragments such as "a longer funding horizon" or "depends on final rules." Put qualifications and mechanism detail in "effect".
 - "visual" is optional curated artwork. Use "infrastructure-repair" only for physical road or bridge work, "public-transit" only for rail or bus expansion, "data-privacy" only for company collection or use of personal data, and "data-control" only for a person's right to access or delete personal data. Evaluate each change independently and use different relevant visuals across cards when available; never repeat or force an image merely for visual parity.
-- "unknowns" is required. Name what the text leaves open — undefined terms, delegated decisions, unfunded pieces, effects the source does not establish.
-- "terms" appears near the top of the article. Include only essential vocabulary that changes how the reader understands the mechanism, and define it in one short everyday sentence.
-- "whyNotBefore" is an optional expandable answer to "Why wasn't this implemented before?" Use it only when the research documents a real historical answer. Explain earlier attempts, disagreements, legal or budget constraints, implementation tradeoffs, or changed circumstances without speculating about motives. Every point needs at least one citation, the section needs at least two different opened sources overall, and every citation URL must exactly match a verified source below.
+- "unknowns" is required. Name what the text leaves open — undefined terms, delegated decisions, unfunded pieces, effects the source does not establish. Bold the exact unresolved choice or consequence, not a generic phrase such as "the text does not say."
+- "terms" appears near the top of the article. Include only essential vocabulary that changes how the reader understands the mechanism, and define it in one short everyday sentence. Bold the practical meaning, not the term again.
+- "whyNotBefore" is an optional expandable answer to "Why wasn't this implemented before?" Use it only when the research documents a real historical answer. Explain earlier attempts, disagreements, legal or budget constraints, implementation tradeoffs, or changed circumstances without speculating about motives. Bold only the documented barrier or tradeoff a scanner should retain. Every point needs at least one citation, the section needs at least two different opened sources overall, and every citation URL must exactly match a verified source below.
 - "deepDive" is an optional long-form Billion explainer for readers who deliberately ask for more. It opens as its own article, so write natural markdown with short paragraphs, useful subheads, selective bolding, and bullets only when they clarify a list. Focus on one important question or consequence instead of repeating the entire structured brief. Aim for 500–900 words when the source supports that depth.
-- "reading" recommends outside articles. Use ONLY the verified research sources supplied below, copy their URLs exactly, and explain in one sentence what each adds. Omit weak or irrelevant links.${retryNote}${jargonRetryNote}
+- "reading" recommends outside articles. Use ONLY the verified research sources supplied below, copy their URLs exactly, and explain in one sentence what each adds. Bold the specific concept or evidence the source adds. Omit weak or irrelevant links.${retryNote}${jargonRetryNote}${emphasisRetryNote}
 
 ---
 Bill: ${billNumber} — ${title}
@@ -568,6 +632,7 @@ export async function generateBillBrief(args: {
   );
   let loadedPhrases: string[] | undefined;
   let jargonPhrases: string[] | undefined;
+  let missingEmphasis: string[] | undefined;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
@@ -585,6 +650,7 @@ export async function generateBillBrief(args: {
           readingSources: readingResearch.sources,
           loadedPhrases,
           jargonPhrases,
+          missingEmphasis,
         }),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
@@ -607,15 +673,20 @@ export async function generateBillBrief(args: {
 
       const loaded = findLoadedLanguage(brief);
       const jargon = findUnexplainedJargon(brief);
+      const missing = findMissingEmphasis(brief);
       // Retry once with the offending phrases named; on the final attempt keep
       // the brief anyway — a slightly colored word is a smaller failure than
       // shipping no brief at all, and the warning surfaces it in the logs.
-      if ((loaded.length > 0 || jargon.length > 0) && attempt < MAX_ATTEMPTS) {
+      if (
+        (loaded.length > 0 || jargon.length > 0 || missing.length > 0) &&
+        attempt < MAX_ATTEMPTS
+      ) {
         logger.warn(
-          `Brief for ${args.billNumber}: reader-facing language needs revision (${[...loaded, ...jargon].join(", ")}) — regenerating`,
+          `Brief for ${args.billNumber}: reader-facing copy needs revision (${[...loaded, ...jargon, ...missing].join(", ")}) — regenerating`,
         );
         loadedPhrases = loaded;
         jargonPhrases = jargon;
+        missingEmphasis = missing;
         continue;
       }
       if (loaded.length > 0) {
@@ -626,6 +697,11 @@ export async function generateBillBrief(args: {
       if (jargon.length > 0) {
         logger.warn(
           `Brief for ${args.billNumber}: keeping brief with unexplained jargon ${jargon.join(", ")}`,
+        );
+      }
+      if (missing.length > 0) {
+        logger.warn(
+          `Brief for ${args.billNumber}: keeping brief without emphasis in ${missing.join(", ")}`,
         );
       }
 

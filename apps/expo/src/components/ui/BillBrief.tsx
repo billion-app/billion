@@ -27,7 +27,7 @@
  *    official text rather than presenting itself as the last word.
  */
 import type { ReactNode } from "react";
-import type { StyleProp, TextStyle } from "react-native";
+import type { StyleProp, TextProps, TextStyle } from "react-native";
 import { useState } from "react";
 import {
   Modal,
@@ -166,18 +166,29 @@ const DIRECTION: Record<
 function EmphasizedText({
   children,
   style,
+  strongStyle,
   testID,
+  numberOfLines,
+  ellipsizeMode,
 }: {
   children: string;
   style?: StyleProp<TextStyle>;
+  strongStyle?: StyleProp<TextStyle>;
   testID?: string;
+  numberOfLines?: number;
+  ellipsizeMode?: TextProps["ellipsizeMode"];
 }) {
   const parts = children.split(/(\*\*[^*]+\*\*)/g);
   return (
-    <Text style={style} testID={testID}>
+    <Text
+      style={style}
+      testID={testID}
+      numberOfLines={numberOfLines}
+      ellipsizeMode={ellipsizeMode}
+    >
       {parts.map((part, index) =>
         part.startsWith("**") && part.endsWith("**") ? (
-          <Text key={index} style={s.inlineStrong}>
+          <Text key={index} style={[s.inlineStrong, strongStyle]}>
             {part.slice(2, -2)}
           </Text>
         ) : (
@@ -186,6 +197,55 @@ function EmphasizedText({
       )}
     </Text>
   );
+}
+
+function wrapCardCopy(text: string, maxCharacters = 40) {
+  const words: { value: string; strong: boolean }[] = [];
+  let strong = false;
+  for (const segment of text.split(/(\*\*)/)) {
+    if (segment === "**") {
+      strong = !strong;
+      continue;
+    }
+    for (const value of segment.trim().split(/\s+/).filter(Boolean)) {
+      words.push({ value, strong });
+    }
+  }
+
+  const packed: (typeof words)[] = [];
+  let line: typeof words = [];
+  let lineLength = 0;
+  for (const word of words) {
+    const nextLength =
+      lineLength + (line.length > 0 ? 1 : 0) + word.value.length;
+    if (line.length > 0 && nextLength > maxCharacters) {
+      packed.push(line);
+      line = [];
+      lineLength = 0;
+    }
+    line.push(word);
+    lineLength += (line.length > 1 ? 1 : 0) + word.value.length;
+  }
+  if (line.length > 0) packed.push(line);
+
+  return packed.map((lineWords) => {
+    let result = "";
+    let inStrong = false;
+    for (const word of lineWords) {
+      const needsSpace = result.length > 0 && !/^[,.;:!?)}\]]/.test(word.value);
+      if (word.strong !== inStrong) {
+        if (inStrong) result += "**";
+        if (needsSpace) result += " ";
+        if (word.strong) result += "**";
+        inStrong = word.strong;
+      } else if (needsSpace) {
+        result += " ";
+      }
+      result += word.value;
+    }
+    if (inStrong) result += "**";
+    return result;
+  });
 }
 
 /* ---------- Hook — the one sentence that must land ---------- */
@@ -270,7 +330,9 @@ function WhyNotBefore({
 
       {open ? (
         <View style={s.contextDetails}>
-          <Text style={s.contextSummary}>{context.summary}</Text>
+          <EmphasizedText style={s.contextSummary}>
+            {context.summary}
+          </EmphasizedText>
 
           {context.points.map((point, index) => (
             <View key={index} style={s.contextPoint}>
@@ -278,7 +340,9 @@ function WhyNotBefore({
                 {String(index + 1).padStart(2, "0")}
               </Text>
               <View style={s.contextPointCopy}>
-                <Text style={s.contextPointText}>{point.text}</Text>
+                <EmphasizedText style={s.contextPointText}>
+                  {point.text}
+                </EmphasizedText>
                 <View style={s.contextCitations}>
                   {point.citations.map((citation) => (
                     <Text
@@ -509,12 +573,19 @@ function Changes({
 /* ---------- Affected — who this lands on ---------- */
 function Affected({ affected }: { affected: BillBriefData["affected"] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [cardWidth, setCardWidth] = useState<number | null>(null);
+  const takeawayCharacters =
+    cardWidth === null ? 40 : Math.max(24, Math.floor((cardWidth - 30) / 7.8));
   return (
     <View style={s.affectedList} testID="brief-affected">
       {affected.map((a, i) => {
         const d = DIRECTION[a.direction];
         const outcomeColor = d.color;
         const takeaway = a.takeaway;
+        const displayTakeaway = wrapCardCopy(
+          takeaway ?? a.effect.replaceAll("**", ""),
+          takeawayCharacters,
+        );
         const open = openIndex === i;
         return (
           <View
@@ -527,6 +598,12 @@ function Affected({ affected }: { affected: BillBriefData["affected"] }) {
                 borderLeftColor: outcomeColor,
               },
             ]}
+            onLayout={({ nativeEvent }) => {
+              const measuredWidth = Math.round(nativeEvent.layout.width);
+              if (measuredWidth > 0 && measuredWidth !== cardWidth) {
+                setCardWidth(measuredWidth);
+              }
+            }}
           >
             <View style={s.affectedBody}>
               <View style={s.affectedHead}>
@@ -556,9 +633,17 @@ function Affected({ affected }: { affected: BillBriefData["affected"] }) {
                   </Text>
                 </View>
               </View>
-              <Text style={s.affectedTakeaway}>
-                {takeaway ?? a.effect.replaceAll("**", "")}
-              </Text>
+              <View style={s.affectedTakeawayLines}>
+                {displayTakeaway.map((line, lineIndex) => (
+                  <EmphasizedText
+                    key={`${line}-${lineIndex}`}
+                    style={s.affectedTakeaway}
+                    strongStyle={s.inlineStrongEditorial}
+                  >
+                    {line}
+                  </EmphasizedText>
+                ))}
+              </View>
               {takeaway ? (
                 <>
                   <TouchableOpacity
@@ -655,7 +740,7 @@ function Terms({
             >
               {t.term}
             </Text>
-            <Text style={s.termPlain}>{t.plain}</Text>
+            <EmphasizedText style={s.termPlain}>{t.plain}</EmphasizedText>
           </View>
         ))}
       </View>
@@ -702,7 +787,9 @@ function FurtherReading({
                 BILLION EXPLAINER
               </Text>
               <Text style={s.deepDiveTitle}>{deepDive.title}</Text>
-              <Text style={s.readingWhy}>{deepDive.dek}</Text>
+              <EmphasizedText style={s.readingWhy}>
+                {deepDive.dek}
+              </EmphasizedText>
               <Text style={[s.readingAction, { color: accent }]}>
                 Read the full explainer
               </Text>
@@ -732,9 +819,13 @@ function FurtherReading({
               >
                 {item.title}
               </Text>
-              <Text style={s.readingWhy} numberOfLines={3} ellipsizeMode="tail">
+              <EmphasizedText
+                style={s.readingWhy}
+                numberOfLines={3}
+                ellipsizeMode="tail"
+              >
                 {item.whyRead}
-              </Text>
+              </EmphasizedText>
             </View>
             <Icon name="chevR" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -770,7 +861,7 @@ function FurtherReading({
               showsVerticalScrollIndicator={false}
             >
               <Text style={s.modalTitle}>{deepDive.title}</Text>
-              <Text style={s.modalDek}>{deepDive.dek}</Text>
+              <EmphasizedText style={s.modalDek}>{deepDive.dek}</EmphasizedText>
               <View style={[s.modalRule, { backgroundColor: accent }]} />
               <Markdown style={markdownStyles}>{deepDive.body}</Markdown>
 
@@ -1023,6 +1114,9 @@ const s = StyleSheet.create({
     fontFamily: fontBody.semibold,
     color: colors.white,
   },
+  inlineStrongEditorial: {
+    fontFamily: fontEditorial.bold,
+  },
   changeVisualWrap: {
     height: 142,
     borderRadius: 11,
@@ -1222,10 +1316,13 @@ const s = StyleSheet.create({
     paddingVertical: 3,
   },
   affectedTakeaway: {
-    fontFamily: fontEditorial.bold,
+    fontFamily: fontEditorial.regular,
     fontSize: 16,
     lineHeight: 21,
     color: colors.white,
+  },
+  affectedTakeawayLines: {
+    gap: 0,
   },
   affectedEffect: {
     fontFamily: fontBody.regular,
