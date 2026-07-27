@@ -6,9 +6,11 @@ import type { BillBrief } from "@acme/validators";
 import {
   deriveLegalStatus,
   findLoadedLanguage,
+  findUnexplainedJargon,
   isQuoteGrounded,
   normalizeForQuoteMatch,
   verifyBriefQuotes,
+  verifyBriefReading,
 } from "./bill-brief.js";
 
 const SOURCE = `
@@ -26,7 +28,7 @@ section.
 
 function brief(overrides: Partial<BillBrief> = {}): BillBrief {
   return {
-    hook: "The bill would let the Secretary skip environmental reviews for covered projects.",
+    hook: "The bill would let the Secretary skip environmental reviews for covered projects when an operational deadline is at risk. The text does not define which deadlines would qualify.",
     facts: [
       {
         label: "Authorized funding",
@@ -47,6 +49,8 @@ function brief(overrides: Partial<BillBrief> = {}): BillBrief {
     affected: [
       {
         group: "Communities near covered projects",
+        takeaway:
+          "Nearby communities would lose a required opportunity for public comment.",
         effect:
           "They would lose the public comment step that the review process provides.",
         direction: "loses",
@@ -56,10 +60,45 @@ function brief(overrides: Partial<BillBrief> = {}): BillBrief {
       "The text does not define what counts as an operational deadline.",
     ],
     terms: [],
-    sections: [],
+    reading: [],
     ...overrides,
   };
 }
+
+void test("further reading keeps only URLs found by the research loop", () => {
+  const result = verifyBriefReading(
+    brief({
+      reading: [
+        {
+          title: "A useful researched explainer",
+          publisher: "Congressional Research Service",
+          url: "https://example.com/researched/",
+          whyRead:
+            "It explains how Congress turns a spending limit into money.",
+        },
+        {
+          title: "A convincing but invented article",
+          publisher: "Made Up News",
+          url: "https://example.com/invented",
+          whyRead:
+            "The model created this URL, so readers should never see it.",
+        },
+      ],
+    }),
+    [
+      {
+        id: 1,
+        title: "Researched source",
+        url: "https://example.com/researched",
+      },
+    ],
+  );
+
+  assert.deepEqual(
+    result.reading.map((item) => item.url),
+    ["https://example.com/researched"],
+  );
+});
 
 void test("quote matching ignores whitespace, case, and smart punctuation", () => {
   const normalized = normalizeForQuoteMatch(SOURCE);
@@ -123,7 +162,11 @@ void test("verification strips unverified quotes but keeps the claim", () => {
     ],
   });
 
-  const { brief: cleaned, verified, dropped } = verifyBriefQuotes(input, SOURCE);
+  const {
+    brief: cleaned,
+    verified,
+    dropped,
+  } = verifyBriefQuotes(input, SOURCE);
   assert.equal(verified, 1);
   assert.equal(dropped, 1);
   assert.ok(cleaned.facts[0]?.quote, "grounded quote is kept");
@@ -144,7 +187,12 @@ void test("framing lint flags loaded language in the model's own voice", () => {
       unknowns: ["Whether this radical shift survives review."],
     }),
   );
-  assert.deepEqual(loaded.sort(), ["burdensome", "common sense", "guts", "radical"]);
+  assert.deepEqual(loaded.sort(), [
+    "burdensome",
+    "common sense",
+    "guts",
+    "radical",
+  ]);
 });
 
 void test("framing lint exempts verbatim quotes from the source", () => {
@@ -157,11 +205,56 @@ void test("framing lint exempts verbatim quotes from the source", () => {
         title: "Environmental review can be skipped",
         before: "Covered projects must complete a review.",
         after: "The Secretary would be able to waive that review.",
-        quote: { text: "this common sense reform cuts red tape for job-killing delays" },
+        quote: {
+          text: "this common sense reform cuts red tape for job-killing delays",
+        },
       },
     ],
   });
   assert.deepEqual(findLoadedLanguage(withLoadedQuote), []);
+});
+
+void test("plain-language lint flags unexplained policy jargon", () => {
+  const jargonBrief = brief({
+    facts: [],
+    changes: [
+      {
+        kind: "funds",
+        title: "Road funding changes",
+        before:
+          "Cities currently compete through discretionary federal grants.",
+        after:
+          "States would receive a longer funding horizon under the proposal.",
+      },
+    ],
+  });
+
+  assert.deepEqual(findUnexplainedJargon(jargonBrief), [
+    "funding horizon",
+    "discretionary grant",
+  ]);
+});
+
+void test("plain-language lint allows an essential term defined up front", () => {
+  const definedBrief = brief({
+    changes: [
+      {
+        kind: "funds",
+        title: "Congress sets a spending limit",
+        before: "Congress currently approves the program for a shorter period.",
+        after: "The bill would create a ten-year authorization.",
+      },
+    ],
+    terms: [
+      {
+        term: "Authorization",
+        plain:
+          "Congress allows a program to spend up to a limit but does not provide the money yet.",
+      },
+    ],
+  });
+
+  assert.deepEqual(findUnexplainedJargon(definedBrief), []);
 });
 
 void test("legal status comes from the scraped status string", () => {

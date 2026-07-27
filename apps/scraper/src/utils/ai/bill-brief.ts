@@ -25,10 +25,16 @@ import type {
 } from "@acme/validators";
 import { BILL_BRIEF_VERSION, BillBriefSchema } from "@acme/validators";
 
+import type { DualLensSource } from "./text-generation.js";
 import { trackLLMUsage } from "../costs.js";
 import { createLogger } from "../log.js";
 import { getTextLlm } from "./provider.js";
-import { AIRateLimitError, rateLimitHit, setRateLimitHit } from "./text-generation.js";
+import {
+  AIRateLimitError,
+  rateLimitHit,
+  researchBillReading,
+  setRateLimitHit,
+} from "./text-generation.js";
 
 const logger = createLogger("ai-brief");
 
@@ -136,6 +142,37 @@ export function verifyBriefQuotes(
   };
 }
 
+function comparableUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return value.replace(/\/$/, "");
+  }
+}
+
+/**
+ * A model may summarize a researched page, but it may not create the link.
+ * Keep only URLs surfaced by the agentic search loop and replace cosmetic URL
+ * variations with the exact researched URL.
+ */
+export function verifyBriefReading(
+  brief: BillBrief,
+  sources: readonly DualLensSource[],
+): BillBrief {
+  const verified = new Map(
+    sources.map((source) => [comparableUrl(source.url), source.url]),
+  );
+  return {
+    ...brief,
+    reading: brief.reading.flatMap((item) => {
+      const url = verified.get(comparableUrl(item.url));
+      return url ? [{ ...item, url }] : [];
+    }),
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Step 3 — framing lint
  * ------------------------------------------------------------------ */
@@ -193,10 +230,17 @@ function authoredProse(brief: BillBrief): string[] {
     brief.hook,
     ...brief.facts.flatMap((f) => [f.label, f.value, f.note ?? ""]),
     ...brief.changes.flatMap((c) => [c.title, c.before, c.after]),
-    ...brief.affected.flatMap((a) => [a.group, a.effect]),
+    ...brief.affected.flatMap((a) => [a.group, a.takeaway, a.effect]),
     ...brief.unknowns,
     ...brief.terms.flatMap((t) => [t.term, t.plain]),
-    ...brief.sections.flatMap((s) => [s.heading, s.body]),
+    ...(brief.deepDive
+      ? [brief.deepDive.title, brief.deepDive.dek, brief.deepDive.body]
+      : []),
+    ...brief.reading.flatMap((item) => [
+      item.title,
+      item.publisher,
+      item.whyRead,
+    ]),
   ];
 }
 
@@ -208,6 +252,116 @@ export function findLoadedLanguage(brief: BillBrief): string[] {
       hits.add(match[0].toLowerCase());
     }
   }
+  return [...hits];
+}
+
+/**
+ * Policy terms that often survive a "plain language" rewrite while remaining
+ * opaque to a general reader. A term may appear when the brief explicitly
+ * defines it up front; otherwise the generator gets one retry with the exact
+ * phrases named.
+ */
+const JARGON_RULES = [
+  {
+    label: "funding horizon",
+    pattern: /\bfunding horizon\b/gi,
+  },
+  {
+    label: "discretionary grant",
+    pattern: /\bdiscretionary (?:federal )?grants?\b/gi,
+    term: "discretionary grant",
+  },
+  {
+    label: "reauthorization",
+    pattern: /\breauthoriz(?:e|es|ed|ing|ation)\b/gi,
+    term: "reauthorization",
+  },
+  {
+    label: "appropriation",
+    pattern: /\bappropriat(?:e|es|ed|ing|ion|ions)\b/gi,
+    term: "appropriation",
+  },
+  {
+    label: "authorization",
+    pattern: /\bauthoriz(?:e|es|ed|ing|ation)\b/gi,
+    term: "authorization",
+  },
+  {
+    label: "formula funding",
+    pattern: /\bformula funding\b/gi,
+    term: "formula funding",
+  },
+  {
+    label: "allocation formula",
+    pattern: /\ballocation formula\b/gi,
+    term: "allocation formula",
+  },
+  {
+    label: "transit capital",
+    pattern: /\btransit capital\b/gi,
+    term: "transit capital",
+  },
+  {
+    label: "affirmative consent",
+    pattern: /\baffirmative consent\b/gi,
+    term: "affirmative consent",
+  },
+  {
+    label: "preemption",
+    pattern: /\bpreempt(?:s|ed|ing|ion)?\b/gi,
+    term: "preemption",
+  },
+  {
+    label: "sector-specific",
+    pattern: /\bsector-specific\b/gi,
+    term: "sector-specific",
+  },
+  {
+    label: "compliance costs",
+    pattern: /\bcompliance (?:costs?|obligations?)\b/gi,
+    term: "compliance",
+  },
+] as const;
+
+function readerFacingProse(brief: BillBrief): string[] {
+  return [
+    brief.hook,
+    ...brief.facts.flatMap((f) => [f.label, f.value, f.note ?? ""]),
+    ...brief.changes.flatMap((c) => [c.title, c.before, c.after]),
+    ...brief.affected.flatMap((a) => [a.group, a.takeaway, a.effect]),
+    ...brief.unknowns,
+    ...(brief.deepDive
+      ? [brief.deepDive.title, brief.deepDive.dek, brief.deepDive.body]
+      : []),
+    ...brief.reading.flatMap((item) => [
+      item.title,
+      item.publisher,
+      item.whyRead,
+    ]),
+  ];
+}
+
+/** Untranslated policy jargon in reader-facing fields, deduped. */
+export function findUnexplainedJargon(brief: BillBrief): string[] {
+  const definedTerms = brief.terms.map((entry) => entry.term.toLowerCase());
+  const hits = new Set<string>();
+
+  for (const rule of JARGON_RULES) {
+    if (
+      "term" in rule &&
+      definedTerms.some((term) => term.includes(rule.term))
+    ) {
+      continue;
+    }
+    for (const field of readerFacingProse(brief)) {
+      rule.pattern.lastIndex = 0;
+      if (rule.pattern.test(field)) {
+        hits.add(rule.label);
+        break;
+      }
+    }
+  }
+
   return [...hits];
 }
 
@@ -238,7 +392,10 @@ function buildBriefPrompt(args: {
   legalStatus: BriefLegalStatus;
   sourceText: string;
   priorArticle?: string | null;
+  readingResearch?: string;
+  readingSources?: DualLensSource[];
   loadedPhrases?: string[];
+  jargonPhrases?: string[];
 }): string {
   const {
     title,
@@ -247,7 +404,10 @@ function buildBriefPrompt(args: {
     legalStatus,
     sourceText,
     priorArticle,
+    readingResearch,
+    readingSources,
     loadedPhrases,
+    jargonPhrases,
   } = args;
 
   const tense =
@@ -258,7 +418,16 @@ function buildBriefPrompt(args: {
   const retryNote = loadedPhrases?.length
     ? `\n\nYour previous attempt used loaded political phrasing in your own voice: ${loadedPhrases
         .map((p) => `"${p}"`)
-        .join(", ")}. Replace each with the underlying mechanism. Describe what the text does; let the reader judge it.\n`
+        .join(
+          ", ",
+        )}. Replace each with the underlying mechanism. Describe what the text does; let the reader judge it.\n`
+    : "";
+  const jargonRetryNote = jargonPhrases?.length
+    ? `\n\nYour previous attempt left policy jargon unexplained in reader-facing copy: ${jargonPhrases
+        .map((phrase) => `"${phrase}"`)
+        .join(
+          ", ",
+        )}. Rewrite each in familiar everyday words. If a technical term is truly essential, add it to "terms", define it simply, and still explain the practical meaning where it appears.\n`
     : "";
 
   return `You are a nonpartisan civic analyst writing a structured brief on a U.S. bill for a general audience. Your reader is a busy adult, not a policy professional. They will scan before they read, so every field must stand alone.
@@ -280,13 +449,19 @@ Rules that decide whether this brief ships:
 - **No invented figures.** A number, date, or dollar amount goes in "facts" only if the source states it. Fewer facts is correct; a plausible-looking invented figure is not.
 - **No manufactured symmetry.** If the text supports one consequence more strongly than another, say so. Use "mixed" or "unclear" for an affected group rather than balancing the list for its own sake.
 - **Neutral vocabulary.** In your own voice, avoid words that carry a verdict — "common sense", "radical", "landmark", "reckless", "burdensome", "handout", "much-needed". Attribute goals with "aims to" or "supporters say" rather than asserting them.
-- **Plain language.** Aim for an 8th-grade reading level in "hook", "changes", and "affected". Anything a general reader would have to look up belongs in "terms".
+- **Plain language.** Aim for an 8th-grade reading level everywhere. Prefer familiar verbs and concrete descriptions: "Congress approves the money each year", not "subject to annual appropriations"; "several federal programs", not "discretionary federal grants"; "how long states can plan ahead", not "funding horizon". If a general reader might have to look a term up, either translate it or define it in "terms". Even when defined, explain its practical meaning where it appears.
+- **Emphasis is a scan aid, not decoration.** In "before" and "after", wrap at most two short, concrete phrases in **double asterisks**. In each affected-group "effect", emphasize at most one short consequence. Never bold a whole sentence, a verdict, or loaded language.
+- **Concise still means coherent.** Every visible field must make sense when read by itself. Never emit a noun phrase, dangling clause, missing subject, or sentence fragment merely to save words. Read each field independently before returning it.
 
 Field notes:
-- "hook" is the single sentence a reader sees first. Lead with the most consequential concrete change, not the bill's name or stated goal.
+- "hook" is rendered under the heading "What this means for you" and replaces a grid of disconnected fact tiles. Write one coherent paragraph of 2–3 short sentences. First explain the most consequential practical changes; then state the most important limitation, condition, or uncertainty. Connect the ideas naturally instead of listing figures. Preserve legal status ("would" for proposals), and do not imply every reader is personally affected.
 - "changes" must contrast current law ("before") with the proposal ("after"). If the source does not establish current law, say that in "before" instead of guessing.
+- Each affected-group "takeaway" is the card's always-visible summary. Write one complete standalone sentence that names the group or a clear pronoun and states what would happen. For example: "States would get a longer window to plan multi-year projects." Do not return fragments such as "a longer funding horizon" or "depends on final rules." Put qualifications and mechanism detail in "effect".
+- "visual" is optional curated artwork. Use "infrastructure-repair" only for physical road or bridge work, "public-transit" only for rail or bus expansion, and otherwise omit it.
 - "unknowns" is required. Name what the text leaves open — undefined terms, delegated decisions, unfunded pieces, effects the source does not establish.
-- "sections" is for readers who want the long version: 1–3 sections of markdown prose, short paragraphs, no headings inside the body.${retryNote}
+- "terms" appears near the top of the article. Include only essential vocabulary that changes how the reader understands the mechanism, and define it in one short everyday sentence.
+- "deepDive" is an optional long-form Billion explainer for readers who deliberately ask for more. It opens as its own article, so write natural markdown with short paragraphs, useful subheads, selective bolding, and bullets only when they clarify a list. Focus on one important question or consequence instead of repeating the entire structured brief. Aim for 500–900 words when the source supports that depth.
+- "reading" recommends outside articles. Use ONLY the verified research sources supplied below, copy their URLs exactly, and explain in one sentence what each adds. Omit weak or irrelevant links.${retryNote}${jargonRetryNote}
 
 ---
 Bill: ${billNumber} — ${title}
@@ -296,6 +471,18 @@ ${
   priorArticle
     ? `\nPrior nonpartisan analysis of this bill (already vetted for framing — reuse its judgments, but pull all quotes from the official text below):\n${priorArticle.slice(0, 6000)}\n`
     : ""
+}
+${
+  readingResearch
+    ? `\nResearch notes for optional deeper reading:\n${readingResearch.slice(0, 5000)}\n`
+    : ""
+}
+${
+  readingSources?.length
+    ? `\nVerified reading sources (reading URLs must exactly match one of these):\n${readingSources
+        .map((source) => `[${source.id}] ${source.title} — ${source.url}`)
+        .join("\n")}\n`
+    : "\nNo verified outside reading sources were found. Return an empty reading list.\n"
 }
 Official text:
 ${sourceText.slice(0, SOURCE_WINDOW)}
@@ -322,7 +509,13 @@ export async function generateBillBrief(args: {
   if (rateLimitHit) throw new AIRateLimitError();
 
   const legalStatus = deriveLegalStatus(args.status);
+  const readingResearch = await researchBillReading(
+    args.title,
+    args.billNumber,
+    args.fullText,
+  );
   let loadedPhrases: string[] | undefined;
+  let jargonPhrases: string[] | undefined;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
@@ -336,15 +529,20 @@ export async function generateBillBrief(args: {
           legalStatus,
           sourceText: args.fullText,
           priorArticle: args.priorArticle,
+          readingResearch: readingResearch.notes,
+          readingSources: readingResearch.sources,
           loadedPhrases,
+          jargonPhrases,
         }),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
-      const { brief, verified, dropped } = verifyBriefQuotes(
-        output,
-        args.fullText,
+      const quoteResult = verifyBriefQuotes(output, args.fullText);
+      const brief = verifyBriefReading(
+        quoteResult.brief,
+        readingResearch.sources,
       );
+      const { verified, dropped } = quoteResult;
       if (dropped > 0) {
         logger.warn(
           `Brief for ${args.billNumber}: dropped ${dropped} unverified quote(s), kept ${verified}`,
@@ -352,19 +550,26 @@ export async function generateBillBrief(args: {
       }
 
       const loaded = findLoadedLanguage(brief);
+      const jargon = findUnexplainedJargon(brief);
       // Retry once with the offending phrases named; on the final attempt keep
       // the brief anyway — a slightly colored word is a smaller failure than
       // shipping no brief at all, and the warning surfaces it in the logs.
-      if (loaded.length > 0 && attempt < MAX_ATTEMPTS) {
+      if ((loaded.length > 0 || jargon.length > 0) && attempt < MAX_ATTEMPTS) {
         logger.warn(
-          `Brief for ${args.billNumber}: loaded language ${loaded.join(", ")} — regenerating`,
+          `Brief for ${args.billNumber}: reader-facing language needs revision (${[...loaded, ...jargon].join(", ")}) — regenerating`,
         );
         loadedPhrases = loaded;
+        jargonPhrases = jargon;
         continue;
       }
       if (loaded.length > 0) {
         logger.warn(
           `Brief for ${args.billNumber}: keeping brief with loaded language ${loaded.join(", ")}`,
+        );
+      }
+      if (jargon.length > 0) {
+        logger.warn(
+          `Brief for ${args.billNumber}: keeping brief with unexplained jargon ${jargon.join(", ")}`,
         );
       }
 

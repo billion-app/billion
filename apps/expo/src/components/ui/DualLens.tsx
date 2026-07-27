@@ -113,29 +113,43 @@ export function LensPanel({ data }: { data: LensData }) {
         </View>
         <View>
           <Text style={s.panelTitle}>Dual-Lens</Text>
-          <Text style={s.panelSub}>Both sides, side by side — no spin.</Text>
+          <Text style={s.panelSub}>Competing cases, with sources.</Text>
         </View>
       </View>
       <View style={s.cols}>
-        {(["left", "right"] as const).map((k, i) => (
-          <View key={k} style={s.col}>
-            <Text style={s.colKicker}>{kickers(data.framing)[i]}</Text>
-            <Text style={s.colStance}>{data[k].stance}</Text>
-            <View style={s.points}>
-              {data[k].points.map(toPoint).map((p, i) => (
-                <View key={i} style={s.point}>
-                  <View style={s.dot} />
-                  <Text style={s.pointText}>
-                    {p.text}
-                    {p.sourceIds.length > 0 && (
-                      <Text style={s.cite}> [{p.sourceIds.join(",")}]</Text>
-                    )}
-                  </Text>
-                </View>
-              ))}
+        {(["left", "right"] as const).map((k, i) => {
+          const lensAccent = i === 0 ? "#6DD6C7" : "#F2B56B";
+          return (
+            <View
+              key={k}
+              style={[
+                s.col,
+                {
+                  borderLeftColor: lensAccent,
+                  backgroundColor: `${lensAccent}10`,
+                },
+              ]}
+            >
+              <Text style={[s.colKicker, { color: lensAccent }]}>
+                {kickers(data.framing)[i]}
+              </Text>
+              <Text style={s.colStance}>{data[k].stance}</Text>
+              <View style={s.points}>
+                {data[k].points.map(toPoint).map((p, i) => (
+                  <View key={i} style={s.point}>
+                    <View style={[s.dot, { backgroundColor: lensAccent }]} />
+                    <Text style={s.pointText}>
+                      {p.text}
+                      {p.sourceIds.length > 0 && (
+                        <Text style={s.cite}> [{p.sourceIds.join(",")}]</Text>
+                      )}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
       {sources.length > 0 ? (
         <SourcesAccordion sources={sources} />
@@ -274,10 +288,9 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
-  cols: { flexDirection: "row", gap: 12 },
+  cols: { gap: 10 },
   col: {
-    flex: 1,
-    backgroundColor: planes.surface,
+    borderLeftWidth: 3,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
@@ -302,7 +315,6 @@ const s = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 5,
-    backgroundColor: colors.textSecondary,
     marginTop: 7,
   },
   pointText: {

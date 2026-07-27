@@ -66,11 +66,15 @@ export default function BrowseScreen() {
   // election list (which surfaced out-of-state elections like "North Dakota
   // Primary"). Use the address they set on the Elections tab — getVoterInfo
   // returns the election relevant to that address. Banner stays hidden until
-  // an address is set.
+  // an address is set. Skip this nonessential background lookup in local
+  // development: Civic credentials are commonly absent/disabled there, and a
+  // failed banner request otherwise floods the Expo error overlay even after
+  // navigating away from this tab. The Elections screen still performs its
+  // own lookup when that flow is being developed.
   const { address } = useUserAddress();
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
-    enabled: !!address,
+    enabled: !!address && !__DEV__,
   });
   const election = voterInfoQuery.data?.election;
   const upcomingElection =

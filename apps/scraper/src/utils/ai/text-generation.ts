@@ -462,6 +462,89 @@ function collectLoopSources(steps: unknown): SdkSource[] {
   return out;
 }
 
+/** Return only pages the agent successfully opened, preserving search titles. */
+function collectOpenedLoopSources(steps: unknown): SdkSource[] {
+  const titles = new Map<string, string>();
+  const opened: string[] = [];
+
+  for (const step of Array.isArray(steps) ? steps : []) {
+    const results = (step as { toolResults?: unknown }).toolResults;
+    for (const result of Array.isArray(results) ? results : []) {
+      const item = result as {
+        toolName?: string;
+        output?: {
+          url?: string;
+          text?: string;
+          results?: { title?: string; url?: string }[];
+        };
+      };
+      if (item.toolName === "web_search") {
+        for (const source of item.output?.results ?? []) {
+          if (source.url) titles.set(source.url, source.title ?? source.url);
+        }
+      }
+      if (
+        item.toolName === "fetch_page" &&
+        item.output?.url &&
+        item.output.text
+      ) {
+        opened.push(item.output.url);
+      }
+    }
+  }
+
+  return [...new Set(opened)].map((url) => ({
+    sourceType: "url",
+    url,
+    title: titles.get(url) ?? url,
+  }));
+}
+
+export interface ReadingResearch {
+  notes: string;
+  sources: DualLensSource[];
+}
+
+/**
+ * Find useful next reads for a bill. The outer model must search and open
+ * pages; returning the provider's snippets directly would turn "Keep reading"
+ * into an unverified link dump.
+ */
+export async function researchBillReading(
+  title: string,
+  billNumber: string,
+  fullText: string,
+): Promise<ReadingResearch> {
+  try {
+    const res = await generateText({
+      model: getTextLlm(),
+      tools: { web_search: webResearchTool, fetch_page: fetchPageTool },
+      stopWhen: stepCountIs(5),
+      prompt: `You are finding genuinely useful follow-up reading for an average citizen reading about ${billNumber}, "${title}".
+
+1. Search for clear explanatory reporting, nonpartisan analysis, or authoritative background that helps a reader understand the bill's most important mechanism or uncertainty.
+2. Prefer the Congressional Research Service, GAO, CBO, established newsrooms, universities, and transparent research organizations. Avoid campaign pages, SEO summaries, scraped copies, and sources that merely repeat a press release.
+3. Open and read at least two promising results with fetch_page. A search snippet is not enough.
+4. Return concise notes on the two to four best articles: what each explains, who published it, and why it is worth the reader's time. Do not recommend a page you did not open.
+
+Official bill excerpt:
+${fullText.slice(0, 4000)}`,
+    });
+    trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
+    return {
+      notes: res.text.trim(),
+      sources: numberSources(collectOpenedLoopSources(res.steps)),
+    };
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      rateLimitHit = true;
+      throw new AIRateLimitError();
+    }
+    logger.warn(`Further-reading research failed for "${title}"`, error);
+    return { notes: "", sources: [] };
+  }
+}
+
 const RESEARCH_PROMPT = (title: string, type: string, text: string) =>
   `You are a nonpartisan civic analyst researching a ${type}. Your framing must stay balanced, but to capture each side's real arguments you should deliberately seek out sources FROM BOTH SIDES. Work step by step and DO NOT write your briefing until you have read primary sources:
 1. Use web_search to find both the strongest case FOR and the strongest case AGAINST — including proponents/campaigns/supportive editorials and critics/opponents/critical editorials, alongside official or nonpartisan analyses for the facts.
@@ -484,6 +567,15 @@ const STRUCTURE_PROMPT = (
   sourceList: string,
 ) =>
   `You are a nonpartisan civic analyst. Using ONLY the research below, produce balanced perspectives on this ${type}. Each side needs 2 to 4 specific points presenting that side's strongest arguments — do not editorialize.
+
+Write for an average citizen, not a policy expert. Use short, complete sentences
+and everyday words. Replace government jargon with what it means in practice:
+- Say "Congress would still decide how much money to approve each year," not
+  "subject to annual appropriations."
+- Say "a separate pool of federal money," not "a dedicated grant pathway."
+- Say "how the money is divided," not "the allocation formula."
+- Say "money promised for ten years," not "a ten-year authorization."
+If a technical term is essential, define it in the same sentence.
 
 ${
   framing === "left_right"

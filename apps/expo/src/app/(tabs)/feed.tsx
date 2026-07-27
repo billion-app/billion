@@ -30,6 +30,7 @@ import {
 } from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { authClient } from "~/utils/auth";
+import { editorialVisualFor } from "~/utils/editorial-visuals";
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 
@@ -117,6 +118,10 @@ function FeedCard({
 
   const typeKey = resolveType(item.type);
   const t = contentType[typeKey];
+  const imageSource = editorialVisualFor(
+    item.title,
+    item.imageUri ?? item.thumbnailUrl,
+  );
 
   return (
     <LinearGradient
@@ -141,10 +146,10 @@ function FeedCard({
       </View>
 
       {/* hero */}
-      {(item.imageUri ?? item.thumbnailUrl) ? (
+      {imageSource ? (
         <Image
           style={s.hero}
-          source={{ uri: item.imageUri ?? item.thumbnailUrl }}
+          source={imageSource}
           contentFit="cover"
           transition={300}
         />
@@ -169,16 +174,17 @@ function FeedCard({
         </Text>
       ) : null}
 
-      {/* key-fact chips — TODO(backend): real stat/status/chamber per item */}
-      <View style={s.chips}>
-        <View style={[s.chip, { flex: 1 }]}>
-          <Text style={[s.chipStat, { color: t.color }]}>{t.label}</Text>
-          <Text style={s.chipLabel}>type</Text>
+      {/* Type is already established by the badge. Give the remaining metadata
+          row one reader-useful job: identify where the record came from. */}
+      <View style={s.sourceCard}>
+        <View style={[s.sourceIcon, { backgroundColor: `${t.color}20` }]}>
+          <Icon name="globe" size={16} color={t.color} />
         </View>
-        <View style={[s.chip, { flex: 1.4 }]}>
+        <View style={s.sourceCopy}>
           <Text style={s.chipStatus}>{item.author || "Public record"}</Text>
-          <Text style={s.chipLabel}>source</Text>
+          <Text style={s.chipLabel}>Original source</Text>
         </View>
+        <Icon name="chevR" size={16} color={colors.textSecondary} />
       </View>
 
       {/* dual-lens strip */}
@@ -394,16 +400,26 @@ const s = StyleSheet.create({
     color: "rgba(255,255,255,0.82)",
     marginBottom: 18,
   },
-  chips: { flexDirection: "row", gap: 10, marginBottom: 18 },
-  chip: {
+  sourceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
     backgroundColor: planes.slate,
     borderWidth: 1,
     borderColor: hair[1],
     borderRadius: 12,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
+    marginBottom: 18,
   },
-  chipStat: { fontFamily: "IBMPlexSerif-Bold", fontSize: 20 },
+  sourceIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sourceCopy: { flex: 1, minWidth: 0 },
   chipStatus: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,

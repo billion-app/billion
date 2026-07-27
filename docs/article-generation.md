@@ -31,15 +31,16 @@ bounces off paragraph two leaves with nothing, not even curiosity.
 A **brief** is the same analysis stored as typed pieces instead of prose. The
 canonical shape lives in [`@acme/validators`](../packages/validators/src/bill-brief.ts):
 
-| Field      | What it is                                       | Why it's its own field                                           |
-| ---------- | ------------------------------------------------ | ---------------------------------------------------------------- |
-| `hook`     | One sentence naming the biggest concrete change  | The floor: a reader who reads nothing else still learns one true thing |
-| `facts`    | ≤4 figures — money, deadlines, scope             | Scannable without reading                                        |
-| `changes`  | ≤5 provisions as `before` → `after`              | Forces current law to be stated separately from the proposal     |
-| `affected` | ≤4 groups with a `direction`                     | "Who does this land on" is the question people actually have     |
-| `unknowns` | 1–3 things the text does not settle              | Required, so the brief can't read as more settled than the source |
-| `terms`    | ≤5 glossary entries                              | Jargon gets defined instead of avoided                           |
-| `sections` | ≤3 markdown sections                             | The long version, for people who want to read                    |
+| Field      | What it is                                      | Why it's its own field                                                       |
+| ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------- |
+| `hook`     | One sentence naming the biggest concrete change | The floor: a reader who reads nothing else still learns one true thing       |
+| `facts`    | ≤4 figures — money, deadlines, scope            | Scannable without reading                                                    |
+| `changes`  | ≤5 provisions as `before` → `after`             | Forces current law to be stated separately from the proposal                 |
+| `affected` | ≤4 groups with a `direction`                    | "Who does this land on" is the question people actually have                 |
+| `unknowns` | 1–3 things the text does not settle             | Required, so the brief can't read as more settled than the source            |
+| `terms`    | ≤5 glossary entries                             | Jargon gets defined instead of avoided                                       |
+| `deepDive` | One optional long-form markdown article         | Lets an interested reader keep reading without turning the brief into a wall |
+| `reading`  | ≤4 researched outside articles                  | Follows the Bradbury Principle with real next steps                          |
 
 The reader can stop after the hook, after the tiles, after the changes, or go
 all the way into the source text — and every stopping point is coherent.
@@ -50,7 +51,7 @@ Editorial guarantees are encoded in the schema rather than trusted to a prompt:
 
 - **`kind` is mechanical, never evaluative.** `creates` / `repeals` / `expands`
   / `restricts` / `requires` / `waives` / `funds` / `transfers`. A brief can say
-  what a provision *does*; it has no vocabulary for saying whether that is good.
+  what a provision _does_; it has no vocabulary for saying whether that is good.
   Adding an evaluative member here would break the guarantee.
 - **`before` / `after` splits current law from the change.** That blur is where
   accessible summaries usually go wrong — describing a proposal as if it were
@@ -60,7 +61,7 @@ Editorial guarantees are encoded in the schema rather than trusted to a prompt:
 - **`unknowns` is non-empty.** There is no valid brief that claims to have
   settled everything.
 - **Legal status is derived, not generated.** `deriveLegalStatus()` reads the
-  scraped bill status, so whether the UI says a measure *would* or *does* change
+  scraped bill status, so whether the UI says a measure _would_ or _does_ change
   things comes from a string match rather than an inference.
 
 ### Where the debate lives
@@ -75,17 +76,25 @@ drift into argument, and the argument layer keeps its own provenance.
 
 `generateBillBrief()` in
 [`apps/scraper/src/utils/ai/bill-brief.ts`](../apps/scraper/src/utils/ai/bill-brief.ts)
-is three steps, only one of which costs a token.
+has a research pass, a structured writing pass, and deterministic verification.
 
-### 1. Structure (LLM)
+### 1. Research deeper reading (agentic LLM loop)
+
+The model searches for clear explanatory reporting or authoritative
+background, opens promising pages, and reads at least two before making a
+recommendation. The pipeline records only successfully opened URLs. Any
+model-authored reading URL that is not in that set is removed before storage.
+
+### 2. Structure (LLM)
 
 One schema-validated call (AI SDK `Output.object`) grounded in the official
 text plus, when available, the existing long-form article. That article already
 did the careful nonpartisan reading, so this pass is mostly restructuring —
 cheaper and more consistent than reading the statute cold. The model sees a
-24k-character window of source text.
+24k-character window of source text plus the verified reading research. It may
+also write one focused `deepDive` article for readers who opt into more depth.
 
-### 2. Verify quotes (deterministic)
+### 3. Verify quotes and reading links (deterministic)
 
 Every `quote.text` is checked against the **whole** source document, not just
 the window the model saw. Matching normalizes away formatting — casing, smart
@@ -95,9 +104,11 @@ reordered word still fails.
 
 Unverified quotes are **stripped, and the surrounding claim is kept**. A brief
 may end up saying less than the model wrote, but it never puts words in a
-bill's mouth. The kept count is stored as `verifiedQuotes`.
+bill's mouth. The kept count is stored as `verifiedQuotes`. Outside reading
+links are checked against the URLs opened by the research loop; invented links
+are dropped.
 
-### 3. Lint framing (deterministic)
+### 4. Lint framing and jargon (deterministic)
 
 Loaded political vocabulary — `common sense`, `radical`, `landmark`,
 `burdensome`, `handout`, `job-killing`, `red tape`, `power grab` — is matched
@@ -125,8 +136,9 @@ brief as renderable.
 
 [`apps/expo/src/components/ui/BillBrief.tsx`](../apps/expo/src/components/ui/BillBrief.tsx)
 renders each block as the UI element it actually is: tiles for facts, before →
-after rows for changes, a collapsed disclosure for the source quote, a collapsed
-glossary, and collapsed prose sections.
+after rows for changes, a source-linking quote disclosure, a glossary, and a
+`Keep reading` layer. Billion's own deep dive opens as a long-form article
+sheet; researched outside articles open with their original publishers.
 
 Two brand constraints shape it:
 

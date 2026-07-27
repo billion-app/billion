@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { BillBriefRecord } from "@acme/validators";
 
@@ -7,6 +8,7 @@ import { db } from "./src/client";
 import {
   Bill,
   ContentBrief,
+  ContentLens,
   CourtCase,
   GovernmentContent,
   Video,
@@ -432,27 +434,32 @@ const billBriefs: (Omit<
   "generatedAt" | "modelVersion"
 > | null)[] = [
   {
-    version: 1,
+    version: 5,
     legalStatus: "proposed",
     verifiedQuotes: 1,
-    hook: "The bill would authorize $200 billion in federal infrastructure spending over ten years, distributed to states by formula rather than by project approval.",
+    hook: "If this bill becomes law, states would get a longer window to plan road and bridge repairs, while cities could apply for new public-transit money. The $200 billion is a maximum, not guaranteed money; Congress would still decide how much can actually be spent each year.",
     facts: [
       {
-        label: "Authorized funding",
+        label: "Spending limit",
         value: "$200B",
-        note: "Over 10 years, subject to annual appropriations.",
+        note: "Maximum over 10 years; Congress must approve spending each year.",
       },
       { label: "Chamber status", value: "Passed House", note: "Senate next." },
-      { label: "Congress", value: "119th" },
+      {
+        label: "How money is shared",
+        value: "State shares + city grants",
+        note: "States get set shares; cities apply for separate transit money.",
+      },
     ],
     changes: [
       {
         kind: "funds",
-        title: "Ten years of formula funding for roads and bridges",
+        title: "Ten years of road and bridge money for states",
         before:
-          "Federal surface transportation money is reauthorized in shorter cycles, so states plan against a funding horizon that reopens frequently.",
+          "Congress usually approves federal road and transit programs for **only a few years at a time**. That makes long projects harder for states to plan.",
         after:
-          "States would draw from a ten-year authorization allocated by a formula weighing population, road conditions, and transit ridership.",
+          "The bill would promise road and bridge money for **ten years**. Each state's share would depend on its **population, road conditions, and public-transit use**.",
+        visual: "infrastructure-repair",
         quote: {
           text: "Congress finds that the nation's infrastructure is in critical need of repair and modernization",
           locator: "Sec. 2",
@@ -460,65 +467,80 @@ const billBriefs: (Omit<
       },
       {
         kind: "creates",
-        title: "New grant program for transit expansion",
+        title: "New money for rail and faster bus service",
         before:
-          "Cities compete for transit capital through existing discretionary federal grant programs.",
+          "Cities now apply for federal transit money through **several programs that also fund other transportation projects**.",
         after:
-          "A dedicated grant line would fund light rail and bus rapid transit builds, alongside rural broadband.",
+          "The bill would create a **separate pool of money for light rail and faster bus service**. It would also support rural internet projects.",
+        visual: "public-transit",
       },
     ],
     affected: [
       {
         group: "State transportation departments",
+        takeaway:
+          "States would get a longer window to plan and fund multi-year projects.",
         effect:
-          "They would receive a longer, formula-driven funding horizon, which shifts planning leverage toward states and away from project-by-project federal review.",
+          "State agencies could plan projects farther ahead because federal road and bridge support would be set for **ten years**. Federal officials would have fewer chances to approve projects one by one.",
         direction: "gains",
       },
       {
         group: "Transit riders in mid-size cities",
+        takeaway:
+          "Whether riders benefit would depend on which cities ultimately receive grants.",
         effect:
-          "New grant money could fund expansions, though whether any specific city benefits depends on how the program is written and administered.",
+          "New money could pay for transit expansions, but **the final rules would decide which cities can apply and receive it**.",
         direction: "unclear",
       },
     ],
     unknowns: [
-      "The text does not specify the weights in the state allocation formula, which decides who actually gets the money.",
-      "Authorization is not appropriation — the $200 billion still depends on future annual spending bills.",
-      "The source does not establish the job estimates attributed to the bill by its sponsors.",
+      "The bill does not say **how much each factor would count** when dividing road and bridge money among states.",
+      "Congress would still need to **approve the actual spending each year**, so the full $200 billion is not guaranteed.",
+      "The bill itself does not support the job estimates cited by its sponsors.",
     ],
     terms: [
       {
         term: "Authorization",
         plain:
-          "Permission for a program to exist and to spend up to a set amount. Congress still has to appropriate the money separately before any is actually spent.",
-      },
-      {
-        term: "Formula funding",
-        plain:
-          "Money split among states by a fixed calculation rather than awarded application by application.",
+          "Congress sets a maximum amount a program may spend. This does not provide the money by itself; Congress must approve the actual spending later.",
       },
     ],
-    sections: [
+    deepDive: {
+      title: "Why the $200 billion is not guaranteed",
+      dek: "The bill could set a ten-year plan without putting the full amount in agencies' bank accounts.",
+      body: "## The short answer\n\nThe bill would let Congress spend as much as **$200 billion over ten years** on the programs it creates. That number is a limit, not a deposit. Federal agencies could not start spending the entire amount simply because this bill passed.\n\nCongress would still make a separate spending decision—usually each year—to determine how much money agencies can actually use. It could approve the full amount, a smaller amount, or no money for a particular year.\n\n## Why write a large number into the bill?\n\nA ten-year limit tells states and federal agencies how large Congress expects the program could become. That can help them prepare project lists, hire staff, and plan repairs that take several years.\n\nBut planning certainty is not the same as cash. A future Congress could face different priorities, a recession, an emergency, or a dispute over the federal budget. Any of those could lead lawmakers to approve less money than the bill allows.\n\n## What should readers watch next?\n\nIf this bill moves forward, the next important documents would be the yearly spending bills. Those would show whether Congress is turning the headline promise into money that states and cities can actually use.\n\nThe useful question is not only, **“Did Congress pass the infrastructure bill?”** It is also, **“How much did Congress approve for these programs this year?”**",
+    },
+    reading: [
       {
-        heading: "How the money would move",
-        body: "Federal infrastructure money generally reaches a road or a bridge in two steps. Congress first authorizes a program — setting a ceiling and the rules for who qualifies — and then appropriates actual dollars in a separate annual bill. This measure is the first step.\n\nThat distinction matters for reading any headline figure attached to it. A ten-year authorization signals intent and lets states plan, but a future Congress can appropriate less than the ceiling, or nothing at all. Supporters say the longer horizon is the point: state agencies can commit to multi-year projects they would otherwise defer. Critics of long authorizations note the same horizon reduces how often Congress revisits the formula.",
+        title: "Overview of the Authorization-Appropriations Process",
+        publisher: "Congressional Research Service",
+        url: "https://www.congress.gov/crs-product/RS20371",
+        whyRead:
+          "A short, nonpartisan explanation of why creating a program and paying for it are often separate votes.",
+      },
+      {
+        title: "Authorizations and the Appropriations Process",
+        publisher: "Congressional Research Service",
+        url: "https://www.congress.gov/crs-product/R46497",
+        whyRead:
+          "A fuller guide to how Congress sets spending limits and later decides how much money agencies may use.",
       },
     ],
   },
   {
-    version: 1,
+    version: 5,
     legalStatus: "proposed",
     verifiedQuotes: 1,
-    hook: "The bill would require companies to get consent before collecting personal data, and give people a right to see and delete what has already been gathered.",
+    hook: "If passed, the bill would require companies to get permission before collecting or selling personal data. People across the country could also review and delete information held about them, although the text does not settle whether stronger state privacy laws would remain in place.",
     facts: [{ label: "Chamber status", value: "In Committee" }],
     changes: [
       {
         kind: "requires",
-        title: "Consent before collection",
+        title: "Companies would need permission before collecting data",
         before:
-          "Federal privacy rules are sector-specific — health, finance, children — with no general consent requirement for most consumer data.",
+          "Different federal rules cover health, financial, and children's data. **Most other personal data has no nationwide permission rule**.",
         after:
-          "Companies would need affirmative consent before collecting or selling personal data across sectors.",
+          "Companies would have to **ask before collecting or selling most personal information**.",
         quote: {
           text: "The purpose of this Act is to establish comprehensive federal data privacy protections",
           locator: "Sec. 2",
@@ -526,36 +548,42 @@ const billBriefs: (Omit<
       },
       {
         kind: "creates",
-        title: "Access and deletion rights",
+        title: "People could see and delete data held about them",
         before:
-          "Whether a person can see or delete a company's data about them depends on the company and, in some cases, their state.",
+          "A person's ability to see or delete company-held data **depends on the company and their state**.",
         after:
-          "A federal right to review and delete collected personal data would apply regardless of state.",
+          "People across the country would gain the **right to review and delete personal data** held about them.",
       },
     ],
     affected: [
       {
         group: "People whose data is collected online",
+        takeaway:
+          "People would gain federal rights to review and delete data collected about them.",
         effect:
-          "They would gain a federal right to review and delete personal data, and companies would have to ask before collecting it.",
+          "They could **see and delete personal information** that companies hold, and companies would have to ask before collecting it.",
         direction: "gains",
       },
       {
         group: "Companies that buy and sell consumer data",
+        takeaway:
+          "Data brokers would have to ask permission and honor requests to see or delete data.",
         effect:
-          "They would take on new consent, disclosure, and deletion obligations, with compliance costs falling hardest on firms whose model depends on data resale.",
+          "They would have to **ask permission, explain what they collect, and delete data when required**. Companies built around selling data would face the biggest changes.",
         direction: "loses",
       },
       {
         group: "States with their own privacy laws",
+        takeaway:
+          "State protections could remain in place or be replaced by the federal standard.",
         effect:
-          "Whether a federal standard adds to or displaces state law changes how much protection residents end up with.",
+          "Residents' protection would depend on whether the federal rules **add to or replace stronger state laws**.",
         direction: "unclear",
       },
     ],
     unknowns: [
-      "The excerpt does not say whether the federal standard preempts stronger state privacy laws.",
-      "Enforcement is not described — whether by an agency, by individual lawsuits, or both.",
+      "The excerpt does not say whether the federal rules would replace stronger state privacy laws.",
+      "The excerpt does not explain who would enforce the rules: a government agency, individuals filing lawsuits, or both.",
     ],
     terms: [
       {
@@ -564,7 +592,79 @@ const billBriefs: (Omit<
           "When a federal law overrides state laws on the same subject, replacing them rather than adding to them.",
       },
     ],
-    sections: [],
+    reading: [],
+  },
+];
+
+/**
+ * The brief explains mechanics; the dual lens preserves the disagreement.
+ * Keep both in local fixtures so a brief can never make the product's
+ * signature compare-the-cases layer appear to have vanished.
+ */
+const billLenses = [
+  {
+    framing: "proponent_opponent" as const,
+    left: {
+      stance: "Plan farther ahead",
+      points: [
+        {
+          text: "Promising money for ten years could help states plan repairs that take several years to finish.",
+          sourceIds: [1],
+        },
+        {
+          text: "A separate pool of federal money could help more cities expand rail and faster bus service.",
+          sourceIds: [1],
+        },
+      ],
+    },
+    right: {
+      stance: "Keep spending review frequent",
+      points: [
+        {
+          text: "The $200 billion is only a limit. Congress would still decide how much money to approve each year.",
+          sourceIds: [1],
+        },
+        {
+          text: "A ten-year plan gives Congress fewer automatic chances to reconsider how the money is divided.",
+          sourceIds: [1],
+        },
+      ],
+    },
+    sources: [
+      {
+        id: 1,
+        title: "Infrastructure Modernization Act of 2025 — official text",
+        url: bills[0]!.url,
+      },
+    ],
+  },
+  {
+    framing: "proponent_opponent" as const,
+    left: {
+      stance: "Create one national privacy floor",
+      points: [
+        {
+          text: "One national rule could give everyone the same basic rights to approve, view, and delete their data.",
+          sourceIds: [1],
+        },
+      ],
+    },
+    right: {
+      stance: "Preserve stronger state rules",
+      points: [
+        {
+          text: "A national rule could weaken privacy protections for people who live in states with stronger laws.",
+          sourceIds: [1],
+        },
+      ],
+    },
+    sources: [
+      {
+        id: 1,
+        title: "Digital Privacy Protection Act — official text",
+        url: bills[1]!.url,
+      },
+    ],
   },
 ];
 
@@ -585,15 +685,38 @@ async function seed() {
     });
   console.log(`  ${insertedBills.length} bills inserted`);
 
+  // Resolve every fixture after the insert instead of relying on RETURNING.
+  // RETURNING only includes newly inserted rows, which meant re-running the
+  // seed against an existing local database never added or refreshed briefs.
+  const seededBills = await db
+    .select({
+      id: Bill.id,
+      billNumber: Bill.billNumber,
+      contentHash: Bill.contentHash,
+    })
+    .from(Bill)
+    .where(
+      and(
+        eq(Bill.sourceWebsite, "congress.gov"),
+        inArray(
+          Bill.billNumber,
+          bills.map((bill) => bill.billNumber),
+        ),
+      ),
+    );
+
   console.log("Inserting bill briefs...");
-  const briefRecords = insertedBills.flatMap((b, i) => {
-    const brief = billBriefs[i];
+  const briefRecords = seededBills.flatMap((bill) => {
+    const fixtureIndex = bills.findIndex(
+      (fixture) => fixture.billNumber === bill.billNumber,
+    );
+    const brief = billBriefs[fixtureIndex];
     return brief
       ? [
           {
             contentType: "bill" as const,
-            contentId: b.id,
-            contentHash: b.contentHash,
+            contentId: bill.id,
+            contentHash: bill.contentHash,
             brief: {
               ...brief,
               generatedAt: now.toISOString(),
@@ -610,9 +733,58 @@ async function seed() {
     const insertedBriefs = await db
       .insert(ContentBrief)
       .values(briefRecords)
-      .onConflictDoNothing()
+      .onConflictDoUpdate({
+        target: [ContentBrief.contentType, ContentBrief.contentId],
+        set: {
+          contentHash: sql`excluded.content_hash`,
+          brief: sql`excluded.brief`,
+          modelVersion: sql`excluded.model_version`,
+          updatedAt: now,
+        },
+      })
       .returning({ id: ContentBrief.id });
-    console.log(`  ${insertedBriefs.length} briefs inserted`);
+    console.log(`  ${insertedBriefs.length} briefs inserted or refreshed`);
+  }
+
+  console.log("Inserting bill dual lenses...");
+  const lensRecords = seededBills.flatMap((bill) => {
+    const fixtureIndex = bills.findIndex(
+      (fixture) => fixture.billNumber === bill.billNumber,
+    );
+    const lensData = billLenses[fixtureIndex];
+    return lensData
+      ? [
+          {
+            contentType: "bill" as const,
+            contentId: bill.id,
+            contentHash: bill.contentHash,
+            lensData: {
+              ...lensData,
+              generatedAt: now.toISOString(),
+              modelVersion: "seed",
+            },
+            modelVersion: "seed",
+          },
+        ]
+      : [];
+  });
+  if (lensRecords.length === 0) {
+    console.log("  0 dual lenses inserted (no seeded bills to link)");
+  } else {
+    const insertedLenses = await db
+      .insert(ContentLens)
+      .values(lensRecords)
+      .onConflictDoUpdate({
+        target: [ContentLens.contentType, ContentLens.contentId],
+        set: {
+          contentHash: sql`excluded.content_hash`,
+          lensData: sql`excluded.lens_data`,
+          modelVersion: sql`excluded.model_version`,
+          updatedAt: now,
+        },
+      })
+      .returning({ id: ContentLens.id });
+    console.log(`  ${insertedLenses.length} dual lenses inserted or refreshed`);
   }
 
   console.log("Inserting government content...");

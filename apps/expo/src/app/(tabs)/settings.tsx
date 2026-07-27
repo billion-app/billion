@@ -113,7 +113,10 @@ function buildGroups(
 export default function SettingsScreen() {
   const router = useRouter();
   const sessionQuery = useQuery(trpc.auth.getSession.queryOptions());
-  const prefsQuery = useQuery(trpc.user.getPreferences.queryOptions());
+  const prefsQuery = useQuery({
+    ...trpc.user.getPreferences.queryOptions(),
+    enabled: !!sessionQuery.data?.user,
+  });
 
   const sessionUser = sessionQuery.data?.user;
   const profileName = sessionUser?.name ?? "Guest";

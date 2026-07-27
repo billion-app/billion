@@ -32,7 +32,7 @@
 import { z } from "zod";
 
 /** Bump when the shape changes in a way stored rows cannot satisfy. */
-export const BILL_BRIEF_VERSION = 1;
+export const BILL_BRIEF_VERSION = 5;
 
 /**
  * What a provision mechanically does. Deliberately descriptive: a reader can
@@ -119,6 +119,17 @@ export const BriefFactSchema = z.object({
 });
 export type BriefFact = z.infer<typeof BriefFactSchema>;
 
+/**
+ * Curated editorial artwork bundled by the client. The generator may select
+ * one only when the mechanism clearly matches; omitting a visual is always
+ * preferable to decorative or misleading imagery.
+ */
+export const BriefVisualSchema = z.enum([
+  "infrastructure-repair",
+  "public-transit",
+]);
+export type BriefVisual = z.infer<typeof BriefVisualSchema>;
+
 /** A single concrete policy change, stated as current law → proposed law. */
 export const BriefChangeSchema = z.object({
   kind: BriefChangeKindSchema.describe(
@@ -129,14 +140,16 @@ export const BriefChangeSchema = z.object({
     .trim()
     .min(8)
     .max(70)
-    .describe("Plain-language name for this change, no jargon."),
+    .describe(
+      "Everyday-language name for this change. Describe what a person would recognize, not the legislative mechanism; for example, 'Ten years of road money for states', not 'Formula funding authorization'.",
+    ),
   before: z
     .string()
     .trim()
     .min(10)
     .max(240)
     .describe(
-      "What the situation is today, under current law or practice. If the source does not establish current law, say so plainly here.",
+      "What happens today, using words a general reader already knows. Translate legislative and agency terminology rather than shortening it. If the source does not establish current law, say so plainly. At most two short **bold** spans may mark the phrases a scanner should retain.",
     ),
   after: z
     .string()
@@ -144,8 +157,11 @@ export const BriefChangeSchema = z.object({
     .min(10)
     .max(240)
     .describe(
-      "What the situation becomes under this measure. Preserve legal status: a proposal 'would' change things.",
+      "What would happen under this measure, in concrete everyday language. Explain who acts, what they do, and what changes; avoid unexplained terms such as authorization, appropriation, discretionary grant, allocation formula, and funding horizon. Preserve legal status. At most two short **bold** spans may mark the phrases a scanner should retain.",
     ),
+  visual: BriefVisualSchema.optional().describe(
+    "Optional curated editorial visual. Use infrastructure-repair for physical road or bridge work, public-transit for rail or bus expansion, and otherwise omit.",
+  ),
   quote: BriefQuoteSchema.optional().describe(
     "The provision this change is drawn from.",
   ),
@@ -165,12 +181,22 @@ export const BriefAffectedSchema = z.object({
     .describe(
       'A specific group — "Medicare Part D enrollees", not "the American people".',
     ),
+  takeaway: z
+    .string()
+    .trim()
+    .min(24)
+    .max(140)
+    .describe(
+      "A complete, standalone sentence summarizing the concrete effect for this group. It must name the subject and action, make sense without surrounding text, and never be a noun phrase or dangling clause.",
+    ),
   effect: z
     .string()
     .trim()
     .min(12)
     .max(220)
-    .describe("What concretely changes for them, in one or two sentences."),
+    .describe(
+      "Context explaining what concretely changes for this group, in one or two coherent sentences. One short **bold** span may mark the concrete consequence a scanner should retain, but the UI does not use that span as a headline.",
+    ),
   direction: z
     .enum(["gains", "loses", "mixed", "unclear"])
     .describe(
@@ -191,19 +217,41 @@ export const BriefTermSchema = z.object({
 });
 export type BriefTerm = z.infer<typeof BriefTermSchema>;
 
-/** An optional prose section for readers who want the long version. */
-export const BriefSectionSchema = z.object({
-  heading: z.string().trim().min(3).max(60),
+/** A real article the research loop found and opened before recommending it. */
+export const BriefReadingSchema = z.object({
+  title: z.string().trim().min(8).max(140),
+  publisher: z.string().trim().min(2).max(70),
+  url: z.url(),
+  whyRead: z
+    .string()
+    .trim()
+    .min(20)
+    .max(180)
+    .describe(
+      "One plain-language sentence explaining what this article helps the reader understand.",
+    ),
+});
+export type BriefReading = z.infer<typeof BriefReadingSchema>;
+
+/** Billion's optional long-form explainer for readers who choose more depth. */
+export const BriefDeepDiveSchema = z.object({
+  title: z.string().trim().min(8).max(90),
+  dek: z
+    .string()
+    .trim()
+    .min(30)
+    .max(220)
+    .describe("A plain-language preview of what the reader will learn."),
   body: z
     .string()
     .trim()
-    .min(120)
-    .max(2200)
+    .min(350)
+    .max(5000)
     .describe(
-      "Markdown prose. Short paragraphs, no headings — the heading is the field above.",
+      "A readable markdown article with short paragraphs, useful subheads, selective bolding, and bullets only where they clarify a list. It may focus on one important question rather than repeat the whole bill brief.",
     ),
 });
-export type BriefSection = z.infer<typeof BriefSectionSchema>;
+export type BriefDeepDive = z.infer<typeof BriefDeepDiveSchema>;
 
 /**
  * The model-authored portion of a brief. Everything derivable without an LLM
@@ -215,10 +263,10 @@ export const BillBriefSchema = z.object({
   hook: z
     .string()
     .trim()
-    .min(24)
-    .max(200)
+    .min(60)
+    .max(420)
     .describe(
-      "One sentence naming the most consequential concrete change. Lead with what the measure does, not what it is called or hopes to achieve. Attribute goals ('aims to', 'supporters say') rather than asserting them.",
+      "A coherent 2–3 sentence 'What this means for you' paragraph. Explain the bill's most consequential concrete changes and the most important limitation or uncertainty in plain language. It must stand alone, not read like a list of facts, and must preserve proposed-versus-enacted status.",
     ),
   facts: z
     .array(BriefFactSchema)
@@ -256,11 +304,14 @@ export const BillBriefSchema = z.object({
     .array(BriefTermSchema)
     .max(5)
     .describe("Jargon a general reader would stumble on."),
-  sections: z
-    .array(BriefSectionSchema)
-    .max(3)
+  deepDive: BriefDeepDiveSchema.optional().describe(
+    "One optional Billion explainer for a reader who wants more depth. Focus on the most important unresolved concept or consequence instead of repeating the entire brief.",
+  ),
+  reading: z
+    .array(BriefReadingSchema)
+    .max(4)
     .describe(
-      "Optional long-form sections for readers who want depth, e.g. how it works, background, implementation questions.",
+      "Optional outside articles discovered and opened by the research loop. Recommend only sources from the supplied verified reading list and copy each URL exactly.",
     ),
 });
 export type BillBrief = z.infer<typeof BillBriefSchema>;
