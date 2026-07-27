@@ -12,6 +12,7 @@
  *   affected  → who this lands on
  *   unknowns  → what the text does not settle
  *   terms     → glossary, collapsed
+ *   history   → cited context on why the policy was not already adopted
  *   deepDive  → an optional long-form Billion article
  *   reading   → researched articles from outside publishers
  *
@@ -95,6 +96,13 @@ export interface BillBriefData {
   }[];
   unknowns: string[];
   terms: { term: string; plain: string }[];
+  whyNotBefore?: {
+    summary: string;
+    points: {
+      text: string;
+      citations: { title: string; publisher: string; url: string }[];
+    }[];
+  };
   deepDive?: { title: string; dek: string; body: string };
   reading?: {
     title: string;
@@ -196,6 +204,107 @@ function Hook({
       <Text style={s.summaryText} testID="brief-hook">
         {text}
       </Text>
+    </View>
+  );
+}
+
+/* ---------- Why not before — researched history, collapsed by default ---------- */
+function WhyNotBefore({
+  context,
+  accent,
+}: {
+  context: NonNullable<BillBriefData["whyNotBefore"]>;
+  accent: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const sources = [
+    ...new Map(
+      context.points
+        .flatMap((point) => point.citations)
+        .map((citation) => [citation.url, citation]),
+    ).values(),
+  ];
+  const sourceNumber = new Map(
+    sources.map((source, index) => [source.url, index + 1]),
+  );
+
+  return (
+    <View style={s.contextCard} testID="brief-why-not-before">
+      <TouchableOpacity
+        style={s.contextToggle}
+        activeOpacity={0.72}
+        onPress={() => setOpen((value) => !value)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={
+          open
+            ? "Hide why this was not implemented before"
+            : "Explain why this was not implemented before"
+        }
+      >
+        <View style={[s.contextIcon, { backgroundColor: `${accent}28` }]}>
+          <Icon name="clock" size={15} color={accent} />
+        </View>
+        <View style={s.contextHeadingCopy}>
+          <Text style={s.contextTitle}>
+            Why wasn&apos;t this implemented before?
+          </Text>
+          <Text style={s.contextSummary}>{context.summary}</Text>
+        </View>
+        <View style={open ? s.chevFlip : undefined}>
+          <Icon name="chevD" size={16} color={accent} />
+        </View>
+      </TouchableOpacity>
+
+      {open ? (
+        <View style={s.contextDetails}>
+          {context.points.map((point, index) => (
+            <View key={index} style={s.contextPoint}>
+              <Text style={[s.contextIndex, { color: accent }]}>
+                {String(index + 1).padStart(2, "0")}
+              </Text>
+              <View style={s.contextPointCopy}>
+                <Text style={s.contextPointText}>{point.text}</Text>
+                <View style={s.contextCitations}>
+                  {point.citations.map((citation) => (
+                    <Text
+                      key={citation.url}
+                      style={[s.contextCitation, { color: accent }]}
+                    >
+                      [{sourceNumber.get(citation.url)}]
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            </View>
+          ))}
+
+          <View style={s.contextSources}>
+            <Text style={s.contextSourcesTitle}>Sources</Text>
+            {sources.map((source, index) => (
+              <TouchableOpacity
+                key={source.url}
+                style={s.contextSource}
+                activeOpacity={0.7}
+                onPress={() => void WebBrowser.openBrowserAsync(source.url)}
+                accessibilityRole="link"
+                accessibilityLabel={`Open source ${index + 1}: ${source.title}`}
+              >
+                <Text style={[s.contextSourceNumber, { color: accent }]}>
+                  [{index + 1}]
+                </Text>
+                <View style={s.contextSourceCopy}>
+                  <Text style={s.contextSourceTitle}>{source.title}</Text>
+                  <Text style={s.contextSourcePublisher}>
+                    {source.publisher}
+                  </Text>
+                </View>
+                <Icon name="external" size={13} color={colors.textSecondary} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -643,6 +752,9 @@ export function BillBrief({
   return (
     <View style={s.root} testID="bill-brief">
       <Hook text={data.hook} legalStatus={data.legalStatus} accent={accent} />
+      {data.whyNotBefore ? (
+        <WhyNotBefore context={data.whyNotBefore} accent={accent} />
+      ) : null}
       <Terms terms={data.terms} accent={accent} />
 
       <BlockTitle>What would change</BlockTitle>
@@ -833,6 +945,101 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(8,13,29,0.74)",
     paddingHorizontal: 10,
     paddingVertical: 7,
+  },
+
+  /* cited historical context */
+  contextCard: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    padding: 14,
+  },
+  contextToggle: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  contextIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  contextHeadingCopy: { flex: 1, gap: 6 },
+  contextTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 16,
+    lineHeight: 21,
+    color: colors.white,
+  },
+  contextSummary: {
+    fontFamily: fontBody.regular,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: "rgba(255,255,255,0.72)",
+  },
+  contextDetails: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: hair[1],
+    gap: 12,
+  },
+  contextPoint: {
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: planes.surface,
+    borderRadius: 10,
+    padding: 11,
+  },
+  contextIndex: {
+    fontFamily: fontBody.bold,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    paddingTop: 2,
+  },
+  contextPointCopy: { flex: 1, gap: 6 },
+  contextPointText: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "rgba(255,255,255,0.82)",
+  },
+  contextCitations: { flexDirection: "row", gap: 5 },
+  contextCitation: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+  },
+  contextSources: { gap: 8 },
+  contextSourcesTitle: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: colors.textSecondary,
+  },
+  contextSource: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 3,
+  },
+  contextSourceNumber: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+  },
+  contextSourceCopy: { flex: 1, gap: 1 },
+  contextSourceTitle: {
+    fontFamily: fontBody.medium,
+    fontSize: 11.5,
+    color: colors.white,
+  },
+  contextSourcePublisher: {
+    fontFamily: fontBody.regular,
+    fontSize: 10.5,
+    color: colors.textSecondary,
   },
 
   /* quote disclosure */

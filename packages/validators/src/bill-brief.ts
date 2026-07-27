@@ -32,7 +32,7 @@
 import { z } from "zod";
 
 /** Bump when the shape changes in a way stored rows cannot satisfy. */
-export const BILL_BRIEF_VERSION = 5;
+export const BILL_BRIEF_VERSION = 6;
 
 /**
  * What a provision mechanically does. Deliberately descriptive: a reader can
@@ -233,6 +233,54 @@ export const BriefReadingSchema = z.object({
 });
 export type BriefReading = z.infer<typeof BriefReadingSchema>;
 
+/** One opened research source attached directly to a historical-context claim. */
+export const BriefContextCitationSchema = z.object({
+  title: z.string().trim().min(8).max(140),
+  publisher: z.string().trim().min(2).max(70),
+  url: z.url(),
+});
+export type BriefContextCitation = z.infer<typeof BriefContextCitationSchema>;
+
+/** A plain-language claim about why this policy has not already happened. */
+export const BriefContextPointSchema = z.object({
+  text: z
+    .string()
+    .trim()
+    .min(40)
+    .max(420)
+    .describe(
+      "A coherent, neutral explanation of one documented barrier, tradeoff, or earlier attempt. Do not speculate about motives.",
+    ),
+  citations: z
+    .array(BriefContextCitationSchema)
+    .min(1)
+    .max(3)
+    .describe(
+      "Opened research pages that directly support this point. Copy each verified URL exactly.",
+    ),
+});
+export type BriefContextPoint = z.infer<typeof BriefContextPointSchema>;
+
+/** Optional, cited historical context shown as an expandable detail. */
+export const BriefContextSchema = z.object({
+  summary: z
+    .string()
+    .trim()
+    .min(40)
+    .max(220)
+    .describe(
+      "A one- or two-sentence preview of the main reason this proposal was not already adopted.",
+    ),
+  points: z
+    .array(BriefContextPointSchema)
+    .min(1)
+    .max(4)
+    .describe(
+      "Documented earlier attempts, disagreements, constraints, or changed circumstances. The section is omitted unless at least two opened sources support it.",
+    ),
+});
+export type BriefContext = z.infer<typeof BriefContextSchema>;
+
 /** Billion's optional long-form explainer for readers who choose more depth. */
 export const BriefDeepDiveSchema = z.object({
   title: z.string().trim().min(8).max(90),
@@ -304,6 +352,9 @@ export const BillBriefSchema = z.object({
     .array(BriefTermSchema)
     .max(5)
     .describe("Jargon a general reader would stumble on."),
+  whyNotBefore: BriefContextSchema.optional().describe(
+    "Optional cited historical context answering why this policy was not already implemented. Use only the supplied opened research sources; omit it when the research does not establish a clear answer.",
+  ),
   deepDive: BriefDeepDiveSchema.optional().describe(
     "One optional Billion explainer for a reader who wants more depth. Focus on the most important unresolved concept or consequence instead of repeating the entire brief.",
   ),

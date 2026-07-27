@@ -9,6 +9,7 @@ import {
   findUnexplainedJargon,
   isQuoteGrounded,
   normalizeForQuoteMatch,
+  verifyBriefContext,
   verifyBriefQuotes,
   verifyBriefReading,
 } from "./bill-brief.js";
@@ -98,6 +99,87 @@ void test("further reading keeps only URLs found by the research loop", () => {
     result.reading.map((item) => item.url),
     ["https://example.com/researched"],
   );
+});
+
+void test("historical context requires two opened research sources", () => {
+  const researched = [
+    {
+      id: 1,
+      title: "First opened source",
+      url: "https://example.com/first",
+    },
+    {
+      id: 2,
+      title: "Second opened source",
+      url: "https://example.com/second",
+    },
+  ];
+  const result = verifyBriefContext(
+    brief({
+      whyNotBefore: {
+        summary:
+          "Earlier proposals stalled because lawmakers had not resolved two separate implementation questions.",
+        points: [
+          {
+            text: "The first documented disagreement concerned which existing rules the proposal would replace.",
+            citations: [
+              {
+                title: "First opened source",
+                publisher: "Research Office",
+                url: "https://example.com/first/",
+              },
+              {
+                title: "Invented source",
+                publisher: "Made Up News",
+                url: "https://example.com/invented",
+              },
+            ],
+          },
+          {
+            text: "A second source documents a separate disagreement over how the new rule would be enforced.",
+            citations: [
+              {
+                title: "Second opened source",
+                publisher: "Research Office",
+                url: "https://example.com/second",
+              },
+            ],
+          },
+        ],
+      },
+    }),
+    researched,
+  );
+
+  assert.deepEqual(
+    result.whyNotBefore?.points.flatMap((point) =>
+      point.citations.map((citation) => citation.url),
+    ),
+    ["https://example.com/first", "https://example.com/second"],
+  );
+
+  const underSourced = verifyBriefContext(
+    brief({
+      whyNotBefore: {
+        summary:
+          "One opened page alone is not enough to support this historical explanation.",
+        points: [
+          {
+            text: "This claim has only one source, so the whole optional section should be removed.",
+            citations: [
+              {
+                title: "First opened source",
+                publisher: "Research Office",
+                url: "https://example.com/first",
+              },
+            ],
+          },
+        ],
+      },
+    }),
+    researched,
+  );
+  assert.equal(underSourced.whyNotBefore, undefined);
 });
 
 void test("quote matching ignores whitespace, case, and smart punctuation", () => {

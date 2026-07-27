@@ -32,7 +32,7 @@ import { getTextLlm } from "./provider.js";
 import {
   AIRateLimitError,
   rateLimitHit,
-  researchBillReading,
+  researchBillContext,
   setRateLimitHit,
 } from "./text-generation.js";
 
@@ -173,6 +173,45 @@ export function verifyBriefReading(
   };
 }
 
+/**
+ * Historical context may use only pages the research agent successfully
+ * opened. Keep exact researched URLs, remove invented citations, and omit the
+ * entire section unless at least two distinct sources remain.
+ */
+export function verifyBriefContext(
+  brief: BillBrief,
+  sources: readonly DualLensSource[],
+): BillBrief {
+  if (!brief.whyNotBefore) return brief;
+
+  const verified = new Map(
+    sources.map((source) => [comparableUrl(source.url), source.url]),
+  );
+  const points = brief.whyNotBefore.points.flatMap((point) => {
+    const citations = point.citations.flatMap((citation) => {
+      const url = verified.get(comparableUrl(citation.url));
+      return url ? [{ ...citation, url }] : [];
+    });
+    return citations.length > 0 ? [{ ...point, citations }] : [];
+  });
+  const distinctSources = new Set(
+    points.flatMap((point) => point.citations.map((citation) => citation.url)),
+  );
+
+  if (points.length === 0 || distinctSources.size < 2) {
+    const { whyNotBefore: _dropped, ...rest } = brief;
+    return rest;
+  }
+
+  return {
+    ...brief,
+    whyNotBefore: {
+      summary: brief.whyNotBefore.summary,
+      points,
+    },
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Step 3 — framing lint
  * ------------------------------------------------------------------ */
@@ -233,6 +272,12 @@ function authoredProse(brief: BillBrief): string[] {
     ...brief.affected.flatMap((a) => [a.group, a.takeaway, a.effect]),
     ...brief.unknowns,
     ...brief.terms.flatMap((t) => [t.term, t.plain]),
+    ...(brief.whyNotBefore
+      ? [
+          brief.whyNotBefore.summary,
+          ...brief.whyNotBefore.points.map((point) => point.text),
+        ]
+      : []),
     ...(brief.deepDive
       ? [brief.deepDive.title, brief.deepDive.dek, brief.deepDive.body]
       : []),
@@ -330,6 +375,12 @@ function readerFacingProse(brief: BillBrief): string[] {
     ...brief.changes.flatMap((c) => [c.title, c.before, c.after]),
     ...brief.affected.flatMap((a) => [a.group, a.takeaway, a.effect]),
     ...brief.unknowns,
+    ...(brief.whyNotBefore
+      ? [
+          brief.whyNotBefore.summary,
+          ...brief.whyNotBefore.points.map((point) => point.text),
+        ]
+      : []),
     ...(brief.deepDive
       ? [brief.deepDive.title, brief.deepDive.dek, brief.deepDive.body]
       : []),
@@ -460,6 +511,7 @@ Field notes:
 - "visual" is optional curated artwork. Use "infrastructure-repair" only for physical road or bridge work, "public-transit" only for rail or bus expansion, and otherwise omit it.
 - "unknowns" is required. Name what the text leaves open — undefined terms, delegated decisions, unfunded pieces, effects the source does not establish.
 - "terms" appears near the top of the article. Include only essential vocabulary that changes how the reader understands the mechanism, and define it in one short everyday sentence.
+- "whyNotBefore" is an optional expandable answer to "Why wasn't this implemented before?" Use it only when the research documents a real historical answer. Explain earlier attempts, disagreements, legal or budget constraints, implementation tradeoffs, or changed circumstances without speculating about motives. Every point needs at least one citation, the section needs at least two different opened sources overall, and every citation URL must exactly match a verified source below.
 - "deepDive" is an optional long-form Billion explainer for readers who deliberately ask for more. It opens as its own article, so write natural markdown with short paragraphs, useful subheads, selective bolding, and bullets only when they clarify a list. Focus on one important question or consequence instead of repeating the entire structured brief. Aim for 500–900 words when the source supports that depth.
 - "reading" recommends outside articles. Use ONLY the verified research sources supplied below, copy their URLs exactly, and explain in one sentence what each adds. Omit weak or irrelevant links.${retryNote}${jargonRetryNote}
 
@@ -474,15 +526,15 @@ ${
 }
 ${
   readingResearch
-    ? `\nResearch notes for optional deeper reading:\n${readingResearch.slice(0, 5000)}\n`
+    ? `\nResearch notes for historical context and optional deeper reading:\n${readingResearch.slice(0, 7000)}\n`
     : ""
 }
 ${
   readingSources?.length
-    ? `\nVerified reading sources (reading URLs must exactly match one of these):\n${readingSources
+    ? `\nVerified opened sources ("whyNotBefore" citations and "reading" URLs must exactly match one of these):\n${readingSources
         .map((source) => `[${source.id}] ${source.title} — ${source.url}`)
         .join("\n")}\n`
-    : "\nNo verified outside reading sources were found. Return an empty reading list.\n"
+    : '\nNo verified outside sources were found. Omit "whyNotBefore" and return an empty reading list.\n'
 }
 Official text:
 ${sourceText.slice(0, SOURCE_WINDOW)}
@@ -509,7 +561,7 @@ export async function generateBillBrief(args: {
   if (rateLimitHit) throw new AIRateLimitError();
 
   const legalStatus = deriveLegalStatus(args.status);
-  const readingResearch = await researchBillReading(
+  const readingResearch = await researchBillContext(
     args.title,
     args.billNumber,
     args.fullText,
@@ -538,8 +590,12 @@ export async function generateBillBrief(args: {
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
       const quoteResult = verifyBriefQuotes(output, args.fullText);
-      const brief = verifyBriefReading(
+      const briefWithReading = verifyBriefReading(
         quoteResult.brief,
+        readingResearch.sources,
+      );
+      const brief = verifyBriefContext(
+        briefWithReading,
         readingResearch.sources,
       );
       const { verified, dropped } = quoteResult;

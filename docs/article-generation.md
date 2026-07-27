@@ -31,16 +31,17 @@ bounces off paragraph two leaves with nothing, not even curiosity.
 A **brief** is the same analysis stored as typed pieces instead of prose. The
 canonical shape lives in [`@acme/validators`](../packages/validators/src/bill-brief.ts):
 
-| Field      | What it is                                      | Why it's its own field                                                       |
-| ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------- |
-| `hook`     | One sentence naming the biggest concrete change | The floor: a reader who reads nothing else still learns one true thing       |
-| `facts`    | ≤4 figures — money, deadlines, scope            | Scannable without reading                                                    |
-| `changes`  | ≤5 provisions as `before` → `after`             | Forces current law to be stated separately from the proposal                 |
-| `affected` | ≤4 groups with a `direction`                    | "Who does this land on" is the question people actually have                 |
-| `unknowns` | 1–3 things the text does not settle             | Required, so the brief can't read as more settled than the source            |
-| `terms`    | ≤5 glossary entries                             | Jargon gets defined instead of avoided                                       |
-| `deepDive` | One optional long-form markdown article         | Lets an interested reader keep reading without turning the brief into a wall |
-| `reading`  | ≤4 researched outside articles                  | Follows the Bradbury Principle with real next steps                          |
+| Field          | What it is                                      | Why it's its own field                                                       |
+| -------------- | ----------------------------------------------- | ---------------------------------------------------------------------------- |
+| `hook`         | One sentence naming the biggest concrete change | The floor: a reader who reads nothing else still learns one true thing       |
+| `facts`        | ≤4 figures — money, deadlines, scope            | Scannable without reading                                                    |
+| `changes`      | ≤5 provisions as `before` → `after`             | Forces current law to be stated separately from the proposal                 |
+| `affected`     | ≤4 groups with a `direction`                    | "Who does this land on" is the question people actually have                 |
+| `unknowns`     | 1–3 things the text does not settle             | Required, so the brief can't read as more settled than the source            |
+| `terms`        | ≤5 glossary entries                             | Jargon gets defined instead of avoided                                       |
+| `whyNotBefore` | Optional cited historical context               | Answers the obvious follow-up without guessing at motives                    |
+| `deepDive`     | One optional long-form markdown article         | Lets an interested reader keep reading without turning the brief into a wall |
+| `reading`      | ≤4 researched outside articles                  | Follows the Bradbury Principle with real next steps                          |
 
 The reader can stop after the hook, after the tiles, after the changes, or go
 all the way into the source text — and every stopping point is coherent.
@@ -78,12 +79,13 @@ drift into argument, and the argument layer keeps its own provenance.
 [`apps/scraper/src/utils/ai/bill-brief.ts`](../apps/scraper/src/utils/ai/bill-brief.ts)
 has a research pass, a structured writing pass, and deterministic verification.
 
-### 1. Research deeper reading (agentic LLM loop)
+### 1. Research history and deeper reading (agentic LLM loop)
 
-The model searches for clear explanatory reporting or authoritative
-background, opens promising pages, and reads at least two before making a
-recommendation. The pipeline records only successfully opened URLs. Any
-model-authored reading URL that is not in that set is removed before storage.
+The model first investigates why the policy has not already been adopted:
+earlier bills, documented disagreements, legal or budget limits, implementation
+tradeoffs, and changed circumstances. It separately searches for useful
+follow-up reading, opens at least three promising pages, and records only
+successfully opened URLs. Snippets are never treated as evidence.
 
 ### 2. Structure (LLM)
 
@@ -91,10 +93,12 @@ One schema-validated call (AI SDK `Output.object`) grounded in the official
 text plus, when available, the existing long-form article. That article already
 did the careful nonpartisan reading, so this pass is mostly restructuring —
 cheaper and more consistent than reading the statute cold. The model sees a
-24k-character window of source text plus the verified reading research. It may
-also write one focused `deepDive` article for readers who opt into more depth.
+24k-character window of source text plus the verified research. It may produce
+an expandable `whyNotBefore` explanation, but only with citations to opened
+pages, and may also write one focused `deepDive` article for readers who opt
+into more depth.
 
-### 3. Verify quotes and reading links (deterministic)
+### 3. Verify quotes and research links (deterministic)
 
 Every `quote.text` is checked against the **whole** source document, not just
 the window the model saw. Matching normalizes away formatting — casing, smart
@@ -106,7 +110,8 @@ Unverified quotes are **stripped, and the surrounding claim is kept**. A brief
 may end up saying less than the model wrote, but it never puts words in a
 bill's mouth. The kept count is stored as `verifiedQuotes`. Outside reading
 links are checked against the URLs opened by the research loop; invented links
-are dropped.
+are dropped. The historical-context section is removed entirely unless at least
+two distinct opened sources remain after verification.
 
 ### 4. Lint framing and jargon (deterministic)
 

@@ -500,32 +500,36 @@ function collectOpenedLoopSources(steps: unknown): SdkSource[] {
   }));
 }
 
-export interface ReadingResearch {
+export interface BillContextResearch {
   notes: string;
   sources: DualLensSource[];
 }
 
 /**
- * Find useful next reads for a bill. The outer model must search and open
- * pages; returning the provider's snippets directly would turn "Keep reading"
- * into an unverified link dump.
+ * Research both the bill's historical context and useful next reads. The outer
+ * model must search and open pages; snippets alone cannot support a claim about
+ * why an earlier proposal stalled or make a trustworthy reading recommendation.
  */
-export async function researchBillReading(
+export async function researchBillContext(
   title: string,
   billNumber: string,
   fullText: string,
-): Promise<ReadingResearch> {
+): Promise<BillContextResearch> {
   try {
     const res = await generateText({
       model: getTextLlm(),
       tools: { web_search: webResearchTool, fetch_page: fetchPageTool },
-      stopWhen: stepCountIs(5),
-      prompt: `You are finding genuinely useful follow-up reading for an average citizen reading about ${billNumber}, "${title}".
+      stopWhen: stepCountIs(7),
+      prompt: `You are researching historical context and useful follow-up reading for an average citizen reading about ${billNumber}, "${title}".
 
-1. Search for clear explanatory reporting, nonpartisan analysis, or authoritative background that helps a reader understand the bill's most important mechanism or uncertainty.
+1. First investigate why this policy has not already been implemented. Look for earlier bills, documented disagreements, legal or budget constraints, implementation tradeoffs, and circumstances that changed. Do not guess at lawmakers' motives.
 2. Prefer the Congressional Research Service, GAO, CBO, established newsrooms, universities, and transparent research organizations. Avoid campaign pages, SEO summaries, scraped copies, and sources that merely repeat a press release.
-3. Open and read at least two promising results with fetch_page. A search snippet is not enough.
-4. Return concise notes on the two to four best articles: what each explains, who published it, and why it is worth the reader's time. Do not recommend a page you did not open.
+3. Search separately for clear explanatory reporting or authoritative background that helps a reader understand the bill's most important mechanism or uncertainty.
+4. Open and read at least three promising results with fetch_page, including at least two that directly support the historical explanation. A search snippet is not enough.
+5. Return concise notes in two labeled parts:
+   - WHY NOT BEFORE: the documented answer, distinguishing established facts from uncertainty and naming which opened URLs support each point.
+   - FURTHER READING: the two to four best articles, who published each, and what each helps a reader understand.
+Do not cite or recommend a page you did not open.
 
 Official bill excerpt:
 ${fullText.slice(0, 4000)}`,
@@ -540,7 +544,7 @@ ${fullText.slice(0, 4000)}`,
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
-    logger.warn(`Further-reading research failed for "${title}"`, error);
+    logger.warn(`Bill-context research failed for "${title}"`, error);
     return { notes: "", sources: [] };
   }
 }

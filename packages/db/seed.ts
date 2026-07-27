@@ -434,7 +434,7 @@ const billBriefs: (Omit<
   "generatedAt" | "modelVersion"
 > | null)[] = [
   {
-    version: 5,
+    version: 6,
     legalStatus: "proposed",
     verifiedQuotes: 1,
     hook: "If this bill becomes law, states would get a longer window to plan road and bridge repairs, while cities could apply for new public-transit money. The $200 billion is a maximum, not guaranteed money; Congress would still decide how much can actually be spent each year.",
@@ -505,6 +505,34 @@ const billBriefs: (Omit<
           "Congress sets a maximum amount a program may spend. This does not provide the money by itself; Congress must approve the actual spending later.",
       },
     ],
+    whyNotBefore: {
+      summary:
+        "Congress already funds highways and transit in multi-year laws. The recurring disputes are how long to promise money, which programs receive it, and how to cover a transportation fund that collects less than current plans require.",
+      points: [
+        {
+          text: "Recent transportation laws have generally lasted about five years, not ten. Several earlier laws expired before Congress agreed on replacements, so lawmakers temporarily extended the old programs while negotiations continued.",
+          citations: [
+            {
+              title:
+                "Surface Transportation Reauthorization: Federal Highway Programs",
+              publisher: "Congressional Research Service",
+              url: "https://www.congress.gov/crs-product/R48845",
+            },
+          ],
+        },
+        {
+          text: "A longer promise also raises the question of how to pay for it. Federal fuel-tax revenue has not kept pace with planned highway and transit spending, and Congress has repeatedly transferred other federal money into the Highway Trust Fund.",
+          citations: [
+            {
+              title:
+                "Funding and Financing Highways and Public Transportation Under the Infrastructure Investment and Jobs Act",
+              publisher: "Congressional Research Service",
+              url: "https://www.congress.gov/crs-product/R47573",
+            },
+          ],
+        },
+      ],
+    },
     deepDive: {
       title: "Why the $200 billion is not guaranteed",
       dek: "The bill could set a ten-year plan without putting the full amount in agencies' bank accounts.",
@@ -528,7 +556,7 @@ const billBriefs: (Omit<
     ],
   },
   {
-    version: 5,
+    version: 6,
     legalStatus: "proposed",
     verifiedQuotes: 1,
     hook: "If passed, the bill would require companies to get permission before collecting or selling personal data. People across the country could also review and delete information held about them, although the text does not settle whether stronger state privacy laws would remain in place.",
@@ -592,6 +620,32 @@ const billBriefs: (Omit<
           "When a federal law overrides state laws on the same subject, replacing them rather than adding to them.",
       },
     ],
+    whyNotBefore: {
+      summary:
+        "Congress has considered nationwide privacy rules for years, but earlier proposals did not resolve whether federal law should replace stronger state protections or let individuals sue companies directly.",
+      points: [
+        {
+          text: "Federal privacy law has mostly covered particular industries and types of data, while states built broader consumer rules. Past federal proposals have taken sharply different approaches to whether those state laws would remain in force.",
+          citations: [
+            {
+              title: "Preemption and Privacy Law",
+              publisher: "Congressional Research Service",
+              url: "https://www.congress.gov/crs-product/R48667",
+            },
+          ],
+        },
+        {
+          text: "Earlier comprehensive bills also differed over enforcement. Some would have allowed individuals to sue in certain circumstances, while others relied more heavily on government enforcement, making that choice another recurring point of disagreement.",
+          citations: [
+            {
+              title: "Overview of the American Data Privacy and Protection Act",
+              publisher: "Congressional Research Service",
+              url: "https://www.congress.gov/crs-product/LSB10776",
+            },
+          ],
+        },
+      ],
+    },
     reading: [],
   },
 ];
