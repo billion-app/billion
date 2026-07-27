@@ -645,13 +645,6 @@ export function BillBrief({
       <Hook text={data.hook} legalStatus={data.legalStatus} accent={accent} />
       <Terms terms={data.terms} accent={accent} />
 
-      {dualLens ? (
-        <View style={s.lensSection}>
-          <BlockTitle>How people make the case</BlockTitle>
-          {dualLens}
-        </View>
-      ) : null}
-
       <BlockTitle>What would change</BlockTitle>
       <Changes
         changes={data.changes}
@@ -663,6 +656,14 @@ export function BillBrief({
       <Affected affected={data.affected} accent={accent} />
 
       <Unknowns unknowns={data.unknowns} accent={accent} />
+
+      {dualLens ? (
+        <View style={s.lensSection}>
+          <BlockTitle>How people make the case</BlockTitle>
+          {dualLens}
+        </View>
+      ) : null}
+
       {data.deepDive || reading.length > 0 ? (
         <>
           <BlockTitle>Keep reading</BlockTitle>
