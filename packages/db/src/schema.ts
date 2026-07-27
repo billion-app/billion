@@ -4,6 +4,8 @@ import { check, customType, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+import type { BillBriefRecord } from "@acme/validators";
+
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
   dataType() {
@@ -688,11 +690,19 @@ export const ContentLens = pgTable(
         framing?: "proponent_opponent" | "left_right";
         left: {
           stance: string;
-          points: { text: string; sourceIds: number[] }[];
+          points: {
+            text: string;
+            example?: string | { fact: string; relevance: string };
+            sourceIds: number[];
+          }[];
         };
         right: {
           stance: string;
-          points: { text: string; sourceIds: number[] }[];
+          points: {
+            text: string;
+            example?: string | { fact: string; relevance: string };
+            sourceIds: number[];
+          }[];
         };
         sources: { id: number; title: string; url: string }[];
         generatedAt: string;
@@ -708,6 +718,33 @@ export const ContentLens = pgTable(
   (table) => ({
     uniqueContentLens: unique().on(table.contentType, table.contentId),
     contentIdIndex: index("content_lens_content_id_idx").on(table.contentId),
+  }),
+);
+
+/**
+ * Structured article briefs — one row per content item, cached the same way as
+ * ContentLens (regenerated when `contentHash` moves). Kept out of the content
+ * tables so a brief can be regenerated, versioned, or dropped without touching
+ * scraped source rows, and so the three content types can adopt it one at a
+ * time. Only bills are generated today.
+ */
+export const ContentBrief = pgTable(
+  "content_brief",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
+    contentId: t.uuid().notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    brief: t.jsonb().$type<BillBriefRecord>().notNull(),
+    modelVersion: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueContentBrief: unique().on(table.contentType, table.contentId),
+    contentIdIndex: index("content_brief_content_id_idx").on(table.contentId),
   }),
 );
 

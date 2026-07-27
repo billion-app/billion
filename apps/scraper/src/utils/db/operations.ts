@@ -2,10 +2,12 @@ import { and, eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
+  ContentBrief,
   ContentLens,
   CourtCase,
   GovernmentContent,
 } from "@acme/db/schema";
+import { isCurrentBillBrief } from "@acme/validators";
 
 import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
@@ -13,6 +15,7 @@ import type {
   CourtCaseData,
   GovernmentContentData,
 } from "../types.js";
+import { generateBillBrief } from "../ai/bill-brief.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
@@ -431,6 +434,22 @@ export async function upsertContent(
         aiGeneratedArticle,
       );
     }
+
+    // Generate and cache the structured brief. Bills only for now — the brief
+    // schema is written around legislative mechanics (before/after provisions,
+    // sponsor-vs-text framing) and needs separate design work per content type.
+    if (hasUsableText && result?.id && input.type === "bill") {
+      await upsertBillBrief({
+        contentId: result.id,
+        contentHash: newContentHash,
+        title,
+        billNumber: input.data.billNumber,
+        url,
+        fullText: fullText!,
+        status: input.data.status,
+        priorArticle: aiGeneratedArticle,
+      });
+    }
   } catch (error) {
     if (error instanceof AIRateLimitError) {
       logger.warn(
@@ -485,9 +504,9 @@ export async function upsertContent(
 
 /**
  * Generate (or refresh) the cached dual-lens perspectives for a content item.
- * Skips generation when a row already exists for the current contentHash, so
- * unchanged content never re-pays for an LLM call. AIRateLimitError propagates
- * to the caller's rate-limit handler.
+ * Skips generation when a row already exists for the current contentHash and
+ * lens contract version, so unchanged, current content never re-pays for an LLM
+ * call. AIRateLimitError propagates to the caller's rate-limit handler.
  */
 export async function upsertContentLens(
   contentId: string,
@@ -498,10 +517,12 @@ export async function upsertContentLens(
   articleType: string,
   aiGeneratedArticle?: string | null,
 ): Promise<boolean> {
+  const modelVersion = `${getTextModelVersion()}:concrete-examples-v2`;
   const [existing] = await db
     .select({
       contentHash: ContentLens.contentHash,
       lensData: ContentLens.lensData,
+      modelVersion: ContentLens.modelVersion,
     })
     .from(ContentLens)
     .where(
@@ -514,6 +535,7 @@ export async function upsertContentLens(
 
   if (
     existing?.contentHash === contentHash &&
+    existing.modelVersion === modelVersion &&
     isUsableDualLens(existing.lensData)
   ) {
     logger.debug(`Dual-lens already cached for ${contentId}`);
@@ -531,7 +553,6 @@ export async function upsertContentLens(
     return false;
   }
 
-  const modelVersion = getTextModelVersion();
   await db
     .insert(ContentLens)
     .values({
@@ -560,5 +581,86 @@ export async function upsertContentLens(
     });
 
   logger.success(`Cached dual-lens for ${contentId}`);
+  return true;
+}
+
+/**
+ * Generate (or refresh) the cached structured brief for a bill. Skips the LLM
+ * entirely when a usable row already exists for the current contentHash, so
+ * unchanged bills never re-pay — same caching contract as `upsertContentLens`.
+ * AIRateLimitError propagates to the caller's rate-limit handler.
+ */
+export async function upsertBillBrief(args: {
+  contentId: string;
+  contentHash: string;
+  title: string;
+  billNumber: string;
+  url: string;
+  fullText: string;
+  status?: string | null;
+  priorArticle?: string | null;
+}): Promise<boolean> {
+  const [existing] = await db
+    .select({
+      contentHash: ContentBrief.contentHash,
+      brief: ContentBrief.brief,
+    })
+    .from(ContentBrief)
+    .where(
+      and(
+        eq(ContentBrief.contentId, args.contentId),
+        eq(ContentBrief.contentType, "bill"),
+      ),
+    )
+    .limit(1);
+
+  if (
+    !forceAIRegeneration &&
+    existing?.contentHash === args.contentHash &&
+    isCurrentBillBrief(existing.brief)
+  ) {
+    logger.debug(`Brief already cached for ${args.billNumber}`);
+    return true;
+  }
+
+  const generated = await generateBillBrief({
+    title: args.title,
+    billNumber: args.billNumber,
+    url: args.url,
+    fullText: args.fullText,
+    status: args.status,
+    priorArticle: args.priorArticle,
+  });
+  if (!generated) {
+    logger.warn(`Brief generation returned null for ${args.billNumber}`);
+    return false;
+  }
+
+  const modelVersion = getTextModelVersion();
+  const brief = {
+    ...generated,
+    generatedAt: new Date().toISOString(),
+    modelVersion,
+  };
+  await db
+    .insert(ContentBrief)
+    .values({
+      contentId: args.contentId,
+      contentType: "bill",
+      contentHash: args.contentHash,
+      brief,
+      modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: [ContentBrief.contentType, ContentBrief.contentId],
+      set: {
+        contentHash: args.contentHash,
+        brief,
+        modelVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+  logger.success(`Cached brief for ${args.billNumber}`);
   return true;
 }

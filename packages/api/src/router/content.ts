@@ -6,12 +6,14 @@ import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
 import {
   Bill,
+  ContentBrief,
   ContentLens,
   CourtCase,
   GovernmentContent,
   SavedArticle,
   Video,
 } from "@acme/db/schema";
+import { parseBillBriefRecord } from "@acme/validators";
 
 import { toBillTimelineActions } from "../lib/bill-actions";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
@@ -117,6 +119,27 @@ async function getLensData(
     )
     .limit(1);
   return lens?.lensData ?? null;
+}
+
+// Look up the cached structured brief for a content item. Rows written by an
+// older shipped shapes are normalized here, so the client can treat a present
+// brief as renderable while the scraper refreshes stale rows independently.
+// Bills are the only type generating briefs today.
+async function getBrief(
+  contentId: string,
+  contentType: "bill" | "government_content" | "court_case",
+) {
+  const [row] = await db
+    .select({ brief: ContentBrief.brief })
+    .from(ContentBrief)
+    .where(
+      and(
+        eq(ContentBrief.contentId, contentId),
+        eq(ContentBrief.contentType, contentType),
+      ),
+    )
+    .limit(1);
+  return row ? parseBillBriefRecord(row.brief) : null;
 }
 
 // Helper function to get thumbnail URL for any content
@@ -599,6 +622,7 @@ export const contentRouter = {
             actions: toBillTimelineActions(b.actions ?? []),
             status: b.status ?? undefined,
             lensData: await getLensData(b.id, "bill"),
+            brief: await getBrief(b.id, "bill"),
           },
         ]);
         if (!result) throw new Error(`Failed to decorate bill ${b.id}`);
