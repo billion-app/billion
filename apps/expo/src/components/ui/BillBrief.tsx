@@ -1044,11 +1044,15 @@ const s = StyleSheet.create({
     letterSpacing: 0.7,
   },
   inlineStrong: {
-    fontFamily: fontBody.semibold,
+    // Keep the parent's font family. Switching to a separately registered
+    // custom font inside nested Text makes iOS treat a long emphasized phrase
+    // as a single inline run, which clips instead of continuing on the next
+    // line. Weight preserves one native wrapping context.
+    fontWeight: "700",
     color: colors.white,
   },
   inlineStrongEditorial: {
-    fontFamily: fontEditorial.bold,
+    fontWeight: "700",
   },
   changeVisualWrap: {
     height: 142,
