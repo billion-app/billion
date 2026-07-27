@@ -133,9 +133,12 @@ and cached against the source's `contentHash` — the same contract as
 outside the content tables so they can be regenerated, versioned, or dropped
 without touching scraped rows.
 
-`BILL_BRIEF_VERSION` gates the shape. The API drops rows that fail
-`isUsableBillBrief` rather than serving them, so the client can treat a present
-brief as renderable.
+`BILL_BRIEF_VERSION` gates generation and cache reuse. The scraper reuses only
+records that match the current schema, so older rows are regenerated when it
+encounters them. The API separately accepts shipped v1 and v5 records and
+normalizes them into the current client shape (including affected-group
+takeaways and an empty reading list where needed). Invalid or unknown shapes
+are still dropped, so the client can treat every present brief as renderable.
 
 ## Rendering
 

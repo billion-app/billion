@@ -376,21 +376,103 @@ export type BillBrief = z.infer<typeof BillBriefSchema>;
 export const BriefLegalStatusSchema = z.enum(["proposed", "enacted"]);
 export type BriefLegalStatus = z.infer<typeof BriefLegalStatusSchema>;
 
-/** A stored brief: model output plus pipeline-owned provenance. */
-export const BillBriefRecordSchema = BillBriefSchema.extend({
-  version: z.literal(BILL_BRIEF_VERSION),
+const BriefRecordMetadataSchema = {
   legalStatus: BriefLegalStatusSchema,
   /** Count of quotes that matched the source text verbatim, after verification. */
   verifiedQuotes: z.number().int().min(0),
   generatedAt: z.string(),
   modelVersion: z.string(),
+};
+
+/** A stored brief: model output plus pipeline-owned provenance. */
+export const BillBriefRecordSchema = BillBriefSchema.extend({
+  version: z.literal(BILL_BRIEF_VERSION),
+  ...BriefRecordMetadataSchema,
 });
 export type BillBriefRecord = z.infer<typeof BillBriefRecordSchema>;
 
+/** The immediately preceding rich-brief shape, before cited history was added. */
+const BillBriefV5RecordSchema = BillBriefSchema.extend({
+  version: z.literal(5),
+  ...BriefRecordMetadataSchema,
+});
+
 /**
- * Whether a stored brief is still renderable. Used to decide if a cached row
- * can be reused or has to be regenerated, mirroring `isUsableDualLens`.
+ * The first shipped brief shape. It had optional long-form `sections`, no
+ * affected-group takeaway, and no researched reading/history layer.
+ */
+const BillBriefV1RecordSchema = z.object({
+  version: z.literal(1),
+  hook: z.string().trim().min(24).max(420),
+  facts: z.array(BriefFactSchema).max(4),
+  changes: z.array(BriefChangeSchema).min(1).max(5),
+  affected: z
+    .array(
+      z.object({
+        group: z.string().trim().min(3).max(52),
+        effect: z.string().trim().min(12).max(220),
+        direction: z.enum(["gains", "loses", "mixed", "unclear"]),
+      }),
+    )
+    .min(1)
+    .max(4),
+  unknowns: z.array(z.string().trim().min(15).max(220)).min(1).max(3),
+  terms: z.array(BriefTermSchema).max(5),
+  sections: z
+    .array(
+      z.object({
+        heading: z.string().trim().min(3).max(60),
+        body: z.string().trim().min(120).max(2200),
+      }),
+    )
+    .max(3),
+  ...BriefRecordMetadataSchema,
+});
+
+function conciseTakeaway(effect: string): string {
+  const firstSentence = effect.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim();
+  const candidate = firstSentence || effect;
+  if (candidate.length <= 140) return candidate;
+  return `${candidate.slice(0, 136).replace(/\s+\S*$/, "")}…`;
+}
+
+/**
+ * Parse any brief shape the app has shipped and return the current client
+ * shape. Normalizing at the API boundary keeps old cached rows renderable while
+ * the scraper independently decides whether they should be regenerated.
+ */
+export function parseBillBriefRecord(value: unknown): BillBriefRecord | null {
+  const current = BillBriefRecordSchema.safeParse(value);
+  if (current.success) return current.data;
+
+  const v5 = BillBriefV5RecordSchema.safeParse(value);
+  if (v5.success) {
+    return { ...v5.data, version: BILL_BRIEF_VERSION };
+  }
+
+  const v1 = BillBriefV1RecordSchema.safeParse(value);
+  if (!v1.success) return null;
+  const { sections: _legacySections, ...legacy } = v1.data;
+  return {
+    ...legacy,
+    version: BILL_BRIEF_VERSION,
+    affected: legacy.affected.map((item) => ({
+      ...item,
+      takeaway: conciseTakeaway(item.effect),
+    })),
+    reading: [],
+  };
+}
+
+/**
+ * Whether a stored brief is renderable by the current client, including a
+ * shape that can be normalized from an older shipped schema.
  */
 export function isUsableBillBrief(value: unknown): boolean {
+  return parseBillBriefRecord(value) !== null;
+}
+
+/** Whether the scraper can reuse a cached row without regenerating it. */
+export function isCurrentBillBrief(value: unknown): boolean {
   return BillBriefRecordSchema.safeParse(value).success;
 }

@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { BillBrief } from "@acme/validators";
+import {
+  BILL_BRIEF_VERSION,
+  isCurrentBillBrief,
+  isUsableBillBrief,
+  parseBillBriefRecord,
+} from "@acme/validators";
 
 import {
   deriveLegalStatus,
@@ -65,6 +71,49 @@ function brief(overrides: Partial<BillBrief> = {}): BillBrief {
     ...overrides,
   };
 }
+
+void test("older brief records stay renderable but are not current cache hits", () => {
+  const metadata = {
+    legalStatus: "proposed" as const,
+    verifiedQuotes: 0,
+    generatedAt: "2026-07-26T00:00:00.000Z",
+    modelVersion: "legacy-model",
+  };
+  const v5 = { ...brief(), ...metadata, version: 5 };
+
+  assert.equal(isUsableBillBrief(v5), true);
+  assert.equal(isCurrentBillBrief(v5), false);
+  assert.equal(parseBillBriefRecord(v5)?.version, BILL_BRIEF_VERSION);
+
+  const current = {
+    ...v5,
+    version: BILL_BRIEF_VERSION,
+  };
+  assert.equal(isCurrentBillBrief(current), true);
+});
+
+void test("v1 briefs receive client defaults at the API boundary", () => {
+  const current = brief();
+  const v1 = {
+    version: 1,
+    hook: current.hook,
+    facts: current.facts,
+    changes: current.changes,
+    affected: current.affected.map(({ takeaway: _takeaway, ...item }) => item),
+    unknowns: current.unknowns,
+    terms: current.terms,
+    sections: [],
+    legalStatus: "proposed" as const,
+    verifiedQuotes: 0,
+    generatedAt: "2026-07-26T00:00:00.000Z",
+    modelVersion: "legacy-model",
+  };
+  const normalized = parseBillBriefRecord(v1);
+
+  assert.equal(normalized?.version, BILL_BRIEF_VERSION);
+  assert.deepEqual(normalized?.reading, []);
+  assert.equal(normalized?.affected[0]?.takeaway, current.affected[0]?.effect);
+});
 
 void test("further reading keeps only URLs found by the research loop", () => {
   const result = verifyBriefReading(

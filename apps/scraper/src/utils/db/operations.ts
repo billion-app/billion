@@ -7,7 +7,7 @@ import {
   CourtCase,
   GovernmentContent,
 } from "@acme/db/schema";
-import { isUsableBillBrief } from "@acme/validators";
+import { isCurrentBillBrief } from "@acme/validators";
 
 import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
@@ -615,7 +615,7 @@ export async function upsertBillBrief(args: {
   if (
     !forceAIRegeneration &&
     existing?.contentHash === args.contentHash &&
-    isUsableBillBrief(existing.brief)
+    isCurrentBillBrief(existing.brief)
   ) {
     logger.debug(`Brief already cached for ${args.billNumber}`);
     return true;
