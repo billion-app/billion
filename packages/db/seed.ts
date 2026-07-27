@@ -96,7 +96,7 @@ Supporters argue the bill is long overdue, pointing to the American Society of C
     summary:
       "Establishes federal data privacy standards requiring companies to obtain consent before collecting personal data.",
     fullText:
-      "Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the 'Digital Privacy Protection Act'. SECTION 2. PURPOSE. The purpose of this Act is to establish comprehensive federal data privacy protections...",
+      "Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the 'Digital Privacy Protection Act'. SECTION 2. PURPOSE. The purpose of this Act is to establish comprehensive federal data privacy protections. SECTION 3. INDIVIDUAL DATA RIGHTS. A covered entity shall provide an individual with the right to access and delete personal data collected about the individual.",
     aiGeneratedArticle: `# What This Means For You
 Companies would need your permission before collecting or selling your personal data, and you'd have the right to see and delete what they've gathered.
 
@@ -558,7 +558,7 @@ const billBriefs: (Omit<
   {
     version: 6,
     legalStatus: "proposed",
-    verifiedQuotes: 1,
+    verifiedQuotes: 2,
     hook: "If passed, the bill would require companies to **get permission before collecting or selling personal data**. People across the country could also **review and delete information held about them**, although the text does not settle whether **stronger state privacy laws** would remain in place.",
     facts: [{ label: "Chamber status", value: "In Committee" }],
     changes: [
@@ -582,6 +582,11 @@ const billBriefs: (Omit<
           "A person's ability to see or delete company-held data **depends on the company and their state**.",
         after:
           "People across the country would gain the **right to review and delete personal data** held about them.",
+        visual: "data-control",
+        quote: {
+          text: "A covered entity shall provide an individual with the right to access and delete personal data collected about the individual",
+          locator: "Sec. 3",
+        },
       },
     ],
     affected: [

@@ -54,6 +54,7 @@ import {
   planes,
 } from "~/styles";
 import dataPrivacyImage from "../../../assets/article-brief/algorithm-transparency.jpg";
+import dataControlImage from "../../../assets/article-brief/data-control.jpg";
 import infrastructureRepairImage from "../../../assets/article-brief/infrastructure-repair.jpg";
 import publicTransitImage from "../../../assets/article-brief/public-transit.jpg";
 import { Icon } from "./Icon";
@@ -87,7 +88,11 @@ export interface BillBriefData {
     title: string;
     before: string;
     after: string;
-    visual?: "infrastructure-repair" | "public-transit" | "data-privacy";
+    visual?:
+      | "infrastructure-repair"
+      | "public-transit"
+      | "data-privacy"
+      | "data-control";
     quote?: BriefQuote;
   }[];
   affected: {
@@ -140,6 +145,11 @@ const CHANGE_VISUALS = {
     source: dataPrivacyImage,
     alt: "A laptop showing an abstract network of connected personal data",
     caption: "How companies collect, connect, and use personal data",
+  },
+  "data-control": {
+    source: dataControlImage,
+    alt: "A person reviewing privacy controls and deleting data on a laptop",
+    caption: "Reviewing and deleting personal data held by companies",
   },
 } as const;
 
