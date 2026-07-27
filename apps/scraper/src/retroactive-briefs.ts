@@ -1,26 +1,29 @@
 /**
- * Backfill structured briefs for bills that predate the brief pipeline, or
- * whose brief is stale relative to the bill's current contentHash.
+ * Backfill structured briefs for bills and court cases that predate the brief
+ * pipeline, or whose brief is stale relative to the source contentHash.
  *
- * Mirrors `retroactive-lenses.ts`. Bills already carry a vetted long-form
- * article, so the backfill hands that to the generator as prior analysis —
- * the restructuring pass is cheaper and more consistent than re-reading the
- * statute cold, and quotes are still verified against the official text.
+ * Mirrors `retroactive-lenses.ts`. Existing long-form analysis is passed to
+ * the content-specific generator as context, while quotes are still verified
+ * against the official text.
  */
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
 import { and, desc, eq, isNotNull, isNull, ne, or } from "@acme/db";
 import { db } from "@acme/db/client";
-import { Bill, ContentBrief } from "@acme/db/schema";
+import { Bill, ContentBrief, CourtCase } from "@acme/db/schema";
 
 import { AIRateLimitError } from "./utils/ai/text-generation.js";
-import { upsertBillBrief } from "./utils/db/operations.js";
+import {
+  upsertBillBrief,
+  upsertCourtCaseBrief,
+} from "./utils/db/operations.js";
 import { createLogger } from "./utils/log.js";
 
 const logger = createLogger("brief-backfill");
 
-interface BriefCandidate {
+interface BillBriefCandidate {
+  type: "bill";
   id: string;
   contentHash: string;
   title: string;
@@ -31,7 +34,21 @@ interface BriefCandidate {
   aiGeneratedArticle: string | null;
 }
 
-async function findBills(limit: number): Promise<BriefCandidate[]> {
+interface CourtBriefCandidate {
+  type: "court_case";
+  id: string;
+  contentHash: string;
+  title: string;
+  court: string;
+  caseNumber: string;
+  fullText: string;
+  status: string | null;
+  aiGeneratedArticle: string | null;
+}
+
+type BriefCandidate = BillBriefCandidate | CourtBriefCandidate;
+
+async function findBills(limit: number): Promise<BillBriefCandidate[]> {
   const rows = await db
     .select({
       id: Bill.id,
@@ -64,7 +81,48 @@ async function findBills(limit: number): Promise<BriefCandidate[]> {
     .limit(limit);
 
   return rows.flatMap((row) =>
-    row.fullText ? [{ ...row, fullText: row.fullText }] : [],
+    row.fullText
+      ? [{ ...row, type: "bill" as const, fullText: row.fullText }]
+      : [],
+  );
+}
+
+async function findCourtCases(limit: number): Promise<CourtBriefCandidate[]> {
+  const rows = await db
+    .select({
+      id: CourtCase.id,
+      contentHash: CourtCase.contentHash,
+      title: CourtCase.title,
+      court: CourtCase.court,
+      caseNumber: CourtCase.caseNumber,
+      fullText: CourtCase.fullText,
+      status: CourtCase.status,
+      aiGeneratedArticle: CourtCase.aiGeneratedArticle,
+    })
+    .from(CourtCase)
+    .leftJoin(
+      ContentBrief,
+      and(
+        eq(ContentBrief.contentType, "court_case"),
+        eq(ContentBrief.contentId, CourtCase.id),
+      ),
+    )
+    .where(
+      and(
+        isNotNull(CourtCase.fullText),
+        or(
+          isNull(ContentBrief.id),
+          ne(ContentBrief.contentHash, CourtCase.contentHash),
+        ),
+      ),
+    )
+    .orderBy(desc(CourtCase.createdAt))
+    .limit(limit);
+
+  return rows.flatMap((row) =>
+    row.fullText
+      ? [{ ...row, type: "court_case" as const, fullText: row.fullText }]
+      : [],
   );
 }
 
@@ -81,6 +139,11 @@ const argv = await yargs(hideBin(process.argv))
     default: false,
     describe: "List candidates without generating briefs",
   })
+  .option("type", {
+    choices: ["bill", "court_case", "all"] as const,
+    default: "all" as const,
+    describe: "Content type to backfill",
+  })
   .check((args) =>
     Number.isInteger(args.limit) && args.limit > 0
       ? true
@@ -90,29 +153,46 @@ const argv = await yargs(hideBin(process.argv))
   .help()
   .parse();
 
-const candidates = await findBills(argv.limit);
-logger.info(`Found ${candidates.length} missing/stale bill brief candidate(s)`);
+const candidates: BriefCandidate[] = [
+  ...(argv.type === "court_case" ? [] : await findBills(argv.limit)),
+  ...(argv.type === "bill" ? [] : await findCourtCases(argv.limit)),
+].slice(0, argv.limit);
+logger.info(`Found ${candidates.length} missing/stale brief candidate(s)`);
 
 let processed = 0;
 let failed = 0;
 
 for (const candidate of candidates) {
   if (argv.dryRun) {
-    logger.info(`[dry run] ${candidate.billNumber}: ${candidate.title}`);
+    const identifier =
+      candidate.type === "bill" ? candidate.billNumber : candidate.caseNumber;
+    logger.info(`[dry run] ${identifier}: ${candidate.title}`);
     continue;
   }
 
   try {
-    const generated = await upsertBillBrief({
-      contentId: candidate.id,
-      contentHash: candidate.contentHash,
-      title: candidate.title,
-      billNumber: candidate.billNumber,
-      url: candidate.url,
-      fullText: candidate.fullText,
-      status: candidate.status,
-      priorArticle: candidate.aiGeneratedArticle,
-    });
+    const generated =
+      candidate.type === "bill"
+        ? await upsertBillBrief({
+            contentId: candidate.id,
+            contentHash: candidate.contentHash,
+            title: candidate.title,
+            billNumber: candidate.billNumber,
+            url: candidate.url,
+            fullText: candidate.fullText,
+            status: candidate.status,
+            priorArticle: candidate.aiGeneratedArticle,
+          })
+        : await upsertCourtCaseBrief({
+            contentId: candidate.id,
+            contentHash: candidate.contentHash,
+            title: candidate.title,
+            court: candidate.court,
+            caseNumber: candidate.caseNumber,
+            fullText: candidate.fullText,
+            status: candidate.status,
+            priorArticle: candidate.aiGeneratedArticle,
+          });
     if (generated) processed++;
     else failed++;
   } catch (error) {
@@ -122,7 +202,9 @@ for (const candidate of candidates) {
       break;
     }
     failed++;
-    logger.error(`Failed brief for ${candidate.billNumber}`, error);
+    const identifier =
+      candidate.type === "bill" ? candidate.billNumber : candidate.caseNumber;
+    logger.error(`Failed brief for ${identifier}`, error);
   }
 }
 

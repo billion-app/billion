@@ -4,7 +4,7 @@ import { check, customType, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-import type { BillBriefRecord } from "@acme/validators";
+import type { StoredContentBriefRecord } from "@acme/validators";
 
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
@@ -735,7 +735,7 @@ export const ContentBrief = pgTable(
     contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
     contentId: t.uuid().notNull(),
     contentHash: t.varchar({ length: 64 }).notNull(),
-    brief: t.jsonb().$type<BillBriefRecord>().notNull(),
+    brief: t.jsonb().$type<StoredContentBriefRecord>().notNull(),
     modelVersion: t.varchar({ length: 50 }).notNull(),
     createdAt: t.timestamp().defaultNow().notNull(),
     updatedAt: t

@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 
 export * from "./bill-brief";
+export * from "./content-brief";
 
 export const unused = z.string().describe(
   `This lib is currently not used as we use drizzle-zod for simple schemas
