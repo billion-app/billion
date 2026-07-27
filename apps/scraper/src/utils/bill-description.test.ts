@@ -58,6 +58,20 @@ test("isUsableDualLens rejects placeholder arguments", () => {
   assert.equal(
     isUsableDualLens({
       ...validLens,
+      left: {
+        ...validLens.left,
+        points: validLens.left.points.map((point) => ({
+          ...point,
+          example:
+            "California already lets residents request deletion of personal data.",
+        })),
+      },
+    }),
+    true,
+  );
+  assert.equal(
+    isUsableDualLens({
+      ...validLens,
       right: {
         ...validLens.right,
         points: [{ text: "N/A", sourceIds: [] }, validLens.right.points[1]],

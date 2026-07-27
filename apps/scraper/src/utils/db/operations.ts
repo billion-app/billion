@@ -504,9 +504,9 @@ export async function upsertContent(
 
 /**
  * Generate (or refresh) the cached dual-lens perspectives for a content item.
- * Skips generation when a row already exists for the current contentHash, so
- * unchanged content never re-pays for an LLM call. AIRateLimitError propagates
- * to the caller's rate-limit handler.
+ * Skips generation when a row already exists for the current contentHash and
+ * lens contract version, so unchanged, current content never re-pays for an LLM
+ * call. AIRateLimitError propagates to the caller's rate-limit handler.
  */
 export async function upsertContentLens(
   contentId: string,
@@ -517,10 +517,12 @@ export async function upsertContentLens(
   articleType: string,
   aiGeneratedArticle?: string | null,
 ): Promise<boolean> {
+  const modelVersion = `${getTextModelVersion()}:concrete-examples-v1`;
   const [existing] = await db
     .select({
       contentHash: ContentLens.contentHash,
       lensData: ContentLens.lensData,
+      modelVersion: ContentLens.modelVersion,
     })
     .from(ContentLens)
     .where(
@@ -533,6 +535,7 @@ export async function upsertContentLens(
 
   if (
     existing?.contentHash === contentHash &&
+    existing.modelVersion === modelVersion &&
     isUsableDualLens(existing.lensData)
   ) {
     logger.debug(`Dual-lens already cached for ${contentId}`);
@@ -550,7 +553,6 @@ export async function upsertContentLens(
     return false;
   }
 
-  const modelVersion = getTextModelVersion();
   await db
     .insert(ContentLens)
     .values({

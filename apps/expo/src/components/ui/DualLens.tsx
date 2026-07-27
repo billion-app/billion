@@ -23,6 +23,7 @@ export interface LensSource {
 
 export interface LensPoint {
   text: string;
+  example?: string;
   sourceIds: number[];
 }
 
@@ -136,14 +137,44 @@ export function LensPanel({ data }: { data: LensData }) {
               <Text style={s.colStance}>{data[k].stance}</Text>
               <View style={s.points}>
                 {data[k].points.map(toPoint).map((p, i) => (
-                  <View key={i} style={s.point}>
-                    <View style={[s.dot, { backgroundColor: lensAccent }]} />
-                    <Text style={s.pointText}>
-                      {p.text}
-                      {p.sourceIds.length > 0 && (
-                        <Text style={s.cite}> [{p.sourceIds.join(",")}]</Text>
-                      )}
-                    </Text>
+                  <View key={i} style={s.pointGroup}>
+                    <View style={s.point}>
+                      <View style={[s.dot, { backgroundColor: lensAccent }]} />
+                      <Text style={s.pointText}>{p.text}</Text>
+                    </View>
+                    {p.example ? (
+                      <View
+                        style={[
+                          s.example,
+                          {
+                            borderColor: `${lensAccent}55`,
+                            backgroundColor: `${lensAccent}0D`,
+                          },
+                        ]}
+                      >
+                        <Icon name="pin" size={13} color={lensAccent} />
+                        <View style={s.exampleCopy}>
+                          <Text style={[s.exampleLabel, { color: lensAccent }]}>
+                            REAL-WORLD EXAMPLE
+                          </Text>
+                          <Text style={s.exampleText}>
+                            {p.example}
+                            {p.sourceIds.length > 0 && (
+                              <Text style={s.cite}>
+                                {" "}
+                                [{p.sourceIds.join(",")}]
+                              </Text>
+                            )}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : (
+                      p.sourceIds.length > 0 && (
+                        <Text style={[s.legacyCite, { color: lensAccent }]}>
+                          SOURCES [{p.sourceIds.join(",")}]
+                        </Text>
+                      )
+                    )}
                   </View>
                 ))}
               </View>
@@ -309,7 +340,8 @@ const s = StyleSheet.create({
     color: colors.white,
     marginBottom: 10,
   },
-  points: { gap: 9 },
+  points: { gap: 12 },
+  pointGroup: { gap: 7 },
   point: { flexDirection: "row", gap: 8 },
   dot: {
     width: 5,
@@ -328,6 +360,33 @@ const s = StyleSheet.create({
     fontFamily: "AlbertSans-Medium",
     fontSize: 10.5,
     color: colors.civicBlue,
+  },
+  legacyCite: {
+    marginLeft: 13,
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 9.5,
+    letterSpacing: 0.5,
+  },
+  example: {
+    marginLeft: 13,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 9,
+    padding: 10,
+  },
+  exampleCopy: { flex: 1, gap: 3 },
+  exampleLabel: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 9,
+    letterSpacing: 0.8,
+  },
+  exampleText: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: "rgba(255,255,255,0.76)",
   },
   footer: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 14 },
   footerText: {

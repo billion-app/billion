@@ -669,11 +669,15 @@ const billLenses = [
       points: [
         {
           text: "Promising money for ten years could help states plan repairs that take several years to finish.",
-          sourceIds: [1],
+          example:
+            "The Interstate Highway System used a multi-year federal funding commitment to support construction across many states.",
+          sourceIds: [1, 2],
         },
         {
           text: "A separate pool of federal money could help more cities expand rail and faster bus service.",
-          sourceIds: [1],
+          example:
+            "Federal Capital Investment Grants have already helped cities build projects such as light rail and bus rapid transit.",
+          sourceIds: [1, 3],
         },
       ],
     },
@@ -682,11 +686,15 @@ const billLenses = [
       points: [
         {
           text: "The $200 billion is only a limit. Congress would still decide how much money to approve each year.",
-          sourceIds: [1],
+          example:
+            "The current transit grant program separates $3 billion allowed each year from $1.6 billion provided up front.",
+          sourceIds: [1, 3],
         },
         {
           text: "A ten-year plan gives Congress fewer automatic chances to reconsider how the money is divided.",
-          sourceIds: [1],
+          example:
+            "The 2021 infrastructure law listed transit grant funding for five years, from 2022 through 2026.",
+          sourceIds: [1, 3],
         },
       ],
     },
@@ -696,6 +704,16 @@ const billLenses = [
         title: "Infrastructure Modernization Act of 2025 — official text",
         url: bills[0]!.url,
       },
+      {
+        id: 2,
+        title: "Interstate System funding history — FHWA",
+        url: "https://www.fhwa.dot.gov/highwayhistory/data/page01.cfm",
+      },
+      {
+        id: 3,
+        title: "Capital Investment Grants program — FTA",
+        url: "https://www.transit.dot.gov/funding/grants/fact-sheet-capital-investment-grants-program",
+      },
     ],
   },
   {
@@ -704,8 +722,10 @@ const billLenses = [
       stance: "Create one national privacy floor",
       points: [
         {
-          text: "One national rule could give everyone the same basic rights to approve, view, and delete their data.",
-          sourceIds: [1],
+          text: "A national rule would give people in every state the same basic rights to view and delete their data.",
+          example:
+            "California residents already have these rights; this bill would extend similar access and deletion rights nationwide.",
+          sourceIds: [1, 2],
         },
       ],
     },
@@ -713,8 +733,10 @@ const billLenses = [
       stance: "Preserve stronger state rules",
       points: [
         {
-          text: "A national rule could weaken privacy protections for people who live in states with stronger laws.",
-          sourceIds: [1],
+          text: "The excerpt does not guarantee that stronger state privacy rights would stay in place.",
+          example:
+            "California lets residents limit the use of precise location and genetic data, but this proposal excerpt does not expressly preserve that additional right.",
+          sourceIds: [1, 2],
         },
       ],
     },
@@ -723,6 +745,11 @@ const billLenses = [
         id: 1,
         title: "Digital Privacy Protection Act — official text",
         url: bills[1]!.url,
+      },
+      {
+        id: 2,
+        title: "California Consumer Privacy Act — consumer rights",
+        url: "https://oag.ca.gov/privacy/ccpa",
       },
     ],
   },

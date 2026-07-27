@@ -199,6 +199,8 @@ export async function generateAIArticle(
 
 export interface LensPoint {
   text: string;
+  /** A documented precedent or observed result that makes the argument concrete. */
+  example?: string;
   /** Ids into DualLens.sources backing this point (may be empty). */
   sourceIds: number[];
 }
@@ -277,13 +279,35 @@ const LensPointTextSchema = z
     "Lens points must contain a substantive argument, not a placeholder",
   );
 
-const DualLensSchema = z.object({
+const LensPointSchema = z.object({
+  text: LensPointTextSchema,
+  example: LensPointTextSchema.describe(
+    "A documented example plus an explicit explanation of how it supports this exact argument",
+  ),
+  sourceIds: z.array(z.number()).min(1),
+});
+
+/** New generations must ground every argument in a cited concrete example. */
+const GeneratedDualLensSchema = z.object({
+  left: z.object({
+    stance: z.string().trim().min(3),
+    points: z.array(LensPointSchema).min(2).max(4),
+  }),
+  right: z.object({
+    stance: z.string().trim().min(3),
+    points: z.array(LensPointSchema).min(2).max(4),
+  }),
+});
+
+/** Accept older cached rows while the scraper refreshes them to the new shape. */
+const CompatibleDualLensSchema = z.object({
   left: z.object({
     stance: z.string().trim().min(3),
     points: z
       .array(
         z.object({
           text: LensPointTextSchema,
+          example: LensPointTextSchema.optional(),
           sourceIds: z.array(z.number()),
         }),
       )
@@ -296,6 +320,7 @@ const DualLensSchema = z.object({
       .array(
         z.object({
           text: LensPointTextSchema,
+          example: LensPointTextSchema.optional(),
           sourceIds: z.array(z.number()),
         }),
       )
@@ -305,7 +330,7 @@ const DualLensSchema = z.object({
 });
 
 export function isUsableDualLens(value: unknown): boolean {
-  return DualLensSchema.safeParse(value).success;
+  return CompatibleDualLensSchema.safeParse(value).success;
 }
 
 /** Web-search results surfaced by the AI SDK, as returned by generateText. */
@@ -333,7 +358,8 @@ function numberSources(
 /**
  * Well-engineered citations: strip any sourceId the model invented that doesn't
  * resolve to a real fetched source, so every rendered citation number is backed
- * by an actual URL (points are kept even if uncited, preserving the ≥2 shape).
+ * by an actual URL. The caller rejects the result if that leaves an example
+ * without a citation.
  */
 function verifyCitations(
   lens: { left: LensSide; right: LensSide },
@@ -345,6 +371,7 @@ function verifyCitations(
     stance: side.stance,
     points: side.points.map((p) => ({
       text: p.text,
+      ...(p.example ? { example: p.example } : {}),
       sourceIds: [...new Set(p.sourceIds.filter((id) => valid.has(id)))],
     })),
   });
@@ -553,8 +580,10 @@ const RESEARCH_PROMPT = (title: string, type: string, text: string) =>
   `You are a nonpartisan civic analyst researching a ${type}. Your framing must stay balanced, but to capture each side's real arguments you should deliberately seek out sources FROM BOTH SIDES. Work step by step and DO NOT write your briefing until you have read primary sources:
 1. Use web_search to find both the strongest case FOR and the strongest case AGAINST — including proponents/campaigns/supportive editorials and critics/opponents/critical editorials, alongside official or nonpartisan analyses for the facts.
 2. You MUST then use fetch_page to open and read at least TWO of the most relevant results in full (snippets alone are not enough) — at least one supportive and one critical source.
-3. Search or fetch again if either side's case is still weak or one-sided.
-4. Only once you have read enough, write a concise briefing of the strongest, most specific real-world arguments from BOTH sides, noting which source URLs back each argument.
+3. Find documented real-world examples for BOTH sides: an existing law or program, named jurisdiction, earlier bill, court ruling, enforcement action, or measured implementation result. A prediction about what "could" happen is not an example.
+4. Test the relevance of every example: it must show the same mechanism, right, cost, or tradeoff as the argument. Merely naming a related law or event is not enough. Record the explicit connection between the example and the argument.
+5. Search or fetch again if either side lacks a directly relevant concrete example or is still weak or one-sided.
+6. Only once you have read enough, write a concise briefing of the strongest real-world arguments from BOTH sides. Pair every argument with a concrete example, explain why that example supports the argument, and note which source URLs support both.
 
 Prioritize credible, verifiable sources over neutrality — a partisan source is fine for capturing that side's argument, as long as it's real. Do not editorialize in your own voice.
 
@@ -587,10 +616,24 @@ ${
     : `Frame the two sides by support: "left" = proponents/supporters, "right" = opponents/critics. Set left.stance = "Proponents argue" and right.stance = "Opponents counter".`
 }
 
-For each point, set "sourceIds" to the numbers of the sources (from the Sources list) that directly support it. If a point isn't backed by a listed source, use an empty array. Never cite a source number that isn't in the list.
+For each point, set "sourceIds" to the numbers of the sources (from the Sources
+list) that directly support both the argument and its example. Omit an
+unsupported point instead of using an empty array. Never cite a source number
+that isn't in the list.
+
+Every point must also include an "example": one short, complete sentence naming
+a documented precedent or observed result from the research. Good examples name
+a state, country, agency, earlier bill, court case, company, year, or measured
+outcome. The sentence must explicitly explain how that precedent demonstrates,
+supports, or limits the exact argument immediately above it. A related fact with
+no stated connection is invalid. Do not invent a scenario. You may compare a
+documented existing policy with a specific provision or omission in this
+proposal, but make both sides of that comparison explicit. The example and
+argument must be backed by at least one listed source, so every sourceIds array
+must contain a valid source number.
 
 Sources:
-${sourceList || "(none found — use empty sourceIds arrays)"}
+${sourceList || "(none found — cited concrete examples cannot be generated)"}
 
 Research:
 ${research}
@@ -607,7 +650,8 @@ const RESEARCH_MAX_STEPS = 6;
  *       reads sources, and searches again until it can brief both sides.
  *   (2) The text model structures the briefing into schema-validated perspectives with
  *       per-point citations (AI SDK structured output; no manual JSON parsing).
- * Falls back to source-text-only structuring if web research is unavailable.
+ * Returns null if research cannot supply cited concrete examples; the official
+ * source alone is not enough to invent a precedent.
  */
 export async function generateDualLens(
   title: string,
@@ -657,11 +701,17 @@ export async function generateDualLens(
     try {
       const { output, usage } = await generateText({
         model: getTextLlm(),
-        output: Output.object({ schema: DualLensSchema }),
+        output: Output.object({ schema: GeneratedDualLensSchema }),
         prompt: STRUCTURE_PROMPT(title, type, framing, grounding, sourceList),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
-      return verifyCitations(output, framing, sources);
+      const verified = verifyCitations(output, framing, sources);
+      if (!GeneratedDualLensSchema.safeParse(verified).success) {
+        throw new Error(
+          "Dual-lens examples must retain at least one verified citation",
+        );
+      }
+      return verified;
     } catch (error) {
       if (isRateLimitError(error)) {
         rateLimitHit = true;
