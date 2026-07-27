@@ -690,11 +690,19 @@ export const ContentLens = pgTable(
         framing?: "proponent_opponent" | "left_right";
         left: {
           stance: string;
-          points: { text: string; example?: string; sourceIds: number[] }[];
+          points: {
+            text: string;
+            example?: string | { fact: string; relevance: string };
+            sourceIds: number[];
+          }[];
         };
         right: {
           stance: string;
-          points: { text: string; example?: string; sourceIds: number[] }[];
+          points: {
+            text: string;
+            example?: string | { fact: string; relevance: string };
+            sourceIds: number[];
+          }[];
         };
         sources: { id: number; title: string; url: string }[];
         generatedAt: string;

@@ -517,7 +517,7 @@ export async function upsertContentLens(
   articleType: string,
   aiGeneratedArticle?: string | null,
 ): Promise<boolean> {
-  const modelVersion = `${getTextModelVersion()}:concrete-examples-v1`;
+  const modelVersion = `${getTextModelVersion()}:concrete-examples-v2`;
   const [existing] = await db
     .select({
       contentHash: ContentLens.contentHash,

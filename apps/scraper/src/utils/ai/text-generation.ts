@@ -197,10 +197,15 @@ export async function generateAIArticle(
   }
 }
 
+export interface LensExample {
+  fact: string;
+  relevance: string;
+}
+
 export interface LensPoint {
   text: string;
   /** A documented precedent or observed result that makes the argument concrete. */
-  example?: string;
+  example?: LensExample;
   /** Ids into DualLens.sources backing this point (may be empty). */
   sourceIds: number[];
 }
@@ -281,9 +286,18 @@ const LensPointTextSchema = z
 
 const LensPointSchema = z.object({
   text: LensPointTextSchema,
-  example: LensPointTextSchema.describe(
-    "A documented example plus an explicit explanation of how it supports this exact argument",
-  ),
+  example: z.object({
+    fact: LensPointTextSchema.describe(
+      "A documented precedent, policy, case, or measured outcome",
+    ),
+    relevance: z
+      .string()
+      .trim()
+      .min(30)
+      .describe(
+        "A plain-language explanation of exactly how the fact supports or limits this argument",
+      ),
+  }),
   sourceIds: z.array(z.number()).min(1),
 });
 
@@ -307,7 +321,15 @@ const CompatibleDualLensSchema = z.object({
       .array(
         z.object({
           text: LensPointTextSchema,
-          example: LensPointTextSchema.optional(),
+          example: z
+            .union([
+              LensPointTextSchema,
+              z.object({
+                fact: LensPointTextSchema,
+                relevance: z.string().trim().min(12),
+              }),
+            ])
+            .optional(),
           sourceIds: z.array(z.number()),
         }),
       )
@@ -320,7 +342,15 @@ const CompatibleDualLensSchema = z.object({
       .array(
         z.object({
           text: LensPointTextSchema,
-          example: LensPointTextSchema.optional(),
+          example: z
+            .union([
+              LensPointTextSchema,
+              z.object({
+                fact: LensPointTextSchema,
+                relevance: z.string().trim().min(12),
+              }),
+            ])
+            .optional(),
           sourceIds: z.array(z.number()),
         }),
       )
@@ -621,16 +651,21 @@ list) that directly support both the argument and its example. Omit an
 unsupported point instead of using an empty array. Never cite a source number
 that isn't in the list.
 
-Every point must also include an "example": one short, complete sentence naming
-a documented precedent or observed result from the research. Good examples name
-a state, country, agency, earlier bill, court case, company, year, or measured
-outcome. The sentence must explicitly explain how that precedent demonstrates,
-supports, or limits the exact argument immediately above it. A related fact with
-no stated connection is invalid. Do not invent a scenario. You may compare a
-documented existing policy with a specific provision or omission in this
-proposal, but make both sides of that comparison explicit. The example and
-argument must be backed by at least one listed source, so every sourceIds array
-must contain a valid source number.
+Every point must also include an "example" object with TWO distinct fields:
+- "fact": one short, complete sentence naming a documented precedent or
+  observed result. Good facts name a state, country, agency, earlier bill,
+  court case, company, year, or measured outcome.
+- "relevance": one or two complete sentences explaining, in everyday language,
+  exactly how that fact demonstrates, supports, or limits the argument
+  immediately above it. Name the shared mechanism, right, cost, omission, or
+  tradeoff. Do not merely say "this is relevant" or repeat the argument.
+
+A related fact with no specific relevance explanation is invalid. Do not invent
+a scenario. You may compare a documented existing policy with a specific
+provision or omission in this proposal, but make both sides of that comparison
+explicit. The fact, relevance explanation, and argument must be backed by at
+least one listed source, so every sourceIds array must contain a valid source
+number.
 
 Sources:
 ${sourceList || "(none found — cited concrete examples cannot be generated)"}

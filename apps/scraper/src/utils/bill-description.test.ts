@@ -62,8 +62,11 @@ test("isUsableDualLens rejects placeholder arguments", () => {
         ...validLens.left,
         points: validLens.left.points.map((point) => ({
           ...point,
-          example:
-            "California already lets residents request deletion of personal data.",
+          example: {
+            fact: "California already lets residents request deletion of personal data.",
+            relevance:
+              "That existing right shows what the proposal would extend to people in every state.",
+          },
         })),
       },
     }),

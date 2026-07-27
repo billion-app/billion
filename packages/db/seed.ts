@@ -669,14 +669,20 @@ const billLenses = [
       points: [
         {
           text: "Promising money for ten years could help states plan repairs that take several years to finish.",
-          example:
-            "The Interstate Highway System used a multi-year federal funding commitment to support construction across many states.",
+          example: {
+            fact: "The Interstate Highway System used a multi-year federal funding commitment to support construction across many states.",
+            relevance:
+              "That long commitment gave states a stable federal partner for projects that took years to plan and build.",
+          },
           sourceIds: [1, 2],
         },
         {
           text: "A separate pool of federal money could help more cities expand rail and faster bus service.",
-          example:
-            "Federal Capital Investment Grants have already helped cities build projects such as light rail and bus rapid transit.",
+          example: {
+            fact: "Federal Capital Investment Grants already support light rail and bus rapid transit projects in cities across the country.",
+            relevance:
+              "Those projects show that a separate transit grant program can turn federal money into specific local rail and bus expansions.",
+          },
           sourceIds: [1, 3],
         },
       ],
@@ -686,14 +692,20 @@ const billLenses = [
       points: [
         {
           text: "The $200 billion is only a limit. Congress would still decide how much money to approve each year.",
-          example:
-            "The current transit grant program separates $3 billion allowed each year from $1.6 billion provided up front.",
+          example: {
+            fact: "The current transit grant program separates $3 billion allowed each year from $1.6 billion provided up front.",
+            relevance:
+              "The difference shows why a spending limit is not the same as guaranteed money: Congress still has to approve much of it later.",
+          },
           sourceIds: [1, 3],
         },
         {
           text: "A ten-year plan gives Congress fewer automatic chances to reconsider how the money is divided.",
-          example:
-            "The 2021 infrastructure law listed transit grant funding for five years, from 2022 through 2026.",
+          example: {
+            fact: "The 2021 infrastructure law listed transit grant funding for five years, from 2022 through 2026.",
+            relevance:
+              "That shorter schedule returned the program to Congress sooner than this proposal's ten-year schedule would.",
+          },
           sourceIds: [1, 3],
         },
       ],
@@ -723,8 +735,11 @@ const billLenses = [
       points: [
         {
           text: "A national rule would give people in every state the same basic rights to view and delete their data.",
-          example:
-            "California residents already have these rights; this bill would extend similar access and deletion rights nationwide.",
+          example: {
+            fact: "California residents can already ask businesses to show or delete personal information collected about them.",
+            relevance:
+              "California demonstrates how these rights work in practice; this bill would extend similar access and deletion rights nationwide.",
+          },
           sourceIds: [1, 2],
         },
       ],
@@ -734,8 +749,11 @@ const billLenses = [
       points: [
         {
           text: "The excerpt does not guarantee that stronger state privacy rights would stay in place.",
-          example:
-            "California lets residents limit the use of precise location and genetic data, but this proposal excerpt does not expressly preserve that additional right.",
+          example: {
+            fact: "California lets residents limit businesses' use of precise location and genetic data.",
+            relevance:
+              "The proposal excerpt creates nationwide access and deletion rights but does not expressly preserve California's additional limit-use right. That specific gap is why opponents worry state protections could be reduced.",
+          },
           sourceIds: [1, 2],
         },
       ],

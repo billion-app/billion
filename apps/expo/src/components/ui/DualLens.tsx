@@ -23,7 +23,7 @@ export interface LensSource {
 
 export interface LensPoint {
   text: string;
-  example?: string;
+  example?: string | { fact: string; relevance: string };
   sourceIds: number[];
 }
 
@@ -136,47 +136,72 @@ export function LensPanel({ data }: { data: LensData }) {
               </Text>
               <Text style={s.colStance}>{data[k].stance}</Text>
               <View style={s.points}>
-                {data[k].points.map(toPoint).map((p, i) => (
-                  <View key={i} style={s.pointGroup}>
-                    <View style={s.point}>
-                      <View style={[s.dot, { backgroundColor: lensAccent }]} />
-                      <Text style={s.pointText}>{p.text}</Text>
-                    </View>
-                    {p.example ? (
-                      <View
-                        style={[
-                          s.example,
-                          {
-                            borderColor: `${lensAccent}55`,
-                            backgroundColor: `${lensAccent}0D`,
-                          },
-                        ]}
-                      >
-                        <Icon name="pin" size={13} color={lensAccent} />
-                        <View style={s.exampleCopy}>
-                          <Text style={[s.exampleLabel, { color: lensAccent }]}>
-                            REAL-WORLD EXAMPLE
-                          </Text>
-                          <Text style={s.exampleText}>
-                            {p.example}
-                            {p.sourceIds.length > 0 && (
-                              <Text style={s.cite}>
-                                {" "}
-                                [{p.sourceIds.join(",")}]
-                              </Text>
-                            )}
-                          </Text>
-                        </View>
+                {data[k].points.map(toPoint).map((p, i) => {
+                  const example =
+                    typeof p.example === "string"
+                      ? { fact: p.example, relevance: undefined }
+                      : p.example;
+                  return (
+                    <View key={i} style={s.pointGroup}>
+                      <View style={s.point}>
+                        <View
+                          style={[s.dot, { backgroundColor: lensAccent }]}
+                        />
+                        <Text style={s.pointText}>{p.text}</Text>
                       </View>
-                    ) : (
-                      p.sourceIds.length > 0 && (
-                        <Text style={[s.legacyCite, { color: lensAccent }]}>
-                          SOURCES [{p.sourceIds.join(",")}]
-                        </Text>
-                      )
-                    )}
-                  </View>
-                ))}
+                      {example ? (
+                        <View
+                          style={[
+                            s.example,
+                            {
+                              borderColor: `${lensAccent}55`,
+                              backgroundColor: `${lensAccent}0D`,
+                            },
+                          ]}
+                        >
+                          <Icon name="pin" size={13} color={lensAccent} />
+                          <View style={s.exampleCopy}>
+                            <Text
+                              style={[s.exampleLabel, { color: lensAccent }]}
+                            >
+                              REAL-WORLD EXAMPLE
+                            </Text>
+                            <Text style={s.exampleText}>
+                              {example.fact}
+                              {p.sourceIds.length > 0 && (
+                                <Text style={s.cite}>
+                                  {" "}
+                                  [{p.sourceIds.join(",")}]
+                                </Text>
+                              )}
+                            </Text>
+                            {example.relevance && (
+                              <View style={s.relevance}>
+                                <Text
+                                  style={[
+                                    s.relevanceLabel,
+                                    { color: lensAccent },
+                                  ]}
+                                >
+                                  WHAT IT SHOWS
+                                </Text>
+                                <Text style={s.relevanceText}>
+                                  {example.relevance}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      ) : (
+                        p.sourceIds.length > 0 && (
+                          <Text style={[s.legacyCite, { color: lensAccent }]}>
+                            SOURCES [{p.sourceIds.join(",")}]
+                          </Text>
+                        )
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             </View>
           );
@@ -387,6 +412,24 @@ const s = StyleSheet.create({
     fontSize: 11.5,
     lineHeight: 16,
     color: "rgba(255,255,255,0.76)",
+  },
+  relevance: {
+    marginTop: 6,
+    paddingTop: 7,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.14)",
+    gap: 3,
+  },
+  relevanceLabel: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 8.5,
+    letterSpacing: 0.7,
+  },
+  relevanceText: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: "rgba(255,255,255,0.86)",
   },
   footer: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 14 },
   footerText: {
