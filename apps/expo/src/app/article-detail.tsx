@@ -55,6 +55,7 @@ export default function ArticleDetailScreen() {
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
+  const [provenanceOpen, setProvenanceOpen] = useState(false);
   const [sourceHighlight, setSourceHighlight] = useState<BriefQuote | null>(
     null,
   );
@@ -451,17 +452,43 @@ export default function ArticleDetailScreen() {
         </View>
 
         {mode === "explainer" && (
-          <View style={s.disclaimer}>
+          <TouchableOpacity
+            style={s.disclaimer}
+            activeOpacity={0.72}
+            onPress={() => setProvenanceOpen((value) => !value)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: provenanceOpen }}
+            accessibilityLabel={
+              provenanceOpen
+                ? "Hide details about Billion AI authorship"
+                : "Show details about Billion AI authorship"
+            }
+          >
             <Icon name="sparkle" size={17} color={t.color} />
-            <Text style={s.disclaimerText}>
-              {brief
-                ? "Written by Billion AI from the official text. Quoted passages are verified against the source; everything else is analysis. "
-                : "Explained by Billion AI from the official text. "}
-              <Text style={s.disclaimerEm}>
-                Always verify against the source below.
-              </Text>
-            </Text>
-          </View>
+            <View style={s.disclaimerBody}>
+              <View style={s.disclaimerHead}>
+                <Text style={s.disclaimerTitle}>
+                  Written by Billion AI · Always check the source
+                </Text>
+                <Text style={[s.disclaimerAction, { color: t.color }]}>
+                  {provenanceOpen ? "Hide" : "Details"}
+                </Text>
+                <View style={provenanceOpen ? s.chevFlip : undefined}>
+                  <Icon name="chevD" size={14} color={t.color} />
+                </View>
+              </View>
+              {provenanceOpen ? (
+                <Text style={s.disclaimerText}>
+                  Created from the official text.{" "}
+                  {brief
+                    ? "Quoted passages are checked against that source; everything else is AI analysis."
+                    : "The plain-language explanation is AI analysis."}{" "}
+                  Use Original text or the linked official site to verify
+                  details.
+                </Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
         )}
 
         {mode === "source" && content.url && (
@@ -768,6 +795,7 @@ const s = StyleSheet.create({
   },
   disclaimer: {
     flexDirection: "row",
+    alignItems: "flex-start",
     gap: 9,
     backgroundColor: planes.surface,
     borderWidth: 1,
@@ -777,14 +805,30 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     marginBottom: 18,
   },
-  disclaimerText: {
-    flex: 1,
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 12.5,
-    color: "rgba(255,255,255,0.7)",
-    lineHeight: 18,
+  disclaimerBody: { flex: 1, gap: 8 },
+  disclaimerHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
   },
-  disclaimerEm: { color: colors.white, fontFamily: fontBody.semibold },
+  disclaimerTitle: {
+    flex: 1,
+    fontFamily: fontBody.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: "rgba(255,255,255,0.82)",
+  },
+  disclaimerAction: {
+    fontFamily: fontBody.semibold,
+    fontSize: 10.5,
+  },
+  disclaimerText: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 11.5,
+    color: "rgba(255,255,255,0.64)",
+    lineHeight: 17,
+  },
+  chevFlip: { transform: [{ rotate: "180deg" }] },
   sourcePanel: {
     backgroundColor: planes.ink,
     borderWidth: 1,
