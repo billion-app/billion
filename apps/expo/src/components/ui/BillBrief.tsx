@@ -187,13 +187,26 @@ function EmphasizedText({
       ellipsizeMode={ellipsizeMode}
     >
       {parts.map((part, index) =>
-        part.startsWith("**") && part.endsWith("**") ? (
-          <Text key={index} style={[s.inlineStrong, strongStyle]}>
-            {part.slice(2, -2)}
-          </Text>
-        ) : (
-          part
-        ),
+        part.startsWith("**") && part.endsWith("**")
+          ? // iOS can treat one multi-word custom-font span as unbreakable.
+            // Keep the real bold face per word and leave whitespace to the
+            // parent Text so native layout still chooses every line break.
+            part
+              .slice(2, -2)
+              .split(/(\s+)/)
+              .map((token, tokenIndex) =>
+                /^\s+$/.test(token) ? (
+                  token
+                ) : (
+                  <Text
+                    key={`${index}-${tokenIndex}`}
+                    style={[s.inlineStrong, strongStyle]}
+                  >
+                    {token}
+                  </Text>
+                ),
+              )
+          : part,
       )}
     </Text>
   );
@@ -1044,15 +1057,11 @@ const s = StyleSheet.create({
     letterSpacing: 0.7,
   },
   inlineStrong: {
-    // Keep the parent's font family. Switching to a separately registered
-    // custom font inside nested Text makes iOS treat a long emphasized phrase
-    // as a single inline run, which clips instead of continuing on the next
-    // line. Weight preserves one native wrapping context.
-    fontWeight: "700",
+    fontFamily: fontBody.semibold,
     color: colors.white,
   },
   inlineStrongEditorial: {
-    fontWeight: "700",
+    fontFamily: fontEditorial.bold,
   },
   changeVisualWrap: {
     height: 142,
