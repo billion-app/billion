@@ -199,55 +199,6 @@ function EmphasizedText({
   );
 }
 
-function wrapCardCopy(text: string, maxCharacters = 40) {
-  const words: { value: string; strong: boolean }[] = [];
-  let strong = false;
-  for (const segment of text.split(/(\*\*)/)) {
-    if (segment === "**") {
-      strong = !strong;
-      continue;
-    }
-    for (const value of segment.trim().split(/\s+/).filter(Boolean)) {
-      words.push({ value, strong });
-    }
-  }
-
-  const packed: (typeof words)[] = [];
-  let line: typeof words = [];
-  let lineLength = 0;
-  for (const word of words) {
-    const nextLength =
-      lineLength + (line.length > 0 ? 1 : 0) + word.value.length;
-    if (line.length > 0 && nextLength > maxCharacters) {
-      packed.push(line);
-      line = [];
-      lineLength = 0;
-    }
-    line.push(word);
-    lineLength += (line.length > 1 ? 1 : 0) + word.value.length;
-  }
-  if (line.length > 0) packed.push(line);
-
-  return packed.map((lineWords) => {
-    let result = "";
-    let inStrong = false;
-    for (const word of lineWords) {
-      const needsSpace = result.length > 0 && !/^[,.;:!?)}\]]/.test(word.value);
-      if (word.strong !== inStrong) {
-        if (inStrong) result += "**";
-        if (needsSpace) result += " ";
-        if (word.strong) result += "**";
-        inStrong = word.strong;
-      } else if (needsSpace) {
-        result += " ";
-      }
-      result += word.value;
-    }
-    if (inStrong) result += "**";
-    return result;
-  });
-}
-
 /* ---------- Hook — the one sentence that must land ---------- */
 function Hook({
   text,
@@ -573,19 +524,12 @@ function Changes({
 /* ---------- Affected — who this lands on ---------- */
 function Affected({ affected }: { affected: BillBriefData["affected"] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [cardWidth, setCardWidth] = useState<number | null>(null);
-  const takeawayCharacters =
-    cardWidth === null ? 40 : Math.max(24, Math.floor((cardWidth - 30) / 7.8));
   return (
     <View style={s.affectedList} testID="brief-affected">
       {affected.map((a, i) => {
         const d = DIRECTION[a.direction];
         const outcomeColor = d.color;
         const takeaway = a.takeaway;
-        const displayTakeaway = wrapCardCopy(
-          takeaway ?? a.effect.replaceAll("**", ""),
-          takeawayCharacters,
-        );
         const open = openIndex === i;
         return (
           <View
@@ -598,12 +542,6 @@ function Affected({ affected }: { affected: BillBriefData["affected"] }) {
                 borderLeftColor: outcomeColor,
               },
             ]}
-            onLayout={({ nativeEvent }) => {
-              const measuredWidth = Math.round(nativeEvent.layout.width);
-              if (measuredWidth > 0 && measuredWidth !== cardWidth) {
-                setCardWidth(measuredWidth);
-              }
-            }}
           >
             <View style={s.affectedBody}>
               <View style={s.affectedHead}>
@@ -633,17 +571,12 @@ function Affected({ affected }: { affected: BillBriefData["affected"] }) {
                   </Text>
                 </View>
               </View>
-              <View style={s.affectedTakeawayLines}>
-                {displayTakeaway.map((line, lineIndex) => (
-                  <EmphasizedText
-                    key={`${line}-${lineIndex}`}
-                    style={s.affectedTakeaway}
-                    strongStyle={s.inlineStrongEditorial}
-                  >
-                    {line}
-                  </EmphasizedText>
-                ))}
-              </View>
+              <EmphasizedText
+                style={s.affectedTakeaway}
+                strongStyle={s.inlineStrongEditorial}
+              >
+                {takeaway ?? a.effect.replaceAll("**", "")}
+              </EmphasizedText>
               {takeaway ? (
                 <>
                   <TouchableOpacity
@@ -1278,13 +1211,16 @@ const s = StyleSheet.create({
   },
 
   /* affected */
-  affectedList: { gap: 10 },
+  affectedList: { width: "100%", minWidth: 0, gap: 10 },
   affectedRow: {
+    width: "100%",
+    minWidth: 0,
     backgroundColor: planes.slate,
     borderWidth: 1,
     borderColor: hair[1],
     borderRadius: 14,
     padding: 14,
+    alignItems: "stretch",
   },
   affectedIcon: {
     width: 28,
@@ -1294,10 +1230,21 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  affectedBody: { flex: 1, gap: 9 },
-  affectedHead: { flexDirection: "row", alignItems: "center", gap: 9 },
+  // A column child's `flex: 1` constrains its height, not its width. Give the
+  // prose an explicit horizontal boundary so nested bold Text spans measure
+  // against the card and React Native can wrap them natively.
+  affectedBody: { width: "100%", minWidth: 0, gap: 9 },
+  affectedHead: {
+    width: "100%",
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
   affectedGroup: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
     fontFamily: fontBody.bold,
     fontSize: 14.5,
     color: colors.white,
@@ -1310,19 +1257,20 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
   },
   directionChip: {
+    flexShrink: 0,
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   affectedTakeaway: {
+    width: "100%",
+    minWidth: 0,
+    flexShrink: 1,
     fontFamily: fontEditorial.regular,
     fontSize: 15.5,
     lineHeight: 21,
     color: "rgba(255,255,255,0.72)",
-  },
-  affectedTakeawayLines: {
-    gap: 0,
   },
   affectedEffect: {
     fontFamily: fontBody.regular,
