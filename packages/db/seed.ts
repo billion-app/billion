@@ -479,7 +479,7 @@ const billBriefs: (Omit<
       {
         group: "State transportation departments",
         takeaway:
-          "States would get a **longer window to plan and fund multi-year projects**.",
+          "States would get a **longer planning window** for multi-year projects.",
         effect:
           "State agencies could plan projects farther ahead because federal road and bridge support would be set for **ten years**. Federal officials would have fewer chances to approve projects one by one.",
         direction: "gains",
@@ -487,7 +487,7 @@ const billBriefs: (Omit<
       {
         group: "Transit riders in mid-size cities",
         takeaway:
-          "Whether riders benefit would depend on **which cities ultimately receive grants**.",
+          "Whether riders benefit would depend on **which cities receive grants**.",
         effect:
           "New money could pay for transit expansions, but **the final rules would decide which cities can apply and receive it**.",
         direction: "unclear",
@@ -593,7 +593,7 @@ const billBriefs: (Omit<
       {
         group: "People whose data is collected online",
         takeaway:
-          "People would gain federal rights to **review and delete data collected about them**.",
+          "People would gain federal rights to **review and delete their data**.",
         effect:
           "They could **see and delete personal information** that companies hold, and companies would have to ask before collecting it.",
         direction: "gains",
@@ -601,7 +601,7 @@ const billBriefs: (Omit<
       {
         group: "Companies that buy and sell consumer data",
         takeaway:
-          "Data brokers would have to **ask permission and honor requests to see or delete data**.",
+          "Data brokers would have to ask permission and **honor access or deletion requests**.",
         effect:
           "They would have to **ask permission, explain what they collect, and delete data when required**. Companies built around selling data would face the biggest changes.",
         direction: "loses",
@@ -609,7 +609,7 @@ const billBriefs: (Omit<
       {
         group: "States with their own privacy laws",
         takeaway:
-          "State protections **could remain in place or be replaced** by the federal standard.",
+          "State protections could **remain or be replaced** by the federal standard.",
         effect:
           "Residents' protection would depend on whether the federal rules **add to or replace stronger state laws**.",
         direction: "unclear",

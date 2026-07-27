@@ -1298,7 +1298,7 @@ const s = StyleSheet.create({
   affectedHead: { flexDirection: "row", alignItems: "center", gap: 9 },
   affectedGroup: {
     flex: 1,
-    fontFamily: fontBody.semibold,
+    fontFamily: fontBody.bold,
     fontSize: 14.5,
     color: colors.white,
   },
@@ -1317,9 +1317,9 @@ const s = StyleSheet.create({
   },
   affectedTakeaway: {
     fontFamily: fontEditorial.regular,
-    fontSize: 16,
+    fontSize: 15.5,
     lineHeight: 21,
-    color: colors.white,
+    color: "rgba(255,255,255,0.72)",
   },
   affectedTakeawayLines: {
     gap: 0,
@@ -1337,8 +1337,9 @@ const s = StyleSheet.create({
     gap: 5,
   },
   affectedMoreText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11.5,
+    fontFamily: fontBody.medium,
+    fontSize: 11,
+    opacity: 0.86,
   },
   affectedContext: {
     fontFamily: fontBody.regular,
