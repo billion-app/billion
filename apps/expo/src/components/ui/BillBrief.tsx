@@ -256,7 +256,6 @@ function WhyNotBefore({
           <Text style={s.contextTitle}>
             Why wasn&apos;t this implemented before?
           </Text>
-          <Text style={s.contextSummary}>{context.summary}</Text>
         </View>
         <View style={open ? s.chevFlip : undefined}>
           <Icon name="chevD" size={16} color={accent} />
@@ -265,6 +264,8 @@ function WhyNotBefore({
 
       {open ? (
         <View style={s.contextDetails}>
+          <Text style={s.contextSummary}>{context.summary}</Text>
+
           {context.points.map((point, index) => (
             <View key={index} style={s.contextPoint}>
               <Text style={[s.contextIndex, { color: accent }]}>
