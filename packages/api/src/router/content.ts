@@ -13,7 +13,7 @@ import {
   SavedArticle,
   Video,
 } from "@acme/db/schema";
-import { parseBillBriefRecord } from "@acme/validators";
+import { parseContentBriefRecord } from "@acme/validators";
 
 import { toBillTimelineActions } from "../lib/bill-actions";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
@@ -124,7 +124,6 @@ async function getLensData(
 // Look up the cached structured brief for a content item. Rows written by an
 // older shipped shapes are normalized here, so the client can treat a present
 // brief as renderable while the scraper refreshes stale rows independently.
-// Bills are the only type generating briefs today.
 async function getBrief(
   contentId: string,
   contentType: "bill" | "government_content" | "court_case",
@@ -139,7 +138,7 @@ async function getBrief(
       ),
     )
     .limit(1);
-  return row ? parseBillBriefRecord(row.brief) : null;
+  return row ? parseContentBriefRecord(row.brief) : null;
 }
 
 // Helper function to get thumbnail URL for any content
@@ -681,6 +680,7 @@ export const contentRouter = {
             originalContent: c.fullText ?? "Full text not available",
             url: c.url,
             lensData: await getLensData(c.id, "court_case"),
+            brief: await getBrief(c.id, "court_case"),
           },
         ]);
         if (!result) throw new Error(`Failed to decorate court case ${c.id}`);

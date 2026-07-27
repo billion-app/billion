@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { BillBriefRecord } from "@acme/validators";
+import type { BillBriefRecord, CourtCaseBriefRecord } from "@acme/validators";
 
 import { clampBillDescription } from "./src/bill-description";
 import { db } from "./src/client";
@@ -419,6 +419,171 @@ Free speech advocates are split: some see algorithmic curation as protected expr
   contentHash: hash(c.title + (c.fullText ?? "")),
   versions: [],
 }));
+
+const courtCaseBriefs: Omit<
+  CourtCaseBriefRecord,
+  "generatedAt" | "modelVersion"
+>[] = [
+  {
+    kind: "court_case",
+    presentation: "court_case",
+    version: 1,
+    verifiedQuotes: 0,
+    badge: "ARGUED",
+    hook: "The Supreme Court is deciding when police must get a warrant before reading a person's past phone locations. The ruling could **expand digital privacy protections** or preserve a narrower rule tied to **longer location histories**.",
+    facts: [
+      { label: "Court", value: "U.S. Supreme Court" },
+      { label: "Status", value: "Argued" },
+    ],
+    terms: [
+      {
+        term: "Cell-site location data",
+        plain:
+          "Records created when a phone connects to towers, which can **reveal where someone traveled**.",
+      },
+      {
+        term: "Warrant",
+        plain:
+          "A judge's permission for a search after police show **a specific reason to believe evidence will be found**.",
+      },
+    ],
+    sections: [
+      {
+        title: "The question before the court",
+        items: [
+          {
+            text: "The justices must decide whether the Fourth Amendment requires **a warrant for historical phone-location records** beyond the situation covered by an earlier case.",
+          },
+        ],
+      },
+      {
+        title: "What earlier law says",
+        items: [
+          {
+            text: "In Carpenter v. United States, the Court required a warrant for seven days of location history. This case asks **how far that protection extends**.",
+          },
+        ],
+      },
+      {
+        title: "What each outcome would change",
+        items: [
+          {
+            text: "A broader ruling could make police obtain warrants for more requests. A narrower ruling could leave **some shorter or differently collected records available under a lower standard**.",
+          },
+        ],
+      },
+    ],
+    unknowns: [
+      "Because the case is pending, **the final boundary for warrantless access is not yet known**.",
+    ],
+  },
+  {
+    kind: "court_case",
+    presentation: "court_case",
+    version: 1,
+    verifiedQuotes: 0,
+    badge: "CERT GRANTED",
+    hook: "The Supreme Court will decide whether the Education Department had enough authority from Congress to broaden its discrimination rules. The decision could **keep the federal rules in place** or **limit what agencies may decide without a new law**.",
+    facts: [
+      { label: "Court", value: "U.S. Supreme Court" },
+      { label: "Status", value: "Review granted" },
+    ],
+    terms: [
+      {
+        term: "Certiorari",
+        plain:
+          "The Supreme Court's decision to **hear and review a lower-court case**.",
+      },
+      {
+        term: "Agency authority",
+        plain:
+          "The power Congress gives a federal department to **write and enforce detailed rules**.",
+      },
+    ],
+    sections: [
+      {
+        title: "The question before the court",
+        items: [
+          {
+            text: "The case asks whether the Education Department **went beyond the authority Congress gave it** when it expanded the meaning of sex-based discrimination.",
+          },
+        ],
+      },
+      {
+        title: "How the case got here",
+        items: [
+          {
+            text: "Lower courts disagreed about the new rules, so schools face **different legal instructions in different parts of the country**.",
+          },
+        ],
+      },
+      {
+        title: "Who the decision reaches",
+        items: [
+          {
+            text: "The ruling could change the complaint and compliance rules followed by **public schools, colleges, students, and federal officials**.",
+          },
+        ],
+      },
+    ],
+    unknowns: [
+      "The record does not establish **which parts of the rule, if any, the Court might preserve**.",
+    ],
+  },
+  {
+    kind: "court_case",
+    presentation: "court_case",
+    version: 1,
+    verifiedQuotes: 0,
+    badge: "BRIEFING",
+    hook: "The Supreme Court is considering whether California can require large social platforms to explain how they recommend content. The ruling could **allow more public disclosure** or treat those choices as **editorial speech protected from the mandate**.",
+    facts: [
+      { label: "Court", value: "U.S. Supreme Court" },
+      { label: "Status", value: "Briefing" },
+    ],
+    terms: [
+      {
+        term: "Algorithmic transparency",
+        plain:
+          "Rules requiring a platform to **explain the main factors its software uses to rank content**.",
+      },
+      {
+        term: "Editorial judgment",
+        plain:
+          "A publisher's protected choice about **what information to present and how to arrange it**.",
+      },
+    ],
+    sections: [
+      {
+        title: "The question before the court",
+        items: [
+          {
+            text: "The justices must decide whether California's disclosure rule regulates business practices or **forces platforms to explain protected editorial choices**.",
+          },
+        ],
+      },
+      {
+        title: "The competing legal ideas",
+        items: [
+          {
+            text: "TechCorp compares its recommendations to a newspaper choosing stories. California says the law only requires **factual information about how an existing system works**.",
+          },
+        ],
+      },
+      {
+        title: "What each outcome would change",
+        items: [
+          {
+            text: "A ruling for California could support similar disclosure laws. A ruling for TechCorp could make it **harder for states to demand explanations of recommendation systems**.",
+          },
+        ],
+      },
+    ],
+    unknowns: [
+      "The pending case does not settle **how much technical detail a valid disclosure rule could require**.",
+    ],
+  },
+];
 
 /**
  * Structured briefs for the seeded bills, in the same shape the scraper writes.
@@ -915,6 +1080,59 @@ async function seed() {
       contentHash: CourtCase.contentHash,
     });
   console.log(`  ${insertedCases.length} court cases inserted`);
+
+  const seededCases = await db
+    .select({
+      id: CourtCase.id,
+      caseNumber: CourtCase.caseNumber,
+      contentHash: CourtCase.contentHash,
+    })
+    .from(CourtCase)
+    .where(
+      inArray(
+        CourtCase.caseNumber,
+        courtCases.map((courtCase) => courtCase.caseNumber),
+      ),
+    );
+
+  console.log("Inserting court case briefs...");
+  const courtBriefRecords = seededCases.flatMap((courtCase) => {
+    const fixtureIndex = courtCases.findIndex(
+      (fixture) => fixture.caseNumber === courtCase.caseNumber,
+    );
+    const brief = courtCaseBriefs[fixtureIndex];
+    return brief
+      ? [
+          {
+            contentType: "court_case" as const,
+            contentId: courtCase.id,
+            contentHash: courtCase.contentHash,
+            brief: {
+              ...brief,
+              generatedAt: now.toISOString(),
+              modelVersion: "seed",
+            },
+            modelVersion: "seed",
+          },
+        ]
+      : [];
+  });
+  const insertedCourtBriefs = await db
+    .insert(ContentBrief)
+    .values(courtBriefRecords)
+    .onConflictDoUpdate({
+      target: [ContentBrief.contentType, ContentBrief.contentId],
+      set: {
+        contentHash: sql`excluded.content_hash`,
+        brief: sql`excluded.brief`,
+        modelVersion: sql`excluded.model_version`,
+        updatedAt: now,
+      },
+    })
+    .returning({ id: ContentBrief.id });
+  console.log(
+    `  ${insertedCourtBriefs.length} court briefs inserted or refreshed`,
+  );
 
   console.log("Inserting videos (feed items)...");
   const videoRecords = [

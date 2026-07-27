@@ -7,7 +7,7 @@ import {
   CourtCase,
   GovernmentContent,
 } from "@acme/db/schema";
-import { isCurrentBillBrief } from "@acme/validators";
+import { isCurrentBillBrief, isCurrentCourtCaseBrief } from "@acme/validators";
 
 import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
@@ -16,6 +16,7 @@ import type {
   GovernmentContentData,
 } from "../types.js";
 import { generateBillBrief } from "../ai/bill-brief.js";
+import { generateCourtCaseBrief } from "../ai/court-case-brief.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
@@ -435,9 +436,7 @@ export async function upsertContent(
       );
     }
 
-    // Generate and cache the structured brief. Bills only for now — the brief
-    // schema is written around legislative mechanics (before/after provisions,
-    // sponsor-vs-text framing) and needs separate design work per content type.
+    // Generate and cache the content-specific structured brief.
     if (hasUsableText && result?.id && input.type === "bill") {
       await upsertBillBrief({
         contentId: result.id,
@@ -445,6 +444,17 @@ export async function upsertContent(
         title,
         billNumber: input.data.billNumber,
         url,
+        fullText: fullText!,
+        status: input.data.status,
+        priorArticle: aiGeneratedArticle,
+      });
+    } else if (hasUsableText && result?.id && input.type === "court_case") {
+      await upsertCourtCaseBrief({
+        contentId: result.id,
+        contentHash: newContentHash,
+        title,
+        court: input.data.court,
+        caseNumber: input.data.caseNumber,
         fullText: fullText!,
         status: input.data.status,
         priorArticle: aiGeneratedArticle,
@@ -662,5 +672,74 @@ export async function upsertBillBrief(args: {
     });
 
   logger.success(`Cached brief for ${args.billNumber}`);
+  return true;
+}
+
+/** Generate or refresh a cached court-case brief. */
+export async function upsertCourtCaseBrief(args: {
+  contentId: string;
+  contentHash: string;
+  title: string;
+  court: string;
+  caseNumber: string;
+  fullText: string;
+  status?: string | null;
+  priorArticle?: string | null;
+}): Promise<boolean> {
+  const [existing] = await db
+    .select({
+      contentHash: ContentBrief.contentHash,
+      brief: ContentBrief.brief,
+    })
+    .from(ContentBrief)
+    .where(
+      and(
+        eq(ContentBrief.contentId, args.contentId),
+        eq(ContentBrief.contentType, "court_case"),
+      ),
+    )
+    .limit(1);
+
+  if (
+    !forceAIRegeneration &&
+    existing?.contentHash === args.contentHash &&
+    isCurrentCourtCaseBrief(existing.brief)
+  ) {
+    logger.debug(`Court brief already cached for ${args.caseNumber}`);
+    return true;
+  }
+
+  const generated = await generateCourtCaseBrief(args);
+  if (!generated) {
+    logger.warn(`Court brief generation returned null for ${args.caseNumber}`);
+    return false;
+  }
+
+  const modelVersion = `${getTextModelVersion()}:court-case-v1`;
+  const brief = {
+    ...generated,
+    generatedAt: new Date().toISOString(),
+    modelVersion,
+  };
+  await db
+    .insert(ContentBrief)
+    .values({
+      contentId: args.contentId,
+      contentType: "court_case",
+      contentHash: args.contentHash,
+      brief,
+      modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: [ContentBrief.contentType, ContentBrief.contentId],
+      set: {
+        contentHash: args.contentHash,
+        brief,
+        modelVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+  logger.success(`Cached court brief for ${args.caseNumber}`);
   return true;
 }
