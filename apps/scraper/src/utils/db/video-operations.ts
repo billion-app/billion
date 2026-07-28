@@ -83,6 +83,7 @@ export async function generateVideoForContent(
   author: string,
   thumbnailUrl?: string | null,
   options: GenerateVideoOptions = {},
+  claimBudget?: () => boolean,
 ): Promise<GenerateVideoResult> {
   const existing = await checkExistingVideo(
     contentType,
@@ -95,6 +96,17 @@ export async function generateVideoForContent(
     logger.debug(`Video unchanged for ${contentType}:${contentId}, skipping`);
     incrementVideosSkipped();
     return { regenerated: false, hasImage: existing.hasImage };
+  }
+
+  // Claimed only past the cache check, so an unchanged video never spends a
+  // slot. Regeneration costs a marketing-copy call plus an image, which is why
+  // it belongs under the same per-run budget as the brief and the lens.
+  if (claimBudget && !claimBudget()) {
+    logger.info(
+      `Run budget reached, deferring video for ${contentType}:${contentId} to a later run`,
+    );
+    incrementVideosSkipped();
+    return { regenerated: false, hasImage: existing?.hasImage ?? false };
   }
 
   logger.start(`Generating video for ${contentType}:${contentId}`);

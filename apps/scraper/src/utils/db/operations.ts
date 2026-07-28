@@ -183,19 +183,39 @@ export async function upsertContent(
     );
   }
 
-  // New items beyond the run's daily budget skip AI enrichment but are still
-  // persisted with their raw content, so they surface as "needs backfill" work
-  // for the retroactive scripts rather than being lost.
-  const budgetExhausted =
-    progressKind === "new" &&
-    options?.newItemLimiter !== undefined &&
-    !options.newItemLimiter.tryConsume();
+  // The run's budget is a cap on *items that generate*, not on new items.
+  //
+  // It used to be gated on `progressKind === "new"`, which left the far more
+  // expensive case uncapped: an existing bill whose content changed, or which
+  // is missing a derived asset, would regenerate its brief and its dual lens
+  // with no limit at all. A backfill re-walking the archive therefore ignored
+  // the budget almost entirely — every bill it passed took the "changed" path,
+  // because its stored text was being corrected.
+  //
+  // One item draws at most one slot, and only when something is actually
+  // generated. A genuinely unchanged item with every asset present costs
+  // nothing and must not consume budget, or a run would throttle itself to N
+  // items while doing no work.
+  let budgetSlotTaken = false;
+  const claimBudget = (): boolean => {
+    if (!options?.newItemLimiter) return true;
+    if (budgetSlotTaken) return true;
+    if (options.newItemLimiter.tryConsume()) {
+      budgetSlotTaken = true;
+      return true;
+    }
+    return false;
+  };
+
+  const wantsUpfrontGeneration =
+    shouldGenerateSummary || shouldGenerateArticle || shouldGenerateImage;
+  const budgetExhausted = wantsUpfrontGeneration && !claimBudget();
   if (budgetExhausted) {
     shouldGenerateSummary = false;
     shouldGenerateArticle = false;
     shouldGenerateImage = false;
     logger.info(
-      `${label}: daily new-item cap reached, deferring AI enrichment to a later run`,
+      `${label}: run budget reached, deferring AI enrichment to a later run`,
     );
   }
 
@@ -448,6 +468,7 @@ export async function upsertContent(
         fullText!,
         articleType,
         aiGeneratedArticle,
+        claimBudget,
       );
     }
 
@@ -471,6 +492,7 @@ export async function upsertContent(
         officialSummary: input.data.summary,
         status: input.data.status,
         priorArticle: aiGeneratedArticle,
+        claimBudget,
       });
     }
   } catch (error) {
@@ -499,6 +521,8 @@ export async function upsertContent(
         newContentHash,
         videoSource,
         result.thumbnailUrl,
+        {},
+        claimBudget,
       );
     } catch (error) {
       if (error instanceof AIRateLimitError) {
@@ -539,6 +563,7 @@ export async function upsertContentLens(
   fullText: string,
   articleType: string,
   aiGeneratedArticle?: string | null,
+  claimBudget?: () => boolean,
 ): Promise<boolean> {
   const modelVersion = `${getTextModelVersion()}:concrete-examples-v2`;
 
@@ -576,6 +601,16 @@ export async function upsertContentLens(
   ) {
     logger.debug(`Dual-lens already cached for ${contentId}`);
     return true;
+  }
+
+  // Claimed after the cache check, never before: a cached lens costs nothing
+  // and must not spend a slot. This loop is the single most expensive step in
+  // the pipeline, so it is exactly what the budget exists to bound.
+  if (claimBudget && !claimBudget()) {
+    logger.info(
+      `Run budget reached, deferring dual-lens for ${contentId} to a later run`,
+    );
+    return false;
   }
 
   const lens = await generateDualLens(
@@ -636,6 +671,7 @@ export async function upsertBillBrief(args: {
   officialSummary?: string | null;
   status?: string | null;
   priorArticle?: string | null;
+  claimBudget?: () => boolean;
 }): Promise<boolean> {
   const [existing] = await db
     .select({
@@ -658,6 +694,14 @@ export async function upsertBillBrief(args: {
   ) {
     logger.debug(`Brief already cached for ${args.billNumber}`);
     return true;
+  }
+
+  // Same contract as the lens: only a real generation draws on the budget.
+  if (args.claimBudget && !args.claimBudget()) {
+    logger.info(
+      `Run budget reached, deferring brief for ${args.billNumber} to a later run`,
+    );
+    return false;
   }
 
   const generated = await generateBillBrief({

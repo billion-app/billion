@@ -97,10 +97,18 @@ giant bill cannot wedge the cursor. Section-aware storage is the real fix
 
 ### The new-item budget
 
-`SCRAPER_MAX_NEW_ITEMS_PER_RUN` (default 10) caps how many brand-new items pay
-for AI generation in one run. Items past the cap are **still persisted with
-their raw content** — they just skip the description, article, lens, brief, and
-video, and are picked up later by the retroactive scripts.
+`SCRAPER_MAX_NEW_ITEMS_PER_RUN` (default 10) caps how many items pay for AI
+generation in one run. Items past the cap are **still persisted with their raw
+content** — they just skip the description, article, lens, brief, and video,
+and are picked up later by the retroactive scripts.
+
+The cap counts **items that generate**, not new items, and each item draws at
+most one slot however many assets it produces. A slot is claimed at the point
+of generation, after each asset's own cache check, so a fully cached item costs
+nothing and does not consume budget. Gating on "new" instead left the expensive
+case uncapped: an existing bill whose content changed regenerated its brief and
+its dual lens with no limit, which meant a backfill correcting stored text
+ignored the budget almost entirely.
 
 Persisting them is not optional. The cursor advances past everything the run
 fetched, so an item not written here is lost rather than deferred. Between
@@ -110,8 +118,9 @@ bills per day fell from ~86 to under 10 while 1,742 upstream updates produced
 `description → summary`.
 
 Every derived asset must be gated on the budget for the cap to mean anything —
-the dual lens in particular runs an agentic research loop. Video generation,
-lens, and brief all check it.
+the dual lens in particular runs an agentic research loop. The article/summary/
+image block, the lens, the brief, and video generation all claim through the
+same per-item function.
 
 `SCRAPER_FORCE_AI_REGEN=1` overrides the cache. A `isUsableText()` gate refuses to feed AI any text under 200 chars or that's mostly blank/all-caps/single-word lines — keeps the model from "summarizing" garbage.
 
