@@ -98,6 +98,34 @@ export const jobs: readonly JobDefinition[] = [
     priority: 30,
     timeoutMinutes: 6 * 60,
   },
+  {
+    id: "reprocess-bare",
+    description: "Fill in bills left without an article or header art",
+    script: "reprocess-content.js",
+    // `--mode missing` selects only rows whose derived assets are actually
+    // incomplete, so a run costs nothing once there is nothing left to fix.
+    // Deliberately no `--limit`: the selection is already the bound, and a
+    // limit would silently leave a remainder that nothing tracks.
+    //
+    // `--apply` and `--yes` are required for it to write at all; without them
+    // the command is read-only, which would make this job a slow no-op.
+    args: [
+      "--type",
+      "bill",
+      "--mode",
+      "missing",
+      "--concurrency",
+      "3",
+      "--apply",
+      "--yes",
+    ],
+    // Manual, and it should stay manual. Unlike the retro jobs this one can
+    // rewrite assets across the whole archive if the selection policy widens,
+    // so it wants a human deciding when it runs.
+    schedule: { kind: "manual" },
+    priority: 31,
+    timeoutMinutes: 8 * 60,
+  },
 ];
 
 export function findJob(jobId: string): JobDefinition | undefined {
