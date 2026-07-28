@@ -1,0 +1,25 @@
+{
+  "name": "@acme/supervisor",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Serial job supervisor for the Billion scrapers",
+  "dependencies": {
+    "consola": "^3.4.2",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "catalog:",
+    "vite": "^8.1.4"
+  },
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "start:prod": "node dist/supervisor.js",
+    "build": "pnpm run typecheck && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\""
+  },
+  "author": "It's not you it's me",
+  "license": "ISC"
+}
