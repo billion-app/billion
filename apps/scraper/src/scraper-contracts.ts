@@ -9,14 +9,12 @@ import { federalregisterConfig } from "./scrapers/federalregister.config.js";
 import { ncsbeConfig } from "./scrapers/ncsbe.config.js";
 import { sccCvigConfig } from "./scrapers/scc-cvig.config.js";
 import { scotusConfig } from "./scrapers/scotus.config.js";
-import { stLouisAldermenConfig } from "./scrapers/st-louis-aldermen.config.js";
 import { texasCurrentElectionConfig } from "./scrapers/texas-current-election.config.js";
 import { texasLegislatureConfig } from "./scrapers/texas-legislature.config.js";
 
 export const scraperContracts: readonly ScraperEnvContract[] = [
   federalregisterConfig,
   durhamBoccConfig,
-  stLouisAldermenConfig,
   congressConfig,
   scotusConfig,
   sccCvigConfig,

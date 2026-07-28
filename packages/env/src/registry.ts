@@ -104,11 +104,6 @@ const scraperSourceLimitDefinitions = [
     "24",
   ],
   ["DURHAM_BOCC_MAX_ITEMS", "Durham County BOCC meetings per run.", "100"],
-  [
-    "ST_LOUIS_ALDERMEN_MAX_ITEMS",
-    "St. Louis active-session aldermanic meetings per run.",
-    "100",
-  ],
 ] as const;
 
 export const envRegistry = [

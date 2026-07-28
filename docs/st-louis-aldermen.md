@@ -1,5 +1,9 @@
 # St. Louis Board of Aldermen Source Contract
 
+> **Status: disabled.** The implementation is retained under
+> `apps/scraper/src/scrapers/disabled`, but it is not registered or runnable
+> until its database and product integration are provisioned.
+
 ## Scope and official sources
 
 The `st-louis-aldermen` scraper ingests full-board and committee meetings from

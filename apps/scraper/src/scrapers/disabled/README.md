@@ -45,3 +45,14 @@ and cache the data," and its `getCached*` getters are imported nowhere.
 
 To revive: have the scraper persist to the database (a real table the API reads),
 add a reader in `@acme/api`, then re-register its implementation and contract.
+
+## `st-louis-aldermen.ts`
+
+Implements active-session St. Louis Board of Aldermen meeting, legislation, and
+document ingestion. Disabled because this data is not yet connected to a
+configured production database or an application consumer.
+
+To revive it: provision and migrate the local-government tables, connect the
+product to their API reader, then move the implementation/config/parser
+back to `scrapers/`, register the implementation and active contract, and
+restore the St. Louis source-limit environment entry.

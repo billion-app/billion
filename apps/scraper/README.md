@@ -139,7 +139,6 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `TX_SOS_MAX_ITEMS`              |      12 | Current-cycle Texas SOS election payloads           |
 | `CEDAR_PARK_COUNCIL_MAX_ITEMS`  |     100 | Council meetings (after the 12-month cutoff)        |
 | `DURHAM_BOCC_MAX_ITEMS`         |     100 | Current-cycle Durham County BOCC meetings           |
-| `ST_LOUIS_ALDERMEN_MAX_ITEMS`   |     100 | Active-session St. Louis aldermanic meetings        |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
@@ -148,20 +147,6 @@ invocation gets a fresh allowance. Source limits cap API/page work;
 `SCRAPER_MAX_NEW_ITEMS_PER_RUN` separately caps expensive enrichment. Extra
 bills that require a generated description are deferred before insertion;
 other content may still be stored raw for later backfill.
-
-## St. Louis Board of Aldermen
-
-`st-louis-aldermen` reads the session selected by the official full-board
-agenda and aldermanic-calendar pages. It never submits an archival session
-selector. City HTML supplies stable session, `agendaViewID`, Board Bill,
-resolution, sponsor, and legislative-status metadata; the keyless CivicClerk
-public API supplies committee agenda items and agenda/minutes/packet files.
-
-Run `pnpm --filter @acme/scraper run start st-louis-aldermen`. The source is
-limited to 100 active-session meetings by default; override that with
-`ST_LOUIS_ALDERMEN_MAX_ITEMS` or `--max-items`. Requests use the shared retry
-client and concurrency limit. Structured source text is used directly, with no
-AI or OCR path. See [the source contract](../../docs/st-louis-aldermen.md).
 
 The NCSBE integration is intentionally current-cycle only and excludes voter
 history plus candidate contact/address fields. See

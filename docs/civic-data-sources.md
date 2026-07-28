@@ -10,7 +10,6 @@ How to obtain keys/access for every civic integration. For local dev, copy `.env
 | Vote Smart                             | Yes          | Free (org tier) | `VOTE_SMART_API_KEY`                                                  |
 | Legistar (local councils)              | No           | Free            | —                                                                     |
 | Cedar Park council records             | No           | Free            | —                                                                     |
-| St. Louis Board of Aldermen            | No           | Free            | —                                                                     |
 | VOTE411 / LWV (scraper)                | No           | Free            | —                                                                     |
 | CA SOS Voter Guide (scraper)           | No           | Free            | —                                                                     |
 | Santa Clara measure pipeline (scraper) | No           | Free            | —                                                                     |
@@ -37,14 +36,6 @@ tRPC router. No AI key is needed. Configuration lives in
 `apps/scraper/src/scrapers/civicengage.config.ts`; a second jurisdiction using
 the same embed supplies a new CivicEngage host/path, timezone, Municode
 `cid`/`ppid`, and body matcher.
-
-**St. Louis Board of Aldermen** — the official City agenda and calendar pages
-select the active aldermanic session. The keyless `st-louis-aldermen` scraper
-uses that metadata rather than calculating or enumerating sessions, then joins
-City event/legislative HTML to the City's CivicClerk public JSON. It writes the
-shared local-government tables and is consumed through the cached
-`localGovernment` API. No AI, OCR, browser automation, or credentials are
-required. See [the source contract](./st-louis-aldermen.md).
 
 **VOTE411 / League of Women Voters** — nonpartisan voter guides, candidate questionnaires, measure explanations; no key (scraper, rate-limited + cached). ⚠️ ToS bars commercial use without **written consent** and prohibits automated queries — a negotiated partnership is the only compliant path (tracked in the Outreach Tracker). Also `cavotes.org/easy-voter-guide/` for CA.
 

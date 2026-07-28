@@ -8,14 +8,12 @@ import { federalregister } from "./scrapers/federalregister.js";
 import { ncsbe } from "./scrapers/ncsbe.js";
 import { sccCvig } from "./scrapers/scc-cvig.js";
 import { scotus } from "./scrapers/scotus.js";
-import { stLouisAldermen } from "./scrapers/st-louis-aldermen.js";
 import { texasCurrentElection } from "./scrapers/texas-current-election.js";
 import { texasLegislature } from "./scrapers/texas-legislature.js";
 
 export const scrapers: readonly Scraper[] = [
   federalregister,
   durhamBocc,
-  stLouisAldermen,
   congress,
   scotus,
   sccCvig,

@@ -8,7 +8,7 @@ import {
   LocalGovernmentMeeting,
 } from "@acme/db/schema";
 
-import type { Scraper } from "../utils/types.js";
+import type { Scraper } from "../../utils/types.js";
 import type {
   AdaptedStLouisItem,
   StLouisAgendaDetail,
@@ -18,10 +18,10 @@ import type {
   StLouisEventDetail,
   StLouisLegislationRef,
 } from "./st-louis-aldermen-parser.js";
-import { getItemLimit } from "../utils/concurrency.js";
-import { setExpectedTotal } from "../utils/db/metrics.js";
-import { fetchWithRetry } from "../utils/fetch.js";
-import { createLogger } from "../utils/log.js";
+import { getItemLimit } from "../../utils/concurrency.js";
+import { setExpectedTotal } from "../../utils/db/metrics.js";
+import { fetchWithRetry } from "../../utils/fetch.js";
+import { createLogger } from "../../utils/log.js";
 import {
   adaptStLouisCivicItems,
   civicMeetingDocuments,

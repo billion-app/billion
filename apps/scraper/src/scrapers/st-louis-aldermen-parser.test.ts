@@ -12,7 +12,7 @@ import {
   parseStLouisCalendar,
   parseStLouisEventDetail,
   parseStLouisLegislationDetail,
-} from "./st-louis-aldermen-parser.js";
+} from "./disabled/st-louis-aldermen-parser.js";
 
 const fixture = (name: string) =>
   readFile(
