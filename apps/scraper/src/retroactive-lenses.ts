@@ -1,3 +1,4 @@
+import pLimit from "p-limit";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -185,10 +186,21 @@ const argv = await yargs(hideBin(process.argv))
     default: false,
     describe: "List candidates without generating lenses",
   })
+  .option("concurrency", {
+    alias: "c",
+    type: "number",
+    default: 1,
+    describe: "Lenses to generate in parallel",
+  })
   .check((args) =>
     Number.isInteger(args.limit) && args.limit > 0
       ? true
       : "--limit must be a positive integer",
+  )
+  .check((args) =>
+    Number.isInteger(args.concurrency) && args.concurrency > 0
+      ? true
+      : "--concurrency must be a positive integer",
   )
   .strict()
   .help()
@@ -200,35 +212,41 @@ const selectedTypes: ContentType[] =
 let processed = 0;
 let failed = 0;
 
+const limit = pLimit(argv.concurrency);
+
 for (const contentType of selectedTypes) {
   const candidates = await finders[contentType](argv.limit);
   logger.info(
     `Found ${candidates.length} missing/stale ${contentType} lens candidate(s)`,
   );
 
-  for (const candidate of candidates) {
-    if (argv.dryRun) {
-      logger.info(`[dry run] ${contentType}: ${candidate.title}`);
-      continue;
-    }
+  await Promise.all(
+    candidates.map((candidate) =>
+      limit(async () => {
+        if (argv.dryRun) {
+          logger.info(`[dry run] ${contentType}: ${candidate.title}`);
+          return;
+        }
 
-    try {
-      const generated = await upsertContentLens(
-        candidate.id,
-        candidate.contentType,
-        candidate.contentHash,
-        candidate.title,
-        candidate.fullText,
-        candidate.articleType,
-        candidate.aiGeneratedArticle,
-      );
-      if (generated) processed++;
-      else failed++;
-    } catch (error) {
-      failed++;
-      logger.error(`Failed ${contentType} lens for ${candidate.id}`, error);
-    }
-  }
+        try {
+          const generated = await upsertContentLens(
+            candidate.id,
+            candidate.contentType,
+            candidate.contentHash,
+            candidate.title,
+            candidate.fullText,
+            candidate.articleType,
+            candidate.aiGeneratedArticle,
+          );
+          if (generated) processed++;
+          else failed++;
+        } catch (error) {
+          failed++;
+          logger.error(`Failed ${contentType} lens for ${candidate.id}`, error);
+        }
+      }),
+    ),
+  );
 }
 
 logger.info(
