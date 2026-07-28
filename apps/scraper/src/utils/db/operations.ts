@@ -183,9 +183,9 @@ export async function upsertContent(
     );
   }
 
-  // New items beyond the run's daily budget skip AI enrichment. Bills that
-  // need a generated description are deferred before insertion; other content
-  // can persist raw and look like "needs backfill" work next run.
+  // New items beyond the run's daily budget skip AI enrichment but are still
+  // persisted with their raw content, so they surface as "needs backfill" work
+  // for the retroactive scripts rather than being lost.
   const budgetExhausted =
     progressKind === "new" &&
     options?.newItemLimiter !== undefined &&
@@ -202,21 +202,33 @@ export async function upsertContent(
   // A generated bill description is part of the bill's minimum usable record,
   // not an optional derived asset. Generate it before the insert so provider
   // failure cannot leave a new, summarizable bill permanently blank.
+  //
+  // Past the budget we persist the bill anyway rather than skipping the insert.
+  // The scraper's incremental cursor advances past everything it fetched, so a
+  // skipped bill is never offered again — it is lost, not deferred. A raw row
+  // still renders (the content API coalesces description -> summary) and
+  // `backfill-bill-descriptions` fills in the real description later.
   let preGeneratedDescription: string | undefined;
   if (!existing && input.type === "bill" && !sourceDescription) {
-    if (budgetExhausted || !hasSummarySource) {
+    if (!hasSummarySource) {
       logger.warn(
         `${label}: deferring insert until a summary can be generated`,
       );
       return undefined;
     }
-    const summarySource = input.data.summary || input.data.fullText || "";
-    logger.start(`Generating required AI summary for ${label}`);
-    preGeneratedDescription = await generateAISummary(title, summarySource);
-    if (!preGeneratedDescription.trim()) {
-      throw new Error(`AI returned an empty required summary for ${label}`);
+    if (budgetExhausted) {
+      logger.info(
+        `${label}: past new-item budget, persisting raw for a later backfill`,
+      );
+    } else {
+      const summarySource = input.data.summary || input.data.fullText || "";
+      logger.start(`Generating required AI summary for ${label}`);
+      preGeneratedDescription = await generateAISummary(title, summarySource);
+      if (!preGeneratedDescription.trim()) {
+        throw new Error(`AI returned an empty required summary for ${label}`);
+      }
+      shouldGenerateSummary = false;
     }
-    shouldGenerateSummary = false;
   }
 
   if (progressKind === "new") incrementNewEntries();
@@ -422,8 +434,11 @@ export async function upsertContent(
       logger.success(`${label} enriched with AI content`);
     }
 
-    // Generate and cache dual-lens perspectives
-    if (hasUsableText && result?.id) {
+    // Generate and cache dual-lens perspectives. Past-budget items are skipped
+    // along with every other derived asset: the lens runs an agentic research
+    // loop, and it is the budget's whole purpose to not pay for that on a bill
+    // we are only persisting raw. `retroactive-lenses` backfills them.
+    if (hasUsableText && result?.id && !budgetExhausted) {
       await upsertContentLens(
         result.id,
         input.type,
@@ -438,7 +453,13 @@ export async function upsertContent(
     // Generate and cache the structured brief. Bills only for now — the brief
     // schema is written around legislative mechanics (before/after provisions,
     // sponsor-vs-text framing) and needs separate design work per content type.
-    if (hasUsableText && result?.id && input.type === "bill") {
+    // Past-budget items defer to `retroactive-briefs`, as with the lens above.
+    if (
+      hasUsableText &&
+      result?.id &&
+      input.type === "bill" &&
+      !budgetExhausted
+    ) {
       await upsertBillBrief({
         contentId: result.id,
         contentHash: newContentHash,
@@ -446,6 +467,7 @@ export async function upsertContent(
         billNumber: input.data.billNumber,
         url,
         fullText: fullText!,
+        officialSummary: input.data.summary,
         status: input.data.status,
         priorArticle: aiGeneratedArticle,
       });
@@ -597,6 +619,7 @@ export async function upsertBillBrief(args: {
   billNumber: string;
   url: string;
   fullText: string;
+  officialSummary?: string | null;
   status?: string | null;
   priorArticle?: string | null;
 }): Promise<boolean> {
@@ -628,6 +651,7 @@ export async function upsertBillBrief(args: {
     billNumber: args.billNumber,
     url: args.url,
     fullText: args.fullText,
+    officialSummary: args.officialSummary,
     status: args.status,
     priorArticle: args.priorArticle,
   });

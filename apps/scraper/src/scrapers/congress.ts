@@ -208,6 +208,40 @@ export async function fetchSummary(
   }
 }
 
+/**
+ * Postgres rejects `to_tsvector` input over 1,048,575 bytes, and
+ * `Bill.searchVector` is a generated column over `full_text` — so an oversized
+ * bill fails its INSERT outright rather than degrading. `processBill` catches
+ * and logs that error, which would make the bill vanish silently, exactly the
+ * failure mode we just removed. Keep a wide margin under the ceiling.
+ *
+ * This is ~125x the old 1,000-word cap, so it only bites genuinely enormous
+ * bills (omnibus/appropriations). Unlike the old cap it is loud, and the
+ * section-by-section pipeline in issue #216 is the real answer for those.
+ */
+const MAX_FULL_TEXT_BYTES = 800_000;
+
+export function capToTsvectorLimit(text: string, label: string): string {
+  if (Buffer.byteLength(text, "utf8") <= MAX_FULL_TEXT_BYTES) return text;
+
+  // Byte budget, not characters: bill text carries multibyte punctuation
+  // (section signs, em dashes, curly quotes) that a char-based slice ignores.
+  let end = text.length;
+  while (
+    end > 0 &&
+    Buffer.byteLength(text.slice(0, end), "utf8") > MAX_FULL_TEXT_BYTES
+  ) {
+    end = Math.floor(end * 0.98);
+  }
+  const clipped = text.slice(0, end);
+  const lastSpace = clipped.lastIndexOf(" ");
+  const result = lastSpace > 0 ? clipped.slice(0, lastSpace) : clipped;
+  logger.warn(
+    `${label}: full text is ${Buffer.byteLength(text, "utf8")} bytes, capped to ${Buffer.byteLength(result, "utf8")} to stay under the tsvector limit`,
+  );
+  return result;
+}
+
 export async function fetchFullText(
   congress: number,
   billType: string,
@@ -229,12 +263,14 @@ export async function fetchFullText(
       const rawText = await res.text();
       if (!rawText) continue;
 
-      let text = stripHtml(rawText);
-      const words = text.split(/\s+/);
-      if (words.length > 1000) {
-        text = words.slice(0, 1000).join(" ");
-      }
-      return text.trim() || undefined;
+      // Store the bill as published. An earlier 1,000-word cap silently cut
+      // most bills off mid-section — H.R. 7008 lost its entire penalties
+      // section, and the brief generator then reported that the bill
+      // specified no penalties. Downstream consumers window this text to fit
+      // their own context budget (see SOURCE_WINDOW in ai/bill-brief.ts);
+      // truncating at ingest time only destroys information for all of them.
+      const text = stripHtml(rawText).trim();
+      return capToTsvectorLimit(text, billNumber) || undefined;
     }
   } catch {
     // Full text is optional

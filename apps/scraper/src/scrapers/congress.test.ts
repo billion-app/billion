@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseBillIdentifier, parseBillUrl } from "./congress.js";
+import {
+  capToTsvectorLimit,
+  parseBillIdentifier,
+  parseBillUrl,
+} from "./congress.js";
 
 test("parseBillIdentifier accepts the forms people paste", () => {
   const expected = { billType: "hr", billNumber: "7008" };
@@ -42,4 +46,21 @@ test("parseBillIdentifier round-trips through parseBillUrl", () => {
     ),
     parsed,
   );
+});
+
+test("capToTsvectorLimit leaves normal bill text untouched", () => {
+  const text =
+    "SECTION 1. SHORT TITLE. This Act may be cited as the Example Act.";
+  assert.equal(capToTsvectorLimit(text, "H.R. 1"), text);
+});
+
+test("capToTsvectorLimit keeps oversized text under the tsvector byte ceiling", () => {
+  // Multibyte punctuation: a character-based slice would undercount bytes.
+  const huge = "section § one — text ".repeat(80_000);
+  assert.ok(Buffer.byteLength(huge, "utf8") > 1_048_575);
+
+  const capped = capToTsvectorLimit(huge, "H.R. 1");
+  assert.ok(Buffer.byteLength(capped, "utf8") <= 800_000);
+  assert.ok(capped.length > 0);
+  assert.doesNotMatch(capped, /\s$/u);
 });
