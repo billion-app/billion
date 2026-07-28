@@ -12,7 +12,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-import type { BillBriefRecord } from "@acme/validators";
+import type { BillBriefRecord, BillSectionNotes } from "@acme/validators";
 
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
@@ -275,6 +275,49 @@ export const BillSection = pgTable(
       "gin",
       table.searchVector,
     ),
+  }),
+);
+
+/**
+ * Versioned analysis of one canonical bill section.
+ *
+ * A row records the terminal state for that specific persisted section. On a
+ * new source version, the scraper may copy a reusable result found by the
+ * (sectionHash, promptVersion, modelVersion) cache key into the new section's
+ * row without calling the model again.
+ */
+export const BillSectionAnalysis = pgTable(
+  "bill_section_analysis",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    sectionId: t
+      .uuid()
+      .notNull()
+      .references(() => BillSection.id, { onDelete: "cascade" }),
+    sectionHash: t.varchar({ length: 64 }).notNull(),
+    promptVersion: t.varchar({ length: 100 }).notNull(),
+    modelVersion: t.varchar({ length: 100 }).notNull(),
+    status: t.varchar({ length: 20 }).notNull(),
+    notes: t.jsonb().$type<BillSectionNotes>(),
+    error: t.text(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueSectionAnalysis: unique().on(
+      table.sectionId,
+      table.promptVersion,
+      table.modelVersion,
+    ),
+    cacheKeyIdx: index("bill_section_analysis_cache_key_idx").on(
+      table.sectionHash,
+      table.promptVersion,
+      table.modelVersion,
+      table.status,
+    ),
+    sectionIdx: index("bill_section_analysis_section_idx").on(table.sectionId),
   }),
 );
 

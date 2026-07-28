@@ -588,16 +588,26 @@ export interface BillContextResearch {
 export async function researchBillContext(
   title: string,
   billNumber: string,
-  fullText: string,
+  analysisNotes: string,
 ): Promise<BillContextResearch> {
   try {
+    const groundingBudget = 12_000;
+    const groundingLines: string[] = [];
+    let groundingBytes = 0;
+    for (const line of analysisNotes.split("\n")) {
+      if (!/^(## |summary:|- \[)/.test(line)) continue;
+      const lineBytes = Buffer.byteLength(`${line}\n`, "utf8");
+      if (groundingBytes + lineBytes > groundingBudget) break;
+      groundingLines.push(line);
+      groundingBytes += lineBytes;
+    }
     const res = await generateText({
       model: getTextLlm(),
       tools: { web_search: webResearchTool, fetch_page: fetchPageTool },
       stopWhen: stepCountIs(7),
       prompt: `You are researching historical context and useful follow-up reading for an average citizen reading about ${billNumber}, "${title}".
 
-1. Read the bill text below before searching, and identify every distinct subject it legislates on. A bill's title names one of them at best. If the text contains provisions **unrelated to the title's subject** — separate policy riding along in the same bill — those are as important to research as the headline subject, and a reader will find them nowhere else. Note them explicitly.
+1. Read the section-analysis topic index below before searching, and identify every distinct subject the bill legislates on. A bill's title names one of them at best. If the analysis contains provisions **unrelated to the title's subject** — separate policy riding along in the same bill — those are as important to research as the headline subject, and a reader will find them nowhere else. Note them explicitly.
 2. Then investigate why this policy has not already been implemented. Look for earlier bills, documented disagreements, legal or budget constraints, implementation tradeoffs, and circumstances that changed. Do not guess at lawmakers' motives.
 3. Prefer the Congressional Research Service, GAO, CBO, established newsrooms, universities, and transparent research organizations. Avoid campaign pages, SEO summaries, scraped copies, and sources that merely repeat a press release. Reject a URL carrying referral or campaign tracking parameters (utm_source, utm_campaign, ref=) — find the publisher's own canonical link instead.
 4. Search separately for clear explanatory reporting or authoritative background that helps a reader understand the bill's most important mechanism or uncertainty. **Cover each distinct subject you identified in step 1**, not just the one the title names: a reading list that only addresses the headline subject leaves the reader with no way to learn about the rest of what the bill does.
@@ -607,8 +617,8 @@ export async function researchBillContext(
    - FURTHER READING: the two to four best articles, who published each, and what each helps a reader understand. Say which subject each one covers.
 Do not cite or recommend a page you did not open.
 
-Official bill text:
-${fullText.slice(0, SOURCE_WINDOW)}`,
+Section-analysis topic index:
+${groundingLines.join("\n")}`,
     });
     trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
     return {

@@ -31,8 +31,10 @@
  */
 import { z } from "zod";
 
+import { BILL_ANALYSIS_SCHEMA_VERSION } from "./bill-analysis";
+
 /** Bump when the shape or generation contract requires cached rows to refresh. */
-export const BILL_BRIEF_VERSION = 7;
+export const BILL_BRIEF_VERSION = 8;
 
 /**
  * What a provision mechanically does. Deliberately descriptive: a reader can
@@ -85,6 +87,23 @@ export const BriefQuoteSchema = z.object({
     .describe(
       'Where the quote appears, as written in the document — e.g. "Sec. 4(b)(2)" or "Title II". Omit if the source has no usable label.',
     ),
+  sectionHash: z
+    .string()
+    .length(64)
+    .optional()
+    .describe("SHA-256 of the analyzed bill section containing this quote."),
+  startOffset: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("Zero-based quote start offset within the analyzed section."),
+  endOffset: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("End-exclusive quote offset within the analyzed section."),
 });
 export type BriefQuote = z.infer<typeof BriefQuoteSchema>;
 
@@ -394,9 +413,16 @@ const BriefRecordMetadataSchema = {
 /** A stored brief: model output plus pipeline-owned provenance. */
 export const BillBriefRecordSchema = BillBriefSchema.extend({
   version: z.literal(BILL_BRIEF_VERSION),
+  analysisSchemaVersion: z.literal(BILL_ANALYSIS_SCHEMA_VERSION),
   ...BriefRecordMetadataSchema,
 });
 export type BillBriefRecord = z.infer<typeof BillBriefRecordSchema>;
+
+/** The last single-pass brief shape, before section-note provenance. */
+const BillBriefV7RecordSchema = BillBriefSchema.extend({
+  version: z.literal(7),
+  ...BriefRecordMetadataSchema,
+});
 
 /** The rich brief shape before emphasis became a brief-wide contract. */
 const BillBriefV6RecordSchema = BillBriefSchema.extend({
@@ -458,14 +484,31 @@ export function parseBillBriefRecord(value: unknown): BillBriefRecord | null {
   const current = BillBriefRecordSchema.safeParse(value);
   if (current.success) return current.data;
 
+  const v7 = BillBriefV7RecordSchema.safeParse(value);
+  if (v7.success) {
+    return {
+      ...v7.data,
+      version: BILL_BRIEF_VERSION,
+      analysisSchemaVersion: BILL_ANALYSIS_SCHEMA_VERSION,
+    };
+  }
+
   const v6 = BillBriefV6RecordSchema.safeParse(value);
   if (v6.success) {
-    return { ...v6.data, version: BILL_BRIEF_VERSION };
+    return {
+      ...v6.data,
+      version: BILL_BRIEF_VERSION,
+      analysisSchemaVersion: BILL_ANALYSIS_SCHEMA_VERSION,
+    };
   }
 
   const v5 = BillBriefV5RecordSchema.safeParse(value);
   if (v5.success) {
-    return { ...v5.data, version: BILL_BRIEF_VERSION };
+    return {
+      ...v5.data,
+      version: BILL_BRIEF_VERSION,
+      analysisSchemaVersion: BILL_ANALYSIS_SCHEMA_VERSION,
+    };
   }
 
   const v1 = BillBriefV1RecordSchema.safeParse(value);
@@ -474,6 +517,7 @@ export function parseBillBriefRecord(value: unknown): BillBriefRecord | null {
   return {
     ...legacy,
     version: BILL_BRIEF_VERSION,
+    analysisSchemaVersion: BILL_ANALYSIS_SCHEMA_VERSION,
     affected: legacy.affected.map((item) => ({
       ...item,
       takeaway: conciseTakeaway(item.effect),

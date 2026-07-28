@@ -12,7 +12,11 @@ import {
 } from "@acme/db/schema";
 import { isCurrentBillBrief } from "@acme/validators";
 
-import type { BillSourceVersionInput } from "../bill-sections.js";
+import type {
+  BillSourceVersionInput,
+  ParsedBillSection,
+} from "../bill-sections.js";
+import { parseBillSections } from "../bill-sections.js";
 import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
   BillData,
@@ -20,6 +24,7 @@ import type {
   GovernmentContentData,
 } from "../types.js";
 import { generateBillBrief } from "../ai/bill-brief.js";
+import { formatSectionAnalysesForWriting } from "../ai/bill-section-analysis.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
@@ -37,6 +42,11 @@ import { createContentHash } from "../hash.js";
 import { createLogger } from "../log.js";
 import { tickProgress } from "../progress.js";
 import { isUsableSourceText } from "../reprocessing-policy.js";
+import {
+  analyzeBillSectionsInMemory,
+  analyzeCurrentBillSections,
+  persistCompletedBillSectionAnalyses,
+} from "./bill-analysis-operations.js";
 import { persistBillSourceVersions } from "./bill-source-operations.js";
 import {
   checkExistingBill,
@@ -911,11 +921,31 @@ async function assembleNewBill(args: {
 
   logger.start(`Assembling ${label} before storing it`);
 
+  const currentSource = args.billSourceVersions?.reduce<
+    BillSourceVersionInput | undefined
+  >((latest, candidate) => {
+    if (!latest) return candidate;
+    const latestDate = latest.officialDate?.getTime() ?? -Infinity;
+    const candidateDate = candidate.officialDate?.getTime() ?? -Infinity;
+    return candidateDate >= latestDate ? candidate : latest;
+  }, undefined);
+  const sections = currentSource
+    ? parseBillSections(currentSource.rawXml).map(sectionForAnalysis)
+    : [];
+  if (sections.length === 0) {
+    return {
+      status: "incomplete",
+      reason: "no parsed canonical sections are available",
+    };
+  }
+  const analyses = await analyzeBillSectionsInMemory(sections);
+
   const brief = await buildBillBriefRecord({
     title: data.title,
     billNumber: data.billNumber,
     url: data.url,
     fullText: data.fullText,
+    analysisNotes: formatSectionAnalysesForWriting(analyses),
     officialSummary: data.summary,
     status: data.status,
   });
@@ -961,6 +991,7 @@ async function assembleNewBill(args: {
 
   if (args.billSourceVersions?.length) {
     await persistBillSourceVersions(billId, args.billSourceVersions);
+    await persistCompletedBillSectionAnalyses(billId, analyses);
   }
 
   incrementVideosGenerated();
@@ -1009,12 +1040,27 @@ export interface BuiltBillBrief {
   modelVersion: string;
 }
 
+function sectionForAnalysis(section: ParsedBillSection) {
+  return {
+    id: randomUUID(),
+    structuralPath: section.structuralPath,
+    heading: section.heading ?? null,
+    displayedNumber: section.displayedNumber ?? null,
+    order: section.order,
+    text: section.text,
+    sectionHash: section.sectionHash,
+    sourceStartOffset: section.sourceStartOffset ?? null,
+    sourceEndOffset: section.sourceEndOffset ?? null,
+  };
+}
+
 /** Generate a brief in memory. Returns null when generation fails. */
 export async function buildBillBriefRecord(args: {
   title: string;
   billNumber: string;
   url: string;
   fullText: string;
+  analysisNotes: string;
   officialSummary?: string | null;
   status?: string | null;
   priorArticle?: string | null;
@@ -1024,6 +1070,7 @@ export async function buildBillBriefRecord(args: {
     billNumber: args.billNumber,
     url: args.url,
     fullText: args.fullText,
+    analysisNotes: args.analysisNotes,
     officialSummary: args.officialSummary,
     status: args.status,
     priorArticle: args.priorArticle,
@@ -1113,7 +1160,18 @@ export async function upsertBillBrief(args: {
     return false;
   }
 
-  const record = await buildBillBriefRecord(args);
+  const analyses = await analyzeCurrentBillSections(args.contentId);
+  if (analyses.length === 0) {
+    logger.warn(
+      `No parsed canonical sections are available for ${args.billNumber}; deferring brief generation`,
+    );
+    return false;
+  }
+
+  const record = await buildBillBriefRecord({
+    ...args,
+    analysisNotes: formatSectionAnalysesForWriting(analyses),
+  });
   if (!record) return false;
 
   await persistBillBrief(db, args.contentId, args.contentHash, record);

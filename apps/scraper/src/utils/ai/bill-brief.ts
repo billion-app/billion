@@ -4,10 +4,9 @@
  *
  * The pipeline is deliberately three steps, only one of which costs a token:
  *
- *   1. Structure (LLM). One schema-validated call grounded in the official text
- *      plus, when we have it, the existing long-form article — that article has
- *      already done the careful nonpartisan analysis, so this pass is mostly a
- *      restructuring job rather than a fresh reading.
+ *   1. Write (LLM). One schema-validated call grounded in cached, per-section
+ *      analysis notes plus outside research. Raw bill text never enters this
+ *      pass, so long bills cannot silently disappear at a context boundary.
  *   2. Verify quotes (deterministic). Every quote is checked against the full
  *      source text. Unverified quotes are dropped, not shipped — a brief may
  *      say less than the model wrote, but it never attributes words to a bill
@@ -25,6 +24,7 @@ import type {
   BriefLegalStatus,
 } from "@acme/validators";
 import {
+  BILL_ANALYSIS_SCHEMA_VERSION,
   BILL_BRIEF_VERSION,
   BillBriefSchema,
   BriefChangeSchema,
@@ -44,13 +44,11 @@ import {
   rateLimitHit,
   researchBillContext,
   setRateLimitHit,
-  SOURCE_WINDOW,
 } from "./text-generation.js";
 
 const logger = createLogger("ai-brief");
 
-// Shared with the research and lens steps — see SOURCE_WINDOW's own comment for
-// why they must not diverge.
+const DEFAULT_WRITING_INPUT_TOKEN_BUDGET = 128_000;
 
 /** Attempts at structuring before giving up (each is one LLM call). */
 const MAX_ATTEMPTS = 2;
@@ -62,6 +60,9 @@ const MAX_ATTEMPTS = 2;
  */
 const GeneratedBriefQuoteSchema = BriefQuoteSchema.extend({
   locator: z.string().trim().max(120).nullish(),
+  sectionHash: z.string().length(64).nullish(),
+  startOffset: z.number().int().min(0).nullish(),
+  endOffset: z.number().int().positive().nullish(),
 });
 const GeneratedBillBriefSchema = BillBriefSchema.extend({
   facts: z
@@ -167,7 +168,18 @@ export function verifyBriefQuotes(
     item: T,
   ): T => {
     if (!item.quote) return item;
-    if (isQuoteGrounded(item.quote.text, normalizedSource)) {
+    const quote = item.quote as T["quote"] & {
+      sectionHash?: string;
+      startOffset?: number;
+      endOffset?: number;
+    };
+    if (
+      quote.sectionHash &&
+      quote.startOffset !== undefined &&
+      quote.endOffset !== undefined &&
+      quote.endOffset > quote.startOffset &&
+      isQuoteGrounded(quote.text, normalizedSource)
+    ) {
       verified++;
       return item;
     }
@@ -541,7 +553,7 @@ function buildBriefPrompt(args: {
   billNumber: string;
   url: string;
   legalStatus: BriefLegalStatus;
-  sourceText: string;
+  analysisNotes: string;
   officialSummary?: string | null;
   priorArticle?: string | null;
   readingResearch?: string;
@@ -555,7 +567,7 @@ function buildBriefPrompt(args: {
     billNumber,
     url,
     legalStatus,
-    sourceText,
+    analysisNotes,
     officialSummary,
     priorArticle,
     readingResearch,
@@ -596,7 +608,7 @@ function buildBriefPrompt(args: {
 
 ${tense}
 
-Your job is to explain the policy, not to promote or attack it. Treat the title, acronym, findings, purpose clauses, and sponsor statements as claims about intent — not proof of results. Base every factual statement on the supplied source text.
+Your job is to explain the policy, not to promote or attack it. Treat the title, acronym, findings, purpose clauses, and sponsor statements as claims about intent — not proof of results. Base every factual statement on the supplied section notes.
 
 Before filling in the fields, silently identify:
 1. The concrete mechanisms: what authority, rule, funding, eligibility, deadline, review, oversight, enforcement, or safeguard is added, removed, weakened, expanded, or transferred.
@@ -607,7 +619,7 @@ Before filling in the fields, silently identify:
 Rules that decide whether this brief ships:
 
 - **Mechanism over marketing.** Removing or waiving rules, reviews, reporting, or oversight is deregulation or reduced oversight. Say that. Do not hide it behind "cuts red tape", "modernizes", "streamlines", or "speeds up". Equally, do not attach a hostile label the text does not support.
-- **Quotes are verbatim.** Every "quote" field must be an exact, unedited span copied character-for-character from the source text below. Do not paraphrase, splice, trim mid-word, or fix grammar. Quotes that do not appear in the source are removed automatically, so a paraphrase in quotation marks just loses you a citation.
+- **Quotes are verbatim and addressable.** Use only exact evidence quotes present in the section notes. Copy text, sectionHash, startOffset, and endOffset together without alteration. Never quote the CRS summary, prior article, or outside research.
 - **No invented figures.** A number, date, or dollar amount goes in "facts" only if the source states it. Fewer facts is correct; a plausible-looking invented figure is not.
 - **No manufactured symmetry.** If the text supports one consequence more strongly than another, say so. Use "mixed" or "unclear" for an affected group rather than balancing the list for its own sake.
 - **Use only the allowed change kinds.** Every change "kind" must be exactly one of: "creates", "repeals", "expands", "restricts", "requires", "waives", "funds", or "transfers". Map synonyms such as "sets" or "establishes" to "creates", and "restructures" to the closest allowed mechanism.
@@ -635,7 +647,7 @@ Status: ${legalStatus === "enacted" ? "enacted" : "proposed, not yet law"}
 Source URL: ${url}
 ${
   priorArticle
-    ? `\nPrior nonpartisan analysis of this bill (already vetted for framing — reuse its judgments, but pull all quotes from the official text below):\n${priorArticle.slice(0, 6000)}\n`
+    ? `\nPrior nonpartisan analysis of this bill (already vetted for framing — reuse its judgments, but use only evidence quotes from the section notes):\n${priorArticle.slice(0, 6000)}\n`
     : ""
 }
 ${
@@ -652,11 +664,11 @@ ${
 }
 ${
   officialSummary
-    ? `\nOfficial CRS summary of the whole bill (nonpartisan, written by the Congressional Research Service). The official text below may be windowed and end mid-section, so treat this summary as authoritative for the bill's overall scope — including provisions the excerpt cuts off, such as penalties and effective dates. Do not report something as unspecified when this summary specifies it. Never quote from this summary: every "quote" must come verbatim from the official text below.\n${officialSummary.slice(0, 6000)}\n`
+    ? `\nOfficial CRS summary of the whole bill (nonpartisan, written by the Congressional Research Service). Use it as authoritative context for the bill's overall scope, but never quote from it: every "quote" must copy a referenced evidence span from the section notes.\n${officialSummary.slice(0, 6000)}\n`
     : ""
 }
-Official text:
-${sourceText.slice(0, SOURCE_WINDOW)}
+Section-by-section analysis inventory:
+${analysisNotes}
 ---
 
 Produce the structured brief now.`;
@@ -674,6 +686,7 @@ export async function generateBillBrief(args: {
   billNumber: string;
   url: string;
   fullText: string;
+  analysisNotes: string;
   officialSummary?: string | null;
   status?: string | null;
   priorArticle?: string | null;
@@ -684,7 +697,7 @@ export async function generateBillBrief(args: {
   const readingResearch = await researchBillContext(
     args.title,
     args.billNumber,
-    args.fullText,
+    args.analysisNotes,
   );
   let loadedPhrases: string[] | undefined;
   let jargonPhrases: string[] | undefined;
@@ -695,23 +708,32 @@ export async function generateBillBrief(args: {
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
+      const prompt = buildBriefPrompt({
+        title: args.title,
+        billNumber: args.billNumber,
+        url: args.url,
+        legalStatus,
+        analysisNotes: args.analysisNotes,
+        officialSummary: args.officialSummary,
+        priorArticle: args.priorArticle,
+        readingResearch: readingResearch.notes,
+        readingSources: readingResearch.sources,
+        loadedPhrases,
+        jargonPhrases,
+        missingEmphasis,
+      });
+      const writingBudget =
+        Number(process.env.BILL_BRIEF_WRITING_INPUT_TOKEN_BUDGET) ||
+        DEFAULT_WRITING_INPUT_TOKEN_BUDGET;
+      if (Buffer.byteLength(prompt, "utf8") > writingBudget) {
+        throw new Error(
+          `Bill brief writing prompt exceeds BILL_BRIEF_WRITING_INPUT_TOKEN_BUDGET=${writingBudget}`,
+        );
+      }
       const { output: generatedOutput, usage } = await generateText({
         model: getStructuredLlm(),
         output: Output.object({ schema: GeneratedBillBriefSchema }),
-        prompt: buildBriefPrompt({
-          title: args.title,
-          billNumber: args.billNumber,
-          url: args.url,
-          legalStatus,
-          sourceText: args.fullText,
-          officialSummary: args.officialSummary,
-          priorArticle: args.priorArticle,
-          readingResearch: readingResearch.notes,
-          readingSources: readingResearch.sources,
-          loadedPhrases,
-          jargonPhrases,
-          missingEmphasis,
-        }),
+        prompt,
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
@@ -745,6 +767,7 @@ export async function generateBillBrief(args: {
         verifiedFallback = {
           ...brief,
           version: BILL_BRIEF_VERSION,
+          analysisSchemaVersion: BILL_ANALYSIS_SCHEMA_VERSION,
           legalStatus,
           verifiedQuotes: verified,
         };
@@ -778,6 +801,7 @@ export async function generateBillBrief(args: {
       return {
         ...brief,
         version: BILL_BRIEF_VERSION,
+        analysisSchemaVersion: BILL_ANALYSIS_SCHEMA_VERSION,
         legalStatus,
         verifiedQuotes: verified,
       };

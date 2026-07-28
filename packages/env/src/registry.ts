@@ -322,6 +322,26 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "BILL_ANALYSIS_INPUT_TOKEN_BUDGET",
+    description:
+      "Conservative maximum input tokens for each bill-section analysis call.",
+    group: "AI",
+    secret: false,
+    defaultValue: "16000",
+    requirements: { scraper: "optional" },
+    schema: positiveInteger,
+  }),
+  define({
+    key: "BILL_BRIEF_WRITING_INPUT_TOKEN_BUDGET",
+    description:
+      "Conservative maximum input tokens for the bill-brief writing call.",
+    group: "AI",
+    secret: false,
+    defaultValue: "128000",
+    requirements: { scraper: "optional" },
+    schema: positiveInteger,
+  }),
+  define({
     key: "DEEPSEEK_API_KEY",
     description:
       "Deprecated direct DeepSeek key; use OPENROUTER_API_KEY for AI text generation.",
