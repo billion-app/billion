@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  capToTsvectorLimit,
+  assertWithinTsvectorLimit,
+  BillTextTooLargeError,
   orderTextVersionsNewestFirst,
   parseBillIdentifier,
   parseBillUrl,
@@ -49,21 +50,25 @@ test("parseBillIdentifier round-trips through parseBillUrl", () => {
   );
 });
 
-test("capToTsvectorLimit leaves normal bill text untouched", () => {
+test("assertWithinTsvectorLimit leaves normal bill text untouched", () => {
   const text =
     "SECTION 1. SHORT TITLE. This Act may be cited as the Example Act.";
-  assert.equal(capToTsvectorLimit(text, "H.R. 1"), text);
+  assert.equal(assertWithinTsvectorLimit(text, "H.R. 1"), text);
 });
 
-test("capToTsvectorLimit keeps oversized text under the tsvector byte ceiling", () => {
-  // Multibyte punctuation: a character-based slice would undercount bytes.
+test("assertWithinTsvectorLimit refuses oversized text instead of truncating", () => {
+  // Multibyte punctuation: a character count would undercount the byte size.
   const huge = "section § one — text ".repeat(80_000);
   assert.ok(Buffer.byteLength(huge, "utf8") > 1_048_575);
 
-  const capped = capToTsvectorLimit(huge, "H.R. 1");
-  assert.ok(Buffer.byteLength(capped, "utf8") <= 800_000);
-  assert.ok(capped.length > 0);
-  assert.doesNotMatch(capped, /\s$/u);
+  // A truncated bill reads as complete and misinforms; an absent one does not.
+  assert.throws(
+    () => assertWithinTsvectorLimit(huge, "H.R. 1"),
+    (error: unknown) =>
+      error instanceof BillTextTooLargeError &&
+      error.label === "H.R. 1" &&
+      error.bytes === Buffer.byteLength(huge, "utf8"),
+  );
 });
 
 const textVersion = (type: string, date: string | null) => ({
@@ -103,4 +108,40 @@ test("orderTextVersionsNewestFirst sorts undated versions last", () => {
     ordered.map((v) => v.type),
     ["Engrossed in House", "Introduced in House", "Undated"],
   );
+});
+
+test("cursor advances only across the leading run of successes", () => {
+  // Mirrors the reduction in scrape(): the feed is oldest-first, so the first
+  // failure is the high-water mark. Advancing past it would strand that bill
+  // exactly the way the old wall-clock cursor did.
+  const advance = (outcomes: { ok: boolean; at?: string }[]) => {
+    const firstFailure = outcomes.findIndex((o) => !o.ok);
+    const settled =
+      firstFailure === -1 ? outcomes : outcomes.slice(0, firstFailure);
+    return settled.reduce<string | undefined>(
+      (newest, o) => (o.at && (!newest || o.at > newest) ? o.at : newest),
+      undefined,
+    );
+  };
+
+  const d = (n: number) => `2026-07-0${n}T00:00:00Z`;
+
+  // All clean: advance to the newest.
+  assert.equal(
+    advance([
+      { ok: true, at: d(1) },
+      { ok: true, at: d(2) },
+      { ok: true, at: d(3) },
+    ]),
+    d(3),
+  );
+  // Failure in the middle: hold at the last clean bill before it, even though
+  // a later bill succeeded and is newer.
+  assert.equal(
+    advance([{ ok: true, at: d(1) }, { ok: false }, { ok: true, at: d(3) }]),
+    d(1),
+  );
+  // First bill fails: do not advance at all.
+  assert.equal(advance([{ ok: false }, { ok: true, at: d(2) }]), undefined);
+  assert.equal(advance([]), undefined);
 });

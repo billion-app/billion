@@ -266,6 +266,7 @@ export async function upsertContent(
           fullText: d.fullText,
           url: d.url,
           contentHash: newContentHash,
+          sourceUpdatedAt: d.sourceUpdatedAt,
           updatedAt: new Date(),
         },
       })
@@ -540,6 +541,18 @@ export async function upsertContentLens(
   aiGeneratedArticle?: string | null,
 ): Promise<boolean> {
   const modelVersion = `${getTextModelVersion()}:concrete-examples-v2`;
+
+  // Key the cache on what the lens actually reads, not on the bill's overall
+  // contentHash. That hash also covers status, description and summary, so a
+  // routine action update ("Referred to committee" -> "Received in the
+  // Senate") invalidated it and paid for a fresh agentic research loop that
+  // could only ever come back with the same argument — or a worse one. The
+  // lens is nondeterministic and overwritten in place, so a needless
+  // regeneration is a coin flip on losing a good result.
+  const lensCacheKey = createContentHash(
+    JSON.stringify({ title, fullText, articleType, modelVersion }),
+  );
+
   const [existing] = await db
     .select({
       contentHash: ContentLens.contentHash,
@@ -556,7 +569,8 @@ export async function upsertContentLens(
     .limit(1);
 
   if (
-    existing?.contentHash === contentHash &&
+    !forceAIRegeneration &&
+    existing?.contentHash === lensCacheKey &&
     existing.modelVersion === modelVersion &&
     isUsableDualLens(existing.lensData)
   ) {
@@ -580,7 +594,7 @@ export async function upsertContentLens(
     .values({
       contentId,
       contentType,
-      contentHash,
+      contentHash: lensCacheKey,
       lensData: {
         ...lens,
         generatedAt: new Date().toISOString(),
@@ -591,7 +605,7 @@ export async function upsertContentLens(
     .onConflictDoUpdate({
       target: [ContentLens.contentType, ContentLens.contentId],
       set: {
-        contentHash,
+        contentHash: lensCacheKey,
         lensData: {
           ...lens,
           generatedAt: new Date().toISOString(),
