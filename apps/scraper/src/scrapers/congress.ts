@@ -494,17 +494,23 @@ async function scrape(config: CongressScraperConfig = {}) {
   // using it meant asking congress.gov for "bills changed since the moment we
   // last saved something" — which silently discarded every bill a run fetched
   // but did not store, with no way to ever see it again.
-  const scraperKey = `congress:${congress}:${chamber.toLowerCase()}`;
+  // Not chamber-scoped: the walk covers both chambers (see fetchParams below),
+  // so one cursor tracks the whole congress.
+  const scraperKey = `congress:${congress}`;
   const [lastScrape] = await db
     .select({ lastUpdated: ScraperCursor.sourceUpdatedAt })
     .from(ScraperCursor)
     .where(eq(ScraperCursor.scraperKey, scraperKey))
     .limit(1);
 
-  const chamberParam = chamber === "House" ? "house" : "senate";
-
   const fetchParams: Record<string, string | number> = {
-    chamber: chamberParam,
+    // No `chamber` filter: `/bill/{congress}` does not support one. It was
+    // passed for years and silently ignored — the same request with and
+    // without it returns identical results and the same 17,897 total — so the
+    // feed has always carried both chambers and `originChamber` from the
+    // detail endpoint is what actually labels each row. Sending it implied a
+    // filter we never had.
+    //
     // Oldest-first from the cursor. Descending order only makes sense with an
     // unbounded window: bounded at `maxBills`, it hands us the newest N and
     // strands everything older, and the cursor then jumps past the strand.

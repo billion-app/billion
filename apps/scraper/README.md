@@ -150,10 +150,19 @@ Uses the official [Congress.gov API](https://api.congress.gov) so no scraping. F
 ```ts
 await scrapeCongress({
   congress: 119, // which Congress (default: 119)
-  chamber: "House", // "House" or "Senate" (default: "House")
-  maxBills: 100, // how many bills to fetch (default: 100)
+  maxBills: 100, // how many bills to fetch per run (default: 100)
+  bills: ["H.R. 7008"], // optional: fetch these directly, bypassing the cursor
 });
 ```
+
+`chamber` exists on the config but does not filter anything: `/bill/{congress}`
+has no chamber parameter, so every run covers both chambers. It is only used as
+a fallback label when the detail endpoint omits `originChamber`.
+
+Without `bills`, the run walks the feed oldest-first from the cursor in
+`scraper_cursor` and advances it only across the leading run of successes. See
+[Incremental discovery](../../docs/scraper.md#incremental-discovery-congressgov)
+for why the cursor is source-based and why the order matters.
 
 ---
 
