@@ -2,16 +2,20 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { and, desc, eq, inArray, or, sql, unionAll } from "@acme/db";
+import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
 import {
   Bill,
+  ContentBrief,
   ContentLens,
   CourtCase,
   GovernmentContent,
   SavedArticle,
   Video,
 } from "@acme/db/schema";
+import { parseBillBriefRecord } from "@acme/validators";
 
+import { toBillTimelineActions } from "../lib/bill-actions";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { stateBillMetadata } from "../lib/state-legislation";
 import { protectedProcedure, publicProcedure } from "../trpc";
@@ -100,6 +104,13 @@ async function listCurrentStateBills(input: {
   };
 }
 
+function billDescription(
+  description: string | null | undefined,
+  summary?: string | null,
+): string {
+  return clampBillDescription(description ?? summary ?? "");
+}
+
 interface ContentImageRef {
   id: string;
   type: SavedContentType | "general";
@@ -170,7 +181,7 @@ async function attachVideoImages<T extends ContentImageRef>(
 }
 
 // Look up cached dual-lens perspectives for a content item. Returns null when
-// none have been generated yet (the client falls back to a placeholder).
+// none have been generated yet; the client omits the panel until analysis exists.
 async function getLensData(
   contentId: string,
   contentType: "bill" | "government_content" | "court_case",
@@ -186,6 +197,27 @@ async function getLensData(
     )
     .limit(1);
   return lens?.lensData ?? null;
+}
+
+// Look up the cached structured brief for a content item. Rows written by an
+// older shipped shapes are normalized here, so the client can treat a present
+// brief as renderable while the scraper refreshes stale rows independently.
+// Bills are the only type generating briefs today.
+async function getBrief(
+  contentId: string,
+  contentType: "bill" | "government_content" | "court_case",
+) {
+  const [row] = await db
+    .select({ brief: ContentBrief.brief })
+    .from(ContentBrief)
+    .where(
+      and(
+        eq(ContentBrief.contentId, contentId),
+        eq(ContentBrief.contentType, contentType),
+      ),
+    )
+    .limit(1);
+  return row ? parseBillBriefRecord(row.brief) : null;
 }
 
 // Helper function to get thumbnail URL for any content
@@ -315,7 +347,7 @@ export const contentRouter = {
       ...bills.map((bill) => ({
         id: bill.id,
         title: bill.title,
-        description: bill.description ?? bill.summary ?? "",
+        description: billDescription(bill.description, bill.summary),
         type: "bill" as const,
         isAIGenerated: false,
         thumbnailUrl: bill.thumbnailUrl ?? undefined,
@@ -408,7 +440,10 @@ export const contentRouter = {
         const items: ContentCard[] = page.map((row) => ({
           id: row.id,
           title: row.title,
-          description: row.description,
+          description:
+            row.type === "bill"
+              ? billDescription(row.description)
+              : row.description,
           type: row.type as ContentCard["type"],
           isAIGenerated: false,
           thumbnailUrl: row.thumbnailUrl ?? undefined,
@@ -433,7 +468,7 @@ export const contentRouter = {
         const items: ContentCard[] = page.map((bill) => ({
           id: bill.id,
           title: bill.title,
-          description: bill.description ?? bill.summary ?? "",
+          description: billDescription(bill.description, bill.summary),
           type: "bill" as const,
           isAIGenerated: false,
           thumbnailUrl: bill.thumbnailUrl ?? undefined,
@@ -542,7 +577,7 @@ export const contentRouter = {
         const items: ContentCard[] = bills.map((bill) => ({
           id: bill.id,
           title: bill.title,
-          description: bill.description ?? bill.summary ?? "",
+          description: billDescription(bill.description, bill.summary),
           type: "bill" as const,
           isAIGenerated: false,
           thumbnailUrl: bill.thumbnailUrl ?? undefined,
@@ -643,7 +678,10 @@ export const contentRouter = {
       const items: ContentCard[] = rows.map((row) => ({
         id: row.id,
         title: row.title,
-        description: row.description,
+        description:
+          row.type === "bill"
+            ? billDescription(row.description)
+            : row.description,
         type: row.type as ContentCard["type"],
         isAIGenerated: false,
         thumbnailUrl: row.thumbnailUrl ?? undefined,
@@ -678,7 +716,7 @@ export const contentRouter = {
           {
             id: b.id,
             title: b.title,
-            description: b.description ?? b.summary ?? "",
+            description: billDescription(b.description, b.summary),
             type: "bill" as const,
             isAIGenerated: !!b.aiGeneratedArticle,
             thumbnailUrl: b.thumbnailUrl ?? undefined,
@@ -688,11 +726,7 @@ export const contentRouter = {
               b.aiGeneratedArticle ?? b.fullText ?? "No content available",
             originalContent: b.fullText ?? "Full text not available",
             url: b.url,
-            actions: (b.actions ?? []) as {
-              date: string;
-              text: string;
-              type?: string;
-            }[],
+            actions: toBillTimelineActions(b.actions ?? []),
             status: b.status ?? undefined,
             jurisdiction: b.jurisdiction,
             legislativeSession: b.legislativeSession || undefined,
@@ -703,6 +737,7 @@ export const contentRouter = {
             documents: b.documents ?? [],
             votes: b.votes ?? [],
             lensData: await getLensData(b.id, "bill"),
+            brief: await getBrief(b.id, "bill"),
           },
         ]);
         if (!result) throw new Error(`Failed to decorate bill ${b.id}`);
@@ -808,7 +843,7 @@ export const contentRouter = {
         sponsoredBills: sponsoredBills.map((item) => ({
           id: item.id,
           title: item.title,
-          description: item.description ?? item.summary ?? "",
+          description: billDescription(item.description, item.summary),
           billNumber: item.billNumber,
           status: item.status ?? undefined,
           thumbnailUrl: item.thumbnailUrl ?? undefined,
@@ -899,7 +934,10 @@ export const contentRouter = {
           .filter((item) => item != null)
           .map((item) => ({
             ...item,
-            description: item.description ?? "",
+            description:
+              item.type === "bill"
+                ? billDescription(item.description)
+                : (item.description ?? ""),
             thumbnailUrl: item.thumbnailUrl ?? undefined,
           }));
         return {

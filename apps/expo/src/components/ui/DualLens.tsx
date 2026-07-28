@@ -23,6 +23,7 @@ export interface LensSource {
 
 export interface LensPoint {
   text: string;
+  example?: string | { fact: string; relevance: string };
   sourceIds: number[];
 }
 
@@ -113,29 +114,98 @@ export function LensPanel({ data }: { data: LensData }) {
         </View>
         <View>
           <Text style={s.panelTitle}>Dual-Lens</Text>
-          <Text style={s.panelSub}>Both sides, side by side — no spin.</Text>
+          <Text style={s.panelSub}>Competing cases, with sources.</Text>
         </View>
       </View>
       <View style={s.cols}>
-        {(["left", "right"] as const).map((k, i) => (
-          <View key={k} style={s.col}>
-            <Text style={s.colKicker}>{kickers(data.framing)[i]}</Text>
-            <Text style={s.colStance}>{data[k].stance}</Text>
-            <View style={s.points}>
-              {data[k].points.map(toPoint).map((p, i) => (
-                <View key={i} style={s.point}>
-                  <View style={s.dot} />
-                  <Text style={s.pointText}>
-                    {p.text}
-                    {p.sourceIds.length > 0 && (
-                      <Text style={s.cite}> [{p.sourceIds.join(",")}]</Text>
-                    )}
-                  </Text>
-                </View>
-              ))}
+        {(["left", "right"] as const).map((k, i) => {
+          const lensAccent = i === 0 ? "#6DD6C7" : "#F2B56B";
+          return (
+            <View
+              key={k}
+              style={[
+                s.col,
+                {
+                  borderLeftColor: lensAccent,
+                  backgroundColor: `${lensAccent}10`,
+                },
+              ]}
+            >
+              <Text style={[s.colKicker, { color: lensAccent }]}>
+                {kickers(data.framing)[i]}
+              </Text>
+              <Text style={s.colStance}>{data[k].stance}</Text>
+              <View style={s.points}>
+                {data[k].points.map(toPoint).map((p, i) => {
+                  const example =
+                    typeof p.example === "string"
+                      ? { fact: p.example, relevance: undefined }
+                      : p.example;
+                  return (
+                    <View key={i} style={s.pointGroup}>
+                      <View style={s.point}>
+                        <View
+                          style={[s.dot, { backgroundColor: lensAccent }]}
+                        />
+                        <Text style={s.pointText}>{p.text}</Text>
+                      </View>
+                      {example ? (
+                        <View
+                          style={[
+                            s.example,
+                            {
+                              borderColor: `${lensAccent}55`,
+                              backgroundColor: `${lensAccent}0D`,
+                            },
+                          ]}
+                        >
+                          <Icon name="pin" size={13} color={lensAccent} />
+                          <View style={s.exampleCopy}>
+                            <Text
+                              style={[s.exampleLabel, { color: lensAccent }]}
+                            >
+                              REAL-WORLD EXAMPLE
+                            </Text>
+                            <Text style={s.exampleText}>
+                              {example.fact}
+                              {p.sourceIds.length > 0 && (
+                                <Text style={s.cite}>
+                                  {" "}
+                                  [{p.sourceIds.join(",")}]
+                                </Text>
+                              )}
+                            </Text>
+                            {example.relevance && (
+                              <View style={s.relevance}>
+                                <Text
+                                  style={[
+                                    s.relevanceLabel,
+                                    { color: lensAccent },
+                                  ]}
+                                >
+                                  WHAT IT SHOWS
+                                </Text>
+                                <Text style={s.relevanceText}>
+                                  {example.relevance}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      ) : (
+                        p.sourceIds.length > 0 && (
+                          <Text style={[s.legacyCite, { color: lensAccent }]}>
+                            SOURCES [{p.sourceIds.join(",")}]
+                          </Text>
+                        )
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
       {sources.length > 0 ? (
         <SourcesAccordion sources={sources} />
@@ -143,7 +213,7 @@ export function LensPanel({ data }: { data: LensData }) {
         <View style={s.footer}>
           <Icon name="info" size={14} color={colors.textSecondary} />
           <Text style={s.footerText}>
-            Framing summarized from sources across the spectrum.
+            Framing summarized from the official source text.
           </Text>
         </View>
       )}
@@ -274,10 +344,9 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
-  cols: { flexDirection: "row", gap: 12 },
+  cols: { gap: 10 },
   col: {
-    flex: 1,
-    backgroundColor: planes.surface,
+    borderLeftWidth: 3,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
@@ -296,13 +365,13 @@ const s = StyleSheet.create({
     color: colors.white,
     marginBottom: 10,
   },
-  points: { gap: 9 },
+  points: { gap: 12 },
+  pointGroup: { gap: 7 },
   point: { flexDirection: "row", gap: 8 },
   dot: {
     width: 5,
     height: 5,
     borderRadius: 5,
-    backgroundColor: colors.textSecondary,
     marginTop: 7,
   },
   pointText: {
@@ -316,6 +385,51 @@ const s = StyleSheet.create({
     fontFamily: "AlbertSans-Medium",
     fontSize: 10.5,
     color: colors.civicBlue,
+  },
+  legacyCite: {
+    marginLeft: 13,
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 9.5,
+    letterSpacing: 0.5,
+  },
+  example: {
+    marginLeft: 13,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 9,
+    padding: 10,
+  },
+  exampleCopy: { flex: 1, gap: 3 },
+  exampleLabel: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 9,
+    letterSpacing: 0.8,
+  },
+  exampleText: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: "rgba(255,255,255,0.76)",
+  },
+  relevance: {
+    marginTop: 6,
+    paddingTop: 7,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.14)",
+    gap: 3,
+  },
+  relevanceLabel: {
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 8.5,
+    letterSpacing: 0.7,
+  },
+  relevanceText: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: "rgba(255,255,255,0.86)",
   },
   footer: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 14 },
   footerText: {

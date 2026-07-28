@@ -1,5 +1,13 @@
 # Privacy Settings Page Implementation
 
+> **Launch decision (2026-07-23):** For the read-only Summer 2026 release the non-functional
+> controls were **removed**. The toggles called login-only endpoints (there is no sign-in) and
+> nothing read the `analytics` toggle to gate PostHog, and the "Download My Data" button had no
+> handler — so they promised controls the release does not provide. `settings/privacy.tsx` is now
+> an honest summary of what the build collects plus the controls that actually exist (edit/clear
+> address, uninstall, email for requests). The backlog below is retained for a future
+> accounts-enabled build. See `docs/legal/data-inventory.md`.
+
 ## Current Status
 
 The Privacy Settings page exists at `apps/expo/src/app/settings/privacy.tsx` with toggle switches for analytics, personalization, location, crash reports, and a "Download My Data" button.

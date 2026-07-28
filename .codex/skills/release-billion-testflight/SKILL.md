@@ -24,7 +24,7 @@ From the repository root, inspect:
 git status --short --branch
 git log -10 --oneline --decorate
 git tag --sort=-version:refname | head
-sed -n '1,220p' apps/expo/app.config.json
+sed -n '1,220p' apps/expo/app.config.base.json
 sed -n '1,220p' apps/expo/eas.json
 ```
 
@@ -97,7 +97,7 @@ Run targeted checks for the current acceptance criteria. Keep them proportional 
 
 ## 5. Version and record the release
 
-Increment `version` in `apps/expo/app.config.json` using semver. EAS owns the iOS build number remotely and the production profile should use `autoIncrement: true`.
+Increment `version` in `apps/expo/app.config.base.json` using semver. That file holds the static Expo config; `apps/expo/app.config.js` wraps it to inject PostHog values at load time, so there is no `app.config.json`. `just bump <patch|minor|major>` (via `scripts/bump.mjs`) does the edit, commit, and tag for you. EAS owns the iOS build number remotely and the production profile should use `autoIncrement: true`.
 
 Review the full diff before committing. Commit only intended release files, create the matching tag, and push both:
 
@@ -125,7 +125,7 @@ Before invoking EAS, confirm all three:
 
 ```bash
 pwd
-test -f app.config.json
+test -f app.config.js
 test -f eas.json
 ```
 

@@ -17,6 +17,7 @@ import {
 import { posthog } from "~/config/posthog";
 import { colors, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
+import { getAppVersion } from "~/utils/app-version";
 import { authClient } from "~/utils/auth";
 
 function getInitials(name: string): string {
@@ -84,7 +85,7 @@ function buildGroups(
         {
           icon: "shield",
           label: "Privacy",
-          sub: "Location, analytics, downloads",
+          sub: "What we collect and your controls",
           route: "/settings/privacy",
         },
       ],
@@ -101,7 +102,7 @@ function buildGroups(
         {
           icon: "info",
           label: "About Billion",
-          sub: "Version 2.4.0",
+          sub: `Version ${getAppVersion()}`,
           route: "/settings/about",
         },
       ],
@@ -112,7 +113,10 @@ function buildGroups(
 export default function SettingsScreen() {
   const router = useRouter();
   const sessionQuery = useQuery(trpc.auth.getSession.queryOptions());
-  const prefsQuery = useQuery(trpc.user.getPreferences.queryOptions());
+  const prefsQuery = useQuery({
+    ...trpc.user.getPreferences.queryOptions(),
+    enabled: !!sessionQuery.data?.user,
+  });
 
   const sessionUser = sessionQuery.data?.user;
   const profileName = sessionUser?.name ?? "Guest";

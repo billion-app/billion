@@ -1,8 +1,10 @@
 /**
  * Caps how many brand-new items a single scraper run will fully process
- * (AI summary/article/image generation). Items beyond the cap are still
- * saved with their raw content, so they roll over as "backfill" work that
- * a later run will pick up under next day's budget.
+ * (AI summary/article/image generation). Items beyond the cap are still saved
+ * with their raw content — the scraper's incremental cursor advances past
+ * everything it fetched, so an item that is not persisted here is lost rather
+ * than deferred. They roll over as "backfill" work for the retroactive
+ * scripts (`backfill-bill-descriptions`, `retroactive-briefs`, ...).
  */
 
 export interface NewItemLimiter {

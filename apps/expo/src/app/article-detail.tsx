@@ -1,5 +1,6 @@
 import type { RenderRules } from "@ronradtke/react-native-markdown-display";
-import { useEffect, useState } from "react";
+import type { LayoutChangeEvent } from "react-native";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,10 +15,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "@ronradtke/react-native-markdown-display";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import type { BillBriefData, BriefQuote } from "~/components/ui";
+import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { Text } from "~/components/Themed";
 import {
   Avatar,
   Badge,
+  BillBrief,
   Card,
   GhostButton,
   Icon,
@@ -35,6 +39,7 @@ import {
   darkTheme,
   fontBody,
   fontDisplay,
+  fontEditorial,
   getMarkdownStyles,
   hair,
   planes,
@@ -43,25 +48,9 @@ import {
 import { queryClient, trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 import { formatDate } from "~/utils/dates";
+import { editorialVisualFor } from "~/utils/editorial-visuals";
 
-// TODO(backend): real per-side framing per content item.
-const PLACEHOLDER_LENS = {
-  framing: "proponent_opponent" as const,
-  left: {
-    stance: "Supporters argue",
-    points: [
-      "Frames this as closing a long-standing gap",
-      "Point to broad public benefit",
-    ],
-  },
-  right: {
-    stance: "Critics counter",
-    points: [
-      "Question the cost and scope",
-      "Prefer a narrower, state-led approach",
-    ],
-  },
-};
+export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
@@ -69,12 +58,19 @@ export default function ArticleDetailScreen() {
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [mode, setMode] = useState<"explainer" | "source">("explainer");
+  const [provenanceOpen, setProvenanceOpen] = useState(false);
+  const [sourceHighlight, setSourceHighlight] = useState<BriefQuote | null>(
+    null,
+  );
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
-  const [failedHeaderImageUri, setFailedHeaderImageUri] = useState<
+  const [failedHeaderImageKey, setFailedHeaderImageKey] = useState<
     string | undefined
   >();
+  const scrollRef = useRef<ScrollView>(null);
+  const sourcePanelY = useRef(0);
 
   const handleModeChange = (newMode: "explainer" | "source") => {
+    setSourceHighlight(null);
     setMode(newMode);
     posthog.capture("article_view_mode_toggled", {
       content_id: articleId ?? null,
@@ -103,6 +99,12 @@ export default function ArticleDetailScreen() {
     }
   }, [content]);
   const headerImageUri = content?.imageUri ?? content?.thumbnailUrl;
+  const headerImageSource = content
+    ? editorialVisualFor(content.title, headerImageUri)
+    : undefined;
+  const headerImageKey = content
+    ? `${content.title}:${headerImageUri ?? "local"}`
+    : undefined;
 
   // content.saved.isSaved is a protected procedure — only query it when signed in,
   // otherwise it throws UNAUTHORIZED.
@@ -248,8 +250,40 @@ export default function ArticleDetailScreen() {
     }
   };
 
-  const activeContent =
+  const handleViewSource = (quote: BriefQuote) => {
+    setSourceHighlight(quote);
+    setMode("source");
+    posthog.capture("article_source_passage_opened", {
+      content_id: content.id,
+      content_type: content.type,
+      locator: quote.locator ?? null,
+    });
+  };
+
+  const handleSourceTargetLayout = (event: LayoutChangeEvent) => {
+    const targetY = event.nativeEvent.layout.y;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(0, sourcePanelY.current + targetY - 110),
+        animated: true,
+      });
+    });
+  };
+
+  // A structured brief replaces the markdown explainer when one has been
+  // generated. Content without a brief (every type except bills, and bills the
+  // pipeline hasn't reached yet) keeps rendering the long-form article, so this
+  // is additive rather than a cutover.
+  const brief: BillBriefData | null =
+    "brief" in content ? (content.brief as BillBriefData | null) : null;
+
+  const rawContent =
     mode === "explainer" ? content.articleContent : content.originalContent;
+  // The types say this is a string, but the router has no `.output()` schema,
+  // so nothing enforces that at runtime. `.includes`/`.length` on a null would
+  // take the whole app down rather than render an empty article.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- guards an unvalidated API response
+  const activeContent = rawContent ?? "";
   const looksLikeMarkdown =
     /^#{1,6}\s/m.test(activeContent) ||
     /\[[^\]]+\]\((https?:\/\/|\/)/.test(activeContent) ||
@@ -270,12 +304,11 @@ export default function ArticleDetailScreen() {
     ? actions
         .slice()
         .sort((a, b) => a.date.localeCompare(b.date))
-        .map((a, i, arr) => ({
+        .map((a) => ({
           label: a.text.length > 80 ? a.text.slice(0, 77) + "…" : a.text,
           fullText: a.text,
           date: a.date,
           done: true,
-          current: i === arr.length - 1,
         }))
     : [
         {
@@ -283,30 +316,27 @@ export default function ArticleDetailScreen() {
           fullText: "",
           date: "",
           done: true,
-          current: false,
         },
         {
           label: "Committee review",
           fullText: "",
           date: "",
           done: true,
-          current: false,
         },
         {
           label: "Latest action",
           fullText: "",
           date: "",
           done: true,
-          current: true,
         },
         {
           label: "Becomes law",
           fullText: "",
           date: "",
           done: false,
-          current: false,
         },
       ];
+  const currentTimelineIndex = hasRealActions ? timeline.length - 1 : 2;
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
@@ -343,18 +373,19 @@ export default function ArticleDetailScreen() {
       />
 
       <ScrollView
+        ref={scrollRef}
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {headerImageUri && headerImageUri !== failedHeaderImageUri ? (
+        {headerImageSource && headerImageKey !== failedHeaderImageKey ? (
           <View style={s.headerArt}>
             <Image
-              source={{ uri: headerImageUri }}
+              source={headerImageSource}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
               transition={200}
-              onError={() => setFailedHeaderImageUri(headerImageUri)}
+              onError={() => setFailedHeaderImageKey(headerImageKey)}
               accessible
               accessibilityLabel={`Header image for ${content.title}`}
             />
@@ -418,22 +449,54 @@ export default function ArticleDetailScreen() {
             value={mode}
             onChange={handleModeChange}
             options={[
-              { id: "explainer", label: "Plain explainer", icon: "sparkle" },
+              {
+                id: "explainer",
+                label: brief ? "The brief" : "Plain explainer",
+                icon: "sparkle",
+              },
               { id: "source", label: "Original text", icon: "doc" },
             ]}
           />
         </View>
 
         {mode === "explainer" && (
-          <View style={s.disclaimer}>
+          <TouchableOpacity
+            style={s.disclaimer}
+            activeOpacity={0.72}
+            onPress={() => setProvenanceOpen((value) => !value)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: provenanceOpen }}
+            accessibilityLabel={
+              provenanceOpen
+                ? "Hide details about Billion AI authorship"
+                : "Show details about Billion AI authorship"
+            }
+          >
             <Icon name="sparkle" size={17} color={t.color} />
-            <Text style={s.disclaimerText}>
-              Explained by Billion AI from the official text.{" "}
-              <Text style={s.disclaimerEm}>
-                Always verify against the source below.
-              </Text>
-            </Text>
-          </View>
+            <View style={s.disclaimerBody}>
+              <View style={s.disclaimerHead}>
+                <Text style={s.disclaimerTitle}>
+                  Written by Billion AI · Always check the source
+                </Text>
+                <Text style={[s.disclaimerAction, { color: t.color }]}>
+                  {provenanceOpen ? "Hide" : "Details"}
+                </Text>
+                <View style={provenanceOpen ? s.chevFlip : undefined}>
+                  <Icon name="chevD" size={14} color={t.color} />
+                </View>
+              </View>
+              {provenanceOpen ? (
+                <Text style={s.disclaimerText}>
+                  Created from the official text.{" "}
+                  {brief
+                    ? "Quoted passages are checked against that source; everything else is AI analysis."
+                    : "The plain-language explanation is AI analysis."}{" "}
+                  Use Original text or the linked official site to verify
+                  details.
+                </Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
         )}
 
         {mode === "source" && content.url && (
@@ -448,8 +511,27 @@ export default function ArticleDetailScreen() {
         <View
           testID="article-content"
           style={mode === "source" ? s.sourcePanel : undefined}
+          onLayout={(event) => {
+            sourcePanelY.current = event.nativeEvent.layout.y;
+          }}
         >
-          {renderMarkdown ? (
+          {mode === "explainer" && brief ? (
+            <BillBrief
+              data={brief}
+              accent={t.color}
+              dualLens={
+                content.lensData ? <LensPanel data={content.lensData} /> : null
+              }
+              onViewSource={handleViewSource}
+            />
+          ) : mode === "source" && sourceHighlight ? (
+            <HighlightedSource
+              content={content.originalContent}
+              quote={sourceHighlight}
+              accent={t.color}
+              onTargetLayout={handleSourceTargetLayout}
+            />
+          ) : renderMarkdown ? (
             <Markdown style={markdownStyles} rules={markdownRules}>
               {activeContent}
             </Markdown>
@@ -458,17 +540,20 @@ export default function ArticleDetailScreen() {
           )}
         </View>
 
-        {/* Dual-Lens — signature */}
-        <View style={{ marginVertical: 24 }}>
-          <LensPanel data={content.lensData ?? PLACEHOLDER_LENS} />
-        </View>
+        {/* Never present generic copy as if it were generated analysis. */}
+        {mode === "explainer" && content.lensData && !brief && (
+          <View style={{ marginVertical: 24 }}>
+            <LensPanel data={content.lensData} />
+          </View>
+        )}
 
         {/* timeline */}
-        <Kicker>Where it stands</Kicker>
+        <Kicker style={s.timelineKicker}>Where it stands</Kicker>
         <Card style={{ marginBottom: 24 }}>
           {timeline.map((step, i) => {
             const expandable = !!step.fullText && step.label !== step.fullText;
             const isExpanded = expandedStep === i;
+            const isCurrent = i === currentTimelineIndex;
             return (
               <TouchableOpacity
                 key={i}
@@ -485,7 +570,7 @@ export default function ArticleDetailScreen() {
                       s.timelineDot,
                       {
                         borderColor: step.done ? t.color : hair[3],
-                        backgroundColor: step.current ? t.color : "transparent",
+                        backgroundColor: isCurrent ? t.color : "transparent",
                       },
                     ]}
                   />
@@ -510,7 +595,7 @@ export default function ArticleDetailScreen() {
                           color: step.done
                             ? colors.white
                             : colors.textSecondary,
-                          fontFamily: step.current
+                          fontFamily: isCurrent
                             ? fontBody.bold
                             : fontBody.medium,
                         },
@@ -545,25 +630,92 @@ export default function ArticleDetailScreen() {
           )}
         </Card>
 
-        {/* dig-deeper exit */}
-        <View style={s.exit}>
-          <Text style={s.exitTitle}>Don&apos;t take our word for it.</Text>
-          <Text style={s.exitSub}>
-            Read the full, unedited text and track every action on the official
-            record.
-          </Text>
-          <PrimaryButton
-            label="Open the source"
-            icon="external"
-            onPress={handleOpenOriginal}
-          />
-          <GhostButton
-            label="View all related records"
-            onPress={handleOpenOriginal}
-            style={{ width: "100%", marginTop: 6 }}
-          />
-        </View>
+        {/* The explainer ends by handing the reader back to the official
+            record. The source tab already has that action at the top. */}
+        {mode === "explainer" ? (
+          <View style={s.exit}>
+            <Text style={s.exitTitle}>Don&apos;t take our word for it.</Text>
+            <Text style={s.exitSub}>
+              Read the full, unedited text and track every action on the
+              official record.
+            </Text>
+            <PrimaryButton
+              label="Open the source"
+              icon="external"
+              onPress={handleOpenOriginal}
+            />
+            <GhostButton
+              label="View all related records"
+              onPress={handleOpenOriginal}
+              style={{ width: "100%", marginTop: 6 }}
+            />
+          </View>
+        ) : null}
       </ScrollView>
+    </View>
+  );
+}
+
+function HighlightedSource({
+  content,
+  quote,
+  accent,
+  onTargetLayout,
+}: {
+  content: string;
+  quote: BriefQuote;
+  accent: string;
+  onTargetLayout: (event: LayoutChangeEvent) => void;
+}) {
+  const exactIndex = content.indexOf(quote.text);
+  const caseInsensitiveIndex =
+    exactIndex >= 0
+      ? exactIndex
+      : content.toLocaleLowerCase().indexOf(quote.text.toLocaleLowerCase());
+  const found = caseInsensitiveIndex >= 0;
+  const before = found ? content.slice(0, caseInsensitiveIndex) : "";
+  const match = found
+    ? content.slice(
+        caseInsensitiveIndex,
+        caseInsensitiveIndex + quote.text.length,
+      )
+    : quote.text;
+  const after = found
+    ? content.slice(caseInsensitiveIndex + quote.text.length)
+    : content;
+
+  return (
+    <View style={s.highlightedSource}>
+      <View style={s.sourceDocumentHead}>
+        <View
+          style={[s.sourceDocumentIcon, { backgroundColor: `${accent}28` }]}
+        >
+          <Icon name="doc" size={15} color={accent} />
+        </View>
+        <View style={s.sourceDocumentHeadCopy}>
+          <Text style={s.sourceDocumentTitle}>Original text</Text>
+          <Text style={s.sourceDocumentMeta}>
+            {quote.locator
+              ? `Highlighted passage · ${quote.locator}`
+              : "Highlighted passage"}
+          </Text>
+        </View>
+      </View>
+      {before ? <Text style={s.sourceText}>{before}</Text> : null}
+      <View
+        style={[
+          s.sourceHighlight,
+          { backgroundColor: `${accent}22`, borderColor: accent },
+        ]}
+        onLayout={onTargetLayout}
+        testID="source-highlight"
+      >
+        <Text style={[s.sourceHighlightLabel, { color: accent }]}>
+          {found ? "MATCHING PASSAGE" : "CITED PASSAGE"}
+        </Text>
+        <Text style={s.sourceHighlightText}>{match}</Text>
+      </View>
+      {after ? <Text style={s.sourceText}>{after}</Text> : null}
     </View>
   );
 }
@@ -651,6 +803,7 @@ const s = StyleSheet.create({
   },
   disclaimer: {
     flexDirection: "row",
+    alignItems: "flex-start",
     gap: 9,
     backgroundColor: planes.surface,
     borderWidth: 1,
@@ -660,20 +813,86 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     marginBottom: 18,
   },
-  disclaimerText: {
-    flex: 1,
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 12.5,
-    color: "rgba(255,255,255,0.7)",
-    lineHeight: 18,
+  disclaimerBody: { flex: 1, gap: 8 },
+  disclaimerHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
   },
-  disclaimerEm: { color: colors.white, fontFamily: fontBody.semibold },
+  disclaimerTitle: {
+    flex: 1,
+    fontFamily: fontBody.medium,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: "rgba(255,255,255,0.82)",
+  },
+  disclaimerAction: {
+    fontFamily: fontBody.semibold,
+    fontSize: 10.5,
+  },
+  disclaimerText: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 11.5,
+    color: "rgba(255,255,255,0.64)",
+    lineHeight: 17,
+  },
+  chevFlip: { transform: [{ rotate: "180deg" }] },
   sourcePanel: {
     backgroundColor: planes.ink,
     borderWidth: 1,
     borderColor: hair[2],
     borderRadius: 14,
     padding: 18,
+  },
+  highlightedSource: { gap: 14 },
+  sourceDocumentHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingBottom: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: hair[2],
+  },
+  sourceDocumentIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sourceDocumentHeadCopy: { flex: 1, gap: 1 },
+  sourceDocumentTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    color: colors.white,
+  },
+  sourceDocumentMeta: {
+    fontFamily: fontBody.medium,
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  sourceText: {
+    fontFamily: fontBody.regular,
+    fontSize: 15,
+    lineHeight: 25,
+    color: "rgba(255,255,255,0.7)",
+  },
+  sourceHighlight: {
+    borderLeftWidth: 3,
+    borderRadius: 10,
+    padding: 14,
+    gap: 6,
+  },
+  sourceHighlightLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 9.5,
+    letterSpacing: 0.9,
+  },
+  sourceHighlightText: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 25,
+    color: colors.white,
   },
   plainText: {
     fontFamily: "AlbertSans-Regular",
@@ -682,6 +901,7 @@ const s = StyleSheet.create({
     color: "rgba(255,255,255,0.88)",
   },
   timelineRow: { flexDirection: "row", gap: 12 },
+  timelineKicker: { marginTop: 30 },
   timelineMarker: { alignItems: "center" },
   timelineDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
   timelineLine: { width: 2, flex: 1, minHeight: 22 },

@@ -25,6 +25,7 @@ interface LensCandidate {
   title: string;
   fullText: string;
   articleType: string;
+  aiGeneratedArticle: string | null;
 }
 
 async function findBills(limit: number): Promise<LensCandidate[]> {
@@ -34,6 +35,7 @@ async function findBills(limit: number): Promise<LensCandidate[]> {
       contentHash: Bill.contentHash,
       title: Bill.title,
       fullText: Bill.fullText,
+      aiGeneratedArticle: Bill.aiGeneratedArticle,
     })
     .from(Bill)
     .leftJoin(
@@ -77,6 +79,7 @@ async function findGovernmentContent(limit: number): Promise<LensCandidate[]> {
       title: GovernmentContent.title,
       fullText: GovernmentContent.fullText,
       articleType: GovernmentContent.type,
+      aiGeneratedArticle: GovernmentContent.aiGeneratedArticle,
     })
     .from(GovernmentContent)
     .leftJoin(
@@ -118,6 +121,7 @@ async function findCourtCases(limit: number): Promise<LensCandidate[]> {
       contentHash: CourtCase.contentHash,
       title: CourtCase.title,
       fullText: CourtCase.fullText,
+      aiGeneratedArticle: CourtCase.aiGeneratedArticle,
     })
     .from(CourtCase)
     .leftJoin(
@@ -209,15 +213,17 @@ for (const contentType of selectedTypes) {
     }
 
     try {
-      await upsertContentLens(
+      const generated = await upsertContentLens(
         candidate.id,
         candidate.contentType,
         candidate.contentHash,
         candidate.title,
         candidate.fullText,
         candidate.articleType,
+        candidate.aiGeneratedArticle,
       );
-      processed++;
+      if (generated) processed++;
+      else failed++;
     } catch (error) {
       failed++;
       logger.error(`Failed ${contentType} lens for ${candidate.id}`, error);

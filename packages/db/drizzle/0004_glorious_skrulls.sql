@@ -1,0 +1,2 @@
+ALTER TABLE "court_case" DROP CONSTRAINT "court_case_caseNumber_unique";--> statement-breakpoint
+ALTER TABLE "court_case" ADD CONSTRAINT "court_case_caseNumber_court_unique" UNIQUE("case_number","court");

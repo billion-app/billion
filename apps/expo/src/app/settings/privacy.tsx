@@ -1,114 +1,100 @@
-import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
-import { Card, GhostButton, Icon, ScreenShell, Toggle } from "~/components/ui";
+import { Card, GhostButton, Icon, Kicker, ScreenShell } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
-import { queryClient, trpc } from "~/utils/api";
 
-type Key = "location" | "personalize" | "analytics" | "crash" | "offline";
+interface Row {
+  icon: IconName;
+  label: string;
+  sub: string;
+}
 
-const ROWS: { k: Key; icon: IconName; label: string; sub: string }[] = [
+const NOTICE =
+  "Billion works without an account. You can read summaries and check your ballot without signing in — we never ask for your name or email to use the app.";
+
+// What the installed build actually collects. Kept in sync with the Privacy
+// Policy (settings/terms) and the App Store privacy answers; see
+// docs/legal/data-inventory.md.
+const COLLECT: Row[] = [
   {
-    k: "location",
-    icon: "pin",
-    label: "Location access",
-    sub: "Used only to load your local ballot",
-  },
-  {
-    k: "personalize",
-    icon: "sliders",
-    label: "Personalized feed",
-    sub: "Tailor content to your interests",
-  },
-  {
-    k: "analytics",
     icon: "layers",
-    label: "Usage analytics",
-    sub: "Share anonymous app usage",
+    label: "Usage & error diagnostics",
+    sub: "App activity and handled errors are linked to a random installation ID, not your name, email, or an advertising ID.",
   },
   {
-    k: "crash",
+    icon: "pin",
+    label: "Address-based ballot lookup",
+    sub: "Address text is sent through our servers for autocomplete and civic lookups; the selected address is also stored on this device.",
+  },
+  {
     icon: "shield",
-    label: "Crash reports",
-    sub: "Send diagnostics automatically",
-  },
-  {
-    k: "offline",
-    icon: "download",
-    label: "Offline downloads",
-    sub: "Save articles for offline reading",
+    label: "No ads or cross-app tracking",
+    sub: "No advertising identifiers, and we never track you across other companies' apps or sites.",
   },
 ];
 
-const DEFAULTS: Record<Key, boolean> = {
-  location: true,
-  personalize: true,
-  analytics: false,
-  crash: true,
-  offline: true,
-};
+const CONTROLS: Row[] = [
+  {
+    icon: "pin",
+    label: "Edit or clear your address",
+    sub: "Open the Ballot tab to change or remove your saved address anytime.",
+  },
+  {
+    icon: "download",
+    label: "Stop analytics",
+    sub: "Uninstalling Billion stops all analytics collection from this device.",
+  },
+  {
+    icon: "message",
+    label: "Access or delete your data",
+    sub: "Email billionnewsapp@gmail.com and we'll help with any request.",
+  },
+];
+
+function RowList({ rows }: { rows: Row[] }) {
+  return (
+    <Card flush>
+      {rows.map((r, i) => (
+        <View key={r.label} style={[s.row, i < rows.length - 1 && s.divider]}>
+          <View style={s.tile}>
+            <Icon name={r.icon} size={18} color={colors.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.label}>{r.label}</Text>
+            <Text style={s.sub}>{r.sub}</Text>
+          </View>
+        </View>
+      ))}
+    </Card>
+  );
+}
 
 export default function PrivacyScreen() {
-  const settingsQuery = useQuery(trpc.user.getSettings.queryOptions());
-  const updateMutation = useMutation({
-    ...trpc.user.updateSettings.mutationOptions(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: trpc.user.getSettings.queryKey(),
-      });
-    },
-  });
-
-  const [state, setState] = useState<Record<Key, boolean>>(DEFAULTS);
-  const [synced, setSynced] = useState(false);
-
-  if (settingsQuery.data && !synced) {
-    setState({
-      location: settingsQuery.data.location,
-      personalize: settingsQuery.data.personalize,
-      analytics: settingsQuery.data.analytics,
-      crash: settingsQuery.data.crash,
-      offline: settingsQuery.data.offline,
-    });
-    setSynced(true);
-  }
-
-  const toggle = (k: Key) => {
-    const newVal = !state[k];
-    setState((p) => ({ ...p, [k]: newVal }));
-    updateMutation.mutate({ [k]: newVal });
-  };
+  const router = useRouter();
 
   return (
     <ScreenShell title="Privacy">
       <View style={s.notice}>
         <Icon name="lock" size={20} color={colors.green[500]} />
-        <Text style={s.noticeText}>
-          Your reading history never leaves your device. You control everything
-          below.
-        </Text>
+        <Text style={s.noticeText}>{NOTICE}</Text>
       </View>
 
-      <Card flush>
-        {ROWS.map((r, i) => (
-          <View key={r.k} style={[s.row, i < ROWS.length - 1 && s.divider]}>
-            <View style={s.tile}>
-              <Icon name={r.icon} size={18} color={colors.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>{r.label}</Text>
-              <Text style={s.sub}>{r.sub}</Text>
-            </View>
-            <Toggle on={state[r.k]} onChange={() => toggle(r.k)} />
-          </View>
-        ))}
-      </Card>
+      <Kicker style={{ paddingLeft: 4 }}>What we collect</Kicker>
+      <View style={{ marginTop: 8, marginBottom: 22 }}>
+        <RowList rows={COLLECT} />
+      </View>
+
+      <Kicker style={{ paddingLeft: 4 }}>Your controls</Kicker>
+      <View style={{ marginTop: 8 }}>
+        <RowList rows={CONTROLS} />
+      </View>
 
       <GhostButton
-        label="Download my data"
+        label="Read full Privacy Policy"
+        onPress={() => router.push("/settings/terms")}
         style={{ marginTop: 20, alignSelf: "flex-start" }}
       />
     </ScreenShell>
@@ -155,5 +141,6 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 1,
+    lineHeight: 17,
   },
 });

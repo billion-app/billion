@@ -51,7 +51,7 @@ just build ios         # expo prebuild --clean + patch Xcode version
 just build android
 ```
 
-`just bump` updates `apps/expo/app.config.json`, commits with `chore: bump version to X.Y.Z`, and creates a git tag `vX.Y.Z`.
+`just bump` updates `apps/expo/app.config.base.json`, commits with `chore: bump version to X.Y.Z`, and creates a git tag `vX.Y.Z`.
 
 `just build` runs `expo prebuild --clean` and (for iOS) patches `MARKETING_VERSION` in the Xcode project so Xcode's UI shows the correct version.
 

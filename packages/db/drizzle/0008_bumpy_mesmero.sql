@@ -83,6 +83,8 @@ CREATE TABLE "local_government_agenda_item" (
 	"external_id" varchar(128) NOT NULL,
 	"sequence" integer NOT NULL,
 	"item_number" varchar(50),
+	"legislative_id" varchar(128),
+	"sponsors" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"section" varchar(100),
 	"item_type" varchar(50) NOT NULL,
 	"title" text NOT NULL,
@@ -107,6 +109,8 @@ CREATE TABLE "local_government_agenda_item" (
 CREATE TABLE "local_government_document" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"meeting_id" uuid NOT NULL,
+	"external_id" varchar(128),
+	"source_version" varchar(100),
 	"type" varchar(30) NOT NULL,
 	"title" text NOT NULL,
 	"url" text NOT NULL,
@@ -118,7 +122,8 @@ CREATE TABLE "local_government_document" (
 	"fetched_at" timestamp with time zone,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone,
-	CONSTRAINT "local_government_document_meetingId_type_url_unique" UNIQUE("meeting_id","type","url")
+	CONSTRAINT "local_government_document_meetingId_type_url_unique" UNIQUE("meeting_id","type","url"),
+	CONSTRAINT "local_government_document_meetingId_type_externalId_unique" UNIQUE("meeting_id","type","external_id")
 );
 --> statement-breakpoint
 CREATE TABLE "local_government_meeting" (
@@ -128,6 +133,8 @@ CREATE TABLE "local_government_meeting" (
 	"jurisdiction" varchar(100) NOT NULL,
 	"governing_body" varchar(256) NOT NULL,
 	"external_id" varchar(128) NOT NULL,
+	"session_id" varchar(128),
+	"agenda_view_id" varchar(128),
 	"title" text NOT NULL,
 	"meeting_type" varchar(50) NOT NULL,
 	"status" varchar(50) NOT NULL,

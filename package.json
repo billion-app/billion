@@ -20,6 +20,7 @@
     "dev": "turbo watch dev --continue --filter='!@acme/scraper'",
     "dev:all": "turbo watch dev --continue",
     "dev:next": "turbo watch dev -F @acme/nextjs...",
+    "prod": "node --env-file=.env --env-file=.env.prod scripts/run-prod.mjs",
     "format": "turbo run format --continue -- --cache --cache-location .cache/.prettiercache",
     "format:fix": "turbo run format --continue -- --write --cache --cache-location .cache/.prettiercache",
     "lint": "turbo run lint --continue -- --cache --cache-location .cache/.eslintcache",

@@ -197,6 +197,7 @@ export default function ElectionsScreen() {
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: storedAddress ?? "" }),
     enabled: hasAddress,
+    retry: 1,
   });
 
   // We only have ballot/results data sourced for California right now.
@@ -300,10 +301,23 @@ export default function ElectionsScreen() {
         />
       )}
 
-      <RepsSection address={storedAddress} />
+      <RepsSection
+        address={storedAddress}
+        enabled={hasVerifiedCaliforniaAddress}
+      />
 
       {voterInfoQuery.isLoading && (
-        <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />
+        <View style={s.section}>
+          <Card style={s.lookupCard}>
+            <ActivityIndicator color={colors.bill} />
+            <View style={s.lookupCopy}>
+              <Text style={s.lookupTitle}>Looking up your ballot</Text>
+              <Text style={s.lookupSub}>
+                Checking your election and elected officials…
+              </Text>
+            </View>
+          </Card>
+        </View>
       )}
 
       {/* ballot section tabs */}
@@ -518,6 +532,22 @@ const s = StyleSheet.create({
   },
   addrEdit: { fontFamily: fontBody.semibold, fontSize: 13, color: colors.bill },
   section: { paddingHorizontal: 20 },
+  lookupCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+  },
+  lookupCopy: { flex: 1, gap: 2 },
+  lookupTitle: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    color: colors.white,
+  },
+  lookupSub: {
+    fontFamily: fontBody.regular,
+    fontSize: 12.5,
+    color: colors.textSecondary,
+  },
   contestOffice: {
     fontFamily: "InriaSerif-Bold",
     fontSize: 16,

@@ -13,6 +13,7 @@ Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for dev setup. These docs go de
 | [Candidate enrichment](./candidate-enrichment.md)          | The same cross-validation pattern applied to candidate bios/photos/contact info                      |
 | [Texas current-election data](./texas-current-election.md) | Current-cycle SOS results/candidates and separately cited TLC amendment analyses                     |
 | [Scraper pipeline](./scraper.md)                           | The standalone content scraper: sources, change detection, AI generation                             |
+| [Article generation](./article-generation.md)              | How a bill becomes a readable brief: the structured schema, quote verification, framing lint         |
 | [Frontend apps](./frontend.md)                             | Expo mobile app, Next.js web, shared UI, cross-platform auth                                         |
 
 ## How to do things

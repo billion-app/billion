@@ -46,7 +46,13 @@ type IconName =
   | "edit"
   | "heart"
   | "download"
-  | "sparkle";
+  | "sparkle"
+  | "arrowUp"
+  | "arrowDown"
+  | "arrowRight"
+  | "minus"
+  | "quote"
+  | "book";
 
 type Family = "ion" | "feather" | "fa";
 
@@ -90,6 +96,12 @@ const MAP: Record<IconName, { family: Family; name: string }> = {
   heart: { family: "feather", name: "heart" },
   download: { family: "feather", name: "download" },
   sparkle: { family: "ion", name: "sparkles-outline" },
+  arrowUp: { family: "feather", name: "arrow-up" },
+  arrowDown: { family: "feather", name: "arrow-down" },
+  arrowRight: { family: "feather", name: "arrow-right" },
+  minus: { family: "feather", name: "minus" },
+  quote: { family: "fa", name: "quote-left" },
+  book: { family: "feather", name: "book-open" },
 };
 
 export interface IconProps {

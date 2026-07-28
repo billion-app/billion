@@ -17,7 +17,7 @@ process environment at runtime, not embedded during the build.
 
 | Scraper                     | Source                           | Content type               | Method                                                                  |
 | --------------------------- | -------------------------------- | -------------------------- | ----------------------------------------------------------------------- |
-| `congress.ts`               | congress.gov REST API            | `bill`                     | REST (`CONGRESS_API_KEY`), incremental by `updateDate`                  |
+| `congress.ts`               | congress.gov REST API            | `bill`                     | REST (`CONGRESS_API_KEY`), incremental by source `updateDate`           |
 | `federalregister.ts`        | federalregister.gov REST API     | `government_content`       | REST; HTML→Markdown via Turndown                                        |
 | `scotus.ts`                 | CourtListener REST API           | `court_case`               | REST (`COURTLISTENER_API_KEY`, optional)                                |
 | `vote411.ts`                | vote411.org                      | (cached locally)           | cheerio HTML parse; does **not** write to the main DB                   |
@@ -62,6 +62,61 @@ product does not expose historical election cycles or run an OnBase backfill.
 `durham-bocc` reads Durham County's official structured Legistar feed for BOCC body ID `138`. It bounds discovery to the current two-year election cycle, upserts stable provider IDs, and stores checksums/source row versions so replaced agendas update the existing meeting. Cancellations and explicit amendments remain visible; Spanish attachments are tagged separately. Agenda/minutes PDFs are retained as official links and are not sent through AI or OCR when structured item/action fields are available.
 
 Run it with `pnpm --filter @acme/scraper run start durham-bocc`. The default cap is 100 meetings and can be changed with `DURHAM_BOCC_MAX_ITEMS` or `--max-items`.
+
+## Incremental discovery (congress.gov)
+
+Each run walks the congress.gov bill feed forward from a stored cursor. Three
+properties matter, and each exists because its absence caused a real outage:
+
+**The cursor is the source's clock, not ours.** `scraper_cursor` holds the
+`updateDate` of the newest bill we have _durably written_, keyed
+`congress:{congress}`. It used to be `max(Bill.updatedAt)` — the time we last
+wrote a row — passed to the API as `fromDateTime`, which filters on
+congress.gov's clock. Comparing two unrelated clocks meant every bill a run
+fetched but did not persist fell behind the cursor permanently.
+
+**The cursor is a table, not a `max()` over bills.** A targeted `--bill`
+backfill of a recent bill would push a derived max() forward and strand every
+older bill behind it. Only the feed walk writes the cursor.
+
+**The walk is oldest-first** (`sort=updateDate+asc`). Descending order only
+works with an unbounded window; bounded at `maxBills` it takes the newest N and
+strands the rest. Ascending drains monotonically — whatever a run does not
+reach is the next run's first page. The cursor advances only across the
+_leading run of successes_, so the first failure is the high-water mark and
+everything after it is simply re-offered.
+
+There is no chamber filter: `/bill/{congress}` does not support one. A
+`chamber=house` parameter was sent for years and silently ignored, so the feed
+has always carried both chambers; `originChamber` from the detail endpoint is
+what labels each row.
+
+An empty cursor means a full walk from the start of the congress, which is how
+backfills run — stop and restart freely, the cursor is durable.
+
+`--bill "H.R. 7008"` (repeatable, plus `--congress`) fetches specific bills
+directly and bypasses the cursor entirely, for backfilling a single bill or
+regenerating one for testing.
+
+## Bill text: which version, and how much
+
+`fetchFullText` stores the **operative** text — the most recent version by
+date, which for a passed bill is the engrossed text, not what was introduced.
+The API returns versions newest-first; a `.reverse()` here once assumed the
+opposite and stored every bill's introduced draft. H.R. 7008 passed the House
+with a substitute adding a photo-ID voting section, and none of it was in our
+copy.
+
+Text is stored **whole or not at all**. `Bill.searchVector` is a generated
+column running `to_tsvector` over `full_text`, and Postgres rejects input over
+1,048,575 bytes, so an enormous bill cannot be stored complete. Rather than
+truncate, `fetchFullText` raises `BillTextTooLargeError` and the bill is
+skipped: a truncated bill is not a smaller bill, it is a wrong one that reads
+as complete. An earlier 1,000-word cap cut H.R. 7008 mid-section and the
+generated brief then told readers the bill specified no penalties. The walk
+treats the refusal as a deliberate skip rather than a retryable failure so one
+giant bill cannot wedge the cursor. Section-aware storage is the real fix
+(issue #191).
 
 ## Upsert + Change Detection
 

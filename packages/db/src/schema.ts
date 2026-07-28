@@ -1,8 +1,10 @@
 import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { customType, index, pgTable, unique } from "drizzle-orm/pg-core";
+import { check, customType, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+
+import type { BillBriefRecord } from "@acme/validators";
 
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
@@ -43,6 +45,24 @@ export const CreatePostSchema = createInsertSchema(Post, {
   updatedAt: true,
 });
 
+/**
+ * Per-scraper incremental cursor.
+ *
+ * Deliberately its own table rather than a max() over scraped rows. The cursor
+ * must mean "how far the sequential feed walk has got", and row data cannot
+ * express that: a targeted `--bill` backfill of a recent bill would push a
+ * derived max() forward and strand every older bill behind it — the same class
+ * of silent skip this table exists to prevent. Only the feed walk writes here.
+ */
+export const ScraperCursor = pgTable("scraper_cursor", (t) => ({
+  // e.g. "congress:119:house" — chamber and congress each walk independently.
+  scraperKey: t.varchar({ length: 100 }).notNull().primaryKey(),
+  // The source's own timestamp (congress.gov `updateDate`) of the newest item
+  // we have durably persisted, never our own write clock.
+  sourceUpdatedAt: t.timestamp({ withTimezone: true }).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+}));
+
 // Bills table for congressional legislation
 export const Bill = pgTable(
   "bill",
@@ -52,7 +72,14 @@ export const Bill = pgTable(
     title: t.text().notNull(),
     description: t.text(),
     sponsor: t.varchar({ length: 256 }),
-    status: t.varchar({ length: 100 }), // e.g., "Introduced", "Passed House", etc.
+    // Full latest-action text from the source, not a short label. Sized as
+    // varchar(100) for the original "Introduced"/"Passed House" labels, it
+    // silently rejected every congress.gov bill whose action text ran longer —
+    // the INSERT failed outright, so the bill was simply absent. Left as text:
+    // it is not in the search vector, so there is no ceiling to respect, and a
+    // length here only has to disagree with a caller's slice() once to start
+    // dropping records again.
+    status: t.text(),
     introducedDate: t.timestamp(),
     congress: t.integer(), // e.g., 118 for 118th Congress
     chamber: t.varchar({ length: 50 }), // "House" or "Senate"
@@ -114,10 +141,18 @@ export const Bill = pgTable(
       .default([]), // Array of relevant images for the article
     actions: t
       .jsonb()
-      .$type<{ date: string; text: string; type?: string }[]>()
+      .$type<
+        { date: string; text: string; type?: string; actionCode?: string }[]
+      >()
       .default([]),
     url: t.text().notNull(),
     sourceWebsite: t.varchar({ length: 50 }).notNull(), // "congress.gov"
+    // The source's own last-modified time (congress.gov `updateDate`), as
+    // distinct from `updatedAt`, which is when *we* last wrote the row. The
+    // scraper's incremental cursor is max() of this column: comparing our
+    // write clock against the source's clock silently skipped every bill a
+    // run fetched but did not persist.
+    sourceUpdatedAt: t.timestamp({ withTimezone: true }),
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
     versions: t
       .jsonb()
@@ -141,6 +176,10 @@ export const Bill = pgTable(
     ),
   }),
   (table) => ({
+    descriptionMaxLength: check(
+      "bill_description_max_100_chars",
+      sql`${table.description} is null or char_length(${table.description}) <= 100`,
+    ),
     uniqueBillNumberSourceSession: unique().on(
       table.billNumber,
       table.sourceWebsite,
@@ -262,7 +301,9 @@ export const CourtCase = pgTable(
     ),
   }),
   (table) => ({
-    uniqueCaseNumber: unique().on(table.caseNumber),
+    // Docket numbers only identify a case within a court: "1:25-cr-00499"
+    // recurs across all 94 federal districts.
+    uniqueCaseNumber: unique().on(table.caseNumber, table.court),
     searchVectorIdx: index("court_case_search_vector_idx").using(
       "gin",
       table.searchVector,
@@ -1059,11 +1100,19 @@ export const ContentLens = pgTable(
         framing?: "proponent_opponent" | "left_right";
         left: {
           stance: string;
-          points: { text: string; sourceIds: number[] }[];
+          points: {
+            text: string;
+            example?: string | { fact: string; relevance: string };
+            sourceIds: number[];
+          }[];
         };
         right: {
           stance: string;
-          points: { text: string; sourceIds: number[] }[];
+          points: {
+            text: string;
+            example?: string | { fact: string; relevance: string };
+            sourceIds: number[];
+          }[];
         };
         sources: { id: number; title: string; url: string }[];
         generatedAt: string;
@@ -1079,6 +1128,33 @@ export const ContentLens = pgTable(
   (table) => ({
     uniqueContentLens: unique().on(table.contentType, table.contentId),
     contentIdIndex: index("content_lens_content_id_idx").on(table.contentId),
+  }),
+);
+
+/**
+ * Structured article briefs — one row per content item, cached the same way as
+ * ContentLens (regenerated when `contentHash` moves). Kept out of the content
+ * tables so a brief can be regenerated, versioned, or dropped without touching
+ * scraped source rows, and so the three content types can adopt it one at a
+ * time. Only bills are generated today.
+ */
+export const ContentBrief = pgTable(
+  "content_brief",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
+    contentId: t.uuid().notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    brief: t.jsonb().$type<BillBriefRecord>().notNull(),
+    modelVersion: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueContentBrief: unique().on(table.contentType, table.contentId),
+    contentIdIndex: index("content_brief_content_id_idx").on(table.contentId),
   }),
 );
 

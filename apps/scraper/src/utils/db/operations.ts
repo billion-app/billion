@@ -2,10 +2,12 @@ import { and, eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
+  ContentBrief,
   ContentLens,
   CourtCase,
   GovernmentContent,
 } from "@acme/db/schema";
+import { isCurrentBillBrief } from "@acme/validators";
 
 import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
@@ -13,16 +15,20 @@ import type {
   CourtCaseData,
   GovernmentContentData,
 } from "../types.js";
+import { generateBillBrief } from "../ai/bill-brief.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
   AIRateLimitError,
+  buildDualLensGrounding,
   framingForContentType,
   generateAIArticle,
   generateAISummary,
   generateDualLens,
+  isUsableDualLens,
 } from "../ai/text-generation.js";
 import { getThumbnailImage } from "../api/google-images.js";
+import { clampBillDescription } from "../bill-description.js";
 import { createContentHash } from "../hash.js";
 import { createLogger } from "../log.js";
 import { tickProgress } from "../progress.js";
@@ -107,7 +113,7 @@ async function checkExisting(input: ContentData) {
     case "government_content":
       return checkExistingGovernmentContent(input.data.url);
     case "court_case":
-      return checkExistingCourtCase(input.data.caseNumber);
+      return checkExistingCourtCase(input.data.caseNumber, input.data.court);
   }
 }
 
@@ -190,40 +196,72 @@ export async function upsertContent(
     );
   }
 
-  // New items beyond the run's daily budget skip AI enrichment. Bills that
-  // need a generated description are deferred before insertion; other content
-  // can persist raw and look like "needs backfill" work next run.
-  const budgetExhausted =
-    progressKind === "new" &&
-    options?.newItemLimiter !== undefined &&
-    !options.newItemLimiter.tryConsume();
+  // The run's budget is a cap on *items that generate*, not on new items.
+  //
+  // It used to be gated on `progressKind === "new"`, which left the far more
+  // expensive case uncapped: an existing bill whose content changed, or which
+  // is missing a derived asset, would regenerate its brief and its dual lens
+  // with no limit at all. A backfill re-walking the archive therefore ignored
+  // the budget almost entirely — every bill it passed took the "changed" path,
+  // because its stored text was being corrected.
+  //
+  // One item draws at most one slot, and only when something is actually
+  // generated. A genuinely unchanged item with every asset present costs
+  // nothing and must not consume budget, or a run would throttle itself to N
+  // items while doing no work.
+  let budgetSlotTaken = false;
+  const claimBudget = (): boolean => {
+    if (!options?.newItemLimiter) return true;
+    if (budgetSlotTaken) return true;
+    if (options.newItemLimiter.tryConsume()) {
+      budgetSlotTaken = true;
+      return true;
+    }
+    return false;
+  };
+
+  const wantsUpfrontGeneration =
+    shouldGenerateSummary || shouldGenerateArticle || shouldGenerateImage;
+  const budgetExhausted = wantsUpfrontGeneration && !claimBudget();
   if (budgetExhausted) {
     shouldGenerateSummary = false;
     shouldGenerateArticle = false;
     shouldGenerateImage = false;
     logger.info(
-      `${label}: daily new-item cap reached, deferring AI enrichment to a later run`,
+      `${label}: run budget reached, deferring AI enrichment to a later run`,
     );
   }
 
   // A generated bill description is part of the bill's minimum usable record,
   // not an optional derived asset. Generate it before the insert so provider
   // failure cannot leave a new, summarizable bill permanently blank.
+  //
+  // Past the budget we persist the bill anyway rather than skipping the insert.
+  // The scraper's incremental cursor advances past everything it fetched, so a
+  // skipped bill is never offered again — it is lost, not deferred. A raw row
+  // still renders (the content API coalesces description -> summary) and
+  // `backfill-bill-descriptions` fills in the real description later.
   let preGeneratedDescription: string | undefined;
   if (!existing && input.type === "bill" && !sourceDescription) {
-    if (budgetExhausted || !hasSummarySource) {
+    if (!hasSummarySource) {
       logger.warn(
         `${label}: deferring insert until a summary can be generated`,
       );
       return undefined;
     }
-    const summarySource = input.data.summary || input.data.fullText || "";
-    logger.start(`Generating required AI summary for ${label}`);
-    preGeneratedDescription = await generateAISummary(title, summarySource);
-    if (!preGeneratedDescription.trim()) {
-      throw new Error(`AI returned an empty required summary for ${label}`);
+    if (budgetExhausted) {
+      logger.info(
+        `${label}: past new-item budget, persisting raw for a later backfill`,
+      );
+    } else {
+      const summarySource = input.data.summary || input.data.fullText || "";
+      logger.start(`Generating required AI summary for ${label}`);
+      preGeneratedDescription = await generateAISummary(title, summarySource);
+      if (!preGeneratedDescription.trim()) {
+        throw new Error(`AI returned an empty required summary for ${label}`);
+      }
+      shouldGenerateSummary = false;
     }
-    shouldGenerateSummary = false;
   }
 
   if (progressKind === "new") incrementNewEntries();
@@ -236,11 +274,14 @@ export async function upsertContent(
 
   if (input.type === "bill") {
     const d = input.data;
+    const description = d.description
+      ? clampBillDescription(d.description)
+      : d.description;
     const [row] = await db
       .insert(Bill)
       .values({
         ...d,
-        description: preGeneratedDescription || d.description,
+        description: preGeneratedDescription || description,
         contentHash: newContentHash,
         versions: d.versions ?? [],
       })
@@ -248,7 +289,7 @@ export async function upsertContent(
         target: [Bill.billNumber, Bill.sourceWebsite, Bill.legislativeSession],
         set: {
           title: d.title,
-          description: d.description,
+          description,
           sponsor: d.sponsor,
           status: d.status,
           introducedDate: d.introducedDate,
@@ -267,6 +308,7 @@ export async function upsertContent(
           ...(d.versions && { versions: d.versions }),
           url: d.url,
           contentHash: newContentHash,
+          sourceUpdatedAt: d.sourceUpdatedAt,
           updatedAt: new Date(),
         },
       })
@@ -306,7 +348,7 @@ export async function upsertContent(
         versions: [],
       })
       .onConflictDoUpdate({
-        target: CourtCase.caseNumber,
+        target: [CourtCase.caseNumber, CourtCase.court],
         set: {
           title: d.title,
           court: d.court,
@@ -444,8 +486,11 @@ export async function upsertContent(
       logger.success(`${label} enriched with AI content`);
     }
 
-    // Generate and cache dual-lens perspectives
-    if (hasUsableText && result?.id) {
+    // Generate and cache dual-lens perspectives. Past-budget items are skipped
+    // along with every other derived asset: the lens runs an agentic research
+    // loop, and it is the budget's whole purpose to not pay for that on a bill
+    // we are only persisting raw. `retroactive-lenses` backfills them.
+    if (hasUsableText && result?.id && !budgetExhausted) {
       await upsertContentLens(
         result.id,
         input.type,
@@ -453,7 +498,33 @@ export async function upsertContent(
         title,
         fullText!,
         articleType,
+        aiGeneratedArticle,
+        claimBudget,
       );
+    }
+
+    // Generate and cache the structured brief. Bills only for now — the brief
+    // schema is written around legislative mechanics (before/after provisions,
+    // sponsor-vs-text framing) and needs separate design work per content type.
+    // Past-budget items defer to `retroactive-briefs`, as with the lens above.
+    if (
+      hasUsableText &&
+      result?.id &&
+      input.type === "bill" &&
+      !budgetExhausted
+    ) {
+      await upsertBillBrief({
+        contentId: result.id,
+        contentHash: newContentHash,
+        title,
+        billNumber: input.data.billNumber,
+        url,
+        fullText: fullText!,
+        officialSummary: input.data.summary,
+        status: input.data.status,
+        priorArticle: aiGeneratedArticle,
+        claimBudget,
+      });
     }
   } catch (error) {
     if (error instanceof AIRateLimitError) {
@@ -481,6 +552,8 @@ export async function upsertContent(
         newContentHash,
         videoSource,
         result.thumbnailUrl,
+        {},
+        claimBudget,
       );
     } catch (error) {
       if (error instanceof AIRateLimitError) {
@@ -509,9 +582,9 @@ export async function upsertContent(
 
 /**
  * Generate (or refresh) the cached dual-lens perspectives for a content item.
- * Skips generation when a row already exists for the current contentHash, so
- * unchanged content never re-pays for an LLM call. AIRateLimitError propagates
- * to the caller's rate-limit handler.
+ * Skips generation when a row already exists for the current contentHash and
+ * lens contract version, so unchanged, current content never re-pays for an LLM
+ * call. AIRateLimitError propagates to the caller's rate-limit handler.
  */
 export async function upsertContentLens(
   contentId: string,
@@ -520,9 +593,28 @@ export async function upsertContentLens(
   title: string,
   fullText: string,
   articleType: string,
-): Promise<void> {
+  aiGeneratedArticle?: string | null,
+  claimBudget?: () => boolean,
+): Promise<boolean> {
+  const modelVersion = `${getTextModelVersion()}:concrete-examples-v2`;
+
+  // Key the cache on what the lens actually reads, not on the bill's overall
+  // contentHash. That hash also covers status, description and summary, so a
+  // routine action update ("Referred to committee" -> "Received in the
+  // Senate") invalidated it and paid for a fresh agentic research loop that
+  // could only ever come back with the same argument — or a worse one. The
+  // lens is nondeterministic and overwritten in place, so a needless
+  // regeneration is a coin flip on losing a good result.
+  const lensCacheKey = createContentHash(
+    JSON.stringify({ title, fullText, articleType, modelVersion }),
+  );
+
   const [existing] = await db
-    .select({ contentHash: ContentLens.contentHash })
+    .select({
+      contentHash: ContentLens.contentHash,
+      lensData: ContentLens.lensData,
+      modelVersion: ContentLens.modelVersion,
+    })
     .from(ContentLens)
     .where(
       and(
@@ -532,29 +624,43 @@ export async function upsertContentLens(
     )
     .limit(1);
 
-  if (existing?.contentHash === contentHash) {
+  if (
+    !forceAIRegeneration &&
+    existing?.contentHash === lensCacheKey &&
+    existing.modelVersion === modelVersion &&
+    isUsableDualLens(existing.lensData)
+  ) {
     logger.debug(`Dual-lens already cached for ${contentId}`);
-    return;
+    return true;
+  }
+
+  // Claimed after the cache check, never before: a cached lens costs nothing
+  // and must not spend a slot. This loop is the single most expensive step in
+  // the pipeline, so it is exactly what the budget exists to bound.
+  if (claimBudget && !claimBudget()) {
+    logger.info(
+      `Run budget reached, deferring dual-lens for ${contentId} to a later run`,
+    );
+    return false;
   }
 
   const lens = await generateDualLens(
     title,
-    fullText,
+    buildDualLensGrounding(fullText, aiGeneratedArticle),
     articleType,
     framingForContentType(contentType),
   );
   if (!lens) {
     logger.warn(`Dual-lens generation returned null for ${contentId}`);
-    return;
+    return false;
   }
 
-  const modelVersion = getTextModelVersion();
   await db
     .insert(ContentLens)
     .values({
       contentId,
       contentType,
-      contentHash,
+      contentHash: lensCacheKey,
       lensData: {
         ...lens,
         generatedAt: new Date().toISOString(),
@@ -565,7 +671,7 @@ export async function upsertContentLens(
     .onConflictDoUpdate({
       target: [ContentLens.contentType, ContentLens.contentId],
       set: {
-        contentHash,
+        contentHash: lensCacheKey,
         lensData: {
           ...lens,
           generatedAt: new Date().toISOString(),
@@ -577,4 +683,97 @@ export async function upsertContentLens(
     });
 
   logger.success(`Cached dual-lens for ${contentId}`);
+  return true;
+}
+
+/**
+ * Generate (or refresh) the cached structured brief for a bill. Skips the LLM
+ * entirely when a usable row already exists for the current contentHash, so
+ * unchanged bills never re-pay — same caching contract as `upsertContentLens`.
+ * AIRateLimitError propagates to the caller's rate-limit handler.
+ */
+export async function upsertBillBrief(args: {
+  contentId: string;
+  contentHash: string;
+  title: string;
+  billNumber: string;
+  url: string;
+  fullText: string;
+  officialSummary?: string | null;
+  status?: string | null;
+  priorArticle?: string | null;
+  claimBudget?: () => boolean;
+}): Promise<boolean> {
+  const [existing] = await db
+    .select({
+      contentHash: ContentBrief.contentHash,
+      brief: ContentBrief.brief,
+    })
+    .from(ContentBrief)
+    .where(
+      and(
+        eq(ContentBrief.contentId, args.contentId),
+        eq(ContentBrief.contentType, "bill"),
+      ),
+    )
+    .limit(1);
+
+  if (
+    !forceAIRegeneration &&
+    existing?.contentHash === args.contentHash &&
+    isCurrentBillBrief(existing.brief)
+  ) {
+    logger.debug(`Brief already cached for ${args.billNumber}`);
+    return true;
+  }
+
+  // Same contract as the lens: only a real generation draws on the budget.
+  if (args.claimBudget && !args.claimBudget()) {
+    logger.info(
+      `Run budget reached, deferring brief for ${args.billNumber} to a later run`,
+    );
+    return false;
+  }
+
+  const generated = await generateBillBrief({
+    title: args.title,
+    billNumber: args.billNumber,
+    url: args.url,
+    fullText: args.fullText,
+    officialSummary: args.officialSummary,
+    status: args.status,
+    priorArticle: args.priorArticle,
+  });
+  if (!generated) {
+    logger.warn(`Brief generation returned null for ${args.billNumber}`);
+    return false;
+  }
+
+  const modelVersion = getTextModelVersion();
+  const brief = {
+    ...generated,
+    generatedAt: new Date().toISOString(),
+    modelVersion,
+  };
+  await db
+    .insert(ContentBrief)
+    .values({
+      contentId: args.contentId,
+      contentType: "bill",
+      contentHash: args.contentHash,
+      brief,
+      modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: [ContentBrief.contentType, ContentBrief.contentId],
+      set: {
+        contentHash: args.contentHash,
+        brief,
+        modelVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+  logger.success(`Cached brief for ${args.billNumber}`);
+  return true;
 }
