@@ -183,10 +183,21 @@ export async function upsertContent(
   let shouldGenerateArticle = false;
   let shouldGenerateImage = false;
 
+  // Bills are served from their structured brief, not from the long-form
+  // article. `article-detail.tsx` renders the brief whenever one exists and
+  // only falls back to `aiGeneratedArticle` (then to raw GPO text) when it does
+  // not — which is exactly the unreadable state this change removes. Generating
+  // both means paying for a wall of prose that nothing displays.
+  //
+  // The column and the `priorArticle` input stay: existing rows still hold
+  // articles worth using as framing context, and court cases and executive
+  // actions have no brief schema yet, so they still depend on it.
+  const generatesArticle = input.type !== "bill";
+
   let progressKind: "new" | "changed" | "unchanged";
   if (!existing) {
     shouldGenerateSummary = !sourceDescription && hasSummarySource;
-    shouldGenerateArticle = hasUsableText;
+    shouldGenerateArticle = generatesArticle && hasUsableText;
     shouldGenerateImage = hasUsableText;
     progressKind = "new";
     logger.info(`New ${label} detected`);
@@ -194,9 +205,9 @@ export async function upsertContent(
     shouldGenerateSummary = forceAIRegeneration
       ? !sourceDescription && hasSummarySource
       : !hasPersistedSummary && !sourceDescription && hasSummarySource;
-    shouldGenerateArticle = forceAIRegeneration
-      ? hasUsableText
-      : hasUsableText && !existing.hasArticle;
+    shouldGenerateArticle =
+      generatesArticle &&
+      (forceAIRegeneration ? hasUsableText : hasUsableText && !existing.hasArticle);
     shouldGenerateImage =
       (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     progressKind = "changed";
@@ -205,9 +216,9 @@ export async function upsertContent(
     shouldGenerateSummary = forceAIRegeneration
       ? !sourceDescription && hasSummarySource
       : !hasPersistedSummary && !sourceDescription && hasSummarySource;
-    shouldGenerateArticle = forceAIRegeneration
-      ? hasUsableText
-      : hasUsableText && !existing.hasArticle;
+    shouldGenerateArticle =
+      generatesArticle &&
+      (forceAIRegeneration ? hasUsableText : hasUsableText && !existing.hasArticle);
     shouldGenerateImage =
       (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     progressKind = "unchanged";
