@@ -86,6 +86,13 @@ export async function analyzeBillSectionsInMemory(
   return completed;
 }
 
+export class BillAnalysisBudgetExceededError extends Error {
+  constructor() {
+    super("Run budget reached before uncached bill section analysis");
+    this.name = "BillAnalysisBudgetExceededError";
+  }
+}
+
 async function currentSections(
   billId: string,
 ): Promise<BillSectionForAnalysis[]> {
@@ -195,6 +202,7 @@ function usableCachedNotes(value: unknown): BillSectionNotes | null {
  */
 export async function analyzeCurrentBillSections(
   billId: string,
+  options?: { claimBudget?: () => boolean },
 ): Promise<CompletedBillSectionAnalysis[]> {
   const sections = await currentSections(billId);
   if (sections.length === 0) return [];
@@ -255,6 +263,10 @@ export async function analyzeCurrentBillSections(
       await storeTerminalState({ ...result, modelVersion });
       completed.push(result);
       continue;
+    }
+
+    if (options?.claimBudget && !options.claimBudget()) {
+      throw new BillAnalysisBudgetExceededError();
     }
 
     try {

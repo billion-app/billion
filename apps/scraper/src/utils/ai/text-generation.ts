@@ -268,6 +268,53 @@ export function buildDualLensGrounding(
 }
 
 /**
+ * Ground a bill lens in the shared section-analysis pass. The lens must never
+ * receive raw bill text: the complete, structured notes are the authoritative
+ * inventory, while the CRS summary supplies whole-bill context in the same
+ * nonpartisan form used by the brief writer.
+ */
+export function buildBillDualLensGrounding(
+  sectionNotes: string,
+  officialSummary?: string | null,
+): string {
+  const summary = officialSummary?.trim();
+  return [
+    "Structured section notes from the complete bill analysis:",
+    sectionNotes,
+    ...(summary
+      ? [
+          "Official CRS summary of the whole bill (nonpartisan context):",
+          summary,
+        ]
+      : []),
+  ].join("\n\n");
+}
+
+/**
+ * Serialize exactly the inputs that can change a generated lens. Bills include
+ * the analysis-schema version so a note-contract change refreshes lenses even
+ * when the underlying legislation is unchanged.
+ */
+export function serializeDualLensCacheInput(args: {
+  title: string;
+  grounding: string;
+  articleType: string;
+  modelVersion: string;
+  analysisSchemaVersion?: string;
+}): string {
+  return JSON.stringify(args);
+}
+
+export function buildDualLensModelVersion(
+  textModelVersion: string,
+  analysisSchemaVersion?: string,
+): string {
+  return [textModelVersion, "concrete-examples-v2", analysisSchemaVersion]
+    .filter(Boolean)
+    .join(":");
+}
+
+/**
  * Structured-output schema for the synthesis step. Replaces the old manual JSON
  * parsing — the AI SDK validates against this, so malformed output throws (and
  * we retry) instead of silently slipping through.
@@ -557,24 +604,6 @@ function collectOpenedLoopSources(steps: unknown): SdkSource[] {
   }));
 }
 
-/**
- * How much of a bill's text the AI steps read.
- *
- * One number for every step on purpose. It used to be per-call — 3k for the
- * lens research, 4k for the context research, 24k for the brief — and the
- * mismatch was invisible until it produced visibly wrong output: H.R. 7008's
- * photo-ID rider starts at character 7,961 of a 14,741-character bill, so the
- * brief (24k) described it while the reading list (4k) recommended nothing but
- * insider-trading background, because its researcher never saw that the bill
- * touched voting at all.
- *
- * Bills routinely run past this. Quote verification still runs against the
- * *whole* stored text, so a quote from anywhere in the document validates.
- * Section-aware windowing (#191) is what actually fixes long bills; this is the
- * ceiling until then.
- */
-export const SOURCE_WINDOW = 24_000;
-
 export interface BillContextResearch {
   notes: string;
   sources: DualLensSource[];
@@ -635,7 +664,11 @@ ${groundingLines.join("\n")}`,
   }
 }
 
-const RESEARCH_PROMPT = (title: string, type: string, text: string) =>
+export const buildDualLensResearchPrompt = (
+  title: string,
+  type: string,
+  grounding: string,
+) =>
   `You are a nonpartisan civic analyst researching a ${type}. Your framing must stay balanced, but to capture each side's real arguments you should deliberately seek out sources FROM BOTH SIDES. Work step by step and DO NOT write your briefing until you have read primary sources:
 1. Use web_search to find both the strongest case FOR and the strongest case AGAINST — including proponents/campaigns/supportive editorials and critics/opponents/critical editorials, alongside official or nonpartisan analyses for the facts.
 2. You MUST then use fetch_page to open and read at least TWO of the most relevant results in full (snippets alone are not enough) — at least one supportive and one critical source.
@@ -648,8 +681,8 @@ Prioritize credible, verifiable sources over neutrality — a partisan source is
 
 Title: ${title}
 
-Content excerpt:
-${text.substring(0, SOURCE_WINDOW)}`;
+Content evidence:
+${grounding}`;
 
 const STRUCTURE_PROMPT = (
   title: string,
@@ -719,7 +752,7 @@ const RESEARCH_MAX_STEPS = 6;
  */
 export async function generateDualLens(
   title: string,
-  fullText: string,
+  grounding: string,
   type: string,
   framing: LensFraming,
 ): Promise<DualLens | null> {
@@ -737,7 +770,7 @@ export async function generateDualLens(
       model: getTextLlm(),
       tools: { web_search: webResearchTool, fetch_page: fetchPageTool },
       stopWhen: stepCountIs(RESEARCH_MAX_STEPS),
-      prompt: RESEARCH_PROMPT(title, type, fullText),
+      prompt: buildDualLensResearchPrompt(title, type, grounding),
     });
     trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
     research = res.text;
@@ -751,13 +784,13 @@ export async function generateDualLens(
       throw new AIRateLimitError();
     }
     logger.warn(
-      `Dual-lens web research failed for "${title}" — falling back to source text`,
+      `Dual-lens web research failed for "${title}" — falling back to supplied evidence`,
       error,
     );
   }
 
   // Step 2 — structured synthesis (schema-validated; no manual JSON parsing).
-  const grounding = research.trim() || fullText.substring(0, SOURCE_WINDOW);
+  const synthesisEvidence = research.trim() || grounding;
   const sourceList = sources
     .map((s) => `[${s.id}] ${s.title} — ${s.url}`)
     .join("\n");
@@ -766,7 +799,13 @@ export async function generateDualLens(
       const { output, usage } = await generateText({
         model: getTextLlm(),
         output: Output.object({ schema: GeneratedDualLensSchema }),
-        prompt: STRUCTURE_PROMPT(title, type, framing, grounding, sourceList),
+        prompt: STRUCTURE_PROMPT(
+          title,
+          type,
+          framing,
+          synthesisEvidence,
+          sourceList,
+        ),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
       const verified = verifyCitations(output, framing, sources);

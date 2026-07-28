@@ -10,7 +10,10 @@ import {
   GovernmentContent,
   Video,
 } from "@acme/db/schema";
-import { isCurrentBillBrief } from "@acme/validators";
+import {
+  BILL_ANALYSIS_SCHEMA_VERSION,
+  isCurrentBillBrief,
+} from "@acme/validators";
 
 import type {
   BillSourceVersionInput,
@@ -30,12 +33,15 @@ import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
   AIRateLimitError,
+  buildBillDualLensGrounding,
   buildDualLensGrounding,
+  buildDualLensModelVersion,
   framingForContentType,
   generateAIArticle,
   generateAISummary,
   generateDualLens,
   isUsableDualLens,
+  serializeDualLensCacheInput,
 } from "../ai/text-generation.js";
 import { getThumbnailImage } from "../api/google-images.js";
 import { clampBillDescription } from "../bill-description.js";
@@ -46,6 +52,7 @@ import { isUsableSourceText } from "../reprocessing-policy.js";
 import {
   analyzeBillSectionsInMemory,
   analyzeCurrentBillSections,
+  BillAnalysisBudgetExceededError,
   persistCompletedBillSectionAnalyses,
 } from "./bill-analysis-operations.js";
 import { persistBillSourceVersions } from "./bill-source-operations.js";
@@ -725,24 +732,18 @@ export async function upsertContent(
 export async function upsertContentLens(
   contentId: string,
   contentType: "bill" | "government_content" | "court_case",
-  contentHash: string,
+  _contentHash: string,
   title: string,
   fullText: string,
   articleType: string,
   aiGeneratedArticle?: string | null,
   claimBudget?: () => boolean,
 ): Promise<boolean> {
-  const modelVersion = `${getTextModelVersion()}:concrete-examples-v2`;
-
-  // Key the cache on what the lens actually reads, not on the bill's overall
-  // contentHash. That hash also covers status, description and summary, so a
-  // routine action update ("Referred to committee" -> "Received in the
-  // Senate") invalidated it and paid for a fresh agentic research loop that
-  // could only ever come back with the same argument — or a worse one. The
-  // lens is nondeterministic and overwritten in place, so a needless
-  // regeneration is a coin flip on losing a good result.
-  const lensCacheKey = createContentHash(
-    JSON.stringify({ title, fullText, articleType, modelVersion }),
+  const analysisSchemaVersion =
+    contentType === "bill" ? BILL_ANALYSIS_SCHEMA_VERSION : undefined;
+  const modelVersion = buildDualLensModelVersion(
+    getTextModelVersion(),
+    analysisSchemaVersion,
   );
 
   const [existing] = await db
@@ -760,12 +761,80 @@ export async function upsertContentLens(
     )
     .limit(1);
 
+  let budgetClaimed = false;
+  const claimGenerationBudget = () => {
+    if (budgetClaimed || !claimBudget) return true;
+    budgetClaimed = claimBudget();
+    return budgetClaimed;
+  };
+
+  let grounding: string;
+  if (contentType === "bill") {
+    let analyses;
+    try {
+      analyses = await analyzeCurrentBillSections(contentId, {
+        claimBudget: claimGenerationBudget,
+      });
+    } catch (error) {
+      if (error instanceof BillAnalysisBudgetExceededError) {
+        logger.info(
+          `Run budget reached, deferring bill analysis and dual-lens for ${contentId}`,
+        );
+        return false;
+      }
+      throw error;
+    }
+    if (analyses.length === 0) {
+      logger.warn(
+        `No parsed canonical sections are available for ${contentId}; deferring dual-lens generation`,
+      );
+      return false;
+    }
+    const [bill] = await db
+      .select({ officialSummary: Bill.summary })
+      .from(Bill)
+      .where(eq(Bill.id, contentId))
+      .limit(1);
+    grounding = buildBillDualLensGrounding(
+      formatSectionAnalysesForWriting(analyses),
+      bill?.officialSummary,
+    );
+  } else {
+    grounding = buildDualLensGrounding(fullText, aiGeneratedArticle);
+  }
+
+  // Key the cache on exactly what the lens reads. Bill inputs deliberately
+  // exclude raw text and include the analysis schema independently from the
+  // lens/model contract, so either contract can invalidate the row.
+  const lensCacheKey = createContentHash(
+    serializeDualLensCacheInput({
+      title,
+      grounding,
+      articleType,
+      modelVersion,
+      analysisSchemaVersion,
+    }),
+  );
+
   if (
     !forceAIRegeneration &&
     existing?.contentHash === lensCacheKey &&
     existing.modelVersion === modelVersion &&
     isUsableDualLens(existing.lensData)
   ) {
+    // Mark the content's current inputs as evaluated. The backfill compares
+    // source and lens timestamps to find items whose source changed while the
+    // run budget deferred regeneration; touching a true cache hit prevents
+    // status-only updates from remaining perpetual candidates.
+    await db
+      .update(ContentLens)
+      .set({ updatedAt: new Date() })
+      .where(
+        and(
+          eq(ContentLens.contentId, contentId),
+          eq(ContentLens.contentType, contentType),
+        ),
+      );
     logger.debug(`Dual-lens already cached for ${contentId}`);
     return true;
   }
@@ -773,7 +842,7 @@ export async function upsertContentLens(
   // Claimed after the cache check, never before: a cached lens costs nothing
   // and must not spend a slot. This loop is the single most expensive step in
   // the pipeline, so it is exactly what the budget exists to bound.
-  if (claimBudget && !claimBudget()) {
+  if (!claimGenerationBudget()) {
     logger.info(
       `Run budget reached, deferring dual-lens for ${contentId} to a later run`,
     );
@@ -782,7 +851,7 @@ export async function upsertContentLens(
 
   const lens = await generateDualLens(
     title,
-    buildDualLensGrounding(fullText, aiGeneratedArticle),
+    grounding,
     articleType,
     framingForContentType(contentType),
   );

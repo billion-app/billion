@@ -2,7 +2,7 @@ import pLimit from "p-limit";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { and, desc, eq, isNotNull, isNull, ne, or } from "@acme/db";
+import { and, desc, eq, isNotNull, isNull, lt, ne, or } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -10,7 +10,10 @@ import {
   CourtCase,
   GovernmentContent,
 } from "@acme/db/schema";
+import { BILL_ANALYSIS_SCHEMA_VERSION } from "@acme/validators";
 
+import { getTextModelVersion } from "./utils/ai/provider.js";
+import { buildDualLensModelVersion } from "./utils/ai/text-generation.js";
 import { upsertContentLens } from "./utils/db/operations.js";
 import { createLogger } from "./utils/log.js";
 
@@ -18,6 +21,13 @@ const logger = createLogger("lens-backfill");
 
 const CONTENT_TYPES = ["bill", "government_content", "court_case"] as const;
 type ContentType = (typeof CONTENT_TYPES)[number];
+const SOURCE_LENS_MODEL_VERSION = buildDualLensModelVersion(
+  getTextModelVersion(),
+);
+const BILL_LENS_MODEL_VERSION = buildDualLensModelVersion(
+  getTextModelVersion(),
+  BILL_ANALYSIS_SCHEMA_VERSION,
+);
 
 interface LensCandidate {
   id: string;
@@ -51,7 +61,8 @@ async function findBills(limit: number): Promise<LensCandidate[]> {
         isNotNull(Bill.fullText),
         or(
           isNull(ContentLens.id),
-          ne(ContentLens.contentHash, Bill.contentHash),
+          ne(ContentLens.modelVersion, BILL_LENS_MODEL_VERSION),
+          lt(ContentLens.updatedAt, Bill.updatedAt),
         ),
       ),
     )
@@ -95,7 +106,8 @@ async function findGovernmentContent(limit: number): Promise<LensCandidate[]> {
         isNotNull(GovernmentContent.fullText),
         or(
           isNull(ContentLens.id),
-          ne(ContentLens.contentHash, GovernmentContent.contentHash),
+          ne(ContentLens.modelVersion, SOURCE_LENS_MODEL_VERSION),
+          lt(ContentLens.updatedAt, GovernmentContent.updatedAt),
         ),
       ),
     )
@@ -137,7 +149,8 @@ async function findCourtCases(limit: number): Promise<LensCandidate[]> {
         isNotNull(CourtCase.fullText),
         or(
           isNull(ContentLens.id),
-          ne(ContentLens.contentHash, CourtCase.contentHash),
+          ne(ContentLens.modelVersion, SOURCE_LENS_MODEL_VERSION),
+          lt(ContentLens.updatedAt, CourtCase.updatedAt),
         ),
       ),
     )
