@@ -76,6 +76,23 @@ function getApiKey(): string {
   return key;
 }
 
+/**
+ * congress.gov sort values are documented as `<field>+<direction>`, and the `+`
+ * has to arrive at the API as a literal `+`.
+ *
+ * These are written with a **space** because `congressFetch` builds the query
+ * with `URLSearchParams`, which percent-encodes a literal `+` to `%2B` — and
+ * the API does not recognise `updateDate%2Basc`, so it silently ignores the
+ * parameter and falls back to its own default ordering. A space is encoded as
+ * `+`, which is exactly the wire format the docs ask for.
+ *
+ * This was verified against the live API: `sort=updateDate%2Bdesc` returns the
+ * *oldest* bills of the congress, while `sort=updateDate+desc` returns today's.
+ * The ascending walk appeared to work only because ascending is the default.
+ */
+export const SORT_UPDATE_ASC = "updateDate asc";
+export const SORT_UPDATE_DESC = "updateDate desc";
+
 async function congressFetch<T>(
   path: string,
   params: Record<string, string | number> = {},
@@ -489,6 +506,7 @@ async function scrape(config: CongressScraperConfig = {}) {
     return scrapeTargeted(config.bills, congress);
   }
 
+
   logger.info(`Starting (congress=${congress}, chamber=${chamber})...`);
 
   // The cursor is the newest *source* timestamp we have actually persisted,
@@ -518,7 +536,7 @@ async function scrape(config: CongressScraperConfig = {}) {
     // strands everything older, and the cursor then jumps past the strand.
     // Ascending drains monotonically — whatever we do not reach this run is
     // still the next run's first page.
-    sort: "updateDate+asc",
+    sort: SORT_UPDATE_ASC,
   };
 
   if (lastScrape?.lastUpdated) {
