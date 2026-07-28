@@ -1,6 +1,13 @@
 import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { check, customType, index, pgTable, unique } from "drizzle-orm/pg-core";
+import {
+  check,
+  customType,
+  index,
+  pgTable,
+  primaryKey,
+  unique,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -62,6 +69,49 @@ export const ScraperCursor = pgTable("scraper_cursor", (t) => ({
   sourceUpdatedAt: t.timestamp({ withTimezone: true }).notNull(),
   updatedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
 }));
+
+/**
+ * Items the feed walk could not finish, to be retried later.
+ *
+ * A single monotonic cursor forces a false choice: advance past an item we
+ * failed to finish (and never see it again) or hold the cursor on it (and stall
+ * the whole walk behind one bad item). This table is the third option — the
+ * cursor advances, and the item goes to the back of a queue with a growing
+ * backoff. Each run drains what is due before walking the feed.
+ *
+ * A row here means "we know about this item and have not finished it". Rows are
+ * deleted the moment the item lands, so a non-empty table is a live to-do list
+ * and its depth is the health signal to watch.
+ */
+export const ScraperRetry = pgTable(
+  "scraper_retry",
+  (t) => ({
+    // Matches ScraperCursor.scraperKey, e.g. "congress:119".
+    scraperKey: t.varchar("scraper_key", { length: 100 }).notNull(),
+    // Scraper-specific identity, opaque to this table. congress.ts uses
+    // "{billType}/{billNumber}" (e.g. "hr/7008") — enough to re-fetch it.
+    itemKey: t.varchar("item_key", { length: 100 }).notNull(),
+    attempts: t.integer().notNull().default(1),
+    lastReason: t.text("last_reason"),
+    // When the item becomes eligible again. Backoff grows with `attempts` so a
+    // permanently broken item costs a run one attempt a day, not one per run.
+    nextAttemptAt: t
+      .timestamp("next_attempt_at", { withTimezone: true })
+      .notNull(),
+    firstFailedAt: t
+      .timestamp("first_failed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+  (table) => ({
+    pk: primaryKey({ columns: [table.scraperKey, table.itemKey] }),
+    dueIndex: index("scraper_retry_due_idx").on(
+      table.scraperKey,
+      table.nextAttemptAt,
+    ),
+  }),
+);
 
 // Bills table for congressional legislation
 export const Bill = pgTable(

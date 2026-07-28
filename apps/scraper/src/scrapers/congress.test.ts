@@ -160,7 +160,7 @@ test("cursor advances only across the leading run of successes", () => {
   });
 });
 
-test("only a deferred outcome holds the cursor", () => {
+test("only a deferred outcome needs re-queueing", () => {
   // A bill we decided against storing must not wedge the walk; a bill we
   // failed to finish must. Getting this backwards is how bills get silently
   // dropped (advance past unfinished work) or how the walk stalls forever

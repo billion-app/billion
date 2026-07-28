@@ -155,12 +155,36 @@ before is **deleted again** before returning `deferred`. The derived tables
 (`content_lens`, `content_brief`, `video`) hold plain uuids rather than foreign
 keys, so nothing cascades and the rollback clears each one by hand.
 
-The two `advances` cases are narrow on purpose. `skipped` covers a bill
-congress.gov has published neither text nor a CRS summary for (any later change
-moves its `updateDate` and puts it back in the feed) and a bill too large to
-store whole. Everything else holds the cursor, which is what makes "we could
-not finish this" different from "there is nothing here to finish" — conflating
-the two is how bills get silently dropped.
+### The retry queue
+
+A single monotonic cursor forces a false choice: advance past a bill we could
+not finish and never see it again, or hold the cursor on it and stall every
+bill behind one bad item. `scraper_retry` is the third option.
+
+A `deferred` bill is written to `scraper_retry` — keyed
+`(scraper_key, item_key)`, where `item_key` is `"{billType}/{billNumber}"` —
+and the cursor then moves past it. Each run drains what is due **after**
+walking the feed, so a queue that has built up cannot push this week's
+legislation behind last month's problem cases. The drain is capped at
+`max(10, maxBills / 4)` for the same reason, and retried bills deliberately do
+not feed the cursor: they sit behind it by definition, so their timestamps
+could only drag it backwards.
+
+Backoff doubles from 15 minutes and caps at a day, so a permanently broken bill
+costs one attempt a day rather than one per run forever. Nothing is ever
+dropped from the queue — dropping is the silent skip this table exists to
+replace — but past 12 attempts the log escalates to an error. **Queue depth is
+the health signal to watch:** rows are deleted the moment a bill lands, so a
+non-empty table is a live to-do list.
+
+The one thing that still holds the cursor is failing to _record_ the retry. An
+unrecorded failure is a lost bill, and re-offering the whole page next run is
+the cheap way to not lose it.
+
+Two conditions bypass the queue entirely, because a retry would reach the same
+answer: a bill congress.gov has published neither text nor a CRS summary for
+(any later change moves its `updateDate` and puts it back in the feed), and a
+bill too large to store whole.
 
 ### The new-item budget
 

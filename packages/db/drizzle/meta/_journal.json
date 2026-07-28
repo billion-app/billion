@@ -57,6 +57,13 @@
       "when": 1785221212813,
       "tag": "0007_minor_harry_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785223528709,
+      "tag": "0008_strong_maginty",
+      "breakpoints": true
     }
   ]
 }
