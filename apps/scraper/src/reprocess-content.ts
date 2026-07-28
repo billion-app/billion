@@ -4,7 +4,13 @@ import { hideBin } from "yargs/helpers";
 
 import { and, asc, eq, gt } from "@acme/db";
 import { db } from "@acme/db/client";
-import { Bill, CourtCase, GovernmentContent, Video } from "@acme/db/schema";
+import {
+  Bill,
+  ContentBrief,
+  CourtCase,
+  GovernmentContent,
+  Video,
+} from "@acme/db/schema";
 
 import type { ReprocessMode } from "./utils/reprocessing-policy.js";
 import { databaseTarget, databaseTargetMessage } from "./env.js";
@@ -15,7 +21,7 @@ import {
 } from "./utils/ai/text-generation.js";
 import { getThumbnailImage } from "./utils/api/google-images.js";
 import { getCostSummary, resetCosts } from "./utils/costs.js";
-import { upsertContentLens } from "./utils/db/operations.js";
+import { upsertBillBrief, upsertContentLens } from "./utils/db/operations.js";
 import { generateVideoForContent } from "./utils/db/video-operations.js";
 import { createContentHash } from "./utils/hash.js";
 import {
@@ -29,6 +35,7 @@ import {
   isUsableAIArticle,
   isUsableSourceText,
   needsReprocessing,
+  requiresBrief,
 } from "./utils/reprocessing-policy.js";
 import { refreshSourceText } from "./utils/source-refresh.js";
 
@@ -51,6 +58,11 @@ interface ContentItem {
   videoId: string | null;
   videoImageData: Buffer | null;
   videoThumbnailUrl: string | null;
+  /** Structured brief presence. Always false for types that have no brief. */
+  hasBrief: boolean;
+  billNumber: string | null;
+  officialSummary: string | null;
+  status: string | null;
 }
 
 interface ProcessResult {
@@ -62,8 +74,10 @@ interface ProcessResult {
 
 function rowState(item: ContentItem) {
   return {
+    contentType: item.type,
     fullText: item.fullText,
     aiGeneratedArticle: item.aiGeneratedArticle,
+    hasBrief: item.hasBrief,
     videoId: item.videoId,
     videoImageData: item.videoImageData,
     videoThumbnailUrl: item.videoThumbnailUrl,
@@ -88,20 +102,32 @@ async function loadContentItems(
         videoId: Video.id,
         videoImageData: Video.imageData,
         videoThumbnailUrl: Video.thumbnailUrl,
+        briefId: ContentBrief.id,
+        billNumber: Bill.billNumber,
+        officialSummary: Bill.summary,
+        status: Bill.status,
       })
       .from(Bill)
       .leftJoin(
         Video,
         and(eq(Video.contentType, "bill"), eq(Video.contentId, Bill.id)),
       )
+      .leftJoin(
+        ContentBrief,
+        and(
+          eq(ContentBrief.contentType, "bill"),
+          eq(ContentBrief.contentId, Bill.id),
+        ),
+      )
       .orderBy(asc(Bill.id));
     const rows = afterId
       ? await query.where(gt(Bill.id, afterId))
       : await query;
-    return rows.map((row) => ({
+    return rows.map(({ briefId, ...row }) => ({
       ...row,
       type,
       articleType: "bill",
+      hasBrief: briefId !== null,
     }));
   }
 
@@ -133,7 +159,14 @@ async function loadContentItems(
     const rows = afterId
       ? await query.where(gt(GovernmentContent.id, afterId))
       : await query;
-    return rows.map((row) => ({ ...row, type }));
+    return rows.map((row) => ({
+      ...row,
+      type,
+      hasBrief: false,
+      billNumber: null,
+      officialSummary: null,
+      status: null,
+    }));
   }
 
   const query = db
@@ -166,6 +199,10 @@ async function loadContentItems(
     ...row,
     type,
     articleType: "court case",
+    hasBrief: false,
+    billNumber: null,
+    officialSummary: null,
+    status: null,
   }));
 }
 
@@ -235,9 +272,18 @@ async function processItem(
   const errors: string[] = [];
   let replacementArticle: string | undefined;
   let replacementThumbnail: string | undefined;
+  // Bills are read from their structured brief and no longer generate an
+  // article, so producing one here would be paid-for content nothing displays —
+  // and under `missing` it would recur on every run, because the bill would
+  // never satisfy an article check it is not meant to satisfy.
   const shouldGenerateArticle =
     assets === "all" &&
+    !requiresBrief(item.type) &&
     (mode === "replace" || !isUsableAIArticle(item.aiGeneratedArticle));
+  const shouldGenerateBrief =
+    assets === "all" &&
+    requiresBrief(item.type) &&
+    (mode === "replace" || !item.hasBrief);
   const imageSearchReady = Boolean(
     process.env.GOOGLE_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID,
   );
@@ -301,6 +347,32 @@ async function processItem(
   });
 
   const effectiveArticle = replacementArticle ?? item.aiGeneratedArticle;
+
+  // The structured brief. Previously absent from this tool entirely, which is
+  // why a "fill in what is missing" pass could leave a bill with art and an
+  // article and still nothing the app wants to render.
+  let briefPresent = item.hasBrief;
+  if (shouldGenerateBrief && item.billNumber) {
+    try {
+      briefPresent = await upsertBillBrief({
+        contentId: item.id,
+        contentHash,
+        title: item.title,
+        billNumber: item.billNumber,
+        url: item.url,
+        fullText,
+        officialSummary: item.officialSummary,
+        status: item.status,
+        priorArticle: effectiveArticle,
+      });
+      if (!briefPresent) errors.push("brief generation returned nothing");
+    } catch (error) {
+      errors.push(
+        `Brief: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   if (assets === "all") {
     try {
       const lensGenerated = await upsertContentLens(
@@ -341,12 +413,15 @@ async function processItem(
     errors.push(error instanceof Error ? error.message : String(error));
   }
 
-  const articleIsUsable = isUsableAIArticle(effectiveArticle);
+  // A bill counts as complete on its brief; everything else on its article.
+  const longFormIsUsable = requiresBrief(item.type)
+    ? briefPresent
+    : isUsableAIArticle(effectiveArticle);
   return {
     id: item.id,
     type: item.type,
     status:
-      articleIsUsable && videoHasImage
+      longFormIsUsable && videoHasImage
         ? errors.length === 0
           ? "updated"
           : "partial"
