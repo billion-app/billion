@@ -12,6 +12,7 @@ import {
 } from "@acme/db/schema";
 import { isCurrentBillBrief } from "@acme/validators";
 
+import type { BillSourceVersionInput } from "../bill-sections.js";
 import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
   BillData,
@@ -36,6 +37,7 @@ import { createContentHash } from "../hash.js";
 import { createLogger } from "../log.js";
 import { tickProgress } from "../progress.js";
 import { isUsableSourceText } from "../reprocessing-policy.js";
+import { persistBillSourceVersions } from "./bill-source-operations.js";
 import {
   checkExistingBill,
   checkExistingCourtCase,
@@ -152,7 +154,10 @@ function getUpdateTable(input: ContentData) {
 
 export async function upsertContent(
   input: ContentData,
-  options?: { newItemLimiter?: NewItemLimiter },
+  options?: {
+    newItemLimiter?: NewItemLimiter;
+    billSourceVersions?: readonly BillSourceVersionInput[];
+  },
 ): Promise<UpsertOutcome> {
   const newContentHash = createContentHash(hashFields(input));
   const existing = await checkExisting(input);
@@ -327,6 +332,7 @@ export async function upsertContent(
       description: preGeneratedDescription,
       label,
       claimBudget,
+      billSourceVersions: options?.billSourceVersions,
     });
 
     if (assembled.status !== "ready") {
@@ -432,6 +438,10 @@ export async function upsertContent(
       })
       .returning();
     result = row;
+  }
+
+  if (input.type === "bill" && result && options?.billSourceVersions?.length) {
+    await persistBillSourceVersions(result.id, options.billSourceVersions);
   }
 
   logger.debug(`${label} upserted (raw)`);
@@ -871,6 +881,7 @@ async function assembleNewBill(args: {
   description?: string;
   label: string;
   claimBudget: () => boolean;
+  billSourceVersions?: readonly BillSourceVersionInput[];
 }): Promise<AssembleResult> {
   const { data, contentHash, label } = args;
   const description = args.description ?? data.description;
@@ -947,6 +958,10 @@ async function assembleNewBill(args: {
     await persistVideoRecord(tx, "bill", billId, video);
     await persistBillBrief(tx, billId, contentHash, brief);
   });
+
+  if (args.billSourceVersions?.length) {
+    await persistBillSourceVersions(billId, args.billSourceVersions);
+  }
 
   incrementVideosGenerated();
   logger.success(`${label} stored complete (brief + header art)`);

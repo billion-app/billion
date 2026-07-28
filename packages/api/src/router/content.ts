@@ -6,6 +6,8 @@ import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
 import {
   Bill,
+  BillSection,
+  BillSourceVersion,
   ContentBrief,
   ContentLens,
   CourtCase,
@@ -422,10 +424,9 @@ export const contentRouter = {
     }),
 
   // Full-text search across bills, government content, and court cases.
-  // Matches against the generated `search_vector` tsvector column (title,
-  // summary/description, full text) and, for bill/case numbers, a pg_trgm
-  // trigram similarity match so loose codes like "hr1234" still find
-  // "H.R. 1234".
+  // Bill metadata and independently indexed source sections are searched
+  // together. Per-section vectors avoid PostgreSQL's input ceiling for giant
+  // omnibus bills and make provisions within them discoverable.
   search: publicProcedure
     .input(
       z.object({
@@ -441,12 +442,30 @@ export const contentRouter = {
       const type = input.type ?? "all";
       const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
 
+      const billSectionRank = sql<number>`coalesce((
+        select max(ts_rank_cd(${BillSection.searchVector}, ${tsQuery}))
+        from ${BillSection}
+        inner join ${BillSourceVersion}
+          on ${BillSourceVersion.id} = ${BillSection.sourceVersionId}
+        where ${BillSourceVersion.billId} = ${Bill.id}
+          and ${BillSection.searchVector} @@ ${tsQuery}
+      ), 0)`;
       const billRank = sql<number>`greatest(
         ts_rank_cd(${Bill.searchVector}, ${tsQuery}),
+        ${billSectionRank},
         similarity(${Bill.billNumber}, ${query})
       )`;
       const billMatch = sql`(
-        ${Bill.searchVector} @@ ${tsQuery} or ${Bill.billNumber} % ${query}
+        ${Bill.searchVector} @@ ${tsQuery}
+        or ${Bill.billNumber} % ${query}
+        or exists (
+          select 1
+          from ${BillSection}
+          inner join ${BillSourceVersion}
+            on ${BillSourceVersion.id} = ${BillSection.sourceVersionId}
+          where ${BillSourceVersion.billId} = ${Bill.id}
+            and ${BillSection.searchVector} @@ ${tsQuery}
+        )
       )`;
 
       const govRank = sql<number>`ts_rank_cd(${GovernmentContent.searchVector}, ${tsQuery})`;

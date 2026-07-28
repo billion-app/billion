@@ -3,8 +3,6 @@ import test from "node:test";
 
 import {
   advancesCursor,
-  assertWithinTsvectorLimit,
-  BillTextTooLargeError,
   cursorHighWaterMark,
   orderTextVersionsNewestFirst,
   parseBillIdentifier,
@@ -70,27 +68,6 @@ test("parseBillIdentifier round-trips through parseBillUrl", () => {
       `https://www.congress.gov/bill/119th-congress/house-bill/${parsed.billNumber}`,
     ),
     parsed,
-  );
-});
-
-test("assertWithinTsvectorLimit leaves normal bill text untouched", () => {
-  const text =
-    "SECTION 1. SHORT TITLE. This Act may be cited as the Example Act.";
-  assert.equal(assertWithinTsvectorLimit(text, "H.R. 1"), text);
-});
-
-test("assertWithinTsvectorLimit refuses oversized text instead of truncating", () => {
-  // Multibyte punctuation: a character count would undercount the byte size.
-  const huge = "section § one — text ".repeat(80_000);
-  assert.ok(Buffer.byteLength(huge, "utf8") > 1_048_575);
-
-  // A truncated bill reads as complete and misinforms; an absent one does not.
-  assert.throws(
-    () => assertWithinTsvectorLimit(huge, "H.R. 1"),
-    (error: unknown) =>
-      error instanceof BillTextTooLargeError &&
-      error.label === "H.R. 1" &&
-      error.bytes === Buffer.byteLength(huge, "utf8"),
   );
 });
 

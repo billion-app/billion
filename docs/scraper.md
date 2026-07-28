@@ -117,16 +117,12 @@ opposite and stored every bill's introduced draft. H.R. 7008 passed the House
 with a substitute adding a photo-ID voting section, and none of it was in our
 copy.
 
-Text is stored **whole or not at all**. `Bill.searchVector` is a generated
-column running `to_tsvector` over `full_text`, and Postgres rejects input over
-1,048,575 bytes, so an enormous bill cannot be stored complete. Rather than
-truncate, `fetchFullText` raises `BillTextTooLargeError` and the bill is
-skipped: a truncated bill is not a smaller bill, it is a wrong one that reads
-as complete. An earlier 1,000-word cap cut H.R. 7008 mid-section and the
-generated brief then told readers the bill specified no penalties. The walk
-treats the refusal as a deliberate skip rather than a retryable failure so one
-giant bill cannot wedge the cursor. Section-aware storage is the real fix
-(issue #191).
+Every advertised **Formatted XML** version is retained byte-for-byte in
+`bill_source_version` and parsed into stable `bill_section` rows. Bill metadata
+keeps its own generated search vector, while complete legislative text is
+indexed per section. This avoids PostgreSQL's 1,048,575-byte `to_tsvector`
+input ceiling without truncating or refusing an omnibus bill. Re-fetching an
+identical `(bill, version code, source hash)` is a no-op.
 
 ## Upsert + Change Detection
 

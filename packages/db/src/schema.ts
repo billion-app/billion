@@ -1,4 +1,5 @@
 import type { SQL } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import {
   check,
@@ -166,16 +167,15 @@ export const Bill = pgTable(
     updatedAt: t
       .timestamp({ mode: "date", withTimezone: true })
       .$onUpdateFn(() => sql`now()`),
-    // Weighted full-text search vector: bill number + title (A), sponsor +
-    // summary/description (B), full text (C). Backs the `content.search`
-    // procedure alongside the trigram index below for loose code matching.
+    // Bill-level metadata only. Legislative text is indexed per section below;
+    // keeping a multi-megabyte omnibus out of this generated expression avoids
+    // PostgreSQL's 1 MiB to_tsvector input ceiling.
     searchVector: tsvector("search_vector").generatedAlwaysAs(
       (): SQL => sql`(
         setweight(to_tsvector('english', coalesce(bill_number, '')), 'A') ||
         setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
         setweight(to_tsvector('english', coalesce(sponsor, '')), 'B') ||
-        setweight(to_tsvector('english', coalesce(summary, '') || ' ' || coalesce(description, '')), 'B') ||
-        setweight(to_tsvector('english', coalesce(full_text, '')), 'C')
+        setweight(to_tsvector('english', coalesce(summary, '') || ' ' || coalesce(description, '')), 'B')
       )`,
     ),
   }),
@@ -201,6 +201,82 @@ export const CreateBillSchema = createInsertSchema(Bill).omit({
   createdAt: true,
   updatedAt: true,
 });
+
+/** Immutable snapshots of every official congress.gov text version we ingest. */
+export const BillSourceVersion = pgTable(
+  "bill_source_version",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    billId: t
+      .uuid()
+      .notNull()
+      .references(() => Bill.id, { onDelete: "cascade" }),
+    versionCode: t.varchar({ length: 50 }).notNull(),
+    versionType: t.text().notNull(),
+    officialDate: t.timestamp({ withTimezone: true }),
+    sourceUrl: t.text().notNull(),
+    // Congress XML is retained byte-for-byte. PostgreSQL text uses TOAST for
+    // large values, so multi-megabyte omnibus versions remain practical.
+    rawXml: t.text().notNull(),
+    sourceHash: t.varchar({ length: 64 }).notNull(),
+    parseStatus: t.varchar({ length: 20 }).notNull().default("pending"),
+    parseError: t.text(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueVersion: unique().on(
+      table.billId,
+      table.versionCode,
+      table.sourceHash,
+    ),
+    billIdx: index("bill_source_version_bill_idx").on(table.billId),
+  }),
+);
+
+/** Addressable, independently searchable units parsed from a source version. */
+export const BillSection = pgTable(
+  "bill_section",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    sourceVersionId: t
+      .uuid()
+      .notNull()
+      .references(() => BillSourceVersion.id, { onDelete: "cascade" }),
+    parentSectionId: t
+      .uuid()
+      .references((): AnyPgColumn => BillSection.id, { onDelete: "cascade" }),
+    structuralPath: t.text().notNull(),
+    displayedNumber: t.text(),
+    heading: t.text(),
+    order: t.integer().notNull(),
+    text: t.text().notNull(),
+    sectionHash: t.varchar({ length: 64 }).notNull(),
+    tokenCount: t.integer().notNull(),
+    sourceStartOffset: t.integer(),
+    sourceEndOffset: t.integer(),
+    xmlId: t.text(),
+    crossReferences: t.jsonb().$type<string[]>().notNull().default([]),
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      (): SQL =>
+        sql`to_tsvector('english', coalesce(heading, '') || ' ' || coalesce(text, ''))`,
+    ),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniquePath: unique().on(table.sourceVersionId, table.structuralPath),
+    sourceVersionIdx: index("bill_section_source_version_idx").on(
+      table.sourceVersionId,
+    ),
+    parentIdx: index("bill_section_parent_idx").on(table.parentSectionId),
+    searchVectorIdx: index("bill_section_search_vector_idx").using(
+      "gin",
+      table.searchVector,
+    ),
+  }),
+);
 
 // Government Content table (executive orders, memoranda, proclamations, news articles, briefings, etc.)
 export const GovernmentContent = pgTable(

@@ -3,6 +3,7 @@ import { db } from "@acme/db/client";
 import { ScraperCursor } from "@acme/db/schema";
 
 import type { UpsertOutcome } from "../utils/db/operations.js";
+import type { BillSourceVersionInput } from "../utils/bill-sections.js";
 import type { NewItemLimiter } from "../utils/new-item-limit.js";
 import type { Scraper } from "../utils/types.js";
 import { getItemLimit } from "../utils/concurrency.js";
@@ -15,6 +16,7 @@ import {
   retryQueueDepth,
 } from "../utils/db/retry-queue.js";
 import { fetchWithRetry } from "../utils/fetch.js";
+import { createContentHash } from "../utils/hash.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
 import { congressConfig } from "./congress.config.js";
@@ -240,42 +242,6 @@ export async function fetchSummary(
 }
 
 /**
- * Postgres rejects `to_tsvector` input over 1,048,575 bytes and
- * `Bill.searchVector` is a generated column over `full_text`, so an oversized
- * bill cannot be stored whole. Keep a wide margin under that ceiling.
- *
- * We refuse the bill rather than truncating it. A truncated bill is not a
- * smaller bill, it is a *wrong* one: H.R. 7008's brief told readers the bill
- * specified no penalties because the penalties were past the cut. An absent
- * bill is visibly absent; a truncated one reads as complete and misinforms.
- * Section-aware storage (#191) is what actually fixes these.
- */
-const MAX_FULL_TEXT_BYTES = 800_000;
-
-export class BillTextTooLargeError extends Error {
-  constructor(
-    readonly label: string,
-    readonly bytes: number,
-  ) {
-    super(
-      `${label}: full text is ${bytes} bytes, over the ${MAX_FULL_TEXT_BYTES}-byte storage ceiling — refusing to store a truncated bill`,
-    );
-    this.name = "BillTextTooLargeError";
-  }
-}
-
-/** Throws `BillTextTooLargeError` rather than returning a shortened string. */
-export function assertWithinTsvectorLimit(text: string, label: string): string {
-  // Byte length, not character count: bill text carries multibyte punctuation
-  // (section signs, em dashes, curly quotes) that a char count undercounts.
-  const bytes = Buffer.byteLength(text, "utf8");
-  if (bytes > MAX_FULL_TEXT_BYTES) {
-    throw new BillTextTooLargeError(label, bytes);
-  }
-  return text;
-}
-
-/**
  * Order text versions newest-first so we store the *operative* text.
  *
  * This used to be `[...textVersions].reverse()`, which assumes the API returns
@@ -303,43 +269,93 @@ export function orderTextVersionsNewestFirst(
   });
 }
 
+function versionCode(version: ApiTextVersion, sourceUrl: string): string {
+  const fileCode = /\d+([a-z]+)\.(?:xml|htm(?:l)?)$/i.exec(
+    new URL(sourceUrl).pathname,
+  )?.[1];
+  return (fileCode || version.type).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+async function fetchBillText(
+  congress: number,
+  billType: string,
+  billNumber: string,
+): Promise<{
+  fullText?: string;
+  sourceVersions: BillSourceVersionInput[];
+}> {
+  const data = await congressFetch<{ textVersions: ApiTextVersion[] }>(
+    `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/text`,
+  );
+  const sourceVersions: BillSourceVersionInput[] = [];
+  const xmlFailures: Error[] = [];
+  let fullText: string | undefined;
+
+  for (const version of orderTextVersionsNewestFirst(data.textVersions ?? [])) {
+    const xmlFormat = version.formats.find(
+      (format) => format.type.toLowerCase() === "formatted xml",
+    );
+    if (xmlFormat) {
+      try {
+        const response = await fetchWithRetry(xmlFormat.url);
+        const rawXml = await response.text();
+        if (rawXml) {
+          sourceVersions.push({
+            versionCode: versionCode(version, xmlFormat.url),
+            versionType: version.type,
+            officialDate: version.date ? new Date(version.date) : undefined,
+            sourceUrl: xmlFormat.url,
+            rawXml,
+            sourceHash: createContentHash(rawXml),
+          });
+          fullText ??= stripHtml(rawXml).trim() || undefined;
+          continue;
+        }
+      } catch (error) {
+        xmlFailures.push(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+        logger.warn(
+          `Could not fetch ${version.type} XML for ${billType}${billNumber}: ${error instanceof Error ? error.message : error}`,
+        );
+      }
+    }
+
+    // Some historical versions only advertise Formatted Text. Preserve the
+    // latest bill-level text for existing downstream consumers, while source
+    // version storage remains restricted to complete official XML.
+    if (!fullText) {
+      const textFormat = version.formats.find(
+        (format) => format.type.toLowerCase() === "formatted text",
+      );
+      if (textFormat) {
+        try {
+          const response = await fetchWithRetry(textFormat.url);
+          const rawText = await response.text();
+          fullText = stripHtml(rawText).trim() || undefined;
+        } catch {}
+      }
+    }
+  }
+
+  if (xmlFailures.length > 0) {
+    throw new AggregateError(
+      xmlFailures,
+      `Failed to retain ${xmlFailures.length} official XML version(s) for ${billType}${billNumber}`,
+    );
+  }
+
+  return { fullText, sourceVersions };
+}
+
 export async function fetchFullText(
   congress: number,
   billType: string,
   billNumber: string,
 ): Promise<string | undefined> {
   try {
-    const data = await congressFetch<{ textVersions: ApiTextVersion[] }>(
-      `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/text`,
-    );
-    if (!data.textVersions?.length) return undefined;
-
-    for (const version of orderTextVersionsNewestFirst(data.textVersions)) {
-      const txtFormat = version.formats.find(
-        (f) => f.type === "Formatted Text",
-      );
-      if (!txtFormat) continue;
-
-      const res = await fetchWithRetry(txtFormat.url);
-      const rawText = await res.text();
-      if (!rawText) continue;
-
-      // Store the bill as published. An earlier 1,000-word cap silently cut
-      // most bills off mid-section — H.R. 7008 lost its entire penalties
-      // section, and the brief generator then reported that the bill
-      // specified no penalties. Downstream consumers window this text to fit
-      // their own context budget (see SOURCE_WINDOW in ai/bill-brief.ts);
-      // truncating at ingest time only destroys information for all of them.
-      const text = stripHtml(rawText).trim();
-      return assertWithinTsvectorLimit(text, billNumber) || undefined;
-    }
-  } catch (error) {
-    // Full text is otherwise optional — a fetch failure degrades to a bill
-    // without text. Oversize is different: it means we *have* the text and
-    // cannot store it faithfully, and swallowing it here would save the bill
-    // textless, which is the silent-wrongness this check exists to prevent.
-    if (error instanceof BillTextTooLargeError) throw error;
-  }
+    return (await fetchBillText(congress, billType, billNumber)).fullText;
+  } catch {}
   return undefined;
 }
 
@@ -455,7 +471,11 @@ async function processBill(
     : undefined;
 
   const summary = await fetchSummary(congress, billType, billNumber);
-  const fullText = await fetchFullText(congress, billType, billNumber);
+  const { fullText, sourceVersions } = await fetchBillText(
+    congress,
+    billType,
+    billNumber,
+  );
   const actions = await fetchActions(congress, billType, billNumber);
 
   const outcome = await upsertContent(
@@ -480,7 +500,7 @@ async function processBill(
         sourceUpdatedAt,
       },
     },
-    { newItemLimiter },
+    { newItemLimiter, billSourceVersions: sourceVersions },
   );
 
   if (outcome.status === "written") {
@@ -804,14 +824,6 @@ async function scrape(config: CongressScraperConfig = {}) {
       }
       return queue(outcome.reason);
     } catch (error) {
-      if (error instanceof BillTextTooLargeError) {
-        // A deliberate refusal, not a failure to retry: the bill will be exactly
-        // as oversized next run, so queueing it would just burn an attempt a day
-        // forever. Move past it and rely on the log.
-        logger.warn(`Skipping ${item.type}${item.number}: ${error.message}`);
-        await clearRetry(scraperKey, itemKey);
-        return { ok: true, sourceUpdatedAt: feedUpdatedAt };
-      }
       logger.error(`Error processing bill ${item.type}${item.number}`, error);
       return queue(error instanceof Error ? error.message : String(error));
     }
