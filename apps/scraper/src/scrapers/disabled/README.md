@@ -45,3 +45,14 @@ and cache the data," and its `getCached*` getters are imported nowhere.
 
 To revive: have the scraper persist to the database (a real table the API reads),
 add a reader in `@acme/api`, then re-register its implementation and contract.
+
+## `missouri-legislature.ts`
+
+Implements current Missouri General Assembly bill ingestion from official XML.
+Disabled because the state-legislation data is not yet connected to a configured
+production database or a product surface.
+
+To revive it: provision the bill storage and product integration, then move the
+implementation/config/parser/source back to `scrapers/`, register the
+implementation and active contract, and restore the Missouri source-limit
+environment entries.

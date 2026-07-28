@@ -11,8 +11,8 @@ import {
   parseMissouriBillList,
   parseMissouriSenateActionList,
   parseMissouriSessions,
-} from "./missouri-legislature-parser.js";
-import { missouriRefreshExpiresAt } from "./missouri-legislature-source.js";
+} from "./disabled/missouri-legislature-parser.js";
+import { missouriRefreshExpiresAt } from "./disabled/missouri-legislature-source.js";
 
 const fixture = (name: string) =>
   readFile(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
