@@ -42,6 +42,33 @@ export async function runJob(
     },
   );
 
+  let timedOut = false;
+
+  const terminate = (why: string) => {
+    timedOut = true;
+    logger.error(`[${job.id}] ${why}, terminating`);
+    child.kill("SIGTERM");
+    // A job that ignores SIGTERM still has to go, or it wedges the queue.
+    setTimeout(() => child.kill("SIGKILL"), 30_000).unref();
+  };
+
+  // Progress, not elapsed time, is what distinguishes a long job from a stuck
+  // one. Every line of output resets the clock, so a run that is working stays
+  // alive however long it takes, and one that has genuinely hung is still cut
+  // loose rather than blocking the queue behind it forever.
+  let idleTimer: NodeJS.Timeout | undefined;
+  const noteProgress = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(
+      () =>
+        terminate(
+          `produced no output for ${job.idleTimeoutMinutes}m and looks wedged`,
+        ),
+      job.idleTimeoutMinutes * 60_000,
+    );
+  };
+  noteProgress();
+
   // Prefix every line so a shared log stays readable when jobs run back to
   // back, and so grepping for one job's history is possible.
   //
@@ -51,24 +78,20 @@ export async function runJob(
   // of padded blocks. The supervisor's own messages still use consola.
   const pipe = (stream: NodeJS.ReadableStream, sink: NodeJS.WriteStream) => {
     const lines = createInterface({ input: stream });
-    lines.on("line", (line) => sink.write(`[${job.id}] ${line}\n`));
+    lines.on("line", (line) => {
+      noteProgress();
+      sink.write(`[${job.id}] ${line}\n`);
+    });
   };
   if (child.stdout) pipe(child.stdout, process.stdout);
   if (child.stderr) pipe(child.stderr, process.stderr);
 
-  let timedOut = false;
-
-  const timeout = setTimeout(
-    () => {
-      timedOut = true;
-      logger.error(
-        `[${job.id}] exceeded ${job.timeoutMinutes}m timeout, terminating`,
-      );
-      child.kill("SIGTERM");
-      // A job that ignores SIGTERM still has to go, or it wedges the queue.
-      setTimeout(() => child.kill("SIGKILL"), 30_000).unref();
-    },
-    job.timeoutMinutes * 60_000,
+  const hardStop = setTimeout(
+    () =>
+      terminate(
+        `exceeded the ${job.maxRuntimeHours}h absolute limit while still producing output`,
+      ),
+    job.maxRuntimeHours * 3_600_000,
   );
 
   const onAbort = () => {
@@ -88,7 +111,8 @@ export async function runJob(
     });
     return { exitCode, timedOut, durationMs: Date.now() - startedAt };
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(idleTimer);
+    clearTimeout(hardStop);
     signal.removeEventListener("abort", onAbort);
   }
 }

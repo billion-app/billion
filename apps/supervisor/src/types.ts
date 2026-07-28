@@ -44,8 +44,29 @@ export interface JobDefinition {
    * multi-hour archive drain.
    */
   readonly priority: number;
-  /** Hard ceiling on a single run. Exceeding it is a failure, not a success. */
-  readonly timeoutMinutes: number;
+  /**
+   * How long a job may produce **no output at all** before it is considered
+   * wedged and terminated.
+   *
+   * This is deliberately not a cap on total runtime. A backfill that legitimately
+   * runs for fifteen hours is not stuck — it is working — and a wall-clock limit
+   * cannot tell the two apart. The first version of this used one, and came
+   * within hours of killing a healthy 794-item drain at 78% complete purely
+   * because someone (me) guessed "12 hours" before ever running the job.
+   *
+   * Silence is the honest signal. Every job here narrates per item, so an hour
+   * without a single line means something has genuinely hung — a provider call
+   * with no timeout of its own, a stalled socket, a deadlock.
+   */
+  readonly idleTimeoutMinutes: number;
+
+  /**
+   * Absolute backstop, in hours. Only exists to catch a job that spins forever
+   * while still producing output — a retry loop logging failures would never
+   * trip the idle timer. Set generously: this should never be what stops a
+   * healthy run.
+   */
+  readonly maxRuntimeHours: number;
 }
 
 export interface JobState {

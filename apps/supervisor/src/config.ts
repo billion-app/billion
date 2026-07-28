@@ -21,7 +21,8 @@ export const jobs: readonly JobDefinition[] = [
     // whose text was replaced by a substitute amendment.
     env: { SCRAPER_MAX_NEW_ITEMS_PER_RUN: "25" },
     priority: 0,
-    timeoutMinutes: 6 * 60,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
   },
   // The other three registered scrapers. These used to ride along in a weekly
   // `main.js all` run; they are listed individually so that dropping the `all`
@@ -37,7 +38,8 @@ export const jobs: readonly JobDefinition[] = [
     args: ["federalregister", "--concurrency", "2"],
     schedule: { kind: "weekly", weekday: 0, hour: 3, minute: 15 },
     priority: 10,
-    timeoutMinutes: 6 * 60,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
   },
   {
     id: "scc-cvig-weekly",
@@ -46,7 +48,8 @@ export const jobs: readonly JobDefinition[] = [
     args: ["scc-cvig", "--concurrency", "2"],
     schedule: { kind: "weekly", weekday: 0, hour: 3, minute: 15 },
     priority: 11,
-    timeoutMinutes: 4 * 60,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
   },
   {
     id: "ca-sos-weekly",
@@ -55,7 +58,8 @@ export const jobs: readonly JobDefinition[] = [
     args: ["ca-sos-statements", "--concurrency", "2"],
     schedule: { kind: "weekly", weekday: 0, hour: 3, minute: 15 },
     priority: 12,
-    timeoutMinutes: 4 * 60,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
   },
 
   // Everything below is manual: it runs only when someone drops a request file,
@@ -83,7 +87,8 @@ export const jobs: readonly JobDefinition[] = [
     args: ["--limit", "1000", "--concurrency", "4"],
     schedule: { kind: "manual" },
     priority: 20,
-    timeoutMinutes: 12 * 60,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 72,
   },
   {
     id: "retro-lenses",
@@ -92,7 +97,8 @@ export const jobs: readonly JobDefinition[] = [
     args: ["--type", "all", "--limit", "200", "--concurrency", "4"],
     schedule: { kind: "manual" },
     priority: 21,
-    timeoutMinutes: 6 * 60,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 72,
   },
   {
     id: "retro-videos",
@@ -101,7 +107,8 @@ export const jobs: readonly JobDefinition[] = [
     args: ["--type", "bill"],
     schedule: { kind: "manual" },
     priority: 30,
-    timeoutMinutes: 6 * 60,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 48,
   },
   {
     id: "reprocess-bare",
@@ -129,7 +136,8 @@ export const jobs: readonly JobDefinition[] = [
     // so it wants a human deciding when it runs.
     schedule: { kind: "manual" },
     priority: 31,
-    timeoutMinutes: 8 * 60,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 72,
   },
 ];
 
