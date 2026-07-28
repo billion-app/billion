@@ -35,7 +35,12 @@ RUN pnpm --filter @acme/scraper build && pnpm --filter @acme/supervisor build
 # sit next to them anyway, and its only external imports are `consola` and
 # `zod` — both already production dependencies of the scraper, so sharing the
 # root costs no extra modules.
+# `pnpm deploy` already places a `dist/` in the deploy root, so copying the
+# built bundle in without clearing it first nests a second complete copy at
+# `dist/dist/`. Harmless at runtime — `node dist/main.js` resolves the right
+# one — but it ships every entrypoint twice.
 RUN pnpm --filter @acme/scraper deploy --prod --legacy /app/deploy && \
+    rm -rf /app/deploy/dist && \
     cp -R apps/scraper/dist /app/deploy/dist && \
     cp apps/supervisor/dist/supervisor.js /app/deploy/dist/supervisor.js
 
