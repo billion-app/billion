@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { BillBriefRecord } from "@acme/validators";
+import {
+  BILL_ANALYSIS_SCHEMA_VERSION,
+  BILL_BRIEF_VERSION,
+} from "@acme/validators";
 
 import { clampBillDescription } from "./src/bill-description";
 import { db } from "./src/client";
@@ -434,7 +438,8 @@ const billBriefs: (Omit<
   "generatedAt" | "modelVersion"
 > | null)[] = [
   {
-    version: 7,
+    version: BILL_BRIEF_VERSION,
+    analysisSchemaVersion: BILL_ANALYSIS_SCHEMA_VERSION,
     legalStatus: "proposed",
     verifiedQuotes: 1,
     hook: "If this bill becomes law, states would get **a longer window to plan road and bridge repairs**, while cities could apply for **new public-transit money**. The $200 billion is a maximum, not guaranteed money; Congress would still decide how much can actually be spent each year.",
@@ -556,7 +561,8 @@ const billBriefs: (Omit<
     ],
   },
   {
-    version: 7,
+    version: BILL_BRIEF_VERSION,
+    analysisSchemaVersion: BILL_ANALYSIS_SCHEMA_VERSION,
     legalStatus: "proposed",
     verifiedQuotes: 2,
     hook: "If passed, the bill would require companies to **get permission before collecting or selling personal data**. People across the country could also **review and delete information held about them**, although the text does not settle whether **stronger state privacy laws** would remain in place.",

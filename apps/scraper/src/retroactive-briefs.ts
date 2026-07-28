@@ -11,9 +11,10 @@ import pLimit from "p-limit";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { and, desc, eq, isNotNull, isNull, ne, or } from "@acme/db";
+import { and, desc, eq, isNotNull, isNull, ne, or, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import { Bill, ContentBrief } from "@acme/db/schema";
+import { BILL_ANALYSIS_SCHEMA_VERSION } from "@acme/validators";
 
 import { AIRateLimitError } from "./utils/ai/text-generation.js";
 import { upsertBillBrief } from "./utils/db/operations.js";
@@ -60,6 +61,7 @@ async function findBills(limit: number): Promise<BriefCandidate[]> {
         or(
           isNull(ContentBrief.id),
           ne(ContentBrief.contentHash, Bill.contentHash),
+          sql`${ContentBrief.brief}->>'analysisSchemaVersion' is distinct from ${BILL_ANALYSIS_SCHEMA_VERSION}`,
         ),
       ),
     )

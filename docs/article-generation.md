@@ -75,11 +75,26 @@ drift into argument, and the argument layer keeps its own provenance.
 
 ## The pipeline
 
-`generateBillBrief()` in
-[`apps/scraper/src/utils/ai/bill-brief.ts`](../apps/scraper/src/utils/ai/bill-brief.ts)
-has a research pass, a structured writing pass, and deterministic verification.
+Bill generation has a versioned section-analysis pass, a research pass, a
+structured writing pass, and deterministic verification.
 
-### 1. Research history and deeper reading (agentic LLM loop)
+### 1. Analyze every bill section
+
+The scraper reads the canonical sections stored by `BillSection`, never a flat
+prefix of `Bill.fullText`. Each section is analyzed independently into typed
+notes for operative changes, affected parties, dates, penalties, exemptions,
+definitions, funding, oversight, and cross-references. Every evidence quote
+carries the section hash and end-exclusive offsets within that section.
+
+Sections larger than the configured input budget are split at text boundaries,
+but each call still contains text from only one canonical section. Every
+section reaches a recorded `analyzed`, `skipped`, or `failed` state.
+
+Analysis rows cache on section hash, `BILL_ANALYSIS_SCHEMA_VERSION`, and the
+provider-qualified model version. An unchanged section therefore reuses its
+notes even when another part of a bill changes or the writing pass is rerun.
+
+### 2. Research history and deeper reading (agentic LLM loop)
 
 The model first investigates why the policy has not already been adopted:
 earlier bills, documented disagreements, legal or budget limits, implementation
@@ -87,18 +102,16 @@ tradeoffs, and changed circumstances. It separately searches for useful
 follow-up reading, opens at least three promising pages, and records only
 successfully opened URLs. Snippets are never treated as evidence.
 
-### 2. Structure (LLM)
+### 3. Write from notes (LLM)
 
-One schema-validated call (AI SDK `Output.object`) grounded in the official
-text plus, when available, the existing long-form article. That article already
-did the careful nonpartisan reading, so this pass is mostly restructuring —
-cheaper and more consistent than reading the statute cold. The model sees a
-24k-character window of source text plus the verified research. It may produce
-an expandable `whyNotBefore` explanation, but only with citations to opened
-pages, and may also write one focused `deepDive` article for readers who opt
-into more depth.
+One schema-validated call (AI SDK `Output.object`) receives the complete
+section-note inventory, the CRS summary, and verified outside research. It
+never receives raw bill text. Failed or skipped coverage is explicit in the
+inventory, so absence cannot be inferred from an arbitrarily severed excerpt.
+The call is refused before reaching the provider if its conservative input
+estimate exceeds `BILL_BRIEF_WRITING_INPUT_TOKEN_BUDGET`.
 
-### 3. Verify quotes and research links (deterministic)
+### 4. Verify quotes and research links (deterministic)
 
 Every `quote.text` is checked against the **whole** source document, not just
 the window the model saw. Matching normalizes away formatting — casing, smart
@@ -113,7 +126,7 @@ links are checked against the URLs opened by the research loop; invented links
 are dropped. The historical-context section is removed entirely unless at least
 two distinct opened sources remain after verification.
 
-### 4. Lint framing and jargon (deterministic)
+### 5. Lint framing and jargon (deterministic)
 
 Loaded political vocabulary — `common sense`, `radical`, `landmark`,
 `burdensome`, `handout`, `job-killing`, `red tape`, `power grab` — is matched
@@ -139,6 +152,12 @@ encounters them. The API separately accepts shipped v1 and v5 records and
 normalizes them into the current client shape (including affected-group
 takeaways and an empty reading list where needed). Invalid or unknown shapes
 are still dropped, so the client can treat every present brief as renderable.
+
+`BILL_ANALYSIS_SCHEMA_VERSION` independently invalidates section notes. The
+retroactive brief command selects a brief whose analysis version is stale even
+when its source content hash is unchanged. It re-analyzes only sections missing
+the current `(sectionHash, promptVersion, modelVersion)` cache entry, then
+rewrites the brief. A writing-only rerun reuses all current notes.
 
 ## Rendering
 

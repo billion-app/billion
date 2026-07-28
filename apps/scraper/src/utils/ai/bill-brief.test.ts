@@ -93,6 +93,7 @@ void test("older brief records stay renderable but are not current cache hits", 
   const current = {
     ...v5,
     version: BILL_BRIEF_VERSION,
+    analysisSchemaVersion: "bill-section-notes-v1",
   };
   assert.equal(isCurrentBillBrief(current), true);
 });
@@ -318,7 +319,12 @@ void test("verification strips unverified quotes but keeps the claim", () => {
       {
         label: "Authorized funding",
         value: "$1.2B",
-        quote: { text: "appropriated $1,200,000,000 for fiscal year 2027" },
+        quote: {
+          text: "appropriated $1,200,000,000 for fiscal year 2027",
+          sectionHash: "b".repeat(64),
+          startOffset: 220,
+          endOffset: 269,
+        },
       },
     ],
     changes: [
@@ -343,6 +349,7 @@ void test("verification strips unverified quotes but keeps the claim", () => {
   assert.equal(verified, 1);
   assert.equal(dropped, 1);
   assert.ok(cleaned.facts[0]?.quote, "grounded quote is kept");
+  assert.deepEqual(cleaned.facts[0]?.quote, input.facts[0]?.quote);
   assert.equal(cleaned.changes[0]?.quote, undefined, "invented quote is gone");
   assert.equal(
     cleaned.changes[0]?.title,

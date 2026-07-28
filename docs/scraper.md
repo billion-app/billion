@@ -228,10 +228,14 @@ Each new/changed item runs through:
 
 1. **Summary** (`text-generation.ts`) — ≤100-char punchy summary, 8th-grade reading level.
 2. **Article** (`text-generation.ts`) — structured 4-section markdown: _What This Means For You_, _Overview_, _Impact & Implications_, _The Debate_; balanced across perspectives. Stored in `ai_generated_article`. Throws a typed `AIRateLimitError` on 429.
-3. **Brief** (`bill-brief.ts`, bills only) — the structured document that replaces the markdown wall of text in the app: hook, stat tiles, before/after changes, affected groups, unknowns, glossary, optional prose. Quotes are verified verbatim against the source and stripped if they don't match; loaded political phrasing in the model's own voice triggers one regeneration. The brief also receives the official CRS summary as authoritative,
-   explicitly non-quotable context, so provisions past its source window are still
-   known to it; quotes are verified against the official text alone. Cached in
-   `content_brief` by `contentHash`. See [Article generation](./article-generation.md).
+3. **Brief analysis + writing** (`bill-section-analysis.ts` and
+   `bill-brief.ts`, bills only) — every persisted bill section first becomes
+   structured, evidence-grounded notes with a terminal analyzed/skipped/failed
+   state. The writing pass receives only those notes, the official CRS summary,
+   and outside research; it never receives a raw-text prefix. Section notes
+   cache by section hash, analysis prompt version, and model version, while the
+   final structured brief remains cached in `content_brief`. See
+   [Article generation](./article-generation.md).
 4. **Dual lens** (`text-generation.ts`) — proponent/opponent arguments grounded in an agentic web-research loop, cached in `content_lens`. This is the most expensive step and the only one whose output is not reproducible: the same input can return different arguments, and the row is overwritten in place with no history. It is therefore cached on **its own inputs** (title + full text + article type + model version), not on the bill's overall `contentHash` — that hash also covers status and summary, so a routine action update ("Referred to committee" → "Received in the Senate") used to invalidate it and re-roll the dice. One such re-roll lost a finding that H.R. 7008 carried unrelated voter-ID provisions.
 5. **Marketing copy** (`marketing-generation.ts`) — Zod-validated `{ title ≤25 chars, description ≤25 words, imagePrompt }` for the `video` feed card.
 6. **Imagery** — multiple sources:
