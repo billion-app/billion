@@ -2,6 +2,7 @@ import { eq, max } from "@acme/db";
 import { db } from "@acme/db/client";
 import { Bill } from "@acme/db/schema";
 
+import type { NewItemLimiter } from "../utils/new-item-limit.js";
 import type { Scraper } from "../utils/types.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import { setExpectedTotal } from "../utils/db/metrics.js";
@@ -18,6 +19,8 @@ interface CongressScraperConfig {
   maxBills?: number;
   congress?: number;
   chamber?: "House" | "Senate";
+  /** Bill identifiers to fetch directly instead of walking the update feed. */
+  bills?: string[];
 }
 
 interface ApiBillListItem {
@@ -154,6 +157,29 @@ export function parseBillUrl(
   return { billType, billNumber: number };
 }
 
+const apiBillTypes = new Set(Object.values(urlSlugToApiType));
+
+/**
+ * Parse a human-written bill identifier into the congress.gov API's
+ * {billType, billNumber}. Punctuation and spacing within the type are ignored,
+ * so the forms people actually paste all work: "H.R. 7008", "hr7008",
+ * "H.Con.Res. 113". The number itself must be contiguous — otherwise a typo
+ * like "H.R. 70 08" would silently resolve to a different real bill.
+ */
+export function parseBillIdentifier(
+  input: string,
+): { billType: string; billNumber: string } | undefined {
+  const match = /^([a-z][a-z.\s]*?)[.\s]*(\d+)$/i.exec(input.trim());
+  if (!match) return undefined;
+  const billType = match[1]!.replace(/[.\s]/g, "").toLowerCase();
+  if (!apiBillTypes.has(billType)) return undefined;
+  return { billType, billNumber: match[2]! };
+}
+
+function chamberForBillType(billType: string): "House" | "Senate" {
+  return billType.startsWith("h") ? "House" : "Senate";
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
@@ -182,6 +208,40 @@ export async function fetchSummary(
   }
 }
 
+/**
+ * Postgres rejects `to_tsvector` input over 1,048,575 bytes, and
+ * `Bill.searchVector` is a generated column over `full_text` — so an oversized
+ * bill fails its INSERT outright rather than degrading. `processBill` catches
+ * and logs that error, which would make the bill vanish silently, exactly the
+ * failure mode we just removed. Keep a wide margin under the ceiling.
+ *
+ * This is ~125x the old 1,000-word cap, so it only bites genuinely enormous
+ * bills (omnibus/appropriations). Unlike the old cap it is loud, and the
+ * section-by-section pipeline in issue #216 is the real answer for those.
+ */
+const MAX_FULL_TEXT_BYTES = 800_000;
+
+export function capToTsvectorLimit(text: string, label: string): string {
+  if (Buffer.byteLength(text, "utf8") <= MAX_FULL_TEXT_BYTES) return text;
+
+  // Byte budget, not characters: bill text carries multibyte punctuation
+  // (section signs, em dashes, curly quotes) that a char-based slice ignores.
+  let end = text.length;
+  while (
+    end > 0 &&
+    Buffer.byteLength(text.slice(0, end), "utf8") > MAX_FULL_TEXT_BYTES
+  ) {
+    end = Math.floor(end * 0.98);
+  }
+  const clipped = text.slice(0, end);
+  const lastSpace = clipped.lastIndexOf(" ");
+  const result = lastSpace > 0 ? clipped.slice(0, lastSpace) : clipped;
+  logger.warn(
+    `${label}: full text is ${Buffer.byteLength(text, "utf8")} bytes, capped to ${Buffer.byteLength(result, "utf8")} to stay under the tsvector limit`,
+  );
+  return result;
+}
+
 export async function fetchFullText(
   congress: number,
   billType: string,
@@ -203,12 +263,14 @@ export async function fetchFullText(
       const rawText = await res.text();
       if (!rawText) continue;
 
-      let text = stripHtml(rawText);
-      const words = text.split(/\s+/);
-      if (words.length > 1000) {
-        text = words.slice(0, 1000).join(" ");
-      }
-      return text.trim() || undefined;
+      // Store the bill as published. An earlier 1,000-word cap silently cut
+      // most bills off mid-section — H.R. 7008 lost its entire penalties
+      // section, and the brief generator then reported that the bill
+      // specified no penalties. Downstream consumers window this text to fit
+      // their own context budget (see SOURCE_WINDOW in ai/bill-brief.ts);
+      // truncating at ingest time only destroys information for all of them.
+      const text = stripHtml(rawText).trim();
+      return capToTsvectorLimit(text, billNumber) || undefined;
     }
   } catch {
     // Full text is optional
@@ -246,8 +308,142 @@ async function fetchActions(
   }
 }
 
+/**
+ * Fetch one bill's detail/summary/text/actions and upsert it. Shared by the
+ * incremental feed walk and the targeted `--bill` path.
+ */
+async function processBill(
+  congress: number,
+  billType: string,
+  billNumber: string,
+  fallbackChamber: "House" | "Senate",
+  newItemLimiter: NewItemLimiter,
+): Promise<void> {
+  const detailData = await congressFetch<ApiBillDetail>(
+    `/bill/${congress}/${billType}/${billNumber}`,
+  );
+  const detail = detailData.bill;
+
+  const formattedBillNumber = formatBillNumber(detail.type, detail.number);
+  const title = (detail.title ?? "Unknown").slice(0, 250);
+
+  const primarySponsor = detail.sponsors?.[0];
+  const sponsor = primarySponsor
+    ? `${primarySponsor.firstName} ${primarySponsor.lastName} (${primarySponsor.party}-${primarySponsor.state})`.slice(
+        0,
+        250,
+      )
+    : undefined;
+
+  const status = (detail.latestAction?.text ?? "Unknown").slice(0, 250);
+  const introducedDate = detail.introducedDate
+    ? new Date(detail.introducedDate)
+    : undefined;
+  const chamberValue = (detail.originChamber ?? fallbackChamber) as
+    | "House"
+    | "Senate";
+  const billUrl = `https://www.congress.gov/bill/${congress}${ordinalSuffix(congress)}-congress/${billTypeToUrlSlug(detail.type)}/${billNumber}`;
+
+  const summary = await fetchSummary(congress, billType, billNumber);
+  const fullText = await fetchFullText(congress, billType, billNumber);
+  const actions = await fetchActions(congress, billType, billNumber);
+
+  await upsertContent(
+    {
+      type: "bill",
+      data: {
+        billNumber: formattedBillNumber,
+        title,
+        // Keep the official CRS summary as source material. The DB
+        // pipeline generates the compact, app-facing description.
+        description: undefined,
+        sponsor,
+        status,
+        introducedDate,
+        congress,
+        chamber: chamberValue,
+        summary,
+        fullText,
+        actions,
+        url: billUrl,
+        sourceWebsite: "congress.gov",
+      },
+    },
+    { newItemLimiter },
+  );
+
+  logger.success(`Processed: ${formattedBillNumber} — ${title}`);
+}
+
+/**
+ * Fetch specific bills by number, bypassing the incremental `fromDateTime`
+ * cursor. A normal run only sees bills updated since the last successful
+ * scrape and caps each window at `maxBills`, so anything that overflowed a
+ * busy window becomes unreachable once the cursor moves past it. This is how
+ * those gaps get backfilled.
+ */
+async function scrapeTargeted(identifiers: string[], congress: number) {
+  const targets = identifiers.map((identifier) => {
+    const parsed = parseBillIdentifier(identifier);
+    if (!parsed) {
+      throw new Error(
+        `Unrecognized bill identifier "${identifier}" (expected e.g. "H.R. 7008" or "S.J.Res. 5")`,
+      );
+    }
+    return parsed;
+  });
+
+  logger.info(
+    `Fetching ${targets.length} requested bill(s) from congress ${congress}...`,
+  );
+  setExpectedTotal(targets.length);
+
+  // Every bill here was explicitly asked for, so none should be downgraded to
+  // a raw-content save by the per-run new-item budget.
+  const newItemLimiter = createNewItemLimiter(targets.length);
+  const limit = getItemLimit();
+  const results = await Promise.allSettled(
+    targets.map(({ billType, billNumber }) =>
+      limit(() =>
+        processBill(
+          congress,
+          billType,
+          billNumber,
+          chamberForBillType(billType),
+          newItemLimiter,
+        ),
+      ),
+    ),
+  );
+
+  // Unlike the feed walk, a targeted run has no later run to retry it — fail
+  // loudly so the caller knows the bill still isn't in the database.
+  const failures = results.flatMap((result, i) =>
+    result.status === "rejected"
+      ? [{ target: targets[i]!, reason: result.reason as unknown }]
+      : [],
+  );
+  for (const { target, reason } of failures) {
+    logger.error(
+      `Error processing bill ${target.billType}${target.billNumber}`,
+      reason,
+    );
+  }
+  if (failures.length > 0) {
+    throw new Error(
+      `Failed to process ${failures.length} of ${targets.length} requested bill(s)`,
+    );
+  }
+
+  logger.success("Completed");
+}
+
 async function scrape(config: CongressScraperConfig = {}) {
   const { maxBills = 100, congress = 119, chamber = "House" } = config;
+
+  if (config.bills?.length) {
+    return scrapeTargeted(config.bills, congress);
+  }
 
   logger.info(`Starting (congress=${congress}, chamber=${chamber})...`);
 
@@ -310,66 +506,13 @@ async function scrape(config: CongressScraperConfig = {}) {
     bills.map((item) =>
       limit(async () => {
         try {
-          const billType = item.type.toLowerCase();
-          const billNumber = item.number;
-
-          const detailData = await congressFetch<ApiBillDetail>(
-            `/bill/${congress}/${billType}/${billNumber}`,
+          await processBill(
+            congress,
+            item.type.toLowerCase(),
+            item.number,
+            chamber,
+            newItemLimiter,
           );
-          const detail = detailData.bill;
-
-          const formattedBillNumber = formatBillNumber(
-            detail.type,
-            detail.number,
-          );
-          const title = (detail.title ?? "Unknown").slice(0, 250);
-
-          const primarySponsor = detail.sponsors?.[0];
-          const sponsor = primarySponsor
-            ? `${primarySponsor.firstName} ${primarySponsor.lastName} (${primarySponsor.party}-${primarySponsor.state})`.slice(
-                0,
-                250,
-              )
-            : undefined;
-
-          const status = (detail.latestAction?.text ?? "Unknown").slice(0, 250);
-          const introducedDate = detail.introducedDate
-            ? new Date(detail.introducedDate)
-            : undefined;
-          const chamberValue = (detail.originChamber ?? chamber) as
-            | "House"
-            | "Senate";
-          const billUrl = `https://www.congress.gov/bill/${congress}${ordinalSuffix(congress)}-congress/${billTypeToUrlSlug(detail.type)}/${billNumber}`;
-
-          const summary = await fetchSummary(congress, billType, billNumber);
-          const fullText = await fetchFullText(congress, billType, billNumber);
-          const actions = await fetchActions(congress, billType, billNumber);
-
-          await upsertContent(
-            {
-              type: "bill",
-              data: {
-                billNumber: formattedBillNumber,
-                title,
-                // Keep the official CRS summary as source material. The DB
-                // pipeline generates the compact, app-facing description.
-                description: undefined,
-                sponsor,
-                status,
-                introducedDate,
-                congress,
-                chamber: chamberValue,
-                summary,
-                fullText,
-                actions,
-                url: billUrl,
-                sourceWebsite: "congress.gov",
-              },
-            },
-            { newItemLimiter },
-          );
-
-          logger.success(`Processed: ${formattedBillNumber} — ${title}`);
         } catch (error) {
           logger.error(
             `Error processing bill ${item.type}${item.number}`,
@@ -389,5 +532,7 @@ export const congress: Scraper = {
     scrape({
       maxBills:
         (options?.maxItems ?? Number(process.env.CONGRESS_MAX_ITEMS)) || 100,
+      bills: options?.targets,
+      ...(options?.congress ? { congress: options.congress } : {}),
     }),
 };

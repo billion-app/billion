@@ -17,6 +17,7 @@
  *      Quotes are exempt: a source is allowed to be partisan, we are not.
  */
 import { APICallError, generateText, Output, RetryError } from "ai";
+import { z } from "zod";
 
 import type {
   BillBrief,
@@ -33,7 +34,6 @@ import {
   BriefQuoteSchema,
   BriefVisualSchema,
 } from "@acme/validators";
-import { z } from "zod";
 
 import type { DualLensSource } from "./text-generation.js";
 import { trackLLMUsage } from "../costs.js";
@@ -547,6 +547,7 @@ function buildBriefPrompt(args: {
   url: string;
   legalStatus: BriefLegalStatus;
   sourceText: string;
+  officialSummary?: string | null;
   priorArticle?: string | null;
   readingResearch?: string;
   readingSources?: DualLensSource[];
@@ -560,6 +561,7 @@ function buildBriefPrompt(args: {
     url,
     legalStatus,
     sourceText,
+    officialSummary,
     priorArticle,
     readingResearch,
     readingSources,
@@ -622,6 +624,7 @@ Rules that decide whether this brief ships:
 
 Field notes:
 - "hook" is rendered under the heading "What this means for you" and replaces a grid of disconnected fact tiles. Write one coherent paragraph of 2–3 short sentences. First explain the most consequential practical changes; then state the most important limitation, condition, or uncertainty. Connect the ideas naturally instead of listing figures. Preserve legal status ("would" for proposals), and do not imply every reader is personally affected. Wrap two or three short, concrete phrases in **double asterisks** so a scanner can retain the key changes. Never bold a whole sentence, generic transition, verdict, or loaded language.
+- Surprise belongs in the "hook". A reader who knows only the bill's title and short description should not be able to predict it. Two things are almost always more useful than restating the title: (a) **provisions unrelated to the bill's stated subject** — unrelated policy riding along in the same text is one of the most consequential things a reader can learn, and a title will never reveal it; and (b) **the gap between what the title promises and what the text does** — a bill named for banning something that restricts only one narrow form of it, grandfathers everything existing, or omits an asset class the reader would assume is covered. When either is present, it belongs in the hook ahead of a fuller recitation of the main provisions. Only describe what the source actually supports; do not manufacture a twist for a bill that genuinely has none, and keep the framing neutral — state the mismatch, let the reader judge it.
 - "changes" must contrast current law ("before") with the proposal ("after"). If the source does not establish current law, say that in "before" instead of guessing. Evaluate every change independently for a direct supporting quote; when the official text contains one, include it so every supported card has its own route back to the text. Never invent or stretch a quote merely to make the cards look consistent.
 - Each affected-group "takeaway" is the card's always-visible summary. Write one complete standalone sentence that names the group or a clear pronoun and states what would happen. For example: "States would get a **longer window to plan multi-year projects**." Do not return fragments such as "a longer funding horizon" or "depends on final rules." Put qualifications and mechanism detail in "effect".
 - "visual" is optional curated artwork. Use "infrastructure-repair" only for physical road or bridge work, "public-transit" only for rail or bus expansion, "data-privacy" only for company collection or use of personal data, and "data-control" only for a person's right to access or delete personal data. Evaluate each change independently and use different relevant visuals across cards when available; never repeat or force an image merely for visual parity. If none applies, omit the property; providers that cannot omit optional JSON fields may return null.
@@ -652,6 +655,11 @@ ${
         .join("\n")}\n`
     : '\nNo verified outside sources were found. Omit "whyNotBefore" and return an empty reading list.\n'
 }
+${
+  officialSummary
+    ? `\nOfficial CRS summary of the whole bill (nonpartisan, written by the Congressional Research Service). The official text below may be windowed and end mid-section, so treat this summary as authoritative for the bill's overall scope — including provisions the excerpt cuts off, such as penalties and effective dates. Do not report something as unspecified when this summary specifies it. Never quote from this summary: every "quote" must come verbatim from the official text below.\n${officialSummary.slice(0, 6000)}\n`
+    : ""
+}
 Official text:
 ${sourceText.slice(0, SOURCE_WINDOW)}
 ---
@@ -671,6 +679,7 @@ export async function generateBillBrief(args: {
   billNumber: string;
   url: string;
   fullText: string;
+  officialSummary?: string | null;
   status?: string | null;
   priorArticle?: string | null;
 }): Promise<Omit<BillBriefRecord, "generatedAt" | "modelVersion"> | null> {
@@ -700,6 +709,7 @@ export async function generateBillBrief(args: {
           url: args.url,
           legalStatus,
           sourceText: args.fullText,
+          officialSummary: args.officialSummary,
           priorArticle: args.priorArticle,
           readingResearch: readingResearch.notes,
           readingSources: readingResearch.sources,

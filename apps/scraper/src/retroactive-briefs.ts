@@ -27,6 +27,7 @@ interface BriefCandidate {
   billNumber: string;
   url: string;
   fullText: string;
+  summary: string | null;
   status: string | null;
   aiGeneratedArticle: string | null;
 }
@@ -40,6 +41,7 @@ async function findBills(limit: number): Promise<BriefCandidate[]> {
       billNumber: Bill.billNumber,
       url: Bill.url,
       fullText: Bill.fullText,
+      summary: Bill.summary,
       status: Bill.status,
       aiGeneratedArticle: Bill.aiGeneratedArticle,
     })
@@ -110,6 +112,7 @@ for (const candidate of candidates) {
       billNumber: candidate.billNumber,
       url: candidate.url,
       fullText: candidate.fullText,
+      officialSummary: candidate.summary,
       status: candidate.status,
       priorArticle: candidate.aiGeneratedArticle,
     });
