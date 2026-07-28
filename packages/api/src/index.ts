@@ -48,6 +48,18 @@ export {
   matchNcsbeName,
 } from "./lib/ncsbe-election-data";
 
+export type {
+  MissouriBallotMeasure,
+  MissouriCandidate,
+  MissouriCitation,
+  MissouriCurrentElectionData,
+  MissouriElection,
+  MissouriResultContest,
+  MissouriResults,
+  MissouriSnapshotData,
+} from "./lib/missouri-election-data";
+export { getMissouriCurrentElectionData } from "./lib/missouri-election-data";
+
 // California Secretary of State live election-results feed
 export type {
   ElectionContestResult,

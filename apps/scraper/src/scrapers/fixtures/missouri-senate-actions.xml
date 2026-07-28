@@ -1,0 +1,7 @@
+<ROOT><SenateBillsWithHouseActions><BillInformation>
+  <BillNumber>SB9</BillNumber><ShortTitle>HEALTH CARE</ShortTitle><LongTitle>Modifies provisions relating to health care</LongTitle><ProposedEffectiveDate>2026-08-28T00:00:00</ProposedEffectiveDate>
+  <SponsorName>Sample, Sam</SponsorName><LastAction>04/10/2026 - Reported Do Pass (H)</LastAction>
+  <Action><Link>https://house.mo.gov/bill.aspx?bill=SB9&amp;year=2026&amp;code=R</Link><Description>Reported to the House and First Read (H)</Description><Guid>300</Guid><ActivitySequence>100</ActivitySequence><PubDate>2026-03-20</PubDate></Action>
+  <Hearings><CommitteeName>Health and Mental Health</CommitteeName></Hearings>
+  <BillSummary><SummaryTextLink>https://documents.house.mo.gov/billtracking/SB9-summary.pdf</SummaryTextLink><DocumentName>Committee</DocumentName></BillSummary>
+</BillInformation></SenateBillsWithHouseActions></ROOT>
