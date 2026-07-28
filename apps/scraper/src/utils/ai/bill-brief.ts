@@ -44,18 +44,13 @@ import {
   rateLimitHit,
   researchBillContext,
   setRateLimitHit,
+  SOURCE_WINDOW,
 } from "./text-generation.js";
 
 const logger = createLogger("ai-brief");
 
-/**
- * How much of the bill the model reads. Bills routinely run past a provider's
- * context window; verification still runs against the *whole* text, so a quote
- * pulled from anywhere in the document validates even though the model only
- * saw the opening. Larger than the 3–4k windows used elsewhere because a brief
- * has to find concrete provisions, not just a gist.
- */
-const SOURCE_WINDOW = 24_000;
+// Shared with the research and lens steps — see SOURCE_WINDOW's own comment for
+// why they must not diverge.
 
 /** Attempts at structuring before giving up (each is one LLM call). */
 const MAX_ATTEMPTS = 2;

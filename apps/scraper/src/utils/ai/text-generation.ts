@@ -557,6 +557,24 @@ function collectOpenedLoopSources(steps: unknown): SdkSource[] {
   }));
 }
 
+/**
+ * How much of a bill's text the AI steps read.
+ *
+ * One number for every step on purpose. It used to be per-call — 3k for the
+ * lens research, 4k for the context research, 24k for the brief — and the
+ * mismatch was invisible until it produced visibly wrong output: H.R. 7008's
+ * photo-ID rider starts at character 7,961 of a 14,741-character bill, so the
+ * brief (24k) described it while the reading list (4k) recommended nothing but
+ * insider-trading background, because its researcher never saw that the bill
+ * touched voting at all.
+ *
+ * Bills routinely run past this. Quote verification still runs against the
+ * *whole* stored text, so a quote from anywhere in the document validates.
+ * Section-aware windowing (#191) is what actually fixes long bills; this is the
+ * ceiling until then.
+ */
+export const SOURCE_WINDOW = 24_000;
+
 export interface BillContextResearch {
   notes: string;
   sources: DualLensSource[];
@@ -579,17 +597,18 @@ export async function researchBillContext(
       stopWhen: stepCountIs(7),
       prompt: `You are researching historical context and useful follow-up reading for an average citizen reading about ${billNumber}, "${title}".
 
-1. First investigate why this policy has not already been implemented. Look for earlier bills, documented disagreements, legal or budget constraints, implementation tradeoffs, and circumstances that changed. Do not guess at lawmakers' motives.
-2. Prefer the Congressional Research Service, GAO, CBO, established newsrooms, universities, and transparent research organizations. Avoid campaign pages, SEO summaries, scraped copies, and sources that merely repeat a press release.
-3. Search separately for clear explanatory reporting or authoritative background that helps a reader understand the bill's most important mechanism or uncertainty.
-4. Open and read at least three promising results with fetch_page, including at least two that directly support the historical explanation. A search snippet is not enough.
-5. Return concise notes in two labeled parts:
+1. Read the bill text below before searching, and identify every distinct subject it legislates on. A bill's title names one of them at best. If the text contains provisions **unrelated to the title's subject** — separate policy riding along in the same bill — those are as important to research as the headline subject, and a reader will find them nowhere else. Note them explicitly.
+2. Then investigate why this policy has not already been implemented. Look for earlier bills, documented disagreements, legal or budget constraints, implementation tradeoffs, and circumstances that changed. Do not guess at lawmakers' motives.
+3. Prefer the Congressional Research Service, GAO, CBO, established newsrooms, universities, and transparent research organizations. Avoid campaign pages, SEO summaries, scraped copies, and sources that merely repeat a press release. Reject a URL carrying referral or campaign tracking parameters (utm_source, utm_campaign, ref=) — find the publisher's own canonical link instead.
+4. Search separately for clear explanatory reporting or authoritative background that helps a reader understand the bill's most important mechanism or uncertainty. **Cover each distinct subject you identified in step 1**, not just the one the title names: a reading list that only addresses the headline subject leaves the reader with no way to learn about the rest of what the bill does.
+5. Open and read at least three promising results with fetch_page, including at least two that directly support the historical explanation. A search snippet is not enough.
+6. Return concise notes in two labeled parts:
    - WHY NOT BEFORE: the documented answer, distinguishing established facts from uncertainty and naming which opened URLs support each point.
-   - FURTHER READING: the two to four best articles, who published each, and what each helps a reader understand.
+   - FURTHER READING: the two to four best articles, who published each, and what each helps a reader understand. Say which subject each one covers.
 Do not cite or recommend a page you did not open.
 
-Official bill excerpt:
-${fullText.slice(0, 4000)}`,
+Official bill text:
+${fullText.slice(0, SOURCE_WINDOW)}`,
     });
     trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
     return {
@@ -620,7 +639,7 @@ Prioritize credible, verifiable sources over neutrality — a partisan source is
 Title: ${title}
 
 Content excerpt:
-${text.substring(0, 3000)}`;
+${text.substring(0, SOURCE_WINDOW)}`;
 
 const STRUCTURE_PROMPT = (
   title: string,
@@ -728,7 +747,7 @@ export async function generateDualLens(
   }
 
   // Step 2 — structured synthesis (schema-validated; no manual JSON parsing).
-  const grounding = research.trim() || fullText.substring(0, 4000);
+  const grounding = research.trim() || fullText.substring(0, SOURCE_WINDOW);
   const sourceList = sources
     .map((s) => `[${s.id}] ${s.title} — ${s.url}`)
     .join("\n");
