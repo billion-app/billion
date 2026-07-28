@@ -70,8 +70,11 @@ Editorial guarantees are encoded in the schema rather than trusted to a prompt:
 Briefs describe mechanism. They deliberately contain no "supporters say /
 critics say" section — that stays in the existing cited **dual-lens**
 (`ContentLens`), which does real web research and attaches per-point citations
-to sources on both sides. Keeping them separate means the factual layer can't
-drift into argument, and the argument layer keeps its own provenance.
+to sources on both sides. For bills, the lens reuses the same complete
+section-note inventory and CRS summary as the brief instead of reading a raw
+text prefix. Keeping the outputs separate means the factual layer can't drift
+into argument, while sharing the analysis pass prevents either output from
+silently missing late provisions.
 
 ## The pipeline
 
@@ -160,7 +163,9 @@ are still dropped, so the client can treat every present brief as renderable.
 retroactive brief command selects a brief whose analysis version is stale even
 when its source content hash is unchanged. It re-analyzes only sections missing
 the current `(sectionHash, promptVersion, modelVersion)` cache entry, then
-rewrites the brief. A writing-only rerun reuses all current notes.
+rewrites the brief. The bill lens cache key also includes this version and its
+formatted notes, so an analysis-contract change refreshes both derived views. A
+writing-only rerun reuses all current notes.
 
 ## Rendering
 

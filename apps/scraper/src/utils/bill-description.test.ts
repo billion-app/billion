@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildBillDualLensGrounding,
   buildDualLensGrounding,
+  buildDualLensModelVersion,
+  buildDualLensResearchPrompt,
   isUsableDualLens,
+  serializeDualLensCacheInput,
 } from "./ai/text-generation.js";
 import {
   BILL_DESCRIPTION_MAX_CHARS,
@@ -94,5 +98,51 @@ test("buildDualLensGrounding puts debate analysis before official text", () => {
   assert.ok(
     grounding.indexOf("Supporters and critics") <
       grounding.indexOf("OFFICIAL BILL TEXT"),
+  );
+});
+
+test("bill lens grounding uses complete section notes and the CRS summary", () => {
+  const lateProvision =
+    "SEC. 99 imposes a $25,000 penalty after the old lens window.";
+  const sectionNotes = `${"early section note ".repeat(400)}${lateProvision}`;
+  const grounding = buildBillDualLensGrounding(
+    sectionNotes,
+    "CRS confirms that the bill establishes civil penalties.",
+  );
+  const prompt = buildDualLensResearchPrompt("Long Bill", "bill", grounding);
+
+  assert.match(
+    prompt,
+    /Structured section notes from the complete bill analysis/,
+  );
+  assert.match(
+    prompt,
+    /CRS confirms that the bill establishes civil penalties/,
+  );
+  assert.match(prompt, new RegExp(lateProvision.replace("$", "\\$")));
+  assert.doesNotMatch(prompt, /Official source text/);
+});
+
+test("bill lens cache input includes the analysis schema version", () => {
+  const base = {
+    title: "Long Bill",
+    grounding: "Complete section notes",
+    articleType: "bill",
+    modelVersion: "model-v1",
+  };
+
+  assert.notEqual(
+    serializeDualLensCacheInput({
+      ...base,
+      analysisSchemaVersion: "bill-section-notes-v1",
+    }),
+    serializeDualLensCacheInput({
+      ...base,
+      analysisSchemaVersion: "bill-section-notes-v2",
+    }),
+  );
+  assert.equal(
+    buildDualLensModelVersion("model-v1", "bill-section-notes-v1"),
+    "model-v1:concrete-examples-v2:bill-section-notes-v1",
   );
 });
