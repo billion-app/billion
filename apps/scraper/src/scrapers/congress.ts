@@ -655,10 +655,6 @@ async function scrapeRecent(
             newItemLimiter,
           );
         } catch (error) {
-          if (error instanceof BillTextTooLargeError) {
-            logger.warn(`Skipping ${item.type}${item.number}: ${error.message}`);
-            return;
-          }
           failures += 1;
           logger.error(
             `Error processing bill ${item.type}${item.number}`,
