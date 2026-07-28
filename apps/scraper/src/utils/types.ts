@@ -59,4 +59,12 @@ export interface Scraper {
 
 export interface ScraperRunOptions {
   maxItems?: number;
+  /**
+   * Source-specific record identifiers to fetch directly, bypassing whatever
+   * incremental cursor the scraper normally uses. Scrapers without a targeted
+   * mode ignore this.
+   */
+  targets?: string[];
+  /** Congress number for targeted congress.gov runs (e.g. 119). */
+  congress?: number;
 }
