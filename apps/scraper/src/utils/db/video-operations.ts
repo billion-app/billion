@@ -3,13 +3,17 @@
  * Handles AI-generated marketing copy and images for the feed
  */
 
-import { and, eq } from "@acme/db";
+import { and, eq, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import { Video } from "@acme/db/schema";
 
 import { convertToJpeg, generateImage } from "../ai/image-generation.js";
 import { generateMarketingCopy } from "../ai/marketing-generation.js";
 import { createLogger } from "../log.js";
+import {
+  removeGeneratedContentImages,
+  uploadGeneratedContentImage,
+} from "../storage/content-images.js";
 import { incrementVideosGenerated, incrementVideosSkipped } from "./metrics.js";
 
 const logger = createLogger("video");
@@ -25,11 +29,13 @@ async function checkExistingVideo(
   exists: boolean;
   needsRegeneration: boolean;
   hasImage: boolean;
+  generatedImagePath: string | null;
 } | null> {
   const [existing] = await db
     .select({
       sourceContentHash: Video.sourceContentHash,
-      imageData: Video.imageData,
+      generatedImagePath: Video.generatedImagePath,
+      hasLegacyImage: sql<boolean>`${Video.imageData} is not null`,
       thumbnailUrl: Video.thumbnailUrl,
     })
     .from(Video)
@@ -42,7 +48,10 @@ async function checkExistingVideo(
 
   // Record needs regeneration if content hash changed OR if it's missing image data entirely
   // (neither AI generated nor a scraped fallback)
-  const isMissingImage = !existing.imageData && !existing.thumbnailUrl;
+  const isMissingImage =
+    !existing.generatedImagePath &&
+    !existing.hasLegacyImage &&
+    !existing.thumbnailUrl;
   const needsRegeneration =
     existing.sourceContentHash !== currentContentHash || isMissingImage;
 
@@ -50,6 +59,7 @@ async function checkExistingVideo(
     exists: true,
     needsRegeneration,
     hasImage: !isMissingImage,
+    generatedImagePath: existing.generatedImagePath,
   };
 }
 
@@ -164,14 +174,27 @@ export async function persistVideoRecord(
   contentId: string,
   record: BuiltVideoRecord,
   options: { preserveCopy?: boolean } = {},
-): Promise<void> {
-  // Never erase a working image when a replacement provider fails.
-  const replacementImage = record.imageData
-    ? {
+): Promise<string | null> {
+  const storedImage = record.imageData
+    ? await uploadGeneratedContentImage({
+        contentType,
+        contentId,
         imageData: record.imageData,
+      })
+    : null;
+
+  // Never erase a working image when a replacement provider fails.
+  const replacementImage = storedImage
+    ? {
+        imageData: null,
         imageMimeType: record.imageMimeType,
         imageWidth: 1024,
         imageHeight: 1024,
+        generatedImagePath: storedImage.path,
+        generatedImageHash: storedImage.hash,
+        imageStorageVerifiedAt: storedImage.verifiedAt,
+        imageStorageError: null,
+        imageStorageAttempts: sql`coalesce(${Video.imageStorageAttempts}, 0) + 1`,
       }
     : record.thumbnailUrl
       ? { thumbnailUrl: record.thumbnailUrl }
@@ -184,10 +207,14 @@ export async function persistVideoRecord(
       contentId,
       title: record.title,
       description: record.description,
-      imageData: record.imageData,
+      imageData: null,
       imageMimeType: record.imageMimeType,
       imageWidth: record.imageData ? 1024 : null,
       imageHeight: record.imageData ? 1024 : null,
+      generatedImagePath: storedImage?.path,
+      generatedImageHash: storedImage?.hash,
+      imageStorageVerifiedAt: storedImage?.verifiedAt,
+      imageStorageAttempts: storedImage ? 1 : 0,
       thumbnailUrl: record.thumbnailUrl ?? undefined,
       author: record.author,
       engagementMetrics: record.engagementMetrics,
@@ -205,6 +232,8 @@ export async function persistVideoRecord(
         updatedAt: new Date(),
       },
     });
+
+  return storedImage?.path ?? null;
 }
 
 /**
@@ -271,7 +300,30 @@ export async function generateVideoForContent(
   }
 
   try {
-    await persistVideoRecord(db, contentType, contentId, record, options);
+    const storedPath = await persistVideoRecord(
+      db,
+      contentType,
+      contentId,
+      record,
+      options,
+    );
+    if (
+      storedPath &&
+      existing?.generatedImagePath &&
+      existing.generatedImagePath !== storedPath
+    ) {
+      try {
+        await removeGeneratedContentImages([existing.generatedImagePath]);
+      } catch (cleanupError) {
+        // The new version is already durable. Cleanup is retryable operational
+        // work and must not make a successful regeneration look failed.
+        logger.warn(
+          `Stored ${storedPath}, but could not remove superseded ${existing.generatedImagePath}: ${
+            cleanupError instanceof Error ? cleanupError.message : cleanupError
+          }`,
+        );
+      }
+    }
 
     incrementVideosGenerated();
     logger.success(`Video generated for ${contentType}:${contentId}`);

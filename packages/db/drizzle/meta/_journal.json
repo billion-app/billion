@@ -64,6 +64,13 @@
       "when": 1785223528709,
       "tag": "0008_strong_maginty",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785277911212,
+      "tag": "0009_previous_blazing_skull",
+      "breakpoints": true
     }
   ]
 }

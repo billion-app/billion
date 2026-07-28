@@ -11,7 +11,12 @@ import { getBaseUrl } from "./base-url";
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // ...
+      // Editorial content changes on scraper cadence, not on every screen
+      // focus. Keep API pages warm while expo-image owns byte-level caching.
+      staleTime: 15 * 60 * 1000,
+      gcTime: 24 * 60 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      networkMode: "offlineFirst",
     },
   },
 });

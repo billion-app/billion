@@ -98,12 +98,25 @@ export default function ArticleDetailScreen() {
       });
     }
   }, [content]);
-  const headerImageUri = content?.imageUri ?? content?.thumbnailUrl;
+  const primaryHeaderImageUri = content?.imageUri ?? content?.thumbnailUrl;
+  const primaryHeaderImageKey = content
+    ? `${content.id}:${primaryHeaderImageUri ?? ""}`
+    : undefined;
+  const fallbackHeaderImageKey = content
+    ? `${content.id}:${content.imageFallbackUri ?? ""}`
+    : undefined;
+  const headerImageUri =
+    failedHeaderImageKey === primaryHeaderImageKey
+      ? content?.imageFallbackUri
+      : failedHeaderImageKey === fallbackHeaderImageKey
+        ? undefined
+        : primaryHeaderImageUri;
+  const headerImageKey =
+    headerImageUri === content?.imageFallbackUri
+      ? fallbackHeaderImageKey
+      : primaryHeaderImageKey;
   const headerImageSource = content
     ? editorialVisualFor(content.title, headerImageUri)
-    : undefined;
-  const headerImageKey = content
-    ? `${content.title}:${headerImageUri ?? "local"}`
     : undefined;
 
   // content.saved.isSaved is a protected procedure — only query it when signed in,
@@ -223,6 +236,7 @@ export default function ArticleDetailScreen() {
           source={{ uri: imageUri }}
           style={[styles._VIEW_SAFE_image, s.markdownImage]}
           contentFit="contain"
+          cachePolicy="memory-disk"
           transition={200}
           accessible={!!alt}
           accessibilityLabel={alt}
@@ -378,12 +392,13 @@ export default function ArticleDetailScreen() {
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {headerImageSource && headerImageKey !== failedHeaderImageKey ? (
+        {headerImageSource ? (
           <View style={s.headerArt}>
             <Image
               source={headerImageSource}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
+              cachePolicy="memory-disk"
               transition={200}
               onError={() => setFailedHeaderImageKey(headerImageKey)}
               accessible

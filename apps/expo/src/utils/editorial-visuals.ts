@@ -3,6 +3,7 @@ import type { ImageSource } from "expo-image";
 import algorithmTransparencyImage from "../../assets/article-brief/algorithm-transparency.jpg";
 import infrastructureRepairImage from "../../assets/article-brief/infrastructure-repair.jpg";
 import publicTransitImage from "../../assets/article-brief/public-transit.jpg";
+import { getBaseUrl } from "./base-url";
 
 type EditorialImageSource = ImageSource | number;
 
@@ -23,7 +24,10 @@ export function editorialVisualFor(
 ): EditorialImageSource | undefined {
   if (TITLE_VISUALS[title]) return TITLE_VISUALS[title];
   if (!remoteUri || remoteUri.includes("picsum.photos")) return undefined;
-  return { uri: remoteUri };
+  const uri = remoteUri.startsWith("/")
+    ? `${getBaseUrl().replace(/\/+$/, "")}${remoteUri}`
+    : remoteUri;
+  return { uri };
 }
 
 export { publicTransitImage };

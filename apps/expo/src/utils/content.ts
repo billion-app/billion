@@ -9,6 +9,7 @@ export interface ContentItem {
   type: "bill" | "government_content" | "court_case" | "general";
   thumbnailUrl?: string;
   imageUri?: string;
+  imageFallbackUri?: string;
   billNumber?: string;
 }
 
@@ -30,5 +31,6 @@ export function toCardItem(item: ContentItem): ContentCardItem {
     status: STATUS_LABEL[item.type],
     thumbnailUrl: item.thumbnailUrl,
     imageUri: item.imageUri,
+    imageFallbackUri: item.imageFallbackUri,
   };
 }

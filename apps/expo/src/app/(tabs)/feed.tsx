@@ -118,10 +118,21 @@ function FeedCard({
 
   const typeKey = resolveType(item.type);
   const t = contentType[typeKey];
-  const imageSource = editorialVisualFor(
-    item.title,
-    item.imageUri ?? item.thumbnailUrl,
-  );
+  const primaryImageUri = item.imageUri ?? item.thumbnailUrl;
+  const imageKey = `${item.id}:${primaryImageUri ?? ""}:${item.imageFallbackUri ?? ""}`;
+  const [failedImage, setFailedImage] = useState<{
+    key: string;
+    uri: string | undefined;
+  }>();
+  const failedImageUri =
+    failedImage?.key === imageKey ? failedImage.uri : undefined;
+  const imageUri =
+    failedImageUri === primaryImageUri
+      ? item.imageFallbackUri
+      : failedImageUri === item.imageFallbackUri
+        ? undefined
+        : primaryImageUri;
+  const imageSource = editorialVisualFor(item.title, imageUri);
 
   return (
     <LinearGradient
@@ -151,7 +162,9 @@ function FeedCard({
           style={s.hero}
           source={imageSource}
           contentFit="cover"
+          cachePolicy="memory-disk"
           transition={300}
+          onError={() => setFailedImage({ key: imageKey, uri: imageUri })}
         />
       ) : (
         <Placeholder

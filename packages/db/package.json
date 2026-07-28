@@ -18,6 +18,10 @@
     "./bill-description": {
       "types": "./dist/bill-description.d.ts",
       "default": "./src/bill-description.ts"
+    },
+    "./content-images": {
+      "types": "./dist/content-images.d.ts",
+      "default": "./src/content-images.ts"
     }
   },
   "license": "MIT",
@@ -31,6 +35,7 @@
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "db-check": "drizzle-kit check --dialect postgresql --out drizzle",
+    "test": "tsx --test src/**/*.test.ts",
     "baseline": "tsx baseline.ts",
     "seed": "tsx seed-entry.ts",
     "studio": "drizzle-kit studio",
