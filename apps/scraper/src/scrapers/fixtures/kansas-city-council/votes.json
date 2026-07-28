@@ -1,0 +1,20 @@
+[
+  {
+    "VoteId": 89823,
+    "VoteLastModifiedUtc": "2026-07-16T21:05:22.227",
+    "VotePersonId": 194,
+    "VotePersonName": "Quinton Lucas",
+    "VoteValueName": "Nay",
+    "VoteSort": 63,
+    "VoteEventItemId": 106909
+  },
+  {
+    "VoteId": 89824,
+    "VoteLastModifiedUtc": "2026-07-16T21:05:22.237",
+    "VotePersonId": 196,
+    "VotePersonName": "Kevin O'Neill",
+    "VoteValueName": "Aye",
+    "VoteSort": 64,
+    "VoteEventItemId": 106909
+  }
+]
