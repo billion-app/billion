@@ -45,3 +45,14 @@ and cache the data," and its `getCached*` getters are imported nowhere.
 
 To revive: have the scraper persist to the database (a real table the API reads),
 add a reader in `@acme/api`, then re-register its implementation and contract.
+
+## `kansas-city-council.ts`
+
+Implements current-term Kansas City Council meeting, document, agenda-item, and
+vote ingestion from Legistar. Disabled because this data is not yet connected
+to a configured production database or an application consumer.
+
+To revive it: provision and migrate the local-government tables, connect the
+product to their API reader, then move the implementation/config back to
+`scrapers/`, register the implementation in `scrapers.ts`, restore its active
+contract, and add `KANSAS_CITY_COUNCIL_MAX_ITEMS` to the environment registry.
