@@ -75,10 +75,15 @@ export const jobs: readonly JobDefinition[] = [
     id: "retro-briefs",
     description: "Generate structured briefs for content missing one",
     script: "retroactive-briefs.js",
-    args: ["--limit", "200", "--concurrency", "4"],
+    // The limit is a ceiling on candidates, not a target: the script selects
+    // only bills whose brief is missing or stale, so a generous number costs
+    // nothing once the backlog is drained. It was 200 against a backlog of 794,
+    // which meant four manual triggers to finish one job — and no record of how
+    // many passes were left.
+    args: ["--limit", "1000", "--concurrency", "4"],
     schedule: { kind: "manual" },
     priority: 20,
-    timeoutMinutes: 6 * 60,
+    timeoutMinutes: 12 * 60,
   },
   {
     id: "retro-lenses",
