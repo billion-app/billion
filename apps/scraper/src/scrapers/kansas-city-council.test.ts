@@ -9,7 +9,7 @@ import {
   currentKansasCityCouncilCycleStart,
   isDiscoverableKansasCityEvent,
   parseKansasCityStart,
-} from "./kansas-city-council.js";
+} from "./disabled/kansas-city-council.js";
 
 async function fixture(name: string): Promise<unknown> {
   const url = new URL(

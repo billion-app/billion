@@ -11,10 +11,10 @@ import {
   LocalGovernmentVote,
 } from "@acme/db/schema";
 
-import type { Scraper } from "../utils/types.js";
-import { setExpectedTotal } from "../utils/db/metrics.js";
-import { fetchWithRetry } from "../utils/fetch.js";
-import { createLogger } from "../utils/log.js";
+import type { Scraper } from "../../utils/types.js";
+import { setExpectedTotal } from "../../utils/db/metrics.js";
+import { fetchWithRetry } from "../../utils/fetch.js";
+import { createLogger } from "../../utils/log.js";
 import { kansasCityCouncilConfig } from "./kansas-city-council.config.js";
 
 const API_BASE = "https://webapi.legistar.com/v1/kansascity";
