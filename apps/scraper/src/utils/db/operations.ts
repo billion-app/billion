@@ -78,6 +78,7 @@ function hashFields(input: ContentData): string {
         documents: input.data.documents,
         votes: input.data.votes,
         actions: input.data.actions,
+        versions: input.data.versions,
       });
     case "government_content":
       return JSON.stringify({
@@ -241,14 +242,10 @@ export async function upsertContent(
         ...d,
         description: preGeneratedDescription || d.description,
         contentHash: newContentHash,
-        versions: [],
+        versions: d.versions ?? [],
       })
       .onConflictDoUpdate({
-        target: [
-          Bill.billNumber,
-          Bill.sourceWebsite,
-          Bill.legislativeSession,
-        ],
+        target: [Bill.billNumber, Bill.sourceWebsite, Bill.legislativeSession],
         set: {
           title: d.title,
           description: d.description,
@@ -267,6 +264,7 @@ export async function upsertContent(
           summary: d.summary,
           fullText: d.fullText,
           actions: d.actions,
+          ...(d.versions && { versions: d.versions }),
           url: d.url,
           contentHash: newContentHash,
           updatedAt: new Date(),
