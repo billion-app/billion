@@ -17,7 +17,8 @@ const weeklyJob: JobDefinition = {
   args: [],
   schedule: { kind: "weekly", weekday: 0, hour: 3, minute: 15 },
   priority: 0,
-  timeoutMinutes: 60,
+  idleTimeoutMinutes: 60,
+  maxRuntimeHours: 24,
 };
 
 const intervalJob: JobDefinition = {
@@ -27,7 +28,8 @@ const intervalJob: JobDefinition = {
   args: [],
   schedule: { kind: "interval", everyMinutes: 5 },
   priority: 10,
-  timeoutMinutes: 60,
+  idleTimeoutMinutes: 60,
+  maxRuntimeHours: 24,
 };
 
 const clean: JobState = { consecutiveFailures: 0 };
