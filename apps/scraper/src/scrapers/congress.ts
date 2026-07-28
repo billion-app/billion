@@ -1,6 +1,6 @@
-import { eq, max } from "@acme/db";
+import { eq } from "@acme/db";
 import { db } from "@acme/db/client";
-import { Bill } from "@acme/db/schema";
+import { ScraperCursor } from "@acme/db/schema";
 
 import type { NewItemLimiter } from "../utils/new-item-limit.js";
 import type { Scraper } from "../utils/types.js";
@@ -41,6 +41,8 @@ interface ApiBillDetail {
     congress: number;
     originChamber: string;
     introducedDate?: string;
+    /** The source's own last-modified time; the incremental cursor rides on this. */
+    updateDate?: string;
     sponsors?: Array<{
       firstName: string;
       lastName: string;
@@ -209,37 +211,39 @@ export async function fetchSummary(
 }
 
 /**
- * Postgres rejects `to_tsvector` input over 1,048,575 bytes, and
- * `Bill.searchVector` is a generated column over `full_text` — so an oversized
- * bill fails its INSERT outright rather than degrading. `processBill` catches
- * and logs that error, which would make the bill vanish silently, exactly the
- * failure mode we just removed. Keep a wide margin under the ceiling.
+ * Postgres rejects `to_tsvector` input over 1,048,575 bytes and
+ * `Bill.searchVector` is a generated column over `full_text`, so an oversized
+ * bill cannot be stored whole. Keep a wide margin under that ceiling.
  *
- * This is ~125x the old 1,000-word cap, so it only bites genuinely enormous
- * bills (omnibus/appropriations). Unlike the old cap it is loud, and the
- * section-by-section pipeline in issue #216 is the real answer for those.
+ * We refuse the bill rather than truncating it. A truncated bill is not a
+ * smaller bill, it is a *wrong* one: H.R. 7008's brief told readers the bill
+ * specified no penalties because the penalties were past the cut. An absent
+ * bill is visibly absent; a truncated one reads as complete and misinforms.
+ * Section-aware storage (#191) is what actually fixes these.
  */
 const MAX_FULL_TEXT_BYTES = 800_000;
 
-export function capToTsvectorLimit(text: string, label: string): string {
-  if (Buffer.byteLength(text, "utf8") <= MAX_FULL_TEXT_BYTES) return text;
-
-  // Byte budget, not characters: bill text carries multibyte punctuation
-  // (section signs, em dashes, curly quotes) that a char-based slice ignores.
-  let end = text.length;
-  while (
-    end > 0 &&
-    Buffer.byteLength(text.slice(0, end), "utf8") > MAX_FULL_TEXT_BYTES
+export class BillTextTooLargeError extends Error {
+  constructor(
+    readonly label: string,
+    readonly bytes: number,
   ) {
-    end = Math.floor(end * 0.98);
+    super(
+      `${label}: full text is ${bytes} bytes, over the ${MAX_FULL_TEXT_BYTES}-byte storage ceiling — refusing to store a truncated bill`,
+    );
+    this.name = "BillTextTooLargeError";
   }
-  const clipped = text.slice(0, end);
-  const lastSpace = clipped.lastIndexOf(" ");
-  const result = lastSpace > 0 ? clipped.slice(0, lastSpace) : clipped;
-  logger.warn(
-    `${label}: full text is ${Buffer.byteLength(text, "utf8")} bytes, capped to ${Buffer.byteLength(result, "utf8")} to stay under the tsvector limit`,
-  );
-  return result;
+}
+
+/** Throws `BillTextTooLargeError` rather than returning a shortened string. */
+export function assertWithinTsvectorLimit(text: string, label: string): string {
+  // Byte length, not character count: bill text carries multibyte punctuation
+  // (section signs, em dashes, curly quotes) that a char count undercounts.
+  const bytes = Buffer.byteLength(text, "utf8");
+  if (bytes > MAX_FULL_TEXT_BYTES) {
+    throw new BillTextTooLargeError(label, bytes);
+  }
+  return text;
 }
 
 /**
@@ -298,10 +302,14 @@ export async function fetchFullText(
       // their own context budget (see SOURCE_WINDOW in ai/bill-brief.ts);
       // truncating at ingest time only destroys information for all of them.
       const text = stripHtml(rawText).trim();
-      return capToTsvectorLimit(text, billNumber) || undefined;
+      return assertWithinTsvectorLimit(text, billNumber) || undefined;
     }
-  } catch {
-    // Full text is optional
+  } catch (error) {
+    // Full text is otherwise optional — a fetch failure degrades to a bill
+    // without text. Oversize is different: it means we *have* the text and
+    // cannot store it faithfully, and swallowing it here would save the bill
+    // textless, which is the silent-wrongness this check exists to prevent.
+    if (error instanceof BillTextTooLargeError) throw error;
   }
   return undefined;
 }
@@ -346,7 +354,7 @@ async function processBill(
   billNumber: string,
   fallbackChamber: "House" | "Senate",
   newItemLimiter: NewItemLimiter,
-): Promise<void> {
+): Promise<Date | undefined> {
   const detailData = await congressFetch<ApiBillDetail>(
     `/bill/${congress}/${billType}/${billNumber}`,
   );
@@ -372,6 +380,10 @@ async function processBill(
     | "Senate";
   const billUrl = `https://www.congress.gov/bill/${congress}${ordinalSuffix(congress)}-congress/${billTypeToUrlSlug(detail.type)}/${billNumber}`;
 
+  const sourceUpdatedAt = detail.updateDate
+    ? new Date(detail.updateDate)
+    : undefined;
+
   const summary = await fetchSummary(congress, billType, billNumber);
   const fullText = await fetchFullText(congress, billType, billNumber);
   const actions = await fetchActions(congress, billType, billNumber);
@@ -395,12 +407,14 @@ async function processBill(
         actions,
         url: billUrl,
         sourceWebsite: "congress.gov",
+        sourceUpdatedAt,
       },
     },
     { newItemLimiter },
   );
 
   logger.success(`Processed: ${formattedBillNumber} — ${title}`);
+  return sourceUpdatedAt;
 }
 
 /**
@@ -475,17 +489,34 @@ async function scrape(config: CongressScraperConfig = {}) {
 
   logger.info(`Starting (congress=${congress}, chamber=${chamber})...`);
 
-  // Query the last time we successfully scraped a congress.gov bill
+  // The cursor is the newest *source* timestamp we have actually persisted,
+  // never our own write clock. `updatedAt` is set to now() on every write, so
+  // using it meant asking congress.gov for "bills changed since the moment we
+  // last saved something" — which silently discarded every bill a run fetched
+  // but did not store, with no way to ever see it again.
+  // Not chamber-scoped: the walk covers both chambers (see fetchParams below),
+  // so one cursor tracks the whole congress.
+  const scraperKey = `congress:${congress}`;
   const [lastScrape] = await db
-    .select({ lastUpdated: max(Bill.updatedAt) })
-    .from(Bill)
-    .where(eq(Bill.sourceWebsite, "congress.gov"));
-
-  const chamberParam = chamber === "House" ? "house" : "senate";
+    .select({ lastUpdated: ScraperCursor.sourceUpdatedAt })
+    .from(ScraperCursor)
+    .where(eq(ScraperCursor.scraperKey, scraperKey))
+    .limit(1);
 
   const fetchParams: Record<string, string | number> = {
-    chamber: chamberParam,
-    sort: "updateDate+desc",
+    // No `chamber` filter: `/bill/{congress}` does not support one. It was
+    // passed for years and silently ignored — the same request with and
+    // without it returns identical results and the same 17,897 total — so the
+    // feed has always carried both chambers and `originChamber` from the
+    // detail endpoint is what actually labels each row. Sending it implied a
+    // filter we never had.
+    //
+    // Oldest-first from the cursor. Descending order only makes sense with an
+    // unbounded window: bounded at `maxBills`, it hands us the newest N and
+    // strands everything older, and the cursor then jumps past the strand.
+    // Ascending drains monotonically — whatever we do not reach this run is
+    // still the next run's first page.
+    sort: "updateDate+asc",
   };
 
   if (lastScrape?.lastUpdated) {
@@ -494,7 +525,11 @@ async function scrape(config: CongressScraperConfig = {}) {
       .toISOString()
       .replace(/\.\d{3}Z$/, "Z");
     fetchParams.fromDateTime = fromDate;
-    logger.info(`Fetching bills updated since ${fromDate}`);
+    logger.info(`Fetching bills updated since ${fromDate} (oldest first)`);
+  } else {
+    logger.info(
+      "No source cursor yet — starting from the beginning of the congress",
+    );
   }
 
   const allBills: ApiBillListItem[] = [];
@@ -530,26 +565,76 @@ async function scrape(config: CongressScraperConfig = {}) {
 
   const limit = getItemLimit();
   const newItemLimiter = createNewItemLimiter();
-  await Promise.allSettled(
+  const outcomes = await Promise.all(
     bills.map((item) =>
-      limit(async () => {
+      limit(async (): Promise<{ ok: boolean; sourceUpdatedAt?: Date }> => {
         try {
-          await processBill(
+          const sourceUpdatedAt = await processBill(
             congress,
             item.type.toLowerCase(),
             item.number,
             chamber,
             newItemLimiter,
           );
+          return { ok: true, sourceUpdatedAt };
         } catch (error) {
+          if (error instanceof BillTextTooLargeError) {
+            // A deliberate refusal, not a failure to retry: the bill will be
+            // exactly as oversized next run. Let the cursor move past it so it
+            // cannot wedge the walk, and rely on the log to surface it.
+            logger.warn(
+              `Skipping ${item.type}${item.number}: ${error.message}`,
+            );
+            return {
+              ok: true,
+              sourceUpdatedAt: item.updateDate
+                ? new Date(item.updateDate)
+                : undefined,
+            };
+          }
           logger.error(
             `Error processing bill ${item.type}${item.number}`,
             error,
           );
+          return { ok: false };
         }
       }),
     ),
   );
+
+  // Advance only across the leading run of successes. The feed is sorted
+  // oldest-first, so the first failure is the true high-water mark: moving
+  // past it would strand that bill exactly the way the old cursor did.
+  // Everything after it is simply re-offered next run.
+  const firstFailure = outcomes.findIndex((outcome) => !outcome.ok);
+  const settled =
+    firstFailure === -1 ? outcomes : outcomes.slice(0, firstFailure);
+  const highWaterMark = settled.reduce<Date | undefined>(
+    (newest, outcome) =>
+      outcome.sourceUpdatedAt && (!newest || outcome.sourceUpdatedAt > newest)
+        ? outcome.sourceUpdatedAt
+        : newest,
+    undefined,
+  );
+
+  if (firstFailure !== -1) {
+    logger.warn(
+      `${outcomes.length - settled.length} bill(s) failed; holding the cursor at the last clean bill so they are retried next run`,
+    );
+  }
+
+  if (highWaterMark) {
+    await db
+      .insert(ScraperCursor)
+      .values({ scraperKey, sourceUpdatedAt: highWaterMark })
+      .onConflictDoUpdate({
+        target: ScraperCursor.scraperKey,
+        set: { sourceUpdatedAt: highWaterMark, updatedAt: new Date() },
+      });
+    logger.info(`Cursor advanced to ${highWaterMark.toISOString()}`);
+  } else {
+    logger.warn("Cursor not advanced — no bill was durably processed");
+  }
 
   logger.success("Completed");
 }

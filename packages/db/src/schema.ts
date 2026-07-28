@@ -45,6 +45,24 @@ export const CreatePostSchema = createInsertSchema(Post, {
   updatedAt: true,
 });
 
+/**
+ * Per-scraper incremental cursor.
+ *
+ * Deliberately its own table rather than a max() over scraped rows. The cursor
+ * must mean "how far the sequential feed walk has got", and row data cannot
+ * express that: a targeted `--bill` backfill of a recent bill would push a
+ * derived max() forward and strand every older bill behind it — the same class
+ * of silent skip this table exists to prevent. Only the feed walk writes here.
+ */
+export const ScraperCursor = pgTable("scraper_cursor", (t) => ({
+  // e.g. "congress:119:house" — chamber and congress each walk independently.
+  scraperKey: t.varchar({ length: 100 }).notNull().primaryKey(),
+  // The source's own timestamp (congress.gov `updateDate`) of the newest item
+  // we have durably persisted, never our own write clock.
+  sourceUpdatedAt: t.timestamp({ withTimezone: true }).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+}));
+
 // Bills table for congressional legislation
 export const Bill = pgTable(
   "bill",
@@ -76,6 +94,12 @@ export const Bill = pgTable(
       .default([]),
     url: t.text().notNull(),
     sourceWebsite: t.varchar({ length: 50 }).notNull(), // "congress.gov"
+    // The source's own last-modified time (congress.gov `updateDate`), as
+    // distinct from `updatedAt`, which is when *we* last wrote the row. The
+    // scraper's incremental cursor is max() of this column: comparing our
+    // write clock against the source's clock silently skipped every bill a
+    // run fetched but did not persist.
+    sourceUpdatedAt: t.timestamp({ withTimezone: true }),
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
     versions: t
       .jsonb()
