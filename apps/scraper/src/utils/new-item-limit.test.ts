@@ -1,7 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createNewItemLimiter } from "./new-item-limit.js";
+import { budgetFromEnv, createNewItemLimiter } from "./new-item-limit.js";
+
+test("a configured budget of zero is honoured, not treated as unset", () => {
+  // `Number(env) || DEFAULT` used to turn an explicit 0 into 10, so a run
+  // configured to fetch without generating anything quietly generated ten
+  // items' worth of briefs, lenses and header art.
+  assert.equal(budgetFromEnv("0"), 0);
+  assert.equal(createNewItemLimiter(budgetFromEnv("0")).tryConsume(), false);
+});
+
+test("budget falls back to the default when unset or malformed", () => {
+  assert.equal(budgetFromEnv(undefined), 10);
+  assert.equal(budgetFromEnv(""), 10);
+  assert.equal(budgetFromEnv("   "), 10);
+  assert.equal(budgetFromEnv("lots"), 10);
+  assert.equal(budgetFromEnv("-5"), 10);
+  assert.equal(budgetFromEnv("2.5"), 10);
+});
+
+test("a valid budget is read from the environment", () => {
+  assert.equal(budgetFromEnv("25"), 25);
+});
 
 /**
  * Mirrors the per-item claim in `upsertContent`. An item draws at most one
