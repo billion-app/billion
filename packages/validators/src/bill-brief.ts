@@ -443,8 +443,8 @@ const BillBriefV1RecordSchema = z.object({
 });
 
 function conciseTakeaway(effect: string): string {
-  const firstSentence = effect.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim();
-  const candidate = firstSentence || effect;
+  const firstSentence = /^.*?[.!?](?:\s|$)/.exec(effect)?.[0]?.trim();
+  const candidate = firstSentence ?? effect;
   if (candidate.length <= 140) return candidate;
   return `${candidate.slice(0, 136).replace(/\s+\S*$/, "")}…`;
 }
