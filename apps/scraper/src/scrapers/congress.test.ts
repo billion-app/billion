@@ -7,7 +7,28 @@ import {
   orderTextVersionsNewestFirst,
   parseBillIdentifier,
   parseBillUrl,
+  SORT_UPDATE_ASC,
+  SORT_UPDATE_DESC,
 } from "./congress.js";
+
+test("sort parameters survive URLSearchParams encoding", () => {
+  // congress.gov wants `updateDate+desc` on the wire. A literal `+` in the
+  // source string is percent-encoded to `%2B`, which the API does not
+  // recognise: it silently ignores the sort and returns its default (ascending)
+  // order. Writing the value with a space produces the `+` the API wants.
+  //
+  // This is not hypothetical. `sort=updateDate%2Bdesc` returns the *oldest*
+  // bills of the congress, so a "100 most recently updated" run served up
+  // January 2025 instead. The ascending walk only looked correct because
+  // ascending is the default it was falling back to.
+  const encode = (value: string) =>
+    new URLSearchParams({ sort: value }).toString();
+
+  assert.equal(encode(SORT_UPDATE_DESC), "sort=updateDate+desc");
+  assert.equal(encode(SORT_UPDATE_ASC), "sort=updateDate+asc");
+
+  assert.notEqual(encode("updateDate+desc"), "sort=updateDate+desc");
+});
 
 test("parseBillIdentifier accepts the forms people paste", () => {
   const expected = { billType: "hr", billNumber: "7008" };
