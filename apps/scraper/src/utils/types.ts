@@ -67,4 +67,10 @@ export interface ScraperRunOptions {
   targets?: string[];
   /** Congress number for targeted congress.gov runs (e.g. 119). */
   congress?: number;
+  /**
+   * Refresh the N most recently updated records instead of walking the
+   * incremental cursor. Keeps active items current rather than pursuing
+   * complete historical coverage. Scrapers without a recent mode ignore this.
+   */
+  recent?: number;
 }

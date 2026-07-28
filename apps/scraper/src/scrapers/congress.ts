@@ -21,6 +21,11 @@ interface CongressScraperConfig {
   chamber?: "House" | "Senate";
   /** Bill identifiers to fetch directly instead of walking the update feed. */
   bills?: string[];
+  /**
+   * Refresh the N most recently updated bills instead of walking the cursor.
+   * See `scrapeRecent`.
+   */
+  recent?: number;
 }
 
 interface ApiBillListItem {
@@ -499,6 +504,100 @@ async function scrapeTargeted(identifiers: string[], congress: number) {
   logger.success("Completed");
 }
 
+/**
+ * Refresh the `count` most recently updated bills in a congress.
+ *
+ * This is the daily production mode. It trades completeness for freshness: the
+ * app is a news feed, so a bill whose status changed today matters more than
+ * one introduced in early 2025 that nothing has touched since.
+ *
+ * Deliberately does **not** read or write `scraper_cursor`. The cursor exists to
+ * guarantee eventual coverage of an ordered walk, and this is not a walk — it
+ * re-reads the same head of the feed every day. Advancing a cursor from here
+ * would be actively harmful: a descending window's newest item is not a
+ * high-water mark for anything, and writing it would strand every older bill
+ * from a subsequent ascending walk. Because nothing is skipped-and-forgotten,
+ * a failed bill needs no retry bookkeeping — tomorrow's run sees it again as
+ * long as it is still in the window.
+ *
+ * The tradeoff to know about: this covers the *head* of the update feed, not
+ * all of it. Between 2026-07-21 and 2026-07-28, 1,742 House bills were updated
+ * upstream — roughly 250/day — so a 100-bill window sees the most recent
+ * activity, not every change. Raise `count` to widen it.
+ */
+async function scrapeRecent(
+  count: number,
+  congress: number,
+  chamber: "House" | "Senate",
+) {
+  logger.info(
+    `Refreshing the ${count} most recently updated bills (congress=${congress})`,
+  );
+
+  const fetched: ApiBillListItem[] = [];
+  const pageSize = 250;
+  let offset = 0;
+
+  while (fetched.length < count) {
+    const pageLimit = Math.min(count - fetched.length, pageSize);
+    const pageData = await congressFetch<{ bills: ApiBillListItem[] }>(
+      `/bill/${congress}`,
+      { sort: SORT_UPDATE_DESC, limit: pageLimit, offset },
+    );
+    const page = pageData.bills ?? [];
+    fetched.push(...page);
+    if (page.length < pageLimit) break;
+    offset += page.length;
+  }
+
+  const bills = fetched.slice(0, count);
+  logger.info(`Fetched ${bills.length} recently updated bill(s)`);
+
+  if (bills.length === 0) {
+    logger.success("No bills returned");
+    return;
+  }
+
+  setExpectedTotal(bills.length);
+
+  const limit = getItemLimit();
+  const newItemLimiter = createNewItemLimiter();
+  let failures = 0;
+
+  await Promise.all(
+    bills.map((item) =>
+      limit(async () => {
+        try {
+          await processBill(
+            congress,
+            item.type.toLowerCase(),
+            item.number,
+            chamber,
+            newItemLimiter,
+          );
+        } catch (error) {
+          if (error instanceof BillTextTooLargeError) {
+            logger.warn(`Skipping ${item.type}${item.number}: ${error.message}`);
+            return;
+          }
+          failures += 1;
+          logger.error(
+            `Error processing bill ${item.type}${item.number}`,
+            error,
+          );
+        }
+      }),
+    ),
+  );
+
+  if (failures > 0) {
+    logger.warn(
+      `${failures} bill(s) failed; they are re-offered by tomorrow's run while they remain in the window`,
+    );
+  }
+  logger.success("Completed");
+}
+
 async function scrape(config: CongressScraperConfig = {}) {
   const { maxBills = 100, congress = 119, chamber = "House" } = config;
 
@@ -506,6 +605,9 @@ async function scrape(config: CongressScraperConfig = {}) {
     return scrapeTargeted(config.bills, congress);
   }
 
+  if (config.recent) {
+    return scrapeRecent(config.recent, congress, chamber);
+  }
 
   logger.info(`Starting (congress=${congress}, chamber=${chamber})...`);
 
@@ -666,6 +768,7 @@ export const congress: Scraper = {
       maxBills:
         (options?.maxItems ?? Number(process.env.CONGRESS_MAX_ITEMS)) || 100,
       bills: options?.targets,
+      ...(options?.recent ? { recent: options.recent } : {}),
       ...(options?.congress ? { congress: options.congress } : {}),
     }),
 };
