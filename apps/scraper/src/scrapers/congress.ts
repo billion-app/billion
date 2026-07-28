@@ -371,7 +371,9 @@ async function processBill(
       )
     : undefined;
 
-  const status = (detail.latestAction?.text ?? "Unknown").slice(0, 250);
+  // No slice: `Bill.status` is text. A 250-char slice into a varchar(100)
+  // column is what made every bill with a long action text fail to insert.
+  const status = detail.latestAction?.text ?? "Unknown";
   const introducedDate = detail.introducedDate
     ? new Date(detail.introducedDate)
     : undefined;

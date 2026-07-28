@@ -72,7 +72,14 @@ export const Bill = pgTable(
     title: t.text().notNull(),
     description: t.text(),
     sponsor: t.varchar({ length: 256 }),
-    status: t.varchar({ length: 100 }), // e.g., "Introduced", "Passed House", etc.
+    // Full latest-action text from the source, not a short label. Sized as
+    // varchar(100) for the original "Introduced"/"Passed House" labels, it
+    // silently rejected every congress.gov bill whose action text ran longer —
+    // the INSERT failed outright, so the bill was simply absent. Left as text:
+    // it is not in the search vector, so there is no ceiling to respect, and a
+    // length here only has to disagree with a caller's slice() once to start
+    // dropping records again.
+    status: t.text(),
     introducedDate: t.timestamp(),
     congress: t.integer(), // e.g., 118 for 118th Congress
     chamber: t.varchar({ length: 50 }), // "House" or "Senate"
