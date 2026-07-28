@@ -8,6 +8,12 @@ import type { Scraper } from "../utils/types.js";
 import { getItemLimit } from "../utils/concurrency.js";
 import { setExpectedTotal } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
+import {
+  clearRetry,
+  dueRetries,
+  recordRetry,
+  retryQueueDepth,
+} from "../utils/db/retry-queue.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
@@ -375,7 +381,9 @@ async function fetchActions(
  * re-offering the bill unchanged would reach the same conclusion — and any real
  * change upstream moves its `updateDate`, which puts it back in the feed.
  */
-export function advancesCursor(outcome: UpsertOutcome): boolean {
+export function advancesCursor(
+  outcome: UpsertOutcome,
+): outcome is Exclude<UpsertOutcome, { status: "deferred" }> {
   return outcome.status !== "deferred";
 }
 
@@ -729,57 +737,95 @@ async function scrape(config: CongressScraperConfig = {}) {
     `Fetched ${bills.length} bills${lastScrape?.lastUpdated ? " (incremental)" : " (full)"}`,
   );
 
-  if (bills.length === 0) {
+  // Retries are drained after the feed, not before: fresh legislation is what
+  // the app is for, and a queue that has built up should not push this week's
+  // bills behind last month's problem cases. Capped for the same reason.
+  const retryBudget = Math.max(10, Math.floor(maxBills / 4));
+  const retries = await dueRetries(scraperKey, retryBudget);
+  if (retries.length > 0) {
+    const depth = await retryQueueDepth(scraperKey);
+    logger.info(
+      `Retry queue: ${depth} outstanding, ${retries.length} due this run`,
+    );
+  }
+
+  if (bills.length === 0 && retries.length === 0) {
     logger.success("No new or updated bills since last scrape");
     return;
   }
+  if (bills.length === 0) {
+    logger.info("No new bills from the feed; working the retry queue only");
+  }
 
-  setExpectedTotal(bills.length);
+  setExpectedTotal(bills.length + retries.length);
 
   const limit = getItemLimit();
   const newItemLimiter = createNewItemLimiter();
+
+  /**
+   * Run one bill and translate its result into a cursor decision.
+   *
+   * An item we could not finish is written to the retry queue and then reported
+   * `ok`, because the queue — not the cursor — is now what remembers it. The
+   * cursor keeps moving, and the item comes back on its own schedule instead of
+   * blocking every bill behind it. The one case that still holds the cursor is
+   * failing to *record* the retry: an unrecorded failure is a lost bill, and
+   * re-offering the whole page next run is the cheap way to not lose it.
+   */
+  const runBill = async (
+    item: ApiBillListItem,
+  ): Promise<{ ok: boolean; sourceUpdatedAt?: Date }> => {
+    const itemKey = `${item.type.toLowerCase()}/${item.number}`;
+    const feedUpdatedAt = item.updateDate
+      ? new Date(item.updateDate)
+      : undefined;
+
+    const queue = async (reason: string) => {
+      try {
+        await recordRetry(scraperKey, itemKey, reason);
+        return { ok: true, sourceUpdatedAt: feedUpdatedAt };
+      } catch (error) {
+        logger.error(`Could not queue ${itemKey} for retry`, error);
+        return { ok: false };
+      }
+    };
+
+    try {
+      const { outcome, sourceUpdatedAt } = await processBill(
+        congress,
+        item.type.toLowerCase(),
+        item.number,
+        chamber,
+        newItemLimiter,
+      );
+      if (advancesCursor(outcome)) {
+        await clearRetry(scraperKey, itemKey);
+        return { ok: true, sourceUpdatedAt };
+      }
+      return queue(outcome.reason);
+    } catch (error) {
+      if (error instanceof BillTextTooLargeError) {
+        // A deliberate refusal, not a failure to retry: the bill will be exactly
+        // as oversized next run, so queueing it would just burn an attempt a day
+        // forever. Move past it and rely on the log.
+        logger.warn(`Skipping ${item.type}${item.number}: ${error.message}`);
+        await clearRetry(scraperKey, itemKey);
+        return { ok: true, sourceUpdatedAt: feedUpdatedAt };
+      }
+      logger.error(`Error processing bill ${item.type}${item.number}`, error);
+      return queue(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const outcomes = await Promise.all(
-    bills.map((item) =>
-      limit(async (): Promise<{ ok: boolean; sourceUpdatedAt?: Date }> => {
-        try {
-          const { outcome, sourceUpdatedAt } = await processBill(
-            congress,
-            item.type.toLowerCase(),
-            item.number,
-            chamber,
-            newItemLimiter,
-          );
-          return { ok: advancesCursor(outcome), sourceUpdatedAt };
-        } catch (error) {
-          if (error instanceof BillTextTooLargeError) {
-            // A deliberate refusal, not a failure to retry: the bill will be
-            // exactly as oversized next run. Let the cursor move past it so it
-            // cannot wedge the walk, and rely on the log to surface it.
-            logger.warn(
-              `Skipping ${item.type}${item.number}: ${error.message}`,
-            );
-            return {
-              ok: true,
-              sourceUpdatedAt: item.updateDate
-                ? new Date(item.updateDate)
-                : undefined,
-            };
-          }
-          logger.error(
-            `Error processing bill ${item.type}${item.number}`,
-            error,
-          );
-          return { ok: false };
-        }
-      }),
-    ),
+    bills.map((item) => limit(() => runBill(item))),
   );
 
   const { highWaterMark, held } = cursorHighWaterMark(outcomes);
 
   if (held > 0) {
     logger.warn(
-      `${held} bill(s) failed or were deferred; holding the cursor at the last clean bill so they are retried next run`,
+      `${held} bill(s) could not even be queued; holding the cursor so the page is re-offered next run`,
     );
   }
 
@@ -792,8 +838,55 @@ async function scrape(config: CongressScraperConfig = {}) {
         set: { sourceUpdatedAt: highWaterMark, updatedAt: new Date() },
       });
     logger.info(`Cursor advanced to ${highWaterMark.toISOString()}`);
-  } else {
+  } else if (bills.length > 0) {
     logger.warn("Cursor not advanced — no bill was durably processed");
+  }
+
+  // Retries run after the cursor is written, and deliberately do not feed into
+  // it: these bills sit *behind* the cursor by definition, so their timestamps
+  // could only drag it backwards.
+  if (retries.length > 0) {
+    await Promise.all(
+      retries.map(({ itemKey }) =>
+        limit(async () => {
+          const [billType, billNumber] = itemKey.split("/");
+          if (!billType || !billNumber) {
+            logger.error(`Malformed retry key "${itemKey}" — dropping it`);
+            await clearRetry(scraperKey, itemKey);
+            return;
+          }
+          try {
+            const { outcome } = await processBill(
+              congress,
+              billType,
+              billNumber,
+              chamberForBillType(billType),
+              newItemLimiter,
+            );
+            if (advancesCursor(outcome)) {
+              await clearRetry(scraperKey, itemKey);
+            } else {
+              await recordRetry(scraperKey, itemKey, outcome.reason);
+            }
+          } catch (error) {
+            if (error instanceof BillTextTooLargeError) {
+              logger.warn(`Skipping ${itemKey}: ${error.message}`);
+              await clearRetry(scraperKey, itemKey);
+              return;
+            }
+            logger.error(`Retry failed for ${itemKey}`, error);
+            await recordRetry(
+              scraperKey,
+              itemKey,
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+        }),
+      ),
+    );
+    logger.info(
+      `Retry queue: ${await retryQueueDepth(scraperKey)} still outstanding`,
+    );
   }
 
   logger.success("Completed");

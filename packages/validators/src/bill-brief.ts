@@ -214,7 +214,7 @@ export const BriefTermSchema = z.object({
     .string()
     .trim()
     .min(15)
-    .max(220)
+    .max(250)
     .describe(
       "A one-sentence definition in everyday words. Mark the practical meaning the reader should retain with one short **bold** span.",
     ),
@@ -271,7 +271,7 @@ export const BriefContextSchema = z.object({
     .string()
     .trim()
     .min(40)
-    .max(220)
+    .max(250)
     .describe(
       "A one- or two-sentence preview of the main reason this proposal was not already adopted. Mark one short statement of the central barrier with **double asterisks**.",
     ),
@@ -292,7 +292,7 @@ export const BriefDeepDiveSchema = z.object({
     .string()
     .trim()
     .min(30)
-    .max(220)
+    .max(250)
     .describe(
       "A plain-language preview of what the reader will learn. Mark its central question or insight with one short **bold** span.",
     ),
@@ -346,7 +346,7 @@ export const BillBriefSchema = z.object({
         .string()
         .trim()
         .min(15)
-        .max(220)
+        .max(250)
         .describe(
           "One open question, stated plainly. Mark the unresolved decision or consequence with one short **bold** span.",
         ),
