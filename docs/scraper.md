@@ -4,31 +4,74 @@
 
 `apps/scraper/` is a standalone Node.js process. It runs on demand or on a schedule and writes **directly to the database** via `@acme/db` — no HTTP, no tRPC, no auth. It's a trusted server-side process; routing writes through tRPC would add latency, require tokens, and force write endpoints to be secured for no benefit.
 
-Invoke via CLI: `pnpm start [scraper|all] [--concurrency N]` (default
-concurrency 3, via `p-limit`). From the repo root, use
-`pnpm --filter @acme/scraper run start [scraper] --concurrency N`. It ships
-as a multi-stage `Dockerfile.scraper` (Node 22-slim). Vite builds the Node ESM
-production entries, bundles linked workspace source, and leaves ordinary
-runtime dependencies external for the production install. The container starts
-the CLI with `node dist/main.js`; production configuration is read from the
-process environment at runtime, not embedded during the build.
+Invoke via CLI: `pnpm start [scraper|all] [options]` (`scraper` defaults to
+`all`). From the repo root, use
+`pnpm --filter @acme/scraper run start [scraper] [options]`. Flags (`apps/scraper/src/main.ts`):
+
+| Flag                   | Default | Meaning                                                                                             |
+| ---------------------- | ------- | -------------------------------------------------------------------------------------------------- |
+| `--concurrency`, `-c`  | `3`     | Items processed concurrently within each scraper, via `p-limit`.                                    |
+| `--max-items`, `-n`    | —       | Cap on source records per scraper this run; overrides each scraper's `*_MAX_ITEMS` env value.       |
+| `--bill`, `-b`         | —       | Fetch specific congress.gov bills by number (repeatable); requires the `congress` scraper.           |
+| `--congress`           | `119`   | Congress number for `--bill`; only valid alongside `--bill`.                                         |
+
+`all` runs every registered scraper with `Promise.allSettled` (one failure does
+not abort the others) and validates env for the whole set up front; a single
+named scraper validates only its own contract and is the only mode that accepts
+`--bill`/`--congress`/`targets`. Every run prints its **database target** (a
+loud warning when it resolves to production, from `env.ts`) and a metrics
+summary at the end.
+
+It ships as a multi-stage `Dockerfile.scraper` (Node 22-slim). Vite builds the
+Node ESM production entries, bundles linked workspace source, and leaves
+ordinary runtime dependencies external for the production install. The container
+starts the CLI with `node dist/main.js`; production configuration is read from
+the process environment at runtime, not embedded during the build. Where and how
+often it runs in production is covered in the ops memory, not here.
 
 ## Scrapers
 
+The registered set lives in `apps/scraper/src/scrapers.ts` — **that array is the
+source of truth for what `all` runs**, in this order:
+
 | Scraper                | Source                         | Content type         | Method                                                                                                                          |
 | ---------------------- | ------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `federalregister.ts`   | federalregister.gov REST API   | `government_content` | REST (presidential documents); HTML→Markdown via Turndown                                                                       |
 | `congress.ts`          | congress.gov REST API          | `bill`               | REST (`CONGRESS_API_KEY`), incremental by source `updateDate` — see [Incremental discovery](#incremental-discovery-congressgov) |
-| `federalregister.ts`   | federalregister.gov REST API   | `government_content` | REST; HTML→Markdown via Turndown                                                                                                |
-| `scotus.ts`            | CourtListener REST API         | `court_case`         | REST (`COURTLISTENER_API_KEY`, optional)                                                                                        |
-| `vote411.ts`           | vote411.org                    | (cached locally)     | cheerio HTML parse; does **not** write to the main DB                                                                           |
-| `scc-cvig.ts`          | Santa Clara County voter guide | `civic_api_cache`    | PDF extraction; optional Gemini fallback                                                                                        |
-| `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages                                                                                              |
-| `ca-lao-fiscal.ts`     | CA LAO ballot analyses         | `civic_api_cache`    | proposition fiscal analyses via HTML parse                                                                                      |
-| `ca-vig-archive.ts`    | CA SOS voter-guide archive     | `civic_api_cache`    | historical proposition guide pages via HTML parse                                                                               |
+| `scc-cvig.ts`          | Santa Clara County voter guide | `civic_api_cache`    | PDF extraction; optional Gemini fallback (`GOOGLE_GENERATIVE_AI_API_KEY`)                                                        |
+| `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages, PDF fallback via `ca-sos-vig-pdf.ts`                                                         |
+
+The feed content types (`bill`, `government_content`, and `court_case` from the
+unregistered scotus scraper) all write through `upsertContent()` and share the
+full AI pipeline below. The two
+**civic** scrapers are different in kind: each collapses a whole election's
+material into a *single* `CivicApiCache` row (`insert … onConflictDoUpdate` keyed
+on `(addressHash, endpoint, params)`), runs no AI pipeline, and feeds
+candidate/ballot enrichment rather than the content feed. See
+[candidate enrichment](./candidate-enrichment.md) and
+[civic data sources](./civic-data-sources.md).
+
+**Present in the tree but not registered:**
+
+- `scotus.ts` (`court_case`, CourtListener REST) — implemented and runnable by
+  name (`pnpm start scotus`) but deliberately kept out of `scrapers.ts`, so `all`
+  never runs it. Why it's parked, and what re-enabling needs, is recorded in the
+  ingestion memory rather than duplicated here.
+- `ca-sos-vig-pdf.ts` — not a scraper. It's the PDF fallback reader
+  `ca-sos-statements.ts` imports when the CA SOS candidate HTML pages are blocked
+  by Imperva/CloudFront.
+- `scrapers/disabled/` — parked cache-warmers kept in-tree for reference but not
+  exported or run: `ca-lao-fiscal.ts` (CA LAO proposition fiscal analyses),
+  `ca-vig-archive.ts` (historical CA SOS voter-guide archive), `vote411.ts`
+  (League of Women Voters guides), and `vote411-ballot.ts` (Playwright
+  address-based ballot lookup). Several have live request-time adapters under
+  `packages/api/src/lib/measure-sources/` that fall back to fetching on cache
+  miss, so the feature still works without the warmer running — see
+  [measure enrichment](./measure-enrichment.md).
 
 All HTTP goes through one `fetchWithRetry()` utility (`apps/scraper/src/utils/fetch.ts`): exponential backoff (1s/2s/4s…), `Retry-After` support (seconds or HTTP-date), 30s default timeout via `AbortController`, retriable on 429/5xx and `ECONNRESET`/`ECONNREFUSED`, plus a stateful **per-host backoff** that ramps on 429/5xx and relaxes on success.
 
-> Note: `whitehouse.gov` cheerio scraping was replaced by the structured **Federal Register** REST API. `vote411-ballot.ts` exists for address-based ballot lookup (needs Playwright) but isn't wired into the CLI.
+> Note: `whitehouse.gov` cheerio scraping was replaced by the structured **Federal Register** REST API.
 
 ## Incremental discovery (congress.gov)
 
@@ -122,7 +165,14 @@ the dual lens in particular runs an agentic research loop. The article/summary/
 image block, the lens, the brief, and video generation all claim through the
 same per-item function.
 
-`SCRAPER_FORCE_AI_REGEN=1` overrides the cache. A `isUsableText()` gate refuses to feed AI any text under 200 chars or that's mostly blank/all-caps/single-word lines — keeps the model from "summarizing" garbage.
+`SCRAPER_FORCE_AI_REGEN=1` overrides the cache. An `isUsableSourceText()` gate
+(`apps/scraper/src/utils/reprocessing-policy.ts`) refuses to feed AI any text
+under 200 chars or that's mostly blank/all-caps/single-word lines — keeps the
+model from "summarizing" garbage. Legislative headers (`SEC.`, `TITLE`,
+`ARTICLE`…) are exempted so an all-caps bill heading doesn't get counted as
+boilerplate. A companion `isUsableAIArticle()` checks a generated article is
+≥500 chars and carries all four required section headings; both gates are shared
+by the scrape path and the retroactive scripts.
 
 ## AI Pipeline
 
@@ -158,7 +208,7 @@ flowchart TD
     lookup --> changed{"New or<br/>hash changed?"}
 
     changed -->|no| backfill["Backfill missing<br/>AI assets only"]
-    changed -->|yes| usable{"isUsableText()?<br/>(≥200 chars, not boilerplate)"}
+    changed -->|yes| usable{"isUsableSourceText()?<br/>(≥200 chars, not boilerplate)"}
     usable -->|no| skipai["Upsert raw content,<br/>skip AI"]
     usable -->|yes| ai["AI pipeline (OpenRouter)"]
 
@@ -178,3 +228,69 @@ flowchart TD
     backfill --> upsert
     upsert --> video["generateVideoForContent()<br/>→ video feed row"]
 ```
+
+## Environment & provider-fallback contract
+
+Each scraper declares its env requirements as a typed `ScraperEnvContract`
+(`*.config.ts`), and `validateScraperEnv()` (`env.ts`) checks only the scrapers
+that will actually run before any work starts — so a missing key fails fast and
+loud instead of mid-run. The contract has four tiers:
+
+- **`required`** — hard failure if absent (`POSTGRES_URL` everywhere;
+  `CONGRESS_API_KEY` for congress).
+- **`requiredAny`** — at least one of a group must be set. The text-AI group is
+  `[OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, DEEPSEEK_API_KEY]`: OpenRouter is
+  preferred, the local endpoint is the offline fallback, and DeepSeek is the
+  deprecated last resort. The civic scrapers omit this group entirely (no AI).
+- **`recommended`** — warn but proceed (e.g. `COURTLISTENER_API_KEY` for scotus).
+- **`optional`** — image/stock/model overrides and the per-scraper item caps.
+
+**Per-scraper item caps.** Each content scraper reads its own
+`*_MAX_ITEMS` (`CONGRESS_MAX_ITEMS`, `FEDERALREGISTER_MAX_ITEMS`,
+`SCOTUS_MAX_ITEMS`, `SCC_CVIG_MAX_ITEMS`, `CA_SOS_MAX_ITEMS`) which bounds how
+many source records that scraper pulls per run. The `--max-items` flag overrides
+all of them for one run. This is distinct from `SCRAPER_MAX_NEW_ITEMS_PER_RUN`,
+which caps how many fetched items may *pay for AI* (see
+[The new-item budget](#the-new-item-budget)).
+
+## Backfill & reprocessing scripts
+
+The scrape path persists every fetched item but only lets
+`SCRAPER_MAX_NEW_ITEMS_PER_RUN` of them generate AI assets; the rest carry raw
+content and are completed later by these standalone entry points. All are
+`pnpm`-scripted in `apps/scraper` and share the pipeline's gates and providers.
+
+| Command                       | File                            | What it fills                                    | Safety                                              |
+| ----------------------------- | ------------------------------- | ------------------------------------------------ | --------------------------------------------------- |
+| `reprocess-content`           | `reprocess-content.ts`          | Any derived asset across all content tables      | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
+| `retroactive-briefs`          | `retroactive-briefs.ts`         | Missing/stale bill `content_brief` rows          | `--dry-run` to preview                              |
+| `retroactive-lenses`          | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows                | `--dry-run` to preview                              |
+| `retroactive-videos`          | `retroactive-videos.ts`         | Missing `video` feed rows                        | —                                                   |
+| `backfill-bill-descriptions`  | `backfill-bill-descriptions.ts` | Bills with no source/AI description              | `--apply` (+ `--yes` on prod)                       |
+
+`reprocess-content` is the most general and the model the others follow:
+
+- **Read-only unless `--apply`.** It first prints an inventory per content type
+  (rows, usable source text, missing article, missing feed image, selected) and
+  exits without writing. Production writes additionally require `--yes`, and
+  `--apply` refuses to start without a text-AI provider and an image provider so
+  a run can't silently leave rows half-generated.
+- **`--mode missing`** backfills only rows that fail a gate (`needsReprocessing`:
+  no usable source text, no valid article, no video, or no feed image);
+  **`--mode replace`** (the default) regenerates every derived asset.
+- **`--assets images`** limits work to feed imagery; `--assets all` (default)
+  regenerates article, dual lens, and video too.
+- Selection can be scoped with `--type`, `--limit`, `--id`, and `--after-id`
+  (resume-after-UUID, single-type only), at `--concurrency` 1–5.
+- **Missing source text is re-fetched, not skipped.** When a row's `full_text`
+  is empty/unusable, `refreshSourceText()` (`utils/source-refresh.ts`) re-pulls
+  it from the origin — congress.gov text API for bills, the Federal Register
+  `body_html_url` for government content, otherwise a readability-style HTML
+  strip → Markdown — and only proceeds if the recovered text passes
+  `isUsableSourceText()`. Recovered text gets a fresh content hash so downstream
+  assets regenerate against it.
+- **Success is re-queried from the database**, not inferred from provider
+  responses: after the run it reloads the processed rows and counts only those
+  that persisted a valid article *and* a feed image as verified. Partial/failed
+  IDs are printed for a targeted retry, and rate-limit failures re-raise
+  `AIRateLimitError` so an orchestrator can back off.
