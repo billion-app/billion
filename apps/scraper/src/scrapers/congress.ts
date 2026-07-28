@@ -242,6 +242,34 @@ export function capToTsvectorLimit(text: string, label: string): string {
   return result;
 }
 
+/**
+ * Order text versions newest-first so we store the *operative* text.
+ *
+ * This used to be `[...textVersions].reverse()`, which assumes the API returns
+ * oldest-first. It returns newest-first, so the reverse picked the version a
+ * bill was introduced as — for every bill, forever. H.R. 7008 passed the House
+ * with a substitute that added SEC. 3, "Requiring Voters To Provide Photo
+ * Identification"; we stored the January introduced draft, which contains none
+ * of it, and the app told readers the bill was only about stock trading.
+ *
+ * Sort explicitly rather than trusting either order. Versions without a date
+ * sort last: an undated version is not evidence of being current.
+ */
+export function orderTextVersionsNewestFirst(
+  versions: readonly ApiTextVersion[],
+): ApiTextVersion[] {
+  return [...versions].sort((a, b) => {
+    const aTime = a.date ? Date.parse(a.date) : NaN;
+    const bTime = b.date ? Date.parse(b.date) : NaN;
+    const aValid = !Number.isNaN(aTime);
+    const bValid = !Number.isNaN(bTime);
+    if (aValid && bValid) return bTime - aTime;
+    if (aValid) return -1;
+    if (bValid) return 1;
+    return 0;
+  });
+}
+
 export async function fetchFullText(
   congress: number,
   billType: string,
@@ -253,7 +281,7 @@ export async function fetchFullText(
     );
     if (!data.textVersions?.length) return undefined;
 
-    for (const version of [...data.textVersions].reverse()) {
+    for (const version of orderTextVersionsNewestFirst(data.textVersions)) {
       const txtFormat = version.formats.find(
         (f) => f.type === "Formatted Text",
       );

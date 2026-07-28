@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   capToTsvectorLimit,
+  orderTextVersionsNewestFirst,
   parseBillIdentifier,
   parseBillUrl,
 } from "./congress.js";
@@ -63,4 +64,43 @@ test("capToTsvectorLimit keeps oversized text under the tsvector byte ceiling", 
   assert.ok(Buffer.byteLength(capped, "utf8") <= 800_000);
   assert.ok(capped.length > 0);
   assert.doesNotMatch(capped, /\s$/u);
+});
+
+const textVersion = (type: string, date: string | null) => ({
+  type,
+  date,
+  formats: [{ type: "Formatted Text", url: `https://example.test/${type}` }],
+});
+
+test("orderTextVersionsNewestFirst picks the operative text, not the introduced draft", () => {
+  // The real H.R. 7008 payload order: congress.gov returns newest-first, and a
+  // plain reverse() picked "Introduced in House" — missing the photo-ID
+  // provisions added by the substitute the House actually passed.
+  const versions = [
+    textVersion("Engrossed in House", "2026-07-22T04:00:00Z"),
+    textVersion("Reported in House", "2026-02-03T05:00:00Z"),
+    textVersion("Introduced in House", "2026-01-12T05:00:00Z"),
+  ];
+
+  assert.equal(
+    orderTextVersionsNewestFirst(versions)[0]!.type,
+    "Engrossed in House",
+  );
+  // Same answer regardless of the order the API hands us.
+  assert.equal(
+    orderTextVersionsNewestFirst([...versions].reverse())[0]!.type,
+    "Engrossed in House",
+  );
+});
+
+test("orderTextVersionsNewestFirst sorts undated versions last", () => {
+  const ordered = orderTextVersionsNewestFirst([
+    textVersion("Undated", null),
+    textVersion("Introduced in House", "2026-01-12T05:00:00Z"),
+    textVersion("Engrossed in House", "2026-07-22T04:00:00Z"),
+  ]);
+  assert.deepEqual(
+    ordered.map((v) => v.type),
+    ["Engrossed in House", "Introduced in House", "Undated"],
+  );
 });
