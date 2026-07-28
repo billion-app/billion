@@ -7,6 +7,7 @@
  * the restructuring pass is cheaper and more consistent than re-reading the
  * statute cold, and quotes are still verified against the official text.
  */
+import pLimit from "p-limit";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -83,10 +84,21 @@ const argv = await yargs(hideBin(process.argv))
     default: false,
     describe: "List candidates without generating briefs",
   })
+  .option("concurrency", {
+    alias: "c",
+    type: "number",
+    default: 1,
+    describe: "Briefs to generate in parallel",
+  })
   .check((args) =>
     Number.isInteger(args.limit) && args.limit > 0
       ? true
       : "--limit must be a positive integer",
+  )
+  .check((args) =>
+    Number.isInteger(args.concurrency) && args.concurrency > 0
+      ? true
+      : "--concurrency must be a positive integer",
   )
   .strict()
   .help()
@@ -97,37 +109,50 @@ logger.info(`Found ${candidates.length} missing/stale bill brief candidate(s)`);
 
 let processed = 0;
 let failed = 0;
+// A rate limit means every remaining candidate would fail the same way, so the
+// sequential version broke out of the loop. Concurrently there is no loop to
+// break: in-flight work has to finish and anything not yet started is skipped.
+let rateLimited = false;
 
-for (const candidate of candidates) {
-  if (argv.dryRun) {
-    logger.info(`[dry run] ${candidate.billNumber}: ${candidate.title}`);
-    continue;
-  }
+const limit = pLimit(argv.concurrency);
 
-  try {
-    const generated = await upsertBillBrief({
-      contentId: candidate.id,
-      contentHash: candidate.contentHash,
-      title: candidate.title,
-      billNumber: candidate.billNumber,
-      url: candidate.url,
-      fullText: candidate.fullText,
-      officialSummary: candidate.summary,
-      status: candidate.status,
-      priorArticle: candidate.aiGeneratedArticle,
-    });
-    if (generated) processed++;
-    else failed++;
-  } catch (error) {
-    // A rate limit means every remaining candidate would fail the same way.
-    if (error instanceof AIRateLimitError) {
-      logger.warn("LLM rate limit hit — stopping backfill early");
-      break;
-    }
-    failed++;
-    logger.error(`Failed brief for ${candidate.billNumber}`, error);
-  }
-}
+await Promise.all(
+  candidates.map((candidate) =>
+    limit(async () => {
+      if (argv.dryRun) {
+        logger.info(`[dry run] ${candidate.billNumber}: ${candidate.title}`);
+        return;
+      }
+      if (rateLimited) return;
+
+      try {
+        const generated = await upsertBillBrief({
+          contentId: candidate.id,
+          contentHash: candidate.contentHash,
+          title: candidate.title,
+          billNumber: candidate.billNumber,
+          url: candidate.url,
+          fullText: candidate.fullText,
+          officialSummary: candidate.summary,
+          status: candidate.status,
+          priorArticle: candidate.aiGeneratedArticle,
+        });
+        if (generated) processed++;
+        else failed++;
+      } catch (error) {
+        if (error instanceof AIRateLimitError) {
+          if (!rateLimited) {
+            logger.warn("LLM rate limit hit — skipping remaining candidates");
+          }
+          rateLimited = true;
+          return;
+        }
+        failed++;
+        logger.error(`Failed brief for ${candidate.billNumber}`, error);
+      }
+    }),
+  ),
+);
 
 logger.info(
   argv.dryRun
