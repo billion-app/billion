@@ -234,7 +234,9 @@ Each new/changed item runs through:
    state. The writing pass receives only those notes, the official CRS summary,
    and outside research; it never receives a raw-text prefix. Section notes
    cache by section hash, analysis prompt version, and model version, while the
-   final structured brief remains cached in `content_brief`. See
+   final structured brief remains cached in `content_brief`. Brief quotes carry
+   section-relative offsets and are verified against the current persisted
+   `bill_section` span; missing and altered quotes fail visibly. See
    [Article generation](./article-generation.md).
 4. **Dual lens** (`text-generation.ts`) — proponent/opponent arguments grounded in an agentic web-research loop, cached in `content_lens`. This is the most expensive step and the only one whose output is not reproducible: the same input can return different arguments, and the row is overwritten in place with no history. It is therefore cached on **its own inputs** (title + full text + article type + model version), not on the bill's overall `contentHash` — that hash also covers status and summary, so a routine action update ("Referred to committee" → "Received in the Senate") used to invalidate it and re-roll the dice. One such re-roll lost a finding that H.R. 7008 carried unrelated voter-ID provisions.
 5. **Marketing copy** (`marketing-generation.ts`) — Zod-validated `{ title ≤25 chars, description ≤25 words, imagePrompt }` for the `video` feed card.

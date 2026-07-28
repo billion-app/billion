@@ -7,10 +7,9 @@
  *   1. Write (LLM). One schema-validated call grounded in cached, per-section
  *      analysis notes plus outside research. Raw bill text never enters this
  *      pass, so long bills cannot silently disappear at a context boundary.
- *   2. Verify quotes (deterministic). Every quote is checked against the full
- *      source text. Unverified quotes are dropped, not shipped — a brief may
- *      say less than the model wrote, but it never attributes words to a bill
- *      that the bill does not contain.
+ *   2. Verify quotes (deterministic). Every quote is checked against its
+ *      recorded span in the persisted source section. A missing or altered
+ *      quote fails the writing attempt visibly instead of being dropped.
  *   3. Lint framing (deterministic). Loaded political phrasing in the model's
  *      own prose triggers one regeneration with the offending phrases named.
  *      Quotes are exempt: a source is allowed to be partisan, we are not.
@@ -22,6 +21,7 @@ import type {
   BillBrief,
   BillBriefRecord,
   BriefLegalStatus,
+  BriefQuote,
 } from "@acme/validators";
 import {
   BILL_ANALYSIS_SCHEMA_VERSION,
@@ -35,8 +35,13 @@ import {
   BriefVisualSchema,
 } from "@acme/validators";
 
+import type { BillSectionForAnalysis } from "./bill-section-analysis.js";
 import type { DualLensSource } from "./text-generation.js";
 import { trackLLMUsage } from "../costs.js";
+import {
+  incrementQuoteVerificationAltered,
+  incrementQuoteVerificationNotFound,
+} from "../db/metrics.js";
 import { createLogger } from "../log.js";
 import { getStructuredLlm } from "./provider.js";
 import {
@@ -134,57 +139,83 @@ export function normalizeForQuoteMatch(text: string): string {
     .trim();
 }
 
-/** Whether a quote appears verbatim (modulo formatting) in the source. */
-export function isQuoteGrounded(quote: string, normalizedSource: string) {
+/** Whether a quote matches its recorded source span modulo formatting. */
+export function isQuoteGrounded(quote: string, sourceSpan: string) {
   const needle = normalizeForQuoteMatch(quote);
   // Very short fragments match by accident; the schema floor is 20 chars, but
   // normalization can shrink a quote further.
   if (needle.length < 20) return false;
-  return normalizedSource.includes(needle);
+  return normalizeForQuoteMatch(sourceSpan) === needle;
+}
+
+export type QuoteVerificationFailureReason = "not_found" | "altered";
+
+export interface QuoteVerificationFailure {
+  reason: QuoteVerificationFailureReason;
+  quote: BriefQuote;
+  structuralPath?: string;
+  actualText?: string;
 }
 
 export interface QuoteVerification {
   brief: BillBrief;
   /** Quotes that matched the source and were kept. */
   verified: number;
-  /** Quotes that did not match and were stripped from the brief. */
-  dropped: number;
+  /** Quotes whose section reference or recorded span could not be resolved. */
+  notFound: QuoteVerificationFailure[];
+  /** Quotes whose recorded source span exists but contains different words. */
+  altered: QuoteVerificationFailure[];
 }
 
 /**
- * Strip every quote that does not appear in `sourceText`. The surrounding
- * claim is kept — losing a citation makes a point weaker, but deleting the
- * point would let a bad quote silently remove real analysis.
+ * Resolve every quote against the canonical section and section-relative span
+ * carried through from the analysis pass. Invalid quotes are removed from the
+ * returned brief, while their failure classification is retained for logging
+ * and metrics.
  */
 export function verifyBriefQuotes(
   brief: BillBrief,
-  sourceText: string,
+  sourceSections: readonly Pick<
+    BillSectionForAnalysis,
+    "sectionHash" | "structuralPath" | "text"
+  >[],
 ): QuoteVerification {
-  const normalizedSource = normalizeForQuoteMatch(sourceText);
+  const sectionsByHash = new Map(
+    sourceSections.map((section) => [section.sectionHash, section]),
+  );
   let verified = 0;
-  let dropped = 0;
+  const notFound: QuoteVerificationFailure[] = [];
+  const altered: QuoteVerificationFailure[] = [];
 
-  const check = <T extends { quote?: { text: string; locator?: string } }>(
-    item: T,
-  ): T => {
+  const check = <T extends { quote?: BriefQuote }>(item: T): T => {
     if (!item.quote) return item;
-    const quote = item.quote as T["quote"] & {
-      sectionHash?: string;
-      startOffset?: number;
-      endOffset?: number;
-    };
+    const { sectionHash, startOffset, endOffset } = item.quote;
+    const section = sectionHash ? sectionsByHash.get(sectionHash) : undefined;
     if (
-      quote.sectionHash &&
-      quote.startOffset !== undefined &&
-      quote.endOffset !== undefined &&
-      quote.endOffset > quote.startOffset &&
-      isQuoteGrounded(quote.text, normalizedSource)
+      !section ||
+      startOffset === undefined ||
+      endOffset === undefined ||
+      endOffset <= startOffset ||
+      endOffset > section.text.length
     ) {
+      notFound.push({ reason: "not_found", quote: item.quote });
+      const { quote: _removed, ...rest } = item;
+      return rest as T;
+    }
+
+    const actualText = section.text.slice(startOffset, endOffset);
+    if (isQuoteGrounded(item.quote.text, actualText)) {
       verified++;
       return item;
     }
-    dropped++;
-    const { quote: _dropped, ...rest } = item;
+
+    altered.push({
+      reason: "altered",
+      quote: item.quote,
+      structuralPath: section.structuralPath,
+      actualText,
+    });
+    const { quote: _removed, ...rest } = item;
     return rest as T;
   };
 
@@ -195,8 +226,63 @@ export function verifyBriefQuotes(
       changes: brief.changes.map(check),
     },
     verified,
-    dropped,
+    notFound,
+    altered,
   };
+}
+
+export class QuoteVerificationError extends Error {
+  constructor(readonly result: QuoteVerification) {
+    super(
+      `Quote verification failed: ${result.notFound.length} not found, ${result.altered.length} altered`,
+    );
+    this.name = "QuoteVerificationError";
+  }
+}
+
+/**
+ * A bad quote invalidates this writing attempt. Log and count the precise
+ * failure mode, then let the existing generation retry produce a clean brief.
+ */
+export function requireVerifiedBriefQuotes(
+  brief: BillBrief,
+  sourceSections: readonly Pick<
+    BillSectionForAnalysis,
+    "sectionHash" | "structuralPath" | "text"
+  >[],
+  billNumber: string,
+): QuoteVerification {
+  const result = verifyBriefQuotes(brief, sourceSections);
+  for (const failure of result.notFound) {
+    incrementQuoteVerificationNotFound();
+    logger.error(
+      `Brief for ${billNumber}: quote not found in current bill sections`,
+      {
+        sectionHash: failure.quote.sectionHash,
+        startOffset: failure.quote.startOffset,
+        endOffset: failure.quote.endOffset,
+        quote: failure.quote.text,
+      },
+    );
+  }
+  for (const failure of result.altered) {
+    incrementQuoteVerificationAltered();
+    logger.error(
+      `Brief for ${billNumber}: quote text altered at recorded section span`,
+      {
+        structuralPath: failure.structuralPath,
+        sectionHash: failure.quote.sectionHash,
+        startOffset: failure.quote.startOffset,
+        endOffset: failure.quote.endOffset,
+        expected: failure.actualText,
+        received: failure.quote.text,
+      },
+    );
+  }
+  if (result.notFound.length > 0 || result.altered.length > 0) {
+    throw new QuoteVerificationError(result);
+  }
+  return result;
 }
 
 function comparableUrl(value: string): string {
@@ -685,7 +771,10 @@ export async function generateBillBrief(args: {
   title: string;
   billNumber: string;
   url: string;
-  fullText: string;
+  sourceSections: readonly Pick<
+    BillSectionForAnalysis,
+    "sectionHash" | "structuralPath" | "text"
+  >[];
   analysisNotes: string;
   officialSummary?: string | null;
   status?: string | null;
@@ -738,7 +827,11 @@ export async function generateBillBrief(args: {
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
       const output = BillBriefSchema.parse(withoutNulls(generatedOutput));
-      const quoteResult = verifyBriefQuotes(output, args.fullText);
+      const quoteResult = requireVerifiedBriefQuotes(
+        output,
+        args.sourceSections,
+        args.billNumber,
+      );
       const briefWithReading = verifyBriefReading(
         quoteResult.brief,
         readingResearch.sources,
@@ -747,12 +840,7 @@ export async function generateBillBrief(args: {
         briefWithReading,
         readingResearch.sources,
       );
-      const { verified, dropped } = quoteResult;
-      if (dropped > 0) {
-        logger.warn(
-          `Brief for ${args.billNumber}: dropped ${dropped} unverified quote(s), kept ${verified}`,
-        );
-      }
+      const { verified } = quoteResult;
 
       const loaded = findLoadedLanguage(brief);
       const jargon = findUnexplainedJargon(brief);

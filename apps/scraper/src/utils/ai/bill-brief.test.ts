@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { BillBrief } from "@acme/validators";
@@ -10,12 +11,18 @@ import {
 } from "@acme/validators";
 
 import {
+  HR_7008_LATE_SECTION,
+  HR_7008_PREVIOUSLY_DROPPED_QUOTES,
+} from "../../fixtures/hr-7008-quote-verification.js";
+import { getMetrics, resetMetrics } from "../db/metrics.js";
+import {
   deriveLegalStatus,
   findLoadedLanguage,
   findMissingEmphasis,
   findUnexplainedJargon,
   isQuoteGrounded,
-  normalizeForQuoteMatch,
+  QuoteVerificationError,
+  requireVerifiedBriefQuotes,
   verifyBriefContext,
   verifyBriefQuotes,
   verifyBriefReading,
@@ -33,6 +40,26 @@ necessary to meet an operational deadline.
 appropriated $1,200,000,000 for fiscal year 2027 to carry out this
 section.
 `;
+const SOURCE_SECTION = SOURCE.replace(/\s+/g, " ").trim();
+
+function sourceSection(text = SOURCE_SECTION, structuralPath = "section-4") {
+  return {
+    sectionHash: createHash("sha256").update(text).digest("hex"),
+    structuralPath,
+    text,
+  };
+}
+
+function referencedQuote(text: string, section = sourceSection()) {
+  const startOffset = section.text.indexOf(text);
+  assert.notEqual(startOffset, -1, `fixture quote not found: ${text}`);
+  return {
+    text,
+    sectionHash: section.sectionHash,
+    startOffset,
+    endOffset: startOffset + text.length,
+  };
+}
 
 function brief(overrides: Partial<BillBrief> = {}): BillBrief {
   return {
@@ -275,56 +302,51 @@ void test("historical context requires two opened research sources", () => {
 });
 
 void test("quote matching ignores whitespace, case, and smart punctuation", () => {
-  const normalized = normalizeForQuoteMatch(SOURCE);
   assert.equal(
     isQuoteGrounded(
-      "The Secretary may waive the requirements of section 102(2)(C)",
-      normalized,
+      "The Secretary may waive the requirements of section 102(2)(C).",
+      "the Secretary may waive the requirements of section 102(2)(C)",
     ),
     true,
   );
-  // Wrapped across a newline in the source, and re-typed with curly quotes.
   assert.equal(
     isQuoteGrounded(
-      "if the Secretary determines that the waiver is necessary",
-      normalized,
+      "The Secretary called it “necessary”—and acted.",
+      'The Secretary called it "necessary" - and acted.',
     ),
     true,
   );
 });
 
 void test("quote matching rejects paraphrase and reordered words", () => {
-  const normalized = normalizeForQuoteMatch(SOURCE);
   assert.equal(
     isQuoteGrounded(
       "The Secretary is allowed to waive environmental review requirements",
-      normalized,
+      "The Secretary may waive environmental review requirements",
     ),
     false,
   );
   assert.equal(
     isQuoteGrounded(
       "may waive the requirements of the National Environmental Policy Act of 1969",
-      normalized,
+      "may waive the National Environmental Policy Act of 1969 requirements",
     ),
     false,
   );
   // Too short to be meaningful once normalized.
-  assert.equal(isQuoteGrounded("the Secretary", normalized), false);
+  assert.equal(isQuoteGrounded("the Secretary", "the Secretary"), false);
 });
 
-void test("verification strips unverified quotes but keeps the claim", () => {
+void test("verification distinguishes a missing quote from an altered source span", () => {
+  const section = sourceSection();
+  const validText = "appropriated $1,200,000,000 for fiscal year 2027";
+  const validQuote = referencedQuote(validText, section);
   const input = brief({
     facts: [
       {
         label: "Authorized funding",
         value: "$1.2B",
-        quote: {
-          text: "appropriated $1,200,000,000 for fiscal year 2027",
-          sectionHash: "b".repeat(64),
-          startOffset: 220,
-          endOffset: 269,
-        },
+        quote: validQuote,
       },
     ],
     changes: [
@@ -334,28 +356,106 @@ void test("verification strips unverified quotes but keeps the claim", () => {
         before: "Covered projects must complete a review.",
         after: "The Secretary would be able to waive that review.",
         quote: {
-          text: "The Secretary shall have unlimited authority to ignore all federal law",
+          ...validQuote,
+          text: "appropriated $9,900,000,000 for fiscal year 2027",
           locator: "Sec. 4(a)",
+        },
+      },
+      {
+        kind: "requires",
+        title: "A quote points outside the current source version",
+        before: "The current rule is unchanged.",
+        after: "The model claimed a different requirement.",
+        quote: {
+          text: "The Secretary shall publish a monthly compliance report.",
+          sectionHash: "b".repeat(64),
+          startOffset: 10,
+          endOffset: 66,
         },
       },
     ],
   });
 
-  const {
-    brief: cleaned,
-    verified,
-    dropped,
-  } = verifyBriefQuotes(input, SOURCE);
+  const result = verifyBriefQuotes(input, [section]);
+  const cleaned = result.brief;
+  const { verified, notFound, altered } = result;
   assert.equal(verified, 1);
-  assert.equal(dropped, 1);
+  assert.equal(notFound.length, 1);
+  assert.equal(altered.length, 1);
   assert.ok(cleaned.facts[0]?.quote, "grounded quote is kept");
   assert.deepEqual(cleaned.facts[0]?.quote, input.facts[0]?.quote);
-  assert.equal(cleaned.changes[0]?.quote, undefined, "invented quote is gone");
+  assert.equal(cleaned.changes[0]?.quote, undefined, "altered quote is gone");
+  assert.equal(cleaned.changes[1]?.quote, undefined, "missing quote is gone");
   assert.equal(
     cleaned.changes[0]?.title,
     "Environmental review can be skipped",
     "the surrounding claim survives",
   );
+});
+
+void test("quote failures are loud and counted by failure type", () => {
+  const section = sourceSection();
+  const validQuote = referencedQuote(
+    "appropriated $1,200,000,000 for fiscal year 2027",
+    section,
+  );
+  const input = brief({
+    changes: [
+      {
+        kind: "funds",
+        title: "The amount is altered",
+        before: "No amount was authorized.",
+        after: "The bill would authorize a different amount.",
+        quote: { ...validQuote, text: "appropriated $9,200,000,000" },
+      },
+      {
+        kind: "requires",
+        title: "The source section is missing",
+        before: "No reporting rule applies.",
+        after: "A report would be required.",
+        quote: {
+          text: "The Secretary shall publish a monthly compliance report.",
+          sectionHash: "c".repeat(64),
+          startOffset: 0,
+          endOffset: 56,
+        },
+      },
+    ],
+  });
+
+  resetMetrics();
+  assert.throws(
+    () => requireVerifiedBriefQuotes(input, [section], "H.R. TEST"),
+    QuoteVerificationError,
+  );
+  const metrics = getMetrics();
+  assert.equal(metrics.quoteVerificationNotFound, 1);
+  assert.equal(metrics.quoteVerificationAltered, 1);
+  resetMetrics();
+});
+
+void test("H.R. 7008 retains four quotes from a section beyond the old model window", () => {
+  const lateSection = sourceSection(
+    HR_7008_LATE_SECTION,
+    "section-3-photo-identification",
+  );
+  const input = brief({
+    facts: HR_7008_PREVIOUSLY_DROPPED_QUOTES.map((text, index) => ({
+      label: `Late-section quote ${index + 1}`,
+      value: `H.R. 7008-${index + 1}`,
+      quote: referencedQuote(text, lateSection),
+    })),
+  });
+
+  const result = verifyBriefQuotes(input, [
+    sourceSection("Preamble ".repeat(4_000), "preamble"),
+    lateSection,
+  ]);
+
+  assert.equal(result.verified, 4);
+  assert.deepEqual(result.notFound, []);
+  assert.deepEqual(result.altered, []);
+  assert.equal(result.brief.facts.filter((fact) => fact.quote).length, 4);
 });
 
 void test("framing lint flags loaded language in the model's own voice", () => {
