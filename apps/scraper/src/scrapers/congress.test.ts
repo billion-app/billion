@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  advancesCursor,
   assertWithinTsvectorLimit,
   BillTextTooLargeError,
+  cursorHighWaterMark,
   orderTextVersionsNewestFirst,
   parseBillIdentifier,
   parseBillUrl,
@@ -132,37 +134,44 @@ test("orderTextVersionsNewestFirst sorts undated versions last", () => {
 });
 
 test("cursor advances only across the leading run of successes", () => {
-  // Mirrors the reduction in scrape(): the feed is oldest-first, so the first
-  // failure is the high-water mark. Advancing past it would strand that bill
-  // exactly the way the old wall-clock cursor did.
-  const advance = (outcomes: { ok: boolean; at?: string }[]) => {
-    const firstFailure = outcomes.findIndex((o) => !o.ok);
-    const settled =
-      firstFailure === -1 ? outcomes : outcomes.slice(0, firstFailure);
-    return settled.reduce<string | undefined>(
-      (newest, o) => (o.at && (!newest || o.at > newest) ? o.at : newest),
-      undefined,
-    );
-  };
-
-  const d = (n: number) => `2026-07-0${n}T00:00:00Z`;
+  const d = (n: number) => new Date(`2026-07-0${n}T00:00:00Z`);
+  const ok = (n: number) => ({ ok: true, sourceUpdatedAt: d(n) });
+  const bad = { ok: false };
 
   // All clean: advance to the newest.
-  assert.equal(
-    advance([
-      { ok: true, at: d(1) },
-      { ok: true, at: d(2) },
-      { ok: true, at: d(3) },
-    ]),
-    d(3),
-  );
+  assert.deepEqual(cursorHighWaterMark([ok(1), ok(2), ok(3)]), {
+    highWaterMark: d(3),
+    held: 0,
+  });
   // Failure in the middle: hold at the last clean bill before it, even though
   // a later bill succeeded and is newer.
-  assert.equal(
-    advance([{ ok: true, at: d(1) }, { ok: false }, { ok: true, at: d(3) }]),
-    d(1),
-  );
+  assert.deepEqual(cursorHighWaterMark([ok(1), bad, ok(3)]), {
+    highWaterMark: d(1),
+    held: 2,
+  });
   // First bill fails: do not advance at all.
-  assert.equal(advance([{ ok: false }, { ok: true, at: d(2) }]), undefined);
-  assert.equal(advance([]), undefined);
+  assert.deepEqual(cursorHighWaterMark([bad, ok(2)]), {
+    highWaterMark: undefined,
+    held: 2,
+  });
+  assert.deepEqual(cursorHighWaterMark([]), {
+    highWaterMark: undefined,
+    held: 0,
+  });
+});
+
+test("only a deferred outcome holds the cursor", () => {
+  // A bill we decided against storing must not wedge the walk; a bill we
+  // failed to finish must. Getting this backwards is how bills get silently
+  // dropped (advance past unfinished work) or how the walk stalls forever
+  // (hold on a permanent condition).
+  assert.equal(advancesCursor({ status: "written", id: "x" }), true);
+  assert.equal(
+    advancesCursor({ status: "skipped", reason: "no summary source" }),
+    true,
+  );
+  assert.equal(
+    advancesCursor({ status: "deferred", reason: "run budget reached" }),
+    false,
+  );
 });

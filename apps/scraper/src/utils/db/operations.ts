@@ -6,6 +6,7 @@ import {
   ContentLens,
   CourtCase,
   GovernmentContent,
+  Video,
 } from "@acme/db/schema";
 import { isCurrentBillBrief } from "@acme/validators";
 
@@ -55,6 +56,32 @@ type ContentData =
   | { type: "bill"; data: BillData }
   | { type: "government_content"; data: GovernmentContentData }
   | { type: "court_case"; data: CourtCaseData };
+
+/**
+ * What happened to one item, in terms the caller's cursor can act on.
+ *
+ * - `written`   — stored, and as complete as its sources allow.
+ * - `skipped`   — deliberately not stored, and re-offering it would reach the
+ *                 same conclusion. Safe for a cursor to move past.
+ * - `deferred`  — not stored (or stored but not enriched), for a reason that
+ *                 may not hold next time. A cursor MUST NOT move past it.
+ *
+ * The distinction exists because an incremental scraper only sees each item
+ * once. Conflating "we decided against this" with "we could not finish this"
+ * is what silently drops bills.
+ */
+export type UpsertOutcome =
+  | { status: "written"; id: string }
+  | { status: "skipped"; reason: string }
+  | { status: "deferred"; reason: string };
+
+/**
+ * Thrown when enrichment we committed to producing did not materialise, but
+ * nothing threw — an AI call that returns an empty article, for instance.
+ * Handled like any other enrichment failure so a new item is rolled back
+ * rather than published half-built.
+ */
+class IncompleteEnrichmentError extends Error {}
 
 function contentLabel(input: ContentData): string {
   switch (input.type) {
@@ -118,7 +145,7 @@ function getUpdateTable(input: ContentData) {
 export async function upsertContent(
   input: ContentData,
   options?: { newItemLimiter?: NewItemLimiter },
-) {
+): Promise<UpsertOutcome> {
   const newContentHash = createContentHash(hashFields(input));
   const existing = await checkExisting(input);
   const label = contentLabel(input);
@@ -196,6 +223,10 @@ export async function upsertContent(
   // generated. A genuinely unchanged item with every asset present costs
   // nothing and must not consume budget, or a run would throttle itself to N
   // items while doing no work.
+  // Set when the item is stored but knowingly left short of what it should
+  // have — always for a reason a later run can resolve.
+  let deferredReason: string | undefined;
+
   let budgetSlotTaken = false;
   const claimBudget = (): boolean => {
     if (!options?.newItemLimiter) return true;
@@ -211,9 +242,25 @@ export async function upsertContent(
     shouldGenerateSummary || shouldGenerateArticle || shouldGenerateImage;
   const budgetExhausted = wantsUpfrontGeneration && !claimBudget();
   if (budgetExhausted) {
+    // An item we have never stored is held back entirely rather than written
+    // raw. A raw row is a bill with no description, article, lens or brief in
+    // front of readers, and reporting it as stored lets the cursor move past
+    // it — so "enrich it on a later run" never happens. Not storing it costs
+    // us the item until the next run and nothing more.
+    if (!existing) {
+      logger.info(
+        `${label}: run budget reached before it could be enriched — not storing it, will retry next run`,
+      );
+      return { status: "deferred", reason: "run budget reached" };
+    }
+    // An item already in the database is a different case: refreshing its raw
+    // fields is an improvement even when we cannot afford to regenerate its
+    // derived assets. Do that, but still report the item as unfinished so the
+    // cursor holds and the assets are picked up next run.
     shouldGenerateSummary = false;
     shouldGenerateArticle = false;
     shouldGenerateImage = false;
+    deferredReason = "run budget reached";
     logger.info(
       `${label}: run budget reached, deferring AI enrichment to a later run`,
     );
@@ -222,33 +269,23 @@ export async function upsertContent(
   // A generated bill description is part of the bill's minimum usable record,
   // not an optional derived asset. Generate it before the insert so provider
   // failure cannot leave a new, summarizable bill permanently blank.
-  //
-  // Past the budget we persist the bill anyway rather than skipping the insert.
-  // The scraper's incremental cursor advances past everything it fetched, so a
-  // skipped bill is never offered again — it is lost, not deferred. A raw row
-  // still renders (the content API coalesces description -> summary) and
-  // `backfill-bill-descriptions` fills in the real description later.
   let preGeneratedDescription: string | undefined;
   if (!existing && input.type === "bill" && !sourceDescription) {
     if (!hasSummarySource) {
-      logger.warn(
-        `${label}: deferring insert until a summary can be generated`,
-      );
-      return undefined;
+      // Permanent as far as this run can tell: congress.gov has published
+      // neither text nor a CRS summary, so there is nothing to summarise and
+      // nothing a retry would change until the bill itself is updated — which
+      // moves its updateDate and re-offers it anyway.
+      logger.warn(`${label}: no text or summary published yet, skipping`);
+      return { status: "skipped", reason: "no summary source published" };
     }
-    if (budgetExhausted) {
-      logger.info(
-        `${label}: past new-item budget, persisting raw for a later backfill`,
-      );
-    } else {
-      const summarySource = input.data.summary || input.data.fullText || "";
-      logger.start(`Generating required AI summary for ${label}`);
-      preGeneratedDescription = await generateAISummary(title, summarySource);
-      if (!preGeneratedDescription.trim()) {
-        throw new Error(`AI returned an empty required summary for ${label}`);
-      }
-      shouldGenerateSummary = false;
+    const summarySource = input.data.summary || input.data.fullText || "";
+    logger.start(`Generating required AI summary for ${label}`);
+    preGeneratedDescription = await generateAISummary(title, summarySource);
+    if (!preGeneratedDescription.trim()) {
+      throw new Error(`AI returned an empty required summary for ${label}`);
     }
+    shouldGenerateSummary = false;
   }
 
   if (progressKind === "new") incrementNewEntries();
@@ -351,10 +388,42 @@ export async function upsertContent(
       unchanged: progressKind === "unchanged" ? 1 : 0,
       changed: progressKind === "changed" ? 1 : 0,
     });
-    return result;
+    return { status: "deferred", reason: "upsert returned no row" };
   }
 
-  // Phase 2: AI enrichment — skipped entirely if rate-limited
+  const rowId = result.id;
+
+  // Undo phase 1 for an item we had never stored before. The derived tables
+  // hold plain uuids rather than foreign keys, so nothing cascades and each one
+  // has to be cleared by hand — miss one and it orphans against a row that no
+  // longer exists.
+  const discardNewRow = async () => {
+    const { table, idCol } = getUpdateTable(input);
+    await db
+      .delete(ContentLens)
+      .where(
+        and(
+          eq(ContentLens.contentType, input.type),
+          eq(ContentLens.contentId, rowId),
+        ),
+      );
+    await db
+      .delete(ContentBrief)
+      .where(
+        and(
+          eq(ContentBrief.contentType, input.type),
+          eq(ContentBrief.contentId, rowId),
+        ),
+      );
+    await db
+      .delete(Video)
+      .where(
+        and(eq(Video.contentType, input.type), eq(Video.contentId, rowId)),
+      );
+    await db.delete(table).where(eq(idCol, rowId));
+  };
+
+  // Phase 2: AI enrichment
   try {
     const existingDescription = sourceDescription || persistedDescription;
     const effectiveDescription = preGeneratedDescription || existingDescription;
@@ -394,6 +463,15 @@ export async function upsertContent(
           if (article) {
             incrementAIArticlesGenerated();
             return article;
+          }
+          // For an item we are storing for the first time this is the whole
+          // point of storing it, so treat an empty result as a failure rather
+          // than shipping a bill with nothing to read. An item already in the
+          // database keeps its old behaviour: it is no worse off than before.
+          if (!existing) {
+            throw new IncompleteEnrichmentError(
+              `AI article generation returned an empty result for ${label}`,
+            );
           }
           logger.warn(
             `AI article generation returned empty result for ${label}`,
@@ -496,10 +574,22 @@ export async function upsertContent(
       });
     }
   } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    // Nothing half-built survives a first store. Roll the row back and report
+    // the item as unfinished so the caller's cursor holds and the next run
+    // gets another attempt at the whole thing.
+    if (!existing) {
+      await discardNewRow();
+      logger.warn(
+        `${label}: enrichment did not complete (${detail}) — removed the partial row, will retry next run`,
+      );
+      return { status: "deferred", reason: "enrichment did not complete" };
+    }
     if (error instanceof AIRateLimitError) {
       logger.warn(
-        `AI rate limit hit — ${label} saved without AI content, will retry next run`,
+        `AI rate limit hit — ${label} kept its existing content, will retry next run`,
       );
+      deferredReason = "AI rate limit";
     } else {
       throw error;
     }
@@ -546,7 +636,9 @@ export async function upsertContent(
     changed: progressKind === "changed" ? 1 : 0,
   });
 
-  return result;
+  return deferredReason
+    ? { status: "deferred", reason: deferredReason }
+    : { status: "written", id: rowId };
 }
 
 /**

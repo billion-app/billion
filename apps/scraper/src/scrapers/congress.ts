@@ -2,6 +2,7 @@ import { eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import { ScraperCursor } from "@acme/db/schema";
 
+import type { UpsertOutcome } from "../utils/db/operations.js";
 import type { NewItemLimiter } from "../utils/new-item-limit.js";
 import type { Scraper } from "../utils/types.js";
 import { getItemLimit } from "../utils/concurrency.js";
@@ -367,6 +368,43 @@ async function fetchActions(
 }
 
 /**
+ * Whether an item's outcome lets the cursor move past it.
+ *
+ * `deferred` is the one that must not: the bill is not in the database in the
+ * state we want it, for a reason a later run can fix. `skipped` may, because
+ * re-offering the bill unchanged would reach the same conclusion — and any real
+ * change upstream moves its `updateDate`, which puts it back in the feed.
+ */
+export function advancesCursor(outcome: UpsertOutcome): boolean {
+  return outcome.status !== "deferred";
+}
+
+/**
+ * How far the cursor may move given this run's outcomes, in feed order.
+ *
+ * Only the leading run of clean bills counts. The feed is sorted oldest-first,
+ * so the first bill we could not settle is the true high-water mark: moving
+ * past it would strand it exactly the way the old wall-clock cursor did.
+ * Everything from there on is simply re-offered next run, however many of them
+ * happened to succeed.
+ */
+export function cursorHighWaterMark(
+  outcomes: { ok: boolean; sourceUpdatedAt?: Date }[],
+): { highWaterMark: Date | undefined; held: number } {
+  const firstFailure = outcomes.findIndex((outcome) => !outcome.ok);
+  const settled =
+    firstFailure === -1 ? outcomes : outcomes.slice(0, firstFailure);
+  const highWaterMark = settled.reduce<Date | undefined>(
+    (newest, outcome) =>
+      outcome.sourceUpdatedAt && (!newest || outcome.sourceUpdatedAt > newest)
+        ? outcome.sourceUpdatedAt
+        : newest,
+    undefined,
+  );
+  return { highWaterMark, held: outcomes.length - settled.length };
+}
+
+/**
  * Fetch one bill's detail/summary/text/actions and upsert it. Shared by the
  * incremental feed walk and the targeted `--bill` path.
  */
@@ -376,7 +414,7 @@ async function processBill(
   billNumber: string,
   fallbackChamber: "House" | "Senate",
   newItemLimiter: NewItemLimiter,
-): Promise<Date | undefined> {
+): Promise<{ outcome: UpsertOutcome; sourceUpdatedAt?: Date }> {
   const detailData = await congressFetch<ApiBillDetail>(
     `/bill/${congress}/${billType}/${billNumber}`,
   );
@@ -412,7 +450,7 @@ async function processBill(
   const fullText = await fetchFullText(congress, billType, billNumber);
   const actions = await fetchActions(congress, billType, billNumber);
 
-  await upsertContent(
+  const outcome = await upsertContent(
     {
       type: "bill",
       data: {
@@ -437,8 +475,14 @@ async function processBill(
     { newItemLimiter },
   );
 
-  logger.success(`Processed: ${formattedBillNumber} — ${title}`);
-  return sourceUpdatedAt;
+  if (outcome.status === "written") {
+    logger.success(`Processed: ${formattedBillNumber} — ${title}`);
+  } else {
+    logger.info(
+      `${outcome.status === "skipped" ? "Skipped" : "Deferred"}: ${formattedBillNumber} — ${outcome.reason}`,
+    );
+  }
+  return { outcome, sourceUpdatedAt };
 }
 
 /**
@@ -483,12 +527,19 @@ async function scrapeTargeted(identifiers: string[], congress: number) {
   );
 
   // Unlike the feed walk, a targeted run has no later run to retry it — fail
-  // loudly so the caller knows the bill still isn't in the database.
-  const failures = results.flatMap((result, i) =>
-    result.status === "rejected"
-      ? [{ target: targets[i]!, reason: result.reason as unknown }]
-      : [],
-  );
+  // loudly so the caller knows the bill still isn't in the database. A bill
+  // that was deferred or skipped counts too: the caller asked for it by name
+  // and it is not there, which a zero exit code would hide.
+  const failures = results.flatMap((result, i) => {
+    const target = targets[i]!;
+    if (result.status === "rejected") {
+      return [{ target, reason: result.reason as unknown }];
+    }
+    const { outcome } = result.value;
+    return outcome.status === "written"
+      ? []
+      : [{ target, reason: `${outcome.status}: ${outcome.reason}` }];
+  });
   for (const { target, reason } of failures) {
     logger.error(
       `Error processing bill ${target.billType}${target.billNumber}`,
@@ -691,14 +742,14 @@ async function scrape(config: CongressScraperConfig = {}) {
     bills.map((item) =>
       limit(async (): Promise<{ ok: boolean; sourceUpdatedAt?: Date }> => {
         try {
-          const sourceUpdatedAt = await processBill(
+          const { outcome, sourceUpdatedAt } = await processBill(
             congress,
             item.type.toLowerCase(),
             item.number,
             chamber,
             newItemLimiter,
           );
-          return { ok: true, sourceUpdatedAt };
+          return { ok: advancesCursor(outcome), sourceUpdatedAt };
         } catch (error) {
           if (error instanceof BillTextTooLargeError) {
             // A deliberate refusal, not a failure to retry: the bill will be
@@ -724,24 +775,11 @@ async function scrape(config: CongressScraperConfig = {}) {
     ),
   );
 
-  // Advance only across the leading run of successes. The feed is sorted
-  // oldest-first, so the first failure is the true high-water mark: moving
-  // past it would strand that bill exactly the way the old cursor did.
-  // Everything after it is simply re-offered next run.
-  const firstFailure = outcomes.findIndex((outcome) => !outcome.ok);
-  const settled =
-    firstFailure === -1 ? outcomes : outcomes.slice(0, firstFailure);
-  const highWaterMark = settled.reduce<Date | undefined>(
-    (newest, outcome) =>
-      outcome.sourceUpdatedAt && (!newest || outcome.sourceUpdatedAt > newest)
-        ? outcome.sourceUpdatedAt
-        : newest,
-    undefined,
-  );
+  const { highWaterMark, held } = cursorHighWaterMark(outcomes);
 
-  if (firstFailure !== -1) {
+  if (held > 0) {
     logger.warn(
-      `${outcomes.length - settled.length} bill(s) failed; holding the cursor at the last clean bill so they are retried next run`,
+      `${held} bill(s) failed or were deferred; holding the cursor at the last clean bill so they are retried next run`,
     );
   }
 
