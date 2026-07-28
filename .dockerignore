@@ -1,0 +1,48 @@
+# Build context for Dockerfile.scraper (context is the repo root).
+#
+# Nothing here is load-bearing today: every COPY in the Dockerfile names an
+# explicit file or `src/` directory, so none of the paths below can reach the
+# image even without this file. It exists so that stays true. A single
+# `COPY . .` added later — the most natural thing in the world to write — would
+# otherwise sweep the three live secret files in the repo root into a layer of
+# a *public* image, where deleting them in a later layer does not remove them.
+#
+# Keep this list ahead of the Dockerfile, not in sync with it.
+
+# Secrets. The repo root holds real .env, .env.local and .env.prod.
+.env
+.env.*
+!.env.example
+!.env.prod.example
+**/*.pem
+**/*.key
+.netrc
+
+# Dependencies and build output are produced inside the image; copying local
+# copies in would both bloat the context and risk shipping a stale bundle.
+**/node_modules
+**/dist
+**/build
+**/.next
+**/.expo
+**/.turbo
+**/.cache
+.pnpm-store
+
+# Version control, CI and editor state.
+.git
+.gitignore
+.github
+.vscode
+.claude
+.codex
+.vercel
+
+# Local artifacts and scratch output.
+**/*.log
+**/.DS_Store
+artifacts
+deploy
+docs
+*.pdf
+*.html
