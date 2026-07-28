@@ -101,6 +101,37 @@ export const envRegistry = [
     schema: postgresUrl,
   }),
   define({
+    key: "SUPABASE_URL",
+    description:
+      "Supabase project URL used to upload and resolve generated content images.",
+    group: "Storage",
+    secret: false,
+    setupUrl: "https://supabase.com/dashboard/project/_/settings/api",
+    example: "https://your-project.supabase.co",
+    requirements: { nextjs: "recommended", scraper: "recommended" },
+    schema: url,
+  }),
+  define({
+    key: "SUPABASE_SECRET_KEY",
+    description:
+      "Server-only Supabase secret key used by the scraper to manage content-images objects.",
+    group: "Storage",
+    secret: true,
+    setupUrl: "https://supabase.com/dashboard/project/_/settings/api-keys",
+    requirements: { scraper: "recommended" },
+    schema: string,
+  }),
+  define({
+    key: "SUPABASE_SERVICE_ROLE_KEY",
+    description:
+      "Legacy server-only service-role key accepted when SUPABASE_SECRET_KEY is not yet available.",
+    group: "Storage",
+    secret: true,
+    setupUrl: "https://supabase.com/dashboard/project/_/settings/api-keys",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "BETTER_AUTH_SECRET",
     description:
       "High-entropy secret used to sign and encrypt Better Auth data.",

@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { and, desc, eq, inArray, or, sql, unionAll } from "@acme/db";
 import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
+import { resolveContentImageUrl } from "@acme/db/content-images";
 import {
   Bill,
   ContentBrief,
@@ -40,16 +41,9 @@ interface ContentImageRef {
 }
 
 interface VideoImage {
-  imageUri?: string;
+  generatedImagePath?: string;
+  legacyImageUrl?: string;
   thumbnailUrl?: string;
-}
-
-function videoImageUri(
-  imageData: Buffer | null,
-  imageMimeType: string | null,
-): string | undefined {
-  if (!imageData || !imageMimeType) return undefined;
-  return `data:${imageMimeType};base64,${imageData.toString("base64")}`;
 }
 
 async function loadVideoImages(
@@ -67,8 +61,9 @@ async function loadVideoImages(
     .select({
       contentType: Video.contentType,
       contentId: Video.contentId,
-      imageData: Video.imageData,
-      imageMimeType: Video.imageMimeType,
+      id: Video.id,
+      generatedImagePath: Video.generatedImagePath,
+      hasLegacyImage: sql<boolean>`${Video.imageData} is not null`,
       thumbnailUrl: Video.thumbnailUrl,
     })
     .from(Video)
@@ -78,7 +73,10 @@ async function loadVideoImages(
     videos.map((video) => [
       `${video.contentType}:${video.contentId}`,
       {
-        imageUri: videoImageUri(video.imageData, video.imageMimeType),
+        generatedImagePath: video.generatedImagePath ?? undefined,
+        legacyImageUrl: video.hasLegacyImage
+          ? `/api/content-images/legacy/${video.id}`
+          : undefined,
         thumbnailUrl: video.thumbnailUrl ?? undefined,
       },
     ]),
@@ -87,17 +85,30 @@ async function loadVideoImages(
 
 async function attachVideoImages<T extends ContentImageRef>(
   items: readonly T[],
-): Promise<(T & { imageUri?: string })[]> {
+): Promise<(T & { imageUri?: string; imageFallbackUri?: string })[]> {
   const videoImages = await loadVideoImages(items);
   return items.map((item) => {
     const video = videoImages.get(`${item.type}:${item.id}`);
-    const thumbnailUrl = item.thumbnailUrl ?? video?.thumbnailUrl;
+    const sourceImageUri = resolveContentImageUrl({
+      sourceThumbnailUrl: item.thumbnailUrl,
+      videoThumbnailUrl: video?.thumbnailUrl,
+    });
+    const generatedImageUri = resolveContentImageUrl({
+      generatedImagePath: video?.generatedImagePath,
+      legacyImageUrl: video?.legacyImageUrl,
+    });
+    const imageUri = resolveContentImageUrl({
+      sourceThumbnailUrl: item.thumbnailUrl,
+      videoThumbnailUrl: video?.thumbnailUrl,
+      generatedImagePath: video?.generatedImagePath,
+      legacyImageUrl: video?.legacyImageUrl,
+    });
     return {
       ...item,
-      thumbnailUrl,
-      // Source thumbnails remain preferred. Use the generated JPEG only when
-      // the source content has no usable URL of its own.
-      imageUri: thumbnailUrl ? undefined : video?.imageUri,
+      // Every surface gets one canonical URL. Source imagery remains preferred,
+      // followed by generated Storage art and the rollout-only blob endpoint.
+      imageUri,
+      imageFallbackUri: sourceImageUri ? generatedImageUri : undefined,
     };
   });
 }
@@ -175,17 +186,23 @@ export async function getThumbnailForContent(
 
     const [video] = await db
       .select({
-        imageData: Video.imageData,
-        imageMimeType: Video.imageMimeType,
+        id: Video.id,
+        generatedImagePath: Video.generatedImagePath,
+        hasLegacyImage: sql<boolean>`${Video.imageData} is not null`,
         thumbnailUrl: Video.thumbnailUrl,
       })
       .from(Video)
       .where(and(eq(Video.contentType, type), eq(Video.contentId, id)))
       .limit(1);
     return (
-      videoImageUri(video?.imageData ?? null, video?.imageMimeType ?? null) ??
-      video?.thumbnailUrl ??
-      null
+      resolveContentImageUrl({
+        videoThumbnailUrl: video?.thumbnailUrl,
+        generatedImagePath: video?.generatedImagePath,
+        legacyImageUrl:
+          video?.hasLegacyImage && video.id
+            ? `/api/content-images/legacy/${video.id}`
+            : undefined,
+      }) ?? null
     );
   } catch (error) {
     console.error(`Error fetching thumbnail for ${type} ${id}:`, error);
@@ -201,7 +218,8 @@ const ContentCardSchema = z.object({
   type: z.enum(["bill", "government_content", "court_case", "general"]),
   isAIGenerated: z.boolean(),
   thumbnailUrl: z.string().optional(),
-  imageUri: z.string().optional(), // Add support for AI-generated data URIs
+  imageUri: z.string().optional(), // Stable source, Storage, or legacy HTTP URL
+  imageFallbackUri: z.string().optional(),
   billNumber: z.string().optional(), // Human-readable bill identifier, e.g. "H.R. 1234"
 });
 

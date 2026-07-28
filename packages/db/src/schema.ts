@@ -335,11 +335,20 @@ export const Video = pgTable(
     title: t.varchar({ length: 100 }).notNull(), // Max 100 chars
     description: t.text().notNull(), // 50-word catchy headline
 
-    // Hybrid image storage: Binary AI-generated images OR URL-based scraped thumbnails
-    imageData: bytea("image_data"), // Raw JPEG bytes (AI-generated)
+    // Generated imagery lives in the public `content-images` Storage bucket.
+    // imageData remains temporarily for the verified backfill/rollback window;
+    // normal API queries never select or serialize it.
+    imageData: bytea("image_data"),
     imageMimeType: t.varchar("image_mime_type", { length: 50 }), // "image/jpeg"
     imageWidth: t.integer("image_width"),
     imageHeight: t.integer("image_height"),
+    generatedImagePath: t.text("generated_image_path"),
+    generatedImageHash: t.varchar("generated_image_hash", { length: 64 }),
+    imageStorageVerifiedAt: t.timestamp("image_storage_verified_at", {
+      withTimezone: true,
+    }),
+    imageStorageError: t.text("image_storage_error"),
+    imageStorageAttempts: t.integer("image_storage_attempts").default(0),
     thumbnailUrl: t.text(), // URL from source content (scraped)
 
     // Metadata

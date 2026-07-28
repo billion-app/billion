@@ -13,6 +13,7 @@
     "@ai-sdk/google": "^3.0.53",
     "@ai-sdk/openai-compatible": "2.0.59",
     "@openrouter/ai-sdk-provider": "^2.10.0",
+    "@supabase/supabase-js": "2.111.0",
     "ai": "^6.0.141",
     "cheerio": "^1.2.0",
     "consola": "^3.4.2",
@@ -47,6 +48,7 @@
     "retroactive-briefs": "tsx src/retroactive-briefs-entry.ts",
     "reprocess-content": "tsx src/reprocess-content-entry.ts",
     "retroactive-videos": "tsx src/retroactive-videos-entry.ts",
+    "backfill-content-images": "tsx src/backfill-content-images-entry.ts",
     "backfill-bill-descriptions": "tsx src/backfill-bill-descriptions-entry.ts"
   },
   "author": "It's not you it's me",

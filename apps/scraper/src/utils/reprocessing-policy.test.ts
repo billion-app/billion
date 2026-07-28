@@ -24,7 +24,7 @@ const completeState = {
   aiGeneratedArticle: article,
   hasBrief: false,
   videoId: "video-id",
-  videoImageData: Buffer.from("image"),
+  videoHasImage: true,
   videoThumbnailUrl: null,
 };
 
@@ -56,7 +56,7 @@ void test("AI article requires all expected sections", () => {
 void test("missing mode selects incomplete derived assets only", () => {
   assert.equal(needsReprocessing(completeState, "missing"), false);
   assert.equal(
-    needsReprocessing({ ...completeState, videoImageData: null }, "missing"),
+    needsReprocessing({ ...completeState, videoHasImage: false }, "missing"),
     true,
   );
   assert.equal(needsReprocessing(completeState, "replace"), true);
@@ -110,7 +110,7 @@ void test("missing source text or header art outranks the long-form check", () =
   // Both apply to every type, so a bill with a perfect brief still needs work
   // if its art is gone.
   assert.equal(
-    needsReprocessing({ ...completeBill, videoImageData: null }, "missing"),
+    needsReprocessing({ ...completeBill, videoHasImage: false }, "missing"),
     true,
   );
   assert.equal(

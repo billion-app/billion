@@ -9,7 +9,7 @@ export interface ReprocessingState {
   /** Whether a structured brief exists. Bills only — see `needsReprocessing`. */
   hasBrief: boolean;
   videoId: string | null;
-  videoImageData: Buffer | null;
+  videoHasImage: boolean;
   videoThumbnailUrl: string | null;
 }
 
@@ -64,7 +64,7 @@ export function isUsableAIArticle(article: string | undefined | null): boolean {
 }
 
 export function hasVideoImage(state: ReprocessingState): boolean {
-  return Boolean(state.videoImageData || state.videoThumbnailUrl);
+  return state.videoHasImage || Boolean(state.videoThumbnailUrl);
 }
 
 /**

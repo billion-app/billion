@@ -1,8 +1,9 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { desc } from "@acme/db";
+import { desc, sql } from "@acme/db";
 import { db } from "@acme/db/client";
+import { resolveContentImageUrl } from "@acme/db/content-images";
 import { Video } from "@acme/db/schema";
 
 import { publicProcedure } from "../trpc";
@@ -19,7 +20,8 @@ export const VideoPostSchema = z.object({
   type: z.enum(["bill", "government_content", "court_case", "general"]),
   articlePreview: z.string(),
   // Hybrid image support - use whichever is available
-  imageUri: z.string().optional(), // Data URI from Video.imageData (AI-generated)
+  imageUri: z.string().optional(), // Stable source, Storage, or legacy HTTP URL
+  imageFallbackUri: z.string().optional(),
   thumbnailUrl: z.string().optional(), // URL from source content (scraped)
   originalContentId: z.string(), // Reference to source content
 });
@@ -39,7 +41,18 @@ export const videoRouter = {
 
       // Query Video table instead of source tables
       const videos = await db
-        .select()
+        .select({
+          id: Video.id,
+          title: Video.title,
+          description: Video.description,
+          author: Video.author,
+          engagementMetrics: Video.engagementMetrics,
+          contentType: Video.contentType,
+          contentId: Video.contentId,
+          thumbnailUrl: Video.thumbnailUrl,
+          generatedImagePath: Video.generatedImagePath,
+          hasLegacyImage: sql<boolean>`${Video.imageData} is not null`,
+        })
         .from(Video)
         .orderBy(desc(Video.createdAt))
         .limit(limit)
@@ -47,12 +60,21 @@ export const videoRouter = {
 
       // Transform to feed format with hybrid image support
       const feedPosts = videos.map((video) => {
-        // Handle AI-generated binary images (convert to data URI)
-        let imageUri: string | undefined;
-        if (video.imageData && video.imageMimeType) {
-          const base64 = video.imageData.toString("base64");
-          imageUri = `data:${video.imageMimeType};base64,${base64}`;
-        }
+        const imageUri = resolveContentImageUrl({
+          sourceThumbnailUrl: video.thumbnailUrl,
+          generatedImagePath: video.generatedImagePath,
+          legacyImageUrl: video.hasLegacyImage
+            ? `/api/content-images/legacy/${video.id}`
+            : undefined,
+        });
+        const imageFallbackUri = video.thumbnailUrl
+          ? resolveContentImageUrl({
+              generatedImagePath: video.generatedImagePath,
+              legacyImageUrl: video.hasLegacyImage
+                ? `/api/content-images/legacy/${video.id}`
+                : undefined,
+            })
+          : undefined;
 
         const metrics = video.engagementMetrics as {
           likes: number;
@@ -81,8 +103,9 @@ export const videoRouter = {
           shares: metrics.shares,
           type,
           articlePreview: video.description, // Marketing description as preview
-          imageUri, // AI-generated data URI (if exists)
-          thumbnailUrl: video.thumbnailUrl ?? undefined, // URL-based thumbnail (if exists)
+          imageUri,
+          imageFallbackUri,
+          thumbnailUrl: video.thumbnailUrl ?? undefined,
           originalContentId: video.contentId, // For "Read Full Article" navigation
         };
       });

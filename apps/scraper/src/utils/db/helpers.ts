@@ -3,11 +3,12 @@
  * Check for existing records before performing expensive operations
  */
 
-import { eq, and, isNull, or } from '@acme/db';
-import { db } from '@acme/db/client';
-import { Bill, GovernmentContent, CourtCase, Video } from '@acme/db/schema';
-import type { ExistingRecordCheck } from '../types.js';
-import { createLogger } from '../log.js';
+import { and, eq, isNull, or } from "@acme/db";
+import { db } from "@acme/db/client";
+import { Bill, CourtCase, GovernmentContent, Video } from "@acme/db/schema";
+
+import type { ExistingRecordCheck } from "../types.js";
+import { createLogger } from "../log.js";
 
 const logger = createLogger("db");
 
@@ -30,7 +31,12 @@ export async function checkExistingBill(
         thumbnailUrl: Bill.thumbnailUrl,
       })
       .from(Bill)
-      .where(and(eq(Bill.billNumber, billNumber), eq(Bill.sourceWebsite, sourceWebsite)))
+      .where(
+        and(
+          eq(Bill.billNumber, billNumber),
+          eq(Bill.sourceWebsite, sourceWebsite),
+        ),
+      )
       .limit(1);
 
     if (!existing) {
@@ -45,7 +51,7 @@ export async function checkExistingBill(
       hasThumbnail: !!existing.thumbnailUrl,
     };
   } catch (error) {
-    logger.error('Error checking existing bill', error);
+    logger.error("Error checking existing bill", error);
     return null;
   }
 }
@@ -82,7 +88,7 @@ export async function checkExistingGovernmentContent(
       hasThumbnail: !!existing.thumbnailUrl,
     };
   } catch (error) {
-    logger.error('Error checking existing government content', error);
+    logger.error("Error checking existing government content", error);
     return null;
   }
 }
@@ -123,7 +129,7 @@ export async function checkExistingCourtCase(
       hasThumbnail: !!existing.thumbnailUrl,
     };
   } catch (error) {
-    logger.error('Error checking existing court case', error);
+    logger.error("Error checking existing court case", error);
     return null;
   }
 }
@@ -135,11 +141,11 @@ export async function checkExistingCourtCase(
  * @returns Array of articles without videos
  */
 export async function findArticlesWithoutVideos(
-  contentType: 'bill' | 'government_content' | 'court_case',
-  limit: number = 1000
+  contentType: "bill" | "government_content" | "court_case",
+  limit: number = 1000,
 ) {
   try {
-    if (contentType === 'bill') {
+    if (contentType === "bill") {
       const billsWithoutVideos = await db
         .select({
           id: Bill.id,
@@ -150,12 +156,16 @@ export async function findArticlesWithoutVideos(
           thumbnailUrl: Bill.thumbnailUrl,
         })
         .from(Bill)
-        .leftJoin(Video, and(eq(Video.contentType, 'bill'), eq(Video.contentId, Bill.id)))
+        .leftJoin(
+          Video,
+          and(eq(Video.contentType, "bill"), eq(Video.contentId, Bill.id)),
+        )
         .where(
           or(
             isNull(Video.id),
             and(
-              eq(Video.contentType, 'bill'),
+              eq(Video.contentType, "bill"),
+              isNull(Video.generatedImagePath),
               isNull(Video.imageData),
               isNull(Video.thumbnailUrl),
             ),
@@ -164,7 +174,7 @@ export async function findArticlesWithoutVideos(
         .limit(limit);
 
       return billsWithoutVideos;
-    } else if (contentType === 'government_content') {
+    } else if (contentType === "government_content") {
       const contentWithoutVideos = await db
         .select({
           id: GovernmentContent.id,
@@ -175,12 +185,19 @@ export async function findArticlesWithoutVideos(
           thumbnailUrl: GovernmentContent.thumbnailUrl,
         })
         .from(GovernmentContent)
-        .leftJoin(Video, and(eq(Video.contentType, 'government_content'), eq(Video.contentId, GovernmentContent.id)))
+        .leftJoin(
+          Video,
+          and(
+            eq(Video.contentType, "government_content"),
+            eq(Video.contentId, GovernmentContent.id),
+          ),
+        )
         .where(
           or(
             isNull(Video.id),
             and(
-              eq(Video.contentType, 'government_content'),
+              eq(Video.contentType, "government_content"),
+              isNull(Video.generatedImagePath),
               isNull(Video.imageData),
               isNull(Video.thumbnailUrl),
             ),
@@ -199,12 +216,19 @@ export async function findArticlesWithoutVideos(
           thumbnailUrl: CourtCase.thumbnailUrl,
         })
         .from(CourtCase)
-        .leftJoin(Video, and(eq(Video.contentType, 'court_case'), eq(Video.contentId, CourtCase.id)))
+        .leftJoin(
+          Video,
+          and(
+            eq(Video.contentType, "court_case"),
+            eq(Video.contentId, CourtCase.id),
+          ),
+        )
         .where(
           or(
             isNull(Video.id),
             and(
-              eq(Video.contentType, 'court_case'),
+              eq(Video.contentType, "court_case"),
+              isNull(Video.generatedImagePath),
               isNull(Video.imageData),
               isNull(Video.thumbnailUrl),
             ),
@@ -212,7 +236,7 @@ export async function findArticlesWithoutVideos(
         )
         .limit(limit);
 
-      return casesWithoutVideos.map(c => ({ ...c, source: 'court' }));
+      return casesWithoutVideos.map((c) => ({ ...c, source: "court" }));
     }
   } catch (error) {
     logger.error(`Error finding ${contentType} articles without videos`, error);

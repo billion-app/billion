@@ -2,7 +2,7 @@ import pLimit from "p-limit";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { and, asc, eq, gt } from "@acme/db";
+import { and, asc, eq, gt, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -56,7 +56,7 @@ interface ContentItem {
   author: string;
   articleType: string;
   videoId: string | null;
-  videoImageData: Buffer | null;
+  videoHasImage: boolean;
   videoThumbnailUrl: string | null;
   /** Structured brief presence. Always false for types that have no brief. */
   hasBrief: boolean;
@@ -79,7 +79,7 @@ function rowState(item: ContentItem) {
     aiGeneratedArticle: item.aiGeneratedArticle,
     hasBrief: item.hasBrief,
     videoId: item.videoId,
-    videoImageData: item.videoImageData,
+    videoHasImage: item.videoHasImage,
     videoThumbnailUrl: item.videoThumbnailUrl,
   };
 }
@@ -100,7 +100,7 @@ async function loadContentItems(
         contentHash: Bill.contentHash,
         author: Bill.sourceWebsite,
         videoId: Video.id,
-        videoImageData: Video.imageData,
+        videoHasImage: sql<boolean>`${Video.generatedImagePath} is not null or ${Video.imageData} is not null`,
         videoThumbnailUrl: Video.thumbnailUrl,
         briefId: ContentBrief.id,
         billNumber: Bill.billNumber,
@@ -144,7 +144,7 @@ async function loadContentItems(
         author: GovernmentContent.source,
         articleType: GovernmentContent.type,
         videoId: Video.id,
-        videoImageData: Video.imageData,
+        videoHasImage: sql<boolean>`${Video.generatedImagePath} is not null or ${Video.imageData} is not null`,
         videoThumbnailUrl: Video.thumbnailUrl,
       })
       .from(GovernmentContent)
@@ -180,7 +180,7 @@ async function loadContentItems(
       contentHash: CourtCase.contentHash,
       author: CourtCase.court,
       videoId: Video.id,
-      videoImageData: Video.imageData,
+      videoHasImage: sql<boolean>`${Video.generatedImagePath} is not null or ${Video.imageData} is not null`,
       videoThumbnailUrl: Video.thumbnailUrl,
     })
     .from(CourtCase)
