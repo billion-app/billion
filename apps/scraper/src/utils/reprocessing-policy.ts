@@ -1,8 +1,13 @@
 export type ReprocessMode = "missing" | "replace";
 
+export type ReprocessContentType = "bill" | "government_content" | "court_case";
+
 export interface ReprocessingState {
+  contentType: ReprocessContentType;
   fullText: string | null;
   aiGeneratedArticle: string | null;
+  /** Whether a structured brief exists. Bills only — see `needsReprocessing`. */
+  hasBrief: boolean;
   videoId: string | null;
   videoImageData: Buffer | null;
   videoThumbnailUrl: string | null;
@@ -62,16 +67,32 @@ export function hasVideoImage(state: ReprocessingState): boolean {
   return Boolean(state.videoImageData || state.videoThumbnailUrl);
 }
 
+/**
+ * Which long-form asset a content type is actually read from.
+ *
+ * Bills render from their structured brief; `article-detail.tsx` only falls
+ * back to `aiGeneratedArticle` when no brief exists. Since bills no longer
+ * generate an article at all, judging one "incomplete" for lacking an article
+ * would select every correctly-stored bill and regenerate the artifact we
+ * deliberately stopped producing.
+ *
+ * Court cases and executive actions have no brief schema yet, so for them the
+ * article is still the only long-form content and remains required.
+ */
+export function requiresBrief(contentType: ReprocessContentType): boolean {
+  return contentType === "bill";
+}
+
 export function needsReprocessing(
   state: ReprocessingState,
   mode: ReprocessMode,
 ): boolean {
   if (mode === "replace") return true;
 
-  return (
-    !isUsableSourceText(state.fullText) ||
-    !isUsableAIArticle(state.aiGeneratedArticle) ||
-    !state.videoId ||
-    !hasVideoImage(state)
-  );
+  if (!isUsableSourceText(state.fullText)) return true;
+  if (!state.videoId || !hasVideoImage(state)) return true;
+
+  return requiresBrief(state.contentType)
+    ? !state.hasBrief
+    : !isUsableAIArticle(state.aiGeneratedArticle);
 }
