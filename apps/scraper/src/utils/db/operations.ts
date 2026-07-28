@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { and, eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
@@ -46,8 +48,14 @@ import {
   incrementImagesSearched,
   incrementNewEntries,
   incrementTotalProcessed,
+  incrementVideosGenerated,
 } from "./metrics.js";
-import { generateVideoForContent } from "./video-operations.js";
+import type { BuiltVideoRecord, DbExecutor } from "./video-operations.js";
+import {
+  buildVideoRecord,
+  generateVideoForContent,
+  persistVideoRecord,
+} from "./video-operations.js";
 
 const logger = createLogger("db");
 const forceAIRegeneration = process.env.SCRAPER_FORCE_AI_REGEN === "1";
@@ -286,6 +294,41 @@ export async function upsertContent(
       throw new Error(`AI returned an empty required summary for ${label}`);
     }
     shouldGenerateSummary = false;
+  }
+
+  // A bill we have never stored is assembled completely before anything is
+  // written. Everything below this point in the ordinary path writes the row
+  // first and enriches afterwards, which leaves the bill visible — titled,
+  // described, but with a grey placeholder where its header art belongs and raw
+  // GPO text under "Plain explainer" — for the two to four minutes its assets
+  // take to generate. For an existing bill that is the right trade, because the
+  // row is already public and refreshing it in place only improves it. For a
+  // new one it means publishing something unfinished, which is what this path
+  // exists to prevent.
+  //
+  // The id is minted here rather than by the database so the brief and the
+  // video can reference the bill before it exists, and all three rows land in
+  // one transaction.
+  if (!existing && input.type === "bill" && !budgetExhausted) {
+    const assembled = await assembleNewBill({
+      data: input.data,
+      contentHash: newContentHash,
+      description: preGeneratedDescription,
+      label,
+      claimBudget,
+    });
+
+    if (assembled.status !== "ready") {
+      // Nothing was written, so there is nothing to roll back. The bill keeps
+      // its place in the feed and the next run tries the whole thing again.
+      logger.warn(`${label}: ${assembled.reason} — not storing it this run`);
+      tickProgress({ newEntries: 0, unchanged: 0, changed: 0 });
+      return { status: "deferred", reason: assembled.reason };
+    }
+
+    incrementNewEntries();
+    tickProgress({ newEntries: 1, unchanged: 0, changed: 0 });
+    return { status: "written", id: assembled.id };
   }
 
   if (progressKind === "new") incrementNewEntries();
@@ -753,6 +796,254 @@ export async function upsertContentLens(
  * unchanged bills never re-pay — same caching contract as `upsertContentLens`.
  * AIRateLimitError propagates to the caller's rate-limit handler.
  */
+type AssembleResult =
+  | { status: "ready"; id: string }
+  | { status: "incomplete"; reason: string };
+
+/**
+ * What a brand-new bill must have before it is allowed into the database.
+ *
+ * Exported and pure so the rule is testable and hard to loosen by accident:
+ * every condition here corresponds to something a reader would otherwise see
+ * broken on the detail screen. Loosening one brings back the placeholder art
+ * and raw-GPO-text state this path exists to prevent.
+ *
+ * The dual lens is deliberately absent. It is additive, its research loop can
+ * legitimately return nothing, and the UI omits it cleanly — gating on it would
+ * suppress good bills for a reason no reader would ever notice.
+ */
+export function newBillReadiness(candidate: {
+  description?: string | null;
+  fullText?: string | null;
+  hasBrief: boolean;
+  headerArt: { imageData: Buffer | null; thumbnailUrl: string | null } | null;
+}): { ready: boolean; reason?: string } {
+  if (!candidate.description?.trim()) {
+    return { ready: false, reason: "no description could be produced" };
+  }
+  if (!isUsableSourceText(candidate.fullText)) {
+    return { ready: false, reason: "no usable bill text yet" };
+  }
+  if (!candidate.hasBrief) {
+    return { ready: false, reason: "brief generation failed" };
+  }
+  if (!candidate.headerArt) {
+    return { ready: false, reason: "header art generation failed" };
+  }
+  // Generated art or a scraped thumbnail both render; neither means the reader
+  // gets the grey placeholder.
+  if (!candidate.headerArt.imageData && !candidate.headerArt.thumbnailUrl) {
+    return { ready: false, reason: "no header art could be produced" };
+  }
+  return { ready: true };
+}
+
+/**
+ * Build every required asset for a brand-new bill, then write the bill, its
+ * header art and its brief in a single transaction.
+ *
+ * "Required" is deliberately narrow: a description, a structured brief, and
+ * header art. Those are what the detail screen renders — without them a reader
+ * gets a grey placeholder and a wall of raw GPO text, which is worse than the
+ * bill simply not being there yet. The dual lens is *not* required: it runs an
+ * agentic research loop that can legitimately come back empty, and the UI
+ * degrades cleanly without it, so gating on it would suppress good bills for a
+ * reason readers would never see.
+ *
+ * Nothing here writes until every required piece exists, so a failure at any
+ * point leaves the database exactly as it was. There is no partial row to clean
+ * up and no window in which a reader can see an unfinished bill.
+ */
+async function assembleNewBill(args: {
+  data: BillData;
+  contentHash: string;
+  description?: string;
+  label: string;
+  claimBudget: () => boolean;
+}): Promise<AssembleResult> {
+  const { data, contentHash, label } = args;
+  const description = args.description ?? data.description;
+
+  // Cheap preconditions first, so a bill that can never be completed this run
+  // does not spend budget or a generation call finding that out. The brief and
+  // art are stubbed as present here because they have not been attempted yet —
+  // the same rule runs again for real once they have.
+  const precheck = newBillReadiness({
+    description,
+    fullText: data.fullText,
+    hasBrief: true,
+    headerArt: { imageData: null, thumbnailUrl: "pending" },
+  });
+  if (!precheck.ready) {
+    return { status: "incomplete", reason: precheck.reason! };
+  }
+  // Narrowing for the compiler; `newBillReadiness` already rejected both.
+  if (!description || !data.fullText) {
+    return { status: "incomplete", reason: "missing description or text" };
+  }
+  if (!args.claimBudget()) {
+    return { status: "incomplete", reason: "run budget reached" };
+  }
+
+  const billId = randomUUID();
+
+  logger.start(`Assembling ${label} before storing it`);
+
+  const brief = await buildBillBriefRecord({
+    title: data.title,
+    billNumber: data.billNumber,
+    url: data.url,
+    fullText: data.fullText,
+    officialSummary: data.summary,
+    status: data.status,
+  });
+  if (!brief) {
+    return { status: "incomplete", reason: "brief generation failed" };
+  }
+
+  const video = await buildVideoRecord(
+    "bill",
+    data.title,
+    data.fullText,
+    contentHash,
+    data.sourceWebsite,
+  );
+
+  const readiness = newBillReadiness({
+    description,
+    fullText: data.fullText,
+    hasBrief: Boolean(brief),
+    headerArt: video,
+  });
+  if (!readiness.ready || !video) {
+    return {
+      status: "incomplete",
+      reason: readiness.reason ?? "header art generation failed",
+    };
+  }
+
+  // Every required asset now exists in memory. The single transaction below is
+  // the first and only write: either the bill, its art and its brief all become
+  // visible together, or none of them ever existed.
+  await db.transaction(async (tx) => {
+    await tx.insert(Bill).values({
+      ...data,
+      id: billId,
+      description: clampBillDescription(description),
+      contentHash,
+      versions: [],
+    });
+    await persistVideoRecord(tx, "bill", billId, video);
+    await persistBillBrief(tx, billId, contentHash, brief);
+  });
+
+  incrementVideosGenerated();
+  logger.success(`${label} stored complete (brief + header art)`);
+
+  // The lens comes after the commit, on purpose. It is additive rather than
+  // required, so it must not be able to hold back a bill that is otherwise
+  // complete — and its research loop is far slower than everything above, so
+  // running it inside the transaction would hold a connection open for minutes.
+  // A failure here leaves a complete bill with no lens, which `retroactive-
+  // lenses` fills in later.
+  try {
+    await upsertContentLens(
+      billId,
+      "bill",
+      contentHash,
+      data.title,
+      data.fullText,
+      "bill",
+      null,
+      args.claimBudget,
+    );
+  } catch (error) {
+    logger.warn(
+      `Dual lens failed for ${label} — the bill is stored and complete without it: ${
+        error instanceof Error ? error.message : error
+      }`,
+    );
+  }
+
+  return { status: "ready", id: billId };
+}
+
+/**
+ * A structured brief, generated but not yet stored.
+ *
+ * Split out for the same reason as the video record: a bill's assets are all
+ * produced before any row exists, so the bill can be written complete in one
+ * transaction rather than appearing and then filling in.
+ */
+export interface BuiltBillBrief {
+  brief: NonNullable<Awaited<ReturnType<typeof generateBillBrief>>> & {
+    generatedAt: string;
+    modelVersion: string;
+  };
+  modelVersion: string;
+}
+
+/** Generate a brief in memory. Returns null when generation fails. */
+export async function buildBillBriefRecord(args: {
+  title: string;
+  billNumber: string;
+  url: string;
+  fullText: string;
+  officialSummary?: string | null;
+  status?: string | null;
+  priorArticle?: string | null;
+}): Promise<BuiltBillBrief | null> {
+  const generated = await generateBillBrief({
+    title: args.title,
+    billNumber: args.billNumber,
+    url: args.url,
+    fullText: args.fullText,
+    officialSummary: args.officialSummary,
+    status: args.status,
+    priorArticle: args.priorArticle,
+  });
+  if (!generated) {
+    logger.warn(`Brief generation returned null for ${args.billNumber}`);
+    return null;
+  }
+
+  const modelVersion = getTextModelVersion();
+  return {
+    brief: { ...generated, generatedAt: new Date().toISOString(), modelVersion },
+    modelVersion,
+  };
+}
+
+/**
+ * Write a previously built brief. Takes an executor so it can run inside the
+ * same transaction as the bill row it describes.
+ */
+export async function persistBillBrief(
+  executor: DbExecutor,
+  contentId: string,
+  contentHash: string,
+  record: BuiltBillBrief,
+): Promise<void> {
+  await executor
+    .insert(ContentBrief)
+    .values({
+      contentId,
+      contentType: "bill",
+      contentHash,
+      brief: record.brief,
+      modelVersion: record.modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: [ContentBrief.contentType, ContentBrief.contentId],
+      set: {
+        contentHash,
+        brief: record.brief,
+        modelVersion: record.modelVersion,
+        updatedAt: new Date(),
+      },
+    });
+}
+
 export async function upsertBillBrief(args: {
   contentId: string;
   contentHash: string;
@@ -796,44 +1087,10 @@ export async function upsertBillBrief(args: {
     return false;
   }
 
-  const generated = await generateBillBrief({
-    title: args.title,
-    billNumber: args.billNumber,
-    url: args.url,
-    fullText: args.fullText,
-    officialSummary: args.officialSummary,
-    status: args.status,
-    priorArticle: args.priorArticle,
-  });
-  if (!generated) {
-    logger.warn(`Brief generation returned null for ${args.billNumber}`);
-    return false;
-  }
+  const record = await buildBillBriefRecord(args);
+  if (!record) return false;
 
-  const modelVersion = getTextModelVersion();
-  const brief = {
-    ...generated,
-    generatedAt: new Date().toISOString(),
-    modelVersion,
-  };
-  await db
-    .insert(ContentBrief)
-    .values({
-      contentId: args.contentId,
-      contentType: "bill",
-      contentHash: args.contentHash,
-      brief,
-      modelVersion,
-    })
-    .onConflictDoUpdate({
-      target: [ContentBrief.contentType, ContentBrief.contentId],
-      set: {
-        contentHash: args.contentHash,
-        brief,
-        modelVersion,
-        updatedAt: new Date(),
-      },
-    });
+  await persistBillBrief(db, args.contentId, args.contentHash, record);
 
   logger.success(`Cached brief for ${args.billNumber}`);
   return true;
