@@ -10,7 +10,7 @@ import {
   parseMissouriCandidateOffice,
   parseMissouriResults,
   parseMissouriWithdrawals,
-} from "./missouri-sos-parsers.js";
+} from "./disabled/missouri-sos-parsers.js";
 
 const fixture = (name: string) =>
   readFile(

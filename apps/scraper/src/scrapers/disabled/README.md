@@ -45,3 +45,14 @@ and cache the data," and its `getCached*` getters are imported nowhere.
 
 To revive: have the scraper persist to the database (a real table the API reads),
 add a reader in `@acme/api`, then re-register its implementation and contract.
+
+## `missouri-sos.ts`
+
+Implements current-cycle Missouri candidate, ballot-measure, and election-result
+snapshot ingestion. Disabled because the snapshot data is not yet connected to
+a configured production database or a product surface.
+
+To revive it: provision the election snapshot storage and product integration,
+then move the implementation/config/parser back to `scrapers/`, register
+the implementation and active contract, and restore the Missouri source-limit
+environment entries.

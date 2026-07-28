@@ -15,10 +15,10 @@ import {
 import { db } from "@acme/db/client";
 import { ElectionSourceSnapshot } from "@acme/db/schema";
 
-import type { Scraper } from "../utils/types.js";
-import { getItemLimit } from "../utils/concurrency.js";
-import { fetchWithRetry } from "../utils/fetch.js";
-import { createLogger } from "../utils/log.js";
+import type { Scraper } from "../../utils/types.js";
+import { getItemLimit } from "../../utils/concurrency.js";
+import { fetchWithRetry } from "../../utils/fetch.js";
+import { createLogger } from "../../utils/log.js";
 import {
   discoverMissouriResultsUrl,
   MISSOURI_CALENDAR_URL,

@@ -1,12 +1,12 @@
 # Missouri SOS current-cycle election data
 
+> **Status: disabled.** The implementation is retained under
+> `apps/scraper/src/scrapers/disabled`, but it is not registered or runnable
+> until its database and product integration are provisioned.
+
 `missouri-sos` ingests only the 2026 Missouri election cycle from the four
 official Secretary of State entry points named in issue #186. It does not offer
 historical browsing and never requests or persists voter-level data.
-
-```bash
-pnpm --filter @acme/scraper run start missouri-sos
-```
 
 ## Discovery and source boundaries
 
