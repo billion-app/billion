@@ -4,7 +4,7 @@ import { check, customType, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-import type { BillBriefRecord } from "@acme/validators";
+import type { BillAnalysisRecord, BillBriefRecord } from "@acme/validators";
 
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
@@ -747,6 +747,31 @@ export const ContentBrief = pgTable(
   (table) => ({
     uniqueContentBrief: unique().on(table.contentType, table.contentId),
     contentIdIndex: index("content_brief_content_id_idx").on(table.contentId),
+  }),
+);
+
+/**
+ * Exhaustive section notes for bill text. These are deliberately cached apart
+ * from the reader-facing brief: changing tone or presentation can regenerate
+ * the writing pass without paying to re-read an unchanged bill.
+ */
+export const BillAnalysis = pgTable(
+  "bill_analysis",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentId: t.uuid().notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    analysis: t.jsonb().$type<BillAnalysisRecord>().notNull(),
+    analysisVersion: t.integer().notNull(),
+    modelVersion: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueBillAnalysis: unique().on(table.contentId),
+    contentIdIndex: index("bill_analysis_content_id_idx").on(table.contentId),
   }),
 );
 

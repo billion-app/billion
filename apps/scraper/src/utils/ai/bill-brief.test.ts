@@ -82,6 +82,7 @@ void test("older brief records stay renderable but are not current cache hits", 
   };
   const v5 = { ...brief(), ...metadata, version: 5 };
   const v6 = { ...brief(), ...metadata, version: 6 };
+  const v7 = { ...brief(), ...metadata, version: 7 };
 
   assert.equal(isUsableBillBrief(v5), true);
   assert.equal(isCurrentBillBrief(v5), false);
@@ -89,6 +90,9 @@ void test("older brief records stay renderable but are not current cache hits", 
   assert.equal(isUsableBillBrief(v6), true);
   assert.equal(isCurrentBillBrief(v6), false);
   assert.equal(parseBillBriefRecord(v6)?.version, BILL_BRIEF_VERSION);
+  assert.equal(isUsableBillBrief(v7), true);
+  assert.equal(isCurrentBillBrief(v7), false);
+  assert.equal(parseBillBriefRecord(v7)?.version, BILL_BRIEF_VERSION);
 
   const current = {
     ...v5,

@@ -2,17 +2,17 @@
  * Backfill structured briefs for bills that predate the brief pipeline, or
  * whose brief is stale relative to the bill's current contentHash.
  *
- * Mirrors `retroactive-lenses.ts`. Bills already carry a vetted long-form
- * article, so the backfill hands that to the generator as prior analysis —
- * the restructuring pass is cheaper and more consistent than re-reading the
- * statute cold, and quotes are still verified against the official text.
+ * The analysis pass is cached independently from the reader-facing brief, so
+ * a brief-schema update can reuse an unchanged bill's section notes. Quotes
+ * are still verified against the complete official text.
  */
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { and, desc, eq, isNotNull, isNull, ne, or } from "@acme/db";
+import { and, desc, eq, isNotNull, isNull, ne, or, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import { Bill, ContentBrief } from "@acme/db/schema";
+import { BILL_BRIEF_VERSION } from "@acme/validators";
 
 import { AIRateLimitError } from "./utils/ai/text-generation.js";
 import { upsertBillBrief } from "./utils/db/operations.js";
@@ -28,6 +28,7 @@ interface BriefCandidate {
   url: string;
   fullText: string;
   status: string | null;
+  summary: string | null;
   aiGeneratedArticle: string | null;
 }
 
@@ -41,6 +42,7 @@ async function findBills(limit: number): Promise<BriefCandidate[]> {
       url: Bill.url,
       fullText: Bill.fullText,
       status: Bill.status,
+      summary: Bill.summary,
       aiGeneratedArticle: Bill.aiGeneratedArticle,
     })
     .from(Bill)
@@ -57,6 +59,7 @@ async function findBills(limit: number): Promise<BriefCandidate[]> {
         or(
           isNull(ContentBrief.id),
           ne(ContentBrief.contentHash, Bill.contentHash),
+          sql`${ContentBrief.brief}->>'version' IS DISTINCT FROM ${String(BILL_BRIEF_VERSION)}`,
         ),
       ),
     )
@@ -111,6 +114,7 @@ for (const candidate of candidates) {
       url: candidate.url,
       fullText: candidate.fullText,
       status: candidate.status,
+      summary: candidate.summary,
       priorArticle: candidate.aiGeneratedArticle,
     });
     if (generated) processed++;

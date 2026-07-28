@@ -2,23 +2,25 @@
  * Bill Brief generation — turns a bill into the structured document defined in
  * `@acme/validators`, replacing the markdown wall of text as the primary read.
  *
- * The pipeline is deliberately three steps, only one of which costs a token:
+ * The pipeline separates reading from writing:
  *
- *   1. Structure (LLM). One schema-validated call grounded in the official text
- *      plus, when we have it, the existing long-form article — that article has
- *      already done the careful nonpartisan analysis, so this pass is mostly a
- *      restructuring job rather than a fresh reading.
- *   2. Verify quotes (deterministic). Every quote is checked against the full
+ *   1. Analyze (LLM). Every legislative section becomes structured, exhaustive
+ *      notes. No source section is silently clipped by a flat context window.
+ *   2. Write (LLM). One schema-validated call turns the accumulated notes into
+ *      the reader-facing brief without seeing raw bill text.
+ *   3. Verify quotes (deterministic). Every quote is checked against the full
  *      source text. Unverified quotes are dropped, not shipped — a brief may
  *      say less than the model wrote, but it never attributes words to a bill
  *      that the bill does not contain.
- *   3. Lint framing (deterministic). Loaded political phrasing in the model's
+ *   4. Lint framing (deterministic). Loaded political phrasing in the model's
  *      own prose triggers one regeneration with the offending phrases named.
  *      Quotes are exempt: a source is allowed to be partisan, we are not.
  */
 import { APICallError, generateText, Output, RetryError } from "ai";
+import { z } from "zod";
 
 import type {
+  BillAnalysis,
   BillBrief,
   BillBriefRecord,
   BriefLegalStatus,
@@ -33,11 +35,11 @@ import {
   BriefQuoteSchema,
   BriefVisualSchema,
 } from "@acme/validators";
-import { z } from "zod";
 
 import type { DualLensSource } from "./text-generation.js";
 import { trackLLMUsage } from "../costs.js";
 import { createLogger } from "../log.js";
+import { analyzeBill, formatBillAnalysis } from "./bill-analysis.js";
 import { getStructuredLlm } from "./provider.js";
 import {
   AIRateLimitError,
@@ -47,15 +49,6 @@ import {
 } from "./text-generation.js";
 
 const logger = createLogger("ai-brief");
-
-/**
- * How much of the bill the model reads. Bills routinely run past a provider's
- * context window; verification still runs against the *whole* text, so a quote
- * pulled from anywhere in the document validates even though the model only
- * saw the opening. Larger than the 3–4k windows used elsewhere because a brief
- * has to find concrete provisions, not just a gist.
- */
-const SOURCE_WINDOW = 24_000;
 
 /** Attempts at structuring before giving up (each is one LLM call). */
 const MAX_ATTEMPTS = 2;
@@ -114,7 +107,7 @@ function isRateLimitError(error: unknown): boolean {
 }
 
 /* ------------------------------------------------------------------ *
- * Step 2 — quote verification
+ * Step 3 — quote verification
  * ------------------------------------------------------------------ */
 
 /**
@@ -263,7 +256,7 @@ export function verifyBriefContext(
 }
 
 /* ------------------------------------------------------------------ *
- * Step 3 — framing lint
+ * Step 4 — framing lint
  * ------------------------------------------------------------------ */
 
 /**
@@ -522,7 +515,7 @@ export function findMissingEmphasis(brief: BillBrief): string[] {
 }
 
 /* ------------------------------------------------------------------ *
- * Step 1 — structuring
+ * Step 2 — writing
  * ------------------------------------------------------------------ */
 
 /**
@@ -546,7 +539,8 @@ function buildBriefPrompt(args: {
   billNumber: string;
   url: string;
   legalStatus: BriefLegalStatus;
-  sourceText: string;
+  analysis: BillAnalysis;
+  crsSummary?: string | null;
   priorArticle?: string | null;
   readingResearch?: string;
   readingSources?: DualLensSource[];
@@ -559,7 +553,8 @@ function buildBriefPrompt(args: {
     billNumber,
     url,
     legalStatus,
-    sourceText,
+    analysis,
+    crsSummary,
     priorArticle,
     readingResearch,
     readingSources,
@@ -599,7 +594,7 @@ function buildBriefPrompt(args: {
 
 ${tense}
 
-Your job is to explain the policy, not to promote or attack it. Treat the title, acronym, findings, purpose clauses, and sponsor statements as claims about intent — not proof of results. Base every factual statement on the supplied source text.
+Your job is to explain the policy, not to promote or attack it. Treat the title, acronym, findings, purpose clauses, and sponsor statements as claims about intent — not proof of results. Base every factual statement on the complete section analysis or the authoritative CRS summary below.
 
 Before filling in the fields, silently identify:
 1. The concrete mechanisms: what authority, rule, funding, eligibility, deadline, review, oversight, enforcement, or safeguard is added, removed, weakened, expanded, or transferred.
@@ -610,7 +605,7 @@ Before filling in the fields, silently identify:
 Rules that decide whether this brief ships:
 
 - **Mechanism over marketing.** Removing or waiving rules, reviews, reporting, or oversight is deregulation or reduced oversight. Say that. Do not hide it behind "cuts red tape", "modernizes", "streamlines", or "speeds up". Equally, do not attach a hostile label the text does not support.
-- **Quotes are verbatim.** Every "quote" field must be an exact, unedited span copied character-for-character from the source text below. Do not paraphrase, splice, trim mid-word, or fix grammar. Quotes that do not appear in the source are removed automatically, so a paraphrase in quotation marks just loses you a citation.
+- **Quotes are verbatim.** Every "quote" field must be copied character-for-character from an "exact quote" in the section notes below. The CRS summary and outside research are never quote sources. Do not paraphrase, splice, trim mid-word, or fix grammar. Quotes that do not appear in the original bill are removed automatically.
 - **No invented figures.** A number, date, or dollar amount goes in "facts" only if the source states it. Fewer facts is correct; a plausible-looking invented figure is not.
 - **No manufactured symmetry.** If the text supports one consequence more strongly than another, say so. Use "mixed" or "unclear" for an affected group rather than balancing the list for its own sake.
 - **Use only the allowed change kinds.** Every change "kind" must be exactly one of: "creates", "repeals", "expands", "restricts", "requires", "waives", "funds", or "transfers". Map synonyms such as "sets" or "establishes" to "creates", and "restructures" to the closest allowed mechanism.
@@ -622,7 +617,7 @@ Rules that decide whether this brief ships:
 
 Field notes:
 - "hook" is rendered under the heading "What this means for you" and replaces a grid of disconnected fact tiles. Write one coherent paragraph of 2–3 short sentences. First explain the most consequential practical changes; then state the most important limitation, condition, or uncertainty. Connect the ideas naturally instead of listing figures. Preserve legal status ("would" for proposals), and do not imply every reader is personally affected. Wrap two or three short, concrete phrases in **double asterisks** so a scanner can retain the key changes. Never bold a whole sentence, generic transition, verdict, or loaded language.
-- "changes" must contrast current law ("before") with the proposal ("after"). If the source does not establish current law, say that in "before" instead of guessing. Evaluate every change independently for a direct supporting quote; when the official text contains one, include it so every supported card has its own route back to the text. Never invent or stretch a quote merely to make the cards look consistent.
+- "changes" must contrast current law ("before") with the proposal ("after"). If the notes and CRS summary do not establish current law, say that in "before" instead of guessing. Evaluate every change independently for a direct supporting quote; when its analysis finding carries one, include it so every supported card has its own route back to the text. Never invent or stretch a quote merely to make the cards look consistent.
 - Each affected-group "takeaway" is the card's always-visible summary. Write one complete standalone sentence that names the group or a clear pronoun and states what would happen. For example: "States would get a **longer window to plan multi-year projects**." Do not return fragments such as "a longer funding horizon" or "depends on final rules." Put qualifications and mechanism detail in "effect".
 - "visual" is optional curated artwork. Use "infrastructure-repair" only for physical road or bridge work, "public-transit" only for rail or bus expansion, "data-privacy" only for company collection or use of personal data, and "data-control" only for a person's right to access or delete personal data. Evaluate each change independently and use different relevant visuals across cards when available; never repeat or force an image merely for visual parity. If none applies, omit the property; providers that cannot omit optional JSON fields may return null.
 - "unknowns" is required. Name what the text leaves open — undefined terms, delegated decisions, unfunded pieces, effects the source does not establish. Bold the exact unresolved choice or consequence, not a generic phrase such as "the text does not say."
@@ -636,8 +631,13 @@ Bill: ${billNumber} — ${title}
 Status: ${legalStatus === "enacted" ? "enacted" : "proposed, not yet law"}
 Source URL: ${url}
 ${
+  crsSummary
+    ? `\nAuthoritative Congressional Research Service summary (context only; never quote this as bill text):\n${crsSummary}\n`
+    : "\nNo CRS summary was available. Do not fill gaps with assumptions.\n"
+}
+${
   priorArticle
-    ? `\nPrior nonpartisan analysis of this bill (already vetted for framing — reuse its judgments, but pull all quotes from the official text below):\n${priorArticle.slice(0, 6000)}\n`
+    ? `\nPrior nonpartisan analysis of this bill (secondary context only; resolve conflicts in favor of the section notes and CRS summary, and never quote this as bill text):\n${priorArticle.slice(0, 6000)}\n`
     : ""
 }
 ${
@@ -652,8 +652,11 @@ ${
         .join("\n")}\n`
     : '\nNo verified outside sources were found. Omit "whyNotBefore" and return an empty reading list.\n'
 }
-Official text:
-${sourceText.slice(0, SOURCE_WINDOW)}
+Complete section inventory: ${analysis.sectionCount} of ${analysis.sectionCount} source units analyzed; ${analysis.sourceLength} source characters covered.
+Only make a bill-wide absence claim after checking every section below. A section-level note that something is unspecified is not by itself proof that the entire bill omits it.
+
+Structured section notes:
+${formatBillAnalysis(analysis)}
 ---
 
 Produce the structured brief now.`;
@@ -672,16 +675,33 @@ export async function generateBillBrief(args: {
   url: string;
   fullText: string;
   status?: string | null;
+  summary?: string | null;
   priorArticle?: string | null;
+  analysis?: BillAnalysis;
 }): Promise<Omit<BillBriefRecord, "generatedAt" | "modelVersion"> | null> {
   if (rateLimitHit) throw new AIRateLimitError();
 
   const legalStatus = deriveLegalStatus(args.status);
-  const readingResearch = await researchBillContext(
-    args.title,
-    args.billNumber,
-    args.fullText,
-  );
+  let analysis: BillAnalysis;
+  let readingResearch: Awaited<ReturnType<typeof researchBillContext>>;
+  try {
+    [analysis, readingResearch] = await Promise.all([
+      args.analysis
+        ? Promise.resolve(args.analysis)
+        : analyzeBill({
+            billNumber: args.billNumber,
+            fullText: args.fullText,
+          }),
+      researchBillContext(args.title, args.billNumber, args.fullText),
+    ]);
+  } catch (error) {
+    if (error instanceof AIRateLimitError || isRateLimitError(error)) {
+      setRateLimitHit(true);
+      throw new AIRateLimitError();
+    }
+    logger.warn(`Bill analysis failed for ${args.billNumber}`, error);
+    return null;
+  }
   let loadedPhrases: string[] | undefined;
   let jargonPhrases: string[] | undefined;
   let missingEmphasis: string[] | undefined;
@@ -699,7 +719,8 @@ export async function generateBillBrief(args: {
           billNumber: args.billNumber,
           url: args.url,
           legalStatus,
-          sourceText: args.fullText,
+          analysis,
+          crsSummary: args.summary,
           priorArticle: args.priorArticle,
           readingResearch: readingResearch.notes,
           readingSources: readingResearch.sources,

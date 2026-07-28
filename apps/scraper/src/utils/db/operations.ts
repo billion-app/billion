@@ -1,13 +1,19 @@
+import type { BillAnalysis } from "@acme/validators";
 import { and, eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
+  BillAnalysis as BillAnalysisCache,
   ContentBrief,
   ContentLens,
   CourtCase,
   GovernmentContent,
 } from "@acme/db/schema";
-import { isCurrentBillBrief } from "@acme/validators";
+import {
+  BILL_ANALYSIS_VERSION,
+  BillAnalysisRecordSchema,
+  isCurrentBillBrief,
+} from "@acme/validators";
 
 import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
@@ -15,6 +21,7 @@ import type {
   CourtCaseData,
   GovernmentContentData,
 } from "../types.js";
+import { analyzeBill } from "../ai/bill-analysis.js";
 import { generateBillBrief } from "../ai/bill-brief.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
@@ -447,6 +454,7 @@ export async function upsertContent(
         url,
         fullText: fullText!,
         status: input.data.status,
+        summary: input.data.summary,
         priorArticle: aiGeneratedArticle,
       });
     }
@@ -598,6 +606,7 @@ export async function upsertBillBrief(args: {
   url: string;
   fullText: string;
   status?: string | null;
+  summary?: string | null;
   priorArticle?: string | null;
 }): Promise<boolean> {
   const [existing] = await db
@@ -623,13 +632,25 @@ export async function upsertBillBrief(args: {
     return true;
   }
 
+  const analysis = await getOrCreateBillAnalysis({
+    contentId: args.contentId,
+    contentHash: args.contentHash,
+    billNumber: args.billNumber,
+    fullText: args.fullText,
+  });
+  if (!analysis) {
+    logger.warn(`Section analysis returned null for ${args.billNumber}`);
+    return false;
+  }
   const generated = await generateBillBrief({
     title: args.title,
     billNumber: args.billNumber,
     url: args.url,
     fullText: args.fullText,
     status: args.status,
+    summary: args.summary,
     priorArticle: args.priorArticle,
+    analysis,
   });
   if (!generated) {
     logger.warn(`Brief generation returned null for ${args.billNumber}`);
@@ -663,4 +684,73 @@ export async function upsertBillBrief(args: {
 
   logger.success(`Cached brief for ${args.billNumber}`);
   return true;
+}
+
+async function getOrCreateBillAnalysis(args: {
+  contentId: string;
+  contentHash: string;
+  billNumber: string;
+  fullText: string;
+}): Promise<BillAnalysis | null> {
+  const [existing] = await db
+    .select({
+      contentHash: BillAnalysisCache.contentHash,
+      analysis: BillAnalysisCache.analysis,
+      analysisVersion: BillAnalysisCache.analysisVersion,
+    })
+    .from(BillAnalysisCache)
+    .where(eq(BillAnalysisCache.contentId, args.contentId))
+    .limit(1);
+  const parsed = BillAnalysisRecordSchema.safeParse(existing?.analysis);
+
+  if (
+    !forceAIRegeneration &&
+    existing?.contentHash === args.contentHash &&
+    existing.analysisVersion === BILL_ANALYSIS_VERSION &&
+    parsed.success
+  ) {
+    logger.debug(`Section analysis already cached for ${args.billNumber}`);
+    return parsed.data;
+  }
+
+  let analysis: BillAnalysis;
+  try {
+    analysis = await analyzeBill({
+      billNumber: args.billNumber,
+      fullText: args.fullText,
+    });
+  } catch (error) {
+    if (error instanceof AIRateLimitError) throw error;
+    logger.warn(`Section analysis failed for ${args.billNumber}`, error);
+    return null;
+  }
+  const modelVersion = getTextModelVersion();
+  const record = BillAnalysisRecordSchema.parse({
+    ...analysis,
+    version: BILL_ANALYSIS_VERSION,
+    generatedAt: new Date().toISOString(),
+    modelVersion,
+  });
+  await db
+    .insert(BillAnalysisCache)
+    .values({
+      contentId: args.contentId,
+      contentHash: args.contentHash,
+      analysis: record,
+      analysisVersion: BILL_ANALYSIS_VERSION,
+      modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: BillAnalysisCache.contentId,
+      set: {
+        contentHash: args.contentHash,
+        analysis: record,
+        analysisVersion: BILL_ANALYSIS_VERSION,
+        modelVersion,
+        updatedAt: new Date(),
+      },
+    });
+
+  logger.success(`Cached section analysis for ${args.billNumber}`);
+  return record;
 }

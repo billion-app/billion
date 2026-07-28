@@ -165,6 +165,11 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+/** Convert Congress.gov formatted HTML to complete normalized source text. */
+export function extractFormattedBillText(rawText: string): string | undefined {
+  return stripHtml(rawText).trim() || undefined;
+}
+
 export async function fetchSummary(
   congress: number,
   billType: string,
@@ -203,12 +208,7 @@ export async function fetchFullText(
       const rawText = await res.text();
       if (!rawText) continue;
 
-      let text = stripHtml(rawText);
-      const words = text.split(/\s+/);
-      if (words.length > 1000) {
-        text = words.slice(0, 1000).join(" ");
-      }
-      return text.trim() || undefined;
+      return extractFormattedBillText(rawText);
     }
   } catch {
     // Full text is optional

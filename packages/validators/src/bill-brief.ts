@@ -32,7 +32,7 @@
 import { z } from "zod";
 
 /** Bump when the shape or generation contract requires cached rows to refresh. */
-export const BILL_BRIEF_VERSION = 7;
+export const BILL_BRIEF_VERSION = 8;
 
 /**
  * What a provision mechanically does. Deliberately descriptive: a reader can
@@ -404,6 +404,12 @@ const BillBriefV6RecordSchema = BillBriefSchema.extend({
   ...BriefRecordMetadataSchema,
 });
 
+/** The last flat-source-window brief, before section-by-section analysis. */
+const BillBriefV7RecordSchema = BillBriefSchema.extend({
+  version: z.literal(7),
+  ...BriefRecordMetadataSchema,
+});
+
 /** The immediately preceding rich-brief shape, before cited history was added. */
 const BillBriefV5RecordSchema = BillBriefSchema.extend({
   version: z.literal(5),
@@ -443,8 +449,8 @@ const BillBriefV1RecordSchema = z.object({
 });
 
 function conciseTakeaway(effect: string): string {
-  const firstSentence = effect.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim();
-  const candidate = firstSentence || effect;
+  const firstSentence = /^.*?[.!?](?:\s|$)/.exec(effect)?.[0]?.trim();
+  const candidate = firstSentence ?? effect;
   if (candidate.length <= 140) return candidate;
   return `${candidate.slice(0, 136).replace(/\s+\S*$/, "")}…`;
 }
@@ -457,6 +463,11 @@ function conciseTakeaway(effect: string): string {
 export function parseBillBriefRecord(value: unknown): BillBriefRecord | null {
   const current = BillBriefRecordSchema.safeParse(value);
   if (current.success) return current.data;
+
+  const v7 = BillBriefV7RecordSchema.safeParse(value);
+  if (v7.success) {
+    return { ...v7.data, version: BILL_BRIEF_VERSION };
+  }
 
   const v6 = BillBriefV6RecordSchema.safeParse(value);
   if (v6.success) {
