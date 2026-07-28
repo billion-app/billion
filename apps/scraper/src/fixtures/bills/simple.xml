@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bill xmlns="http://xml.house.gov/schemas/uslm/1.0">
+  <legis-body>
+    <section id="H1234ABC">
+      <num>SECTION 1.</num>
+      <heading>SHORT TITLE.</heading>
+      <text>This Act may be cited as the “Example Act”.</text>
+    </section>
+    <section id="H1234DEF">
+      <num>SEC. 2.</num>
+      <heading>EFFECTIVE DATE.</heading>
+      <text>This Act takes effect 30 days after enactment.</text>
+    </section>
+  </legis-body>
+</bill>

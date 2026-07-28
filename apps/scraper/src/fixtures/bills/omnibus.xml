@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bill xmlns="http://xml.house.gov/schemas/uslm/1.0">
+  <legis-body>
+    <division>
+      <num>DIVISION A</num>
+      <heading>GENERAL PROVISIONS</heading>
+      <title>
+        <num>TITLE II</num>
+        <heading>PROGRAM ADMINISTRATION</heading>
+        <subtitle>
+          <num>Subtitle B</num>
+          <heading>Reporting and Enforcement</heading>
+          <section id="H8800-219">
+            <num>SEC. 219.</num>
+            <heading>REPORTING REQUIREMENTS.</heading>
+            <subsection>
+              <num>(a)</num>
+              <heading>Report.</heading>
+              <text>The Secretary shall submit a report under section 101.</text>
+            </subsection>
+            <subsection>
+              <num>(b)</num>
+              <heading>Amendment.</heading>
+              <text>Section 552 of title 5, United States Code, is amended to read as follows:</text>
+              <quoted-block>
+                <section id="quoted-552">
+                  <num>“§ 552.</num>
+                  <heading>Public information</heading>
+                  <subsection><num>“(a)</num><text>Each agency shall make the records available verbatim.</text></subsection>
+                </section>
+              </quoted-block>
+            </subsection>
+          </section>
+        </subtitle>
+      </title>
+    </division>
+    <division>
+      <num>DIVISION B</num>
+      <heading>EFFECTIVE DATES</heading>
+      <section id="H8800-1001">
+        <num>SEC. 1001.</num>
+        <heading>EFFECTIVE DATE.</heading>
+        <text>Except as provided in section 219, this division takes effect on enactment.</text>
+      </section>
+    </division>
+  </legis-body>
+</bill>
