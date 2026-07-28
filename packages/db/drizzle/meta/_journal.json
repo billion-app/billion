@@ -78,6 +78,13 @@
       "when": 1785222208508,
       "tag": "0009_fat_harrier",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785282399905,
+      "tag": "0010_parallel_lifeguard",
+      "breakpoints": true
     }
   ]
 }
