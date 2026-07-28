@@ -34,26 +34,17 @@ interface ClOpinion {
 interface ClDocket {
   id: number;
   docket_number: string;
+  // v4 serializes `court` as a hyperlink; `court_id` carries the bare code.
   court: string;
+  court_id: string;
   date_filed: string | null;
   case_name: string;
 }
 
-const COURT_NAMES: Record<string, string> = {
-  scotus: "Supreme Court of the United States",
-  ca1: "1st Circuit Court of Appeals",
-  ca2: "2nd Circuit Court of Appeals",
-  ca3: "3rd Circuit Court of Appeals",
-  ca4: "4th Circuit Court of Appeals",
-  ca5: "5th Circuit Court of Appeals",
-  ca6: "6th Circuit Court of Appeals",
-  ca7: "7th Circuit Court of Appeals",
-  ca8: "8th Circuit Court of Appeals",
-  ca9: "9th Circuit Court of Appeals",
-  ca10: "10th Circuit Court of Appeals",
-  ca11: "11th Circuit Court of Appeals",
-  cadc: "D.C. Circuit Court of Appeals",
-};
+interface ClCourt {
+  id: string;
+  full_name: string;
+}
 
 function clHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -79,6 +70,29 @@ async function clFetch<T>(
     headers: clHeaders(),
   });
   return res.json() as Promise<T>;
+}
+
+const courtNameCache = new Map<string, string>();
+
+/**
+ * Resolve a CourtListener court code to its display name. Cached per run so a
+ * whole docket set costs one request per court. Falls back to the upper-cased
+ * code so a lookup failure degrades to "GAND" rather than blocking the upsert.
+ */
+async function resolveCourtName(courtId: string): Promise<string> {
+  const cached = courtNameCache.get(courtId);
+  if (cached) return cached;
+
+  let name = courtId.toUpperCase();
+  try {
+    const court = await clFetch<ClCourt>(`/courts/${courtId}/`);
+    if (court.full_name) name = court.full_name;
+  } catch {
+    // Fall through to the code-derived name.
+  }
+
+  courtNameCache.set(courtId, name);
+  return name;
 }
 
 function stripHtml(html: string): string {
@@ -179,8 +193,8 @@ async function scrape(config: ScotusScraperConfig = {}) {
           const filedDate = docket.date_filed
             ? new Date(docket.date_filed)
             : undefined;
-          const courtCode = docket.court ?? court;
-          const courtName = COURT_NAMES[courtCode] ?? courtCode.toUpperCase();
+          const courtCode = docket.court_id || court;
+          const courtName = await resolveCourtName(courtCode);
 
           const title = cluster.case_name?.slice(0, 250) || "Unknown Case";
           const status = cluster.precedential_status || "Unknown";

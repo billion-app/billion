@@ -220,7 +220,9 @@ export const CourtCase = pgTable(
     ),
   }),
   (table) => ({
-    uniqueCaseNumber: unique().on(table.caseNumber),
+    // Docket numbers only identify a case within a court: "1:25-cr-00499"
+    // recurs across all 94 federal districts.
+    uniqueCaseNumber: unique().on(table.caseNumber, table.court),
     searchVectorIdx: index("court_case_search_vector_idx").using(
       "gin",
       table.searchVector,

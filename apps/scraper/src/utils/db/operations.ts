@@ -100,7 +100,7 @@ async function checkExisting(input: ContentData) {
     case "government_content":
       return checkExistingGovernmentContent(input.data.url);
     case "court_case":
-      return checkExistingCourtCase(input.data.caseNumber);
+      return checkExistingCourtCase(input.data.caseNumber, input.data.court);
   }
 }
 
@@ -293,7 +293,7 @@ export async function upsertContent(
         versions: [],
       })
       .onConflictDoUpdate({
-        target: CourtCase.caseNumber,
+        target: [CourtCase.caseNumber, CourtCase.court],
         set: {
           title: d.title,
           court: d.court,
