@@ -77,11 +77,11 @@ console.log(`  host:  ${host}\n`);
 // Install the launchd job and wrapper from the repo, so the host never carries
 // a hand-edited copy. Both are overwritten on every deploy by design.
 const wrapper = readFileSync(
-  join(repoRoot, "apps/supervisor/deploy/billion-supervisor"),
+  join(repoRoot, "deploy/big-mac/billion-supervisor"),
   "utf8",
 );
 const plist = readFileSync(
-  join(repoRoot, "apps/supervisor/deploy/com.billion.supervisor.plist"),
+  join(repoRoot, "deploy/big-mac/com.billion.supervisor.plist"),
   "utf8",
 );
 
