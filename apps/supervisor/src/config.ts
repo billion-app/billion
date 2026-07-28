@@ -76,6 +76,25 @@ export const jobs: readonly JobDefinition[] = [
   // that in is a deliberate, supervised spend, not something a scheduler starts
   // on its own at 3am.
   {
+    id: "backfill-descriptions",
+    description: "Fill in the card gist for bills stored without one",
+    script: "backfill-bill-descriptions.js",
+    // Prefers a real congress.gov summary if one has been published since the
+    // bill was stored, and only falls back to generating one — so most of this
+    // is fetching, not inference, and it is the cheapest of the backfills.
+    //
+    // Exists for rows written before a bill had to be complete to be stored at
+    // all. Nothing produces description-less bills any more; this drains the
+    // ones that already exist.
+    args: ["--concurrency", "4", "--apply", "--yes"],
+    schedule: { kind: "manual" },
+    // Ahead of the other backfills: a blank gist is the most visible defect of
+    // the three, and the cheapest to repair.
+    priority: 19,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
+  },
+  {
     id: "retro-briefs",
     description: "Generate structured briefs for content missing one",
     script: "retroactive-briefs.js",
