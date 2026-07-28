@@ -1,10 +1,14 @@
 /**
- * Caps how many brand-new items a single scraper run will fully process
- * (AI summary/article/image generation). Items beyond the cap are still saved
- * with their raw content — the scraper's incremental cursor advances past
- * everything it fetched, so an item that is not persisted here is lost rather
- * than deferred. They roll over as "backfill" work for the retroactive
- * scripts (`backfill-bill-descriptions`, `retroactive-briefs`, ...).
+ * Caps how many items a single scraper run will generate for.
+ *
+ * One item draws at most one slot however many assets it produces, and only
+ * when something is actually generated — a fully cached item costs nothing.
+ *
+ * Note this is a cap on *ingestion*, not only on spend. An item that cannot be
+ * completed within the budget is not stored at all; it is reported `deferred`
+ * so the cursor holds and the next run attempts the whole thing again. Raising
+ * or lowering this therefore changes how fast the database keeps up with the
+ * source, not just what a run costs.
  */
 
 export interface NewItemLimiter {
