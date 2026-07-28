@@ -56,6 +56,23 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      # The scraper and env packages read configuration at import time, so the
+      # suite needs a populated .env even though no test touches the network.
+      - name: Copy env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Test
+        run: pnpm test
+
   bundle-expo:
     runs-on: ubuntu-latest
     steps:
