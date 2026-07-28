@@ -39,6 +39,27 @@ export type {
 } from "./lib/elected-officials";
 export { getElectedOfficials } from "./lib/elected-officials";
 
+export type {
+  CivicContestReference,
+  ElectionMatch,
+} from "./lib/ncsbe-election-data";
+export {
+  getCurrentNcElectionData,
+  matchNcsbeName,
+} from "./lib/ncsbe-election-data";
+
+export type {
+  MissouriBallotMeasure,
+  MissouriCandidate,
+  MissouriCitation,
+  MissouriCurrentElectionData,
+  MissouriElection,
+  MissouriResultContest,
+  MissouriResults,
+  MissouriSnapshotData,
+} from "./lib/missouri-election-data";
+export { getMissouriCurrentElectionData } from "./lib/missouri-election-data";
+
 // California Secretary of State live election-results feed
 export type {
   ElectionContestResult,
@@ -88,6 +109,13 @@ export {
   LegistarError,
   JURISDICTIONS,
 } from "./integrations/legistar";
+
+// Provider-neutral local-government records persisted by source scrapers.
+export {
+  getLocalGovernmentMeeting,
+  getLocalGovernmentMeetings,
+} from "./lib/local-government";
+export type { LocalGovernmentMeetingQuery } from "./lib/local-government";
 export type {
   Jurisdiction,
   LegistarMeeting,

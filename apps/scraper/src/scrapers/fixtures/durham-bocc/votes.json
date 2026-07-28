@@ -1,0 +1,11 @@
+[
+  {
+    "VoteId": 9001,
+    "VoteLastModifiedUtc": "2026-04-14T14:00:00.000",
+    "VotePersonId": 101,
+    "VotePersonName": "Commissioner A",
+    "VoteValueName": "Aye",
+    "VoteSort": 1,
+    "VoteEventItemId": 30280
+  }
+]

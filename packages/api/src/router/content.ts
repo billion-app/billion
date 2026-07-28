@@ -17,6 +17,7 @@ import { parseBillBriefRecord } from "@acme/validators";
 
 import { toBillTimelineActions } from "../lib/bill-actions";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
+import { stateBillMetadata } from "../lib/state-legislation";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
 const SAVED_CONTENT_TYPES = [
@@ -25,6 +26,83 @@ const SAVED_CONTENT_TYPES = [
   "court_case",
 ] as const;
 type SavedContentType = (typeof SAVED_CONTENT_TYPES)[number];
+
+const STATE_JURISDICTIONS = {
+  MO: "ocd-jurisdiction/country:us/state:mo/government",
+  TX: "ocd-jurisdiction/country:us/state:tx/government",
+} as const;
+const STATE_SOURCES = {
+  MO: "documents.house.mo.gov",
+  TX: "capitol.texas.gov",
+} as const;
+
+async function listCurrentStateBills(input: {
+  stateCode: keyof typeof STATE_JURISDICTIONS;
+  limit: number;
+  cursor: number;
+}) {
+  const jurisdiction = STATE_JURISDICTIONS[input.stateCode];
+  const sourceWebsite = STATE_SOURCES[input.stateCode];
+  let legislativeSession: string | undefined;
+  if (input.stateCode === "TX") {
+    const [latest] = await db
+      .select({ legislativeSession: Bill.legislativeSession })
+      .from(Bill)
+      .where(
+        and(
+          eq(Bill.jurisdiction, jurisdiction),
+          eq(Bill.sourceWebsite, sourceWebsite),
+        ),
+      )
+      .orderBy(desc(Bill.updatedAt), desc(Bill.createdAt))
+      .limit(1);
+    legislativeSession = latest?.legislativeSession;
+    if (!legislativeSession) return { items: [], nextCursor: undefined };
+  }
+  const rows = await db
+    .select({
+      id: Bill.id,
+      billNumber: Bill.billNumber,
+      title: Bill.title,
+      description: Bill.description,
+      summary: Bill.summary,
+      status: Bill.status,
+      chamber: Bill.chamber,
+      legislativeSession: Bill.legislativeSession,
+      openStatesId: Bill.openStatesId,
+      subjects: Bill.subjects,
+      actions: Bill.actions,
+      versions: Bill.versions,
+      updatedAt: Bill.updatedAt,
+    })
+    .from(Bill)
+    .where(
+      legislativeSession
+        ? and(
+            eq(Bill.jurisdiction, jurisdiction),
+            eq(Bill.sourceWebsite, sourceWebsite),
+            eq(Bill.legislativeSession, legislativeSession),
+          )
+        : and(
+            eq(Bill.jurisdiction, jurisdiction),
+            eq(Bill.sourceWebsite, sourceWebsite),
+          ),
+    )
+    .orderBy(desc(Bill.updatedAt), desc(Bill.billNumber))
+    .limit(input.limit + 1)
+    .offset(input.cursor);
+  const hasMore = rows.length > input.limit;
+  const items = (hasMore ? rows.slice(0, input.limit) : rows).map(
+    ({ actions, versions, ...row }) => ({
+      ...row,
+      ...stateBillMetadata(actions ?? [], versions ?? []),
+    }),
+  );
+  return {
+    items,
+    nextCursor: hasMore ? input.cursor + input.limit : undefined,
+  };
+}
 
 function billDescription(
   description: string | null | undefined,
@@ -217,6 +295,35 @@ const _ContentDetailSchema = ContentCardSchema.extend({
 export type ContentDetail = z.infer<typeof _ContentDetailSchema>;
 
 export const contentRouter = {
+  stateBills: publicProcedure
+    .input(
+      z.object({
+        stateCode: z.enum(["MO", "TX"]),
+        limit: z.number().int().min(1).max(50).default(20),
+        cursor: z.number().int().min(0).default(0),
+      }),
+    )
+    .query(({ input }) => listCurrentStateBills(input)),
+
+  // Read the latest Texas bulk session persisted by the scraper. This route is
+  // intentionally current-session only; it is not a historical session browser.
+  texasBills: publicProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(50).default(20),
+          cursor: z.number().int().min(0).default(0),
+        })
+        .optional(),
+    )
+    .query(({ input }) =>
+      listCurrentStateBills({
+        stateCode: "TX",
+        limit: input?.limit ?? 20,
+        cursor: input?.cursor ?? 0,
+      }),
+    ),
+
   // Get all content from database
   getAll: publicProcedure.query(async () => {
     const bills = await db
@@ -621,6 +728,14 @@ export const contentRouter = {
             url: b.url,
             actions: toBillTimelineActions(b.actions ?? []),
             status: b.status ?? undefined,
+            jurisdiction: b.jurisdiction,
+            legislativeSession: b.legislativeSession || undefined,
+            openStatesId: b.openStatesId ?? undefined,
+            ...stateBillMetadata(b.actions ?? [], b.versions ?? []),
+            subjects: b.subjects ?? [],
+            sponsorships: b.sponsorships ?? [],
+            documents: b.documents ?? [],
+            votes: b.votes ?? [],
             lensData: await getLensData(b.id, "bill"),
             brief: await getBrief(b.id, "bill"),
           },

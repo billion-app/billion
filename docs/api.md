@@ -13,17 +13,17 @@ The API is a [tRPC v11](https://trpc.io/) router in `packages/api/`, served by N
 
 The root router (`packages/api/src/root.ts`) composes **nine** sub-routers:
 
-| Router       | Procedures (Q = query, M = mutation, 🔒 = protected)                                                                                           |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth`       | `getSession` (Q), `getSecretMessage` (Q 🔒)                                                                                                    |
-| `civic`      | `getElections`, `getVoterInfo`, `getRepresentatives`, `getRepresentativesEnriched` (all Q) — Google Civic + measure/candidate cross-validation |
-| `places`     | `autocomplete` (Q), `details` (M) — Google Places address autocomplete for the ballot lookup                                                   |
-| `legistar`   | `getLocalBills`, `getMeetings`, `getAgenda`, `getVotes`, `getBodies`, `getMeetingVotes` (all Q) — local councils                               |
-| `openStates` | `searchBills`, `getBillDetails`, `getLegislators`, `getBillVotes` (all Q) — CA state legislature (Open States v3)                              |
-| `content`    | `getAll`, `getByType`, `getById` (all Q) — aggregates bill / government_content / court_case                                                   |
-| `video`      | `getInfinite` (Q) — cursor-paginated feed; converts `bytea` images to data URIs                                                                |
-| `post`       | `all`, `byId` (Q); `create`, `delete` (M 🔒)                                                                                                   |
-| `user`       | preferences, blocked content, settings, profile, and saved-article CRUD (all 🔒)                                                               |
+| Router       | Procedures (Q = query, M = mutation, 🔒 = protected)                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth`       | `getSession` (Q), `getSecretMessage` (Q 🔒)                                                                                                                                           |
+| `civic`      | `getElections`, `getVoterInfo`, `getTexasCurrentElection`, `getRepresentatives`, `getRepresentativesEnriched` (all Q) — Google Civic + official current-cycle Texas data + enrichment |
+| `places`     | `autocomplete` (Q), `details` (M) — Google Places address autocomplete for the ballot lookup                                                                                          |
+| `legistar`   | `getLocalBills`, `getMeetings`, `getAgenda`, `getVotes`, `getBodies`, `getMeetingVotes` (all Q) — local councils                                                                      |
+| `openStates` | `searchBills`, `getBillDetails`, `getLegislators`, `getBillVotes` (all Q) — CA state legislature (Open States v3)                                                                     |
+| `content`    | `getAll`, `getByType`, `getById` (all Q) — aggregates bill / government_content / court_case                                                                                          |
+| `video`      | `getInfinite` (Q) — cursor-paginated feed; converts `bytea` images to data URIs                                                                                                       |
+| `post`       | `all`, `byId` (Q); `create`, `delete` (M 🔒)                                                                                                                                          |
+| `user`       | preferences, blocked content, settings, profile, and saved-article CRUD (all 🔒)                                                                                                      |
 
 ## Civic Data & External Sources
 
@@ -32,10 +32,18 @@ The `civic` router calls the **Google Civic Information API** (`GOOGLE_CIVIC_API
 Other live civic integrations:
 
 - **`legistar`** — scrapes Legistar instances for San Jose, Santa Clara County, and Sunnyvale (no key required).
+- **`localGovernment`** — reads persisted provider-neutral meetings. `listMeetings` returns bounded meeting summaries and official links; `getMeeting` returns agenda items, actions, attachments, and named votes without live source calls.
 - **`openStates`** — California bills, legislators, and votes via the Open States v3 API (`OPEN_STATES_API_KEY`).
 - **`places`** — Google **Places Autocomplete (New)** for the ballot address entry (`packages/api/src/lib/places.ts`). `autocomplete` returns US street-address predictions (biased `includedRegionCodes: ["us"]`, `includedPrimaryTypes: street_address/premise/subpremise`) for queries ≥3 chars; `details` resolves a `placeId` to its full `formattedAddress` (the ZIP the prediction omits, which Civic wants). A **session token** (UUID stable across one address entry) bundles all keystroke calls plus the closing `details` into a single billed unit. Reuses `GOOGLE_PLACES_API_KEY` → `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`; with no key it serves a small mock list so the dropdown still works in dev (same fallback pattern as `civic`).
 
 Ballot measures and candidates returned by `getVoterInfo` are run through cross-validation engines that merge multiple public-record sources by trust tier — see [Ballot-measure enrichment](./measure-enrichment.md) and [Candidate enrichment](./candidate-enrichment.md). Key/access setup for every source is in [Civic data source setup](./civic-data-sources.md).
+
+`civic.getTexasCurrentElection` is an input-free reader over persisted current
+Texas SOS/TLC snapshots. It returns current statewide/federal/district
+candidates and results plus the latest constitutional-amendment analyses. SOS
+facts and TLC explanation are separately cited. Historical election browsing is
+intentionally not part of this procedure; see
+[Texas current-election data](./texas-current-election.md).
 
 ## LLM Provider
 

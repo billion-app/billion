@@ -23,6 +23,7 @@ import { enrichFromLao } from "./measure-sources/ca-lao-fiscal";
 import { enrichFromCaSos } from "./measure-sources/ca-sos-voterguide";
 import { enrichFromCaVotes } from "./measure-sources/cavotes";
 import { collectGroundingText } from "./measure-sources/grounded-fallback";
+import { enrichFromTexasOfficial } from "./measure-sources/texas-official";
 import { SOURCE_TIER_RANK } from "./measure-sources/types";
 import { enrichFromWikipedia } from "./measure-sources/wikipedia";
 import { enrichFromVoteSmart } from "./votesmart";
@@ -31,6 +32,7 @@ export interface CrossValidateContext {
   stateAbbrev?: string;
   county?: string;
   electionYear: number;
+  electionDate?: string;
 }
 
 /** A measure as Google Civic gives it to us — the lowest-tier source. */
@@ -55,6 +57,7 @@ async function collectVoteSmart(
     title,
     ctx.stateAbbrev,
     ctx.electionYear,
+    ctx.electionDate,
   ).catch(() => null);
   if (!vs) return null;
   return {
@@ -142,7 +145,7 @@ export async function crossValidateMeasure(
   input: CivicMeasureInput,
   ctx: CrossValidateContext,
 ): Promise<CanonicalMeasure> {
-  const [sos, lwv, bp, wiki, vs, lao] = await Promise.all([
+  const [sos, lwv, bp, wiki, vs, lao, texas] = await Promise.all([
     enrichFromCaSos(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
       () => null,
     ),
@@ -161,6 +164,9 @@ export async function crossValidateMeasure(
     enrichFromLao(input.title, ctx.stateAbbrev, ctx.electionYear).catch(
       () => null,
     ),
+    enrichFromTexasOfficial(input.title, ctx).catch(
+      (): { sos?: MeasureSourceData; tlc?: MeasureSourceData } => ({}),
+    ),
   ]);
 
   const sources: MeasureSourceData[] = [
@@ -170,6 +176,8 @@ export async function crossValidateMeasure(
     wiki,
     vs,
     lao,
+    texas.sos ?? null,
+    texas.tlc ?? null,
     civicAsSource(input),
   ].filter((s): s is MeasureSourceData => s !== null);
   sources.sort(byTierDesc);
@@ -216,6 +224,11 @@ export async function crossValidateMeasure(
       fullTextUrl = src.fullTextUrl;
     }
   }
+
+  // --- Official result facts: SOS only; explanatory sources leave absent. ---
+  const resultSource = sources.find((source) => source.result);
+  const result = resultSource?.result;
+  if (resultSource && result) citations.push(cite("result", resultSource));
 
   // --- Pro / con arguments: collect from all sources, dedupe, attribute. ---
   const proArguments = collectArguments(sources, "pro", citations);
@@ -381,6 +394,7 @@ export async function crossValidateMeasure(
     fullTextUrl,
     proArguments,
     conArguments,
+    result,
     citations,
     discrepancies: discrepancies.length ? discrepancies : undefined,
   };

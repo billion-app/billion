@@ -16,6 +16,7 @@ import type {
   StatewideOffice,
 } from "../clients/ca-sos-results";
 import type { CrossValidateContext } from "./measure-crossvalidate";
+import type { MeasureResult } from "./measure-sources/types";
 import {
   getDistrictResults,
   getStatewideResults,
@@ -217,6 +218,8 @@ export interface Contest {
   conArguments?: MeasureArgumentRef[];
   /** Per-field source attribution for everything above. */
   citations?: MeasureCitationRef[];
+  /** Official election result facts when an SOS match is available. */
+  result?: MeasureResult;
 }
 
 export interface Candidate {
@@ -472,6 +475,7 @@ interface EnrichmentContext {
   stateAbbrev?: string;
   county?: string;
   electionYear?: number;
+  electionDate?: string;
 }
 
 /**
@@ -514,6 +518,7 @@ async function enrichContest(
       stateAbbrev: ctx?.stateAbbrev,
       county: ctx?.county,
       electionYear: ctx?.electionYear ?? new Date().getFullYear(),
+      electionDate: ctx?.electionDate,
     };
 
     try {
@@ -543,6 +548,7 @@ async function enrichContest(
       contest.citations = merged.citations.length
         ? merged.citations
         : undefined;
+      contest.result = merged.result;
 
       // Back-fill the legacy single-field shape so existing UI keeps working.
       if (!contest.referendumText && merged.fullText) {
@@ -838,6 +844,7 @@ export async function getVoterInfo(
     electionYear: resp.election.electionDay
       ? new Date(resp.election.electionDay).getFullYear()
       : new Date().getFullYear(),
+    electionDate: resp.election.electionDay,
   });
 
   const params: Record<string, string> = { address };

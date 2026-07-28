@@ -20,6 +20,7 @@ const logger = createLogger("db");
 export async function checkExistingBill(
   billNumber: string,
   sourceWebsite: string,
+  legislativeSession = "",
 ): Promise<ExistingRecordCheck | null> {
   try {
     const [existing] = await db
@@ -30,7 +31,13 @@ export async function checkExistingBill(
         thumbnailUrl: Bill.thumbnailUrl,
       })
       .from(Bill)
-      .where(and(eq(Bill.billNumber, billNumber), eq(Bill.sourceWebsite, sourceWebsite)))
+      .where(
+        and(
+          eq(Bill.billNumber, billNumber),
+          eq(Bill.sourceWebsite, sourceWebsite),
+          eq(Bill.legislativeSession, legislativeSession),
+        ),
+      )
       .limit(1);
 
     if (!existing) {

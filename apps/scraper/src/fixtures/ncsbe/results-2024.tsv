@@ -1,0 +1,3 @@
+county	election_date	precinct	contest_group_id	contest_type	contest_name	candidate	party	vote_for	election_day	early_voting	absentee_by_mail	provisional	total_votes	real_precinct
+DURHAM	11/05/2024	01	1373	S	US PRESIDENT	Kamala D. Harris	DEM	1	100	200	30	2	332	Y
+WAKE	11/05/2024	01-01	1373	S	US PRESIDENT	Kamala D. Harris	DEM	1	150	250	40	3	443	Y

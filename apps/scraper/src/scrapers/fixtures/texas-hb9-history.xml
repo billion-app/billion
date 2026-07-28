@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<billhistory bill="89(R) HB 9" lastUpdate="6/12/2025 2:00:01 AM" source="Texas Legislature Online website (ftp://ftp.legis.state.tx.us) - Texas Legislative Council">
+  <caption>Relating to an exemption from ad valorem taxation.</caption>
+  <authors>Meyer | Bonnen</authors>
+  <coauthors>Bernal</coauthors>
+  <sponsors>Bettencourt</sponsors>
+  <cosponsors></cosponsors>
+  <subjects>
+    <subject>Taxation--Property-Exemptions (I0793)</subject>
+    <subject>Business &amp; Commerce--General (I0050)</subject>
+  </subjects>
+  <committees>
+    <house name="Ways &amp; Means" status="Out of committee" ayeVotes="9" nayVotes="1" presentNotVotingVotes="0" absentVotes="1" />
+    <senate name="Local Government" status="Out of committee" ayeVotes="6" nayVotes="0" presentNotVotingVotes="0" absentVotes="3" />
+  </committees>
+  <billtext>
+    <docTypes>
+      <bill>
+        <versions>
+          <version>
+            <versionDescription>Introduced</versionDescription>
+            <WebHTMLURL>https://capitol.texas.gov/tlodocs/89R/billtext/html/HB00009I.htm</WebHTMLURL>
+            <WebPDFURL>https://capitol.texas.gov/tlodocs/89R/billtext/pdf/HB00009I.pdf</WebPDFURL>
+            <FTPHTMLURL>ftp://ftp.legis.state.tx.us/bills/89R/billtext/HTML/house_bills/HB00001_HB00099/HB00009I.HTM</FTPHTMLURL>
+            <FTPPDFURL>ftp://ftp.legis.state.tx.us/bills/89R/billtext/PDF/house_bills/HB00001_HB00099/HB00009I.PDF</FTPPDFURL>
+          </version>
+          <version>
+            <versionDescription>Enrolled</versionDescription>
+            <WebHTMLURL>https://capitol.texas.gov/tlodocs/89R/billtext/html/HB00009F.htm</WebHTMLURL>
+            <WebPDFURL>https://capitol.texas.gov/tlodocs/89R/billtext/pdf/HB00009F.pdf</WebPDFURL>
+            <FTPHTMLURL>ftp://ftp.legis.state.tx.us/bills/89R/billtext/HTML/house_bills/HB00001_HB00099/HB00009F.HTM</FTPHTMLURL>
+            <FTPPDFURL>ftp://ftp.legis.state.tx.us/bills/89R/billtext/PDF/house_bills/HB00001_HB00099/HB00009F.PDF</FTPPDFURL>
+          </version>
+        </versions>
+      </bill>
+      <analysis>
+        <versions>
+          <version>
+            <versionDescription>House Committee Report</versionDescription>
+            <WebHTMLURL>https://capitol.texas.gov/tlodocs/89R/analysis/html/HB00009H.htm</WebHTMLURL>
+            <WebPDFURL>https://capitol.texas.gov/tlodocs/89R/analysis/pdf/HB00009H.pdf</WebPDFURL>
+            <FTPHTMLURL>ftp://ftp.legis.state.tx.us/bills/89R/analysis/HTML/house_bills/HB00001_HB00099/HB00009H.HTM</FTPHTMLURL>
+            <FTPPDFURL>ftp://ftp.legis.state.tx.us/bills/89R/analysis/PDF/house_bills/HB00001_HB00099/HB00009H.PDF</FTPPDFURL>
+          </version>
+        </versions>
+      </analysis>
+      <fiscalNote>
+        <versions>
+          <version>
+            <versionDescription>Introduced</versionDescription>
+            <WebHTMLURL>https://capitol.texas.gov/tlodocs/89R/fiscalnotes/html/HB00009I.htm</WebHTMLURL>
+            <WebPDFURL>https://capitol.texas.gov/tlodocs/89R/fiscalnotes/pdf/HB00009I.pdf</WebPDFURL>
+            <FTPHTMLURL>ftp://ftp.legis.state.tx.us/bills/89R/fiscalNotes/HTML/house_bills/HB00001_HB00099/HB00009I.HTM</FTPHTMLURL>
+            <FTPPDFURL>ftp://ftp.legis.state.tx.us/bills/89R/fiscalNotes/PDF/house_bills/HB00001_HB00099/HB00009I.PDF</FTPPDFURL>
+          </version>
+        </versions>
+      </fiscalNote>
+    </docTypes>
+  </billtext>
+  <actions>
+    <action>
+      <date>06/12/2025</date>
+      <actionNumber>E100</actionNumber>
+      <description>Effective immediately</description>
+    </action>
+    <action>
+      <date>11/12/2024</date>
+      <actionNumber>H001</actionNumber>
+      <description>Filed</description>
+    </action>
+    <action>
+      <date>05/19/2025</date>
+      <actionNumber>H630</actionNumber>
+      <description>Record vote</description>
+      <comment>RV#2999</comment>
+    </action>
+  </actions>
+</billhistory>
