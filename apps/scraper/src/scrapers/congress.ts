@@ -877,11 +877,6 @@ async function scrape(config: CongressScraperConfig = {}) {
               await recordRetry(scraperKey, itemKey, outcome.reason);
             }
           } catch (error) {
-            if (error instanceof BillTextTooLargeError) {
-              logger.warn(`Skipping ${itemKey}: ${error.message}`);
-              await clearRetry(scraperKey, itemKey);
-              return;
-            }
             logger.error(`Retry failed for ${itemKey}`, error);
             await recordRetry(
               scraperKey,
