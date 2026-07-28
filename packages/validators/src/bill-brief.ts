@@ -66,9 +66,9 @@ export const CHANGE_KIND_LABEL: Record<BriefChangeKind, string> = {
 };
 
 /**
- * A verbatim excerpt from the source document. `text` must appear in the
- * source — the generator drops quotes that fail verification rather than
- * shipping a plausible-looking paraphrase in quotation marks.
+ * A verbatim excerpt plus the analysis pass's canonical section span.
+ * Current-generation briefs must resolve this provenance before they ship;
+ * the fields remain optional here so previously stored brief versions parse.
  */
 export const BriefQuoteSchema = z.object({
   text: z

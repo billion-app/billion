@@ -113,18 +113,21 @@ estimate exceeds `BILL_BRIEF_WRITING_INPUT_TOKEN_BUDGET`.
 
 ### 4. Verify quotes and research links (deterministic)
 
-Every `quote.text` is checked against the **whole** source document, not just
-the window the model saw. Matching normalizes away formatting — casing, smart
-quotes, em dashes, hyphenation across line breaks, and the erratic whitespace
-of scraped legislative text — while staying strict about words, so a dropped or
-reordered word still fails.
+Every `quote.text` carries the analyzed section's hash and section-relative
+offsets. Verification resolves that exact `bill_section` row from the current
+source version and compares the stored text at the recorded span. Matching
+normalizes away cosmetic formatting — casing, smart quotes, dashes, and
+whitespace — while staying strict about words.
 
-Unverified quotes are **stripped, and the surrounding claim is kept**. A brief
-may end up saying less than the model wrote, but it never puts words in a
-bill's mouth. The kept count is stored as `verifiedQuotes`. Outside reading
-links are checked against the URLs opened by the research loop; invented links
-are dropped. The historical-context section is removed entirely unless at least
-two distinct opened sources remain after verification.
+A missing section/span is reported as **quote not found**. A resolvable span
+whose words differ is reported separately as **quote altered**, because that is
+a fabrication signal. Either failure is logged, counted in scraper metrics,
+and rejects the writing attempt so the existing retry can produce a clean
+brief; quotes are never silently stripped and shipped. The successful count is
+stored as `verifiedQuotes`. Outside reading links are checked against the URLs
+opened by the research loop; invented links are dropped. The
+historical-context section is removed entirely unless at least two distinct
+opened sources remain after verification.
 
 ### 5. Lint framing and jargon (deterministic)
 

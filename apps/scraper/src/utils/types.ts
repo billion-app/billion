@@ -37,6 +37,8 @@ export interface ScraperMetrics {
   imagesSearched: number;
   videosGenerated: number;
   videosSkipped: number;
+  quoteVerificationNotFound: number;
+  quoteVerificationAltered: number;
 }
 
 // Existing record check result (helper return type, not a database entity)

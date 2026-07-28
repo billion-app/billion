@@ -24,6 +24,7 @@ import type {
   GovernmentContentData,
 } from "../types.js";
 import { generateBillBrief } from "../ai/bill-brief.js";
+import type { BillSectionForAnalysis } from "../ai/bill-section-analysis.js";
 import { formatSectionAnalysesForWriting } from "../ai/bill-section-analysis.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
@@ -944,7 +945,7 @@ async function assembleNewBill(args: {
     title: data.title,
     billNumber: data.billNumber,
     url: data.url,
-    fullText: data.fullText,
+    sourceSections: sections,
     analysisNotes: formatSectionAnalysesForWriting(analyses),
     officialSummary: data.summary,
     status: data.status,
@@ -1059,7 +1060,7 @@ export async function buildBillBriefRecord(args: {
   title: string;
   billNumber: string;
   url: string;
-  fullText: string;
+  sourceSections: readonly BillSectionForAnalysis[];
   analysisNotes: string;
   officialSummary?: string | null;
   status?: string | null;
@@ -1069,7 +1070,7 @@ export async function buildBillBriefRecord(args: {
     title: args.title,
     billNumber: args.billNumber,
     url: args.url,
-    fullText: args.fullText,
+    sourceSections: args.sourceSections,
     analysisNotes: args.analysisNotes,
     officialSummary: args.officialSummary,
     status: args.status,
@@ -1170,6 +1171,7 @@ export async function upsertBillBrief(args: {
 
   const record = await buildBillBriefRecord({
     ...args,
+    sourceSections: analyses.map(({ section }) => section),
     analysisNotes: formatSectionAnalysesForWriting(analyses),
   });
   if (!record) return false;
