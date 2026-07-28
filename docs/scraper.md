@@ -135,15 +135,40 @@ giant bill cannot wedge the cursor. Section-aware storage is the real fix
 1. Compute a SHA-256 over the type-specific key fields (title, summary, full text, status…).
 2. Look up the existing row by its natural key (`(billNumber, sourceWebsite)`, `url`, or `caseNumber`).
 3. **Unchanged hash** → skip AI entirely; backfill only missing AI assets.
-4. **New bill without a source description** → generate the required description first; defer the insert only if there is no summary source at all.
+4. **New bill without a source description** → generate the required description first; skip the bill entirely if there is no summary source at all.
 5. **New or changed** → run the remaining AI pipeline, upsert via `onConflictDoUpdate`, append to `versions`.
+
+### Complete or not at all
+
+`upsertContent` returns one of three outcomes, and the difference between them
+is the whole contract with the cursor:
+
+| Outcome    | Meaning                                                      | Cursor    |
+| ---------- | ------------------------------------------------------------ | --------- |
+| `written`  | Stored, and as complete as its sources allow                 | advances  |
+| `skipped`  | Deliberately not stored; a retry reaches the same conclusion | advances  |
+| `deferred` | Not finished, for a reason a later run can fix               | **holds** |
+
+A bill lands complete or it does not land. If enrichment throws — rate limit,
+provider error, an article that comes back empty — a bill we had never stored
+before is **deleted again** before returning `deferred`. The derived tables
+(`content_lens`, `content_brief`, `video`) hold plain uuids rather than foreign
+keys, so nothing cascades and the rollback clears each one by hand.
+
+The two `advances` cases are narrow on purpose. `skipped` covers a bill
+congress.gov has published neither text nor a CRS summary for (any later change
+moves its `updateDate` and puts it back in the feed) and a bill too large to
+store whole. Everything else holds the cursor, which is what makes "we could
+not finish this" different from "there is nothing here to finish" — conflating
+the two is how bills get silently dropped.
 
 ### The new-item budget
 
 `SCRAPER_MAX_NEW_ITEMS_PER_RUN` (default 10) caps how many items pay for AI
-generation in one run. Items past the cap are **still persisted with their raw
-content** — they just skip the description, article, lens, brief, and video,
-and are picked up later by the retroactive scripts.
+generation in one run. An item past the cap that we have never stored is
+**not stored at all** and reported as `deferred`; one already in the database
+gets its raw fields refreshed, skips the derived assets, and is still reported
+`deferred` so the cursor waits for them.
 
 The cap counts **items that generate**, not new items, and each item draws at
 most one slot however many assets it produces. A slot is claimed at the point
@@ -153,12 +178,13 @@ case uncapped: an existing bill whose content changed regenerated its brief and
 its dual lens with no limit, which meant a backfill correcting stored text
 ignored the budget almost entirely.
 
-Persisting them is not optional. The cursor advances past everything the run
-fetched, so an item not written here is lost rather than deferred. Between
-2026-07-21 and 2026-07-28 a regression skipped the insert instead, and new
-bills per day fell from ~86 to under 10 while 1,742 upstream updates produced
-17 rows. A raw row still renders because the content API coalesces
-`description → summary`.
+Note what the budget now costs: a capped run walks only as far as it can
+finish. That is deliberate. The earlier design persisted past-budget bills raw
+so the cursor could keep moving, on the theory that the retroactive scripts
+would fill them in — but a raw row is a bill with no description, article, lens
+or brief in front of readers, and nothing guaranteed the backfill ever ran. Set
+the budget high (or unset it) for a backfill; the low default is a guard for
+the weekly run, not a throughput knob.
 
 Every derived asset must be gated on the budget for the cap to mean anything —
 the dual lens in particular runs an agentic research loop. The article/summary/
