@@ -33,6 +33,7 @@ import type {
 import {
   BILL_BRIEF_VERSION,
   BillBriefSchema,
+  BriefChangeKindSchema,
   BriefChangeSchema,
   BriefContextSchema,
   BriefDeepDiveSchema,
@@ -60,14 +61,34 @@ const logger = createLogger("ai-brief");
 /** Attempts at structuring before giving up (each is one LLM call). */
 const MAX_ATTEMPTS = 2;
 
+/* ------------------------------------------------------------------ *
+ * The generated-output layer.
+ *
+ * Everything below exists to absorb the ways a provider's JSON differs from the
+ * canonical schema without being *wrong*: absent optionals arriving as null,
+ * and fields arriving in a neighbouring shape. Each is normalised here and then
+ * validated against `BillBriefSchema` before verification and caching, so
+ * storage stays strict while generation tolerates transport noise.
+ *
+ * The rule these share: a recoverable envelope must never cost a brief. Length
+ * caps and floors already discarded ~15% of everything generated before they
+ * became prompt guidance; these are the same defect wearing different clothes.
+ * ------------------------------------------------------------------ */
+
 /**
- * Structured-output providers commonly serialize absent optional fields as
- * JSON null. Accept that transport convention here, then remove nulls and
- * validate against the canonical storage schema before verification/caching.
+ * A quote is `{text, locator}`, but the model intermittently sends the bare
+ * string instead — the exact inverse of what it does to `unknowns` below. 68
+ * failures came from this one shape, making it the largest remaining class
+ * after the length caps went. The quote text is the part that matters and it is
+ * verified against the source either way, so the missing envelope costs
+ * nothing; only a locator we never had is lost.
  */
-const GeneratedBriefQuoteSchema = BriefQuoteSchema.extend({
-  locator: z.string().trim().nullish(),
-});
+export const GeneratedBriefQuoteSchema = z.union([
+  z.string().transform((text) => ({ text })),
+  BriefQuoteSchema.extend({
+    locator: z.string().trim().nullish(),
+  }),
+]);
 /**
  * `unknowns` is a list of plain strings, but the model intermittently wraps
  * each one as `{"text": "..."}` — the shape every *other* list in the brief
@@ -91,7 +112,15 @@ const GeneratedBillBriefSchema = BillBriefSchema.extend({
     .max(4),
   changes: z
     .array(
-      BriefChangeSchema.extend({
+      // `kind` is accepted as a free string here and narrowed to the enum by
+      // `dropUnrecognisedChangeKinds` below. Validating it inline would reject
+      // the whole brief over one invented verb: H.Res. 1174 returned
+      // "clarifies" for its fourth change and lost the three valid ones with
+      // it. Deliberately not auto-mapped onto the nearest legal value — `kind`
+      // is a mechanical claim about what a bill does, and guessing which of the
+      // eight the model meant risks mislabelling the provision.
+      BriefChangeSchema.omit({ kind: true }).extend({
+        kind: z.string(),
         quote: GeneratedBriefQuoteSchema.nullish(),
       }),
     )
@@ -100,6 +129,50 @@ const GeneratedBillBriefSchema = BillBriefSchema.extend({
   whyNotBefore: BriefContextSchema.nullish(),
   deepDive: BriefDeepDiveSchema.nullish(),
 });
+
+/**
+ * Remove changes whose `kind` is not one of the eight mechanical verbs.
+ *
+ * Follows the same rule as `verifyBriefQuotes`: drop the part that cannot be
+ * trusted and keep the rest, because deleting the surrounding analysis is the
+ * larger loss. A brief that lists four provisions instead of five is still
+ * useful and still true; one that fails to exist is neither.
+ *
+ * If every change is dropped the caller's `BillBriefSchema.parse` fails on the
+ * `min(1)`, which is the right outcome — a brief with nothing in "What would
+ * change" has no reason to be stored.
+ */
+export function dropUnrecognisedChangeKinds(
+  value: unknown,
+  billNumber: string,
+): unknown {
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  if (!Array.isArray(record.changes)) return value;
+
+  const allowed = new Set<string>(BriefChangeKindSchema.options);
+  const kept: unknown[] = [];
+  const dropped: string[] = [];
+
+  for (const change of record.changes) {
+    const kind =
+      change && typeof change === "object"
+        ? (change as { kind?: unknown }).kind
+        : undefined;
+    if (typeof kind === "string" && allowed.has(kind)) {
+      kept.push(change);
+      continue;
+    }
+    dropped.push(String(kind));
+  }
+
+  if (dropped.length === 0) return value;
+  logger.warn(
+    `Brief for ${billNumber}: dropped ${dropped.length} change(s) with an ` +
+      `unrecognised kind (${dropped.join(", ")}); kept ${kept.length}`,
+  );
+  return { ...record, changes: kept };
+}
 
 function withoutNulls(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutNulls);
@@ -748,7 +821,12 @@ export async function generateBillBrief(args: {
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
-      const output = BillBriefSchema.parse(withoutNulls(generatedOutput));
+      const output = BillBriefSchema.parse(
+        dropUnrecognisedChangeKinds(
+          withoutNulls(generatedOutput),
+          args.billNumber,
+        ),
+      );
       const quoteResult = verifyBriefQuotes(output, args.fullText);
       const briefWithReading = verifyBriefReading(
         quoteResult.brief,

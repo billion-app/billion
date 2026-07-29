@@ -11,9 +11,11 @@ import {
 
 import {
   deriveLegalStatus,
+  dropUnrecognisedChangeKinds,
   findLoadedLanguage,
   findMissingEmphasis,
   findUnexplainedJargon,
+  GeneratedBriefQuoteSchema,
   isQuoteGrounded,
   normalizeForQuoteMatch,
   verifyBriefContext,
@@ -436,4 +438,78 @@ void test("legal status comes from the scraped status string", () => {
   assert.equal(deriveLegalStatus("Introduced"), "proposed");
   assert.equal(deriveLegalStatus("Passed House"), "proposed");
   assert.equal(deriveLegalStatus(null), "proposed");
+});
+
+/* ---------- transport shapes that must not cost a brief ---------- */
+
+test("a quote sent as a bare string is accepted and wrapped", () => {
+  // 68 failures came from this shape. The text is what gets verified against
+  // the source, so the missing envelope costs nothing.
+  const parsed = GeneratedBriefQuoteSchema.parse(
+    "A State shall not establish lifetime or annual limits",
+  );
+  assert.deepEqual(parsed, {
+    text: "A State shall not establish lifetime or annual limits",
+  });
+});
+
+test("a quote sent as an object still parses, locator and all", () => {
+  const parsed = GeneratedBriefQuoteSchema.parse({
+    text: "shall waive the requirement described in paragraph (1)",
+    locator: "SEC. 3(a)(2)",
+  });
+  assert.deepEqual(parsed, {
+    text: "shall waive the requirement described in paragraph (1)",
+    locator: "SEC. 3(a)(2)",
+  });
+});
+
+test("a null locator survives the union", () => {
+  const parsed = GeneratedBriefQuoteSchema.parse({
+    text: "an email to each enrolled student at least once each academic year",
+    locator: null,
+  });
+  assert.equal(
+    (parsed as { text: string }).text,
+    "an email to each enrolled student at least once each academic year",
+  );
+});
+
+test("a change with an invented kind is dropped, the valid ones survive", () => {
+  // H.Res. 1174's shape: "clarifies" for one change lost the other three.
+  const cleaned = dropUnrecognisedChangeKinds(
+    {
+      changes: [
+        { kind: "creates", title: "one" },
+        { kind: "clarifies", title: "invented" },
+        { kind: "restricts", title: "three" },
+      ],
+    },
+    "H.Res. 1174",
+  ) as { changes: { kind: string }[] };
+
+  assert.deepEqual(
+    cleaned.changes.map((c) => c.kind),
+    ["creates", "restricts"],
+  );
+});
+
+test("a brief with only valid kinds is returned untouched", () => {
+  const input = { changes: [{ kind: "funds", title: "one" }] };
+  assert.equal(dropUnrecognisedChangeKinds(input, "S. 1"), input);
+});
+
+test("dropping every change leaves an empty list for the schema to reject", () => {
+  // Deliberately not an error here: BillBriefSchema's min(1) is what refuses a
+  // brief with nothing in "What would change".
+  const cleaned = dropUnrecognisedChangeKinds(
+    { changes: [{ kind: "clarifies", title: "only" }] },
+    "S. 2",
+  ) as { changes: unknown[] };
+  assert.equal(cleaned.changes.length, 0);
+});
+
+test("a payload without a changes array is passed through", () => {
+  const input = { hook: "no changes key" };
+  assert.equal(dropUnrecognisedChangeKinds(input, "S. 3"), input);
 });

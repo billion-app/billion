@@ -120,11 +120,19 @@ async function execute(
   if (succeeded) {
     logger.success(`"${job.id}" finished in ${minutes}m`);
   } else {
+    // Only a scheduled job retries. `isDue` returns false for manual jobs
+    // unconditionally, so the backoff never applies to them — printing it
+    // anyway claimed a recovery that could not happen, and reading "retry #4 in
+    // 120m" is why an idle retro-briefs looked like a job that was waiting its
+    // turn rather than one that had stopped for good.
+    const recovery =
+      job.schedule.kind === "manual"
+        ? "manual job — it will not retry on its own; request it again to rerun"
+        : `retry #${failures} in ${backoffMinutes(failures)}m`;
     logger.error(
       `"${job.id}" failed (exit ${result.exitCode}${
         result.timedOut ? ", timed out" : ""
-      }) after ${minutes}m; ` +
-        `retry #${failures} in ${backoffMinutes(failures)}m`,
+      }) after ${minutes}m; ${recovery}`,
     );
   }
 }
