@@ -831,4 +831,51 @@ export const ContentBrief = pgTable(
   }),
 );
 
+/**
+ * Generated artwork for one change inside a brief's "What would change" list.
+ *
+ * A row is written for every change that has been *considered*, not only those
+ * that got a picture: `imageData` is null when the planner judged that no
+ * photograph would help the reader. Recording that decision is the point —
+ * otherwise every run would re-ask the model about the same abstract
+ * procedural change forever.
+ *
+ * `changeHash` covers the change's own text rather than the brief's
+ * `contentHash`. A regenerated brief usually rewrites some changes and leaves
+ * others alone, so hashing per change keeps the untouched artwork instead of
+ * discarding a whole bill's images because one sentence moved. It also detects
+ * the case a positional key cannot: a regenerated brief may emit a *different
+ * number* of changes, so index 3 can quietly become a different subject.
+ */
+export const BriefChangeImage = pgTable(
+  "brief_change_image",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentBriefId: t
+      .uuid()
+      .notNull()
+      .references(() => ContentBrief.id, { onDelete: "cascade" }),
+    changeIndex: t.integer().notNull(),
+    /** sha256 of the change's kind/title/before/after. */
+    changeHash: t.varchar({ length: 64 }).notNull(),
+    /** Null means "deliberately no image", not "not yet generated". */
+    imageData: bytea("image_data"),
+    imageMimeType: t.varchar("image_mime_type", { length: 50 }),
+    imageWidth: t.integer("image_width"),
+    imageHeight: t.integer("image_height"),
+    /** The prompt used, kept so a bad batch can be explained and regenerated. */
+    prompt: t.text(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueBriefChange: unique().on(table.contentBriefId, table.changeIndex),
+    briefIdIndex: index("brief_change_image_brief_id_idx").on(
+      table.contentBriefId,
+    ),
+  }),
+);
+
 export * from "./auth-schema";

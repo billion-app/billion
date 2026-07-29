@@ -38,6 +38,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import * as WebBrowser from "expo-web-browser";
 import Markdown from "@ronradtke/react-native-markdown-display";
 
@@ -82,6 +83,8 @@ export interface BillBriefData {
     title: string;
     before: string;
     after: string;
+    /** Generated photograph for this change, when one helps. Absent is normal. */
+    imageUri?: string;
     quote?: BriefQuote;
   }[];
   affected: {
@@ -418,6 +421,17 @@ function Changes({
               </Text>
             </View>
             <Text style={s.changeTitle}>{c.title}</Text>
+
+            {c.imageUri ? (
+              <Image
+                source={{ uri: c.imageUri }}
+                style={s.changeVisual}
+                contentFit="cover"
+                transition={180}
+                accessible
+                accessibilityLabel={`Photograph illustrating: ${c.title}`}
+              />
+            ) : null}
 
             <View style={s.deltaStack}>
               <View style={s.deltaBefore}>
@@ -1012,6 +1026,12 @@ const s = StyleSheet.create({
   },
   inlineStrongEditorial: {
     fontFamily: fontEditorial.bold,
+  },
+
+  changeVisual: {
+    height: 142,
+    borderRadius: 11,
+    backgroundColor: planes.ink,
   },
 
   /* cited historical context */

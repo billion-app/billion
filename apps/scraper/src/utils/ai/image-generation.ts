@@ -115,12 +115,14 @@ async function generateViaFlux(prompt: string): Promise<string> {
 
 async function generateViaLocalFlux(
   prompt: string,
+  width = 768,
+  height = 768,
 ): Promise<GeneratedImage | null> {
   if (!LOCAL_FLUX_BASE_URL) return null;
 
   try {
     logger.start(
-      `Generating image with local FLUX (${LOCAL_FLUX_MODEL}): ${prompt.substring(0, 50)}...`,
+      `Generating image with local FLUX (${LOCAL_FLUX_MODEL}, ${width}x${height}): ${prompt.substring(0, 50)}...`,
     );
     const response = await fetch(`${LOCAL_FLUX_BASE_URL}/generate`, {
       method: "POST",
@@ -128,8 +130,8 @@ async function generateViaLocalFlux(
       body: JSON.stringify({
         prompt,
         model: LOCAL_FLUX_MODEL,
-        width: 768,
-        height: 768,
+        width,
+        height,
       }),
       signal: AbortSignal.timeout(10 * 60 * 1000),
     });
@@ -144,13 +146,30 @@ async function generateViaLocalFlux(
     return {
       data,
       mimeType: response.headers.get("content-type") ?? "image/png",
-      width: 768,
-      height: 768,
+      width,
+      height,
     };
   } catch (error) {
     logger.error("Local FLUX fallback failed", error);
     return null;
   }
+}
+
+/**
+ * Generate an image on the local FLUX server only, at an explicit size, with
+ * the prompt passed through verbatim.
+ *
+ * `generateImage()` below is the wrong tool for anything that is not header
+ * art: it wraps the prompt in an illustrated-editorial instruction and prefers
+ * the paid BFL API when a key is present. This one never spends money and never
+ * editorialises the prompt, so callers own their own art direction.
+ */
+export async function generateLocalPhoto(
+  prompt: string,
+  width: number,
+  height: number,
+): Promise<GeneratedImage | null> {
+  return generateViaLocalFlux(prompt, width, height);
 }
 
 /**

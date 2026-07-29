@@ -68,7 +68,19 @@ const MAX_ATTEMPTS = 2;
 const GeneratedBriefQuoteSchema = BriefQuoteSchema.extend({
   locator: z.string().trim().nullish(),
 });
+/**
+ * `unknowns` is a list of plain strings, but the model intermittently wraps
+ * each one as `{"text": "..."}` — the shape every *other* list in the brief
+ * uses. The content is correct; only the envelope is wrong, and rejecting the
+ * whole brief over it lost H.R. 1722 and S. 4766 outright. Unwrap it here,
+ * alongside the null-for-absent convention handled below.
+ */
+const GeneratedUnknownSchema = z
+  .union([z.string(), z.object({ text: z.string() })])
+  .transform((value) => (typeof value === "string" ? value : value.text));
+
 const GeneratedBillBriefSchema = BillBriefSchema.extend({
+  unknowns: z.array(GeneratedUnknownSchema).min(1).max(3),
   facts: z
     .array(
       BriefFactSchema.extend({

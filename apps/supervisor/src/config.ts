@@ -130,6 +130,22 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 48,
   },
   {
+    id: "change-images",
+    description: "Generate photographs for brief changes that warrant one",
+    script: "change-images.js",
+    // Bounded by the brief backlog rather than the archive: it only considers
+    // changes inside briefs that already exist. Generation is local FLUX only,
+    // so a long run costs GPU time and no money. ~35s per image at 1024x576,
+    // and most changes are correctly decided to need no image at all.
+    args: ["--limit", "2000", "--concurrency", "1"],
+    schedule: { kind: "manual" },
+    priority: 32,
+    // A single image can take a minute on a cold pipeline; the default idle
+    // timeout would kill a healthy run between two slow generations.
+    idleTimeoutMinutes: 120,
+    maxRuntimeHours: 72,
+  },
+  {
     id: "reprocess-bare",
     description: "Fill in bills left without an article or header art",
     script: "reprocess-content.js",

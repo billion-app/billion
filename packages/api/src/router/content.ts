@@ -6,6 +6,7 @@ import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
 import {
   Bill,
+  BriefChangeImage,
   ContentBrief,
   ContentLens,
   CourtCase,
@@ -130,7 +131,7 @@ async function getBrief(
   contentType: "bill" | "government_content" | "court_case",
 ) {
   const [row] = await db
-    .select({ brief: ContentBrief.brief })
+    .select({ id: ContentBrief.id, brief: ContentBrief.brief })
     .from(ContentBrief)
     .where(
       and(
@@ -139,7 +140,43 @@ async function getBrief(
       ),
     )
     .limit(1);
-  return row ? parseBillBriefRecord(row.brief) : null;
+  if (!row) return null;
+  const parsed = parseBillBriefRecord(row.brief);
+  if (!parsed) return null;
+
+  // Change artwork is stored per change rather than inside the brief JSON, so
+  // it is attached here. A change with no row, or a row deliberately recorded
+  // without bytes, simply has no image — the card renders fine without one.
+  const art = await db
+    .select({
+      changeIndex: BriefChangeImage.changeIndex,
+      imageData: BriefChangeImage.imageData,
+      imageMimeType: BriefChangeImage.imageMimeType,
+    })
+    .from(BriefChangeImage)
+    .where(eq(BriefChangeImage.contentBriefId, row.id));
+
+  const uriByIndex = new Map(
+    art.flatMap((item) =>
+      item.imageData && item.imageMimeType
+        ? [
+            [
+              item.changeIndex,
+              `data:${item.imageMimeType};base64,${item.imageData.toString("base64")}`,
+            ] as const,
+          ]
+        : [],
+    ),
+  );
+  if (uriByIndex.size === 0) return parsed;
+
+  return {
+    ...parsed,
+    changes: parsed.changes.map((change, index) => {
+      const imageUri = uriByIndex.get(index);
+      return imageUri ? { ...change, imageUri } : change;
+    }),
+  };
 }
 
 // Helper function to get thumbnail URL for any content

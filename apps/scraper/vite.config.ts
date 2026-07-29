@@ -41,6 +41,9 @@ export default defineConfig({
         "retroactive-videos": fileURLToPath(
           new URL("./src/retroactive-videos.ts", import.meta.url),
         ),
+        "change-images": fileURLToPath(
+          new URL("./src/change-images.ts", import.meta.url),
+        ),
       },
       output: {
         chunkFileNames: "chunks/[name]-[hash].js",
