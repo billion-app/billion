@@ -489,8 +489,8 @@ function Changes({
           ))}
           <Text style={s.changePagerText}>
             {activeIndex < changes.length - 1
-              ? `Swipe for change ${activeIndex + 2} of ${changes.length}`
-              : `Showing change ${activeIndex + 1} of ${changes.length}`}
+              ? `Change ${activeIndex + 1} of ${changes.length} · Swipe for more`
+              : `Change ${activeIndex + 1} of ${changes.length}`}
           </Text>
         </View>
       ) : null}
