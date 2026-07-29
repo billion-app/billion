@@ -35,6 +35,17 @@ else next = `${maj}.${min}.${pat + 1}`;
 
 config.version = next;
 writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+
+// `JSON.stringify` and Prettier disagree about short arrays — the former
+// expands `["**/*"]` across three lines. Without this, every bump committed an
+// unrelated reformat that failed the format check, and a red format check
+// blocks `scraper-image` in CI, so a version bump could stall production
+// deploys. Re-format through Prettier so the output matches what CI verifies.
+execSync(`pnpm exec prettier --write ${JSON.stringify(CONFIG_PATH)}`, {
+  cwd: ROOT,
+  stdio: "inherit",
+});
+
 console.log(`Bumped ${current} → ${next}`);
 
 execSync(`git add apps/expo/app.config.base.json`, { cwd: ROOT, stdio: "inherit" });
