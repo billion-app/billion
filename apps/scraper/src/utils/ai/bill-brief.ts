@@ -159,8 +159,9 @@ export function normalizeForQuoteMatch(text: string): string {
 /** Whether a quote appears verbatim (modulo formatting) in the source. */
 export function isQuoteGrounded(quote: string, normalizedSource: string) {
   const needle = normalizeForQuoteMatch(quote);
-  // Very short fragments match by accident; the schema floor is 20 chars, but
-  // normalization can shrink a quote further.
+  // Very short fragments match by accident. This is the only length check on a
+  // quote — the schema deliberately has no floor, so that a too-short quote is
+  // dropped here rather than rejecting the whole brief.
   if (needle.length < 20) return false;
   return normalizedSource.includes(needle);
 }

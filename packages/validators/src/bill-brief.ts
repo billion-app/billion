@@ -77,12 +77,18 @@ export const CHANGE_KIND_LABEL: Record<BriefChangeKind, string> = {
  * A verbatim excerpt from the source document. `text` must appear in the
  * source — the generator drops quotes that fail verification rather than
  * shipping a plausible-looking paraphrase in quotation marks.
+ *
+ * `text` deliberately carries no length floor. `isQuoteGrounded` already
+ * rejects anything under 20 normalized characters as an accidental match, and
+ * `verifyBriefQuotes` then strips just that quote and keeps the claim. A schema
+ * floor duplicated that check one layer too early, where the only available
+ * outcome was rejecting the entire brief: an 11-character `"shall waive"` cost
+ * a complete, fully-cited brief for H.R. 9833.
  */
 export const BriefQuoteSchema = z.object({
   text: z
     .string()
     .trim()
-    .min(20)
     .describe(
       "A verbatim, unedited span copied from the source text, ideally under 1200 characters. Never paraphrase, reorder, or fix grammar inside a quote — quote a shorter span rather than trimming words out of a long one.",
     ),
