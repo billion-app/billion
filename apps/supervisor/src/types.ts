@@ -75,6 +75,14 @@ export interface JobState {
   lastExitCode?: number;
   /** Drives backoff. Reset to 0 on any successful run. */
   consecutiveFailures: number;
+  /**
+   * How many times this job has been auto-resumed after being interrupted
+   * without ever reaching a finish. Bounds the resume so a job that reliably
+   * takes the supervisor down with it cannot restart forever. Reset to 0 the
+   * moment a run finishes, however it finishes — a job that exits, even with an
+   * error, is not the thing killing the process.
+   */
+  interruptedResumes: number;
 }
 
 export interface SupervisorState {
@@ -85,5 +93,5 @@ export interface QueueEntry {
   readonly jobId: string;
   readonly priority: number;
   /** Why this run was queued — surfaced in logs to make history readable. */
-  readonly reason: "scheduled" | "requested";
+  readonly reason: "scheduled" | "requested" | "resumed";
 }

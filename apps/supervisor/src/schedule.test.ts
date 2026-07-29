@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { backoffMinutes, dueJobs, isDue, lastOccurrence } from "./schedule.js";
 import type { JobDefinition, JobState } from "./types.js";
+import {
+  backoffMinutes,
+  dueJobs,
+  interruptedJobs,
+  isDue,
+  lastOccurrence,
+  MAX_INTERRUPTED_RESUMES,
+  wasInterrupted,
+} from "./schedule.js";
 
 // 2026-07-26 is a Sunday; 2026-07-28 is a Tuesday. Dates are built with the
 // local-time constructor so these assertions hold in any timezone.
@@ -32,7 +40,7 @@ const intervalJob: JobDefinition = {
   maxRuntimeHours: 24,
 };
 
-const clean: JobState = { consecutiveFailures: 0 };
+const clean: JobState = { consecutiveFailures: 0, interruptedResumes: 0 };
 
 void test("backoff doubles from 15 minutes and caps at a day", () => {
   assert.equal(backoffMinutes(0), 0);
@@ -57,7 +65,10 @@ void test("on the scheduled day but before the time, the occurrence is last week
 
 void test("the daily occurrence is today once the time has passed", () => {
   assert.equal(
-    lastOccurrence({ kind: "daily", hour: 3, minute: 15 }, tuesdayNoon).getTime(),
+    lastOccurrence(
+      { kind: "daily", hour: 3, minute: 15 },
+      tuesdayNoon,
+    ).getTime(),
     new Date(2026, 6, 28, 3, 15).getTime(),
   );
 });
@@ -65,7 +76,10 @@ void test("the daily occurrence is today once the time has passed", () => {
 void test("before the daily time has come round, the occurrence is yesterday", () => {
   const earlyTuesday = new Date(2026, 6, 28, 1, 0);
   assert.equal(
-    lastOccurrence({ kind: "daily", hour: 3, minute: 15 }, earlyTuesday).getTime(),
+    lastOccurrence(
+      { kind: "daily", hour: 3, minute: 15 },
+      earlyTuesday,
+    ).getTime(),
     new Date(2026, 6, 27, 3, 15).getTime(),
   );
 });
@@ -115,7 +129,10 @@ void test("a weekly job whose last run predates the occurrence is due", () => {
 });
 
 void test("a weekly job that already ran this occurrence is not due", () => {
-  const state: JobState = { ...clean, lastStartedAt: sundayAt(3, 20).toISOString() };
+  const state: JobState = {
+    ...clean,
+    lastStartedAt: sundayAt(3, 20).toISOString(),
+  };
   assert.equal(isDue(weeklyJob, state, tuesdayNoon), false);
 });
 
@@ -125,12 +142,19 @@ void test("an interval job is due immediately when it has never run", () => {
 
 void test("an interval job waits out its interval", () => {
   const twoMinutesAgo = new Date(tuesdayNoon.getTime() - 2 * 60_000);
-  const state: JobState = { ...clean, lastStartedAt: twoMinutesAgo.toISOString() };
+  const state: JobState = {
+    ...clean,
+    lastStartedAt: twoMinutesAgo.toISOString(),
+  };
   assert.equal(isDue(intervalJob, state, tuesdayNoon), false);
 
   const tenMinutesAgo = new Date(tuesdayNoon.getTime() - 10 * 60_000);
   assert.equal(
-    isDue(intervalJob, { ...clean, lastStartedAt: tenMinutesAgo.toISOString() }, tuesdayNoon),
+    isDue(
+      intervalJob,
+      { ...clean, lastStartedAt: tenMinutesAgo.toISOString() },
+      tuesdayNoon,
+    ),
     true,
   );
 });
@@ -138,6 +162,7 @@ void test("an interval job waits out its interval", () => {
 void test("backoff suppresses a job that would otherwise be due", () => {
   const oneMinuteAgo = new Date(tuesdayNoon.getTime() - 60_000).toISOString();
   const failing: JobState = {
+    interruptedResumes: 0,
     consecutiveFailures: 2, // 30 minutes of backoff
     lastStartedAt: new Date(tuesdayNoon.getTime() - 120_000).toISOString(),
     lastFinishedAt: oneMinuteAgo,
@@ -148,6 +173,7 @@ void test("backoff suppresses a job that would otherwise be due", () => {
   // together: the interval is measured from `lastStartedAt`, so a state where
   // the job finished before it started would not exercise anything real.
   const settled: JobState = {
+    interruptedResumes: 0,
     consecutiveFailures: 2,
     lastStartedAt: new Date(tuesdayNoon.getTime() - 50 * 60_000).toISOString(),
     lastFinishedAt: new Date(tuesdayNoon.getTime() - 45 * 60_000).toISOString(),
@@ -167,11 +193,103 @@ void test("a manual job is never due on its own", () => {
 
 void test("due jobs come back highest priority first", () => {
   const state = {
-    weekly: { ...clean, lastStartedAt: new Date(2026, 6, 19, 3, 15).toISOString() },
+    weekly: {
+      ...clean,
+      lastStartedAt: new Date(2026, 6, 19, 3, 15).toISOString(),
+    },
   };
   const due = dueJobs([intervalJob, weeklyJob], state, tuesdayNoon);
   assert.deepEqual(
     due.map((entry) => entry.jobId),
     ["weekly", "backfill"],
+  );
+});
+
+/* ---------- resuming a job the supervisor died in the middle of ---------- */
+
+const manualJob: JobDefinition = {
+  id: "change-images",
+  description: "manual",
+  script: "change-images.js",
+  args: [],
+  schedule: { kind: "manual" },
+  priority: 32,
+  idleTimeoutMinutes: 120,
+  maxRuntimeHours: 72,
+};
+
+const startedNotFinished: JobState = {
+  lastStartedAt: "2026-07-29T06:05:58.000Z",
+  consecutiveFailures: 0,
+  interruptedResumes: 0,
+};
+
+test("a start with no finish counts as interrupted", () => {
+  assert.equal(wasInterrupted(startedNotFinished), true);
+});
+
+test("a finish after the start is not interrupted", () => {
+  assert.equal(
+    wasInterrupted({
+      lastStartedAt: "2026-07-29T06:05:58.000Z",
+      lastFinishedAt: "2026-07-29T06:47:11.000Z",
+      consecutiveFailures: 0,
+      interruptedResumes: 0,
+    }),
+    false,
+  );
+});
+
+test("a finish older than the start counts as interrupted", () => {
+  // The shape a killed re-run leaves: the new start overwrote the old one while
+  // the finish still refers to the previous, completed run.
+  assert.equal(
+    wasInterrupted({
+      lastStartedAt: "2026-07-29T08:23:17.000Z",
+      lastFinishedAt: "2026-07-29T06:05:25.000Z",
+      consecutiveFailures: 0,
+      interruptedResumes: 0,
+    }),
+    true,
+  );
+});
+
+test("a job that never ran is not interrupted", () => {
+  assert.equal(wasInterrupted(undefined), false);
+  assert.equal(
+    wasInterrupted({ consecutiveFailures: 0, interruptedResumes: 0 }),
+    false,
+  );
+});
+
+test("an interrupted manual job is queued for resume", () => {
+  const entries = interruptedJobs([manualJob], {
+    [manualJob.id]: startedNotFinished,
+  });
+  assert.deepEqual(entries, [
+    { jobId: "change-images", priority: 32, reason: "resumed" },
+  ]);
+});
+
+test("resuming stops after the bound, so a job that kills the supervisor cannot loop", () => {
+  const entries = interruptedJobs([manualJob], {
+    [manualJob.id]: {
+      ...startedNotFinished,
+      interruptedResumes: MAX_INTERRUPTED_RESUMES,
+    },
+  });
+  assert.deepEqual(entries, []);
+});
+
+test("scheduled jobs are left to isDue rather than resumed here", () => {
+  // Both were interrupted, but only the manual one needs this path — queueing
+  // the weekly job here as well would double it up with dueJobs.
+  const entries = interruptedJobs([weeklyJob, manualJob], {
+    [weeklyJob.id]: startedNotFinished,
+    [manualJob.id]: startedNotFinished,
+  });
+  assert.deepEqual(
+    entries.map((e) => e.jobId),
+    ["change-images"],
   );
 });

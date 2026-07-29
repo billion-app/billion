@@ -2,12 +2,18 @@ import { mkdir, readdir, unlink } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { createConsola } from "consola";
 
+import type { QueueEntry, Schedule, SupervisorState } from "./types.js";
 import { findJob, jobs } from "./config.js";
 import { JobQueue } from "./queue.js";
 import { runJob } from "./run.js";
-import { backoffMinutes, dueJobs } from "./schedule.js";
+import {
+  backoffMinutes,
+  dueJobs,
+  interruptedJobs,
+  MAX_INTERRUPTED_RESUMES,
+  wasInterrupted,
+} from "./schedule.js";
 import { loadState, saveState } from "./state.js";
-import type { QueueEntry, Schedule, SupervisorState } from "./types.js";
 
 const logger = createConsola({ formatOptions: { date: true } });
 
@@ -52,7 +58,10 @@ async function drainRequests(): Promise<void> {
     await unlink(path).catch(() => undefined);
 
     const job = findJob(jobId);
-    if (job && queue.enqueue({ jobId, priority: job.priority, reason: "requested" })) {
+    if (
+      job &&
+      queue.enqueue({ jobId, priority: job.priority, reason: "requested" })
+    ) {
       logger.info(`Queued "${jobId}" on request`);
     } else {
       logger.info(`"${jobId}" was already queued; request collapsed into it`);
@@ -73,6 +82,12 @@ async function execute(
     ...previous,
     lastStartedAt: startedAt,
     consecutiveFailures: previous?.consecutiveFailures ?? 0,
+    // Counted at the point the resumed run actually starts, so the bound holds
+    // even if this attempt is killed before it can write a finish.
+    interruptedResumes:
+      entry.reason === "resumed"
+        ? (previous?.interruptedResumes ?? 0) + 1
+        : (previous?.interruptedResumes ?? 0),
   };
   // Persist before running: if the host loses power mid-job, the restarted
   // supervisor must see that this job was attempted rather than start it again
@@ -95,6 +110,9 @@ async function execute(
     lastFinishedAt: new Date().toISOString(),
     lastExitCode: result.exitCode,
     consecutiveFailures: failures,
+    // Reaching here at all means the job did not take the supervisor with it,
+    // so it has earned a fresh set of resumes.
+    interruptedResumes: 0,
   };
   await saveState(statePath, state);
 
@@ -139,6 +157,34 @@ async function main(): Promise<void> {
   );
   for (const job of jobs) {
     logger.info(`  ${job.id} — ${describeSchedule(job.schedule)}`);
+  }
+
+  // A manual job interrupted mid-run has no request file left to restart it, so
+  // pick it back up here. Done once at startup rather than every tick: after
+  // this the job either runs (rewriting its own state) or has exhausted its
+  // resumes, and re-checking each tick would requeue it while it is running.
+  for (const entry of interruptedJobs(jobs, state.jobs)) {
+    if (queue.enqueue(entry)) {
+      const attempt = (state.jobs[entry.jobId]?.interruptedResumes ?? 0) + 1;
+      logger.warn(
+        `"${entry.jobId}" was interrupted mid-run; resuming ` +
+          `(attempt ${attempt}/${MAX_INTERRUPTED_RESUMES})`,
+      );
+    }
+  }
+  for (const job of jobs) {
+    const jobState = state.jobs[job.id];
+    if (
+      job.schedule.kind === "manual" &&
+      wasInterrupted(jobState) &&
+      (jobState?.interruptedResumes ?? 0) >= MAX_INTERRUPTED_RESUMES
+    ) {
+      logger.error(
+        `"${job.id}" has been interrupted ${MAX_INTERRUPTED_RESUMES} times ` +
+          `without finishing; not resuming it again. Request it manually once ` +
+          `the cause is understood.`,
+      );
+    }
   }
 
   while (!stopping) {

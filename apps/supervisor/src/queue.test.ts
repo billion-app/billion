@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { JobQueue } from "./queue.js";
 import type { QueueEntry } from "./types.js";
+import { JobQueue } from "./queue.js";
 
 const entry = (jobId: string, priority: number): QueueEntry => ({
   jobId,

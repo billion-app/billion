@@ -9,6 +9,7 @@ const jobStateSchema = z.object({
   lastFinishedAt: z.string().optional(),
   lastExitCode: z.number().optional(),
   consecutiveFailures: z.number().default(0),
+  interruptedResumes: z.number().default(0),
 });
 
 const supervisorStateSchema = z.object({

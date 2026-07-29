@@ -81,6 +81,64 @@ export function isDue(
 }
 
 /**
+ * How many times a job may be auto-resumed after an interruption before the
+ * supervisor gives up and waits for a human.
+ */
+export const MAX_INTERRUPTED_RESUMES = 3;
+
+/**
+ * Whether a job was running when the supervisor last stopped existing.
+ *
+ * `execute` persists `lastStartedAt` before spawning and only writes
+ * `lastFinishedAt` afterwards, so a start with no matching finish means the
+ * process died mid-run — an OrbStack restart, a host reboot, `kickstart -k`
+ * during a deploy.
+ */
+export function wasInterrupted(state: JobState | undefined): boolean {
+  if (!state?.lastStartedAt) return false;
+  if (!state.lastFinishedAt) return true;
+  return Date.parse(state.lastFinishedAt) < Date.parse(state.lastStartedAt);
+}
+
+/**
+ * Jobs that were mid-run when the supervisor died and should be picked back up.
+ *
+ * This exists because a *manual* job could otherwise never resume. Requests
+ * arrive as files in `requests/`, and `drainRequests` deletes the file before
+ * running so a job that crashes the supervisor cannot re-request itself in a
+ * loop. Correct, but it means an interrupted manual job leaves nothing behind
+ * that would ever start it again: the supervisor comes back up, finds no
+ * request, and sits idle. That silently stalled an 8-hour image backfill and
+ * left a 459-brief backlog untouched for eleven hours.
+ *
+ * Scheduled jobs are excluded — `isDue` already recovers those on its own, and
+ * queueing them here as well would double up.
+ *
+ * The resume is bounded rather than unconditional, which preserves what the
+ * delete-first rule was protecting against: a job that takes the supervisor
+ * down every time it runs gets `MAX_INTERRUPTED_RESUMES` attempts and then
+ * stops, instead of restarting forever.
+ */
+export function interruptedJobs(
+  jobs: readonly JobDefinition[],
+  state: Record<string, JobState>,
+): QueueEntry[] {
+  return jobs
+    .filter((job) => job.schedule.kind === "manual")
+    .filter((job) => wasInterrupted(state[job.id]))
+    .filter(
+      (job) =>
+        (state[job.id]?.interruptedResumes ?? 0) < MAX_INTERRUPTED_RESUMES,
+    )
+    .map((job) => ({
+      jobId: job.id,
+      priority: job.priority,
+      reason: "resumed" as const,
+    }))
+    .sort((a, b) => a.priority - b.priority || a.jobId.localeCompare(b.jobId));
+}
+
+/**
  * Every job due right now, highest priority first. Ties break on job id so the
  * order is deterministic and logs from two runs can be compared.
  */
