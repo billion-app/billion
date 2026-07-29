@@ -1,29 +1,20 @@
 import type { ImageSource } from "expo-image";
 
-import algorithmTransparencyImage from "../../assets/article-brief/algorithm-transparency.jpg";
-import infrastructureRepairImage from "../../assets/article-brief/infrastructure-repair.jpg";
-import publicTransitImage from "../../assets/article-brief/public-transit.jpg";
-
-type EditorialImageSource = ImageSource | number;
-
-const TITLE_VISUALS: Record<string, EditorialImageSource> = {
-  "Infrastructure Modernization Act of 2025": infrastructureRepairImage,
-  "TechCorp Inc. v. California": algorithmTransparencyImage,
-  "Digital Privacy Protection Act": algorithmTransparencyImage,
-};
-
 /**
- * Local editorial art wins over generic seeded thumbnails. The fallback keeps
- * real scraper imagery working while preventing placeholder landscapes from
- * representing unrelated policy in the demo.
+ * Resolve the image for a piece of content, or nothing.
+ *
+ * This used to also map a handful of hardcoded *seeded* titles ("TechCorp Inc.
+ * v. California", "Digital Privacy Protection Act") onto artwork bundled in the
+ * app. That was demo scaffolding: it made screenshots look finished, and it
+ * would have silently attached stock art to any real bill that happened to
+ * share a title with the fixture. Production shows a real image or none.
+ *
+ * The picsum check stays: seeded rows carry placeholder landscape URLs, and a
+ * random landscape is worse than an empty slot next to real legislation.
  */
-export function editorialVisualFor(
-  title: string,
+export function contentImageSource(
   remoteUri?: string | null,
-): EditorialImageSource | undefined {
-  if (TITLE_VISUALS[title]) return TITLE_VISUALS[title];
+): ImageSource | undefined {
   if (!remoteUri || remoteUri.includes("picsum.photos")) return undefined;
   return { uri: remoteUri };
 }
-
-export { publicTransitImage };

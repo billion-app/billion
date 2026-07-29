@@ -135,19 +135,16 @@ export const BriefFactSchema = z.object({
 export type BriefFact = z.infer<typeof BriefFactSchema>;
 
 /**
- * Curated editorial artwork bundled by the client. The generator may select
- * one only when the mechanism clearly matches; omitting a visual is always
- * preferable to decorative or misleading imagery.
+ * A single concrete policy change, stated as current law → proposed law.
+ *
+ * A change deliberately carries no image field. It briefly had one: an enum of
+ * four JPGs bundled in the client, which existed for seeded demo rows and was
+ * never meant to reach production. The generator picked one for only 21 of 601
+ * changes and was wrong most of those times — "public transit" illustrated a
+ * censorship-circumvention working group — because the real subject of a bill
+ * is almost never one of four stock scenes. Per-change artwork should be
+ * generated from the change itself; until it is, no image is correct.
  */
-export const BriefVisualSchema = z.enum([
-  "infrastructure-repair",
-  "public-transit",
-  "data-privacy",
-  "data-control",
-]);
-export type BriefVisual = z.infer<typeof BriefVisualSchema>;
-
-/** A single concrete policy change, stated as current law → proposed law. */
 export const BriefChangeSchema = z.object({
   kind: BriefChangeKindSchema.describe(
     "The mechanical action. Pick the verb the text supports, not the one the sponsor prefers.",
@@ -173,9 +170,6 @@ export const BriefChangeSchema = z.object({
     .describe(
       "What would happen under this measure, in concrete everyday language, in under 240 characters. Explain who acts, what they do, and what changes; avoid unexplained terms such as authorization, appropriation, discretionary grant, allocation formula, and funding horizon. If one provision does too much to fit, split it into a separate change rather than writing a longer sentence. Preserve legal status. At most two short **bold** spans may mark the phrases a scanner should retain.",
     ),
-  visual: BriefVisualSchema.optional().describe(
-    "Optional curated editorial visual. Use infrastructure-repair for physical road or bridge work, public-transit for rail or bus expansion, data-privacy for company collection or use of personal data, data-control for a person's right to access or delete personal data, and otherwise omit.",
-  ),
   quote: BriefQuoteSchema.optional().describe(
     "The exact provision this change is drawn from. Include it whenever the source contains a direct supporting span; evaluate every change rather than citing only the first card.",
   ),

@@ -8,7 +8,7 @@ import { Image } from "expo-image";
 
 import type { ContentTypeKey } from "~/styles";
 import { colors, contentType, fontBody, hair, planes } from "~/styles";
-import { editorialVisualFor } from "~/utils/editorial-visuals";
+import { contentImageSource } from "~/utils/editorial-visuals";
 import { Icon } from "./Icon";
 import { Badge, Spine } from "./primitives";
 
@@ -37,7 +37,7 @@ export function ContentCard({
 }) {
   const t = contentType[item.type];
   const imageUri = item.imageUri ?? item.thumbnailUrl;
-  const imageSource = editorialVisualFor(item.title, imageUri);
+  const imageSource = contentImageSource(imageUri);
   const [imageFailed, setImageFailed] = useState(false);
   return (
     <TouchableOpacity

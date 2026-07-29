@@ -38,7 +38,6 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import * as WebBrowser from "expo-web-browser";
 import Markdown from "@ronradtke/react-native-markdown-display";
 
@@ -52,10 +51,6 @@ import {
   hair,
   planes,
 } from "~/styles";
-import dataPrivacyImage from "../../../assets/article-brief/algorithm-transparency.jpg";
-import dataControlImage from "../../../assets/article-brief/data-control.jpg";
-import infrastructureRepairImage from "../../../assets/article-brief/infrastructure-repair.jpg";
-import publicTransitImage from "../../../assets/article-brief/public-transit.jpg";
 import { Icon } from "./Icon";
 
 /* ---------- data shape ---------- */
@@ -87,11 +82,6 @@ export interface BillBriefData {
     title: string;
     before: string;
     after: string;
-    visual?:
-      | "infrastructure-repair"
-      | "public-transit"
-      | "data-privacy"
-      | "data-control";
     quote?: BriefQuote;
   }[];
   affected: {
@@ -128,29 +118,6 @@ const CHANGE_KIND_LABEL: Record<BriefChangeKind, string> = {
   funds: "FUNDS",
   transfers: "TRANSFERS",
 };
-
-const CHANGE_VISUALS = {
-  "infrastructure-repair": {
-    source: infrastructureRepairImage,
-    alt: "Engineers reviewing plans beside an active bridge rehabilitation project",
-    caption: "Bridge rehabilitation and long-range project planning",
-  },
-  "public-transit": {
-    source: publicTransitImage,
-    alt: "A light-rail train and city bus serving the same transit station",
-    caption: "Light rail and bus rapid transit",
-  },
-  "data-privacy": {
-    source: dataPrivacyImage,
-    alt: "A laptop showing an abstract network of connected personal data",
-    caption: "How companies collect, connect, and use personal data",
-  },
-  "data-control": {
-    source: dataControlImage,
-    alt: "A person reviewing privacy controls and deleting data on a laptop",
-    caption: "Reviewing and deleting personal data held by companies",
-  },
-} as const;
 
 const DIRECTION: Record<
   BillBriefData["affected"][number]["direction"],
@@ -451,23 +418,6 @@ function Changes({
               </Text>
             </View>
             <Text style={s.changeTitle}>{c.title}</Text>
-
-            {c.visual ? (
-              <View style={s.changeVisualWrap}>
-                <Image
-                  source={CHANGE_VISUALS[c.visual].source}
-                  style={s.changeVisual}
-                  contentFit="cover"
-                  transition={180}
-                  accessible
-                  accessibilityLabel={CHANGE_VISUALS[c.visual].alt}
-                />
-                <View style={s.changeVisualShade} />
-                <Text style={s.changeVisualCaption}>
-                  {CHANGE_VISUALS[c.visual].caption}
-                </Text>
-              </View>
-            ) : null}
 
             <View style={s.deltaStack}>
               <View style={s.deltaBefore}>
@@ -1062,30 +1012,6 @@ const s = StyleSheet.create({
   },
   inlineStrongEditorial: {
     fontFamily: fontEditorial.bold,
-  },
-  changeVisualWrap: {
-    height: 142,
-    borderRadius: 11,
-    overflow: "hidden",
-    backgroundColor: planes.ink,
-    justifyContent: "flex-end",
-  },
-  changeVisual: {
-    position: "absolute",
-    inset: 0,
-  },
-  changeVisualShade: {
-    position: "absolute",
-    inset: 0,
-    backgroundColor: "rgba(8,13,29,0.14)",
-  },
-  changeVisualCaption: {
-    fontFamily: fontBody.semibold,
-    fontSize: 10.5,
-    color: colors.white,
-    backgroundColor: "rgba(8,13,29,0.74)",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
   },
 
   /* cited historical context */

@@ -30,7 +30,7 @@ import {
 } from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { authClient } from "~/utils/auth";
-import { editorialVisualFor } from "~/utils/editorial-visuals";
+import { contentImageSource } from "~/utils/editorial-visuals";
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 
@@ -118,10 +118,7 @@ function FeedCard({
 
   const typeKey = resolveType(item.type);
   const t = contentType[typeKey];
-  const imageSource = editorialVisualFor(
-    item.title,
-    item.imageUri ?? item.thumbnailUrl,
-  );
+  const imageSource = contentImageSource(item.imageUri ?? item.thumbnailUrl);
 
   return (
     <LinearGradient

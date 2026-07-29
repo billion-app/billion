@@ -38,7 +38,6 @@ import {
   BriefDeepDiveSchema,
   BriefFactSchema,
   BriefQuoteSchema,
-  BriefVisualSchema,
 } from "@acme/validators";
 
 import type { DualLensSource } from "./text-generation.js";
@@ -81,7 +80,6 @@ const GeneratedBillBriefSchema = BillBriefSchema.extend({
   changes: z
     .array(
       BriefChangeSchema.extend({
-        visual: BriefVisualSchema.nullish(),
         quote: GeneratedBriefQuoteSchema.nullish(),
       }),
     )
@@ -646,7 +644,6 @@ Field notes:
 - Surprise belongs in the "hook". A reader who knows only the bill's title and short description should not be able to predict it. Two things are almost always more useful than restating the title: (a) **provisions unrelated to the bill's stated subject** — unrelated policy riding along in the same text is one of the most consequential things a reader can learn, and a title will never reveal it; and (b) **the gap between what the title promises and what the text does** — a bill named for banning something that restricts only one narrow form of it, grandfathers everything existing, or omits an asset class the reader would assume is covered. When either is present, it belongs in the hook ahead of a fuller recitation of the main provisions. Only describe what the source actually supports; do not manufacture a twist for a bill that genuinely has none, and keep the framing neutral — state the mismatch, let the reader judge it.
 - "changes" must contrast current law ("before") with the proposal ("after"). If the source does not establish current law, say that in "before" instead of guessing. Evaluate every change independently for a direct supporting quote; when the official text contains one, include it so every supported card has its own route back to the text. Never invent or stretch a quote merely to make the cards look consistent.
 - Each affected-group "takeaway" is the card's always-visible summary. Write one complete standalone sentence that names the group or a clear pronoun and states what would happen. For example: "States would get a **longer window to plan multi-year projects**." Do not return fragments such as "a longer funding horizon" or "depends on final rules." Put qualifications and mechanism detail in "effect".
-- "visual" is optional curated artwork. Use "infrastructure-repair" only for physical road or bridge work, "public-transit" only for rail or bus expansion, "data-privacy" only for company collection or use of personal data, and "data-control" only for a person's right to access or delete personal data. Evaluate each change independently and use different relevant visuals across cards when available; never repeat or force an image merely for visual parity. If none applies, omit the property; providers that cannot omit optional JSON fields may return null.
 - "unknowns" is required. Name what the text leaves open — undefined terms, delegated decisions, unfunded pieces, effects the source does not establish. Bold the exact unresolved choice or consequence, not a generic phrase such as "the text does not say."
 - "terms" appears near the top of the article. Include only essential vocabulary that changes how the reader understands the mechanism, and define it in one short everyday sentence. Bold the practical meaning, not the term again.
 - "whyNotBefore" is an optional expandable answer to "Why wasn't this implemented before?" Use it only when the research documents a real historical answer. Explain earlier attempts, disagreements, legal or budget constraints, implementation tradeoffs, or changed circumstances without speculating about motives. Bold only the documented barrier or tradeoff a scanner should retain. Every point needs at least one citation, the section needs at least two different opened sources overall, and every citation URL must exactly match a verified source below.

@@ -459,7 +459,6 @@ const billBriefs: (Omit<
           "Congress usually approves federal road and transit programs for **only a few years at a time**. That makes long projects harder for states to plan.",
         after:
           "The bill would promise road and bridge money for **ten years**. Each state's share would depend on its **population, road conditions, and public-transit use**.",
-        visual: "infrastructure-repair",
         quote: {
           text: "Congress finds that the nation's infrastructure is in critical need of repair and modernization",
           locator: "Sec. 2",
@@ -472,7 +471,6 @@ const billBriefs: (Omit<
           "Cities now apply for federal transit money through **several programs that also fund other transportation projects**.",
         after:
           "The bill would create a **separate pool of money for light rail and faster bus service**. It would also support rural internet projects.",
-        visual: "public-transit",
       },
     ],
     affected: [
@@ -569,7 +567,6 @@ const billBriefs: (Omit<
           "Different federal rules cover health, financial, and children's data. **Most other personal data has no nationwide permission rule**.",
         after:
           "Companies would have to **ask before collecting or selling most personal information**.",
-        visual: "data-privacy",
         quote: {
           text: "The purpose of this Act is to establish comprehensive federal data privacy protections",
           locator: "Sec. 2",
@@ -582,7 +579,6 @@ const billBriefs: (Omit<
           "A person's ability to see or delete company-held data **depends on the company and their state**.",
         after:
           "People across the country would gain the **right to review and delete personal data** held about them.",
-        visual: "data-control",
         quote: {
           text: "A covered entity shall provide an individual with the right to access and delete personal data collected about the individual",
           locator: "Sec. 3",

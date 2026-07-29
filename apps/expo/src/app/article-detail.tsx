@@ -48,7 +48,7 @@ import {
 import { queryClient, trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 import { formatDate } from "~/utils/dates";
-import { editorialVisualFor } from "~/utils/editorial-visuals";
+import { contentImageSource } from "~/utils/editorial-visuals";
 
 export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
@@ -100,7 +100,7 @@ export default function ArticleDetailScreen() {
   }, [content]);
   const headerImageUri = content?.imageUri ?? content?.thumbnailUrl;
   const headerImageSource = content
-    ? editorialVisualFor(content.title, headerImageUri)
+    ? contentImageSource(headerImageUri)
     : undefined;
   const headerImageKey = content
     ? `${content.title}:${headerImageUri ?? "local"}`
