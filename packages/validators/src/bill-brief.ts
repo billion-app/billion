@@ -28,6 +28,16 @@
  * Argument-level "both sides" framing deliberately lives elsewhere, in the
  * existing cited dual-lens (`ContentLens`). A brief describes the mechanism;
  * the lens carries the debate.
+ *
+ * Length, by contrast, is *guidance and not a constraint*. Target lengths live
+ * in each field's `.describe()` — which is what reaches the model — rather than
+ * in a `.max()`. A hard cap rejected the entire brief when one card title ran
+ * four characters long, and since a schema failure is thrown before any of the
+ * retry hints are computed, the retry re-sent an identical prompt and failed
+ * identically; ~15% of briefs were lost that way. An overlong string degrades
+ * one card, so it is strictly better to store it than to discard a verified,
+ * fully-cited brief. The `.min()` floors are kept: they catch a field that is
+ * empty or truncated rather than one that is merely wordy.
  */
 import { z } from "zod";
 
@@ -73,17 +83,15 @@ export const BriefQuoteSchema = z.object({
     .string()
     .trim()
     .min(20)
-    .max(1200)
     .describe(
-      "A verbatim, unedited span copied from the source text. Never paraphrase, reorder, or fix grammar inside a quote.",
+      "A verbatim, unedited span copied from the source text, ideally under 1200 characters. Never paraphrase, reorder, or fix grammar inside a quote — quote a shorter span rather than trimming words out of a long one.",
     ),
   locator: z
     .string()
     .trim()
-    .max(120)
     .optional()
     .describe(
-      'Where the quote appears, as written in the document — e.g. "Sec. 4(b)(2)" or "Title II". Omit if the source has no usable label.',
+      'Where the quote appears, as written in the document — e.g. "Sec. 4(b)(2)" or "Title II", normally well under 120 characters. Omit if the source has no usable label.',
     ),
 });
 export type BriefQuote = z.infer<typeof BriefQuoteSchema>;
@@ -97,22 +105,23 @@ export const BriefFactSchema = z.object({
     .string()
     .trim()
     .min(2)
-    .max(48)
-    .describe('What the figure is — e.g. "Authorized funding", "Deadline".'),
+    .describe(
+      'What the figure is — e.g. "Authorized funding", "Deadline". Keep it under 48 characters; it is a tile label, not a sentence.',
+    ),
   value: z
     .string()
     .trim()
     .min(1)
-    .max(60)
     .describe(
-      'The figure itself, formatted for a tile — e.g. "$1.2B", "Jan 1, 2027", "38 states".',
+      'The figure itself, formatted for a tile — e.g. "$1.2B", "Jan 1, 2027", "38 states". Keep it under 60 characters.',
     ),
   note: z
     .string()
     .trim()
-    .max(90)
     .optional()
-    .describe("One short clause of context. Omit rather than padding."),
+    .describe(
+      "One short clause of context, under 90 characters. Omit rather than padding.",
+    ),
   quote: BriefQuoteSchema.optional().describe(
     "The source span the figure was read from.",
   ),
@@ -141,25 +150,22 @@ export const BriefChangeSchema = z.object({
     .string()
     .trim()
     .min(8)
-    .max(70)
     .describe(
-      "Everyday-language name for this change. Describe what a person would recognize, not the legislative mechanism; for example, 'Ten years of road money for states', not 'Formula funding authorization'.",
+      "Everyday-language name for this change, kept under 70 characters so it fits one card heading. Describe what a person would recognize, not the legislative mechanism; for example, 'Ten years of road money for states', not 'Formula funding authorization'. If it will not fit, narrow the change rather than lengthening the name.",
     ),
   before: z
     .string()
     .trim()
     .min(10)
-    .max(240)
     .describe(
-      "What happens today, using words a general reader already knows. Translate legislative and agency terminology rather than shortening it. If the source does not establish current law, say so plainly. At most two short **bold** spans may mark the phrases a scanner should retain.",
+      "What happens today, using words a general reader already knows, in under 240 characters. Translate legislative and agency terminology rather than shortening it. If the source does not establish current law, say so plainly. At most two short **bold** spans may mark the phrases a scanner should retain.",
     ),
   after: z
     .string()
     .trim()
     .min(10)
-    .max(240)
     .describe(
-      "What would happen under this measure, in concrete everyday language. Explain who acts, what they do, and what changes; avoid unexplained terms such as authorization, appropriation, discretionary grant, allocation formula, and funding horizon. Preserve legal status. At most two short **bold** spans may mark the phrases a scanner should retain.",
+      "What would happen under this measure, in concrete everyday language, in under 240 characters. Explain who acts, what they do, and what changes; avoid unexplained terms such as authorization, appropriation, discretionary grant, allocation formula, and funding horizon. If one provision does too much to fit, split it into a separate change rather than writing a longer sentence. Preserve legal status. At most two short **bold** spans may mark the phrases a scanner should retain.",
     ),
   visual: BriefVisualSchema.optional().describe(
     "Optional curated editorial visual. Use infrastructure-repair for physical road or bridge work, public-transit for rail or bus expansion, data-privacy for company collection or use of personal data, data-control for a person's right to access or delete personal data, and otherwise omit.",
@@ -179,25 +185,22 @@ export const BriefAffectedSchema = z.object({
     .string()
     .trim()
     .min(3)
-    .max(80)
     .describe(
-      'A specific group — "Medicare Part D enrollees", not "the American people".',
+      'A specific group — "Medicare Part D enrollees", not "the American people". Keep it under 80 characters.',
     ),
   takeaway: z
     .string()
     .trim()
     .min(24)
-    .max(240)
     .describe(
-      "A complete, standalone sentence summarizing the concrete effect for this group. It must name the subject and action, make sense without surrounding text, and never be a noun phrase or dangling clause. Mark one short, concrete phrase with **double asterisks**.",
+      "A complete, standalone sentence summarizing the concrete effect for this group, in under 240 characters. It must name the subject and action, make sense without surrounding text, and never be a noun phrase or dangling clause. Mark one short, concrete phrase with **double asterisks**.",
     ),
   effect: z
     .string()
     .trim()
     .min(12)
-    .max(400)
     .describe(
-      "Context explaining what concretely changes for this group, in one or two coherent sentences. One short **bold** span may mark the concrete consequence a scanner should retain, but the UI does not use that span as a headline.",
+      "Context explaining what concretely changes for this group, in one or two coherent sentences under 400 characters. One short **bold** span may mark the concrete consequence a scanner should retain, but the UI does not use that span as a headline.",
     ),
   direction: z
     .enum(["gains", "loses", "mixed", "unclear"])
@@ -209,38 +212,56 @@ export type BriefAffected = z.infer<typeof BriefAffectedSchema>;
 
 /** A term the reader would otherwise have to look up. */
 export const BriefTermSchema = z.object({
-  term: z.string().trim().min(2).max(60),
+  term: z
+    .string()
+    .trim()
+    .min(2)
+    .describe("The term as a reader would meet it, under 60 characters."),
   plain: z
     .string()
     .trim()
     .min(15)
-    .max(250)
     .describe(
-      "A one-sentence definition in everyday words. Mark the practical meaning the reader should retain with one short **bold** span.",
+      "A one-sentence definition in everyday words, under 250 characters. Mark the practical meaning the reader should retain with one short **bold** span.",
     ),
 });
 export type BriefTerm = z.infer<typeof BriefTermSchema>;
 
 /** A real article the research loop found and opened before recommending it. */
 export const BriefReadingSchema = z.object({
-  title: z.string().trim().min(8).max(140),
-  publisher: z.string().trim().min(2).max(70),
+  title: z
+    .string()
+    .trim()
+    .min(8)
+    .describe("The article's real headline, normally under 140 characters."),
+  publisher: z
+    .string()
+    .trim()
+    .min(2)
+    .describe("The publication's name, normally under 70 characters."),
   url: z.url(),
   whyRead: z
     .string()
     .trim()
     .min(20)
-    .max(180)
     .describe(
-      "One plain-language sentence explaining what this article helps the reader understand. Mark its specific added value with one short **bold** span.",
+      "One plain-language sentence, under 180 characters, explaining what this article helps the reader understand. Mark its specific added value with one short **bold** span.",
     ),
 });
 export type BriefReading = z.infer<typeof BriefReadingSchema>;
 
 /** One opened research source attached directly to a historical-context claim. */
 export const BriefContextCitationSchema = z.object({
-  title: z.string().trim().min(8).max(140),
-  publisher: z.string().trim().min(2).max(70),
+  title: z
+    .string()
+    .trim()
+    .min(8)
+    .describe("The source's real headline, normally under 140 characters."),
+  publisher: z
+    .string()
+    .trim()
+    .min(2)
+    .describe("The publication's name, normally under 70 characters."),
   url: z.url(),
 });
 export type BriefContextCitation = z.infer<typeof BriefContextCitationSchema>;
@@ -251,9 +272,8 @@ export const BriefContextPointSchema = z.object({
     .string()
     .trim()
     .min(40)
-    .max(420)
     .describe(
-      "A coherent, neutral explanation of one documented barrier, tradeoff, or earlier attempt. Do not speculate about motives. Mark one or two short, factual phrases with **double asterisks**.",
+      "A coherent, neutral explanation of one documented barrier, tradeoff, or earlier attempt, in under 420 characters. Do not speculate about motives. Mark one or two short, factual phrases with **double asterisks**.",
     ),
   citations: z
     .array(BriefContextCitationSchema)
@@ -271,9 +291,8 @@ export const BriefContextSchema = z.object({
     .string()
     .trim()
     .min(40)
-    .max(250)
     .describe(
-      "A one- or two-sentence preview of the main reason this proposal was not already adopted. Mark one short statement of the central barrier with **double asterisks**.",
+      "A one- or two-sentence preview, under 250 characters, of the main reason this proposal was not already adopted. Mark one short statement of the central barrier with **double asterisks**.",
     ),
   points: z
     .array(BriefContextPointSchema)
@@ -287,22 +306,24 @@ export type BriefContext = z.infer<typeof BriefContextSchema>;
 
 /** Billion's optional long-form explainer for readers who choose more depth. */
 export const BriefDeepDiveSchema = z.object({
-  title: z.string().trim().min(8).max(90),
+  title: z
+    .string()
+    .trim()
+    .min(8)
+    .describe("The explainer's headline, under 90 characters."),
   dek: z
     .string()
     .trim()
     .min(30)
-    .max(250)
     .describe(
-      "A plain-language preview of what the reader will learn. Mark its central question or insight with one short **bold** span.",
+      "A plain-language preview of what the reader will learn, under 250 characters. Mark its central question or insight with one short **bold** span.",
     ),
   body: z
     .string()
     .trim()
     .min(350)
-    .max(5000)
     .describe(
-      "A readable markdown article with short paragraphs, useful subheads, selective bolding, and bullets only where they clarify a list. It may focus on one important question rather than repeat the whole bill brief.",
+      "A readable markdown article, normally under 5000 characters, with short paragraphs, useful subheads, selective bolding, and bullets only where they clarify a list. It may focus on one important question rather than repeat the whole bill brief.",
     ),
 });
 export type BriefDeepDive = z.infer<typeof BriefDeepDiveSchema>;
@@ -318,9 +339,8 @@ export const BillBriefSchema = z.object({
     .string()
     .trim()
     .min(60)
-    .max(600)
     .describe(
-      "A coherent 2–3 sentence 'What this means for you' paragraph. Explain the bill's most consequential concrete changes and the most important limitation or uncertainty in plain language. It must stand alone, not read like a list of facts, and preserve proposed-versus-enacted status. Mark two or three short, concrete phrases with **double asterisks** so scanners can retain the key changes; never bold a whole sentence.",
+      "A coherent 2–3 sentence 'What this means for you' paragraph, under 600 characters. Explain the bill's most consequential concrete changes and the most important limitation or uncertainty in plain language. It must stand alone, not read like a list of facts, and preserve proposed-versus-enacted status. Mark two or three short, concrete phrases with **double asterisks** so scanners can retain the key changes; never bold a whole sentence.",
     ),
   facts: z
     .array(BriefFactSchema)
@@ -346,9 +366,8 @@ export const BillBriefSchema = z.object({
         .string()
         .trim()
         .min(15)
-        .max(250)
         .describe(
-          "One open question, stated plainly. Mark the unresolved decision or consequence with one short **bold** span.",
+          "One open question, stated plainly in under 250 characters. Mark the unresolved decision or consequence with one short **bold** span.",
         ),
     )
     .min(1)

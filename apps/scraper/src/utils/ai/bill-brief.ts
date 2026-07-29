@@ -16,7 +16,13 @@
  *      own prose triggers one regeneration with the offending phrases named.
  *      Quotes are exempt: a source is allowed to be partisan, we are not.
  */
-import { APICallError, generateText, Output, RetryError } from "ai";
+import {
+  APICallError,
+  generateText,
+  NoObjectGeneratedError,
+  Output,
+  RetryError,
+} from "ai";
 import { z } from "zod";
 
 import type {
@@ -61,13 +67,13 @@ const MAX_ATTEMPTS = 2;
  * validate against the canonical storage schema before verification/caching.
  */
 const GeneratedBriefQuoteSchema = BriefQuoteSchema.extend({
-  locator: z.string().trim().max(120).nullish(),
+  locator: z.string().trim().nullish(),
 });
 const GeneratedBillBriefSchema = BillBriefSchema.extend({
   facts: z
     .array(
       BriefFactSchema.extend({
-        note: z.string().trim().max(90).nullish(),
+        note: z.string().trim().nullish(),
         quote: GeneratedBriefQuoteSchema.nullish(),
       }),
     )
@@ -93,6 +99,23 @@ function withoutNulls(value: unknown): unknown {
       .filter(([, child]) => child !== null)
       .map(([key, child]) => [key, withoutNulls(child)]),
   );
+}
+
+/**
+ * `NoObjectGeneratedError` carries the raw completion and the underlying Zod
+ * issues, but its `message` is the useless constant "response did not match
+ * schema". Surface which field actually failed, otherwise a schema-shaped
+ * failure is indistinguishable from a truncated one in the logs.
+ */
+function describeStructuringFailure(error: unknown): string {
+  if (!NoObjectGeneratedError.isInstance(error)) return String(error);
+  const issues =
+    error.cause instanceof z.ZodError
+      ? error.cause.issues
+          .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+          .join("; ")
+      : String(error.cause);
+  return `${error.message} | issues: ${issues} | rawChars: ${error.text?.length ?? 0}`;
 }
 
 function isRateLimitError(error: unknown): boolean {
@@ -788,7 +811,7 @@ export async function generateBillBrief(args: {
       }
       logger.warn(
         `Brief structuring failed on attempt ${attempt} for ${args.billNumber}`,
-        error,
+        describeStructuringFailure(error),
       );
       if (attempt === MAX_ATTEMPTS) {
         if (verifiedFallback) {
