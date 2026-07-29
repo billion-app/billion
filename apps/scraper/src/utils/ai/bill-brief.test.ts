@@ -18,6 +18,7 @@ import {
   GeneratedBriefQuoteSchema,
   isQuoteGrounded,
   normalizeForQuoteMatch,
+  truncateOverlongLists,
   verifyBriefContext,
   verifyBriefQuotes,
   verifyBriefReading,
@@ -512,4 +513,47 @@ test("dropping every change leaves an empty list for the schema to reject", () =
 test("a payload without a changes array is passed through", () => {
   const input = { hook: "no changes key" };
   assert.equal(dropUnrecognisedChangeKinds(input, "S. 3"), input);
+});
+
+test("an over-long list is trimmed rather than costing the brief", () => {
+  // S. 4238 returned four unknowns against a maximum of three.
+  const cleaned = truncateOverlongLists(
+    { unknowns: ["one", "two", "three", "four"] },
+    "S. 4238",
+  ) as { unknowns: string[] };
+  assert.deepEqual(cleaned.unknowns, ["one", "two", "three"]);
+});
+
+test("lists within their caps are returned untouched", () => {
+  const input = { unknowns: ["one"], facts: [1, 2, 3, 4] };
+  assert.equal(truncateOverlongLists(input, "S. 1"), input);
+});
+
+test("trimming keeps the earliest items, which the model ranks first", () => {
+  const cleaned = truncateOverlongLists(
+    { terms: ["a", "b", "c", "d", "e", "f", "g"] },
+    "S. 2",
+  ) as { terms: string[] };
+  assert.deepEqual(cleaned.terms, ["a", "b", "c", "d", "e"]);
+});
+
+test("trimming and kind-dropping compose in the order the pipeline applies them", () => {
+  // Invalid kinds go first, so a valid change is never dropped in favour of an
+  // invalid one when the list is then capped at five.
+  const changes = [
+    { kind: "clarifies", title: "invalid" },
+    { kind: "creates", title: "1" },
+    { kind: "creates", title: "2" },
+    { kind: "creates", title: "3" },
+    { kind: "creates", title: "4" },
+    { kind: "creates", title: "5" },
+  ];
+  const cleaned = truncateOverlongLists(
+    dropUnrecognisedChangeKinds({ changes }, "S. 3"),
+    "S. 3",
+  ) as { changes: { title: string }[] };
+  assert.deepEqual(
+    cleaned.changes.map((c) => c.title),
+    ["1", "2", "3", "4", "5"],
+  );
 });

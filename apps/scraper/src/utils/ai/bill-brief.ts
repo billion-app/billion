@@ -33,12 +33,15 @@ import type {
 import {
   BILL_BRIEF_VERSION,
   BillBriefSchema,
+  BriefAffectedSchema,
   BriefChangeKindSchema,
   BriefChangeSchema,
   BriefContextSchema,
   BriefDeepDiveSchema,
   BriefFactSchema,
   BriefQuoteSchema,
+  BriefReadingSchema,
+  BriefTermSchema,
 } from "@acme/validators";
 
 import type { DualLensSource } from "./text-generation.js";
@@ -100,16 +103,21 @@ const GeneratedUnknownSchema = z
   .union([z.string(), z.object({ text: z.string() })])
   .transform((value) => (typeof value === "string" ? value : value.text));
 
+// Every list cap is dropped here and re-applied by `truncateOverlongLists`
+// before canonical validation. Enforcing them at generation time rejects the
+// whole brief over one surplus item; enforcing them after lets the surplus item
+// be the only thing lost.
 const GeneratedBillBriefSchema = BillBriefSchema.extend({
-  unknowns: z.array(GeneratedUnknownSchema).min(1).max(3),
-  facts: z
-    .array(
-      BriefFactSchema.extend({
-        note: z.string().trim().nullish(),
-        quote: GeneratedBriefQuoteSchema.nullish(),
-      }),
-    )
-    .max(4),
+  unknowns: z.array(GeneratedUnknownSchema).min(1),
+  affected: z.array(BriefAffectedSchema).min(1),
+  terms: z.array(BriefTermSchema),
+  reading: z.array(BriefReadingSchema),
+  facts: z.array(
+    BriefFactSchema.extend({
+      note: z.string().trim().nullish(),
+      quote: GeneratedBriefQuoteSchema.nullish(),
+    }),
+  ),
   changes: z
     .array(
       // `kind` is accepted as a free string here and narrowed to the enum by
@@ -124,11 +132,64 @@ const GeneratedBillBriefSchema = BillBriefSchema.extend({
         quote: GeneratedBriefQuoteSchema.nullish(),
       }),
     )
-    .min(1)
-    .max(5),
+    .min(1),
   whyNotBefore: BriefContextSchema.nullish(),
   deepDive: BriefDeepDiveSchema.nullish(),
 });
+
+/**
+ * How many items each list in a brief may hold, mirroring the `.max()` calls in
+ * `BillBriefSchema`.
+ *
+ * Duplicated deliberately rather than introspected out of the zod schema, which
+ * is not a stable API. Drift is safe in the only direction it matters: if a cap
+ * here is looser than the canonical one, the brief is rejected exactly as it is
+ * today, so a stale entry costs a log line and never bad data.
+ */
+const LIST_CAPS: Record<string, number> = {
+  facts: 4,
+  changes: 5,
+  affected: 4,
+  unknowns: 3,
+  terms: 5,
+  reading: 4,
+};
+
+/**
+ * Trim lists the model over-filled.
+ *
+ * `fcf4e4e` moved every *character* cap into prompt guidance but left array
+ * cardinality alone, on the reasoning that list length is structural — it
+ * shapes the UI — rather than stylistic. That distinction does not survive
+ * contact with the failure it causes: S. 4238 returned four `unknowns` against
+ * a maximum of three and lost a complete brief over the fourth one.
+ *
+ * Truncation is safe here in a way that `kind` was not. These are independent
+ * list entries, the field descriptions already say "up to N", and the model
+ * orders them most significant first, so the items dropped are the ones it
+ * ranked last. Nothing has to be guessed.
+ */
+export function truncateOverlongLists(
+  value: unknown,
+  billNumber: string,
+): unknown {
+  if (!value || typeof value !== "object") return value;
+  const record = { ...(value as Record<string, unknown>) };
+  const trimmed: string[] = [];
+
+  for (const [key, cap] of Object.entries(LIST_CAPS)) {
+    const list = record[key];
+    if (!Array.isArray(list) || list.length <= cap) continue;
+    trimmed.push(`${key} ${list.length}→${cap}`);
+    record[key] = list.slice(0, cap);
+  }
+
+  if (trimmed.length === 0) return value;
+  logger.warn(
+    `Brief for ${billNumber}: trimmed over-long list(s) (${trimmed.join(", ")})`,
+  );
+  return record;
+}
 
 /**
  * Remove changes whose `kind` is not one of the eight mechanical verbs.
@@ -822,8 +883,11 @@ export async function generateBillBrief(args: {
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
       const output = BillBriefSchema.parse(
-        dropUnrecognisedChangeKinds(
-          withoutNulls(generatedOutput),
+        truncateOverlongLists(
+          dropUnrecognisedChangeKinds(
+            withoutNulls(generatedOutput),
+            args.billNumber,
+          ),
           args.billNumber,
         ),
       );
