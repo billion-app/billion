@@ -40,6 +40,7 @@ import {
   BriefContextPointSchema,
   BriefContextSchema,
   BriefDeepDiveSchema,
+  BriefDirectionSchema,
   BriefFactSchema,
   BriefQuoteSchema,
   BriefReadingSchema,
@@ -111,7 +112,15 @@ const GeneratedUnknownSchema = z
 // be the only thing lost.
 const GeneratedBillBriefSchema = BillBriefSchema.extend({
   unknowns: z.array(GeneratedUnknownSchema).min(1),
-  affected: z.array(BriefAffectedSchema).min(1),
+  // `direction` is read loosely so an unrecognised value reaches
+  // `coerceAffectedDirections` instead of rejecting the document.
+  affected: z
+    .array(
+      BriefAffectedSchema.omit({ direction: true }).extend({
+        direction: z.string(),
+      }),
+    )
+    .min(1),
   terms: z.array(BriefTermSchema),
   reading: z.array(BriefReadingSchema),
   facts: z.array(
@@ -146,6 +155,49 @@ const GeneratedBillBriefSchema = BillBriefSchema.extend({
   }).nullish(),
   deepDive: BriefDeepDiveSchema.nullish(),
 });
+
+/**
+ * Fall back to `unclear` when an affected group's direction is not one of the
+ * four allowed values.
+ *
+ * Sibling of `dropUnrecognisedChangeKinds`, and the two are handled differently
+ * on purpose. `direction` has a designated "we do not know" member: the schema
+ * tells the model to use `unclear` when the text does not settle it. Mapping an
+ * unrecognised value onto it is therefore honest rather than a guess — we
+ * genuinely do not know what was meant, which is precisely what `unclear`
+ * asserts. `kind` has no such member; all eight are positive claims about
+ * mechanism, so there is nothing truthful to fall back to and the change is
+ * dropped instead.
+ *
+ * H.R. 1352 returned `"clear"` — an `unclear` with the negation dropped — and
+ * lost a complete brief over one of its three affected groups.
+ */
+export function coerceAffectedDirections(
+  value: unknown,
+  billNumber: string,
+): unknown {
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  if (!Array.isArray(record.affected)) return value;
+
+  const allowed = new Set<string>(BriefDirectionSchema.options);
+  const coerced: string[] = [];
+
+  const affected = record.affected.map((group) => {
+    if (!group || typeof group !== "object") return group;
+    const direction = (group as { direction?: unknown }).direction;
+    if (typeof direction === "string" && allowed.has(direction)) return group;
+    coerced.push(String(direction));
+    return { ...(group as Record<string, unknown>), direction: "unclear" };
+  });
+
+  if (coerced.length === 0) return value;
+  logger.warn(
+    `Brief for ${billNumber}: ${coerced.length} affected direction(s) were ` +
+      `unrecognised (${coerced.join(", ")}); recorded as "unclear"`,
+  );
+  return { ...record, affected };
+}
 
 /**
  * Drop historical-context points that arrived with no citations, and the whole
@@ -947,8 +999,11 @@ export async function generateBillBrief(args: {
       const output = BillBriefSchema.parse(
         truncateOverlongLists(
           dropUncitedContextPoints(
-            dropUnrecognisedChangeKinds(
-              withoutNulls(generatedOutput),
+            coerceAffectedDirections(
+              dropUnrecognisedChangeKinds(
+                withoutNulls(generatedOutput),
+                args.billNumber,
+              ),
               args.billNumber,
             ),
             args.billNumber,

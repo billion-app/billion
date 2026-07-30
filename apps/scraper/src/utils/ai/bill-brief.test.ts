@@ -10,6 +10,7 @@ import {
 } from "@acme/validators";
 
 import {
+  coerceAffectedDirections,
   deriveLegalStatus,
   dropUncitedContextPoints,
   dropUnrecognisedChangeKinds,
@@ -603,4 +604,39 @@ test("a fully cited context section is returned untouched", () => {
 test("a brief with no whyNotBefore is passed through", () => {
   const input = { hook: "h" };
   assert.equal(dropUncitedContextPoints(input, "S. 3"), input);
+});
+
+test("an unrecognised direction becomes unclear rather than losing the brief", () => {
+  // H.R. 1352 returned "clear" — an "unclear" with the negation dropped.
+  const cleaned = coerceAffectedDirections(
+    {
+      affected: [
+        { group: "a", direction: "gains" },
+        { group: "b", direction: "clear" },
+      ],
+    },
+    "H.R. 1352",
+  ) as { affected: { group: string; direction: string }[] };
+
+  assert.deepEqual(cleaned.affected, [
+    { group: "a", direction: "gains" },
+    { group: "b", direction: "unclear" },
+  ]);
+});
+
+test("valid directions are returned untouched", () => {
+  const input = {
+    affected: [{ direction: "loses" }, { direction: "mixed" }],
+  };
+  assert.equal(coerceAffectedDirections(input, "S. 1"), input);
+});
+
+test("coercion is honest because unclear is the schema's own escape valve", () => {
+  // Unlike an invented `kind`, which is dropped: `unclear` means "the text does
+  // not settle it", which is exactly true of a value we could not read.
+  const cleaned = coerceAffectedDirections(
+    { affected: [{ group: "x", direction: "somewhat positive" }] },
+    "S. 2",
+  ) as { affected: { direction: string }[] };
+  assert.equal(cleaned.affected[0]?.direction, "unclear");
 });

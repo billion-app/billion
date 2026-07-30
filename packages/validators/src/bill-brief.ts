@@ -177,6 +177,23 @@ export const BriefChangeSchema = z.object({
 export type BriefChange = z.infer<typeof BriefChangeSchema>;
 
 /**
+ * Which way something flows for an affected group.
+ *
+ * `unclear` is a deliberate escape valve rather than a failure value: the model
+ * is expected to reach for it instead of guessing, and the generator falls back
+ * to it when a direction arrives unrecognised. Named separately from
+ * `BriefAffectedSchema` so the generator can read `.options` rather than
+ * duplicating the list.
+ */
+export const BriefDirectionSchema = z.enum([
+  "gains",
+  "loses",
+  "mixed",
+  "unclear",
+]);
+export type BriefDirection = z.infer<typeof BriefDirectionSchema>;
+
+/**
  * Who is on the receiving end. `direction` describes the flow of money, power,
  * access, or obligation — not whether that flow is desirable.
  */
@@ -202,11 +219,9 @@ export const BriefAffectedSchema = z.object({
     .describe(
       "Context explaining what concretely changes for this group, in one or two coherent sentences under 400 characters. One short **bold** span may mark the concrete consequence a scanner should retain, but the UI does not use that span as a headline.",
     ),
-  direction: z
-    .enum(["gains", "loses", "mixed", "unclear"])
-    .describe(
-      "Whether this group gains or loses money, access, discretion, protection, or obligations. Use 'mixed' when both happen and 'unclear' when the text does not settle it — never guess to balance the list.",
-    ),
+  direction: BriefDirectionSchema.describe(
+    "Whether this group gains or loses money, access, discretion, protection, or obligations. Use 'mixed' when both happen and 'unclear' when the text does not settle it — never guess to balance the list.",
+  ),
 });
 export type BriefAffected = z.infer<typeof BriefAffectedSchema>;
 
