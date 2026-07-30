@@ -19,7 +19,7 @@ export type GovernmentContentData = z.infer<
 >;
 export type CourtCaseData = z.infer<typeof CreateCourtCaseSchema>;
 
-// Image result type (used in images JSONB field, defined in schema)
+// Image result returned by Google Custom Search
 export interface ImageResult {
   url: string;
   alt: string;

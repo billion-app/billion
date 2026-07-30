@@ -79,7 +79,6 @@ If enacted, this bill would represent one of the largest infrastructure investme
 # The Debate
 Supporters argue the bill is long overdue, pointing to the American Society of Civil Engineers' consistent D+ rating for U.S. infrastructure. They emphasize the economic multiplier effect of infrastructure spending and the safety benefits of repairing structurally deficient bridges. Critics raise concerns about the bill's price tag and question whether the federal government should take the lead on what they see as primarily state and local responsibilities. Some fiscal hawks have proposed alternative funding mechanisms, including public-private partnerships and toll-based financing.`,
     thumbnailUrl: "https://picsum.photos/seed/infra/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/house-bill/1001",
     sourceWebsite: "congress.gov",
   },
@@ -111,7 +110,6 @@ For everyday Americans, this bill would mean more control over personal informat
 # The Debate
 Privacy advocates praise the bill as a necessary step but criticize exceptions that allow data collection for "legitimate business purposes," a term they say is too broadly defined. The tech industry has offered cautious support for a federal standard that would preempt the current patchwork of state laws, though they oppose provisions allowing private lawsuits. Consumer groups want stronger enforcement mechanisms and fewer corporate carve-outs.`,
     thumbnailUrl: "https://picsum.photos/seed/privacy/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/senate-bill/502",
     sourceWebsite: "congress.gov",
   },
@@ -143,7 +141,6 @@ An estimated 10 million American households still receive water through lead ser
 # The Debate
 Supporters point to the moral imperative of clean water access, citing ongoing health emergencies in several U.S. cities. Critics question the federal government's role, arguing that water infrastructure has traditionally been a local responsibility. Some propose a loan-based model rather than direct grants, while environmental groups push for stricter contamination standards alongside the funding.`,
     thumbnailUrl: "https://picsum.photos/seed/water/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/house-bill/2200",
     sourceWebsite: "congress.gov",
   },
@@ -175,7 +172,6 @@ Workers, borrowers, and defendants would gain new transparency rights when AI in
 # The Debate
 Tech companies warn that overly prescriptive regulation could stifle innovation and push AI development overseas. Civil rights organizations counter that unregulated AI is already causing harm, pointing to documented cases of biased hiring algorithms and discriminatory lending models. Some legislators prefer a sector-specific approach over the bill's broad framework, while others argue it doesn't go far enough in restricting certain uses of AI entirely.`,
     thumbnailUrl: "https://picsum.photos/seed/ai-law/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/senate-bill/789",
     sourceWebsite: "congress.gov",
   },
@@ -207,7 +203,6 @@ The bill could add an estimated 2 million affordable housing units over the next
 # The Debate
 Housing advocates strongly support the bill but want even more aggressive zoning reform provisions. Real estate interests support the LIHTC expansion but oppose the tenant protection provisions. Some conservatives argue that housing is a local issue and that federal intervention in zoning is governmental overreach. Progressive critics say the bill relies too heavily on private-sector tax incentives rather than direct public housing construction.`,
     thumbnailUrl: "https://picsum.photos/seed/housing/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/house-bill/3456",
     sourceWebsite: "congress.gov",
   },
@@ -246,7 +241,6 @@ Federal employees will notice changes in how they access systems, with more freq
 # The Debate
 Cybersecurity experts broadly support the order, though some question whether the 18-month timeline for zero-trust adoption is realistic. Industry groups worry about compliance costs, particularly for smaller operators. Privacy advocates praise the transparency measures but want stronger protections for the incident data that companies will be required to share with the government.`,
     thumbnailUrl: "https://picsum.photos/seed/cyber/800/600",
-    images: [],
     url: "https://www.whitehouse.gov/presidential-actions/executive-order-cybersecurity-2025/",
     source: "whitehouse.gov",
   },
@@ -272,7 +266,6 @@ The 43 million Americans with federal student loans could see significant improv
 # The Debate
 Borrower advocates welcome the reforms but question whether they go far enough without broader student loan relief. The loan servicing industry argues that many problems stem from the complexity of federal repayment programs rather than servicer negligence. Some lawmakers want to go further and bring loan servicing in-house at the Department of Education.`,
     thumbnailUrl: "https://picsum.photos/seed/loans/800/600",
-    images: [],
     url: "https://www.whitehouse.gov/presidential-actions/memorandum-student-loans-2025/",
     source: "whitehouse.gov",
   },
@@ -298,7 +291,6 @@ Homeowners in fire-prone regions may see new building code requirements and ince
 # The Debate
 Fire scientists and emergency managers applaud the attention but say preparedness alone is insufficient without addressing the root causes of increasing wildfire severity, including climate change and decades of fire suppression. Some Western state officials bristle at federal building code recommendations, viewing them as overreach into local land use decisions.`,
     thumbnailUrl: "https://picsum.photos/seed/wildfire/800/600",
-    images: [],
     url: "https://www.whitehouse.gov/presidential-actions/proclamation-wildfire-2025/",
     source: "whitehouse.gov",
   },
@@ -322,7 +314,6 @@ Mortgage rates will likely remain near 6.5%, keeping the housing market sluggish
 # The Debate
 The administration wants lower rates to boost the housing market and economic growth, but the Fed maintains its independence in pursuing its inflation mandate. Critics of the Fed say rates should have been cut already, while inflation hawks argue the hold is prudent given sticky price pressures.`,
     thumbnailUrl: "https://picsum.photos/seed/fed-rates/800/600",
-    images: [],
     url: "https://www.whitehouse.gov/briefing-room/statements/fed-rate-decision-may-2025/",
     source: "whitehouse.gov",
   },
@@ -357,7 +348,6 @@ A ruling expanding Carpenter could force law enforcement to obtain warrants for 
 # The Debate
 Privacy advocates and civil liberties organizations argue that location data reveals intimate details of a person's life regardless of the time period. Law enforcement groups warn that a warrant requirement for all location data would impede time-sensitive investigations. Tech companies have filed mixed briefs — some supporting stronger privacy protections, others concerned about the compliance burden.`,
     thumbnailUrl: "https://picsum.photos/seed/scotus1/800/600",
-    images: [],
     url: "https://www.courtlistener.com/opinion/mock-gonzalez/",
   },
   {
@@ -384,7 +374,6 @@ The ruling could reshape how schools handle discrimination complaints and could 
 # The Debate
 Supporters of the regulations argue that Title IX's broad language was always intended to evolve with society's understanding of discrimination. Opponents counter that such a significant policy change should come from Congress, not an executive agency. The case has become a flashpoint in broader debates about executive power, gender identity, and education policy.`,
     thumbnailUrl: "https://picsum.photos/seed/scotus2/800/600",
-    images: [],
     url: "https://www.courtlistener.com/opinion/mock-nft-v-doe/",
   },
   {
@@ -411,7 +400,6 @@ A ruling for California could open the door to algorithmic regulation nationwide
 # The Debate
 Free speech advocates are split: some see algorithmic curation as protected expression, while others argue that monopolistic platforms wield too much power over public discourse to claim editorial immunity. Tech companies warn that disclosure could expose trade secrets and make algorithms vulnerable to manipulation. Consumer advocates and regulators argue that transparency is essential for accountability.`,
     thumbnailUrl: "https://picsum.photos/seed/scotus3/800/600",
-    images: [],
     url: "https://www.courtlistener.com/opinion/mock-techcorp-v-ca/",
   },
 ].map((c) => ({

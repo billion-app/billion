@@ -137,12 +137,6 @@ export const Bill = pgTable(
     fullText: t.text(),
     aiGeneratedArticle: t.text(), // AI-generated accessible article version
     thumbnailUrl: t.text(), // URL of the thumbnail image
-    images: t
-      .jsonb()
-      .$type<
-        { url: string; alt: string; source: string; sourceUrl: string }[]
-      >()
-      .default([]), // Array of relevant images for the article
     actions: t
       .jsonb()
       .$type<
@@ -214,12 +208,6 @@ export const GovernmentContent = pgTable(
     fullText: t.text(),
     aiGeneratedArticle: t.text(), // AI-generated accessible article version
     thumbnailUrl: t.text(), // URL of the thumbnail image
-    images: t
-      .jsonb()
-      .$type<
-        { url: string; alt: string; source: string; sourceUrl: string }[]
-      >()
-      .default([]), // Array of relevant images for the article
     url: t.text().notNull().unique(), // Unique constraint for upsert by URL
     source: t.varchar({ length: 100 }).notNull().default("whitehouse.gov"), // Source website
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
@@ -274,12 +262,6 @@ export const CourtCase = pgTable(
     fullText: t.text(),
     aiGeneratedArticle: t.text(), // AI-generated accessible article version
     thumbnailUrl: t.text(), // URL of the thumbnail image
-    images: t
-      .jsonb()
-      .$type<
-        { url: string; alt: string; source: string; sourceUrl: string }[]
-      >()
-      .default([]), // Array of relevant images for the article
     url: t.text().notNull(),
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
     versions: t
