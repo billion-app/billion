@@ -113,7 +113,13 @@ export const jobs: readonly JobDefinition[] = [
     id: "retro-lenses",
     description: "Generate dual-lens perspectives for content missing one",
     script: "retroactive-lenses.js",
-    args: ["--type", "all", "--limit", "200", "--concurrency", "4"],
+    // The limit is a ceiling on candidates, not a target: the script selects
+    // only content whose lens is missing or stale, so a generous number costs
+    // nothing once the backlog is drained. It was 200 against a backlog of 731
+    // (625 bills, 81 government items, 25 court cases), which meant four
+    // triggers to finish one job and no record of how many passes were left —
+    // the same trap 6a0d8ed fixed for retro-briefs.
+    args: ["--type", "all", "--limit", "1000", "--concurrency", "4"],
     schedule: { kind: "manual" },
     priority: 21,
     idleTimeoutMinutes: 60,
