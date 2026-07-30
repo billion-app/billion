@@ -21,6 +21,13 @@ export const CAMPAIGN_CODES: Record<string, Record<string, string>> = {
   local_event: printed("local_event"),
   irl_talk: printed("irl_talk"),
 
+  // The short, memorable link used in the Instagram profile bio.
+  instagram_bio: {
+    utm_source: "instagram",
+    utm_medium: "social",
+    utm_campaign: "instagram_bio",
+  },
+
   // Anything else can set its own combination, e.g.
   // yt_1: { utm_source: "youtube", utm_medium: "video", utm_campaign: "yt_1" },
 };

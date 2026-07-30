@@ -157,6 +157,77 @@ const GeneratedBillBriefSchema = BillBriefSchema.extend({
 });
 
 /**
+ * Sections a brief can lose and still be a brief.
+ *
+ * `hook`, `changes`, `affected` and `unknowns` are the document; the rest are
+ * enrichments. Splitting them this way is what lets one malformed citation cost
+ * an expandable panel instead of everything.
+ *
+ * `facts`, `terms` and `reading` are required *keys* whose arrays may be empty,
+ * so they are emptied rather than deleted; `whyNotBefore` and `deepDive` are
+ * genuinely optional and are removed.
+ */
+const LOSABLE_SECTIONS = {
+  facts: "empty",
+  terms: "empty",
+  reading: "empty",
+  whyNotBefore: "delete",
+  deepDive: "delete",
+} as const;
+
+/**
+ * Validate against the canonical schema, and if only a losable section is at
+ * fault, drop that section and keep the brief.
+ *
+ * Every targeted normaliser above was written after production lost a brief to
+ * one specific shape — a bare-string quote, an invented verb, a fourth unknown,
+ * an uncited point. Eight of them now, each found the same way. They are worth
+ * having, because each preserves *more* than this does: a repaired quote keeps
+ * its citation, where this would drop the whole section.
+ *
+ * But writing one per shape means the corpus finds the next gap before I do,
+ * and with thousands of bills unprocessed there is no reason to think the list
+ * is finished. This is the backstop underneath them: whatever the model does to
+ * an enrichment section, the reader still gets the analysis. Only a failure in
+ * the brief's required content can now cost the brief.
+ */
+export function parseBriefWithSectionRecovery(
+  value: unknown,
+  billNumber: string,
+): BillBrief {
+  const first = BillBriefSchema.safeParse(value);
+  if (first.success) return first.data;
+
+  const broken = new Set(
+    first.error.issues
+      .map((issue) => String(issue.path[0]))
+      .filter((section): section is keyof typeof LOSABLE_SECTIONS =>
+        Object.hasOwn(LOSABLE_SECTIONS, section),
+      ),
+  );
+
+  // Nothing losable is at fault, so the failure is in the brief itself.
+  if (broken.size === 0) throw first.error;
+
+  const repaired = { ...(value as Record<string, unknown>) };
+  for (const section of broken) {
+    if (LOSABLE_SECTIONS[section] === "empty") repaired[section] = [];
+    else delete repaired[section];
+  }
+
+  const second = BillBriefSchema.safeParse(repaired);
+  // The retry can still fail on required content that the first pass reported
+  // alongside the losable sections; that failure is the real one.
+  if (!second.success) throw second.error;
+
+  logger.warn(
+    `Brief for ${billNumber}: dropped unparseable section(s) ` +
+      `(${[...broken].join(", ")}) rather than the whole brief`,
+  );
+  return second.data;
+}
+
+/**
  * Fall back to `unclear` when an affected group's direction is not one of the
  * four allowed values.
  *
@@ -996,7 +1067,7 @@ export async function generateBillBrief(args: {
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
 
-      const output = BillBriefSchema.parse(
+      const output = parseBriefWithSectionRecovery(
         truncateOverlongLists(
           dropUncitedContextPoints(
             coerceAffectedDirections(
@@ -1010,6 +1081,7 @@ export async function generateBillBrief(args: {
           ),
           args.billNumber,
         ),
+        args.billNumber,
       );
       const quoteResult = verifyBriefQuotes(output, args.fullText);
       const briefWithReading = verifyBriefReading(

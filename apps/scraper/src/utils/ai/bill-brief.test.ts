@@ -20,6 +20,7 @@ import {
   GeneratedBriefQuoteSchema,
   isQuoteGrounded,
   normalizeForQuoteMatch,
+  parseBriefWithSectionRecovery,
   truncateOverlongLists,
   verifyBriefContext,
   verifyBriefQuotes,
@@ -639,4 +640,81 @@ test("coercion is honest because unclear is the schema's own escape valve", () =
     "S. 2",
   ) as { affected: { direction: string }[] };
   assert.equal(cleaned.affected[0]?.direction, "unclear");
+});
+
+/* ---------- the backstop under the targeted normalisers ---------- */
+
+const validBrief = () => ({
+  hook: "This measure would change how a federal programme reports its spending, and it would take effect after a two-year delay that the text does not explain.",
+  facts: [],
+  changes: [
+    {
+      kind: "requires",
+      title: "Annual reporting on programme spending",
+      before:
+        "Agencies report spending once every five years under current law.",
+      after: "Agencies would report spending **every year** to the Secretary.",
+    },
+  ],
+  affected: [
+    {
+      group: "Federal agencies",
+      takeaway:
+        "Agencies would file **an annual report** instead of one every five years.",
+      effect:
+        "The reporting burden rises, though no new funding is provided to meet it.",
+      direction: "loses",
+    },
+  ],
+  unknowns: [
+    "Whether the **first report** is due before or after the delay ends.",
+  ],
+  terms: [],
+  reading: [],
+});
+
+test("a valid brief parses unchanged", () => {
+  const parsed = parseBriefWithSectionRecovery(validBrief(), "S. 1");
+  assert.equal(parsed.changes.length, 1);
+  assert.equal(parsed.affected[0]?.direction, "loses");
+});
+
+test("a malformed citation costs whyNotBefore, not the brief", () => {
+  // H.R. 2789's shape: an unparseable citation URL.
+  const parsed = parseBriefWithSectionRecovery(
+    {
+      ...validBrief(),
+      whyNotBefore: {
+        summary:
+          "Earlier attempts stalled over the cost of collecting the data every year.",
+        points: [
+          {
+            text: "A previous version of this requirement was dropped in committee after agencies objected to the annual cost.",
+            citations: [
+              { title: "A report", publisher: "GAO", url: "not a url" },
+            ],
+          },
+        ],
+      },
+    },
+    "H.R. 2789",
+  );
+  assert.equal(parsed.whyNotBefore, undefined);
+  assert.equal(parsed.changes.length, 1, "the brief itself survives");
+});
+
+test("a broken losable array is emptied rather than deleted", () => {
+  // `terms` is a required key, so it must come back as [] not vanish.
+  const parsed = parseBriefWithSectionRecovery(
+    { ...validBrief(), terms: [{ term: "x" }] },
+    "S. 2",
+  );
+  assert.deepEqual(parsed.terms, []);
+});
+
+test("a failure in required content still rejects the brief", () => {
+  // The backstop must not quietly manufacture a brief with no changes.
+  assert.throws(() =>
+    parseBriefWithSectionRecovery({ ...validBrief(), changes: [] }, "S. 3"),
+  );
 });
