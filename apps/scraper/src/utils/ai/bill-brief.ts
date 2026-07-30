@@ -36,6 +36,8 @@ import {
   BriefAffectedSchema,
   BriefChangeKindSchema,
   BriefChangeSchema,
+  BriefContextCitationSchema,
+  BriefContextPointSchema,
   BriefContextSchema,
   BriefDeepDiveSchema,
   BriefFactSchema,
@@ -133,9 +135,69 @@ const GeneratedBillBriefSchema = BillBriefSchema.extend({
       }),
     )
     .min(1),
-  whyNotBefore: BriefContextSchema.nullish(),
+  // `citations` loses its `min(1)` here so an uncited point survives generation
+  // and can be dropped individually by `dropUncitedContextPoints`.
+  whyNotBefore: BriefContextSchema.extend({
+    points: z.array(
+      BriefContextPointSchema.extend({
+        citations: z.array(BriefContextCitationSchema),
+      }),
+    ),
+  }).nullish(),
   deepDive: BriefDeepDiveSchema.nullish(),
 });
+
+/**
+ * Drop historical-context points that arrived with no citations, and the whole
+ * section if that leaves nothing.
+ *
+ * `verifyBriefContext` already does exactly this — it drops uncited points and
+ * removes `whyNotBefore` entirely when fewer than two distinct sources survive.
+ * But it runs *after* `BillBriefSchema.parse`, and the canonical schema requires
+ * `citations.min(1)`, so an uncited point never reaches the layer built to
+ * handle it. H.R. 8244 lost a complete brief that way.
+ *
+ * Same shape of mistake as the quote floor removed in af16f65: a rule enforced
+ * one layer too early, where the only available outcome is rejecting everything.
+ * `whyNotBefore` is optional, so losing it costs a section the reader may not
+ * have opened; losing the brief costs all of it.
+ */
+export function dropUncitedContextPoints(
+  value: unknown,
+  billNumber: string,
+): unknown {
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  const context = record.whyNotBefore;
+  if (!context || typeof context !== "object") return value;
+
+  const points = (context as { points?: unknown }).points;
+  if (!Array.isArray(points)) return value;
+
+  const kept = points.filter((point) => {
+    const citations =
+      point && typeof point === "object"
+        ? (point as { citations?: unknown }).citations
+        : undefined;
+    return Array.isArray(citations) && citations.length > 0;
+  });
+
+  if (kept.length === points.length) return value;
+
+  if (kept.length === 0) {
+    logger.warn(
+      `Brief for ${billNumber}: dropped whyNotBefore — every point arrived uncited`,
+    );
+    const { whyNotBefore: _dropped, ...rest } = record;
+    return rest;
+  }
+
+  logger.warn(
+    `Brief for ${billNumber}: dropped ${points.length - kept.length} uncited ` +
+      `whyNotBefore point(s); kept ${kept.length}`,
+  );
+  return { ...record, whyNotBefore: { ...context, points: kept } };
+}
 
 /**
  * How many items each list in a brief may hold, mirroring the `.max()` calls in
@@ -884,8 +946,11 @@ export async function generateBillBrief(args: {
 
       const output = BillBriefSchema.parse(
         truncateOverlongLists(
-          dropUnrecognisedChangeKinds(
-            withoutNulls(generatedOutput),
+          dropUncitedContextPoints(
+            dropUnrecognisedChangeKinds(
+              withoutNulls(generatedOutput),
+              args.billNumber,
+            ),
             args.billNumber,
           ),
           args.billNumber,

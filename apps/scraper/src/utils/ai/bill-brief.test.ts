@@ -11,6 +11,7 @@ import {
 
 import {
   deriveLegalStatus,
+  dropUncitedContextPoints,
   dropUnrecognisedChangeKinds,
   findLoadedLanguage,
   findMissingEmphasis,
@@ -556,4 +557,50 @@ test("trimming and kind-dropping compose in the order the pipeline applies them"
     cleaned.changes.map((c) => c.title),
     ["1", "2", "3", "4", "5"],
   );
+});
+
+test("an uncited context point is dropped, cited ones survive", () => {
+  // H.R. 8244's shape: citations arrived empty and the whole brief was rejected
+  // before verifyBriefContext could drop just that point.
+  const cleaned = dropUncitedContextPoints(
+    {
+      whyNotBefore: {
+        summary: "s",
+        points: [
+          { text: "uncited", citations: [] },
+          { text: "cited", citations: [{ url: "https://example.com" }] },
+        ],
+      },
+    },
+    "H.R. 8244",
+  ) as { whyNotBefore: { points: { text: string }[] } };
+
+  assert.deepEqual(
+    cleaned.whyNotBefore.points.map((p) => p.text),
+    ["cited"],
+  );
+});
+
+test("whyNotBefore is removed entirely when every point is uncited", () => {
+  const cleaned = dropUncitedContextPoints(
+    { hook: "h", whyNotBefore: { summary: "s", points: [{ citations: [] }] } },
+    "S. 1",
+  ) as Record<string, unknown>;
+  assert.equal("whyNotBefore" in cleaned, false);
+  assert.equal(cleaned.hook, "h");
+});
+
+test("a fully cited context section is returned untouched", () => {
+  const input = {
+    whyNotBefore: {
+      summary: "s",
+      points: [{ citations: [{ url: "https://example.com" }] }],
+    },
+  };
+  assert.equal(dropUncitedContextPoints(input, "S. 2"), input);
+});
+
+test("a brief with no whyNotBefore is passed through", () => {
+  const input = { hook: "h" };
+  assert.equal(dropUncitedContextPoints(input, "S. 3"), input);
 });
