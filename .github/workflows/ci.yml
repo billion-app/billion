@@ -91,6 +91,36 @@ jobs:
       - name: Bundle Android
         run: cd apps/expo && npx expo export --platform android --output-dir dist
 
+  # Publish only after the same checks that gate production, plus successful
+  # native bundles. The fingerprint runtime policy prevents an update that
+  # changes native code or config from reaching an incompatible installed app.
+  eas-update:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, format, typecheck, test, bundle-expo]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish production update
+        working-directory: apps/expo
+        run: |
+          eas update \
+            --channel production \
+            --environment production \
+            --message "main@${GITHUB_SHA}" \
+            --non-interactive
+
   # Publishes the image the scrapers actually run in production.
   #
   # This lives in `ci.yml` rather than its own workflow so it can `needs:` the

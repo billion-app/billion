@@ -6,7 +6,12 @@
   "orientation": "portrait",
   "icon": "./assets/billion-logo.png",
   "userInterfaceStyle": "dark",
+  "runtimeVersion": {
+    "policy": "fingerprint"
+  },
   "updates": {
+    "url": "https://u.expo.dev/c38bc8f8-f82c-4a45-b819-d62bd366ac8b",
+    "checkAutomatically": "ON_LOAD",
     "fallbackToCacheTimeout": 0
   },
   "assetBundlePatterns": ["**/*"],
