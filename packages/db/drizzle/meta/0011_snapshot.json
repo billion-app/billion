@@ -189,10 +189,7 @@
         "bill_billNumber_sourceWebsite_unique": {
           "name": "bill_billNumber_sourceWebsite_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "bill_number",
-            "source_website"
-          ]
+          "columns": ["bill_number", "source_website"]
         }
       },
       "policies": {},
@@ -264,11 +261,7 @@
         "blocked_content_userId_name_type_unique": {
           "name": "blocked_content_userId_name_type_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "name",
-            "type"
-          ]
+          "columns": ["user_id", "name", "type"]
         }
       },
       "policies": {},
@@ -370,12 +363,8 @@
           "name": "brief_change_image_content_brief_id_content_brief_id_fk",
           "tableFrom": "brief_change_image",
           "tableTo": "content_brief",
-          "columnsFrom": [
-            "content_brief_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["content_brief_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -385,10 +374,7 @@
         "brief_change_image_contentBriefId_changeIndex_unique": {
           "name": "brief_change_image_contentBriefId_changeIndex_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "content_brief_id",
-            "change_index"
-          ]
+          "columns": ["content_brief_id", "change_index"]
         }
       },
       "policies": {},
@@ -573,11 +559,7 @@
         "civic_api_cache_addressHash_endpoint_params_unique": {
           "name": "civic_api_cache_addressHash_endpoint_params_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "address_hash",
-            "endpoint",
-            "params"
-          ]
+          "columns": ["address_hash", "endpoint", "params"]
         }
       },
       "policies": {},
@@ -662,10 +644,7 @@
         "content_brief_contentType_contentId_unique": {
           "name": "content_brief_contentType_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "content_type",
-            "content_id"
-          ]
+          "columns": ["content_type", "content_id"]
         }
       },
       "policies": {},
@@ -750,10 +729,7 @@
         "content_lens_contentType_contentId_unique": {
           "name": "content_lens_contentType_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "content_type",
-            "content_id"
-          ]
+          "columns": ["content_type", "content_id"]
         }
       },
       "policies": {},
@@ -1062,10 +1038,7 @@
         "court_case_caseNumber_court_unique": {
           "name": "court_case_caseNumber_court_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "case_number",
-            "court"
-          ]
+          "columns": ["case_number", "court"]
         }
       },
       "policies": {},
@@ -1147,10 +1120,7 @@
         "election_externalId_source_unique": {
           "name": "election_externalId_source_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "external_id",
-            "source"
-          ]
+          "columns": ["external_id", "source"]
         }
       },
       "policies": {},
@@ -1284,9 +1254,7 @@
         "government_content_url_unique": {
           "name": "government_content_url_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "url"
-          ]
+          "columns": ["url"]
         }
       },
       "policies": {},
@@ -1469,10 +1437,7 @@
         "legistar_agenda_item_jurisdiction_eventItemId_unique": {
           "name": "legistar_agenda_item_jurisdiction_eventItemId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "event_item_id"
-          ]
+          "columns": ["jurisdiction", "event_item_id"]
         }
       },
       "policies": {},
@@ -1585,10 +1550,7 @@
         "legistar_body_jurisdiction_bodyId_unique": {
           "name": "legistar_body_jurisdiction_bodyId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "body_id"
-          ]
+          "columns": ["jurisdiction", "body_id"]
         }
       },
       "policies": {},
@@ -1758,10 +1720,7 @@
         "legistar_matter_jurisdiction_matterId_unique": {
           "name": "legistar_matter_jurisdiction_matterId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "matter_id"
-          ]
+          "columns": ["jurisdiction", "matter_id"]
         }
       },
       "policies": {},
@@ -1919,10 +1878,7 @@
         "legistar_meeting_jurisdiction_eventId_unique": {
           "name": "legistar_meeting_jurisdiction_eventId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "event_id"
-          ]
+          "columns": ["jurisdiction", "event_id"]
         }
       },
       "policies": {},
@@ -2041,10 +1997,7 @@
         "legistar_vote_jurisdiction_voteId_unique": {
           "name": "legistar_vote_jurisdiction_voteId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "jurisdiction",
-            "vote_id"
-          ]
+          "columns": ["jurisdiction", "vote_id"]
         }
       },
       "policies": {},
@@ -2127,9 +2080,7 @@
         "notification_alert_idempotencyKey_unique": {
           "name": "notification_alert_idempotencyKey_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "idempotency_key"
-          ]
+          "columns": ["idempotency_key"]
         }
       },
       "policies": {},
@@ -2221,12 +2172,8 @@
           "name": "notification_delivery_alert_id_notification_alert_id_fk",
           "tableFrom": "notification_delivery",
           "tableTo": "notification_alert",
-          "columnsFrom": [
-            "alert_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["alert_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2234,12 +2181,8 @@
           "name": "notification_delivery_device_id_push_device_id_fk",
           "tableFrom": "notification_delivery",
           "tableTo": "push_device",
-          "columnsFrom": [
-            "device_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2249,10 +2192,7 @@
         "notification_delivery_alertId_deviceId_unique": {
           "name": "notification_delivery_alertId_deviceId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "alert_id",
-            "device_id"
-          ]
+          "columns": ["alert_id", "device_id"]
         }
       },
       "policies": {},
@@ -2526,9 +2466,7 @@
         "push_device_expoPushToken_unique": {
           "name": "push_device_expoPushToken_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "expo_push_token"
-          ]
+          "columns": ["expo_push_token"]
         }
       },
       "policies": {},
@@ -2592,10 +2530,7 @@
         "role_description_role_level_unique": {
           "name": "role_description_role_level_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "role",
-            "level"
-          ]
+          "columns": ["role", "level"]
         }
       },
       "policies": {},
@@ -2662,10 +2597,7 @@
         "saved_article_userId_contentId_unique": {
           "name": "saved_article_userId_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "content_id"
-          ]
+          "columns": ["user_id", "content_id"]
         }
       },
       "policies": {},
@@ -2781,10 +2713,7 @@
       "compositePrimaryKeys": {
         "scraper_retry_scraper_key_item_key_pk": {
           "name": "scraper_retry_scraper_key_item_key_pk",
-          "columns": [
-            "scraper_key",
-            "item_key"
-          ]
+          "columns": ["scraper_key", "item_key"]
         }
       },
       "uniqueConstraints": {},
@@ -2844,9 +2773,7 @@
         "user_preference_userId_unique": {
           "name": "user_preference_userId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "policies": {},
@@ -2926,9 +2853,7 @@
         "user_settings_userId_unique": {
           "name": "user_settings_userId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "policies": {},
@@ -3071,10 +2996,7 @@
         "video_contentType_contentId_unique": {
           "name": "video_contentType_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "content_type",
-            "content_id"
-          ]
+          "columns": ["content_type", "content_id"]
         }
       },
       "policies": {},
@@ -3170,12 +3092,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3245,12 +3163,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3260,9 +3174,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -3323,9 +3235,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
