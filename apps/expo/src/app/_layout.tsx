@@ -31,6 +31,7 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PostHogProvider } from "posthog-react-native";
 
+import { PushNotificationObserver } from "~/components/PushNotificationObserver";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { UpdatePrompt } from "~/components/UpdatePrompt";
 import { posthog } from "~/config/posthog";
@@ -137,6 +138,7 @@ export default function RootLayout() {
         }}
       >
         <PostHogAuthSync />
+        <PushNotificationObserver />
         <UpdatePrompt />
         <GestureHandlerRootView style={{ flex: 1 }}>
           <Stack

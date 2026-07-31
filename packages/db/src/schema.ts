@@ -564,6 +564,85 @@ export const UserSettings = pgTable(
   }),
 );
 
+/**
+ * One row per native app installation registered for remote notifications.
+ *
+ * Expo push tokens are installation-scoped and can rotate, so this is
+ * deliberately separate from user settings. A user may have several devices.
+ */
+export const PushDevice = pgTable(
+  "push_device",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    userId: t.text(),
+    expoPushToken: t.text().notNull(),
+    platform: t.varchar({ length: 20 }).notNull(),
+    enabled: t.boolean().notNull().default(true),
+    breakingNews: t.boolean().notNull().default(false),
+    lastSeenAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueToken: unique().on(table.expoPushToken),
+    userIndex: index("push_device_user_id_idx").on(table.userId),
+  }),
+);
+
+/**
+ * Editorial record for a push alert. The unique idempotency key makes an
+ * operator retry safe: a breaking alert can never be broadcast twice.
+ */
+export const NotificationAlert = pgTable(
+  "notification_alert",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    kind: t.varchar({ length: 30 }).notNull().default("breaking"),
+    title: t.varchar({ length: 100 }).notNull(),
+    body: t.varchar({ length: 240 }).notNull(),
+    contentId: t.uuid(),
+    route: t.text().notNull(),
+    idempotencyKey: t.varchar({ length: 160 }).notNull(),
+    status: t.varchar({ length: 20 }).notNull().default("draft"),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    sentAt: t.timestamp({ withTimezone: true }),
+  }),
+  (table) => ({
+    uniqueIdempotencyKey: unique().on(table.idempotencyKey),
+  }),
+);
+
+/**
+ * Delivery lifecycle for one alert/device pair. Expo first returns a ticket;
+ * its later receipt records whether APNs accepted the notification.
+ */
+export const NotificationDelivery = pgTable(
+  "notification_delivery",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    alertId: t
+      .uuid()
+      .notNull()
+      .references(() => NotificationAlert.id, { onDelete: "cascade" }),
+    deviceId: t
+      .uuid()
+      .notNull()
+      .references(() => PushDevice.id, { onDelete: "cascade" }),
+    expoTicketId: t.text(),
+    status: t.varchar({ length: 20 }).notNull().default("queued"),
+    error: t.text(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+  (table) => ({
+    uniqueAlertDevice: unique().on(table.alertId, table.deviceId),
+    receiptIndex: index("notification_delivery_receipt_idx").on(
+      table.status,
+      table.expoTicketId,
+    ),
+  }),
+);
+
 // Legistar local government data cache tables
 
 export const LegistarBody = pgTable(
