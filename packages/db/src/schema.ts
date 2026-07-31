@@ -604,6 +604,8 @@ export const NotificationAlert = pgTable(
     route: t.text().notNull(),
     idempotencyKey: t.varchar({ length: 160 }).notNull(),
     status: t.varchar({ length: 20 }).notNull().default("draft"),
+    operatorUserId: t.text(),
+    operatorEmail: t.text(),
     createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
     sentAt: t.timestamp({ withTimezone: true }),
   }),

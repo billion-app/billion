@@ -31,6 +31,7 @@ export const env = createEnv({
       envSchemas.RESEND_TESTFLIGHT_BATCH_SEGMENT_ID!.optional(),
     BILLION_NOTIFICATIONS_SECRET:
       envSchemas.BILLION_NOTIFICATIONS_SECRET!.optional(),
+    BILLION_ADMIN_EMAILS: envSchemas.BILLION_ADMIN_EMAILS!.optional(),
   },
 
   /**
