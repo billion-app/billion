@@ -11,7 +11,8 @@ Ship a reproducible Billion iOS release through EAS and App Store Connect. Conti
 
 - Preserve unrelated working-tree changes. Stage and commit only release files.
 - Treat the requested release behavior as acceptance criteria. Add targeted verification when the change involves navigation, environment-gated UI, authentication, or another runtime-sensitive feature; do not impose unrelated UI checks on every release.
-- Build from an exact commit or tag in a clean worktree.
+- Prefer the CI release path. Pushing a `vX.Y.Z` tag already builds and submits via `.github/workflows/release-ios.yml`; build by hand only when that path is unavailable, and say why.
+- Build from an exact commit or tag in a clean worktree, with its own real `pnpm install` — never a linked `node_modules`, which breaks fingerprint parity.
 - Run EAS from `apps/expo`, never from the monorepo root. Confirm the working directory before every build or submit command.
 - Do not confuse these states: EAS build finished, Apple upload accepted, Apple processing finished, testers can install.
 - Do not print secrets. Public Expo variables such as `EXPO_PUBLIC_API_URL` may be shown.
@@ -111,7 +112,31 @@ git push origin vX.Y.Z
 
 Use a fix-oriented commit message when the release is primarily a correction. Never stage unrelated user work.
 
-## 6. Build from a clean release worktree
+## 6. Check whether CI already owns the build
+
+`.github/workflows/release-ios.yml` triggers on any pushed `v*` tag and runs the
+same `eas build --platform ios --profile production --auto-submit` this skill
+describes, after its own version/typecheck/lint/doctor gate. **Pushing the tag in
+step 5 therefore already starts a TestFlight build.**
+
+Check before building anything by hand:
+
+```bash
+gh run list --workflow release-ios.yml --limit 3
+pnpm dlx eas-cli@latest build:list --platform ios --limit 3 --non-interactive
+```
+
+If that workflow is running or succeeded for this tag, **stop here** and monitor
+it (step 8). Running this skill's build as well produces two TestFlight builds of
+the same commit, wastes an EAS build, and forces someone to pick between
+identical entries in App Store Connect.
+
+Build manually only when CI cannot: the workflow is disabled or failing for an
+infrastructure reason, `EXPO_TOKEN` is unavailable, or you are rebuilding a
+version whose tag already exists and will not be re-pushed. Say which of these
+applies before proceeding.
+
+## 7. Build from a clean release worktree
 
 Create a detached worktree from the exact release tag or commit. This prevents unrelated local changes from entering the EAS archive.
 
@@ -119,7 +144,14 @@ Create a detached worktree from the exact release tag or commit. This prevents u
 git worktree add --detach /tmp/billion-release-X.Y.Z vX.Y.Z
 ```
 
-If EAS needs local dependencies to resolve Expo config plugins, link the existing ignored `node_modules` directories into the temporary worktree. Do not commit them.
+Run a real `pnpm install` inside the worktree. Do **not** symlink the main checkout's `node_modules` into it: the `fingerprint` runtime policy hashes resolved native module paths, so a symlink makes the local fingerprint reflect the main checkout while EAS computes its own from a clean install. The build then fails in `Configure expo-updates` with a runtime version mismatch, and a build that did slip through would never receive OTA updates.
+
+Confirm fingerprint parity before spending a build — this must match the hash EAS reports for the build:
+
+```bash
+cd /tmp/billion-release-X.Y.Z/apps/expo
+pnpm dlx eas-cli@latest fingerprint:generate --platform ios
+```
 
 Before invoking EAS, confirm all three:
 
@@ -215,7 +247,7 @@ pnpm dlx eas-cli@latest build:version:set \
 
 Enter the exact locally uploaded `BUILD_NUMBER`. Then monitor App Store Connect processing and record the local archive path in the handoff. Never attempt to download or reconstruct an App Store Connect private key stored only on EAS servers.
 
-## 7. Monitor build and submission
+## 8. Monitor build and submission
 
 Poll the build until it reaches `FINISHED`:
 
@@ -229,7 +261,7 @@ Verify submission completion using the EAS submit command output or submission U
 
 Apple may keep the build in `Processing` after EAS submission succeeds. Verify App Store Connect directly when a signed-in session is available. Otherwise state precisely that Apple accepted the upload and that processing is pending; do not claim tester availability without evidence.
 
-## 8. Final audit and handoff
+## 9. Final audit and handoff
 
 Confirm:
 
