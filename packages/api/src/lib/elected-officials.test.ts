@@ -210,8 +210,9 @@ void test("selectFederalOfficialByName does not borrow a namesake's headshot", (
     "House",
     "AL",
   );
-  assert.equal(matched?.id, "rogers-al");
-  assert.equal(matched?.district, "3");
+  assert.ok(matched);
+  assert.equal(matched.id, "rogers-al");
+  assert.equal(matched.district, "3");
 });
 
 void test("selectFederalOfficialByName matches senators by full state name", () => {
@@ -238,9 +239,10 @@ void test("selectFederalOfficialByName matches senators by full state name", () 
     "Senate",
     "CA",
   );
-  assert.equal(matched?.id, "padilla-ca");
-  assert.equal(matched?.office, "U.S. Senator");
-  assert.equal(matched?.district, undefined);
+  assert.ok(matched);
+  assert.equal(matched.id, "padilla-ca");
+  assert.equal(matched.office, "U.S. Senator");
+  assert.equal(matched.district, undefined);
 
   assert.equal(
     selectFederalOfficialByName(senators, "Alex Padilla", "Senate", "TX"),
