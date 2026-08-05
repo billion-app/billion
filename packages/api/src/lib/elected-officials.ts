@@ -10,6 +10,7 @@
 
 import type { Address, DivisionByAddressResponse } from "./civic";
 import { getDivisionsByAddress } from "./civic";
+import { STATE_NAMES } from "./states";
 
 const PEOPLE_BASE = "https://data.openstates.org/people/current";
 const PEOPLE_SOURCE = "https://open.pluralpolicy.com/data/legislator-csv/";
@@ -231,14 +232,40 @@ function personNameKey(value: string): string {
     .trim();
 }
 
-/** Match a current federal lawmaker without requiring the user's address. */
+/**
+ * Open States encodes a row's seat two different ways: `"FL-4"` for the House,
+ * but the full state name (`"Florida"`) for the Senate. Normalize both to a
+ * two-letter code so a sponsor label's state can be compared against them.
+ */
+function rowStateCode(row: PeopleRow): string | undefined {
+  const district = row.current_district.trim();
+  if (!district) return undefined;
+  if (district.includes("-")) return district.split("-")[0]?.toUpperCase();
+  const entry = Object.entries(STATE_NAMES).find(
+    ([, stateName]) => stateName.toLowerCase() === district.toLowerCase(),
+  );
+  return entry?.[0];
+}
+
+/**
+ * Match a current federal lawmaker without requiring the user's address.
+ *
+ * `state` is required to disambiguate: names are not unique across Congress
+ * over time, so a bill sponsored by a *former* member can otherwise resolve to
+ * a sitting member who happens to share their name and chamber — rendering the
+ * wrong person's headshot with no error. Mike Rogers (R-MI, through 2015) and
+ * Mike Rogers (R-AL-3, sitting) are a real instance. When the caller has no
+ * state we fall back to name+chamber, which is the historical behavior.
+ */
 export function selectFederalOfficialByName(
   rows: PeopleRow[],
   name: string,
   chamber?: string | null,
+  state?: string | null,
 ): ElectedOfficial | undefined {
   const expectedChamber =
     chamber?.toLowerCase() === "senate" ? "upper" : "lower";
+  const expectedState = state?.trim().toUpperCase();
   const nameKey = personNameKey(name);
   const edgeNameKey = (value: string) => {
     const parts = personNameKey(value).split(" ").filter(Boolean);
@@ -247,6 +274,7 @@ export function selectFederalOfficialByName(
   const row = rows.find(
     (person) =>
       person.current_chamber === expectedChamber &&
+      (!expectedState || rowStateCode(person) === expectedState) &&
       (personNameKey(person.name) === nameKey ||
         edgeNameKey(person.name) === edgeNameKey(name)),
   );
@@ -268,8 +296,14 @@ export function selectFederalOfficialByName(
 export async function getFederalOfficialByName(
   name: string,
   chamber?: string | null,
+  state?: string | null,
 ): Promise<ElectedOfficial | undefined> {
-  return selectFederalOfficialByName(await getPeople("us"), name, chamber);
+  return selectFederalOfficialByName(
+    await getPeople("us"),
+    name,
+    chamber,
+    state,
+  );
 }
 
 export function selectOfficials(

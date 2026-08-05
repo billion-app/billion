@@ -686,9 +686,11 @@ export const contentRouter = {
           .where(eq(Bill.sponsor, bill.sponsor))
           .orderBy(desc(Bill.introducedDate), desc(Bill.createdAt))
           .limit(20),
-        getFederalOfficialByName(sponsorIdentity.name, bill.chamber).catch(
-          () => undefined,
-        ),
+        getFederalOfficialByName(
+          sponsorIdentity.name,
+          bill.chamber,
+          sponsorIdentity.state,
+        ).catch(() => undefined),
       ]);
       const sponsoredBills = await attachVideoImages(
         sponsoredBillRows.map((item) => ({
