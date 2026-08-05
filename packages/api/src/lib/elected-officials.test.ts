@@ -5,6 +5,7 @@ import type { DivisionByAddressResponse } from "./civic";
 import {
   extractDistricts,
   parseCsv,
+  selectFederalOfficialByName,
   selectOfficials,
 } from "./elected-officials";
 import { canUseDevelopmentMocks } from "./places";
@@ -142,5 +143,109 @@ void test("selectOfficials returns the address-scoped federal and state delegati
   assert.deepEqual(
     officials.map((official) => official.id),
     ["sen-1", "sen-2", "house", "state-sen", "assembly"],
+  );
+});
+
+void test("selectFederalOfficialByName matches chamber and first/last name", () => {
+  const row = (overrides: Record<string, string>) => ({
+    id: "id",
+    name: "Name",
+    current_party: "Republican",
+    current_district: "TX-5",
+    current_chamber: "lower",
+    image: "https://example.com/headshot.jpg",
+    email: "",
+    links: "https://example.com",
+    capitol_address: "",
+    capitol_voice: "",
+    district_address: "",
+    district_voice: "",
+    ...overrides,
+  });
+
+  const official = selectFederalOfficialByName(
+    [
+      row({ id: "senator", name: "Lance Gooden", current_chamber: "upper" }),
+      row({ id: "representative", name: "Lance E. Gooden" }),
+    ],
+    "Rep. Lance Gooden",
+    "House",
+  );
+
+  assert.ok(official);
+  assert.equal(official.id, "representative");
+  assert.equal(official.image, "https://example.com/headshot.jpg");
+  assert.equal(official.district, "5");
+});
+
+void test("selectFederalOfficialByName does not borrow a namesake's headshot", () => {
+  // Rep. Mike Rogers (R-MI) left the House in 2015; Rep. Mike Rogers (R-AL-3)
+  // still sits. Matching on name + chamber alone hands a Michigan-sponsored
+  // bill the Alabama member's photo, beside the label "MI".
+  const rogers = [
+    {
+      id: "rogers-al",
+      name: "Mike Rogers",
+      current_party: "Republican",
+      current_district: "AL-3",
+      current_chamber: "lower",
+      image: "https://example.com/rogers-al.jpg",
+      email: "",
+      links: "https://example.com",
+      capitol_address: "",
+      capitol_voice: "",
+      district_address: "",
+      district_voice: "",
+    },
+  ];
+
+  assert.equal(
+    selectFederalOfficialByName(rogers, "Mike Rogers", "House", "MI"),
+    undefined,
+  );
+
+  const matched = selectFederalOfficialByName(
+    rogers,
+    "Mike Rogers",
+    "House",
+    "AL",
+  );
+  assert.ok(matched);
+  assert.equal(matched.id, "rogers-al");
+  assert.equal(matched.district, "3");
+});
+
+void test("selectFederalOfficialByName matches senators by full state name", () => {
+  const senators = [
+    {
+      id: "padilla-ca",
+      name: "Alex Padilla",
+      current_party: "Democratic",
+      current_district: "California",
+      current_chamber: "upper",
+      image: "https://example.com/padilla.jpg",
+      email: "",
+      links: "https://example.com",
+      capitol_address: "",
+      capitol_voice: "",
+      district_address: "",
+      district_voice: "",
+    },
+  ];
+
+  const matched = selectFederalOfficialByName(
+    senators,
+    "Alex Padilla",
+    "Senate",
+    "CA",
+  );
+  assert.ok(matched);
+  assert.equal(matched.id, "padilla-ca");
+  assert.equal(matched.office, "U.S. Senator");
+  assert.equal(matched.district, undefined);
+
+  assert.equal(
+    selectFederalOfficialByName(senators, "Alex Padilla", "Senate", "TX"),
+    undefined,
   );
 });
