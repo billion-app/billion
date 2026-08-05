@@ -1,7 +1,18 @@
 import { createHash } from "node:crypto";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
+import type { BillBriefRecord } from "@acme/validators";
+
+import { clampBillDescription } from "./src/bill-description";
 import { db } from "./src/client";
-import { Bill, CourtCase, GovernmentContent, Video } from "./src/schema";
+import {
+  Bill,
+  ContentBrief,
+  ContentLens,
+  CourtCase,
+  GovernmentContent,
+  Video,
+} from "./src/schema";
 
 function hash(content: string) {
   return createHash("sha256").update(content).digest("hex");
@@ -68,7 +79,6 @@ If enacted, this bill would represent one of the largest infrastructure investme
 # The Debate
 Supporters argue the bill is long overdue, pointing to the American Society of Civil Engineers' consistent D+ rating for U.S. infrastructure. They emphasize the economic multiplier effect of infrastructure spending and the safety benefits of repairing structurally deficient bridges. Critics raise concerns about the bill's price tag and question whether the federal government should take the lead on what they see as primarily state and local responsibilities. Some fiscal hawks have proposed alternative funding mechanisms, including public-private partnerships and toll-based financing.`,
     thumbnailUrl: "https://picsum.photos/seed/infra/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/house-bill/1001",
     sourceWebsite: "congress.gov",
   },
@@ -85,7 +95,7 @@ Supporters argue the bill is long overdue, pointing to the American Society of C
     summary:
       "Establishes federal data privacy standards requiring companies to obtain consent before collecting personal data.",
     fullText:
-      "Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the 'Digital Privacy Protection Act'. SECTION 2. PURPOSE. The purpose of this Act is to establish comprehensive federal data privacy protections...",
+      "Be it enacted by the Senate and House of Representatives of the United States of America in Congress assembled, SECTION 1. SHORT TITLE. This Act may be cited as the 'Digital Privacy Protection Act'. SECTION 2. PURPOSE. The purpose of this Act is to establish comprehensive federal data privacy protections. SECTION 3. INDIVIDUAL DATA RIGHTS. A covered entity shall provide an individual with the right to access and delete personal data collected about the individual.",
     aiGeneratedArticle: `# What This Means For You
 Companies would need your permission before collecting or selling your personal data, and you'd have the right to see and delete what they've gathered.
 
@@ -100,7 +110,6 @@ For everyday Americans, this bill would mean more control over personal informat
 # The Debate
 Privacy advocates praise the bill as a necessary step but criticize exceptions that allow data collection for "legitimate business purposes," a term they say is too broadly defined. The tech industry has offered cautious support for a federal standard that would preempt the current patchwork of state laws, though they oppose provisions allowing private lawsuits. Consumer groups want stronger enforcement mechanisms and fewer corporate carve-outs.`,
     thumbnailUrl: "https://picsum.photos/seed/privacy/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/senate-bill/502",
     sourceWebsite: "congress.gov",
   },
@@ -132,7 +141,6 @@ An estimated 10 million American households still receive water through lead ser
 # The Debate
 Supporters point to the moral imperative of clean water access, citing ongoing health emergencies in several U.S. cities. Critics question the federal government's role, arguing that water infrastructure has traditionally been a local responsibility. Some propose a loan-based model rather than direct grants, while environmental groups push for stricter contamination standards alongside the funding.`,
     thumbnailUrl: "https://picsum.photos/seed/water/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/house-bill/2200",
     sourceWebsite: "congress.gov",
   },
@@ -164,7 +172,6 @@ Workers, borrowers, and defendants would gain new transparency rights when AI in
 # The Debate
 Tech companies warn that overly prescriptive regulation could stifle innovation and push AI development overseas. Civil rights organizations counter that unregulated AI is already causing harm, pointing to documented cases of biased hiring algorithms and discriminatory lending models. Some legislators prefer a sector-specific approach over the bill's broad framework, while others argue it doesn't go far enough in restricting certain uses of AI entirely.`,
     thumbnailUrl: "https://picsum.photos/seed/ai-law/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/senate-bill/789",
     sourceWebsite: "congress.gov",
   },
@@ -196,12 +203,17 @@ The bill could add an estimated 2 million affordable housing units over the next
 # The Debate
 Housing advocates strongly support the bill but want even more aggressive zoning reform provisions. Real estate interests support the LIHTC expansion but oppose the tenant protection provisions. Some conservatives argue that housing is a local issue and that federal intervention in zoning is governmental overreach. Progressive critics say the bill relies too heavily on private-sector tax incentives rather than direct public housing construction.`,
     thumbnailUrl: "https://picsum.photos/seed/housing/800/600",
-    images: [],
     url: "https://www.congress.gov/bill/119th-congress/house-bill/3456",
     sourceWebsite: "congress.gov",
   },
 ].map((b) => ({
   ...b,
+  // `bill.description` is capped at 100 characters by a check constraint, and
+  // every fixture above was written longer, so the very first insert aborted
+  // the whole seed. Clamp with the same helper the scraper and API use rather
+  // than hand-trimming the prose: the fixtures stay readable here, and what
+  // lands in the table matches what a real scraped row looks like.
+  description: clampBillDescription(b.description),
   contentHash: hash(b.title + b.fullText),
   versions: [],
 }));
@@ -229,7 +241,6 @@ Federal employees will notice changes in how they access systems, with more freq
 # The Debate
 Cybersecurity experts broadly support the order, though some question whether the 18-month timeline for zero-trust adoption is realistic. Industry groups worry about compliance costs, particularly for smaller operators. Privacy advocates praise the transparency measures but want stronger protections for the incident data that companies will be required to share with the government.`,
     thumbnailUrl: "https://picsum.photos/seed/cyber/800/600",
-    images: [],
     url: "https://www.whitehouse.gov/presidential-actions/executive-order-cybersecurity-2025/",
     source: "whitehouse.gov",
   },
@@ -255,7 +266,6 @@ The 43 million Americans with federal student loans could see significant improv
 # The Debate
 Borrower advocates welcome the reforms but question whether they go far enough without broader student loan relief. The loan servicing industry argues that many problems stem from the complexity of federal repayment programs rather than servicer negligence. Some lawmakers want to go further and bring loan servicing in-house at the Department of Education.`,
     thumbnailUrl: "https://picsum.photos/seed/loans/800/600",
-    images: [],
     url: "https://www.whitehouse.gov/presidential-actions/memorandum-student-loans-2025/",
     source: "whitehouse.gov",
   },
@@ -281,7 +291,6 @@ Homeowners in fire-prone regions may see new building code requirements and ince
 # The Debate
 Fire scientists and emergency managers applaud the attention but say preparedness alone is insufficient without addressing the root causes of increasing wildfire severity, including climate change and decades of fire suppression. Some Western state officials bristle at federal building code recommendations, viewing them as overreach into local land use decisions.`,
     thumbnailUrl: "https://picsum.photos/seed/wildfire/800/600",
-    images: [],
     url: "https://www.whitehouse.gov/presidential-actions/proclamation-wildfire-2025/",
     source: "whitehouse.gov",
   },
@@ -305,7 +314,6 @@ Mortgage rates will likely remain near 6.5%, keeping the housing market sluggish
 # The Debate
 The administration wants lower rates to boost the housing market and economic growth, but the Fed maintains its independence in pursuing its inflation mandate. Critics of the Fed say rates should have been cut already, while inflation hawks argue the hold is prudent given sticky price pressures.`,
     thumbnailUrl: "https://picsum.photos/seed/fed-rates/800/600",
-    images: [],
     url: "https://www.whitehouse.gov/briefing-room/statements/fed-rate-decision-may-2025/",
     source: "whitehouse.gov",
   },
@@ -340,7 +348,6 @@ A ruling expanding Carpenter could force law enforcement to obtain warrants for 
 # The Debate
 Privacy advocates and civil liberties organizations argue that location data reveals intimate details of a person's life regardless of the time period. Law enforcement groups warn that a warrant requirement for all location data would impede time-sensitive investigations. Tech companies have filed mixed briefs — some supporting stronger privacy protections, others concerned about the compliance burden.`,
     thumbnailUrl: "https://picsum.photos/seed/scotus1/800/600",
-    images: [],
     url: "https://www.courtlistener.com/opinion/mock-gonzalez/",
   },
   {
@@ -367,7 +374,6 @@ The ruling could reshape how schools handle discrimination complaints and could 
 # The Debate
 Supporters of the regulations argue that Title IX's broad language was always intended to evolve with society's understanding of discrimination. Opponents counter that such a significant policy change should come from Congress, not an executive agency. The case has become a flashpoint in broader debates about executive power, gender identity, and education policy.`,
     thumbnailUrl: "https://picsum.photos/seed/scotus2/800/600",
-    images: [],
     url: "https://www.courtlistener.com/opinion/mock-nft-v-doe/",
   },
   {
@@ -394,7 +400,6 @@ A ruling for California could open the door to algorithmic regulation nationwide
 # The Debate
 Free speech advocates are split: some see algorithmic curation as protected expression, while others argue that monopolistic platforms wield too much power over public discourse to claim editorial immunity. Tech companies warn that disclosure could expose trade secrets and make algorithms vulnerable to manipulation. Consumer advocates and regulators argue that transparency is essential for accountability.`,
     thumbnailUrl: "https://picsum.photos/seed/scotus3/800/600",
-    images: [],
     url: "https://www.courtlistener.com/opinion/mock-techcorp-v-ca/",
   },
 ].map((c) => ({
@@ -402,6 +407,355 @@ Free speech advocates are split: some see algorithmic curation as protected expr
   contentHash: hash(c.title + (c.fullText ?? "")),
   versions: [],
 }));
+
+/**
+ * Structured briefs for the seeded bills, in the same shape the scraper writes.
+ * Seeded so local contributors can see the brief UI without an LLM key — and so
+ * the quote-verification contract is visible by example: every `quote.text`
+ * below appears verbatim in the matching bill's `fullText`, which is exactly
+ * what `verifyBriefQuotes` enforces in the pipeline.
+ *
+ * Indexed to match `bills` above.
+ */
+const billBriefs: (Omit<
+  BillBriefRecord,
+  "generatedAt" | "modelVersion"
+> | null)[] = [
+  {
+    version: 7,
+    legalStatus: "proposed",
+    verifiedQuotes: 1,
+    hook: "If this bill becomes law, states would get **a longer window to plan road and bridge repairs**, while cities could apply for **new public-transit money**. The $200 billion is a maximum, not guaranteed money; Congress would still decide how much can actually be spent each year.",
+    facts: [
+      {
+        label: "Spending limit",
+        value: "$200B",
+        note: "Maximum over 10 years; Congress must approve spending each year.",
+      },
+      { label: "Chamber status", value: "Passed House", note: "Senate next." },
+      {
+        label: "How money is shared",
+        value: "State shares + city grants",
+        note: "States get set shares; cities apply for separate transit money.",
+      },
+    ],
+    changes: [
+      {
+        kind: "funds",
+        title: "Ten years of road and bridge money for states",
+        before:
+          "Congress usually approves federal road and transit programs for **only a few years at a time**. That makes long projects harder for states to plan.",
+        after:
+          "The bill would promise road and bridge money for **ten years**. Each state's share would depend on its **population, road conditions, and public-transit use**.",
+        quote: {
+          text: "Congress finds that the nation's infrastructure is in critical need of repair and modernization",
+          locator: "Sec. 2",
+        },
+      },
+      {
+        kind: "creates",
+        title: "New money for rail and faster bus service",
+        before:
+          "Cities now apply for federal transit money through **several programs that also fund other transportation projects**.",
+        after:
+          "The bill would create a **separate pool of money for light rail and faster bus service**. It would also support rural internet projects.",
+      },
+    ],
+    affected: [
+      {
+        group: "State transportation departments",
+        takeaway:
+          "States would get a **longer planning window** for multi-year projects.",
+        effect:
+          "State agencies could plan projects farther ahead because federal road and bridge support would be set for **ten years**. Federal officials would have fewer chances to approve projects one by one.",
+        direction: "gains",
+      },
+      {
+        group: "Transit riders in mid-size cities",
+        takeaway:
+          "Whether riders benefit would depend on **which cities receive grants**.",
+        effect:
+          "New money could pay for transit expansions, but **the final rules would decide which cities can apply and receive it**.",
+        direction: "unclear",
+      },
+    ],
+    unknowns: [
+      "The bill does not say **how much each factor would count** when dividing road and bridge money among states.",
+      "Congress would still need to **approve the actual spending each year**, so the full $200 billion is not guaranteed.",
+      "The bill itself **does not support the job estimates** cited by its sponsors.",
+    ],
+    terms: [
+      {
+        term: "Authorization",
+        plain:
+          "Congress sets a maximum amount a program may spend. This **does not provide the money by itself**; Congress must approve the actual spending later.",
+      },
+    ],
+    whyNotBefore: {
+      summary:
+        "Congress already funds highways and transit in multi-year laws. The recurring disputes are **how long to promise money, which programs receive it, and how to pay for it**.",
+      points: [
+        {
+          text: "Recent transportation laws have generally lasted **about five years, not ten**. Several earlier laws expired before Congress agreed on replacements, so lawmakers temporarily extended the old programs while negotiations continued.",
+          citations: [
+            {
+              title:
+                "Surface Transportation Reauthorization: Federal Highway Programs",
+              publisher: "Congressional Research Service",
+              url: "https://www.congress.gov/crs-product/R48845",
+            },
+          ],
+        },
+        {
+          text: "A longer promise also raises the question of how to pay for it. **Federal fuel-tax revenue has not kept pace with planned spending**, and Congress has repeatedly transferred other federal money into the Highway Trust Fund.",
+          citations: [
+            {
+              title:
+                "Funding and Financing Highways and Public Transportation Under the Infrastructure Investment and Jobs Act",
+              publisher: "Congressional Research Service",
+              url: "https://www.congress.gov/crs-product/R47573",
+            },
+          ],
+        },
+      ],
+    },
+    deepDive: {
+      title: "Why the $200 billion is not guaranteed",
+      dek: "The bill could set a ten-year plan **without putting the full amount in agencies' bank accounts**.",
+      body: "## The short answer\n\nThe bill would let Congress spend as much as **$200 billion over ten years** on the programs it creates. That number is a limit, not a deposit. Federal agencies could not start spending the entire amount simply because this bill passed.\n\nCongress would still make a separate spending decision—usually each year—to determine how much money agencies can actually use. It could approve the full amount, a smaller amount, or no money for a particular year.\n\n## Why write a large number into the bill?\n\nA ten-year limit tells states and federal agencies how large Congress expects the program could become. That can help them prepare project lists, hire staff, and plan repairs that take several years.\n\nBut planning certainty is not the same as cash. A future Congress could face different priorities, a recession, an emergency, or a dispute over the federal budget. Any of those could lead lawmakers to approve less money than the bill allows.\n\n## What should readers watch next?\n\nIf this bill moves forward, the next important documents would be the yearly spending bills. Those would show whether Congress is turning the headline promise into money that states and cities can actually use.\n\nThe useful question is not only, **“Did Congress pass the infrastructure bill?”** It is also, **“How much did Congress approve for these programs this year?”**",
+    },
+    reading: [
+      {
+        title: "Overview of the Authorization-Appropriations Process",
+        publisher: "Congressional Research Service",
+        url: "https://www.congress.gov/crs-product/RS20371",
+        whyRead:
+          "A short, nonpartisan explanation of why **creating a program and paying for it are separate votes**.",
+      },
+      {
+        title: "Authorizations and the Appropriations Process",
+        publisher: "Congressional Research Service",
+        url: "https://www.congress.gov/crs-product/R46497",
+        whyRead:
+          "A fuller guide to how Congress **sets spending limits and later approves usable money**.",
+      },
+    ],
+  },
+  {
+    version: 7,
+    legalStatus: "proposed",
+    verifiedQuotes: 2,
+    hook: "If passed, the bill would require companies to **get permission before collecting or selling personal data**. People across the country could also **review and delete information held about them**, although the text does not settle whether **stronger state privacy laws** would remain in place.",
+    facts: [{ label: "Chamber status", value: "In Committee" }],
+    changes: [
+      {
+        kind: "requires",
+        title: "Companies would need permission before collecting data",
+        before:
+          "Different federal rules cover health, financial, and children's data. **Most other personal data has no nationwide permission rule**.",
+        after:
+          "Companies would have to **ask before collecting or selling most personal information**.",
+        quote: {
+          text: "The purpose of this Act is to establish comprehensive federal data privacy protections",
+          locator: "Sec. 2",
+        },
+      },
+      {
+        kind: "creates",
+        title: "People could see and delete data held about them",
+        before:
+          "A person's ability to see or delete company-held data **depends on the company and their state**.",
+        after:
+          "People across the country would gain the **right to review and delete personal data** held about them.",
+        quote: {
+          text: "A covered entity shall provide an individual with the right to access and delete personal data collected about the individual",
+          locator: "Sec. 3",
+        },
+      },
+    ],
+    affected: [
+      {
+        group: "People whose data is collected online",
+        takeaway:
+          "People would gain federal rights to **review and delete their data**.",
+        effect:
+          "They could **see and delete personal information** that companies hold, and companies would have to ask before collecting it.",
+        direction: "gains",
+      },
+      {
+        group: "Companies that buy and sell consumer data",
+        takeaway:
+          "Data brokers would have to ask permission and **honor access or deletion requests**.",
+        effect:
+          "They would have to **ask permission, explain what they collect, and delete data when required**. Companies built around selling data would face the biggest changes.",
+        direction: "loses",
+      },
+      {
+        group: "States with their own privacy laws",
+        takeaway:
+          "State protections could **remain or be replaced** by the federal standard.",
+        effect:
+          "Residents' protection would depend on whether the federal rules **add to or replace stronger state laws**.",
+        direction: "unclear",
+      },
+    ],
+    unknowns: [
+      "The excerpt does not say whether **federal rules would replace stronger state privacy laws**.",
+      "The excerpt does not explain **who would enforce the rules**: a government agency, individuals filing lawsuits, or both.",
+    ],
+    terms: [
+      {
+        term: "Preemption",
+        plain:
+          "When a federal law **overrides and replaces state laws** on the same subject rather than adding to them.",
+      },
+    ],
+    whyNotBefore: {
+      summary:
+        "Congress has considered nationwide privacy rules for years, but earlier proposals **did not resolve the role of stronger state laws or private lawsuits**.",
+      points: [
+        {
+          text: "Federal privacy law has mostly covered particular industries and types of data, while states built broader consumer rules. Past proposals **disagreed over whether stronger state laws would remain in force**.",
+          citations: [
+            {
+              title: "Preemption and Privacy Law",
+              publisher: "Congressional Research Service",
+              url: "https://www.congress.gov/crs-product/R48667",
+            },
+          ],
+        },
+        {
+          text: "Earlier comprehensive bills also **differed over who could enforce them**. Some would have allowed individuals to sue in certain circumstances, while others relied more heavily on government enforcement.",
+          citations: [
+            {
+              title: "Overview of the American Data Privacy and Protection Act",
+              publisher: "Congressional Research Service",
+              url: "https://www.congress.gov/crs-product/LSB10776",
+            },
+          ],
+        },
+      ],
+    },
+    reading: [],
+  },
+];
+
+/**
+ * The brief explains mechanics; the dual lens preserves the disagreement.
+ * Keep both in local fixtures so a brief can never make the product's
+ * signature compare-the-cases layer appear to have vanished.
+ */
+const billLenses = [
+  {
+    framing: "proponent_opponent" as const,
+    left: {
+      stance: "Plan farther ahead",
+      points: [
+        {
+          text: "Promising money for ten years could help states plan repairs that take several years to finish.",
+          example: {
+            fact: "The Interstate Highway System used a multi-year federal funding commitment to support construction across many states.",
+            relevance:
+              "That long commitment gave states a stable federal partner for projects that took years to plan and build.",
+          },
+          sourceIds: [1, 2],
+        },
+        {
+          text: "A separate pool of federal money could help more cities expand rail and faster bus service.",
+          example: {
+            fact: "Federal Capital Investment Grants already support light rail and bus rapid transit projects in cities across the country.",
+            relevance:
+              "Those projects show that a separate transit grant program can turn federal money into specific local rail and bus expansions.",
+          },
+          sourceIds: [1, 3],
+        },
+      ],
+    },
+    right: {
+      stance: "Keep spending review frequent",
+      points: [
+        {
+          text: "The $200 billion is only a limit. Congress would still decide how much money to approve each year.",
+          example: {
+            fact: "The current transit grant program separates $3 billion allowed each year from $1.6 billion provided up front.",
+            relevance:
+              "The difference shows why a spending limit is not the same as guaranteed money: Congress still has to approve much of it later.",
+          },
+          sourceIds: [1, 3],
+        },
+        {
+          text: "A ten-year plan gives Congress fewer automatic chances to reconsider how the money is divided.",
+          example: {
+            fact: "The 2021 infrastructure law listed transit grant funding for five years, from 2022 through 2026.",
+            relevance:
+              "That shorter schedule returned the program to Congress sooner than this proposal's ten-year schedule would.",
+          },
+          sourceIds: [1, 3],
+        },
+      ],
+    },
+    sources: [
+      {
+        id: 1,
+        title: "Infrastructure Modernization Act of 2025 — official text",
+        url: bills[0]!.url,
+      },
+      {
+        id: 2,
+        title: "Interstate System funding history — FHWA",
+        url: "https://www.fhwa.dot.gov/highwayhistory/data/page01.cfm",
+      },
+      {
+        id: 3,
+        title: "Capital Investment Grants program — FTA",
+        url: "https://www.transit.dot.gov/funding/grants/fact-sheet-capital-investment-grants-program",
+      },
+    ],
+  },
+  {
+    framing: "proponent_opponent" as const,
+    left: {
+      stance: "Create one national privacy floor",
+      points: [
+        {
+          text: "A national rule would give people in every state the same basic rights to view and delete their data.",
+          example: {
+            fact: "California residents can already ask businesses to show or delete personal information collected about them.",
+            relevance:
+              "California demonstrates how these rights work in practice; this bill would extend similar access and deletion rights nationwide.",
+          },
+          sourceIds: [1, 2],
+        },
+      ],
+    },
+    right: {
+      stance: "Preserve stronger state rules",
+      points: [
+        {
+          text: "The excerpt does not guarantee that stronger state privacy rights would stay in place.",
+          example: {
+            fact: "California lets residents limit businesses' use of precise location and genetic data.",
+            relevance:
+              "The proposal excerpt creates nationwide access and deletion rights but does not expressly preserve California's additional limit-use right. That specific gap is why opponents worry state protections could be reduced.",
+          },
+          sourceIds: [1, 2],
+        },
+      ],
+    },
+    sources: [
+      {
+        id: 1,
+        title: "Digital Privacy Protection Act — official text",
+        url: bills[1]!.url,
+      },
+      {
+        id: 2,
+        title: "California Consumer Privacy Act — consumer rights",
+        url: "https://oag.ca.gov/privacy/ccpa",
+      },
+    ],
+  },
+];
 
 async function seed() {
   assertSeedTargetIsLocal();
@@ -419,6 +773,108 @@ async function seed() {
       contentHash: Bill.contentHash,
     });
   console.log(`  ${insertedBills.length} bills inserted`);
+
+  // Resolve every fixture after the insert instead of relying on RETURNING.
+  // RETURNING only includes newly inserted rows, which meant re-running the
+  // seed against an existing local database never added or refreshed briefs.
+  const seededBills = await db
+    .select({
+      id: Bill.id,
+      billNumber: Bill.billNumber,
+      contentHash: Bill.contentHash,
+    })
+    .from(Bill)
+    .where(
+      and(
+        eq(Bill.sourceWebsite, "congress.gov"),
+        inArray(
+          Bill.billNumber,
+          bills.map((bill) => bill.billNumber),
+        ),
+      ),
+    );
+
+  console.log("Inserting bill briefs...");
+  const briefRecords = seededBills.flatMap((bill) => {
+    const fixtureIndex = bills.findIndex(
+      (fixture) => fixture.billNumber === bill.billNumber,
+    );
+    const brief = billBriefs[fixtureIndex];
+    return brief
+      ? [
+          {
+            contentType: "bill" as const,
+            contentId: bill.id,
+            contentHash: bill.contentHash,
+            brief: {
+              ...brief,
+              generatedAt: now.toISOString(),
+              modelVersion: "seed",
+            },
+            modelVersion: "seed",
+          },
+        ]
+      : [];
+  });
+  if (briefRecords.length === 0) {
+    console.log("  0 briefs inserted (no new bills to link)");
+  } else {
+    const insertedBriefs = await db
+      .insert(ContentBrief)
+      .values(briefRecords)
+      .onConflictDoUpdate({
+        target: [ContentBrief.contentType, ContentBrief.contentId],
+        set: {
+          contentHash: sql`excluded.content_hash`,
+          brief: sql`excluded.brief`,
+          modelVersion: sql`excluded.model_version`,
+          updatedAt: now,
+        },
+      })
+      .returning({ id: ContentBrief.id });
+    console.log(`  ${insertedBriefs.length} briefs inserted or refreshed`);
+  }
+
+  console.log("Inserting bill dual lenses...");
+  const lensRecords = seededBills.flatMap((bill) => {
+    const fixtureIndex = bills.findIndex(
+      (fixture) => fixture.billNumber === bill.billNumber,
+    );
+    const lensData = billLenses[fixtureIndex];
+    return lensData
+      ? [
+          {
+            contentType: "bill" as const,
+            contentId: bill.id,
+            contentHash: bill.contentHash,
+            lensData: {
+              ...lensData,
+              generatedAt: now.toISOString(),
+              modelVersion: "seed",
+            },
+            modelVersion: "seed",
+          },
+        ]
+      : [];
+  });
+  if (lensRecords.length === 0) {
+    console.log("  0 dual lenses inserted (no seeded bills to link)");
+  } else {
+    const insertedLenses = await db
+      .insert(ContentLens)
+      .values(lensRecords)
+      .onConflictDoUpdate({
+        target: [ContentLens.contentType, ContentLens.contentId],
+        set: {
+          contentHash: sql`excluded.content_hash`,
+          lensData: sql`excluded.lens_data`,
+          modelVersion: sql`excluded.model_version`,
+          updatedAt: now,
+        },
+      })
+      .returning({ id: ContentLens.id });
+    console.log(`  ${insertedLenses.length} dual lenses inserted or refreshed`);
+  }
 
   console.log("Inserting government content...");
   const insertedGov = await db

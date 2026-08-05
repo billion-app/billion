@@ -1,0 +1,1 @@
+ALTER TABLE "bill" ALTER COLUMN "status" SET DATA TYPE text;

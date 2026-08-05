@@ -19,7 +19,7 @@ export type GovernmentContentData = z.infer<
 >;
 export type CourtCaseData = z.infer<typeof CreateCourtCaseSchema>;
 
-// Image result type (used in images JSONB field, defined in schema)
+// Image result returned by Google Custom Search
 export interface ImageResult {
   url: string;
   alt: string;
@@ -59,4 +59,18 @@ export interface Scraper {
 
 export interface ScraperRunOptions {
   maxItems?: number;
+  /**
+   * Source-specific record identifiers to fetch directly, bypassing whatever
+   * incremental cursor the scraper normally uses. Scrapers without a targeted
+   * mode ignore this.
+   */
+  targets?: string[];
+  /** Congress number for targeted congress.gov runs (e.g. 119). */
+  congress?: number;
+  /**
+   * Refresh the N most recently updated records instead of walking the
+   * incremental cursor. Keeps active items current rather than pursuing
+   * complete historical coverage. Scrapers without a recent mode ignore this.
+   */
+  recent?: number;
 }

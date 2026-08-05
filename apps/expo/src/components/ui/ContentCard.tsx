@@ -8,6 +8,7 @@ import { Image } from "expo-image";
 
 import type { ContentTypeKey } from "~/styles";
 import { colors, contentType, fontBody, hair, planes } from "~/styles";
+import { contentImageSource } from "~/utils/editorial-visuals";
 import { Icon } from "./Icon";
 import { Badge, Spine } from "./primitives";
 
@@ -36,6 +37,7 @@ export function ContentCard({
 }) {
   const t = contentType[item.type];
   const imageUri = item.imageUri ?? item.thumbnailUrl;
+  const imageSource = contentImageSource(imageUri);
   const [imageFailed, setImageFailed] = useState(false);
   return (
     <TouchableOpacity
@@ -78,9 +80,9 @@ export function ContentCard({
           ) : null}
         </View>
         <View style={s.thumbnail} testID="content-card-thumbnail">
-          {imageUri && !imageFailed ? (
+          {imageSource && !imageFailed ? (
             <Image
-              source={{ uri: imageUri }}
+              source={imageSource}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
               transition={200}

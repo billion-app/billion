@@ -11,6 +11,7 @@ import { createLogger } from "../log.js";
 const logger = createLogger("ai-provider");
 
 let textLlm: LanguageModel | null = null;
+let structuredLlm: LanguageModel | null = null;
 let openrouterProvider: ReturnType<typeof createOpenRouter> | null = null;
 let localProvider: ReturnType<typeof createOpenAICompatible> | null = null;
 
@@ -161,6 +162,35 @@ export function getTextLlm(): LanguageModel {
 
   textLlm = createDeepSeek({ apiKey: deepseekKey })("deepseek-v4-flash");
   return textLlm;
+}
+
+/**
+ * Resolve a model that supports schema-constrained generation. Some local
+ * OpenAI-compatible servers advertise structured output support but cannot
+ * compile the brief's JSON grammar. Prefer an API provider for this one
+ * workload while retaining the normal local-first text pipeline elsewhere.
+ */
+export function getStructuredLlm(): LanguageModel {
+  if (structuredLlm) return structuredLlm;
+
+  const openrouterKey = getOpenRouterApiKey();
+  if (openrouterKey) {
+    structuredLlm = getOpenRouterProvider(openrouterKey).chat(
+      getOpenRouterModel(),
+    );
+    return structuredLlm;
+  }
+
+  const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
+  if (deepseekKey) {
+    structuredLlm = createDeepSeek({ apiKey: deepseekKey })(
+      "deepseek-v4-flash",
+    );
+    return structuredLlm;
+  }
+
+  structuredLlm = getTextLlm();
+  return structuredLlm;
 }
 
 /** Provider-qualified model identifier recorded with generated content. */

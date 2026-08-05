@@ -8,6 +8,7 @@ RUN corepack enable && corepack prepare pnpm@10.15.1 --activate
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY apps/scraper/package.json ./apps/scraper/package.json
+COPY apps/supervisor/package.json ./apps/supervisor/package.json
 COPY packages/api/package.json ./packages/api/package.json
 COPY packages/auth/package.json ./packages/auth/package.json
 COPY packages/db/package.json ./packages/db/package.json
@@ -16,17 +17,32 @@ COPY packages/validators/package.json ./packages/validators/package.json
 COPY tooling/eslint/package.json ./tooling/eslint/package.json
 COPY tooling/prettier/package.json ./tooling/prettier/package.json
 COPY tooling/typescript/package.json ./tooling/typescript/package.json
-RUN pnpm install --frozen-lockfile --filter @acme/scraper...
+RUN pnpm install --frozen-lockfile --filter @acme/scraper... --filter @acme/supervisor...
 
 COPY tooling/typescript/base.json ./tooling/typescript/base.json
 COPY packages/api/src ./packages/api/src
 COPY packages/db/src ./packages/db/src
 COPY packages/env/src ./packages/env/src
+COPY packages/validators/src ./packages/validators/src
 COPY apps/scraper/src ./apps/scraper/src
 COPY apps/scraper/tsconfig.json apps/scraper/vite.config.ts ./apps/scraper/
-RUN pnpm --filter @acme/scraper build
+COPY apps/supervisor/src ./apps/supervisor/src
+COPY apps/supervisor/tsconfig.json apps/supervisor/vite.config.ts ./apps/supervisor/
+RUN pnpm --filter @acme/scraper build && pnpm --filter @acme/supervisor build
+
+# The supervisor rides in the scraper's deploy root rather than getting one of
+# its own. It spawns the scraper's entrypoints as child processes, so it has to
+# sit next to them anyway, and its only external imports are `consola` and
+# `zod` — both already production dependencies of the scraper, so sharing the
+# root costs no extra modules.
+# `pnpm deploy` already places a `dist/` in the deploy root, so copying the
+# built bundle in without clearing it first nests a second complete copy at
+# `dist/dist/`. Harmless at runtime — `node dist/main.js` resolves the right
+# one — but it ships every entrypoint twice.
 RUN pnpm --filter @acme/scraper deploy --prod --legacy /app/deploy && \
-    cp -R apps/scraper/dist /app/deploy/dist
+    rm -rf /app/deploy/dist && \
+    cp -R apps/scraper/dist /app/deploy/dist && \
+    cp apps/supervisor/dist/supervisor.js /app/deploy/dist/supervisor.js
 
 FROM node:22.20-slim
 

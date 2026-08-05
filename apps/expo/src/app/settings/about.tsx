@@ -14,8 +14,8 @@ export default function AboutScreen() {
   const rows: { icon: IconName; label: string; onPress: () => void }[] = [
     {
       icon: "globe",
-      label: "Visit billion.app",
-      onPress: () => void Linking.openURL("https://billion.app"),
+      label: "Visit billion-news.app",
+      onPress: () => void Linking.openURL("https://billion-news.app"),
     },
     {
       icon: "doc",

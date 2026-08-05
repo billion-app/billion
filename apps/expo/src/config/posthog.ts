@@ -30,4 +30,12 @@ export const posthog = new PostHog(apiKey ?? "placeholder_key", {
   requestTimeout: 10000,
   fetchRetryCount: 3,
   fetchRetryDelay: 3000,
+  // Without this, a JS error that kills the app leaves no trace: the crash
+  // report only carries the ObjC abort path, not the JS message or stack.
+  errorTracking: {
+    autocapture: {
+      uncaughtExceptions: true,
+      unhandledRejections: true,
+    },
+  },
 });

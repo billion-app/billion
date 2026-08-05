@@ -65,6 +65,149 @@ export interface GenerateVideoResult {
 }
 
 /**
+ * A video row's worth of content, produced without touching the database.
+ *
+ * Header art is the slowest asset to generate and the most visible when it is
+ * missing — a grey placeholder occupying the top third of the detail screen.
+ * Separating "make it" from "store it" lets a caller finish every asset before
+ * any row exists, so a bill is never briefly visible without its art.
+ */
+export interface BuiltVideoRecord {
+  title: string;
+  description: string;
+  imageData: Buffer | null;
+  imageMimeType: string | null;
+  thumbnailUrl: string | null;
+  author: string;
+  engagementMetrics: { likes: number; comments: number; shares: number };
+  sourceContentHash: string;
+}
+
+/**
+ * Anything that can run an insert — the pool, or a transaction handle.
+ * Structural so a caller can pass `db` or a `tx` without this module needing to
+ * know which.
+ */
+export type DbExecutor = Pick<typeof db, "insert">;
+
+/**
+ * Generate marketing copy and header art in memory.
+ *
+ * Returns `null` only when copy generation fails outright; a missing image is
+ * represented by `imageData: null` rather than a failure, because a scraped
+ * `thumbnailUrl` is an acceptable substitute and the caller decides whether
+ * that is good enough.
+ */
+export async function buildVideoRecord(
+  contentType: "bill" | "government_content" | "court_case",
+  title: string,
+  fullText: string,
+  contentHash: string,
+  author: string,
+  thumbnailUrl?: string | null,
+  hasExistingImage = false,
+): Promise<BuiltVideoRecord | null> {
+  const marketingCopy = await generateMarketingCopy(
+    title,
+    fullText,
+    contentType,
+  );
+  if (!marketingCopy) return null;
+
+  let imageData: Buffer | null = null;
+  let imageMimeType: string | null = null;
+  let generatedImage = await generateImage(marketingCopy.imagePrompt);
+
+  if (!generatedImage && !thumbnailUrl && !hasExistingImage) {
+    const safeFallbackPrompt =
+      contentType === "court_case"
+        ? "A richly illustrated civic tableau: a monumental courthouse transformed into a balancing scale, with expressive citizens, legal folders, and story clues arranged across the steps in a bold, slightly surreal composition."
+        : contentType === "bill"
+          ? "A richly illustrated civic machine built around the United States Capitol, with gears, expressive citizens, symbolic objects, and layered policy clues in a colorful, witty, slightly surreal composition."
+          : "A richly illustrated civic tableau where a government building opens into a miniature world of expressive people and story-specific public-life details, colorful, layered, witty, and slightly surreal.";
+    logger.warn(
+      `Primary image unavailable for ${contentType}; trying an illustrated fallback`,
+    );
+    generatedImage = await generateImage(safeFallbackPrompt);
+  }
+
+  if (generatedImage) {
+    imageData = await convertToJpeg(generatedImage.data);
+    imageMimeType = "image/jpeg";
+  }
+
+  return {
+    // Hard-truncate to the DB constraint (varchar 100) as a safety net in case
+    // the AI schema validation ever drifts from the DB schema again.
+    title: marketingCopy.title.substring(0, 100),
+    description: marketingCopy.description,
+    imageData,
+    imageMimeType,
+    thumbnailUrl: thumbnailUrl ?? null,
+    author,
+    engagementMetrics: {
+      likes: Math.floor(Math.random() * 50000) + 1000,
+      comments: Math.floor(Math.random() * 2000) + 50,
+      shares: Math.floor(Math.random() * 1000) + 10,
+    },
+    sourceContentHash: contentHash,
+  };
+}
+
+/**
+ * Write a previously built video record. Takes an executor so it can run inside
+ * the same transaction as the content row it belongs to.
+ */
+export async function persistVideoRecord(
+  executor: DbExecutor,
+  contentType: "bill" | "government_content" | "court_case",
+  contentId: string,
+  record: BuiltVideoRecord,
+  options: { preserveCopy?: boolean } = {},
+): Promise<void> {
+  // Never erase a working image when a replacement provider fails.
+  const replacementImage = record.imageData
+    ? {
+        imageData: record.imageData,
+        imageMimeType: record.imageMimeType,
+        imageWidth: 1024,
+        imageHeight: 1024,
+      }
+    : record.thumbnailUrl
+      ? { thumbnailUrl: record.thumbnailUrl }
+      : {};
+
+  await executor
+    .insert(Video)
+    .values({
+      contentType,
+      contentId,
+      title: record.title,
+      description: record.description,
+      imageData: record.imageData,
+      imageMimeType: record.imageMimeType,
+      imageWidth: record.imageData ? 1024 : null,
+      imageHeight: record.imageData ? 1024 : null,
+      thumbnailUrl: record.thumbnailUrl ?? undefined,
+      author: record.author,
+      engagementMetrics: record.engagementMetrics,
+      sourceContentHash: record.sourceContentHash,
+    })
+    .onConflictDoUpdate({
+      target: [Video.contentType, Video.contentId],
+      set: {
+        ...(!options.preserveCopy && {
+          title: record.title,
+          description: record.description,
+        }),
+        ...replacementImage,
+        sourceContentHash: record.sourceContentHash,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+/**
  * Generate or update video content for a source item
  * @param contentType - Type of content (bill, government_content, court_case)
  * @param contentId - UUID of the source content
@@ -83,6 +226,7 @@ export async function generateVideoForContent(
   author: string,
   thumbnailUrl?: string | null,
   options: GenerateVideoOptions = {},
+  claimBudget?: () => boolean,
 ): Promise<GenerateVideoResult> {
   const existing = await checkExistingVideo(
     contentType,
@@ -97,95 +241,45 @@ export async function generateVideoForContent(
     return { regenerated: false, hasImage: existing.hasImage };
   }
 
+  // Claimed only past the cache check, so an unchanged video never spends a
+  // slot. Regeneration costs a marketing-copy call plus an image, which is why
+  // it belongs under the same per-run budget as the brief and the lens.
+  if (claimBudget && !claimBudget()) {
+    logger.info(
+      `Run budget reached, deferring video for ${contentType}:${contentId} to a later run`,
+    );
+    incrementVideosSkipped();
+    return { regenerated: false, hasImage: existing?.hasImage ?? false };
+  }
+
   logger.start(`Generating video for ${contentType}:${contentId}`);
 
-  // Generate marketing copy
-  const marketingCopy = await generateMarketingCopy(
+  const record = await buildVideoRecord(
+    contentType,
     title,
     fullText,
-    contentType,
+    contentHash,
+    author,
+    thumbnailUrl,
+    existing?.hasImage ?? false,
   );
 
-  // Generate and convert image
-  let imageData: Buffer | null = null;
-  let imageMimeType: string | null = null;
-  let generatedImage = await generateImage(marketingCopy.imagePrompt);
-  if (!generatedImage && !thumbnailUrl && !existing?.hasImage) {
-    const safeFallbackPrompt =
-      contentType === "court_case"
-        ? "A richly illustrated civic tableau: a monumental courthouse transformed into a balancing scale, with expressive citizens, legal folders, and story clues arranged across the steps in a bold, slightly surreal composition."
-        : contentType === "bill"
-          ? "A richly illustrated civic machine built around the United States Capitol, with gears, expressive citizens, symbolic objects, and layered policy clues in a colorful, witty, slightly surreal composition."
-          : "A richly illustrated civic tableau where a government building opens into a miniature world of expressive people and story-specific public-life details, colorful, layered, witty, and slightly surreal.";
-    logger.warn(
-      `Primary image unavailable for ${contentType}:${contentId}; trying an illustrated fallback`,
-    );
-    generatedImage = await generateImage(safeFallbackPrompt);
+  if (!record) {
+    logger.warn(`Marketing copy unavailable for ${contentType}:${contentId}`);
+    incrementVideosSkipped();
+    return { regenerated: false, hasImage: existing?.hasImage ?? false };
   }
-  if (generatedImage) {
-    imageData = await convertToJpeg(generatedImage.data);
-    imageMimeType = "image/jpeg";
-  }
-
-  // Random engagement metrics (same as current video.ts)
-  const engagementMetrics = {
-    likes: Math.floor(Math.random() * 50000) + 1000,
-    comments: Math.floor(Math.random() * 2000) + 50,
-    shares: Math.floor(Math.random() * 1000) + 10,
-  };
-
-  // Upsert video with hybrid image support
-  // Hard-truncate title to DB constraint (varchar 100) as a safety net in case
-  // the AI schema validation ever drifts from the DB schema again
-  const safeTitle = marketingCopy.title.substring(0, 100);
 
   try {
-    const replacementImage = imageData
-      ? {
-          imageData,
-          imageMimeType,
-          imageWidth: 1024,
-          imageHeight: 1024,
-        }
-      : thumbnailUrl
-        ? { thumbnailUrl }
-        : {};
-
-    await db
-      .insert(Video)
-      .values({
-        contentType,
-        contentId,
-        title: safeTitle,
-        description: marketingCopy.description,
-        imageData,
-        imageMimeType,
-        imageWidth: imageData ? 1024 : null,
-        imageHeight: imageData ? 1024 : null,
-        thumbnailUrl: thumbnailUrl ?? undefined, // Add URL-based thumbnail support
-        author,
-        engagementMetrics,
-        sourceContentHash: contentHash,
-      })
-      .onConflictDoUpdate({
-        target: [Video.contentType, Video.contentId],
-        set: {
-          ...(!options.preserveCopy && {
-            title: safeTitle,
-            description: marketingCopy.description,
-          }),
-          // Never erase a working image when a replacement provider fails.
-          ...replacementImage,
-          sourceContentHash: contentHash,
-          updatedAt: new Date(),
-        },
-      });
+    await persistVideoRecord(db, contentType, contentId, record, options);
 
     incrementVideosGenerated();
     logger.success(`Video generated for ${contentType}:${contentId}`);
     return {
       regenerated: true,
-      hasImage: Boolean(imageData || thumbnailUrl || existing?.hasImage),
+      hasImage: Boolean(
+        record.imageData || record.thumbnailUrl || existing?.hasImage,
+      ),
     };
   } catch (error) {
     // Build a sanitized error message — the raw DB error embeds binary image

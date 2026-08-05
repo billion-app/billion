@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Keeps the scraper supervisor running.
+
+  This replaces com.billion.scrapers.weekly. The old job fired once a week and
+  exited; everything else was run by hand over SSH, which is why three backfills
+  died the moment the session that started them closed. KeepAlive plus
+  RunAtLoad means the supervisor survives logout, crashes and reboots, and the
+  schedule lives in the supervisor rather than in launchd.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.billion.supervisor</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/bhu/.local/bin/billion-supervisor</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<!-- Without this, a supervisor that fails at startup restarts in a hot
+	     loop. Ten seconds is long enough to read the log and intervene. -->
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+	<key>LowPriorityIO</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>StandardOutPath</key>
+	<string>/Users/bhu/Library/Logs/billion/supervisor.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/bhu/Library/Logs/billion/supervisor.error.log</string>
+</dict>
+</plist>

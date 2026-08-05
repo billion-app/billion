@@ -616,10 +616,10 @@ async function applyLocalSchema(
   }
 
   if (await prompt.confirm("Apply the Drizzle schema to this database?")) {
-    const pushed = commandResult(PNPM, ["db:push"], options);
-    if (pushed.status !== 0) {
-      fail("Drizzle schema push failed.");
-      unresolved.push("Run pnpm db:push after fixing the reported error.");
+    const migrated = commandResult(PNPM, ["db:migrate"], options);
+    if (migrated.status !== 0) {
+      fail("Drizzle migration failed.");
+      unresolved.push("Run pnpm db:migrate after fixing the reported error.");
       return;
     }
     ok("Database schema is up to date.");

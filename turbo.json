@@ -26,6 +26,9 @@
       "dependsOn": ["^topo", "^build"],
       "outputs": [".cache/tsbuildinfo.json"]
     },
+    "test": {
+      "dependsOn": ["^topo", "^build"]
+    },
     "clean": {
       "cache": false
     },
@@ -35,6 +38,19 @@
     "push": {
       "cache": false,
       "interactive": true
+    },
+    "generate": {
+      "cache": false,
+      "interactive": true
+    },
+    "migrate": {
+      "cache": false
+    },
+    "db-check": {
+      "cache": false
+    },
+    "baseline": {
+      "cache": false
     },
     "studio": {
       "cache": false,
@@ -68,7 +84,8 @@
     "RESEND_TESTFLIGHT_BATCH_SEGMENT_ID",
     "RESEND_LAUNCH_UPDATES_TOPIC_ID",
     "FEEDBACK_TO_EMAIL",
-    "FEEDBACK_FROM_EMAIL"
+    "FEEDBACK_FROM_EMAIL",
+    "EXPO_PUBLIC_API_URL"
   ],
   "globalPassThroughEnv": [
     "NODE_ENV",

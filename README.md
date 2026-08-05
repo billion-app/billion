@@ -42,7 +42,6 @@ pnpm env:doctor --target all --file .env
 editing it by hand. To manage a different dotenv file, pass its path with
 `--file`.
 
-
 ### If already set up...
 
 #### Running the Expo app (`apps/expo`)
@@ -54,6 +53,22 @@ pnpm run dev
 ```
 
 And go to the `@acme/ios` tab in that TUI and follow Expo's instructions (press `i`, typically)
+
+#### Running local code with production data
+
+Use this only when you intentionally want the local Expo and Next.js apps to
+read or write production services:
+
+```bash
+cp .env.prod.example .env.prod
+# Fill in the production database URL and your Mac's LAN IP.
+pnpm run prod -- --check
+pnpm run prod
+```
+
+`pnpm run prod` loads `.env`, applies `.env.prod` overrides, prints the resolved
+hosts without revealing credentials, and refuses to start when the database
+points at localhost. `.env.prod` is gitignored.
 
 #### Running the website (`apps/nextjs`)
 
@@ -74,7 +89,6 @@ Make sure you have the relevant environment variables set up
 ---
 
 If anything goes wrong, continue reading to see the old, manual set up instructions:
-
 
 **Requirements:**
 
@@ -145,7 +159,7 @@ Now, everything below is NOT copy+pasted from the original template README. Good
 
 - **`pnpm dev` fails with "No package found with name ''!@acme/scraper''"** — Use `pnpm dev:next` instead. The single quotes around the filter get mangled on Windows.
 - **`Cannot find module '@tailwindcss/postcss'`** — Make sure `@tailwindcss/postcss` is in `apps/nextjs/package.json` devDependencies (pnpm strict isolation requires it as a direct dependency).
-- **DB connection errors** — Verify `POSTGRES_URL` in root `.env` is set correctly and the database is running. Run `pnpm db:push` to apply the schema.
+- **DB connection errors** — Verify `POSTGRES_URL` in root `.env` is set correctly and the database is running. Run `pnpm db:migrate` to apply the schema (see [docs/data-layer.md](docs/data-layer.md#migrations)).
 - **Dependency issues** — add this to root `.npmrc`:
   ```
   node-linker=hoisted

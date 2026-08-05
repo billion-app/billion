@@ -1,7 +1,7 @@
 # Expo release workflow
 # Requires: just, bun, node
 
-# Bump version in app.config.json, commit, and tag
+# Bump version in app.config.base.json, commit, and tag
 bump type="patch":
     node scripts/bump.mjs {{type}}
 

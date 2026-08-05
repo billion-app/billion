@@ -56,6 +56,23 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      # The scraper and env packages read configuration at import time, so the
+      # suite needs a populated .env even though no test touches the network.
+      - name: Copy env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Test
+        run: pnpm test
+
   bundle-expo:
     runs-on: ubuntu-latest
     steps:
@@ -73,3 +90,91 @@ jobs:
 
       - name: Bundle Android
         run: cd apps/expo && npx expo export --platform android --output-dir dist
+
+  # Publish only after the same checks that gate production, plus successful
+  # native bundles. The fingerprint runtime policy prevents an update that
+  # changes native code or config from reaching an incompatible installed app.
+  eas-update:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, format, typecheck, test, bundle-expo]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup
+        uses: ./tooling/github/setup
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish production update
+        working-directory: apps/expo
+        run: |
+          eas update \
+            --channel production \
+            --environment production \
+            --message "main@${GITHUB_SHA}" \
+            --non-interactive
+
+  # Publishes the image the scrapers actually run in production.
+  #
+  # This lives in `ci.yml` rather than its own workflow so it can `needs:` the
+  # checks above. That dependency is the whole point: it makes "only tested code
+  # on main reaches production" a property of the graph instead of a convention
+  # someone has to remember. big-mac pulls from here and never builds, so a
+  # branch that was never merged has no path to prod.
+  #
+  # Runs on arm64 because big-mac is Apple Silicon under OrbStack; a native
+  # runner avoids shipping an emulated amd64 image.
+  scraper-image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, format, typecheck, test]
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.scraper
+          platforms: linux/arm64
+          push: true
+          # `:main` is a convenience pointer for humans. Deploys pin the
+          # immutable `:<sha>` tag, resolved to a digest, so a running host is
+          # never silently moved by a later push.
+          tags: |
+            ghcr.io/billion-app/billion-scraper:${{ github.sha }}
+            ghcr.io/billion-app/billion-scraper:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summarise
+        run: |
+          {
+            echo "### Scraper image published"
+            echo
+            echo '```'
+            echo "ghcr.io/billion-app/billion-scraper:${{ github.sha }}"
+            echo "digest: ${{ steps.push.outputs.digest }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -35,6 +35,22 @@ const argv = await yargs(hideBin(process.argv))
     describe:
       "Maximum source records per scraper for this run; overrides the scraper-specific env value",
   })
+  .option("bill", {
+    alias: "b",
+    type: "string",
+    array: true,
+    describe:
+      'Fetch specific congress.gov bills by number (e.g. --bill "H.R. 7008"), ignoring the incremental update cursor. Repeatable. Requires the "congress" scraper',
+  })
+  .option("congress", {
+    type: "number",
+    describe: "Congress number for --bill (default: 119)",
+  })
+  .option("recent", {
+    type: "number",
+    describe:
+      "Refresh the N most recently updated bills instead of walking the incremental cursor. Keeps active legislation current rather than pursuing complete historical coverage",
+  })
   .check((args) => {
     const maxItems = args.maxItems;
     if (
@@ -45,6 +61,28 @@ const argv = await yargs(hideBin(process.argv))
     ) {
       throw new Error("--max-items must be a positive integer");
     }
+    const bills = args.bill;
+    if (bills?.length && args.scraper !== "congress") {
+      throw new Error('--bill requires the "congress" scraper');
+    }
+    const recent = args.recent;
+    if (recent !== undefined) {
+      if (!Number.isInteger(recent) || recent <= 0) {
+        throw new Error("--recent must be a positive integer");
+      }
+      if (bills?.length) {
+        throw new Error("--recent and --bill select bills different ways");
+      }
+    }
+    if (args.congress !== undefined && !bills?.length) {
+      throw new Error("--congress only applies alongside --bill");
+    }
+    if (
+      args.congress !== undefined &&
+      (!Number.isInteger(args.congress) || args.congress <= 0)
+    ) {
+      throw new Error("--congress must be a positive integer");
+    }
     return true;
   })
   .help()
@@ -53,6 +91,9 @@ const argv = await yargs(hideBin(process.argv))
 const arg = argv.scraper as string;
 const concurrency = (argv as { concurrency: number }).concurrency;
 const maxItems = (argv as { maxItems?: number }).maxItems;
+const targets = (argv as { bill?: string[] }).bill;
+const congressNumber = (argv as { congress?: number }).congress;
+const recent = (argv as { recent?: number }).recent;
 
 function logDatabaseTarget(): void {
   const target = databaseTarget(process.env.POSTGRES_URL!);
@@ -97,7 +138,12 @@ async function main() {
     }
     validateScraperEnv([scraper]);
     logDatabaseTarget();
-    await scraper.scrape({ maxItems });
+    await scraper.scrape({
+      maxItems,
+      targets,
+      congress: congressNumber,
+      recent,
+    });
     printMetricsSummary(scraper.name);
   }
 }

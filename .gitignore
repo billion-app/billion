@@ -67,3 +67,6 @@ dist/
 packages/db/seed-waitlist.sql
 .env*
 .env.local
+!.env.example
+!.env.prod.example
+.pnpm-store/

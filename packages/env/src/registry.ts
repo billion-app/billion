@@ -232,6 +232,27 @@ export const envRegistry = [
     schema: positiveInteger,
   }),
   define({
+    key: "POSTHOG_PROJECT_TOKEN",
+    description: "PostHog project token compiled into Expo builds.",
+    group: "Analytics",
+    secret: false,
+    setupUrl: "https://us.posthog.com/project/settings",
+    requirements: { expo: "required" },
+    schema: string.refine(
+      (value) => value.startsWith("phc_"),
+      "must be a PostHog project token beginning with phc_",
+    ),
+  }),
+  define({
+    key: "POSTHOG_HOST",
+    description: "PostHog ingestion host compiled into Expo builds.",
+    group: "Analytics",
+    secret: false,
+    example: "https://us.i.posthog.com",
+    requirements: { expo: "required" },
+    schema: url,
+  }),
+  define({
     key: "EXPO_PUBLIC_API_URL",
     description:
       "Public HTTPS origin of the Next.js API; compiled into Expo builds.",

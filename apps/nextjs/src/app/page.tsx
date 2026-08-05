@@ -292,6 +292,12 @@ export default function LandingPage() {
             ))}
           </div>
           <Link
+            href="/support"
+            className="text-muted-foreground hover:text-accent no-underline transition-colors duration-200"
+          >
+            Support
+          </Link>
+          <Link
             href="/terms"
             className="text-muted-foreground hover:text-accent no-underline transition-colors duration-200"
           >

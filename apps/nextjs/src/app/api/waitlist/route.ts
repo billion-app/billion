@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
 import { env } from "~/env";
+import {
+  WAITLIST_CONFIRMATION_HTML,
+  WAITLIST_CONFIRMATION_SUBJECT,
+  WAITLIST_CONFIRMATION_TEXT,
+} from "./waitlist-confirmation-email";
 
 export const runtime = "nodejs";
 
@@ -62,12 +67,9 @@ async function sendWaitlistConfirmation(email: string) {
     body: JSON.stringify({
       from,
       to: [email],
-      subject: "You're on the Billion waitlist",
-      text: "You're on the Billion waitlist. We'll email you when there's an update. Thanks for being early.",
-      html: [
-        "<p>You're on the Billion waitlist.</p>",
-        "<p>We'll email you when there's an update. Thanks for being early.</p>",
-      ].join(""),
+      subject: WAITLIST_CONFIRMATION_SUBJECT,
+      text: WAITLIST_CONFIRMATION_TEXT,
+      html: WAITLIST_CONFIRMATION_HTML,
     }),
   });
 

@@ -1,0 +1,75 @@
+#!/bin/zsh
+#
+# launchd entrypoint for the Billion scraper supervisor.
+#
+# This is the only shell that remains in the deployment path, and it is
+# deliberately dumb: it resolves an image, mounts state, and execs. Everything
+# that used to require editing a script by hand — which job runs, when, with
+# what budget, how failures back off — now lives in `apps/supervisor` where it
+# is typechecked and unit-tested.
+#
+# Deployed from the repo by `scripts/deploy-scraper.mjs`. Do not edit in place:
+# the next deploy overwrites it, and an edit here is invisible to code review.
+
+set -euo pipefail
+
+export PATH="/usr/local/bin:$HOME/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+readonly env_file="$HOME/.config/billion/scraper.env"
+readonly deploy_file="$HOME/.config/billion/deploy.env"
+readonly state_dir="$HOME/.local/state/billion"
+readonly container="billion-supervisor"
+
+if [[ ! -r "$env_file" ]]; then
+  print -u2 "Missing scraper environment: $env_file"
+  exit 1
+fi
+if [[ ! -r "$deploy_file" ]]; then
+  print -u2 "Missing deploy pin: $deploy_file (run scripts/deploy-scraper.mjs)"
+  exit 1
+fi
+
+# The single source of truth for which image runs. One line, one place, written
+# only by the deploy script — which refuses any commit not already on main.
+set -a
+source "$deploy_file"
+set +a
+
+if [[ -z "${SCRAPER_IMAGE:-}" ]]; then
+  print -u2 "$deploy_file does not define SCRAPER_IMAGE"
+  exit 1
+fi
+
+# Values in scraper.env are shell-quoted, so they are sourced (which strips the
+# quotes) and then forwarded by name. `docker --env-file` would pass the quote
+# characters through literally and corrupt POSTGRES_URL.
+set -a
+source "$env_file"
+set +a
+
+env_args=()
+while IFS='=' read -r key _; do
+  if [[ -z "$key" || "$key" == *[^A-Za-z0-9_]* || "$key" == [0-9]* ]]; then
+    continue
+  fi
+  env_args+=(--env "$key")
+done < "$env_file"
+
+if ! docker info >/dev/null 2>&1; then
+  print -u2 "Docker is unavailable; ensure OrbStack is running"
+  exit 1
+fi
+
+mkdir -p "$state_dir"
+
+# A leftover container from a hard kill would block the name. Removing it is
+# safe: job state lives in the mounted volume, not in the container.
+docker rm -f "$container" >/dev/null 2>&1 || true
+
+exec docker run --rm \
+  --name "$container" \
+  --pull always \
+  "${env_args[@]}" \
+  --volume "$state_dir:/var/lib/billion" \
+  --label com.billion.service=supervisor \
+  "$SCRAPER_IMAGE" node dist/supervisor.js

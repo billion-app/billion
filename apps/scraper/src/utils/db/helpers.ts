@@ -89,11 +89,13 @@ export async function checkExistingGovernmentContent(
 
 /**
  * Check if a court case already exists and retrieve its metadata
- * @param caseNumber - Case number (unique identifier)
+ * @param caseNumber - Docket number, unique only within its court
+ * @param court - Court display name
  * @returns Existing record metadata or null if not found
  */
 export async function checkExistingCourtCase(
   caseNumber: string,
+  court: string,
 ): Promise<ExistingRecordCheck | null> {
   try {
     const [existing] = await db
@@ -104,7 +106,9 @@ export async function checkExistingCourtCase(
         thumbnailUrl: CourtCase.thumbnailUrl,
       })
       .from(CourtCase)
-      .where(eq(CourtCase.caseNumber, caseNumber))
+      .where(
+        and(eq(CourtCase.caseNumber, caseNumber), eq(CourtCase.court, court)),
+      )
       .limit(1);
 
     if (!existing) {

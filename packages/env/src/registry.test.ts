@@ -31,9 +31,36 @@ void test("registry keys are unique", () => {
 void test("Expo surface never includes secrets", () => {
   assert.deepEqual(
     definitionsFor("expo").map(({ definition }) => definition.key),
-    ["EXPO_PUBLIC_API_URL"],
+    ["POSTHOG_PROJECT_TOKEN", "POSTHOG_HOST", "EXPO_PUBLIC_API_URL"],
   );
-  assert.equal(definitionsFor("expo")[0]?.definition.secret, false);
+  assert.equal(
+    definitionsFor("expo").every(({ definition }) => !definition.secret),
+    true,
+  );
+});
+
+void test("Expo requires valid PostHog configuration", () => {
+  const missing = validateEnvironment({
+    environment: { EXPO_PUBLIC_API_URL: "https://example.com" },
+    surface: "expo",
+  });
+  assert.deepEqual(
+    missing.issues.map((issue) => issue.key),
+    ["POSTHOG_PROJECT_TOKEN", "POSTHOG_HOST"],
+  );
+
+  const invalid = validateEnvironment({
+    environment: {
+      EXPO_PUBLIC_API_URL: "https://example.com",
+      POSTHOG_PROJECT_TOKEN: "not-a-project-token",
+      POSTHOG_HOST: "not-a-url",
+    },
+    surface: "expo",
+  });
+  assert.deepEqual(
+    invalid.issues.map((issue) => issue.key),
+    ["POSTHOG_PROJECT_TOKEN", "POSTHOG_HOST"],
+  );
 });
 
 void test("Next.js requires the Google Civic key", () => {

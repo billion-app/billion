@@ -1,8 +1,17 @@
 import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { customType, index, pgTable, unique } from "drizzle-orm/pg-core";
+import {
+  check,
+  customType,
+  index,
+  pgTable,
+  primaryKey,
+  unique,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+
+import type { BillBriefRecord } from "@acme/validators";
 
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
@@ -43,6 +52,67 @@ export const CreatePostSchema = createInsertSchema(Post, {
   updatedAt: true,
 });
 
+/**
+ * Per-scraper incremental cursor.
+ *
+ * Deliberately its own table rather than a max() over scraped rows. The cursor
+ * must mean "how far the sequential feed walk has got", and row data cannot
+ * express that: a targeted `--bill` backfill of a recent bill would push a
+ * derived max() forward and strand every older bill behind it — the same class
+ * of silent skip this table exists to prevent. Only the feed walk writes here.
+ */
+export const ScraperCursor = pgTable("scraper_cursor", (t) => ({
+  // e.g. "congress:119:house" — chamber and congress each walk independently.
+  scraperKey: t.varchar({ length: 100 }).notNull().primaryKey(),
+  // The source's own timestamp (congress.gov `updateDate`) of the newest item
+  // we have durably persisted, never our own write clock.
+  sourceUpdatedAt: t.timestamp({ withTimezone: true }).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+}));
+
+/**
+ * Items the feed walk could not finish, to be retried later.
+ *
+ * A single monotonic cursor forces a false choice: advance past an item we
+ * failed to finish (and never see it again) or hold the cursor on it (and stall
+ * the whole walk behind one bad item). This table is the third option — the
+ * cursor advances, and the item goes to the back of a queue with a growing
+ * backoff. Each run drains what is due before walking the feed.
+ *
+ * A row here means "we know about this item and have not finished it". Rows are
+ * deleted the moment the item lands, so a non-empty table is a live to-do list
+ * and its depth is the health signal to watch.
+ */
+export const ScraperRetry = pgTable(
+  "scraper_retry",
+  (t) => ({
+    // Matches ScraperCursor.scraperKey, e.g. "congress:119".
+    scraperKey: t.varchar("scraper_key", { length: 100 }).notNull(),
+    // Scraper-specific identity, opaque to this table. congress.ts uses
+    // "{billType}/{billNumber}" (e.g. "hr/7008") — enough to re-fetch it.
+    itemKey: t.varchar("item_key", { length: 100 }).notNull(),
+    attempts: t.integer().notNull().default(1),
+    lastReason: t.text("last_reason"),
+    // When the item becomes eligible again. Backoff grows with `attempts` so a
+    // permanently broken item costs a run one attempt a day, not one per run.
+    nextAttemptAt: t
+      .timestamp("next_attempt_at", { withTimezone: true })
+      .notNull(),
+    firstFailedAt: t
+      .timestamp("first_failed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+  (table) => ({
+    pk: primaryKey({ columns: [table.scraperKey, table.itemKey] }),
+    dueIndex: index("scraper_retry_due_idx").on(
+      table.scraperKey,
+      table.nextAttemptAt,
+    ),
+  }),
+);
+
 // Bills table for congressional legislation
 export const Bill = pgTable(
   "bill",
@@ -52,7 +122,14 @@ export const Bill = pgTable(
     title: t.text().notNull(),
     description: t.text(),
     sponsor: t.varchar({ length: 256 }),
-    status: t.varchar({ length: 100 }), // e.g., "Introduced", "Passed House", etc.
+    // Full latest-action text from the source, not a short label. Sized as
+    // varchar(100) for the original "Introduced"/"Passed House" labels, it
+    // silently rejected every congress.gov bill whose action text ran longer —
+    // the INSERT failed outright, so the bill was simply absent. Left as text:
+    // it is not in the search vector, so there is no ceiling to respect, and a
+    // length here only has to disagree with a caller's slice() once to start
+    // dropping records again.
+    status: t.text(),
     introducedDate: t.timestamp(),
     congress: t.integer(), // e.g., 118 for 118th Congress
     chamber: t.varchar({ length: 50 }), // "House" or "Senate"
@@ -60,18 +137,20 @@ export const Bill = pgTable(
     fullText: t.text(),
     aiGeneratedArticle: t.text(), // AI-generated accessible article version
     thumbnailUrl: t.text(), // URL of the thumbnail image
-    images: t
-      .jsonb()
-      .$type<
-        { url: string; alt: string; source: string; sourceUrl: string }[]
-      >()
-      .default([]), // Array of relevant images for the article
     actions: t
       .jsonb()
-      .$type<{ date: string; text: string; type?: string }[]>()
+      .$type<
+        { date: string; text: string; type?: string; actionCode?: string }[]
+      >()
       .default([]),
     url: t.text().notNull(),
     sourceWebsite: t.varchar({ length: 50 }).notNull(), // "congress.gov"
+    // The source's own last-modified time (congress.gov `updateDate`), as
+    // distinct from `updatedAt`, which is when *we* last wrote the row. The
+    // scraper's incremental cursor is max() of this column: comparing our
+    // write clock against the source's clock silently skipped every bill a
+    // run fetched but did not persist.
+    sourceUpdatedAt: t.timestamp({ withTimezone: true }),
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
     versions: t
       .jsonb()
@@ -95,6 +174,10 @@ export const Bill = pgTable(
     ),
   }),
   (table) => ({
+    descriptionMaxLength: check(
+      "bill_description_max_100_chars",
+      sql`${table.description} is null or char_length(${table.description}) <= 100`,
+    ),
     uniqueBillNumberSource: unique().on(table.billNumber, table.sourceWebsite),
     searchVectorIdx: index("bill_search_vector_idx").using(
       "gin",
@@ -125,12 +208,6 @@ export const GovernmentContent = pgTable(
     fullText: t.text(),
     aiGeneratedArticle: t.text(), // AI-generated accessible article version
     thumbnailUrl: t.text(), // URL of the thumbnail image
-    images: t
-      .jsonb()
-      .$type<
-        { url: string; alt: string; source: string; sourceUrl: string }[]
-      >()
-      .default([]), // Array of relevant images for the article
     url: t.text().notNull().unique(), // Unique constraint for upsert by URL
     source: t.varchar({ length: 100 }).notNull().default("whitehouse.gov"), // Source website
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
@@ -185,12 +262,6 @@ export const CourtCase = pgTable(
     fullText: t.text(),
     aiGeneratedArticle: t.text(), // AI-generated accessible article version
     thumbnailUrl: t.text(), // URL of the thumbnail image
-    images: t
-      .jsonb()
-      .$type<
-        { url: string; alt: string; source: string; sourceUrl: string }[]
-      >()
-      .default([]), // Array of relevant images for the article
     url: t.text().notNull(),
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
     versions: t
@@ -212,7 +283,9 @@ export const CourtCase = pgTable(
     ),
   }),
   (table) => ({
-    uniqueCaseNumber: unique().on(table.caseNumber),
+    // Docket numbers only identify a case within a court: "1:25-cr-00499"
+    // recurs across all 94 federal districts.
+    uniqueCaseNumber: unique().on(table.caseNumber, table.court),
     searchVectorIdx: index("court_case_search_vector_idx").using(
       "gin",
       table.searchVector,
@@ -682,11 +755,19 @@ export const ContentLens = pgTable(
         framing?: "proponent_opponent" | "left_right";
         left: {
           stance: string;
-          points: { text: string; sourceIds: number[] }[];
+          points: {
+            text: string;
+            example?: string | { fact: string; relevance: string };
+            sourceIds: number[];
+          }[];
         };
         right: {
           stance: string;
-          points: { text: string; sourceIds: number[] }[];
+          points: {
+            text: string;
+            example?: string | { fact: string; relevance: string };
+            sourceIds: number[];
+          }[];
         };
         sources: { id: number; title: string; url: string }[];
         generatedAt: string;
@@ -702,6 +783,80 @@ export const ContentLens = pgTable(
   (table) => ({
     uniqueContentLens: unique().on(table.contentType, table.contentId),
     contentIdIndex: index("content_lens_content_id_idx").on(table.contentId),
+  }),
+);
+
+/**
+ * Structured article briefs — one row per content item, cached the same way as
+ * ContentLens (regenerated when `contentHash` moves). Kept out of the content
+ * tables so a brief can be regenerated, versioned, or dropped without touching
+ * scraped source rows, and so the three content types can adopt it one at a
+ * time. Only bills are generated today.
+ */
+export const ContentBrief = pgTable(
+  "content_brief",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
+    contentId: t.uuid().notNull(),
+    contentHash: t.varchar({ length: 64 }).notNull(),
+    brief: t.jsonb().$type<BillBriefRecord>().notNull(),
+    modelVersion: t.varchar({ length: 50 }).notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueContentBrief: unique().on(table.contentType, table.contentId),
+    contentIdIndex: index("content_brief_content_id_idx").on(table.contentId),
+  }),
+);
+
+/**
+ * Generated artwork for one change inside a brief's "What would change" list.
+ *
+ * A row is written for every change that has been *considered*, not only those
+ * that got a picture: `imageData` is null when the planner judged that no
+ * photograph would help the reader. Recording that decision is the point —
+ * otherwise every run would re-ask the model about the same abstract
+ * procedural change forever.
+ *
+ * `changeHash` covers the change's own text rather than the brief's
+ * `contentHash`. A regenerated brief usually rewrites some changes and leaves
+ * others alone, so hashing per change keeps the untouched artwork instead of
+ * discarding a whole bill's images because one sentence moved. It also detects
+ * the case a positional key cannot: a regenerated brief may emit a *different
+ * number* of changes, so index 3 can quietly become a different subject.
+ */
+export const BriefChangeImage = pgTable(
+  "brief_change_image",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentBriefId: t
+      .uuid()
+      .notNull()
+      .references(() => ContentBrief.id, { onDelete: "cascade" }),
+    changeIndex: t.integer().notNull(),
+    /** sha256 of the change's kind/title/before/after. */
+    changeHash: t.varchar({ length: 64 }).notNull(),
+    /** Null means "deliberately no image", not "not yet generated". */
+    imageData: bytea("image_data"),
+    imageMimeType: t.varchar("image_mime_type", { length: 50 }),
+    imageWidth: t.integer("image_width"),
+    imageHeight: t.integer("image_height"),
+    /** The prompt used, kept so a bad batch can be explained and regenerated. */
+    prompt: t.text(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueBriefChange: unique().on(table.contentBriefId, table.changeIndex),
+    briefIdIndex: index("brief_change_image_brief_id_idx").on(
+      table.contentBriefId,
+    ),
   }),
 );
 
