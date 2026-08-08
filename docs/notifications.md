@@ -20,7 +20,10 @@ user.
    least 32 random characters and share it only with trusted operators or the
    receipt scheduler.
 
-3. Create a new native build. Adding `expo-notifications` changes native app
+3. Configure `BILLION_ADMIN_EMAILS` with the comma-separated account email
+   addresses allowed to use the internal notification console.
+
+4. Create a new native build. Adding `expo-notifications` changes native app
    capabilities, so an OTA update is not sufficient:
 
    ```sh
@@ -32,7 +35,7 @@ user.
    Notification key. Production builds use the same EAS project ID already
    configured in `app.config.base.json`.
 
-4. Test on a physical device. Open **Settings → Notifications**, enable
+5. Test on a physical device. Open **Settings → Notifications**, enable
    **Breaking legislation**, and accept the operating-system prompt.
 
 ## Send an editorially approved alert
@@ -76,6 +79,20 @@ future broadcasts do not target an uninstalled or deregistered app.
 
 For production, invoke this endpoint from the existing scheduler or another
 trusted cron service. Do not put the notification secret in the mobile app.
+
+## Internal notification console
+
+Authorized operators can open `/admin/notifications`, sign in with Discord,
+search the latest bills, edit and preview the push copy, confirm the current
+opted-in recipient count, and send. The browser never receives
+`BILLION_NOTIFICATIONS_SECRET`; dashboard actions verify the Better Auth session
+and `BILLION_ADMIN_EMAILS` on the server.
+
+The console records the operator's user ID and email on every alert. Its recent
+history shows delivered, pending, and failed counts, and the **Check receipts**
+action asks Expo for the latest APNs delivery results. Keep the scheduled
+receipt endpoint enabled as the reliable background path; the dashboard button
+is an operator convenience.
 
 ## Data model
 

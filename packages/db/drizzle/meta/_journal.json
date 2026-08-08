@@ -85,6 +85,13 @@
       "when": 1785467219379,
       "tag": "0011_rainy_blue_shield",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785468925963,
+      "tag": "0012_lean_amazoness",
+      "breakpoints": true
     }
   ]
 }

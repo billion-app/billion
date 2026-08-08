@@ -273,6 +273,15 @@ export const envRegistry = [
     schema: string.min(32, "must be at least 32 characters"),
   }),
   define({
+    key: "BILLION_ADMIN_EMAILS",
+    description:
+      "Comma-separated Better Auth email allowlist for the internal notification dashboard.",
+    group: "Notifications",
+    secret: false,
+    requirements: { nextjs: "recommended" },
+    schema: emailList,
+  }),
+  define({
     key: "GOOGLE_CIVIC_API_KEY",
     description:
       "Google Civic Information API key for real ballot and representative data.",
