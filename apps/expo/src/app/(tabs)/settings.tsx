@@ -60,6 +60,12 @@ function buildGroups(
           sub: topicCount > 0 ? `${topicCount} topics followed` : undefined,
           route: "/settings/content-interests",
         },
+        {
+          icon: "bell",
+          label: "Notifications",
+          sub: "Breaking legislation alerts",
+          route: "/settings/notifications",
+        },
       ],
     },
     {

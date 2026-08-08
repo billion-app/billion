@@ -30,6 +30,11 @@ const COLLECT: Row[] = [
     sub: "Address text is sent through our servers for autocomplete and civic lookups; the selected address is also stored on this device.",
   },
   {
+    icon: "bell",
+    label: "Notification installation",
+    sub: "If you enable breaking alerts, we store this installation’s push token, platform, preference, and delivery status.",
+  },
+  {
     icon: "shield",
     label: "No ads or cross-app tracking",
     sub: "No advertising identifiers, and we never track you across other companies' apps or sites.",

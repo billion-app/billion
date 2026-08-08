@@ -264,6 +264,15 @@ export const envRegistry = [
     schema: url,
   }),
   define({
+    key: "BILLION_NOTIFICATIONS_SECRET",
+    description:
+      "Bearer secret protecting the editorial breaking-news send and receipt endpoints.",
+    group: "Notifications",
+    secret: true,
+    requirements: { nextjs: "recommended" },
+    schema: string.min(32, "must be at least 32 characters"),
+  }),
+  define({
     key: "GOOGLE_CIVIC_API_KEY",
     description:
       "Google Civic Information API key for real ballot and representative data.",

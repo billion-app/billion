@@ -27,6 +27,10 @@
       "types": "./dist/lib/civic-ai.d.ts",
       "default": "./src/lib/civic-ai.ts"
     },
+    "./lib/expo-push": {
+      "types": "./dist/lib/expo-push.d.ts",
+      "default": "./src/lib/expo-push.ts"
+    },
     "./lib/candidate-sources/scc-cvig-cache": {
       "types": "./dist/lib/candidate-sources/scc-cvig-cache.d.ts",
       "default": "./src/lib/candidate-sources/scc-cvig-cache.ts"

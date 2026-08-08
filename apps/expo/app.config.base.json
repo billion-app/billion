@@ -75,7 +75,8 @@
           "NSPrivacyCollectedDataTypeLinked": true,
           "NSPrivacyCollectedDataTypeTracking": false,
           "NSPrivacyCollectedDataTypePurposes": [
-            "NSPrivacyCollectedDataTypePurposeAnalytics"
+            "NSPrivacyCollectedDataTypePurposeAnalytics",
+            "NSPrivacyCollectedDataTypePurposeAppFunctionality"
           ]
         },
         {
@@ -129,6 +130,7 @@
       }
     ],
     "expo-build-properties",
-    "expo-font"
+    "expo-font",
+    "expo-notifications"
   ]
 }
