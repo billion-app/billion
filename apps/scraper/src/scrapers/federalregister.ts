@@ -2,11 +2,13 @@ import TurndownService from "turndown";
 
 import type { Scraper } from "../utils/types.js";
 import { getItemLimit } from "../utils/concurrency.js";
+import { countGovernmentContentTitles } from "../utils/db/helpers.js";
 import { setExpectedTotal } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
 import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
+import { normalizeTitle } from "../utils/normalize-title.js";
 import { federalregisterConfig } from "./federalregister.config.js";
 
 const NAME = "Federal Register";
@@ -62,6 +64,64 @@ async function fetchDocumentText(
   }
 }
 
+/**
+ * Drops documents whitehouse.gov has already published.
+ *
+ * whitehouse.gov carries the same executive orders, proclamations and
+ * memoranda three to five days before the Federal Register does, so by the
+ * time a document reaches this feed it is usually already stored. Without this
+ * every order would appear in the app twice and pay twice for enrichment.
+ *
+ * The skip is a *budget per title*, not a boolean, because a title does not
+ * identify a document: FR 2026-14991, -14992 and -14997 share a title, a
+ * signing date and a publication date. Treating a single prior row as "this
+ * title is covered" would have silently dropped two real proclamations. One
+ * stored row therefore excuses exactly one document; the rest are ingested.
+ *
+ * Ordering is newest-first from the API, so the documents skipped are the ones
+ * whitehouse.gov most plausibly published.
+ */
+export function applyDuplicateBudget<T extends { title: string }>(
+  documents: readonly T[],
+  whiteHouseCounts: ReadonlyMap<string, number>,
+): { kept: T[]; skipped: T[] } {
+  const budget = new Map(whiteHouseCounts);
+  const kept: T[] = [];
+  const skipped: T[] = [];
+
+  for (const document of documents) {
+    const key = normalizeTitle(document.title);
+    const remaining = budget.get(key) ?? 0;
+    if (remaining > 0) {
+      budget.set(key, remaining - 1);
+      skipped.push(document);
+    } else {
+      kept.push(document);
+    }
+  }
+
+  return { kept, skipped };
+}
+
+async function withoutWhiteHouseDuplicates(
+  documents: readonly FrDocument[],
+): Promise<FrDocument[]> {
+  const titles = [
+    ...new Set(documents.map((document) => normalizeTitle(document.title))),
+  ];
+  const counts = await countGovernmentContentTitles(titles, "whitehouse.gov");
+  const { kept, skipped } = applyDuplicateBudget(documents, counts);
+
+  if (skipped.length > 0) {
+    logger.info(
+      `Skipping ${skipped.length} already published by whitehouse.gov: ` +
+        skipped.map((document) => document.title).join("; "),
+    );
+  }
+
+  return kept;
+}
+
 async function scrape(maxDocuments = 20) {
   logger.info("Starting...");
 
@@ -89,9 +149,11 @@ async function scrape(maxDocuments = 20) {
   // The Federal Register API may return its minimum page size even when a
   // smaller `per_page` value is requested. Enforce the CLI limit locally so
   // `--max-items 1` cannot accidentally process a full page of documents.
-  const documents = (data.results ?? []).slice(0, maxDocuments);
+  const fetched = (data.results ?? []).slice(0, maxDocuments);
 
-  logger.info(`Fetched ${documents.length} presidential documents`);
+  logger.info(`Fetched ${fetched.length} presidential documents`);
+
+  const documents = await withoutWhiteHouseDuplicates(fetched);
   setExpectedTotal(documents.length);
 
   const limit = getItemLimit();

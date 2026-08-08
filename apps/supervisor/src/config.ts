@@ -31,6 +31,25 @@ export const jobs: readonly JobDefinition[] = [
   //
   // They stay weekly because their sources move slowly compared with the
   // congressional feed.
+  // Daily, unlike the sources below it, because this is the one that decides
+  // how fast a signed executive order reaches the app. whitehouse.gov posts
+  // within a day of signing; the Federal Register takes three to five more, so
+  // leaving this on the Sunday batch would throw away the entire reason for
+  // having it. One request for the whole feed, and an unchanged action costs
+  // nothing beyond that.
+  {
+    id: "whitehouse-daily",
+    description: "Executive orders and proclamations, same-day from the source",
+    script: "main.js",
+    args: ["whitehouse", "--concurrency", "2"],
+    schedule: { kind: "daily", hour: 4, minute: 30 },
+    // Comfortably after congress-daily's 03:15 start so the two are not
+    // queued against each other every morning; the supervisor runs one job at
+    // a time regardless, this just keeps the ordering intentional.
+    priority: 5,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 12,
+  },
   {
     id: "federalregister-weekly",
     description: "Executive orders and presidential documents",

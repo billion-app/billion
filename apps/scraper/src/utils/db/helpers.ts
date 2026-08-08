@@ -3,7 +3,7 @@
  * Check for existing records before performing expensive operations
  */
 
-import { eq, and, isNull, or } from '@acme/db';
+import { eq, and, isNull, or, inArray, sql } from '@acme/db';
 import { db } from '@acme/db/client';
 import { Bill, GovernmentContent, CourtCase, Video } from '@acme/db/schema';
 import type { ExistingRecordCheck } from '../types.js';
@@ -85,6 +85,57 @@ export async function checkExistingGovernmentContent(
     logger.error('Error checking existing government content', error);
     return null;
   }
+}
+
+/**
+ * Count how many rows from `source` carry each of the given normalized titles.
+ *
+ * Used to stop the Federal Register re-ingesting documents whitehouse.gov has
+ * already published days earlier. Returns counts rather than booleans because a
+ * title does not identify a document — see `normalizeTitle` — and the caller
+ * has to know whether it is looking at one prior row or three.
+ *
+ * Normalisation is applied in SQL so it matches `normalizeTitle` exactly and
+ * the comparison stays on the database side; pulling every presidential
+ * document back to normalise in JS would grow with the archive.
+ *
+ * @param normalizedTitles - Titles already passed through `normalizeTitle`
+ * @param source - Value of `government_content.source` to count within
+ * @returns Map of normalized title to row count; absent means zero
+ */
+export async function countGovernmentContentTitles(
+  normalizedTitles: readonly string[],
+  source: string,
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (normalizedTitles.length === 0) return counts;
+
+  const normalized = sql<string>`lower(regexp_replace(${GovernmentContent.title}, '[^a-zA-Z0-9]', '', 'g'))`;
+
+  try {
+    const rows = await db
+      .select({ key: normalized, total: sql<number>`count(*)::int` })
+      .from(GovernmentContent)
+      .where(
+        and(
+          eq(GovernmentContent.source, source),
+          inArray(normalized, [...normalizedTitles]),
+        ),
+      )
+      .groupBy(normalized);
+
+    for (const row of rows) {
+      counts.set(row.key, Number(row.total));
+    }
+  } catch (error) {
+    // An empty map means "nothing already covers these", so a failure here
+    // costs a duplicate row rather than a silently dropped document. That is
+    // the right way round: a duplicate is visible and fixable, while a document
+    // that was never stored looks identical to one that was never published.
+    logger.error('Error counting government content titles', error);
+  }
+
+  return counts;
 }
 
 /**
