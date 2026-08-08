@@ -13,7 +13,7 @@ import {
   MAX_INTERRUPTED_RESUMES,
   wasInterrupted,
 } from "./schedule.js";
-import { loadState, saveState } from "./state.js";
+import { loadState, saveState, seedFirstSeen } from "./state.js";
 
 const logger = createConsola({ formatOptions: { date: true } });
 
@@ -165,6 +165,21 @@ async function main(): Promise<void> {
   );
   for (const job of jobs) {
     logger.info(`  ${job.id} — ${describeSchedule(job.schedule)}`);
+  }
+
+  // Give jobs the supervisor has never run a reference point, so their first
+  // scheduled occurrence from now on is due. Persisted immediately: if this
+  // only lived in memory a restart before the first occurrence would keep
+  // pushing the reference forward, and a job on a weekly schedule with a
+  // supervisor that restarts more often than weekly would never run.
+  if (
+    seedFirstSeen(
+      state,
+      jobs.map((job) => job.id),
+      new Date(),
+    )
+  ) {
+    await saveState(statePath, state);
   }
 
   // A manual job interrupted mid-run has no request file left to restart it, so

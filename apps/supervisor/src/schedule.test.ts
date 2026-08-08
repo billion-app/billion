@@ -120,6 +120,32 @@ void test("a weekly job does not fire the first time the supervisor starts", () 
   assert.equal(isDue(weeklyJob, undefined, tuesdayNoon), false);
 });
 
+void test("a weekly job seeded on a Tuesday runs at the next occurrence", () => {
+  // Regression: `isDue` used to key off `lastStartedAt` alone and return false
+  // when it was absent, so a calendar job that had never run could never become
+  // due — it needed a start to qualify, and a start required qualifying. Three
+  // weekly jobs sat dead for ten days behind that.
+  const seeded: JobState = { ...clean, firstSeenAt: tuesdayNoon.toISOString() };
+
+  // Still not due on the afternoon it was first seen: the Sunday occurrence it
+  // would compare against has already passed.
+  assert.equal(isDue(weeklyJob, seeded, tuesdayNoon), false);
+
+  // Due once the next Sunday occurrence arrives.
+  const nextSunday = new Date(2026, 7, 2, 3, 16);
+  assert.equal(isDue(weeklyJob, seeded, nextSunday), true);
+});
+
+void test("a real start outranks firstSeenAt as the reference", () => {
+  // A job seeded long ago but run this occurrence must not re-fire.
+  const state: JobState = {
+    ...clean,
+    firstSeenAt: new Date(2026, 6, 1, 9, 0).toISOString(),
+    lastStartedAt: sundayAt(3, 20).toISOString(),
+  };
+  assert.equal(isDue(weeklyJob, state, tuesdayNoon), false);
+});
+
 void test("a weekly job whose last run predates the occurrence is due", () => {
   const state: JobState = {
     ...clean,

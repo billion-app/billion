@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { JobState, SupervisorState } from "./types.js";
 
 const jobStateSchema = z.object({
+  firstSeenAt: z.string().optional(),
   lastStartedAt: z.string().optional(),
   lastFinishedAt: z.string().optional(),
   lastExitCode: z.number().optional(),
@@ -56,6 +57,33 @@ export async function saveState(
   );
   await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, "utf8");
   await rename(temporary, path);
+}
+
+/**
+ * Stamps `firstSeenAt` on every job that has no state yet, so a newly added
+ * calendar job has something for `isDue` to measure its next occurrence
+ * against. Returns whether anything changed, so the caller can skip a write.
+ *
+ * Only jobs with no state at all are touched: a job that has already run keeps
+ * `lastStartedAt` as its reference, and backdating a `firstSeenAt` onto it
+ * could make it look due when it is not.
+ */
+export function seedFirstSeen(
+  state: SupervisorState,
+  jobIds: readonly string[],
+  now: Date,
+): boolean {
+  let changed = false;
+  for (const jobId of jobIds) {
+    if (state.jobs[jobId]) continue;
+    state.jobs[jobId] = {
+      firstSeenAt: now.toISOString(),
+      consecutiveFailures: 0,
+      interruptedResumes: 0,
+    };
+    changed = true;
+  }
+  return changed;
 }
 
 export function jobStateFor(

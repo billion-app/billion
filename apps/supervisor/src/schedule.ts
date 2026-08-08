@@ -52,6 +52,15 @@ export function lastOccurrence(
  * the overnight run, but it should leave tonight's intact. A calendar job whose
  * last run predates the most recent occurrence is due, so an outage over the
  * scheduled time is caught up rather than skipped.
+ *
+ * A never-run calendar job measures that from `firstSeenAt` instead. The first
+ * version of this compared against `lastStartedAt` alone and returned false
+ * when it was absent, which deadlocked: being due required a start, and a start
+ * required being due. `federalregister-weekly`, `scc-cvig-weekly` and
+ * `ca-sos-weekly` never ran once between the supervisor taking over on
+ * 2026-07-28 and 2026-08-07 — ten presidential documents went unscraped, and
+ * the only reason `congress-daily` escaped is that someone happened to trigger
+ * it by hand on day one, which wrote the `lastStartedAt` it needed.
  */
 export function isDue(
   job: JobDefinition,
@@ -75,9 +84,10 @@ export function isDue(
     return elapsed >= job.schedule.everyMinutes * MINUTE_MS;
   }
 
-  if (!lastStartedAt) return false;
+  const reference = lastStartedAt ?? state?.firstSeenAt;
+  if (!reference) return false;
   const occurrence = lastOccurrence(job.schedule, now);
-  return Date.parse(lastStartedAt) < occurrence.getTime();
+  return Date.parse(reference) < occurrence.getTime();
 }
 
 /**

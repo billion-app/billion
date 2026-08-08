@@ -70,6 +70,15 @@ export interface JobDefinition {
 }
 
 export interface JobState {
+  /**
+   * When the supervisor first knew about this job, set once and never updated.
+   *
+   * Exists so a calendar job that has never run still has a reference point to
+   * compare its last occurrence against. Without one such a job can never
+   * become due at all: `isDue` needs a prior timestamp, and the only way to get
+   * a `lastStartedAt` is to have already run.
+   */
+  firstSeenAt?: string;
   lastStartedAt?: string;
   lastFinishedAt?: string;
   lastExitCode?: number;
