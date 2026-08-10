@@ -427,7 +427,11 @@ export default function ArticleDetailScreen() {
             accessibilityLabel={`View sponsor profile for ${sponsor.name}`}
             testID="bill-sponsor-card"
           >
-            <Avatar name={sponsor.initials} size={44} />
+            <Avatar
+              name={sponsor.initials}
+              imageUri={sponsor.imageUrl}
+              size={44}
+            />
             <View style={s.sponsorBody}>
               <Text style={s.sponsorLabel}>Sponsored by</Text>
               <Text style={s.sponsorName} numberOfLines={1}>

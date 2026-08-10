@@ -637,10 +637,28 @@ export const contentRouter = {
         .limit(1);
       if (bill[0]) {
         const b = bill[0];
-        const sponsor = b.sponsor
+        const sponsorIdentity = b.sponsor
+          ? parseBillSponsor(b.sponsor)
+          : undefined;
+        // The people export is a network fetch, so run it alongside the other
+        // per-bill lookups and treat a miss as "no headshot" rather than an
+        // error — the card falls back to initials.
+        const [official, lensData, brief] = await Promise.all([
+          sponsorIdentity
+            ? getFederalOfficialByName(
+                sponsorIdentity.name,
+                b.chamber,
+                sponsorIdentity.state,
+              ).catch(() => undefined)
+            : undefined,
+          getLensData(b.id, "bill"),
+          getBrief(b.id, "bill"),
+        ]);
+        const sponsor = sponsorIdentity
           ? {
-              ...parseBillSponsor(b.sponsor),
+              ...sponsorIdentity,
               role: sponsorRole(b.chamber),
+              imageUrl: official?.image,
             }
           : undefined;
         const [result] = await attachVideoImages([
@@ -659,8 +677,8 @@ export const contentRouter = {
             url: b.url,
             actions: toBillTimelineActions(b.actions ?? []),
             status: b.status ?? undefined,
-            lensData: await getLensData(b.id, "bill"),
-            brief: await getBrief(b.id, "bill"),
+            lensData,
+            brief,
           },
         ]);
         if (!result) throw new Error(`Failed to decorate bill ${b.id}`);
