@@ -246,6 +246,7 @@ void test("historical context requires two opened research sources", () => {
       },
     }),
     researched,
+    "H.R. 1",
   );
 
   assert.deepEqual(
@@ -275,6 +276,7 @@ void test("historical context requires two opened research sources", () => {
       },
     }),
     researched,
+    "H.R. 1",
   );
   assert.equal(underSourced.whyNotBefore, undefined);
 });

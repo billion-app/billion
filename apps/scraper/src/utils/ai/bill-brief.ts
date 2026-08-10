@@ -575,19 +575,32 @@ export function verifyBriefReading(
  * Historical context may use only pages the research agent successfully
  * opened. Keep exact researched URLs, remove invented citations, and omit the
  * entire section unless at least two distinct sources remain.
+ *
+ * Both drop paths are logged. This is the filter that decides whether a reader
+ * ever sees `whyNotBefore`, and it used to drop the section without a trace,
+ * which made a legitimate editorial bar indistinguishable from a citation
+ * matching bug: only ~11% of briefs carry the section, and nothing recorded
+ * whether the rest were never written or written and then discarded here. The
+ * counts name which one it was — `unverifiable` rising while the model keeps
+ * emitting points means the URLs are real but absent from `sources`, not that
+ * the history is unsupported.
  */
 export function verifyBriefContext(
   brief: BillBrief,
   sources: readonly DualLensSource[],
+  billNumber: string,
 ): BillBrief {
   if (!brief.whyNotBefore) return brief;
 
   const verified = new Map(
     sources.map((source) => [comparableUrl(source.url), source.url]),
   );
-  const points = brief.whyNotBefore.points.flatMap((point) => {
+  const offered = brief.whyNotBefore.points;
+  let unverifiable = 0;
+  const points = offered.flatMap((point) => {
     const citations = point.citations.flatMap((citation) => {
       const url = verified.get(comparableUrl(citation.url));
+      if (!url) unverifiable += 1;
       return url ? [{ ...citation, url }] : [];
     });
     return citations.length > 0 ? [{ ...point, citations }] : [];
@@ -597,8 +610,24 @@ export function verifyBriefContext(
   );
 
   if (points.length === 0 || distinctSources.size < 2) {
+    const reason =
+      points.length === 0
+        ? "every point lost all of its citations"
+        : `only ${distinctSources.size} distinct verified source(s), needs 2`;
+    logger.warn(
+      `Brief for ${billNumber}: dropped whyNotBefore — ${reason} ` +
+        `(${offered.length} point(s) offered, ${points.length} survived, ` +
+        `${unverifiable} citation(s) not among ${sources.length} researched source(s))`,
+    );
     const { whyNotBefore: _dropped, ...rest } = brief;
     return rest;
+  }
+
+  if (unverifiable > 0) {
+    logger.warn(
+      `Brief for ${billNumber}: kept whyNotBefore but dropped ${unverifiable} ` +
+        `unverifiable citation(s); ${points.length}/${offered.length} point(s) survived`,
+    );
   }
 
   return {
@@ -1091,6 +1120,7 @@ export async function generateBillBrief(args: {
       const brief = verifyBriefContext(
         briefWithReading,
         readingResearch.sources,
+        args.billNumber,
       );
       const { verified, dropped } = quoteResult;
       if (dropped > 0) {
