@@ -134,6 +134,12 @@ When no human source has a summary, the engine falls back to grounded AI (SPUR B
 **Auth:** `OPEN_STATES_API_KEY`  
 **Scope:** California state bills and legislators (expandable to other states)
 
+This client backs **live** queries from the `openStates` tRPC router — search,
+bill detail, legislators, votes — which is a different job from ingestion.
+Durable state-bill ingestion into the `Bill` table runs through the
+`open-states` scraper, which talks to the same API but with retry/backoff and a
+persisted cursor. See [the scraper docs](./scraper.md#state-bills-open-states).
+
 ```ts
 import {
   getBills,

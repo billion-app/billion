@@ -5,7 +5,7 @@ How to obtain keys/access for every civic integration. For local dev, copy `.env
 | Source                                 | Key required | Cost            | Env variable                                                          |
 | -------------------------------------- | ------------ | --------------- | --------------------------------------------------------------------- |
 | Google Civic API                       | Yes          | Free (25k/day)  | `GOOGLE_CIVIC_API_KEY`                                                |
-| Open States API                        | Yes          | Free            | `OPEN_STATES_API_KEY`                                                 |
+| Open States API                        | Yes          | Free (~500 req/day default tier) | `OPEN_STATES_API_KEY`                              |
 | Google Places (address autocomplete)   | Yes          | Pay-as-you-go   | `GOOGLE_PLACES_API_KEY` (→ `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`) |
 | Vote Smart                             | Yes          | Free (org tier) | `VOTE_SMART_API_KEY`                                                  |
 | Legistar (local councils)              | No           | Free            | —                                                                     |
@@ -19,7 +19,14 @@ How to obtain keys/access for every civic integration. For local dev, copy `.env
 
 > ⚠️ **Representatives API turned down 2025-04-30.** Google retired the `/representatives` endpoint; only the **Elections** endpoints (`elections`, `voterinfo`, results) remain. Those are what `getVoterInfo` and the enrichment pipeline use, and the only Civic calls the app makes. The dead `getRepresentatives` / `getRepresentativesEnriched` functions have been **removed** from `civic.ts`. A replacement "your elected officials" lookup (Open States legislators + Legistar local + OCD-IDs via the Divisions API for address→district) is a roadmap feature — [issue #123](https://github.com/billion-app/billion/issues/123).
 
-**Open States API** — CA state bills, legislators, voting records. [Sign up](https://openstates.org/accounts/signup/) → verify email → [profile](https://openstates.org/accounts/profile/) → API Keys → Generate. Docs: <https://docs.openstates.org/api-v3/>. → `OPEN_STATES_API_KEY`.
+**Open States API** — CA state bills, legislators, voting records. [Sign up](https://open.pluralpolicy.com/accounts/signup/) → verify email → [profile](https://open.pluralpolicy.com/accounts/profile/) → API Keys → Generate. Docs: <https://docs.openstates.org/api-v3/>. → `OPEN_STATES_API_KEY`.
+
+The default tier is capped at roughly 500 requests/day with a per-minute limit
+on top; higher tiers are granted on request. The `open-states` scraper is built
+to fit inside that — it hydrates twenty bills per request rather than fetching
+each bill's detail — and the same account can download login-gated bulk session
+CSVs for backfills that cost no quota at all. See
+[the scraper docs](./scraper.md#state-bills-open-states).
 
 **Google Places (Autocomplete New)** — US street-address autocomplete for the ballot lookup. Same Cloud Console flow as Civic; enable "Places API (New)". Reuses the Google key chain. See `packages/api/src/lib/places.ts` (session-token billing). → `GOOGLE_PLACES_API_KEY`.
 
