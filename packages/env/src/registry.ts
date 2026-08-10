@@ -85,6 +85,7 @@ const scraperSourceLimitDefinitions = [
   ["SCOTUS_MAX_ITEMS", "CourtListener opinion clusters per run.", "50"],
   ["SCC_CVIG_MAX_ITEMS", "Santa Clara voter-guide PDFs per run.", "10"],
   ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
+  ["OPEN_STATES_MAX_ITEMS", "Open States bills per state per run.", "100"],
 ] as const;
 
 export const envRegistry = [
@@ -290,8 +291,18 @@ export const envRegistry = [
       "Open States key for state bills, legislators, and voting records.",
     group: "Civic data",
     secret: true,
-    setupUrl: "https://openstates.org/accounts/profile/",
+    setupUrl: "https://open.pluralpolicy.com/accounts/profile/",
     requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "OPEN_STATES_STATES",
+    description:
+      "Comma-separated state codes the Open States scraper ingests (default: ca).",
+    group: "Civic data",
+    secret: false,
+    defaultValue: "ca",
+    requirements: {},
     schema: string,
   }),
   define({

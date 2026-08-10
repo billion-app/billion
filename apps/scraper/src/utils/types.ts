@@ -67,6 +67,13 @@ export interface ScraperRunOptions {
   targets?: string[];
   /** Congress number for targeted congress.gov runs (e.g. 119). */
   congress?: number;
+  /** Legislative session for targeted state runs (e.g. "20252026"). */
+  session?: string;
+  /**
+   * Path to an unzipped bulk export to import instead of calling the source's
+   * API. Scrapers without a bulk path ignore this.
+   */
+  bulkDir?: string;
   /**
    * Refresh the N most recently updated records instead of walking the
    * incremental cursor. Keeps active items current rather than pursuing

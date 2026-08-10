@@ -127,6 +127,12 @@ export interface OpenStatesBill {
   versions?: OpenStatesBillVersion[];
   documents?: OpenStatesBillDocument[];
   votes?: OpenStatesVote[];
+  /**
+   * Where Open States scraped the bill from — for CA these are leginfo URLs.
+   * Returned by /bills without an `include`, but not guaranteed present, so
+   * every consumer must be able to fall back to `openstates_url`.
+   */
+  sources?: { url: string; note?: string }[];
   created_at: string;
   updated_at: string;
   openstates_url: string;
