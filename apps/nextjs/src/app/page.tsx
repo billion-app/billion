@@ -17,12 +17,14 @@ import {
 } from "./_components/animations";
 import { HeroExperience } from "./_components/hero-experience";
 import { useIntroDone } from "./_components/intro-context";
-import { WaitlistForm } from "./_components/waitlist-form";
 import { WorkflowHero } from "./_components/workflow-hero";
+
+const APP_STORE_URL =
+  "https://apps.apple.com/us/app/billion-news/id6761675243";
 
 /* ── Gold accent tokens (not yet in Tailwind theme) ────────────────────── */
 const gold = "#c4a35a";
-const goldGlow = "rgba(196,163,90,0.15)";
+//const goldGlow = "rgba(196,163,90,0.15)";
 const dividerGold = "rgba(196,163,90,0.3)";
 
 const sourceSystems = [
@@ -456,12 +458,14 @@ export default function LandingPage() {
             Billion
           </span>
         </div>
-        <Link
-          href="#waitlist"
+        <a
+          href={APP_STORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-muted-foreground hover:text-gold font-sans text-[15px] font-medium no-underline transition-colors duration-200"
         >
-          Get Early Access
-        </Link>
+          Download App
+        </a>
       </motion.nav>
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
@@ -489,11 +493,22 @@ export default function LandingPage() {
           >
             Everything you need to know as a voter, explained from the source.
           </p>
-          <div className="flex flex-col gap-4">
-            <WaitlistForm />
+          <div className="flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
+            <a
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block transition-transform duration-200 hover:scale-[1.03] active:scale-[0.98]"
+            >
+              <img
+                src="/apple-download.svg"
+                alt="Download on the App Store"
+                className="h-[52px] w-auto"
+              />
+            </a>
             <Link
               href="#approach"
-              className="text-muted-foreground hover:text-gold inline-flex h-[52px] items-center justify-center px-1 font-sans text-[16px] font-medium no-underline transition-colors duration-200"
+              className="text-muted-foreground hover:text-gold inline-flex h-[52px] items-center justify-center px-3 font-sans text-[16px] font-medium no-underline transition-colors duration-200"
             >
               See How It Works
             </Link>
@@ -580,37 +595,50 @@ export default function LandingPage() {
           critical thinking and independent research.
         </p>
         <WorkflowHero />
-        <Link
-          href="#waitlist"
-          className="bg-primary text-primary-foreground inline-flex h-[52px] cursor-pointer items-center justify-center rounded-full border-none px-7 font-sans text-[16px] font-medium whitespace-nowrap no-underline transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
-          style={{ boxShadow: `0 0 24px ${goldGlow}` }}
+        <a
+          href={APP_STORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block transition-transform duration-200 hover:scale-[1.03] active:scale-[0.98]"
         >
-          Explore the source
-        </Link>
+        </a>
       </AnimatedSection>
 
       <GoldDivider />
 
-      {/* ── WAITLIST ──────────────────────────────────────────────── */}
+      {/* ── APP STORE ────────────────────────────────────────────── */}
       <AnimatedSection
         variant="fadeUp"
         className="mx-auto px-6 py-14 text-center md:py-[4.5rem]"
         style={{ maxWidth: 1120 }}
-        id="waitlist"
+        id="download"
       >
         <p className="tracking-label text-muted-foreground mb-[14px] text-center font-sans text-[12px] font-medium uppercase">
-          Early Access
+          Available Now
         </p>
         <h2
           className="text-foreground font-display mb-4 leading-[1.2] font-bold tracking-[-0.02em]"
           style={{ fontSize: "clamp(2rem, 4vw, 3.2rem)" }}
         >
-          Be first when Billion opens.
+          Billion is now live on the App Store.
         </h2>
         <p className="text-muted-foreground mx-auto mb-7 max-w-[44ch] font-sans text-[18px] leading-[1.6]">
-          Early access, updates, and pilot invites.
+          Download Billion for iOS today and get source-grounded civic intelligence right on your iPhone.
         </p>
-        <WaitlistForm size="large" />
+        <div className="flex justify-center">
+          <a
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block transition-transform duration-200 hover:scale-[1.04] active:scale-[0.98]"
+          >
+            <img
+              src="/apple-download.svg"
+              alt="Download on the App Store"
+              className="h-[60px] w-auto"
+            />
+          </a>
+        </div>
       </AnimatedSection>
 
       <GoldDivider />
