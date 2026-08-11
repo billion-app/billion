@@ -6,8 +6,12 @@ import posthog from "posthog-js";
 
 export function WaitlistForm({
   size = "default",
+  buttonText = "Get updates",
+  placeholder = "Enter your email",
 }: {
   size?: "default" | "large";
+  buttonText?: string;
+  placeholder?: string;
 }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<WaitlistStatus>("idle");
@@ -139,7 +143,7 @@ export function WaitlistForm({
             <input
               type="email"
               required
-              placeholder="Enter your email"
+              placeholder={placeholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={status === "loading"}
@@ -169,7 +173,7 @@ export function WaitlistForm({
                   animate={{ opacity: [1, 0.4, 1] }}
                   transition={{ repeat: Infinity, duration: 1.2 }}
                 >
-                  Joining
+                  Submitting
                 </motion.span>
                 <span className="flex gap-[3px]">
                   {[0, 1, 2].map((i) => (
@@ -187,7 +191,7 @@ export function WaitlistForm({
                 </span>
               </span>
             ) : (
-              "Join waitlist"
+              buttonText
             )}
           </motion.button>
           <AnimatePresence>

@@ -1,18 +1,23 @@
-import nextEnv from "@next/env";
 import { withPostHogConfig } from "@posthog/nextjs-config";
 import { createJiti } from "jiti";
 
-const { loadEnvConfig } = nextEnv;
 const jiti = createJiti(import.meta.url);
+
+/** @type {any} */
+const nextEnv = await jiti.import("@next/env");
+const loadEnvConfig =
+  nextEnv.loadEnvConfig ?? nextEnv.default?.loadEnvConfig;
 
 // Next only auto-loads env files from the app directory. Load the monorepo root
 // so every workspace can continue sharing the repository-level .env file.
-loadEnvConfig(
-  new URL("../..", import.meta.url).pathname,
-  process.env.NODE_ENV === "development",
-  undefined,
-  true,
-);
+if (typeof loadEnvConfig === "function") {
+  loadEnvConfig(
+    new URL("../..", import.meta.url).pathname,
+    process.env.NODE_ENV === "development",
+    undefined,
+    true,
+  );
+}
 
 // Import env files to validate at build time. Use jiti so we can load .ts files in here.
 await jiti.import("./src/env");
