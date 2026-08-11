@@ -4,6 +4,7 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  Linking,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -17,7 +18,7 @@ import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type { VideoPost } from "@acme/api";
 
 import { Text } from "~/components/Themed";
-import { Badge, Icon, LensStrip, Placeholder } from "~/components/ui";
+import { Badge, Icon, Placeholder } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import {
   colors,
@@ -46,18 +47,41 @@ const TAB_BAR_HEIGHT = 74;
 
 const SAVEABLE_TYPES = new Set(["bill", "government_content", "court_case"]);
 
+function formatFeedAge(createdAt: Date): string {
+  const elapsedMs = Math.max(0, Date.now() - createdAt.getTime());
+  const minutes = Math.floor(elapsedMs / 60_000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+
+  return createdAt.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(createdAt.getFullYear() !== new Date().getFullYear() && {
+      year: "numeric",
+    }),
+  });
+}
+
 function FeedCard({
   item,
   height,
   topInset,
   bottomInset,
   onOpen,
+  onOpenSource,
 }: {
   item: VideoPost;
   height: number;
   topInset: number;
   bottomInset: number;
   onOpen: () => void;
+  onOpenSource: () => void;
 }) {
   const canSave = SAVEABLE_TYPES.has(item.type);
   const contentId = item.originalContentId;
@@ -138,8 +162,7 @@ function FeedCard({
         <View testID="feed-badge">
           <Badge type={typeKey} />
         </View>
-        <Text style={s.tag}>{TYPE_TAG[item.type] ?? "Briefing"}</Text>
-        <Text style={s.time}>Recent</Text>
+        <Text style={s.time}>{formatFeedAge(item.createdAt)}</Text>
       </View>
 
       {/* hero */}
@@ -173,7 +196,14 @@ function FeedCard({
 
       {/* Type is already established by the badge. Give the remaining metadata
           row one reader-useful job: identify where the record came from. */}
-      <View style={s.sourceCard}>
+      <TouchableOpacity
+        style={s.sourceCard}
+        onPress={onOpenSource}
+        activeOpacity={0.8}
+        accessibilityRole="link"
+        accessibilityLabel={`Open original source from ${item.author || "the official site"}`}
+        testID="feed-original-source"
+      >
         <View style={[s.sourceIcon, { backgroundColor: `${t.color}20` }]}>
           <Icon name="globe" size={16} color={t.color} />
         </View>
@@ -181,13 +211,10 @@ function FeedCard({
           <Text style={s.chipStatus}>{item.author || "Public record"}</Text>
           <Text style={s.chipLabel}>Original source</Text>
         </View>
-        <Icon name="chevR" size={16} color={colors.textSecondary} />
-      </View>
+        <Icon name="external" size={16} color={colors.textSecondary} />
+      </TouchableOpacity>
 
-      {/* dual-lens strip */}
-      <View style={{ marginBottom: "auto" }}>
-        <LensStrip label="See it across the spectrum" onExpand={onOpen} />
-      </View>
+      <View style={{ marginBottom: "auto" }} />
 
       {/* exit point */}
       <View style={s.actions}>
@@ -319,6 +346,30 @@ export default function FeedScreen() {
               });
               router.push(`/article-detail?id=${item.originalContentId}`);
             }}
+            onOpenSource={() => {
+              if (!item.sourceUrl) {
+                Alert.alert(
+                  "Source unavailable",
+                  "The original source link is not available right now.",
+                );
+                return;
+              }
+              posthog.capture("feed_original_source_opened", {
+                content_id: item.originalContentId,
+                content_type: item.type,
+                content_title: item.title,
+                source_url: item.sourceUrl,
+              });
+              void Linking.openURL(item.sourceUrl).catch((error: unknown) => {
+                posthog.captureException(error as Error, {
+                  content_id: item.originalContentId,
+                });
+                Alert.alert(
+                  "Couldn’t open the source",
+                  "Please try again in a moment.",
+                );
+              });
+            }}
           />
         )}
         pagingEnabled
@@ -370,11 +421,6 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 9,
     marginBottom: 16,
-  },
-  tag: {
-    fontFamily: fontBody.semibold,
-    fontSize: 12.5,
-    color: colors.textSecondary,
   },
   time: {
     fontFamily: "AlbertSans-Medium",

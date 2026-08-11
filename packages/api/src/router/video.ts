@@ -1,9 +1,9 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { desc } from "@acme/db";
+import { desc, inArray } from "@acme/db";
 import { db } from "@acme/db/client";
-import { Video } from "@acme/db/schema";
+import { Bill, CourtCase, GovernmentContent, Video } from "@acme/db/schema";
 
 import { publicProcedure } from "../trpc";
 
@@ -22,6 +22,8 @@ export const VideoPostSchema = z.object({
   imageUri: z.string().optional(), // Data URI from Video.imageData (AI-generated)
   thumbnailUrl: z.string().optional(), // URL from source content (scraped)
   originalContentId: z.string(), // Reference to source content
+  sourceUrl: z.string().optional(), // Official source site
+  createdAt: z.date(),
 });
 
 export type VideoPost = z.infer<typeof VideoPostSchema>;
@@ -44,6 +46,43 @@ export const videoRouter = {
         .orderBy(desc(Video.createdAt))
         .limit(limit)
         .offset(cursor);
+
+      const billIds = videos
+        .filter((video) => video.contentType === "bill")
+        .map((video) => video.contentId);
+      const governmentContentIds = videos
+        .filter((video) => video.contentType === "government_content")
+        .map((video) => video.contentId);
+      const courtCaseIds = videos
+        .filter((video) => video.contentType === "court_case")
+        .map((video) => video.contentId);
+
+      const [bills, governmentContent, courtCases] = await Promise.all([
+        billIds.length
+          ? db
+              .select({ id: Bill.id, url: Bill.url })
+              .from(Bill)
+              .where(inArray(Bill.id, billIds))
+          : [],
+        governmentContentIds.length
+          ? db
+              .select({ id: GovernmentContent.id, url: GovernmentContent.url })
+              .from(GovernmentContent)
+              .where(inArray(GovernmentContent.id, governmentContentIds))
+          : [],
+        courtCaseIds.length
+          ? db
+              .select({ id: CourtCase.id, url: CourtCase.url })
+              .from(CourtCase)
+              .where(inArray(CourtCase.id, courtCaseIds))
+          : [],
+      ]);
+      const sourceUrls = new Map(
+        [...bills, ...governmentContent, ...courtCases].map(({ id, url }) => [
+          id,
+          url,
+        ]),
+      );
 
       // Transform to feed format with hybrid image support
       const feedPosts = videos.map((video) => {
@@ -84,6 +123,8 @@ export const videoRouter = {
           imageUri, // AI-generated data URI (if exists)
           thumbnailUrl: video.thumbnailUrl ?? undefined, // URL-based thumbnail (if exists)
           originalContentId: video.contentId, // For "Read Full Article" navigation
+          sourceUrl: sourceUrls.get(video.contentId),
+          createdAt: video.createdAt,
         };
       });
 
