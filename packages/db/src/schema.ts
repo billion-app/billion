@@ -131,6 +131,16 @@ export const Bill = pgTable(
     // dropping records again.
     status: t.text(),
     introducedDate: t.timestamp(),
+    // Date of the newest legislative action on the bill — the canonical answer
+    // to "when did something actually happen here", and the sort key behind
+    // every "recent" listing.
+    //
+    // Deliberately not `sourceUpdatedAt`: congress.gov bumps its `updateDate`
+    // for metadata refreshes, so 44 bills shared one timestamp and S. 2017 read
+    // as updated 2026-08-07 when its last real action was 2025-06-10. Sorting
+    // on that put a wall of year-old bills at the top of Browse. Nor
+    // `createdAt`, which is our INSERT clock and ranks our ingestion history.
+    lastActionAt: t.timestamp(),
     congress: t.integer(), // e.g., 118 for 118th Congress
     chamber: t.varchar({ length: 50 }), // "House" or "Senate"
     summary: t.text(),

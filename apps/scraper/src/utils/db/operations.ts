@@ -371,6 +371,11 @@ export async function upsertContent(
           sponsor: d.sponsor,
           status: d.status,
           introducedDate: d.introducedDate,
+          // Must be listed here, not just in the insert: this is the sort key
+          // for every "recent" listing, so a bill that gains an action and is
+          // re-scraped has to move. Omitting it would freeze each bill at
+          // whatever its last action was the first time we ever stored it.
+          lastActionAt: d.lastActionAt,
           congress: d.congress,
           chamber: d.chamber,
           summary: d.summary,

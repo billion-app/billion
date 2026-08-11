@@ -28,6 +28,38 @@ const SAVED_CONTENT_TYPES = [
 ] as const;
 type SavedContentType = (typeof SAVED_CONTENT_TYPES)[number];
 
+/**
+ * "When did the government last touch this record", per content type.
+ *
+ * This is the sort key behind every "recent" listing. It is deliberately not
+ * `createdAt`, which is our INSERT clock — see the note on `getByType`.
+ *
+ * Each expression normalizes to `timestamptz` so the three can be UNIONed and
+ * compared. `introducedDate`, `publishedDate`, `filedDate` and `createdAt` are
+ * all `timestamp` without a zone, and everything written into them is a UTC
+ * `Date`, so they are converted as UTC rather than through the session's
+ * timezone — otherwise the same row sorts differently depending on which
+ * server ran the query.
+ *
+ * `Bill.sourceUpdatedAt` was added after the table existed, so older rows can
+ * be null and fall through to the next-best date rather than sorting as epoch.
+ */
+const BILL_ACTIVITY_AT = sql<Date>`coalesce(
+  ${Bill.sourceUpdatedAt},
+  ${Bill.introducedDate} at time zone 'UTC',
+  ${Bill.createdAt} at time zone 'UTC'
+)`;
+
+const GOVERNMENT_CONTENT_ACTIVITY_AT = sql<Date>`coalesce(
+  ${GovernmentContent.publishedDate},
+  ${GovernmentContent.createdAt}
+) at time zone 'UTC'`;
+
+const COURT_CASE_ACTIVITY_AT = sql<Date>`coalesce(
+  ${CourtCase.filedDate},
+  ${CourtCase.createdAt}
+) at time zone 'UTC'`;
+
 function billDescription(
   description: string | null | undefined,
   summary?: string | null,
@@ -260,17 +292,17 @@ export const contentRouter = {
     const bills = await db
       .select()
       .from(Bill)
-      .orderBy(desc(Bill.createdAt))
+      .orderBy(desc(BILL_ACTIVITY_AT))
       .limit(20);
     const governmentContent = await db
       .select()
       .from(GovernmentContent)
-      .orderBy(desc(GovernmentContent.createdAt))
+      .orderBy(desc(GOVERNMENT_CONTENT_ACTIVITY_AT))
       .limit(20);
     const courtCases = await db
       .select()
       .from(CourtCase)
-      .orderBy(desc(CourtCase.createdAt))
+      .orderBy(desc(COURT_CASE_ACTIVITY_AT))
       .limit(20);
 
     const allContent: ContentCard[] = [
@@ -308,6 +340,20 @@ export const contentRouter = {
   }),
 
   // Get content filtered by type from database, paginated for infinite scroll.
+  //
+  // Ordering is by when the *government* last touched a record, never by when
+  // we stored it. `createdAt` is stamped at INSERT, so ordering by it ranks our
+  // own ingestion history: a 2025 bill first scraped today outranks a 2026 bill
+  // scraped last week, and any backfill run shuffles a pile of old records
+  // straight to the top of Browse. That is what put "S Corporation
+  // Modernization Act of 2025" directly above the 2026 one under a header
+  // reading "SORTED BY RECENT".
+  //
+  // Only `Bill` records an upstream update time. Government content and court
+  // cases fall back to their publication/filing date, which is the closest
+  // thing each has to "when this happened" — an executive order does not get
+  // amended in place. Giving those tables real update tracking is a schema
+  // change, tracked in #278.
   getByType: publicProcedure
     .input(
       z.object({
@@ -335,7 +381,7 @@ export const contentRouter = {
               type: sql<string>`'bill'`,
               thumbnailUrl: Bill.thumbnailUrl,
               billNumber: sql<string | null>`${Bill.billNumber}`,
-              createdAt: Bill.createdAt,
+              activityAt: BILL_ACTIVITY_AT.as("activity_at"),
             })
             .from(Bill),
           db
@@ -346,7 +392,7 @@ export const contentRouter = {
               type: sql<string>`'government_content'`,
               thumbnailUrl: GovernmentContent.thumbnailUrl,
               billNumber: sql<string | null>`null`,
-              createdAt: GovernmentContent.createdAt,
+              activityAt: GOVERNMENT_CONTENT_ACTIVITY_AT.as("activity_at"),
             })
             .from(GovernmentContent),
           db
@@ -357,11 +403,11 @@ export const contentRouter = {
               type: sql<string>`'court_case'`,
               thumbnailUrl: CourtCase.thumbnailUrl,
               billNumber: sql<string | null>`null`,
-              createdAt: CourtCase.createdAt,
+              activityAt: COURT_CASE_ACTIVITY_AT.as("activity_at"),
             })
             .from(CourtCase),
         )
-          .orderBy(sql`"created_at" desc`)
+          .orderBy(sql`"activity_at" desc nulls last`)
           .limit(limit + 1)
           .offset(cursor);
 
@@ -391,7 +437,7 @@ export const contentRouter = {
         const bills = await db
           .select()
           .from(Bill)
-          .orderBy(desc(Bill.createdAt))
+          .orderBy(desc(BILL_ACTIVITY_AT))
           .limit(limit + 1)
           .offset(cursor);
         const hasMore = bills.length > limit;
@@ -415,7 +461,7 @@ export const contentRouter = {
         const governmentContent = await db
           .select()
           .from(GovernmentContent)
-          .orderBy(desc(GovernmentContent.createdAt))
+          .orderBy(desc(GOVERNMENT_CONTENT_ACTIVITY_AT))
           .limit(limit + 1)
           .offset(cursor);
         const hasMore = governmentContent.length > limit;
@@ -440,7 +486,7 @@ export const contentRouter = {
       const courtCases = await db
         .select()
         .from(CourtCase)
-        .orderBy(desc(CourtCase.createdAt))
+        .orderBy(desc(COURT_CASE_ACTIVITY_AT))
         .limit(limit + 1)
         .offset(cursor);
       const hasMore = courtCases.length > limit;
