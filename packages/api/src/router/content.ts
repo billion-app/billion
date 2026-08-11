@@ -29,26 +29,37 @@ const SAVED_CONTENT_TYPES = [
 type SavedContentType = (typeof SAVED_CONTENT_TYPES)[number];
 
 /**
- * "When did the government last touch this record", per content type.
+ * "When did something actually happen to this record", per content type.
  *
- * This is the sort key behind every "recent" listing. It is deliberately not
- * `createdAt`, which is our INSERT clock — see the note on `getByType`.
+ * The sort key behind every "recent" listing. Two obvious candidates were both
+ * measured against production and rejected:
+ *
+ * - `createdAt` is our INSERT clock, so it ranks *our ingestion history*. A
+ *   2025 bill first scraped today outranked a 2026 bill scraped last week,
+ *   which is what put "S Corporation Modernization Act of 2025" above the 2026
+ *   one, and any backfill would shuffle old records to the top of Browse.
+ * - `Bill.sourceUpdatedAt` is congress.gov's record-modified time, which moves
+ *   on metadata refreshes rather than legislative events. In production it
+ *   clustered onto 25 distinct days across 326 rows — 44 bills sharing one
+ *   timestamp — and reported S. 2017 as updated 2026-08-07 when its newest
+ *   action was 2025-06-10. Sorting on it put a wall of year-old bills on top.
+ *
+ * `lastActionAt` is the newest real legislative action, written by the
+ * scrapers. It is nullable (a bill congress.gov has published no actions for),
+ * so it falls through to `introducedDate`, which is populated for every row —
+ * `createdAt` is a last resort that should never be reached.
  *
  * Each expression normalizes to `timestamptz` so the three can be UNIONed and
- * compared. `introducedDate`, `publishedDate`, `filedDate` and `createdAt` are
- * all `timestamp` without a zone, and everything written into them is a UTC
- * `Date`, so they are converted as UTC rather than through the session's
- * timezone — otherwise the same row sorts differently depending on which
- * server ran the query.
- *
- * `Bill.sourceUpdatedAt` was added after the table existed, so older rows can
- * be null and fall through to the next-best date rather than sorting as epoch.
+ * compared. The underlying columns are all `timestamp` without a zone holding
+ * UTC values, so they are converted as UTC rather than through the session's
+ * timezone — otherwise a row sorts differently depending on which server ran
+ * the query.
  */
 const BILL_ACTIVITY_AT = sql<Date>`coalesce(
-  ${Bill.sourceUpdatedAt},
-  ${Bill.introducedDate} at time zone 'UTC',
-  ${Bill.createdAt} at time zone 'UTC'
-)`;
+  ${Bill.lastActionAt},
+  ${Bill.introducedDate},
+  ${Bill.createdAt}
+) at time zone 'UTC'`;
 
 const GOVERNMENT_CONTENT_ACTIVITY_AT = sql<Date>`coalesce(
   ${GovernmentContent.publishedDate},
@@ -349,10 +360,10 @@ export const contentRouter = {
   // Modernization Act of 2025" directly above the 2026 one under a header
   // reading "SORTED BY RECENT".
   //
-  // Only `Bill` records an upstream update time. Government content and court
-  // cases fall back to their publication/filing date, which is the closest
-  // thing each has to "when this happened" — an executive order does not get
-  // amended in place. Giving those tables real update tracking is a schema
+  // Only `Bill` gets a real action date. Government content and court
+  // cases fall back to their publication/filing date, the closest thing each
+  // has to "when this happened" — an executive order does not get amended in
+  // place. Giving those tables their own activity tracking is a schema
   // change, tracked in #278.
   getByType: publicProcedure
     .input(
