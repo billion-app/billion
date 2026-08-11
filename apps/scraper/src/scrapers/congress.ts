@@ -15,6 +15,7 @@ import {
   retryQueueDepth,
 } from "../utils/db/retry-queue.js";
 import { fetchWithRetry } from "../utils/fetch.js";
+import { latestActionDate } from "../utils/last-action.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
 import { congressConfig } from "./congress.config.js";
@@ -475,6 +476,10 @@ async function processBill(
         summary,
         fullText,
         actions,
+        // Not `sourceUpdatedAt`: that is congress.gov's record-modified time,
+        // which moves on metadata refreshes and is why sorting "recent" on it
+        // surfaced year-old bills. This is the newest real legislative event.
+        lastActionAt: latestActionDate(actions),
         url: billUrl,
         sourceWebsite: "congress.gov",
         sourceUpdatedAt,
