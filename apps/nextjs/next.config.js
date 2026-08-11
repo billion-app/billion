@@ -5,8 +5,7 @@ const jiti = createJiti(import.meta.url);
 
 /** @type {any} */
 const nextEnv = await jiti.import("@next/env");
-const loadEnvConfig =
-  nextEnv.loadEnvConfig ?? nextEnv.default?.loadEnvConfig;
+const loadEnvConfig = nextEnv.loadEnvConfig ?? nextEnv.default?.loadEnvConfig;
 
 // Next only auto-loads env files from the app directory. Load the monorepo root
 // so every workspace can continue sharing the repository-level .env file.

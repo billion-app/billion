@@ -69,7 +69,9 @@ export default function AboutScreen() {
         ))}
       </Card>
 
-      <Text style={s.footer}>Built for the public record · © 2026 Bryan Hu</Text>
+      <Text style={s.footer}>
+        Built for the public record · © 2026 Bryan Hu
+      </Text>
     </ScreenShell>
   );
 }
