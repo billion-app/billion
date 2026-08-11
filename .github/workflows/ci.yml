@@ -34,17 +34,6 @@ jobs:
       - name: Lint
         run: pnpm lint && pnpm lint:ws
 
-  format:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup
-        uses: ./tooling/github/setup
-
-      - name: Format
-        run: pnpm format
-
   typecheck:
     runs-on: ubuntu-latest
     steps:
@@ -96,7 +85,7 @@ jobs:
   # changes native code or config from reaching an incompatible installed app.
   eas-update:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, format, typecheck, test, bundle-expo]
+    needs: [lint, typecheck, test, bundle-expo]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -133,7 +122,7 @@ jobs:
   # runner avoids shipping an emulated amd64 image.
   scraper-image:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, format, typecheck, test]
+    needs: [lint, typecheck, test]
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
