@@ -353,7 +353,7 @@ export default function LandingPage() {
             Privacy
           </Link>
           <span className="text-muted-foreground/70">
-            &copy; 2026 Billion. All rights reserved.
+            &copy; 2026 Bryan Hu. All rights reserved.
           </span>
         </div>
       </AnimatedSection>
