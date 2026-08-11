@@ -35,6 +35,7 @@ import {
   retryQueueDepth,
 } from "../utils/db/retry-queue.js";
 import { fetchWithRetry } from "../utils/fetch.js";
+import { latestActionDate } from "../utils/last-action.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
 import {
@@ -204,6 +205,11 @@ async function processBill(
         summary: normalized.summary,
         fullText,
         actions: normalized.actions,
+        // The sort key for every "recent" listing. State bills share the feed
+        // with federal ones, so a CA bill chaptered last week has to rank
+        // against a House bill passed last week — which only works if both
+        // sources fill this from the same kind of event.
+        lastActionAt: latestActionDate(normalized.actions),
         url: normalized.url,
         sourceWebsite: normalized.sourceWebsite,
         sourceUpdatedAt: normalized.sourceUpdatedAt,

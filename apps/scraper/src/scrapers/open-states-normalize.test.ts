@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { OpenStatesBill } from "@acme/api/clients/open-states";
 
+import { latestActionDate } from "../utils/last-action.js";
 import {
   buildBillNumber,
   formatSessionLabel,
@@ -479,6 +480,17 @@ void test("a bill stripped of every optional field still normalizes", () => {
     "2025-01-05T00:00:00.000Z",
   );
   assert.equal(normalized.url, bare.openstates_url);
+});
+
+void test("normalized actions feed the shared last-action date", () => {
+  // `lastActionAt` is the cross-source sort key for the whole feed, so a CA
+  // bill has to fill it from the same kind of event a federal one does: the
+  // newest real action (chaptered), not the introduction and not our clock.
+  const normalized = normalizeBill(sb243, { stateCode: "ca" });
+  assert.equal(
+    latestActionDate(normalized.actions)?.toISOString(),
+    "2025-10-13T00:00:00.000Z",
+  );
 });
 
 void test("a bill with no stable identifier is refused, not stored", () => {
