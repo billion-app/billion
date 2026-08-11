@@ -1,0 +1,4 @@
+# drizzle-kit owns these — it regenerates them unformatted on every
+# `generate`, so checking them only ever fails CI on generated output.
+# The migration .sql files are not matched by prettier at all.
+drizzle/meta/
