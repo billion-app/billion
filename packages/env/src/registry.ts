@@ -131,7 +131,7 @@ export const envRegistry = [
   define({
     key: "RESEND_API_KEY",
     description:
-      "Full-access Resend key for waitlist contacts and feedback email.",
+      "Full-access Resend key for mailing-list contacts and feedback email.",
     group: "Email",
     secret: true,
     setupUrl: "https://resend.com/docs/dashboard/api-keys/introduction",
@@ -157,8 +157,9 @@ export const envRegistry = [
     schema: string,
   }),
   define({
-    key: "RESEND_WAITLIST_SEGMENT_ID",
-    description: "Optional Resend segment assigned to waitlist contacts.",
+    key: "RESEND_GENERAL_UPDATES_SEGMENT_ID",
+    description:
+      "Optional Resend segment assigned to general-updates subscribers.",
     group: "Email",
     secret: false,
     setupUrl: "https://resend.com/docs/dashboard/segments/introduction",
@@ -166,8 +167,8 @@ export const envRegistry = [
     schema: string,
   }),
   define({
-    key: "RESEND_LAUNCH_UPDATES_TOPIC_ID",
-    description: "Optional Resend topic for launch-update consent.",
+    key: "RESEND_GENERAL_UPDATES_TOPIC_ID",
+    description: "Optional Resend topic for general-updates consent.",
     group: "Email",
     secret: false,
     setupUrl: "https://resend.com/docs/knowledge-base/why-use-topics",
@@ -175,22 +176,12 @@ export const envRegistry = [
     schema: string,
   }),
   define({
-    key: "RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL",
+    key: "RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL",
     description:
-      "Verified Resend sender for the immediate waitlist confirmation email.",
+      "Verified Resend sender for the immediate mailing-list confirmation email.",
     group: "Email",
     secret: false,
     setupUrl: "https://resend.com/docs/dashboard/domains/introduction",
-    requirements: { nextjs: "optional" },
-    schema: string,
-  }),
-  define({
-    key: "RESEND_TESTFLIGHT_BATCH_SEGMENT_ID",
-    description:
-      "Optional active TestFlight batch segment assigned to new waitlist contacts.",
-    group: "Email",
-    secret: false,
-    setupUrl: "https://resend.com/docs/dashboard/segments/introduction",
     requirements: { nextjs: "optional" },
     schema: string,
   }),

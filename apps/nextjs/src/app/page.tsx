@@ -14,29 +14,10 @@ import {
 } from "./_components/animations";
 import { AppTour } from "./_components/app-tour";
 import { HeroExperience } from "./_components/hero-experience";
-import {
-  AndroidIcon,
-  AppleIcon,
-  GithubIcon,
-  InstagramIcon,
-} from "./_components/icons";
+import { AndroidIcon, GithubIcon, InstagramIcon } from "./_components/icons";
 import { WaitlistForm } from "./_components/waitlist-form";
 
-const APP_STORE_URL =
-  "https://apps.apple.com/us/app/billion-news/id6761675243";
-
-const platforms = [
-  {
-    Icon: AppleIcon,
-    name: "iOS",
-    status: "Live on App Store",
-  },
-  {
-    Icon: AndroidIcon,
-    name: "Android",
-    status: "Coming soon",
-  },
-];
+const APP_STORE_URL = "https://apps.apple.com/us/app/billion-news/id6761675243";
 
 // Footer-only, not the platforms section — GitHub and Instagram are
 // nice-to-follow, not the point of "built where you already are", and a
@@ -184,9 +165,11 @@ export default function LandingPage() {
                 }
                 className="inline-flex shrink-0 transition-transform duration-200 hover:scale-[1.03] active:scale-[0.98]"
               >
-                <img
+                <Image
                   src="/apple-download.svg"
                   alt="Download on the App Store"
+                  width={161}
+                  height={48}
                   className="h-[44px] w-[148px] shrink-0 object-contain sm:h-[48px] sm:w-[161px]"
                 />
               </a>
@@ -197,7 +180,7 @@ export default function LandingPage() {
                     location: "hero",
                   })
                 }
-                className="flex h-[44px] items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-4 font-sans text-[13px] font-medium text-muted-foreground sm:h-[48px] cursor-default"
+                className="text-muted-foreground flex h-[44px] cursor-default items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-4 font-sans text-[13px] font-medium sm:h-[48px]"
               >
                 <AndroidIcon className="h-4 w-4 shrink-0 text-emerald-400" />
                 <span>Coming Soon to Android</span>
@@ -261,7 +244,8 @@ export default function LandingPage() {
           Download Billion today.
         </h2>
         <p className="text-muted-foreground mx-auto mb-8 max-w-[44ch] font-sans text-[18px] leading-[1.6]">
-          Get source-grounded civic intelligence directly on your iPhone. Android app coming soon.
+          Get source-grounded civic intelligence directly on your iPhone.
+          Android app coming soon.
         </p>
 
         <div className="mb-10 flex flex-wrap items-center justify-center gap-4">
@@ -276,9 +260,11 @@ export default function LandingPage() {
             }
             className="inline-flex shrink-0 transition-transform duration-200 hover:scale-[1.04] active:scale-[0.98]"
           >
-            <img
+            <Image
               src="/apple-download.svg"
               alt="Download on the App Store"
+              width={181}
+              height={54}
               className="h-[48px] w-[161px] shrink-0 object-contain sm:h-[54px] sm:w-[181px]"
             />
           </a>
@@ -289,7 +275,7 @@ export default function LandingPage() {
                 location: "download_section",
               })
             }
-            className="flex h-[48px] items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-5 font-sans text-[14px] font-medium text-muted-foreground sm:h-[54px] cursor-default"
+            className="text-muted-foreground flex h-[48px] cursor-default items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-5 font-sans text-[14px] font-medium sm:h-[54px]"
           >
             <AndroidIcon className="h-5 w-5 shrink-0 text-emerald-400" />
             <span>Coming Soon to Android</span>
@@ -301,9 +287,14 @@ export default function LandingPage() {
             Stay in the loop
           </h3>
           <p className="text-muted-foreground mb-4 font-sans text-[14px]">
-            Join our mailing list for feature releases, Android availability, and civic updates.
+            Join our mailing list for feature releases, Android availability,
+            and civic updates.
           </p>
-          <WaitlistForm size="large" buttonText="Subscribe" placeholder="Enter your email" />
+          <WaitlistForm
+            size="large"
+            buttonText="Subscribe"
+            placeholder="Enter your email"
+          />
         </div>
       </AnimatedSection>
 

@@ -1,20 +1,26 @@
 const BILLION_LOGO_URL = "https://www.billion-news.app/billion-logo.png";
 const BILLION_SITE_URL = "https://www.billion-news.app";
+const BILLION_APP_STORE_URL =
+  "https://apps.apple.com/us/app/billion-news/id6761675243";
 
-export const WAITLIST_CONFIRMATION_SUBJECT = "You're on the Billion waitlist";
+export const MAILING_LIST_CONFIRMATION_SUBJECT =
+  "You're subscribed to Billion updates";
 
-export const WAITLIST_CONFIRMATION_TEXT = [
-  "You're on the Billion waitlist.",
+export const MAILING_LIST_CONFIRMATION_TEXT = [
+  "You're subscribed to Billion updates.",
   "",
-  "Thanks for signing up for Billion—the simpler way to see what your government is actually doing.",
+  "Thanks for subscribing to Billion—the simpler way to see what your government is actually doing.",
   "",
-  "We'll email you when there's an update. You don't need to do anything else.",
+  "We'll send occasional updates about feature releases, Android availability, and what's happening in civic life.",
   "",
-  "Thanks for being early.",
+  "Billion is available now on the App Store:",
+  BILLION_APP_STORE_URL,
+  "",
+  "Thanks for following along.",
   "— The Billion team",
 ].join("\n");
 
-export const WAITLIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+export const MAILING_LIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html dir="ltr" lang="en" xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -22,7 +28,7 @@ export const WAITLIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DTD XH
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="x-apple-disable-message-reformatting" />
     <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no" />
-    <title>${WAITLIST_CONFIRMATION_SUBJECT}</title>
+    <title>${MAILING_LIST_CONFIRMATION_SUBJECT}</title>
     <style type="text/css">
       body {
         width: 100% !important;
@@ -69,7 +75,7 @@ export const WAITLIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DTD XH
   </head>
   <body style="margin:0;padding:0;background-color:#0E1530;color:#FFFFFF;">
     <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;mso-hide:all;">
-      You’re on the Billion waitlist. We’ll let you know when there’s an update.&#847; &#847; &#847; &#847; &#847;
+      You’re subscribed to Billion updates. We’ll keep you posted on new features, Android, and civic updates.&#847; &#847; &#847; &#847; &#847;
     </div>
 
     <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;background-color:#0E1530;">
@@ -99,15 +105,27 @@ export const WAITLIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DTD XH
                   <tr>
                     <td class="content" style="padding:48px 48px 8px;font-family:Georgia,'Times New Roman',serif;color:#FFFFFF;">
                       <h1 class="headline" style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:36px;line-height:43px;font-weight:700;letter-spacing:-0.4px;">
-                        You’re on the<br /><em style="font-weight:700;">waitlist.</em>
+                        You’re on the<br /><em style="font-weight:700;">list.</em>
                       </h1>
                     </td>
                   </tr>
 
                   <tr>
                     <td class="content" style="padding:22px 48px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:26px;color:#E7E9F0;">
-                      <p style="margin:0 0 18px;">Thanks for signing up for Billion—the simpler way to see what your government is actually doing.</p>
-                      <p style="margin:0;">We’ll email you when there’s an update. You don’t need to do anything else.</p>
+                      <p style="margin:0 0 18px;">Thanks for subscribing to Billion—the simpler way to see what your government is actually doing.</p>
+                      <p style="margin:0;">We’ll send occasional updates about feature releases, Android availability, and what’s happening in civic life.</p>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="content" style="padding:28px 48px 0;">
+                      <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                        <tr>
+                          <td style="background-color:#4A7CFF;border-radius:999px;">
+                            <a href="${BILLION_APP_STORE_URL}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 22px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;">Download on the App Store</a>
+                          </td>
+                        </tr>
+                      </table>
                     </td>
                   </tr>
 
@@ -123,7 +141,7 @@ export const WAITLIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DTD XH
 
                   <tr>
                     <td class="content" style="padding:22px 48px 46px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:26px;color:#E7E9F0;">
-                      <p style="margin:0 0 4px;">Thanks for being early.</p>
+                      <p style="margin:0 0 4px;">Thanks for following along.</p>
                       <p style="margin:0;color:#AEB3C1;">— The Billion team</p>
                     </td>
                   </tr>
@@ -134,7 +152,7 @@ export const WAITLIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DTD XH
             <tr>
               <td align="center" style="padding:26px 32px 8px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:19px;color:#AEB3C1;">
                 <p style="margin:0;">
-                  You’re receiving this because you joined the Billion waitlist.<br />
+                  You’re receiving this because you subscribed to updates from Billion.<br />
                   <a href="${BILLION_SITE_URL}" target="_blank" rel="noopener noreferrer" style="color:#AEB3C1;text-decoration:underline;">Visit Billion</a>
                 </p>
               </td>
