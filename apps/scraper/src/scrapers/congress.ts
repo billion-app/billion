@@ -1,6 +1,7 @@
 import { eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import { ScraperCursor } from "@acme/db/schema";
+import { BillSourceVersion, BillSection } from "@acme/db/schema";
 
 import type { UpsertOutcome } from "../utils/db/operations.js";
 import type { NewItemLimiter } from "../utils/new-item-limit.js";
@@ -19,6 +20,7 @@ import { latestActionDate } from "../utils/last-action.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
 import { congressConfig } from "./congress.config.js";
+import { parseBillSections, calculateSectionHash } from "../utils/bill-parser.js";
 
 const BASE_URL = "https://api.congress.gov/v3";
 const logger = createLogger("Congress.gov");
@@ -241,42 +243,6 @@ export async function fetchSummary(
 }
 
 /**
- * Postgres rejects `to_tsvector` input over 1,048,575 bytes and
- * `Bill.searchVector` is a generated column over `full_text`, so an oversized
- * bill cannot be stored whole. Keep a wide margin under that ceiling.
- *
- * We refuse the bill rather than truncating it. A truncated bill is not a
- * smaller bill, it is a *wrong* one: H.R. 7008's brief told readers the bill
- * specified no penalties because the penalties were past the cut. An absent
- * bill is visibly absent; a truncated one reads as complete and misinforms.
- * Section-aware storage (#191) is what actually fixes these.
- */
-const MAX_FULL_TEXT_BYTES = 800_000;
-
-export class BillTextTooLargeError extends Error {
-  constructor(
-    readonly label: string,
-    readonly bytes: number,
-  ) {
-    super(
-      `${label}: full text is ${bytes} bytes, over the ${MAX_FULL_TEXT_BYTES}-byte storage ceiling — refusing to store a truncated bill`,
-    );
-    this.name = "BillTextTooLargeError";
-  }
-}
-
-/** Throws `BillTextTooLargeError` rather than returning a shortened string. */
-export function assertWithinTsvectorLimit(text: string, label: string): string {
-  // Byte length, not character count: bill text carries multibyte punctuation
-  // (section signs, em dashes, curly quotes) that a char count undercounts.
-  const bytes = Buffer.byteLength(text, "utf8");
-  if (bytes > MAX_FULL_TEXT_BYTES) {
-    throw new BillTextTooLargeError(label, bytes);
-  }
-  return text;
-}
-
-/**
  * Order text versions newest-first so we store the *operative* text.
  *
  * This used to be `[...textVersions].reverse()`, which assumes the API returns
@@ -308,7 +274,7 @@ export async function fetchFullText(
   congress: number,
   billType: string,
   billNumber: string,
-): Promise<string | undefined> {
+): Promise<{ xmlContent: string; sourceUrl: string; officialDate?: Date } | undefined> {
   try {
     const data = await congressFetch<{ textVersions: ApiTextVersion[] }>(
       `/bill/${congress}/${billType.toLowerCase()}/${billNumber}/text`,
@@ -325,21 +291,17 @@ export async function fetchFullText(
       const rawText = await res.text();
       if (!rawText) continue;
 
-      // Store the bill as published. An earlier 1,000-word cap silently cut
-      // most bills off mid-section — H.R. 7008 lost its entire penalties
-      // section, and the brief generator then reported that the bill
-      // specified no penalties. Downstream consumers window this text to fit
-      // their own context budget (see SOURCE_WINDOW in ai/bill-brief.ts);
-      // truncating at ingest time only destroys information for all of them.
-      const text = stripHtml(rawText).trim();
-      return assertWithinTsvectorLimit(text, billNumber) || undefined;
+      // Return the XML content and metadata
+      return {
+        xmlContent: rawText,
+        sourceUrl: txtFormat.url,
+        officialDate: version.date ? new Date(version.date) : undefined,
+      };
     }
   } catch (error) {
     // Full text is otherwise optional — a fetch failure degrades to a bill
-    // without text. Oversize is different: it means we *have* the text and
-    // cannot store it faithfully, and swallowing it here would save the bill
-    // textless, which is the silent-wrongness this check exists to prevent.
-    if (error instanceof BillTextTooLargeError) throw error;
+    // without text.
+    return undefined;
   }
   return undefined;
 }
@@ -456,8 +418,28 @@ async function processBill(
     : undefined;
 
   const summary = await fetchSummary(congress, billType, billNumber);
-  const fullText = await fetchFullText(congress, billType, billNumber);
+  const textResult = await fetchFullText(congress, billType, billNumber);
   const actions = await fetchActions(congress, billType, billNumber);
+
+  // If we have text, parse it into sections
+  let billSourceVersionId: string | undefined = undefined;
+  if (textResult) {
+    try {
+      // Parse the bill sections
+      const parsedResult = await parseBillSections(
+        textResult.xmlContent,
+        "", // We'll get the bill ID after creating the bill
+        billType.toLowerCase(),
+        textResult.sourceUrl,
+        textResult.officialDate
+      );
+
+      billSourceVersionId = parsedResult.sourceVersionId;
+    } catch (error) {
+      logger.error(`Failed to parse bill sections for ${formattedBillNumber}:`, error);
+      // Continue without sections, but log the error
+    }
+  }
 
   const outcome = await upsertContent(
     {
@@ -474,7 +456,7 @@ async function processBill(
         congress,
         chamber: chamberValue,
         summary,
-        fullText,
+        // Removed fullText field - sections are stored separately
         actions,
         // Not `sourceUpdatedAt`: that is congress.gov's record-modified time,
         // which moves on metadata refreshes and is why sorting "recent" on it
