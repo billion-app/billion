@@ -1061,6 +1061,11 @@ export async function generateBillBrief(args: {
 }): Promise<Omit<BillBriefRecord, "generatedAt" | "modelVersion"> | null> {
   if (rateLimitHit) throw new AIRateLimitError();
 
+  // Check if this is a large bill that should use two-pass generation
+  if (shouldUseTwoPassGeneration(args.fullText)) {
+    return generateBillBriefTwoPass(args);
+  }
+
   const legalStatus = deriveLegalStatus(args.status);
   const readingResearch = await researchBillContext(
     args.title,
@@ -1199,4 +1204,37 @@ export async function generateBillBrief(args: {
     }
   }
   return null;
+}
+
+/**
+ * Determine if a bill should use two-pass generation based on size
+ */
+function shouldUseTwoPassGeneration(fullText: string): boolean {
+  // Estimate section count based on text length and common bill structure
+  // H.R. 8800 has ~810 sections, so we'll use a reasonable threshold
+  const estimatedSectionCount = fullText.length / 2000; // Rough estimate
+  return estimatedSectionCount > 10; // Consider large if > 10 sections
+}
+
+/**
+ * Generate a brief using two-pass approach for large bills
+ */
+export async function generateBillBriefTwoPass(args: {
+  title: string;
+  billNumber: string;
+  url: string;
+  fullText: string;
+  officialSummary?: string | null;
+  status?: string | null;
+  priorArticle?: string | null;
+}): Promise<Omit<BillBriefRecord, "generatedAt" | "modelVersion"> | null> {
+  // Import the two-pass implementation
+  const { generateBillBriefTwoPass: twoPassGen } = await import("./bill-brief-two-pass.js");
+
+  // For now, return a placeholder - we'll implement the full two-pass logic
+  // in the separate file that handles section splitting and classification
+
+  // Placeholder return - in a real implementation, this would return the actual generated brief
+  const brief = await twoPassGen(args);
+  return brief;
 }
