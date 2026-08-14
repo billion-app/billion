@@ -297,7 +297,7 @@ export function readBulkBills(
       identifier: column(row, "identifier"),
       title: column(row, "title"),
       session:
-        column(row, "session", "legislative_session") ||
+        column(row, "session", "session_identifier", "legislative_session") ||
         (options.session ?? ""),
       classification: splitClassification(column(row, "classification")),
       ...(organizationClassification

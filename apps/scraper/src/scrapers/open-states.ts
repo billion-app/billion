@@ -15,6 +15,8 @@
  * not from Open States, so it does not draw on the API budget at all.
  */
 
+import { getDocumentProxy } from "unpdf";
+
 import type { OpenStatesBill } from "@acme/api/clients/open-states";
 import { eq } from "@acme/db";
 import { db } from "@acme/db/client";
@@ -172,6 +174,21 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+async function extractPdfText(bytes: Uint8Array): Promise<string> {
+  const document = await getDocumentProxy(bytes);
+  const pages: string[] = [];
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) {
+    const page = await document.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const text = (content.items as { str?: string }[])
+      .map((item) => item.str?.trim())
+      .filter(Boolean)
+      .join(" ");
+    if (text) pages.push(text);
+  }
+  return pages.join("\n\n");
+}
+
 /**
  * Fetch the operative bill text from the state's own site.
  *
@@ -186,9 +203,12 @@ async function fetchFullText(
   if (!bill.textLink) return undefined;
   try {
     const res = await fetchWithRetry(bill.textLink.url);
-    const raw = await res.text();
-    if (!raw) return undefined;
-    const text = stripHtml(raw);
+    const isPdf =
+      bill.textLink.mediaType?.toLowerCase() === "application/pdf" ||
+      /\.pdf(?:$|[?#])/i.test(bill.textLink.url);
+    const text = isPdf
+      ? await extractPdfText(new Uint8Array(await res.arrayBuffer()))
+      : stripHtml(await res.text());
     if (!text) return undefined;
     return assertWithinTsvectorLimit(text, bill.billNumber) || undefined;
   } catch (error) {
@@ -290,9 +310,10 @@ async function importBulk(
   directory: string,
   stateCode: string,
   maxBills: number,
+  session?: string,
 ): Promise<void> {
   logger.info(`Importing bulk export from ${directory} (state=${stateCode})`);
-  const bills = readBulkBills(directory).slice(0, maxBills);
+  const bills = readBulkBills(directory, { session }).slice(0, maxBills);
   logger.info(`Read ${bills.length} bill(s) from the export`);
 
   if (bills.length === 0) {
@@ -620,7 +641,12 @@ async function scrape(config: OpenStatesScraperConfig = {}): Promise<void> {
 
   if (config.bulkDir) {
     // A bulk export is a single state's session by construction.
-    return importBulk(config.bulkDir, states[0] ?? "ca", maxBills);
+    return importBulk(
+      config.bulkDir,
+      states[0] ?? "ca",
+      maxBills,
+      config.session,
+    );
   }
 
   if (config.bills?.length) {

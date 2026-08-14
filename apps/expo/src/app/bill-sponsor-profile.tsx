@@ -56,7 +56,7 @@ export default function BillSponsorProfileScreen() {
   }
 
   const { jurisdiction, sponsor, sponsoredBills, sourceUrl } = query.data;
-  const isStateSponsor = jurisdiction === "ca";
+  const isStateSponsor = jurisdiction !== "federal";
   const location = [
     sponsor.state,
     sponsor.district && `District ${sponsor.district}`,

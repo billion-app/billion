@@ -31,7 +31,7 @@ import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
-import { JURISDICTIONS } from "~/utils/jurisdiction";
+import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 
 // Below this length a query is treated as "not searching yet" to avoid
 // hammering the server-side full-text search on the first keystroke.
@@ -56,6 +56,7 @@ export default function BrowseScreen() {
   const refreshInFlight = useRef(false);
   const { jurisdiction, setJurisdiction } = useContentJurisdiction();
   const jurisdictionInfo = JURISDICTIONS[jurisdiction];
+  const isState = isStateJurisdiction(jurisdiction);
   const otherJurisdiction = jurisdiction === "federal" ? "ca" : "federal";
 
   const handleFilterChange = (f: VideoPost["type"] | "all") => {
@@ -257,11 +258,11 @@ export default function BrowseScreen() {
             {!listIsLoading && !listError && items.length > 0 && (
               <View style={s.resultsCountWrap}>
                 <Text style={s.resultsCount}>
-                  {items.length} {jurisdiction === "ca" ? "bill" : "result"}
+                  {items.length} {isState ? "bill" : "result"}
                   {items.length === 1 ? "" : "s"} ·{" "}
                   {isSearching
                     ? "sorted by relevance"
-                    : jurisdiction === "ca"
+                    : isState
                       ? "sorted by latest action"
                       : "sorted by recent"}
                 </Text>
@@ -345,25 +346,27 @@ export default function BrowseScreen() {
           ) : (
             <View style={s.center}>
               <Text style={s.emptyTitle}>
-                {jurisdiction === "ca" && filter === "court_case"
-                  ? "No California court cases yet"
-                  : jurisdiction === "ca"
-                    ? `No California ${filter === "all" ? "bills" : "records"} found`
+                {isState && filter === "court_case"
+                  ? `No ${jurisdictionInfo.name} court cases yet`
+                  : isState
+                    ? `No ${jurisdictionInfo.name} ${filter === "all" ? "bills" : "records"} found`
                     : isSearching
                       ? `No federal match for “${query.trim()}”`
                       : "Nothing found"}
               </Text>
               <Text style={s.emptySub}>
-                {jurisdiction === "ca"
-                  ? "Billion covers California’s Legislature today. State courts and executive orders aren’t ingested yet."
+                {isState
+                  ? `Billion covers ${jurisdictionInfo.name}’s Legislature today. State courts and executive orders aren’t ingested yet.`
                   : "Try a different search or filter."}
               </Text>
-              {jurisdiction === "ca" && filter !== "bill" ? (
+              {isState && filter !== "bill" && filter !== "all" ? (
                 <TouchableOpacity
                   style={s.emptyAction}
                   onPress={() => handleFilterChange("bill")}
                 >
-                  <Text style={s.emptyActionText}>Show California bills</Text>
+                  <Text style={s.emptyActionText}>
+                    Show {jurisdictionInfo.name} bills
+                  </Text>
                 </TouchableOpacity>
               ) : null}
             </View>

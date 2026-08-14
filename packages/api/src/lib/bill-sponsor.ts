@@ -1,3 +1,9 @@
+import type { ContentJurisdiction } from "./content-jurisdiction";
+import {
+  isStateJurisdiction,
+  STATE_JURISDICTIONS,
+} from "./content-jurisdiction";
+
 export interface BillSponsorIdentity {
   raw: string;
   name: string;
@@ -18,7 +24,7 @@ const PARTY_NAMES: Record<string, string> = {
 /** Parse the normalized sponsor label stored by the Congress.gov scraper. */
 export function parseBillSponsor(
   raw: string,
-  jurisdiction: "federal" | "ca" = "federal",
+  jurisdiction: ContentJurisdiction = "federal",
 ): BillSponsorIdentity {
   const value = raw.trim();
   const match = /^(.*?)\s*\(([^)]+)\)\s*$/.exec(value);
@@ -55,12 +61,16 @@ export function parseBillSponsor(
 
 export function sponsorRole(
   chamber?: string | null,
-  jurisdiction: "federal" | "ca" = "federal",
+  jurisdiction: ContentJurisdiction = "federal",
 ): string {
-  if (jurisdiction === "ca") {
-    return chamber?.toLowerCase() === "senate"
-      ? "California State Senator"
-      : "California Assemblymember";
+  if (isStateJurisdiction(jurisdiction)) {
+    const state = STATE_JURISDICTIONS[jurisdiction];
+    if (chamber?.toLowerCase() === "senate") {
+      return `${state.name} State Senator`;
+    }
+    return jurisdiction === "ca"
+      ? "California Assemblymember"
+      : `${state.name} State Representative`;
   }
   return chamber?.toLowerCase() === "senate"
     ? "U.S. Senator"

@@ -56,4 +56,10 @@ void test("parses a state-legislator district without treating it as a state", (
   });
   assert.equal(sponsorRole("Senate", "ca"), "California State Senator");
   assert.equal(sponsorRole("Assembly", "ca"), "California Assemblymember");
+  assert.equal(sponsorRole("Senate", "mo"), "Missouri State Senator");
+  assert.equal(
+    sponsorRole("House", "nc"),
+    "North Carolina State Representative",
+  );
+  assert.equal(sponsorRole("House", "tx"), "Texas State Representative");
 });

@@ -306,17 +306,17 @@ export function pickAbstract(
   return best || undefined;
 }
 
-const TEXT_MEDIA_PREFERENCE = ["text/html", "text/plain"];
+const TEXT_MEDIA_PREFERENCE = ["text/html", "text/plain", "application/pdf"];
 
 /**
  * The link to fetch a bill's operative text from.
  *
- * Newest version first, and only text formats: PDF-only versions are left for
- * the abstract to cover rather than run through a PDF pipeline this scraper
- * does not have. Undated versions sort last, for the same reason the federal
- * scraper does it — an undated version is not evidence of being current, and
- * storing an introduced draft as though it were the chaptered text is the exact
- * failure that made the federal briefs wrong for months.
+ * Newest version first, preferring HTML/plain text before PDF. PDF support is
+ * required for states such as North Carolina whose bulk exports publish no
+ * abstracts or HTML versions. Undated versions sort last, for the same reason
+ * the federal scraper does it — an undated version is not evidence of being
+ * current, and storing an introduced draft as though it were the chaptered
+ * text is the exact failure that made the federal briefs wrong for months.
  */
 export function pickVersionLink(
   versions: readonly OpenStatesBillVersion[] | undefined,

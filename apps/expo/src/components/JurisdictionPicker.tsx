@@ -12,7 +12,11 @@ import type { ContentJurisdiction } from "~/utils/jurisdiction";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker } from "~/components/ui";
 import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
-import { addressIsInCalifornia, JURISDICTIONS } from "~/utils/jurisdiction";
+import {
+  jurisdictionFromAddress,
+  JURISDICTIONS,
+  STATE_JURISDICTIONS,
+} from "~/utils/jurisdiction";
 
 export function JurisdictionScopeRow({
   jurisdiction,
@@ -63,7 +67,7 @@ export function JurisdictionPicker({
   onSetAddress: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const californiaIsHome = addressIsInCalifornia(address);
+  const homeJurisdiction = jurisdictionFromAddress(address);
   return (
     <Modal
       visible={visible}
@@ -107,18 +111,21 @@ export function JurisdictionPicker({
             />
 
             <Kicker style={s.groupLabel}>States</Kicker>
-            <JurisdictionOption
-              jurisdiction="ca"
-              selected={selected === "ca"}
-              isHome={californiaIsHome}
-              onPress={() => onSelect("ca")}
-            />
+            {STATE_JURISDICTIONS.map((jurisdiction) => (
+              <JurisdictionOption
+                key={jurisdiction}
+                jurisdiction={jurisdiction}
+                selected={selected === jurisdiction}
+                isHome={homeJurisdiction === jurisdiction}
+                onPress={() => onSelect(jurisdiction)}
+              />
+            ))}
 
             <View style={s.coverageNote}>
               <Icon name="info" size={16} color={colors.textSecondary} />
               <Text style={s.coverageText}>
-                California is the only state Billion covers so far. More are
-                being added.
+                State bill coverage currently includes California, Missouri,
+                North Carolina and Texas.
               </Text>
             </View>
           </ScrollView>
