@@ -472,6 +472,16 @@ export const envRegistry = [
     schema: z.enum(["0", "1"]),
   }),
   define({
+    key: "SCRAPER_SKIP_DUAL_LENS",
+    description:
+      "Set to 1 for bounded backfills that will generate optional dual lenses separately later.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "0",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["0", "1"]),
+  }),
+  define({
     key: "SCRAPER_MAX_NEW_ITEMS_PER_RUN",
     description:
       "Max brand-new items (per data source) that get AI enrichment in one run; extras roll over to the next run.",
