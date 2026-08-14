@@ -1,4 +1,4 @@
-import type { SQL } from "drizzle-orm";
+import type { SQL, SQLWrapper } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import {
   check,
@@ -32,6 +32,18 @@ const tsvector = customType<{ data: string }>({
     return "tsvector";
   },
 });
+
+/**
+ * SQL counterpart to the scraper's presidential-title normalization.
+ *
+ * Keep the lookup and its expression index on the exact same syntax tree so
+ * PostgreSQL can use the index when matching titles across publishers.
+ */
+export function normalizeGovernmentContentTitleSql(
+  title: SQLWrapper,
+): SQL<string> {
+  return sql<string>`lower(regexp_replace(${title}, '[^a-zA-Z0-9]', '', 'g'))`;
+}
 
 export const Post = pgTable("post", (t) => ({
   id: t.uuid().notNull().primaryKey().defaultRandom(),
@@ -229,6 +241,9 @@ export const GovernmentContent = pgTable(
     ),
   }),
   (table) => ({
+    sourceNormalizedTitleIdx: index(
+      "government_content_source_normalized_title_idx",
+    ).on(table.source, normalizeGovernmentContentTitleSql(table.title)),
     searchVectorIdx: index("government_content_search_vector_idx").using(
       "gin",
       table.searchVector,

@@ -5,7 +5,13 @@
 
 import { eq, and, isNull, or, inArray, sql } from '@acme/db';
 import { db } from '@acme/db/client';
-import { Bill, GovernmentContent, CourtCase, Video } from '@acme/db/schema';
+import {
+  Bill,
+  GovernmentContent,
+  CourtCase,
+  Video,
+  normalizeGovernmentContentTitleSql,
+} from '@acme/db/schema';
 import type { ExistingRecordCheck } from '../types.js';
 import { createLogger } from '../log.js';
 
@@ -110,7 +116,9 @@ export async function countGovernmentContentTitles(
   const counts = new Map<string, number>();
   if (normalizedTitles.length === 0) return counts;
 
-  const normalized = sql<string>`lower(regexp_replace(${GovernmentContent.title}, '[^a-zA-Z0-9]', '', 'g'))`;
+  const normalized = normalizeGovernmentContentTitleSql(
+    GovernmentContent.title,
+  );
 
   try {
     const rows = await db
