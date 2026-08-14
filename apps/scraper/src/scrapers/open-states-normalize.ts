@@ -15,6 +15,7 @@ import type {
   OpenStatesBillSponsorship,
   OpenStatesBillVersion,
 } from "@acme/api/clients/open-states";
+import { sanitizeBillStatus } from "@acme/validators";
 
 /**
  * Written into `Bill.sourceWebsite` for every state bill regardless of which
@@ -225,7 +226,9 @@ export function mapStatus(
   for (const [classification, label] of STATUS_BY_CLASSIFICATION) {
     if (classifications.has(classification)) return label;
   }
-  return action.description?.trim() || "Unknown";
+  const description = action.description?.trim();
+  if (!description) return "Unknown";
+  return sanitizeBillStatus(description) || "Unknown";
 }
 
 /** Actions in the shape `Bill.actions` stores, oldest first. */

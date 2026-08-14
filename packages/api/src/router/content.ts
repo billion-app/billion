@@ -14,7 +14,7 @@ import {
   SavedArticle,
   Video,
 } from "@acme/db/schema";
-import { parseBillBriefRecord } from "@acme/validators";
+import { parseBillBriefRecord, sanitizeBillStatus } from "@acme/validators";
 
 import type { ContentJurisdiction } from "../lib/content-jurisdiction";
 import { toBillTimelineActions } from "../lib/bill-actions";
@@ -335,7 +335,9 @@ function toBillCard(bill: BillCardSource): ContentCard & { type: "bill" } {
     billNumber: bill.billNumber,
     jurisdiction,
     jurisdictionCode: jurisdictionCode(jurisdiction),
-    billStatus: bill.status ?? undefined,
+    billStatus: bill.status
+      ? sanitizeBillStatus(bill.status) || undefined
+      : undefined,
     activityAt:
       bill.lastActionAt ?? bill.introducedDate ?? bill.createdAt ?? undefined,
     chamber: bill.chamber ?? undefined,
