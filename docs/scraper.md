@@ -38,6 +38,7 @@ source of truth for what `all` runs**, in this order:
 | ---------------------- | ------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `federalregister.ts`   | federalregister.gov REST API   | `government_content` | REST (presidential documents); HTML→Markdown via Turndown                                                                       |
 | `congress.ts`          | congress.gov REST API          | `bill`               | REST (`CONGRESS_API_KEY`), incremental by source `updateDate` — see [Incremental discovery](#incremental-discovery-congressgov) |
+| `open-states.ts`       | Open States v3 API             | `bill`               | REST (`OPEN_STATES_API_KEY`), incremental by source `updated_at` — see [State bills](#state-bills-open-states)                  |
 | `scc-cvig.ts`          | Santa Clara County voter guide | `civic_api_cache`    | PDF extraction; optional Gemini fallback (`GOOGLE_GENERATIVE_AI_API_KEY`)                                                        |
 | `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages, PDF fallback via `ca-sos-vig-pdf.ts`                                                         |
 
@@ -107,6 +108,70 @@ backfills run — stop and restart freely, the cursor is durable.
 `--bill "H.R. 7008"` (repeatable, plus `--congress`) fetches specific bills
 directly and bypasses the cursor entirely, for backfilling a single bill or
 regenerating one for testing.
+
+## State bills (Open States)
+
+`open-states.ts` ingests state-legislature bills into the same `Bill` table and
+the same AI pipeline as federal ones. California only today
+(`OPEN_STATES_STATES=ca`); the state list is a config value, not a hardcode, and
+each state walks its own cursor keyed `open-states:{state}`.
+
+**Identity.** A state bill's `billNumber` is `"CA SB 243 (2025-2026)"` and its
+`sourceWebsite` is `openstates.org`. All three parts are load-bearing: the
+uniqueness constraint is `(billNumber, sourceWebsite)`, SB 243 exists in most
+states, and SB 243 exists in *every* California session as an unrelated bill.
+Changing that format silently duplicates every row already stored.
+`Bill.congress` stays null for state bills — it is a federal field, and the
+session lives in the bill number instead. Chamber is the state's own vocabulary:
+California's lower house is the **Assembly**, not the House.
+
+**One request per twenty bills.** The walk asks `/bills` for sponsorships,
+abstracts, actions and versions inline rather than fetching each bill's detail
+separately. This is a quota decision, not a style one — the free Open States
+tier allows a few hundred requests a day, and at one request per bill a
+California session would take weeks to drain, which is exactly why the
+CourtListener scraper is parked. Bill *text* is fetched from the state's own
+site (leginfo for CA), so it does not draw on the API budget at all.
+
+Everything else matches the federal walk: ascending `updated_since` from a
+durable cursor, retry queue, and the same three-way `upsertContent` outcome
+contract. `updated_since` is date-granular, so the cursor rounds *back* to its
+own day — an unchanged bill re-offered is a no-op upsert, whereas rounding
+forward would drop everything updated later that day.
+
+`--bill "SB 243"` (with optional `--session 20252026`) fetches specific bills and
+bypasses the cursor, the same way `--bill` does for congress.gov.
+
+### Bulk backfill
+
+`--bulk-dir <path>` imports an unzipped Open States session-CSV export through
+the same normalization and upsert path as the API, with no API requests at all.
+It is the fast way to seed a session before letting the incremental walk take
+over.
+
+It takes a local directory rather than downloading, because the archives at
+<https://open.pluralpolicy.com/data/session-csv/> sit behind a **site login**,
+not the API key — an unauthenticated fetch gets "Please log in to access download
+links". Automating it would mean storing account credentials in the scraper. So:
+sign in, download the session archive, unzip it, and point `--bulk-dir` at the
+directory.
+
+```sh
+pnpm --filter @acme/scraper run start open-states --bulk-dir ~/Downloads/CA_2025-2026_csv
+```
+
+The import deliberately does **not** move the cursor. An export is a snapshot of
+a whole session with no position in the update feed, so there is no high-water
+mark to take from it, and writing one would strand every bill changed since the
+export was built.
+
+Open States documents the CSV format as experimental. The reader maps columns by
+name with a few aliases and raises `BulkExportShapeError` listing the columns it
+actually found if the shape has moved — it will not quietly import shifted data.
+
+**Not ingested:** roll-call votes. `Bill` has no column for them and inventing
+one is out of scope here; the `openStates` tRPC router already serves votes
+live for the bill detail screen.
 
 ## Bill text: which version, and how much
 

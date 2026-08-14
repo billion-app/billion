@@ -40,11 +40,21 @@ const argv = await yargs(hideBin(process.argv))
     type: "string",
     array: true,
     describe:
-      'Fetch specific congress.gov bills by number (e.g. --bill "H.R. 7008"), ignoring the incremental update cursor. Repeatable. Requires the "congress" scraper',
+      'Fetch specific bills by number (e.g. --bill "H.R. 7008" for congress, --bill "SB 243" for open-states), ignoring the incremental update cursor. Repeatable. Requires the "congress" or "open-states" scraper',
   })
   .option("congress", {
     type: "number",
     describe: "Congress number for --bill (default: 119)",
+  })
+  .option("session", {
+    type: "string",
+    describe:
+      'Legislative session for --bill on state sources (e.g. --session 20252026). Requires the "open-states" scraper',
+  })
+  .option("bulk-dir", {
+    type: "string",
+    describe:
+      'Import an unzipped bulk session-CSV export instead of calling the API. Requires the "open-states" scraper. Download the archive while signed in at https://open.pluralpolicy.com/data/session-csv/, unzip it, and pass the directory',
   })
   .option("recent", {
     type: "number",
@@ -62,8 +72,30 @@ const argv = await yargs(hideBin(process.argv))
       throw new Error("--max-items must be a positive integer");
     }
     const bills = args.bill;
-    if (bills?.length && args.scraper !== "congress") {
-      throw new Error('--bill requires the "congress" scraper');
+    if (
+      bills?.length &&
+      args.scraper !== "congress" &&
+      args.scraper !== "open-states"
+    ) {
+      throw new Error(
+        '--bill requires the "congress" or "open-states" scraper',
+      );
+    }
+    if (args.session !== undefined) {
+      if (args.scraper !== "open-states") {
+        throw new Error('--session requires the "open-states" scraper');
+      }
+      if (!bills?.length) {
+        throw new Error("--session only applies alongside --bill");
+      }
+    }
+    if (args.bulkDir !== undefined) {
+      if (args.scraper !== "open-states") {
+        throw new Error('--bulk-dir requires the "open-states" scraper');
+      }
+      if (bills?.length) {
+        throw new Error("--bulk-dir and --bill select bills different ways");
+      }
     }
     const recent = args.recent;
     if (recent !== undefined) {
@@ -93,6 +125,8 @@ const concurrency = (argv as { concurrency: number }).concurrency;
 const maxItems = (argv as { maxItems?: number }).maxItems;
 const targets = (argv as { bill?: string[] }).bill;
 const congressNumber = (argv as { congress?: number }).congress;
+const session = (argv as { session?: string }).session;
+const bulkDir = (argv as { bulkDir?: string }).bulkDir;
 const recent = (argv as { recent?: number }).recent;
 
 function logDatabaseTarget(): void {
@@ -142,6 +176,8 @@ async function main() {
       maxItems,
       targets,
       congress: congressNumber,
+      session,
+      bulkDir,
       recent,
     });
     printMetricsSummary(scraper.name);

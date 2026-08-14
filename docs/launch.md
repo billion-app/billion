@@ -140,7 +140,7 @@ string copied from the provider is normally already safe to paste.
 | ----------------------- | ---------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GOOGLE_CIVIC_API_KEY`  | Launch required  | Elections, representatives, polling locations, and voter information | Some civic calls use mock development data; explicit live voter-info calls can report that the key is not configured. | Create a server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials), enable the [Civic Information API](https://developers.google.com/civic-information/docs/using_api), and restrict the key to that API. |
 | `GOOGLE_PLACES_API_KEY` | Launch required  | Address autocomplete and place details                               | Falls back to `GOOGLE_API_KEY`, then `GOOGLE_CIVIC_API_KEY`, then local mock suggestions.                             | Enable **Places API (New)** and create a restricted server key; see [Places setup](https://developers.google.com/maps/documentation/places/web-service/cloud-setup).                                                                        |
-| `OPEN_STATES_API_KEY`   | Feature required | California state bills, legislators, and voting records              | Open States-backed enrichments are skipped or return no enrichment.                                                   | [Open States account/API keys](https://openstates.org/accounts/profile/).                                                                                                                                                                   |
+| `OPEN_STATES_API_KEY`   | Feature required | California state bills, legislators, and voting records; required by the `open-states` scraper | Open States-backed enrichments are skipped or return no enrichment, and the `open-states` scraper fails env validation. | [Open States account/API keys](https://open.pluralpolicy.com/accounts/profile/).                                                                                                                                                                   |
 | `VOTE_SMART_API_KEY`    | Feature required | Candidate and state-measure enrichment                               | Vote Smart-backed adapters skip enrichment.                                                                           | Request access from [Vote Smart](https://votesmart.org/share/api).                                                                                                                                                                          |
 
 Use a dedicated `GOOGLE_PLACES_API_KEY` in production even though the code has
@@ -184,8 +184,8 @@ bundle. It must contain only the public API origin, never an API key or secret.
 
 ## Scraper and scheduled data jobs
 
-The registered CLI scrapers are `federalregister`, `congress`, `scotus`,
-`scc-cvig`, and `ca-sos-statements`. The VOTE411, LAO cache, and VIG archive
+The registered CLI scrapers are `federalregister`, `congress`, `open-states`,
+`scotus`, `scc-cvig`, and `ca-sos-statements`. The VOTE411, LAO cache, and VIG archive
 implementations are retained under `scrapers/disabled` but are not runnable or
 scheduled because the app does not consume their output.
 
@@ -219,6 +219,7 @@ validation consume those declarations. An `all` run validates their union.
 | ------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `federalregister`   | `POSTGRES_URL`; one of `OPENROUTER_API_KEY` or `DEEPSEEK_API_KEY` | `BFL_API_KEY`; `GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`      | Uses the keyless Federal Register API.                                                     |
 | `congress`          | `POSTGRES_URL`, `CONGRESS_API_KEY`; one of the two AI keys        | `BFL_API_KEY`; Google image-search pair                          | Get a free Congress key from [Congress.gov API signup](https://api.congress.gov/sign-up/). |
+| `open-states`       | `POSTGRES_URL`, `OPEN_STATES_API_KEY`; one of the two AI keys     | `BFL_API_KEY`; Google image-search pair                          | Free key from [Open States](https://open.pluralpolicy.com/accounts/profile/); default tier ~500 req/day. `OPEN_STATES_STATES` selects states (default `ca`). |
 | `scotus`            | `POSTGRES_URL`; one of the two AI keys                            | `COURTLISTENER_API_KEY`, `BFL_API_KEY`; Google image-search pair | Runs anonymously at lower CourtListener rate limits when its token is absent.              |
 | `scc-cvig`          | `POSTGRES_URL`                                                    | `GOOGLE_GENERATIVE_AI_API_KEY`                                   | Text-layer PDF extraction still runs; Gemini is only a fallback.                           |
 | `ca-sos-statements` | `POSTGRES_URL`                                                    | None                                                             | Uses public California SOS voter-guide pages.                                              |
@@ -236,6 +237,7 @@ limit; retries and additional invocations each receive a fresh allowance.
 | `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters      |
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Santa Clara voter-guide PDFs        |
 | `CA_SOS_MAX_ITEMS`              |       9 | California SOS office pages         |
+| `OPEN_STATES_MAX_ITEMS`         |     100 | Open States bills, per state        |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving AI/image work |
 
 The last setting is an enrichment budget, not a source-fetch limit. Raw records
@@ -384,6 +386,7 @@ upstream outage obvious:
 pnpm --filter @acme/scraper run start federalregister --concurrency 1
 pnpm --filter @acme/scraper run start scotus --concurrency 1
 pnpm --filter @acme/scraper run start congress --concurrency 1
+pnpm --filter @acme/scraper run start open-states --concurrency 1
 pnpm --filter @acme/scraper run start scc-cvig --concurrency 1
 pnpm --filter @acme/scraper run start ca-sos-statements --concurrency 1
 ```
