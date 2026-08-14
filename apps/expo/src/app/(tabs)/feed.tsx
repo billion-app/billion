@@ -159,10 +159,18 @@ function FeedCard({
     >
       {/* top meta */}
       <View style={s.meta}>
-        <View testID="feed-badge">
-          <Badge type={typeKey} />
-        </View>
-        <Text style={s.time}>{formatFeedAge(item.createdAt)}</Text>
+        {item.jurisdiction === "ca" && item.contentLabel ? (
+          <Text style={[s.stateLabel, { color: t.color }]}>
+            {item.contentLabel}
+          </Text>
+        ) : (
+          <View testID="feed-badge">
+            <Badge type={typeKey} />
+          </View>
+        )}
+        <Text style={s.time}>
+          {formatFeedAge(item.activityAt ?? item.createdAt)}
+        </Text>
       </View>
 
       {/* hero */}
@@ -201,14 +209,14 @@ function FeedCard({
         onPress={onOpenSource}
         activeOpacity={0.8}
         accessibilityRole="link"
-        accessibilityLabel={`Open original source from ${item.author || "the official site"}`}
+        accessibilityLabel={`Open original source from ${item.sourceLabel ?? item.author}`}
         testID="feed-original-source"
       >
         <View style={[s.sourceIcon, { backgroundColor: `${t.color}20` }]}>
           <Icon name="globe" size={16} color={t.color} />
         </View>
         <View style={s.sourceCopy}>
-          <Text style={s.chipStatus}>{item.author || "Public record"}</Text>
+          <Text style={s.chipStatus}>{item.sourceLabel ?? item.author}</Text>
           <Text style={s.chipLabel}>Original source</Text>
         </View>
         <Icon name="external" size={16} color={colors.textSecondary} />
@@ -427,6 +435,11 @@ const s = StyleSheet.create({
     fontSize: 12.5,
     color: colors.textSecondary,
     marginLeft: "auto",
+  },
+  stateLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12.5,
+    letterSpacing: 0.2,
   },
   hero: { width: "100%", height: 150, borderRadius: 14, marginBottom: 18 },
   headline: {

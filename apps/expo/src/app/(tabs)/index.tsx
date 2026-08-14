@@ -6,6 +6,7 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,15 +17,21 @@ import type { VideoPost } from "@acme/api";
 
 import type { ContentItem } from "~/utils/content";
 import { ElectionBanner } from "~/components/ElectionBanner";
+import {
+  JurisdictionPicker,
+  JurisdictionScopeRow,
+} from "~/components/JurisdictionPicker";
 import { Text } from "~/components/Themed";
-import { ContentCard, Pill, Pills, SearchInput } from "~/components/ui";
+import { ContentCard, Icon, Pill, Pills, SearchInput } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useDebounced } from "~/hooks/useDebounce";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, fontDisplay, planes } from "~/styles";
+import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
+import { JURISDICTIONS } from "~/utils/jurisdiction";
 
 // Below this length a query is treated as "not searching yet" to avoid
 // hammering the server-side full-text search on the first keystroke.
@@ -45,7 +52,11 @@ export default function BrowseScreen() {
   const [filter, setFilter] = useState<VideoPost["type"] | "all">("all");
   const [query, setQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [jurisdictionPickerOpen, setJurisdictionPickerOpen] = useState(false);
   const refreshInFlight = useRef(false);
+  const { jurisdiction, setJurisdiction } = useContentJurisdiction();
+  const jurisdictionInfo = JURISDICTIONS[jurisdiction];
+  const otherJurisdiction = jurisdiction === "federal" ? "ca" : "federal";
 
   const handleFilterChange = (f: VideoPost["type"] | "all") => {
     setFilter(f);
@@ -89,7 +100,7 @@ export default function BrowseScreen() {
     isFetchingNextPage,
   } = useInfiniteQuery(
     trpc.content.getByType.infiniteQueryOptions(
-      { type: filter, limit: PAGE_SIZE },
+      { type: filter, limit: PAGE_SIZE, jurisdiction },
       {
         initialCursor: 0,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -111,6 +122,16 @@ export default function BrowseScreen() {
     ...trpc.content.search.queryOptions({
       query: debouncedQuery,
       type: filter,
+      jurisdiction,
+    }),
+    enabled: isSearching,
+  });
+  const otherSearchQuery = useQuery({
+    ...trpc.content.search.queryOptions({
+      query: debouncedQuery,
+      type: filter,
+      jurisdiction: otherJurisdiction,
+      limit: 3,
     }),
     enabled: isSearching,
   });
@@ -137,6 +158,7 @@ export default function BrowseScreen() {
         const input = {
           query: debouncedQuery,
           type: filter,
+          jurisdiction,
         };
         const refreshedItems = await trpcClient.content.search.query(input);
         queryClient.setQueryData(
@@ -144,7 +166,7 @@ export default function BrowseScreen() {
           refreshedItems,
         );
       } else {
-        const input = { type: filter, limit: PAGE_SIZE };
+        const input = { type: filter, limit: PAGE_SIZE, jurisdiction };
         const firstPage = await trpcClient.content.getByType.query({
           ...input,
           cursor: 0,
@@ -157,6 +179,7 @@ export default function BrowseScreen() {
           },
         );
       }
+      if (isSearching) void otherSearchQuery.refetch();
     } catch {
       Alert.alert(
         "Unable to refresh",
@@ -195,9 +218,13 @@ export default function BrowseScreen() {
             <View style={s.headerPad}>
               <Text style={s.display}>Browse</Text>
               <Text style={s.subtitle}>
-                What your government is{" "}
+                What {jurisdictionInfo.subtitlePlace} is{" "}
                 <Text style={s.subtitleEm}>actually</Text> doing.
               </Text>
+              <JurisdictionScopeRow
+                jurisdiction={jurisdiction}
+                onPress={() => setJurisdictionPickerOpen(true)}
+              />
               <SearchInput
                 placeholder="Search bills, cases, orders…"
                 value={query}
@@ -230,8 +257,13 @@ export default function BrowseScreen() {
             {!listIsLoading && !listError && items.length > 0 && (
               <View style={s.resultsCountWrap}>
                 <Text style={s.resultsCount}>
-                  {items.length} result{items.length === 1 ? "" : "s"} ·{" "}
-                  {isSearching ? "sorted by relevance" : "sorted by recent"}
+                  {items.length} {jurisdiction === "ca" ? "bill" : "result"}
+                  {items.length === 1 ? "" : "s"} ·{" "}
+                  {isSearching
+                    ? "sorted by relevance"
+                    : jurisdiction === "ca"
+                      ? "sorted by latest action"
+                      : "sorted by recent"}
                 </Text>
               </View>
             )}
@@ -249,7 +281,32 @@ export default function BrowseScreen() {
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          !isSearching && isFetchingNextPage ? (
+          isSearching && (otherSearchQuery.data?.length ?? 0) > 0 ? (
+            <View style={s.otherResults}>
+              <View style={s.otherResultsHead}>
+                <Text style={s.resultsCount}>
+                  {otherSearchQuery.data?.length} match
+                  {otherSearchQuery.data?.length === 1 ? "" : "es"} in{" "}
+                  {JURISDICTIONS[otherJurisdiction].name}
+                </Text>
+                <TouchableOpacity
+                  style={s.switchButton}
+                  onPress={() => void setJurisdiction(otherJurisdiction)}
+                >
+                  <Text style={s.switchText}>Switch</Text>
+                  <Icon name="chevR" size={15} color={colors.bill} />
+                </TouchableOpacity>
+              </View>
+              {(otherSearchQuery.data ?? []).map((item) => (
+                <View key={item.id} style={s.otherCard}>
+                  <ContentCard
+                    item={toCardItem(item, { showJurisdiction: true })}
+                    onPress={() => router.push(`/article-detail?id=${item.id}`)}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : !isSearching && isFetchingNextPage ? (
             <ActivityIndicator
               color={colors.white}
               style={{ marginVertical: 16 }}
@@ -265,15 +322,67 @@ export default function BrowseScreen() {
             />
           ) : listError ? (
             <View style={s.center}>
-              <Text style={s.errorText}>Unable to load content</Text>
+              <Text style={s.emptyTitle}>
+                {jurisdictionInfo.name} didn’t load
+              </Text>
+              <Text style={s.emptySub}>
+                Your scope hasn’t changed. Try this jurisdiction again.
+              </Text>
+              <TouchableOpacity
+                style={s.emptyAction}
+                onPress={() => void handleRefresh()}
+              >
+                <Text style={s.emptyActionText}>Try again</Text>
+              </TouchableOpacity>
+              {jurisdiction !== "federal" ? (
+                <TouchableOpacity
+                  onPress={() => void setJurisdiction("federal")}
+                >
+                  <Text style={s.switchText}>Browse Federal instead</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : (
             <View style={s.center}>
-              <Text style={s.emptyTitle}>Nothing found</Text>
-              <Text style={s.emptySub}>Try a different search or filter</Text>
+              <Text style={s.emptyTitle}>
+                {jurisdiction === "ca" && filter === "court_case"
+                  ? "No California court cases yet"
+                  : jurisdiction === "ca"
+                    ? `No California ${filter === "all" ? "bills" : "records"} found`
+                    : isSearching
+                      ? `No federal match for “${query.trim()}”`
+                      : "Nothing found"}
+              </Text>
+              <Text style={s.emptySub}>
+                {jurisdiction === "ca"
+                  ? "Billion covers California’s Legislature today. State courts and executive orders aren’t ingested yet."
+                  : "Try a different search or filter."}
+              </Text>
+              {jurisdiction === "ca" && filter !== "bill" ? (
+                <TouchableOpacity
+                  style={s.emptyAction}
+                  onPress={() => handleFilterChange("bill")}
+                >
+                  <Text style={s.emptyActionText}>Show California bills</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           )
         }
+      />
+      <JurisdictionPicker
+        visible={jurisdictionPickerOpen}
+        selected={jurisdiction}
+        address={address}
+        onClose={() => setJurisdictionPickerOpen(false)}
+        onSetAddress={() => {
+          setJurisdictionPickerOpen(false);
+          router.push("/elections" as Href);
+        }}
+        onSelect={(next) => {
+          void setJurisdiction(next);
+          setJurisdictionPickerOpen(false);
+        }}
       />
     </SafeAreaView>
   );
@@ -330,5 +439,41 @@ const s = StyleSheet.create({
     fontFamily: "AlbertSans-Medium",
     fontSize: 14,
     color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
   },
+  emptyAction: {
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  emptyActionText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    color: colors.white,
+  },
+  otherResults: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    padding: 14,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: hair[3],
+    borderRadius: 16,
+  },
+  otherResultsHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  switchButton: { flexDirection: "row", alignItems: "center", gap: 2 },
+  switchText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    color: colors.bill,
+  },
+  otherCard: { marginTop: 12 },
 });

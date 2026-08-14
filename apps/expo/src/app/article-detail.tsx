@@ -340,6 +340,10 @@ export default function ArticleDetailScreen() {
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
+  const isStateBill = content.type === "bill" && content.jurisdiction === "ca";
+  const displayBillNumber = isStateBill
+    ? content.billNumber.replace(/\s+\([^)]+\)$/, "")
+    : content.billNumber;
 
   const openSponsorProfile = () => {
     if (!sponsor) return;
@@ -401,12 +405,18 @@ export default function ArticleDetailScreen() {
 
         <View style={s.badgeRow}>
           <Badge type={typeKey} />
-          {content.billNumber ? (
+          {displayBillNumber ? (
             <Text style={s.billNumber} testID="article-bill-number">
-              {content.billNumber}
+              {displayBillNumber}
             </Text>
           ) : null}
         </View>
+
+        {isStateBill ? (
+          <Text style={s.jurisdictionLine}>
+            California Legislature · {content.sessionLabel} regular session
+          </Text>
+        ) : null}
 
         <Text style={s.title} testID="article-title">
           {content.title}
@@ -438,7 +448,13 @@ export default function ArticleDetailScreen() {
                 {sponsor.name}
               </Text>
               <Text style={s.sponsorMeta} numberOfLines={1}>
-                {[sponsor.role, sponsor.party, sponsor.state]
+                {[
+                  sponsor.role,
+                  sponsor.party,
+                  isStateBill && sponsor.district
+                    ? `District ${sponsor.district}`
+                    : sponsor.state,
+                ]
                   .filter(Boolean)
                   .join(" · ")}
               </Text>
@@ -627,7 +643,9 @@ export default function ArticleDetailScreen() {
             >
               <Icon name="info" size={13} color={colors.textSecondary} />
               <Text style={s.timelineSourceText}>
-                Official record · congress.gov
+                Official record ·{" "}
+                {("sourceLabel" in content ? content.sourceLabel : undefined) ??
+                  "congress.gov"}
               </Text>
               <Icon name="chevR" size={12} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -762,6 +780,14 @@ const s = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.3,
     color: colors.textSecondary,
+  },
+  jurisdictionLine: {
+    fontFamily: fontBody.medium,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    marginTop: -3,
+    marginBottom: 14,
   },
   title: {
     fontFamily: fontDisplay.bold,

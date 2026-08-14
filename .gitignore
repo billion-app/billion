@@ -64,6 +64,10 @@ dist/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Pull request screenshots and other temporary review assets
+docs/pr-assets/
+
 packages/db/seed-waitlist.sql
 .env*
 .env.local
