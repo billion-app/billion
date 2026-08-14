@@ -5,6 +5,11 @@ import { desc, inArray } from "@acme/db";
 import { db } from "@acme/db/client";
 import { Bill, CourtCase, GovernmentContent, Video } from "@acme/db/schema";
 
+import {
+  billJurisdiction,
+  jurisdictionCode,
+  officialSourceLabel,
+} from "../lib/content-jurisdiction";
 import { publicProcedure } from "../trpc";
 
 // Schema for video/feed post (from Video table) - Hybrid image support
@@ -23,6 +28,11 @@ export const VideoPostSchema = z.object({
   thumbnailUrl: z.string().optional(), // URL from source content (scraped)
   originalContentId: z.string(), // Reference to source content
   sourceUrl: z.string().optional(), // Official source site
+  jurisdiction: z.enum(["federal", "ca"]).optional(),
+  jurisdictionCode: z.enum(["US", "CA"]).optional(),
+  contentLabel: z.string().optional(),
+  sourceLabel: z.string().optional(),
+  activityAt: z.date().optional(),
   createdAt: z.date(),
 });
 
@@ -60,7 +70,15 @@ export const videoRouter = {
       const [bills, governmentContent, courtCases] = await Promise.all([
         billIds.length
           ? db
-              .select({ id: Bill.id, url: Bill.url })
+              .select({
+                id: Bill.id,
+                url: Bill.url,
+                sourceWebsite: Bill.sourceWebsite,
+                billNumber: Bill.billNumber,
+                chamber: Bill.chamber,
+                lastActionAt: Bill.lastActionAt,
+                introducedDate: Bill.introducedDate,
+              })
               .from(Bill)
               .where(inArray(Bill.id, billIds))
           : [],
@@ -83,6 +101,7 @@ export const videoRouter = {
           url,
         ]),
       );
+      const billMetadata = new Map(bills.map((bill) => [bill.id, bill]));
 
       // Transform to feed format with hybrid image support
       const feedPosts = videos.map((video) => {
@@ -110,6 +129,16 @@ export const videoRouter = {
           type = video.contentType;
         }
 
+        const bill =
+          type === "bill" ? billMetadata.get(video.contentId) : undefined;
+        const jurisdiction = bill
+          ? billJurisdiction(bill.sourceWebsite, bill.billNumber)
+          : "federal";
+        const contentLabel =
+          jurisdiction === "ca"
+            ? `California · ${bill?.chamber === "Assembly" ? "Assembly Bill" : "Senate Bill"}`
+            : undefined;
+
         return {
           id: video.id,
           title: video.title,
@@ -124,6 +153,13 @@ export const videoRouter = {
           thumbnailUrl: video.thumbnailUrl ?? undefined, // URL-based thumbnail (if exists)
           originalContentId: video.contentId, // For "Read Full Article" navigation
           sourceUrl: sourceUrls.get(video.contentId),
+          jurisdiction,
+          jurisdictionCode: jurisdictionCode(jurisdiction),
+          contentLabel,
+          sourceLabel:
+            type === "bill" ? officialSourceLabel(jurisdiction) : undefined,
+          activityAt:
+            bill?.lastActionAt ?? bill?.introducedDate ?? video.createdAt,
           createdAt: video.createdAt,
         };
       });

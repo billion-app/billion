@@ -43,3 +43,17 @@ void test("maps bill chamber to the sponsor's role", () => {
   assert.equal(sponsorRole("Senate"), "U.S. Senator");
   assert.equal(sponsorRole("House"), "U.S. Representative");
 });
+
+void test("parses a state-legislator district without treating it as a state", () => {
+  assert.deepEqual(parseBillSponsor("Steve Padilla (D-18)", "ca"), {
+    raw: "Steve Padilla (D-18)",
+    name: "Steve Padilla",
+    initials: "SP",
+    partyCode: "D",
+    party: "Democratic",
+    state: undefined,
+    district: "18",
+  });
+  assert.equal(sponsorRole("Senate", "ca"), "California State Senator");
+  assert.equal(sponsorRole("Assembly", "ca"), "California Assemblymember");
+});

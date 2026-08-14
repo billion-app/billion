@@ -24,6 +24,12 @@ interface SavedItem {
   description: string | null;
   type: "bill" | "government_content" | "court_case";
   billNumber?: string;
+  jurisdiction?: "federal" | "ca";
+  jurisdictionCode?: "US" | "CA";
+  billStatus?: string;
+  activityAt?: Date;
+  chamber?: string;
+  sponsor?: string;
 }
 
 function SwipeableSavedCard({
@@ -56,13 +62,22 @@ function SwipeableSavedCard({
     >
       <ContentCard
         saved
-        item={toCardItem({
-          id: item.id,
-          title: item.title,
-          description: item.description ?? "",
-          type: item.type,
-          billNumber: item.billNumber,
-        })}
+        item={toCardItem(
+          {
+            id: item.id,
+            title: item.title,
+            description: item.description ?? "",
+            type: item.type,
+            billNumber: item.billNumber,
+            jurisdiction: item.jurisdiction,
+            jurisdictionCode: item.jurisdictionCode,
+            billStatus: item.billStatus,
+            activityAt: item.activityAt,
+            chamber: item.chamber,
+            sponsor: item.sponsor,
+          },
+          { showJurisdiction: true },
+        )}
         onPress={onPress}
       />
     </Swipeable>

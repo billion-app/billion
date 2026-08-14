@@ -46,6 +46,9 @@ export const authStorage: SyncStorage = {
   },
 };
 
+/** Small, non-sensitive device preferences that must be available at first paint. */
+export const preferenceStorage = authStorage;
+
 export const sessionStorage: AsyncStorage = {
   async getItemAsync(key) {
     if (Platform.OS === "web") {
