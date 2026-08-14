@@ -115,15 +115,32 @@ function jurisdictionFor(stateCode: string): string {
  * and `Retry-After` handling that an unattended run needs. The request shape is
  * the same, and the response types are still the client's.
  */
-async function openStatesFetch<T>(
+type OpenStatesQueryParams = Record<
+  string,
+  string | number | readonly string[] | undefined
+>;
+
+export function buildOpenStatesUrl(
   path: string,
-  params: Record<string, string | number | undefined>,
-): Promise<T> {
+  params: OpenStatesQueryParams,
+): URL {
   const url = new URL(`${BASE_URL}${path}`);
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined) continue;
-    url.searchParams.set(key, String(value));
+    if (Array.isArray(value)) {
+      for (const item of value) url.searchParams.append(key, item);
+    } else {
+      url.searchParams.set(key, String(value));
+    }
   }
+  return url;
+}
+
+async function openStatesFetch<T>(
+  path: string,
+  params: OpenStatesQueryParams,
+): Promise<T> {
+  const url = buildOpenStatesUrl(path, params);
 
   const res = await fetchWithRetry(url.toString(), {
     headers: { "X-API-KEY": getApiKey(), Accept: "application/json" },
@@ -132,7 +149,12 @@ async function openStatesFetch<T>(
 }
 
 /** Everything the normalizer can use, in one request per page. */
-const LIST_INCLUDES = "sponsorships,abstracts,actions,versions";
+const LIST_INCLUDES = [
+  "sponsorships",
+  "abstracts",
+  "actions",
+  "versions",
+] as const;
 
 function stripHtml(html: string): string {
   return html
