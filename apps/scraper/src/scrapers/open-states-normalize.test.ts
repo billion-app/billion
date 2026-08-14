@@ -174,6 +174,22 @@ void test("an unclassified action falls back to its own description, unsliced", 
   assert.equal(mapStatus([action("2025-05-01", long)]), long);
 });
 
+void test("print-form dot leaders are removed from fallback statuses", () => {
+  assert.equal(
+    mapStatus([
+      action("2025-09-17", "Effective on . . . . . . . . . . . . . . ."),
+    ]),
+    "Effective on",
+  );
+});
+
+void test("a genuine trailing ellipsis is preserved", () => {
+  assert.equal(
+    mapStatus([action("2025-05-01", "Further action pending...")]),
+    "Further action pending...",
+  );
+});
+
 void test("a bill with no actions has an explicit unknown status", () => {
   assert.equal(mapStatus(undefined), "Unknown");
   assert.equal(mapStatus([]), "Unknown");
