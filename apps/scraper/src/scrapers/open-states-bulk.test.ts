@@ -147,6 +147,18 @@ void test("an export with only bills.csv still yields storable bills", () => {
   });
 });
 
+void test("an explicit session fills exports that omit the session column", () => {
+  const billsWithoutSession = [
+    "id,identifier,title,organization_classification,created_at,updated_at,openstates_url",
+    "ocd-bill/tx,SB 1,Appropriations,upper,2025-08-15T00:00:00Z,2026-07-09T00:00:00Z,https://openstates.org/TX/bills/892/SB1/",
+  ].join("\n");
+  withExport({ "TX_892_bills.csv": billsWithoutSession }, (directory) => {
+    const [bill] = readBulkBills(directory, { session: "892" });
+    const normalized = normalizeBill(bill!, { stateCode: "tx" });
+    assert.equal(normalized.billNumber, "TX SB 1 (892)");
+  });
+});
+
 void test("a renamed or reshaped export fails loudly with the columns it saw", () => {
   withExport(
     { "CA_2025-2026_bills.csv": "bill_id,name\nocd-bill/abc,Something" },

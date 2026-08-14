@@ -18,6 +18,7 @@ import type {
   CourtCaseData,
   GovernmentContentData,
 } from "../types.js";
+import type { BuiltVideoRecord, DbExecutor } from "./video-operations.js";
 import { generateBillBrief } from "../ai/bill-brief.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
@@ -50,7 +51,6 @@ import {
   incrementTotalProcessed,
   incrementVideosGenerated,
 } from "./metrics.js";
-import type { BuiltVideoRecord, DbExecutor } from "./video-operations.js";
 import {
   buildVideoRecord,
   generateVideoForContent,
@@ -59,6 +59,7 @@ import {
 
 const logger = createLogger("db");
 const forceAIRegeneration = process.env.SCRAPER_FORCE_AI_REGEN === "1";
+const skipOptionalDualLens = process.env.SCRAPER_SKIP_DUAL_LENS === "1";
 
 type ContentData =
   | { type: "bill"; data: BillData }
@@ -207,7 +208,9 @@ export async function upsertContent(
       : !hasPersistedSummary && !sourceDescription && hasSummarySource;
     shouldGenerateArticle =
       generatesArticle &&
-      (forceAIRegeneration ? hasUsableText : hasUsableText && !existing.hasArticle);
+      (forceAIRegeneration
+        ? hasUsableText
+        : hasUsableText && !existing.hasArticle);
     shouldGenerateImage =
       (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     progressKind = "changed";
@@ -218,7 +221,9 @@ export async function upsertContent(
       : !hasPersistedSummary && !sourceDescription && hasSummarySource;
     shouldGenerateArticle =
       generatesArticle &&
-      (forceAIRegeneration ? hasUsableText : hasUsableText && !existing.hasArticle);
+      (forceAIRegeneration
+        ? hasUsableText
+        : hasUsableText && !existing.hasArticle);
     shouldGenerateImage =
       (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     progressKind = "unchanged";
@@ -596,7 +601,12 @@ export async function upsertContent(
     // along with every other derived asset: the lens runs an agentic research
     // loop, and it is the budget's whole purpose to not pay for that on a bill
     // we are only persisting raw. `retroactive-lenses` backfills them.
-    if (hasUsableText && result?.id && !budgetExhausted) {
+    if (
+      hasUsableText &&
+      result?.id &&
+      !budgetExhausted &&
+      !skipOptionalDualLens
+    ) {
       await upsertContentLens(
         result.id,
         input.type,
@@ -962,23 +972,25 @@ async function assembleNewBill(args: {
   // running it inside the transaction would hold a connection open for minutes.
   // A failure here leaves a complete bill with no lens, which `retroactive-
   // lenses` fills in later.
-  try {
-    await upsertContentLens(
-      billId,
-      "bill",
-      contentHash,
-      data.title,
-      data.fullText,
-      "bill",
-      null,
-      args.claimBudget,
-    );
-  } catch (error) {
-    logger.warn(
-      `Dual lens failed for ${label} — the bill is stored and complete without it: ${
-        error instanceof Error ? error.message : error
-      }`,
-    );
+  if (!skipOptionalDualLens) {
+    try {
+      await upsertContentLens(
+        billId,
+        "bill",
+        contentHash,
+        data.title,
+        data.fullText,
+        "bill",
+        null,
+        args.claimBudget,
+      );
+    } catch (error) {
+      logger.warn(
+        `Dual lens failed for ${label} — the bill is stored and complete without it: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
   }
 
   return { status: "ready", id: billId };
@@ -1025,7 +1037,11 @@ export async function buildBillBriefRecord(args: {
 
   const modelVersion = getTextModelVersion();
   return {
-    brief: { ...generated, generatedAt: new Date().toISOString(), modelVersion },
+    brief: {
+      ...generated,
+      generatedAt: new Date().toISOString(),
+      modelVersion,
+    },
     modelVersion,
   };
 }

@@ -159,7 +159,7 @@ function FeedCard({
     >
       {/* top meta */}
       <View style={s.meta}>
-        {item.jurisdiction === "ca" && item.contentLabel ? (
+        {item.jurisdiction !== "federal" && item.contentLabel ? (
           <Text style={[s.stateLabel, { color: t.color }]}>
             {item.contentLabel}
           </Text>

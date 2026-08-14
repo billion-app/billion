@@ -10,6 +10,10 @@ import { Swipeable } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 
+import type {
+  ContentJurisdiction,
+  JurisdictionCode,
+} from "~/utils/jurisdiction";
 import { Text } from "~/components/Themed";
 import { ContentCard, Icon, NavHeader } from "~/components/ui";
 import { colors, hair, planes } from "~/styles";
@@ -24,8 +28,8 @@ interface SavedItem {
   description: string | null;
   type: "bill" | "government_content" | "court_case";
   billNumber?: string;
-  jurisdiction?: "federal" | "ca";
-  jurisdictionCode?: "US" | "CA";
+  jurisdiction?: ContentJurisdiction;
+  jurisdictionCode?: JurisdictionCode;
   billStatus?: string;
   activityAt?: Date;
   chamber?: string;

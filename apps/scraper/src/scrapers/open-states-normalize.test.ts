@@ -273,7 +273,7 @@ void test("the longest abstract is kept as summary source", () => {
   assert.equal(pickAbstract(undefined), undefined);
 });
 
-void test("text selection prefers the newest text version and skips PDF-only ones", () => {
+void test("text selection prefers HTML over PDF for the newest version", () => {
   const picked = pickVersionLink([
     {
       note: "Introduced",
@@ -298,8 +298,8 @@ void test("text selection prefers the newest text version and skips PDF-only one
   assert.equal(picked?.note, "Chaptered");
 });
 
-void test("a PDF-only bill yields no text link rather than a PDF one", () => {
-  assert.equal(
+void test("a PDF-only bill yields a PDF text source", () => {
+  assert.deepEqual(
     pickVersionLink([
       {
         note: "Introduced",
@@ -309,7 +309,11 @@ void test("a PDF-only bill yields no text link rather than a PDF one", () => {
         ],
       },
     ]),
-    undefined,
+    {
+      url: "https://example.gov/x.pdf",
+      mediaType: "application/pdf",
+      note: "Introduced",
+    },
   );
   assert.equal(pickVersionLink(undefined), undefined);
 });

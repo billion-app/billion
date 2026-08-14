@@ -4,7 +4,7 @@ export const openStatesConfig = {
   id: "open-states",
   name: "Open States",
   source:
-    "Open States v3 API — state legislature bills, sponsors, actions, and text (California)",
+    "Open States v3 API — state legislature bills, sponsors, actions, and text",
   environment: {
     required: ["POSTGRES_URL", "OPEN_STATES_API_KEY"],
     requiredAny: [
@@ -24,6 +24,7 @@ export const openStatesConfig = {
       "GOOGLE_SEARCH_ENGINE_ID",
       "OPEN_STATES_MAX_ITEMS",
       "OPEN_STATES_STATES",
+      "SCRAPER_SKIP_DUAL_LENS",
     ],
   },
 } as const satisfies ScraperEnvContract;

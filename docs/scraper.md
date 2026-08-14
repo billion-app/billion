@@ -112,9 +112,10 @@ regenerating one for testing.
 ## State bills (Open States)
 
 `open-states.ts` ingests state-legislature bills into the same `Bill` table and
-the same AI pipeline as federal ones. California only today
-(`OPEN_STATES_STATES=ca`); the state list is a config value, not a hardcode, and
-each state walks its own cursor keyed `open-states:{state}`.
+the same AI pipeline as federal ones. Browse currently supports California,
+Missouri, North Carolina, and Texas
+(`OPEN_STATES_STATES=ca,mo,nc,tx`); each state walks its own cursor keyed
+`open-states:{state}`.
 
 **Identity.** A state bill's `billNumber` is `"CA SB 243 (2025-2026)"` and its
 `sourceWebsite` is `openstates.org`. All three parts are load-bearing: the
@@ -157,7 +158,7 @@ sign in, download the session archive, unzip it, and point `--bulk-dir` at the
 directory.
 
 ```sh
-pnpm --filter @acme/scraper run start open-states --bulk-dir ~/Downloads/CA_2025-2026_csv
+pnpm --filter @acme/scraper run start open-states --bulk-dir ~/Downloads/CA_2025-2026_csv --session 20252026
 ```
 
 The import deliberately does **not** move the cursor. An export is a snapshot of
@@ -168,6 +169,8 @@ export was built.
 Open States documents the CSV format as experimental. The reader maps columns by
 name with a few aliases and raises `BulkExportShapeError` listing the columns it
 actually found if the shape has moved — it will not quietly import shifted data.
+Pass `--session` for exports that omit a session column; it becomes part of each
+bill's stable identity.
 
 **Not ingested:** roll-call votes. `Bill` has no column for them and inventing
 one is out of scope here; the `openStates` tRPC router already serves votes

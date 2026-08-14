@@ -1,6 +1,11 @@
 /** Shared shape + helpers for backend content items (bills, orders, cases). */
 import type { ContentCardItem } from "~/components/ui";
+import type {
+  ContentJurisdiction,
+  JurisdictionCode,
+} from "~/utils/jurisdiction";
 import { resolveType } from "~/styles";
+import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 
 export interface ContentItem {
   id: string;
@@ -10,8 +15,8 @@ export interface ContentItem {
   thumbnailUrl?: string;
   imageUri?: string;
   billNumber?: string;
-  jurisdiction?: "federal" | "ca";
-  jurisdictionCode?: "US" | "CA";
+  jurisdiction?: ContentJurisdiction;
+  jurisdictionCode?: JurisdictionCode;
   billStatus?: string;
   activityAt?: Date;
   chamber?: string;
@@ -54,7 +59,10 @@ export function toCardItem(
   item: ContentItem,
   options: { showJurisdiction?: boolean } = {},
 ): ContentCardItem {
-  const isStateBill = item.type === "bill" && item.jurisdiction === "ca";
+  const stateName = isStateJurisdiction(item.jurisdiction)
+    ? JURISDICTIONS[item.jurisdiction].name
+    : undefined;
+  const isStateBill = item.type === "bill" && !!stateName;
   const activity = relativeActivity(item.activityAt);
   return {
     id: item.id,
@@ -68,7 +76,7 @@ export function toCardItem(
       ? [item.billStatus, activity].filter(Boolean).join(" · ")
       : STATUS_LABEL[item.type],
     meta: isStateBill
-      ? [item.chamber && `California ${item.chamber}`, item.sponsor]
+      ? [item.chamber && `${stateName} ${item.chamber}`, item.sponsor]
           .filter(Boolean)
           .join(" · ")
       : undefined,

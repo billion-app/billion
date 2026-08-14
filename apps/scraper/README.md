@@ -129,6 +129,7 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Voter-guide PDF documents                           |
 | `CA_SOS_MAX_ITEMS`              |       9 | Statewide-office candidate-statement pages          |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
+| `SCRAPER_SKIP_DUAL_LENS`        |       0 | Skip optional dual-lens generation during backfills |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
 day to obtain a daily cap. If the scheduler retries or runs multiple times, each
@@ -136,6 +137,11 @@ invocation gets a fresh allowance. Source limits cap API/page work;
 `SCRAPER_MAX_NEW_ITEMS_PER_RUN` separately caps expensive enrichment. Extra
 bills that require a generated description are deferred before insertion;
 other content may still be stored raw for later backfill.
+
+For a large, explicitly bounded seed, set `SCRAPER_SKIP_DUAL_LENS=1` to write
+each bill as soon as its required summary, brief, and header art are complete.
+The optional lenses can then be filled by `retroactive-lenses` without holding
+up the source backfill.
 
 ---
 

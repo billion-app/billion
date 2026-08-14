@@ -49,6 +49,7 @@ import { queryClient, trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 import { formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
+import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 
 export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
@@ -340,7 +341,8 @@ export default function ArticleDetailScreen() {
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
-  const isStateBill = content.type === "bill" && content.jurisdiction === "ca";
+  const isStateBill =
+    content.type === "bill" && isStateJurisdiction(content.jurisdiction);
   const displayBillNumber = isStateBill
     ? content.billNumber.replace(/\s+\([^)]+\)$/, "")
     : content.billNumber;
@@ -414,7 +416,8 @@ export default function ArticleDetailScreen() {
 
         {isStateBill ? (
           <Text style={s.jurisdictionLine}>
-            California Legislature · {content.sessionLabel} regular session
+            {JURISDICTIONS[content.jurisdiction].body}
+            {content.sessionLabel ? ` · ${content.sessionLabel}` : ""}
           </Text>
         ) : null}
 

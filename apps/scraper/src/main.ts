@@ -49,7 +49,7 @@ const argv = await yargs(hideBin(process.argv))
   .option("session", {
     type: "string",
     describe:
-      'Legislative session for --bill on state sources (e.g. --session 20252026). Requires the "open-states" scraper',
+      'Legislative session for --bill or --bulk-dir on state sources (e.g. --session 20252026). Requires the "open-states" scraper',
   })
   .option("bulk-dir", {
     type: "string",
@@ -85,8 +85,10 @@ const argv = await yargs(hideBin(process.argv))
       if (args.scraper !== "open-states") {
         throw new Error('--session requires the "open-states" scraper');
       }
-      if (!bills?.length) {
-        throw new Error("--session only applies alongside --bill");
+      if (!bills?.length && args.bulkDir === undefined) {
+        throw new Error(
+          "--session only applies alongside --bill or --bulk-dir",
+        );
       }
     }
     if (args.bulkDir !== undefined) {

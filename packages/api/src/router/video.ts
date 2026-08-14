@@ -7,7 +7,11 @@ import { Bill, CourtCase, GovernmentContent, Video } from "@acme/db/schema";
 
 import {
   billJurisdiction,
+  isStateJurisdiction,
+  JURISDICTION_CODES,
   jurisdictionCode,
+  jurisdictionName,
+  JURISDICTIONS,
   officialSourceLabel,
 } from "../lib/content-jurisdiction";
 import { publicProcedure } from "../trpc";
@@ -28,8 +32,8 @@ export const VideoPostSchema = z.object({
   thumbnailUrl: z.string().optional(), // URL from source content (scraped)
   originalContentId: z.string(), // Reference to source content
   sourceUrl: z.string().optional(), // Official source site
-  jurisdiction: z.enum(["federal", "ca"]).optional(),
-  jurisdictionCode: z.enum(["US", "CA"]).optional(),
+  jurisdiction: z.enum(JURISDICTIONS).optional(),
+  jurisdictionCode: z.enum(JURISDICTION_CODES).optional(),
   contentLabel: z.string().optional(),
   sourceLabel: z.string().optional(),
   activityAt: z.date().optional(),
@@ -134,10 +138,9 @@ export const videoRouter = {
         const jurisdiction = bill
           ? billJurisdiction(bill.sourceWebsite, bill.billNumber)
           : "federal";
-        const contentLabel =
-          jurisdiction === "ca"
-            ? `California · ${bill?.chamber === "Assembly" ? "Assembly Bill" : "Senate Bill"}`
-            : undefined;
+        const contentLabel = isStateJurisdiction(jurisdiction)
+          ? `${jurisdictionName(jurisdiction)} · ${bill?.chamber ?? "State"} Bill`
+          : undefined;
 
         return {
           id: video.id,

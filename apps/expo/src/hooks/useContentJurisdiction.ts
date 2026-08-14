@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 import type { ContentJurisdiction } from "~/utils/jurisdiction";
 import { preferenceStorage } from "~/utils/client-storage";
+import { isContentJurisdiction } from "~/utils/jurisdiction";
 
 const JURISDICTION_KEY = "content_jurisdiction";
 
@@ -9,7 +10,7 @@ export function useContentJurisdiction() {
   const [jurisdiction, setJurisdictionState] = useState<ContentJurisdiction>(
     () => {
       const stored = preferenceStorage.getItem(JURISDICTION_KEY);
-      return stored === "ca" || stored === "federal" ? stored : "federal";
+      return isContentJurisdiction(stored) ? stored : "federal";
     },
   );
 

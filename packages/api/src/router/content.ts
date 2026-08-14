@@ -21,6 +21,8 @@ import { toBillTimelineActions } from "../lib/bill-actions";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import {
   billJurisdiction,
+  displaySessionLabel,
+  JURISDICTION_CODES,
   jurisdictionCode,
   JURISDICTIONS,
   officialSourceLabel,
@@ -293,7 +295,7 @@ const ContentCardSchema = z.object({
   imageUri: z.string().optional(), // Add support for AI-generated data URIs
   billNumber: z.string().optional(), // Human-readable bill identifier, e.g. "H.R. 1234"
   jurisdiction: z.enum(JURISDICTIONS).optional(),
-  jurisdictionCode: z.enum(["US", "CA"]).optional(),
+  jurisdictionCode: z.enum(JURISDICTION_CODES).optional(),
   billStatus: z.string().optional(),
   activityAt: z.date().optional(),
   chamber: z.string().optional(),
@@ -344,9 +346,9 @@ function toBillCard(bill: BillCardSource): ContentCard & { type: "bill" } {
 }
 
 const billJurisdictionCondition = (jurisdiction: ContentJurisdiction) =>
-  jurisdiction === "ca"
-    ? sql`${Bill.sourceWebsite} = 'openstates.org' and ${Bill.billNumber} like 'CA %'`
-    : sql`${Bill.sourceWebsite} <> 'openstates.org'`;
+  jurisdiction === "federal"
+    ? sql`${Bill.sourceWebsite} <> 'openstates.org'`
+    : sql`${Bill.sourceWebsite} = 'openstates.org' and ${Bill.billNumber} like ${`${jurisdiction.toUpperCase()} %`}`;
 
 // Schema for detailed content
 const _ContentDetailSchema = ContentCardSchema.extend({
@@ -831,7 +833,10 @@ export const contentRouter = {
             billNumber: b.billNumber,
             jurisdiction,
             jurisdictionCode: jurisdictionCode(jurisdiction),
-            sessionLabel: stateIdentity?.sessionLabel,
+            sessionLabel: displaySessionLabel(
+              jurisdiction,
+              stateIdentity?.sessionLabel,
+            ),
             sourceLabel: officialSourceLabel(jurisdiction),
             sponsor,
             articleContent:
