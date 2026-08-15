@@ -2,16 +2,16 @@
 
 How to obtain keys/access for every civic integration. For local dev, copy `.env.example` to `.env` and fill in the keys below. (Every key is optional — see [Mock data](../CONTRIBUTING.md#mock-data--development-without-api-keys).)
 
-| Source                                 | Key required | Cost            | Env variable                                                          |
-| -------------------------------------- | ------------ | --------------- | --------------------------------------------------------------------- |
-| Google Civic API                       | Yes          | Free (25k/day)  | `GOOGLE_CIVIC_API_KEY`                                                |
-| Open States API                        | Yes          | Free (~500 req/day default tier) | `OPEN_STATES_API_KEY`                              |
-| Google Places (address autocomplete)   | Yes          | Pay-as-you-go   | `GOOGLE_PLACES_API_KEY` (→ `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`) |
-| Vote Smart                             | Yes          | Free (org tier) | `VOTE_SMART_API_KEY`                                                  |
-| Legistar (local councils)              | No           | Free            | —                                                                     |
-| VOTE411 / LWV (scraper)                | No           | Free            | —                                                                     |
-| CA SOS Voter Guide (scraper)           | No           | Free            | —                                                                     |
-| Santa Clara measure pipeline (scraper) | No           | Free            | —                                                                     |
+| Source                                 | Key required | Cost                             | Env variable                                                          |
+| -------------------------------------- | ------------ | -------------------------------- | --------------------------------------------------------------------- |
+| Google Civic API                       | Yes          | Free (25k/day)                   | `GOOGLE_CIVIC_API_KEY`                                                |
+| Open States API                        | Yes          | Free (~500 req/day default tier) | `OPEN_STATES_API_KEY`                                                 |
+| Google Places (address autocomplete)   | Yes          | Pay-as-you-go                    | `GOOGLE_PLACES_API_KEY` (→ `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`) |
+| Vote Smart                             | Yes          | Free (org tier)                  | `VOTE_SMART_API_KEY`                                                  |
+| Legistar (local councils)              | No           | Free                             | —                                                                     |
+| VOTE411 / LWV (scraper)                | No           | Free                             | —                                                                     |
+| CA SOS Voter Guide (scraper)           | No           | Free                             | —                                                                     |
+| Santa Clara measure pipeline (scraper) | No           | Free                             | —                                                                     |
 
 > ⚠️ **`CA_SOS_API_KEY` is dead cruft.** Earlier docs listed it for election results, but the results client uses the free, keyless `media.sos.ca.gov` endpoint — the key is unused in code. Safe to drop from `.env.example`.
 
@@ -32,7 +32,7 @@ CSVs for backfills that cost no quota at all. See
 
 **Vote Smart** — voting records, candidate bios, measure pro/con. Access is **member vs. business/organizational** (not nonprofit vs. for-profit) — org fees apply; ToS bars use "in any campaign activity". [Register](https://votesmart.org/share/api). → `VOTE_SMART_API_KEY`.
 
-**Legistar Web API** — local council meetings, legislation, votes, agendas; no key, unlimited public data. Supported jurisdictions (client id): San Jose (`sanjose`), Santa Clara County (`santaclara`), Sunnyvale (`sunnyvale`). Add a city by extracting its `*.legistar.com` subdomain into the `JURISDICTIONS` constant in `packages/api/src/integrations/legistar.ts`. Base: <https://webapi.legistar.com/> (OData-compatible).
+**Legistar Web API** — local meetings, agenda items, matters, bodies, attachments, and sometimes structured actions/votes. The configured San Jose client is publicly readable without a key; access and field completeness must be verified per jurisdiction. Responses are capped and require OData filtering/paging for complete ingestion. Supported client ids: San Jose (`sanjose`), Santa Clara County (`santaclara`), Sunnyvale (`sunnyvaleca`). Client ids are not reliably derivable from the public portal subdomain. Base: <https://webapi.legistar.com/>. See [Local government decisions and Legistar](./local-government-legistar.md) before adding a jurisdiction.
 
 **VOTE411 / League of Women Voters** — nonpartisan voter guides, candidate questionnaires, measure explanations; no key (scraper, rate-limited + cached). ⚠️ ToS bars commercial use without **written consent** and prohibits automated queries — a negotiated partnership is the only compliant path (tracked in the Outreach Tracker). Also `cavotes.org/easy-voter-guide/` for CA.
 

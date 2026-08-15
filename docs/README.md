@@ -4,16 +4,17 @@ Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for dev setup. These docs go de
 
 ## How the system works
 
-| Doc                                                  | What it covers                                                                                       |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| [Architecture overview](./architecture.md)           | The big picture: system diagram, monorepo layout, build tooling, and why the key decisions were made |
-| [Data layer](./data-layer.md)                        | Drizzle + Supabase Postgres, the schema (~20 tables), migrations                                     |
-| [API layer](./api.md)                                | The tRPC router, civic data integrations, request path, LLM provider                                 |
-| [Ballot-measure enrichment](./measure-enrichment.md) | How measure summaries are cross-validated across official sources, adapter by adapter                |
-| [Candidate enrichment](./candidate-enrichment.md)    | The same cross-validation pattern applied to candidate bios/photos/contact info                      |
-| [Scraper pipeline](./scraper.md)                     | The standalone content scraper: sources, change detection, AI generation                             |
-| [Article generation](./article-generation.md)        | How a bill becomes a readable brief: the structured schema, quote verification, framing lint         |
-| [Frontend apps](./frontend.md)                       | Expo mobile app, Next.js web, shared UI, cross-platform auth                                         |
+| Doc                                                             | What it covers                                                                                       |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [Architecture overview](./architecture.md)                      | The big picture: system diagram, monorepo layout, build tooling, and why the key decisions were made |
+| [Data layer](./data-layer.md)                                   | Drizzle + Supabase Postgres, the schema (~20 tables), migrations                                     |
+| [API layer](./api.md)                                           | The tRPC router, civic data integrations, request path, LLM provider                                 |
+| [Ballot-measure enrichment](./measure-enrichment.md)            | How measure summaries are cross-validated across official sources, adapter by adapter                |
+| [Candidate enrichment](./candidate-enrichment.md)               | The same cross-validation pattern applied to candidate bios/photos/contact info                      |
+| [Scraper pipeline](./scraper.md)                                | The standalone content scraper: sources, change detection, AI generation                             |
+| [Local government and Legistar](./local-government-legistar.md) | Draft RFC for local-decision ingestion, evidence, lifecycle, geography, and outcomes                 |
+| [Article generation](./article-generation.md)                   | How a bill becomes a readable brief: the structured schema, quote verification, framing lint         |
+| [Frontend apps](./frontend.md)                                  | Expo mobile app, Next.js web, shared UI, cross-platform auth                                         |
 
 ## How to do things
 
