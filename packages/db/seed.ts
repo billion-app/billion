@@ -422,9 +422,11 @@ const billBriefs: (Omit<
   "generatedAt" | "modelVersion"
 > | null)[] = [
   {
-    version: 7,
+    version: 8,
     legalStatus: "proposed",
     verifiedQuotes: 1,
+    summary:
+      "States would get **ten years of road and bridge funding authority**, but Congress would still approve the actual money each year.",
     hook: "If this bill becomes law, states would get **a longer window to plan road and bridge repairs**, while cities could apply for **new public-transit money**. The $200 billion is a maximum, not guaranteed money; Congress would still decide how much can actually be spent each year.",
     facts: [
       {
@@ -542,9 +544,11 @@ const billBriefs: (Omit<
     ],
   },
   {
-    version: 7,
+    version: 8,
     legalStatus: "proposed",
     verifiedQuotes: 2,
+    summary:
+      "Companies would need permission to collect or sell personal data, and people could **review and delete what companies hold**.",
     hook: "If passed, the bill would require companies to **get permission before collecting or selling personal data**. People across the country could also **review and delete information held about them**, although the text does not settle whether **stronger state privacy laws** would remain in place.",
     facts: [{ label: "Chamber status", value: "In Committee" }],
     changes: [

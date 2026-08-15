@@ -6,7 +6,8 @@
  * self-contained blocks the reader can leave at any point and still have
  * learned something true:
  *
- *   hook      → one coherent "What this means for you" paragraph
+ *   summary   → one-sentence takeaway, visible by default
+ *   hook      → fuller "What this means for you" explanation, on demand
  *   facts     → retained as structured data for cards and future visuals
  *   changes   → before → after, source quote one tap away
  *   affected  → who this lands on
@@ -75,6 +76,8 @@ export interface BriefQuote {
 }
 
 export interface BillBriefData {
+  /** Optional only so a pre-v8 brief held across fast refresh still renders. */
+  summary?: string;
   hook: string;
   legalStatus: "proposed" | "enacted";
   facts: { label: string; value: string; note?: string; quote?: BriefQuote }[];
@@ -184,14 +187,20 @@ function EmphasizedText({
 
 /* ---------- Hook — the one sentence that must land ---------- */
 function Hook({
+  summary,
   text,
   legalStatus,
   accent,
 }: {
+  summary?: string;
   text: string;
   legalStatus: BillBriefData["legalStatus"];
   accent: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const shortText = summary ?? text;
+  const hasExtendedVersion = shortText !== text;
+
   return (
     <View
       style={[s.summaryCard, { borderLeftColor: accent }]}
@@ -201,16 +210,41 @@ function Hook({
         <View style={[s.summaryIcon, { backgroundColor: `${accent}28` }]}>
           <Icon name="sparkle" size={16} color={accent} />
         </View>
-        <Text style={s.summaryTitle}>What this means for you</Text>
+        <Text style={s.summaryTitle}>The short version</Text>
         <View style={[s.summaryStatus, { borderColor: `${accent}66` }]}>
           <Text style={[s.summaryStatusText, { color: accent }]}>
             {legalStatus === "enacted" ? "LAW" : "PROPOSAL"}
           </Text>
         </View>
       </View>
-      <EmphasizedText style={s.summaryText} testID="brief-hook">
-        {text}
+      <EmphasizedText style={s.summaryText} testID="brief-summary-text">
+        {shortText}
       </EmphasizedText>
+      {hasExtendedVersion ? (
+        <TouchableOpacity
+          style={s.summaryToggle}
+          activeOpacity={0.72}
+          onPress={() => setExpanded((value) => !value)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          accessibilityLabel={
+            expanded ? "Hide the extended summary" : "Read the extended summary"
+          }
+        >
+          <Text style={[s.summaryToggleText, { color: accent }]}>
+            {expanded ? "Hide extended version" : "Read extended version"}
+          </Text>
+          <View style={expanded ? s.chevFlip : undefined}>
+            <Icon name="chevD" size={14} color={accent} />
+          </View>
+        </TouchableOpacity>
+      ) : null}
+      {expanded ? (
+        <View style={s.extendedSummary} testID="brief-hook">
+          <Text style={s.extendedSummaryLabel}>EXTENDED VERSION</Text>
+          <EmphasizedText style={s.extendedSummaryText}>{text}</EmphasizedText>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -828,7 +862,12 @@ export function BillBrief({
 
   return (
     <View style={s.root} testID="bill-brief">
-      <Hook text={data.hook} legalStatus={data.legalStatus} accent={accent} />
+      <Hook
+        summary={data.summary}
+        text={data.hook}
+        legalStatus={data.legalStatus}
+        accent={accent}
+      />
       {data.whyNotBefore ? (
         <WhyNotBefore context={data.whyNotBefore} accent={accent} />
       ) : null}
@@ -910,6 +949,35 @@ const s = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
     color: colors.white,
+  },
+  summaryToggle: {
+    minHeight: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+  },
+  summaryToggleText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+  },
+  extendedSummary: {
+    borderTopWidth: 1,
+    borderTopColor: hair[1],
+    paddingTop: 13,
+    gap: 7,
+  },
+  extendedSummaryLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 9,
+    letterSpacing: 0.9,
+    color: colors.textSecondary,
+  },
+  extendedSummaryText: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 21,
+    color: "rgba(255,255,255,0.78)",
   },
 
   /* block heading */

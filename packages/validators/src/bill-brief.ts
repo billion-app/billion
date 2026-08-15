@@ -42,7 +42,7 @@
 import { z } from "zod";
 
 /** Bump when the shape or generation contract requires cached rows to refresh. */
-export const BILL_BRIEF_VERSION = 7;
+export const BILL_BRIEF_VERSION = 8;
 
 /**
  * What a provision mechanically does. Deliberately descriptive: a reader can
@@ -350,6 +350,13 @@ export type BriefDeepDive = z.infer<typeof BriefDeepDiveSchema>;
  * already know.
  */
 export const BillBriefSchema = z.object({
+  summary: z
+    .string()
+    .trim()
+    .min(30)
+    .describe(
+      "One ultra-short, standalone sentence under 180 characters that states the single most important practical change or catch. Preserve proposed-versus-enacted status and mark one short concrete phrase with **double asterisks**.",
+    ),
   hook: z
     .string()
     .trim()
@@ -432,14 +439,20 @@ export const BillBriefRecordSchema = BillBriefSchema.extend({
 });
 export type BillBriefRecord = z.infer<typeof BillBriefRecordSchema>;
 
+/** The rich brief shape before the opening gained an ultra-short summary. */
+const BillBriefV7RecordSchema = BillBriefSchema.omit({ summary: true }).extend({
+  version: z.literal(7),
+  ...BriefRecordMetadataSchema,
+});
+
 /** The rich brief shape before emphasis became a brief-wide contract. */
-const BillBriefV6RecordSchema = BillBriefSchema.extend({
+const BillBriefV6RecordSchema = BillBriefSchema.omit({ summary: true }).extend({
   version: z.literal(6),
   ...BriefRecordMetadataSchema,
 });
 
 /** The immediately preceding rich-brief shape, before cited history was added. */
-const BillBriefV5RecordSchema = BillBriefSchema.extend({
+const BillBriefV5RecordSchema = BillBriefSchema.omit({ summary: true }).extend({
   version: z.literal(5),
   ...BriefRecordMetadataSchema,
 });
@@ -483,6 +496,13 @@ function conciseTakeaway(effect: string): string {
   return `${candidate.slice(0, 136).replace(/\s+\S*$/, "")}…`;
 }
 
+/** Best-effort one-sentence preview for cached briefs generated before v8. */
+function conciseSummary(hook: string): string {
+  const firstSentence = /^.*?[.!?](?:\s|$)/.exec(hook)?.[0]?.trim() ?? hook;
+  if (firstSentence.length <= 180) return firstSentence;
+  return `${firstSentence.slice(0, 176).replace(/\s+\S*$/, "")}…`;
+}
+
 /**
  * Parse any brief shape the app has shipped and return the current client
  * shape. Normalizing at the API boundary keeps old cached rows renderable while
@@ -492,14 +512,31 @@ export function parseBillBriefRecord(value: unknown): BillBriefRecord | null {
   const current = BillBriefRecordSchema.safeParse(value);
   if (current.success) return current.data;
 
+  const v7 = BillBriefV7RecordSchema.safeParse(value);
+  if (v7.success) {
+    return {
+      ...v7.data,
+      version: BILL_BRIEF_VERSION,
+      summary: conciseSummary(v7.data.hook),
+    };
+  }
+
   const v6 = BillBriefV6RecordSchema.safeParse(value);
   if (v6.success) {
-    return { ...v6.data, version: BILL_BRIEF_VERSION };
+    return {
+      ...v6.data,
+      version: BILL_BRIEF_VERSION,
+      summary: conciseSummary(v6.data.hook),
+    };
   }
 
   const v5 = BillBriefV5RecordSchema.safeParse(value);
   if (v5.success) {
-    return { ...v5.data, version: BILL_BRIEF_VERSION };
+    return {
+      ...v5.data,
+      version: BILL_BRIEF_VERSION,
+      summary: conciseSummary(v5.data.hook),
+    };
   }
 
   const v1 = BillBriefV1RecordSchema.safeParse(value);
@@ -508,6 +545,7 @@ export function parseBillBriefRecord(value: unknown): BillBriefRecord | null {
   return {
     ...legacy,
     version: BILL_BRIEF_VERSION,
+    summary: conciseSummary(legacy.hook),
     affected: legacy.affected.map((item) => ({
       ...item,
       takeaway: conciseTakeaway(item.effect),
