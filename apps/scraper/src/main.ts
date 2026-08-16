@@ -7,6 +7,8 @@ import {
   validateScraperEnv,
 } from "./env.js";
 import { scrapers } from "./scrapers.js";
+import { DEFAULT_STATES, parseStates } from "./scrapers/open-states.js";
+import { enforceBillRetention } from "./utils/bill-retention.js";
 import { setConcurrency } from "./utils/concurrency.js";
 import { printMetricsSummary, resetMetrics } from "./utils/db/metrics.js";
 import { createLogger } from "./utils/log.js";
@@ -61,6 +63,11 @@ const argv = await yargs(hideBin(process.argv))
     describe:
       "Refresh the N most recently updated bills instead of walking the incremental cursor. Keeps active legislation current rather than pursuing complete historical coverage",
   })
+  .option("retain", {
+    type: "number",
+    describe:
+      "After a successful recent bill refresh, retain only the newest N stored bills in each refreshed jurisdiction",
+  })
   .check((args) => {
     const maxItems = args.maxItems;
     if (
@@ -108,6 +115,20 @@ const argv = await yargs(hideBin(process.argv))
         throw new Error("--recent and --bill select bills different ways");
       }
     }
+    const retain = args.retain;
+    if (retain !== undefined) {
+      if (!Number.isInteger(retain) || retain <= 0) {
+        throw new Error("--retain must be a positive integer");
+      }
+      if (recent === undefined) {
+        throw new Error("--retain requires --recent");
+      }
+      if (args.scraper !== "congress" && args.scraper !== "open-states") {
+        throw new Error(
+          '--retain requires the "congress" or "open-states" scraper',
+        );
+      }
+    }
     if (args.congress !== undefined && !bills?.length) {
       throw new Error("--congress only applies alongside --bill");
     }
@@ -130,6 +151,7 @@ const congressNumber = (argv as { congress?: number }).congress;
 const session = (argv as { session?: string }).session;
 const bulkDir = (argv as { bulkDir?: string }).bulkDir;
 const recent = (argv as { recent?: number }).recent;
+const retain = (argv as { retain?: number }).retain;
 
 function logDatabaseTarget(): void {
   const target = databaseTarget(process.env.POSTGRES_URL!);
@@ -137,6 +159,27 @@ function logDatabaseTarget(): void {
     logger.warn(databaseTargetMessage(process.env.POSTGRES_URL!));
   } else {
     logger.info(databaseTargetMessage(process.env.POSTGRES_URL!));
+  }
+}
+
+async function applyRetentionAfterRefresh(
+  scraperId: string,
+  keepPerJurisdiction: number,
+) {
+  const jurisdictions =
+    scraperId === "congress"
+      ? ["US"]
+      : (parseStates(process.env.OPEN_STATES_STATES) ?? DEFAULT_STATES).map(
+          (state) => state.toUpperCase(),
+        );
+  const results = await enforceBillRetention(
+    jurisdictions,
+    keepPerJurisdiction,
+  );
+  for (const result of results) {
+    logger.info(
+      `Retention ${result.jurisdiction}: kept ${keepPerJurisdiction}, evicted ${result.bills}`,
+    );
   }
 }
 
@@ -182,6 +225,9 @@ async function main() {
       bulkDir,
       recent,
     });
+    if (retain !== undefined) {
+      await applyRetentionAfterRefresh(arg, retain);
+    }
     printMetricsSummary(scraper.name);
   }
 }

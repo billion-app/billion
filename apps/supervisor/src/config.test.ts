@@ -24,6 +24,8 @@ void test("every supported state has an isolated daily refresh", () => {
       "open-states",
       "--recent",
       "100",
+      "--retain",
+      "100",
       "--concurrency",
       "4",
     ]);
@@ -32,22 +34,18 @@ void test("every supported state has an isolated daily refresh", () => {
   }
 });
 
-void test("weekly bill retention applies the per-jurisdiction cap", () => {
-  const job = findJob("prune-bills-weekly");
-  assert.ok(job, "weekly bill retention job is missing");
-  assert.equal(job.script, "prune-bills.js");
+void test("daily Congress refresh applies the same retention cap", () => {
+  const job = findJob("congress-daily");
+  assert.ok(job, "daily Congress job is missing");
   assert.deepEqual(job.args, [
-    "--keep-per-jurisdiction",
+    "congress",
+    "--recent",
     "100",
-    "--apply",
-    "--yes",
+    "--retain",
+    "100",
+    "--concurrency",
+    "4",
   ]);
-  assert.deepEqual(job.schedule, {
-    kind: "weekly",
-    weekday: 0,
-    hour: 23,
-    minute: 30,
-  });
 });
 
 void test("limits are generous enough not to kill healthy work", () => {

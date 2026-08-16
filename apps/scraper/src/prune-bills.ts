@@ -1,22 +1,10 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { and, eq, inArray } from "@acme/db";
-import { db } from "@acme/db/client";
-import {
-  Bill,
-  BriefChangeImage,
-  ContentBrief,
-  ContentLens,
-  SavedArticle,
-  Video,
-} from "@acme/db/schema";
-
-import type { BillRetentionCandidate } from "./utils/bill-retention.js";
 import { databaseTarget, databaseTargetMessage } from "./env.js";
 import {
-  retentionJurisdiction,
-  selectBillsToEvict,
+  billRetentionInventory,
+  enforceBillRetention,
 } from "./utils/bill-retention.js";
 import {
   createLogger,
@@ -26,18 +14,6 @@ import {
 } from "./utils/log.js";
 
 const logger = createLogger("bill-retention");
-const DELETE_BATCH_SIZE = 500;
-
-interface DeleteCounts {
-  bills: number;
-  videos: number;
-  briefs: number;
-  lenses: number;
-  saves: number;
-  changeImages: number;
-}
-
-type RetentionExecutor = Pick<typeof db, "delete" | "select">;
 
 const argv = await yargs(hideBin(process.argv))
   .option("keep-per-jurisdiction", {
@@ -71,149 +47,21 @@ const argv = await yargs(hideBin(process.argv))
   .help()
   .parse();
 
-function batches<T>(items: readonly T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    result.push(items.slice(index, index + size));
-  }
-  return result;
-}
-
-async function loadCandidates(
-  executor: Pick<typeof db, "select">,
-): Promise<BillRetentionCandidate[]> {
-  return executor
-    .select({
-      id: Bill.id,
-      billNumber: Bill.billNumber,
-      sourceWebsite: Bill.sourceWebsite,
-      sourceUpdatedAt: Bill.sourceUpdatedAt,
-      lastActionAt: Bill.lastActionAt,
-      createdAt: Bill.createdAt,
-    })
-    .from(Bill);
-}
-
-function printSelection(
-  candidates: readonly BillRetentionCandidate[],
-  selected: ReturnType<typeof selectBillsToEvict>,
+function printInventory(
+  inventory: Awaited<ReturnType<typeof billRetentionInventory>>,
 ) {
-  const jurisdictions = new Map<string, { total: number; evict: number }>();
-  for (const candidate of candidates) {
-    const jurisdiction = retentionJurisdiction(candidate);
-    const counts = jurisdictions.get(jurisdiction) ?? { total: 0, evict: 0 };
-    counts.total += 1;
-    jurisdictions.set(jurisdiction, counts);
-  }
-  for (const candidate of selected) {
-    jurisdictions.get(candidate.jurisdiction)!.evict += 1;
-  }
-
   printHeader("Bill retention inventory");
-  for (const [jurisdiction, counts] of [...jurisdictions].sort()) {
+  for (const row of inventory) {
     printKeyValue(
-      jurisdiction,
-      `${counts.total} total; ${counts.evict} selected for eviction`,
+      row.jurisdiction,
+      `${row.total} total; ${row.evict} selected for eviction`,
     );
   }
-  printKeyValue("Selected bills", selected.length);
+  printKeyValue(
+    "Selected bills",
+    inventory.reduce((total, row) => total + row.evict, 0),
+  );
   printKeyValue("Writes", argv.apply ? "enabled" : "disabled (dry run)");
-  printFooter();
-}
-
-async function deleteSelected(
-  executor: RetentionExecutor,
-  ids: string[],
-): Promise<DeleteCounts> {
-  const counts: DeleteCounts = {
-    bills: 0,
-    videos: 0,
-    briefs: 0,
-    lenses: 0,
-    saves: 0,
-    changeImages: 0,
-  };
-
-  for (const batch of batches(ids, DELETE_BATCH_SIZE)) {
-    const briefRows = await executor
-      .select({ id: ContentBrief.id })
-      .from(ContentBrief)
-      .where(
-        and(
-          eq(ContentBrief.contentType, "bill"),
-          inArray(ContentBrief.contentId, batch),
-        ),
-      );
-    const briefIds = briefRows.map((row) => row.id);
-    if (briefIds.length > 0) {
-      counts.changeImages += (
-        await executor
-          .select({ id: BriefChangeImage.id })
-          .from(BriefChangeImage)
-          .where(inArray(BriefChangeImage.contentBriefId, briefIds))
-      ).length;
-    }
-
-    counts.videos += (
-      await executor
-        .delete(Video)
-        .where(
-          and(eq(Video.contentType, "bill"), inArray(Video.contentId, batch)),
-        )
-        .returning({ id: Video.id })
-    ).length;
-    counts.lenses += (
-      await executor
-        .delete(ContentLens)
-        .where(
-          and(
-            eq(ContentLens.contentType, "bill"),
-            inArray(ContentLens.contentId, batch),
-          ),
-        )
-        .returning({ id: ContentLens.id })
-    ).length;
-    counts.saves += (
-      await executor
-        .delete(SavedArticle)
-        .where(
-          and(
-            eq(SavedArticle.contentType, "bill"),
-            inArray(SavedArticle.contentId, batch),
-          ),
-        )
-        .returning({ id: SavedArticle.id })
-    ).length;
-    counts.briefs += (
-      await executor
-        .delete(ContentBrief)
-        .where(
-          and(
-            eq(ContentBrief.contentType, "bill"),
-            inArray(ContentBrief.contentId, batch),
-          ),
-        )
-        .returning({ id: ContentBrief.id })
-    ).length;
-    counts.bills += (
-      await executor
-        .delete(Bill)
-        .where(inArray(Bill.id, batch))
-        .returning({ id: Bill.id })
-    ).length;
-  }
-
-  return counts;
-}
-
-function printResult(counts: DeleteCounts) {
-  printHeader("Eviction result");
-  printKeyValue("Bills", counts.bills);
-  printKeyValue("Feed images", counts.videos);
-  printKeyValue("Briefs", counts.briefs);
-  printKeyValue("Lenses", counts.lenses);
-  printKeyValue("Saved references", counts.saves);
-  printKeyValue("Brief change images", counts.changeImages);
   printFooter();
 }
 
@@ -229,45 +77,59 @@ async function main() {
     databaseTargetMessage(databaseUrl),
   );
 
-  if (!argv.apply) {
-    const candidates = await loadCandidates(db);
-    const selected = selectBillsToEvict(candidates, argv.keepPerJurisdiction);
-    printSelection(candidates, selected);
-    return;
+  const inventory = await billRetentionInventory(argv.keepPerJurisdiction);
+  printInventory(inventory);
+  if (!argv.apply) return;
+
+  const jurisdictions = inventory
+    .filter((row) => row.evict > 0 && /^(US|[A-Z]{2})$/.test(row.jurisdiction))
+    .map((row) => row.jurisdiction);
+  const ignored = inventory.filter(
+    (row) => row.evict > 0 && !/^(US|[A-Z]{2})$/.test(row.jurisdiction),
+  );
+  for (const row of ignored) {
+    logger.warn(
+      `Skipping malformed jurisdiction ${row.jurisdiction} (${row.evict} bill(s))`,
+    );
   }
 
-  const counts = await db.transaction(async (tx) => {
-    // The supervisor runs one job at a time. Keeping selection and deletion in
-    // this transaction also makes a manual invocation atomic: either every
-    // polymorphic dependent and bill row is deleted, or none are.
-    const candidates = await loadCandidates(tx);
-    const selected = selectBillsToEvict(candidates, argv.keepPerJurisdiction);
-    printSelection(candidates, selected);
-    if (selected.length === 0) {
-      return {
-        bills: 0,
-        videos: 0,
-        briefs: 0,
-        lenses: 0,
-        saves: 0,
-        changeImages: 0,
-      } satisfies DeleteCounts;
-    }
+  const results = await enforceBillRetention(
+    jurisdictions,
+    argv.keepPerJurisdiction,
+  );
 
-    const deleted = await deleteSelected(
-      tx,
-      selected.map((row) => row.id),
-    );
-    if (deleted.bills !== selected.length) {
-      throw new Error(
-        `Selected ${selected.length} bills but deleted ${deleted.bills}; rolling back`,
-      );
-    }
-    return deleted;
-  });
-
-  printResult(counts);
-  logger.success(`Evicted ${counts.bills} old bill(s)`);
+  printHeader("Eviction result");
+  for (const result of results) {
+    printKeyValue(result.jurisdiction, `${result.bills} bills`);
+  }
+  printKeyValue(
+    "Bills",
+    results.reduce((total, result) => total + result.bills, 0),
+  );
+  printKeyValue(
+    "Feed images",
+    results.reduce((total, result) => total + result.videos, 0),
+  );
+  printKeyValue(
+    "Briefs",
+    results.reduce((total, result) => total + result.briefs, 0),
+  );
+  printKeyValue(
+    "Lenses",
+    results.reduce((total, result) => total + result.lenses, 0),
+  );
+  printKeyValue(
+    "Saved references",
+    results.reduce((total, result) => total + result.saves, 0),
+  );
+  printKeyValue(
+    "Brief change images",
+    results.reduce((total, result) => total + result.changeImages, 0),
+  );
+  printFooter();
+  logger.success(
+    `Evicted ${results.reduce((total, result) => total + result.bills, 0)} old bill(s)`,
+  );
 }
 
 await main();
