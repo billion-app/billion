@@ -74,3 +74,6 @@ packages/db/seed-waitlist.sql
 !.env.example
 !.env.prod.example
 .pnpm-store/
+
+output/
+tmp/
