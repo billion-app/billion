@@ -24,6 +24,22 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
+  ...(["ca", "mo", "nc", "tx"] as const).map(
+    (stateCode, index): JobDefinition => ({
+      id: `open-states-${stateCode}-daily`,
+      description: `Add and update the 100 most recently updated ${stateCode.toUpperCase()} measures`,
+      script: "main.js",
+      args: ["open-states", "--recent", "100", "--concurrency", "4"],
+      schedule: { kind: "daily", hour: 3, minute: 30 },
+      env: {
+        OPEN_STATES_STATES: stateCode,
+        SCRAPER_MAX_NEW_ITEMS_PER_RUN: "25",
+      },
+      priority: index + 1,
+      idleTimeoutMinutes: 60,
+      maxRuntimeHours: 24,
+    }),
+  ),
   // The other three registered scrapers. These used to ride along in a weekly
   // `main.js all` run; they are listed individually so that dropping the `all`
   // run does not silently stop them, and so each can be rescheduled or paused

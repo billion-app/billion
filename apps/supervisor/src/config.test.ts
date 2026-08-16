@@ -15,6 +15,23 @@ void test("every job is reachable by id", () => {
   assert.equal(findJob("no-such-job"), undefined);
 });
 
+void test("every supported state has an isolated daily refresh", () => {
+  const stateCodes = ["ca", "mo", "nc", "tx"];
+  for (const stateCode of stateCodes) {
+    const job = findJob(`open-states-${stateCode}-daily`);
+    assert.ok(job, `${stateCode} has no daily Open States job`);
+    assert.deepEqual(job.args, [
+      "open-states",
+      "--recent",
+      "100",
+      "--concurrency",
+      "4",
+    ]);
+    assert.equal(job.env?.OPEN_STATES_STATES, stateCode);
+    assert.equal(job.schedule.kind, "daily");
+  }
+});
+
 void test("limits are generous enough not to kill healthy work", () => {
   // The first version of this config used wall-clock timeouts picked by guess,
   // and one of them (12h for a 15.4h backfill) would have killed a healthy run

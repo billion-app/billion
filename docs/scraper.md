@@ -8,12 +8,12 @@ Invoke via CLI: `pnpm start [scraper|all] [options]` (`scraper` defaults to
 `all`). From the repo root, use
 `pnpm --filter @acme/scraper run start [scraper] [options]`. Flags (`apps/scraper/src/main.ts`):
 
-| Flag                   | Default | Meaning                                                                                             |
-| ---------------------- | ------- | -------------------------------------------------------------------------------------------------- |
-| `--concurrency`, `-c`  | `3`     | Items processed concurrently within each scraper, via `p-limit`.                                    |
-| `--max-items`, `-n`    | —       | Cap on source records per scraper this run; overrides each scraper's `*_MAX_ITEMS` env value.       |
-| `--bill`, `-b`         | —       | Fetch specific congress.gov bills by number (repeatable); requires the `congress` scraper.           |
-| `--congress`           | `119`   | Congress number for `--bill`; only valid alongside `--bill`.                                         |
+| Flag                  | Default | Meaning                                                                                       |
+| --------------------- | ------- | --------------------------------------------------------------------------------------------- |
+| `--concurrency`, `-c` | `3`     | Items processed concurrently within each scraper, via `p-limit`.                              |
+| `--max-items`, `-n`   | —       | Cap on source records per scraper this run; overrides each scraper's `*_MAX_ITEMS` env value. |
+| `--bill`, `-b`        | —       | Fetch specific congress.gov bills by number (repeatable); requires the `congress` scraper.    |
+| `--congress`          | `119`   | Congress number for `--bill`; only valid alongside `--bill`.                                  |
 
 `all` runs every registered scraper with `Promise.allSettled` (one failure does
 not abort the others) and validates env for the whole set up front; a single
@@ -39,14 +39,14 @@ source of truth for what `all` runs**, in this order:
 | `federalregister.ts`   | federalregister.gov REST API   | `government_content` | REST (presidential documents); HTML→Markdown via Turndown                                                                       |
 | `congress.ts`          | congress.gov REST API          | `bill`               | REST (`CONGRESS_API_KEY`), incremental by source `updateDate` — see [Incremental discovery](#incremental-discovery-congressgov) |
 | `open-states.ts`       | Open States v3 API             | `bill`               | REST (`OPEN_STATES_API_KEY`), incremental by source `updated_at` — see [State bills](#state-bills-open-states)                  |
-| `scc-cvig.ts`          | Santa Clara County voter guide | `civic_api_cache`    | PDF extraction; optional Gemini fallback (`GOOGLE_GENERATIVE_AI_API_KEY`)                                                        |
-| `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages, PDF fallback via `ca-sos-vig-pdf.ts`                                                         |
+| `scc-cvig.ts`          | Santa Clara County voter guide | `civic_api_cache`    | PDF extraction; optional Gemini fallback (`GOOGLE_GENERATIVE_AI_API_KEY`)                                                       |
+| `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages, PDF fallback via `ca-sos-vig-pdf.ts`                                                        |
 
 The feed content types (`bill`, `government_content`, and `court_case` from the
 unregistered scotus scraper) all write through `upsertContent()` and share the
 full AI pipeline below. The two
 **civic** scrapers are different in kind: each collapses a whole election's
-material into a *single* `CivicApiCache` row (`insert … onConflictDoUpdate` keyed
+material into a _single_ `CivicApiCache` row (`insert … onConflictDoUpdate` keyed
 on `(addressHash, endpoint, params)`), runs no AI pipeline, and feeds
 candidate/ballot enrichment rather than the content feed. See
 [candidate enrichment](./candidate-enrichment.md) and
@@ -120,7 +120,7 @@ Missouri, North Carolina, and Texas
 **Identity.** A state bill's `billNumber` is `"CA SB 243 (2025-2026)"` and its
 `sourceWebsite` is `openstates.org`. All three parts are load-bearing: the
 uniqueness constraint is `(billNumber, sourceWebsite)`, SB 243 exists in most
-states, and SB 243 exists in *every* California session as an unrelated bill.
+states, and SB 243 exists in _every_ California session as an unrelated bill.
 Changing that format silently duplicates every row already stored.
 `Bill.congress` stays null for state bills — it is a federal field, and the
 session lives in the bill number instead. Chamber is the state's own vocabulary:
@@ -131,14 +131,19 @@ abstracts, actions and versions inline rather than fetching each bill's detail
 separately. This is a quota decision, not a style one — the free Open States
 tier allows a few hundred requests a day, and at one request per bill a
 California session would take weeks to drain, which is exactly why the
-CourtListener scraper is parked. Bill *text* is fetched from the state's own
+CourtListener scraper is parked. Bill _text_ is fetched from the state's own
 site (leginfo for CA), so it does not draw on the API budget at all.
 
 Everything else matches the federal walk: ascending `updated_since` from a
 durable cursor, retry queue, and the same three-way `upsertContent` outcome
-contract. `updated_since` is date-granular, so the cursor rounds *back* to its
+contract. `updated_since` is date-granular, so the cursor rounds _back_ to its
 own day — an unchanged bill re-offered is a no-op upsert, whereas rounding
 forward would drop everything updated later that day.
+
+`--recent 100` is the production freshness mode. It re-reads the 100 most
+recently updated measures in each selected state without touching the ascending
+backfill cursor. The supervisor runs this mode daily and isolates each supported
+state in its own job, so one state's source failure cannot block the others.
 
 `--bill "SB 243"` (with optional `--session 20252026`) fetches specific bills and
 bypasses the cursor, the same way `--bill` does for congress.gov.
@@ -368,7 +373,7 @@ loud instead of mid-run. The contract has four tiers:
 `SCOTUS_MAX_ITEMS`, `SCC_CVIG_MAX_ITEMS`, `CA_SOS_MAX_ITEMS`) which bounds how
 many source records that scraper pulls per run. The `--max-items` flag overrides
 all of them for one run. This is distinct from `SCRAPER_MAX_NEW_ITEMS_PER_RUN`,
-which caps how many fetched items may *pay for AI* (see
+which caps how many fetched items may _pay for AI_ (see
 [The new-item budget](#the-new-item-budget)).
 
 ## Backfill & reprocessing scripts
@@ -378,13 +383,13 @@ The scrape path persists every fetched item but only lets
 content and are completed later by these standalone entry points. All are
 `pnpm`-scripted in `apps/scraper` and share the pipeline's gates and providers.
 
-| Command                       | File                            | What it fills                                    | Safety                                              |
-| ----------------------------- | ------------------------------- | ------------------------------------------------ | --------------------------------------------------- |
-| `reprocess-content`           | `reprocess-content.ts`          | Any derived asset across all content tables      | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
-| `retroactive-briefs`          | `retroactive-briefs.ts`         | Missing/stale bill `content_brief` rows          | `--dry-run` to preview                              |
-| `retroactive-lenses`          | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows                | `--dry-run` to preview                              |
-| `retroactive-videos`          | `retroactive-videos.ts`         | Missing `video` feed rows                        | —                                                   |
-| `backfill-bill-descriptions`  | `backfill-bill-descriptions.ts` | Bills with no source/AI description              | `--apply` (+ `--yes` on prod)                       |
+| Command                      | File                            | What it fills                               | Safety                                                        |
+| ---------------------------- | ------------------------------- | ------------------------------------------- | ------------------------------------------------------------- |
+| `reprocess-content`          | `reprocess-content.ts`          | Any derived asset across all content tables | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
+| `retroactive-briefs`         | `retroactive-briefs.ts`         | Missing/stale bill `content_brief` rows     | `--dry-run` to preview                                        |
+| `retroactive-lenses`         | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows           | `--dry-run` to preview                                        |
+| `retroactive-videos`         | `retroactive-videos.ts`         | Missing `video` feed rows                   | —                                                             |
+| `backfill-bill-descriptions` | `backfill-bill-descriptions.ts` | Bills with no source/AI description         | `--apply` (+ `--yes` on prod)                                 |
 
 `reprocess-content` is the most general and the model the others follow:
 
@@ -409,6 +414,6 @@ content and are completed later by these standalone entry points. All are
   assets regenerate against it.
 - **Success is re-queried from the database**, not inferred from provider
   responses: after the run it reloads the processed rows and counts only those
-  that persisted a valid article *and* a feed image as verified. Partial/failed
+  that persisted a valid article _and_ a feed image as verified. Partial/failed
   IDs are printed for a targeted retry, and rate-limit failures re-raise
   `AIRateLimitError` so an orchestrator can back off.

@@ -75,6 +75,8 @@ interface OpenStatesScraperConfig {
   maxBills?: number;
   /** Two-letter state codes to walk. */
   states?: string[];
+  /** Refresh this many recently updated bills per state instead of walking the cursor. */
+  recent?: number;
   /** Bill identifiers to fetch directly instead of walking the cursor. */
   bills?: string[];
   /** Session identifier for targeted runs, e.g. "20252026". */
@@ -434,6 +436,83 @@ async function scrapeTargeted(
   logger.success("Completed");
 }
 
+/**
+ * Refresh the head of one state's update feed without changing its backfill
+ * cursor. This is the state-legislature counterpart to Congress's production
+ * `--recent` mode: it favours today's activity, while the ascending cursor walk
+ * remains available for deliberate archive completion.
+ *
+ * A failed item needs no retry row here because the same descending window is
+ * fetched again tomorrow. Writing the newest item to the ascending cursor would
+ * be incorrect: it would strand every older bill that a later backfill still
+ * needs to visit.
+ */
+async function scrapeRecentState(
+  stateCode: string,
+  count: number,
+): Promise<void> {
+  logger.info(
+    `${stateCode.toUpperCase()}: refreshing the ${count} most recently updated bills`,
+  );
+
+  const bills: OpenStatesBill[] = [];
+  let page = 1;
+  let maxPage = 1;
+
+  while (bills.length < count && page <= maxPage) {
+    const response = await openStatesFetch<BillListResponse>("/bills", {
+      jurisdiction: jurisdictionFor(stateCode),
+      sort: "updated_desc",
+      include: LIST_INCLUDES,
+      page,
+      per_page: PAGE_SIZE,
+    });
+    bills.push(...(response.results ?? []));
+    maxPage = response.pagination?.max_page ?? 1;
+    if ((response.results ?? []).length === 0) break;
+    page += 1;
+    if (bills.length < count && page <= maxPage) await sleep(PAGE_DELAY_MS);
+  }
+
+  const window = bills.slice(0, count);
+  logger.info(
+    `${stateCode.toUpperCase()}: fetched ${window.length} recently updated bill(s)`,
+  );
+  if (window.length === 0) return;
+
+  setExpectedTotal(window.length);
+  const limit = getItemLimit();
+  const newItemLimiter = createNewItemLimiter();
+  let failures = 0;
+
+  await Promise.all(
+    window.map((bill) =>
+      limit(async () => {
+        try {
+          await processBill(bill, stateCode, newItemLimiter);
+        } catch (error) {
+          if (
+            error instanceof UnnormalizableBillError ||
+            error instanceof BillTextTooLargeError
+          ) {
+            logger.warn(`Skipping ${error.message}`);
+            return;
+          }
+          failures += 1;
+          logger.error(`Error processing ${bill.identifier}`, error);
+        }
+      }),
+    ),
+  );
+
+  if (failures > 0) {
+    logger.warn(
+      `${failures} bill(s) failed; they will be re-offered while they remain in the daily window`,
+    );
+  }
+  logger.success(`${stateCode.toUpperCase()}: completed`);
+}
+
 /** The incremental walk for one state. */
 async function scrapeState(stateCode: string, maxBills: number): Promise<void> {
   const scraperKey = `open-states:${stateCode.toLowerCase()}`;
@@ -653,6 +732,14 @@ async function scrape(config: OpenStatesScraperConfig = {}): Promise<void> {
     return scrapeTargeted(config.bills, states[0] ?? "ca", config.session);
   }
 
+  if (config.recent) {
+    logger.info(`Starting recent refresh (states=${states.join(", ")})...`);
+    for (const stateCode of states) {
+      await scrapeRecentState(stateCode, config.recent);
+    }
+    return;
+  }
+
   logger.info(`Starting (states=${states.join(", ")})...`);
 
   // States walk sequentially, each with its own cursor. Running them
@@ -672,6 +759,7 @@ export const openStates: Scraper = {
       maxBills:
         (options?.maxItems ?? Number(process.env.OPEN_STATES_MAX_ITEMS)) || 100,
       bills: options?.targets,
+      ...(options?.recent ? { recent: options.recent } : {}),
       ...(options?.session ? { session: options.session } : {}),
       ...(options?.bulkDir ? { bulkDir: options.bulkDir } : {}),
     }),
