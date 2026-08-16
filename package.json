@@ -18,7 +18,7 @@
     "db:check": "pnpm --filter @acme/db db-check",
     "db:baseline": "pnpm --filter @acme/db baseline",
     "db:studio": "turbo -F @acme/db studio",
-    "dev": "turbo watch dev --continue --filter='!@acme/scraper'",
+    "dev": "turbo watch dev --continue --filter='!@acme/scraper' --filter='!@acme/supervisor'",
     "dev:all": "turbo watch dev --continue",
     "dev:next": "turbo watch dev -F @acme/nextjs...",
     "prod": "node --env-file=.env --env-file=.env.prod scripts/run-prod.mjs",
