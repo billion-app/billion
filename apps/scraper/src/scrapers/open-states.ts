@@ -192,6 +192,26 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
 }
 
 /**
+ * California's `billPdf.xhtml` is a JavaServer Faces download trampoline. A
+ * plain HTTP client receives a tiny HTML form instead of the PDF that a browser
+ * obtains by executing the form submission. The official text page is stable,
+ * public HTML and carries the same `bill_id`, so it is the safe non-browser
+ * fallback for ingestion.
+ */
+export function leginfoTextFallbackUrl(sourceUrl: string): string | undefined {
+  const url = new URL(sourceUrl);
+  if (
+    url.hostname !== "leginfo.legislature.ca.gov" ||
+    !url.pathname.endsWith("/billPdf.xhtml")
+  ) {
+    return undefined;
+  }
+  const billId = url.searchParams.get("bill_id");
+  if (!billId) return undefined;
+  return `https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=${encodeURIComponent(billId)}`;
+}
+
+/**
  * Fetch the operative bill text from the state's own site.
  *
  * Optional by design: a bill with an abstract but no retrievable text is still
@@ -204,10 +224,22 @@ async function fetchFullText(
 ): Promise<string | undefined> {
   if (!bill.textLink) return undefined;
   try {
-    const res = await fetchWithRetry(bill.textLink.url);
+    let res = await fetchWithRetry(bill.textLink.url);
+    const fallbackUrl = leginfoTextFallbackUrl(bill.textLink.url);
+    if (
+      fallbackUrl &&
+      res.headers.get("content-type")?.toLowerCase().includes("text/html")
+    ) {
+      logger.info(
+        `${bill.billNumber}: following California HTML text fallback`,
+      );
+      res = await fetchWithRetry(fallbackUrl);
+    }
+    const responseType = res.headers.get("content-type")?.toLowerCase();
     const isPdf =
-      bill.textLink.mediaType?.toLowerCase() === "application/pdf" ||
-      /\.pdf(?:$|[?#])/i.test(bill.textLink.url);
+      responseType?.includes("application/pdf") ??
+      (bill.textLink.mediaType?.toLowerCase() === "application/pdf" ||
+        /\.pdf(?:$|[?#])/i.test(bill.textLink.url));
     const text = isPdf
       ? await extractPdfText(new Uint8Array(await res.arrayBuffer()))
       : stripHtml(await res.text());
