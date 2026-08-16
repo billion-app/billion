@@ -28,9 +28,9 @@ export function monthDay(dateString: string): string {
   });
 }
 
-/** ISO date string `days` before/after the given date. */
-export function shiftDays(dateString: string, days: number): string {
-  const d = new Date(dateString);
-  d.setDate(d.getDate() + days);
-  return d.toISOString();
-}
+// NOTE: `shiftDays` used to live here. Its only callers were ElectionHero and
+// KeyDatesSection, which used it to synthesize registration and vote-by-mail
+// deadlines as fixed offsets from Election Day and render them as fact. Those
+// dates are jurisdiction-specific and were never sourced, so both callers and
+// this helper are gone. Deadlines belong to an official source or to the
+// "not published" state on How to Vote — not to arithmetic.

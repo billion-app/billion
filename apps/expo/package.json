@@ -11,6 +11,7 @@
     "ios": "expo run:ios",
     "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .prettierignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "build:ios": "expo prebuild --platform ios --clean",
     "build:android": "expo prebuild --platform android --clean"
@@ -81,6 +82,7 @@
     "eslint": "catalog:",
     "prettier": "catalog:",
     "tailwindcss": "catalog:",
+    "tsx": "^4.21.0",
     "typescript": "~6.0.3"
   },
   "overrides": {

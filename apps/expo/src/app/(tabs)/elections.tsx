@@ -14,6 +14,7 @@ import type { Contest } from "@acme/api";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { HowToVoteEntryCard } from "~/components/HowToVoteEntryCard";
 import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
@@ -21,7 +22,9 @@ import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
+import { daysUntil } from "~/utils/dates";
 import { groupContestsByLevel, measureIsStatewide } from "~/utils/elections";
+import { buildVotingPlan, electionPhase } from "~/utils/voting";
 
 type BallotTab = "candidates" | "measures";
 
@@ -212,6 +215,13 @@ export default function ElectionsScreen() {
   // The address-specific election the ballot belongs to.
   const selected = unsupportedState ? undefined : voterInfoQuery.data?.election;
 
+  // Voting logistics for the entry card. Derived from the same response the
+  // ballot uses, so the card never disagrees with the screen it opens.
+  const votingPlan = buildVotingPlan(
+    unsupportedState ? undefined : voterInfoQuery.data,
+  );
+  const phase = electionPhase(selected?.electionDay);
+
   const contests = unsupportedState
     ? []
     : (voterInfoQuery.data?.contests ?? []);
@@ -289,6 +299,27 @@ export default function ElectionsScreen() {
 
       {/* election hero — what election is happening, what it means */}
       {selected && <ElectionHero election={selected} />}
+
+      {/* How to Vote — the logistics half of the tab. Sits right under the
+          hero so "how do I vote in it" follows "which election is it", and
+          lands above the ballot list for anyone who only came for logistics. */}
+      <View style={s.section}>
+        <HowToVoteEntryCard
+          hasAddress={hasAddress}
+          plan={unsupportedState ? undefined : votingPlan}
+          phase={phase}
+          onPress={() => {
+            posthog.capture("how_to_vote_opened", {
+              entry_point: "elections_hero",
+              days_until_election: selected
+                ? daysUntil(selected.electionDay)
+                : null,
+              available_methods: votingPlan.availableCount,
+            });
+            router.push("/how-to-vote");
+          }}
+        />
+      </View>
 
       {/* live results (CA SOS feed): statewide + the voter's district races,
           scoped from their ballot. Self-hides when off-season. Only
@@ -482,21 +513,34 @@ export default function ElectionsScreen() {
           </View>
         )}
 
-      {/* polling place exit */}
+      {/* polling place exit — routes into How to Vote. The old subtitle
+          claimed "Verified on vote.gov" while pushing to an internal screen;
+          Billion performs no such verification, so the claim is gone. */}
       <View style={s.section}>
         <TouchableOpacity
           activeOpacity={0.85}
-          onPress={() => router.push("/local-elections")}
+          onPress={() => {
+            posthog.capture("how_to_vote_opened", {
+              entry_point: "elections_footer",
+              days_until_election: selected
+                ? daysUntil(selected.electionDay)
+                : null,
+              available_methods: votingPlan.availableCount,
+            });
+            router.push("/how-to-vote");
+          }}
         >
           <Card style={s.pollRow}>
             <View style={s.pollIcon}>
               <Icon name="pin" size={22} color={colors.green[500]} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.pollTitle}>Find your polling place</Text>
-              <Text style={s.pollSub}>Verified on vote.gov</Text>
+              <Text style={s.pollTitle}>Where to vote</Text>
+              <Text style={s.pollSub}>
+                Polling places, drop boxes, and hours
+              </Text>
             </View>
-            <Icon name="external" size={18} color={colors.textSecondary} />
+            <Icon name="chevR" size={18} color={colors.textSecondary} />
           </Card>
         </TouchableOpacity>
       </View>

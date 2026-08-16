@@ -31,6 +31,9 @@ type IconName =
   | "help"
   | "message"
   | "info"
+  | "alert"
+  | "mail"
+  | "inbox"
   | "lock"
   | "block"
   | "doc"
@@ -80,6 +83,9 @@ const MAP: Record<IconName, { family: Family; name: string }> = {
   help: { family: "feather", name: "help-circle" },
   message: { family: "feather", name: "message-square" },
   info: { family: "feather", name: "info" },
+  alert: { family: "feather", name: "alert-triangle" },
+  mail: { family: "feather", name: "mail" },
+  inbox: { family: "feather", name: "inbox" },
   lock: { family: "feather", name: "lock" },
   block: { family: "feather", name: "slash" },
   doc: { family: "feather", name: "file-text" },

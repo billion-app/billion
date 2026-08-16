@@ -12,7 +12,7 @@ import type { Election } from "@acme/api";
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
 import { colors, fontBody, hair, planes } from "~/styles";
-import { daysUntil, monthDay, shiftDays } from "~/utils/dates";
+import { daysUntil, monthDay } from "~/utils/dates";
 import {
   electionExplainer,
   electionType,
@@ -28,21 +28,15 @@ export function ElectionHero({ election }: ElectionHeroProps) {
   const type = electionType(election.name);
   const days = daysUntil(election.electionDay);
 
-  // Key dates. TODO(backend): exact per-jurisdiction registration / VBM dates;
-  // these offsets approximate a typical California timeline.
+  // Only Election Day is shown here, and only because Google Civic actually
+  // returns it. The "Registration closes" and "Ballots mailed" rows that used
+  // to sit alongside it were computed as electionDay-15 and electionDay-8 —
+  // a plausible California timeline presented as fact, with no source and no
+  // hedging. Deadlines vary by state and county and change between cycles, so
+  // an offset is a guess, not a deadline. Voting logistics now live on the How
+  // to Vote screen, which renders an honest "not published" state rather than
+  // inventing a date.
   const dates = [
-    {
-      icon: "clock" as const,
-      label: "Registration closes",
-      value: monthDay(shiftDays(election.electionDay, -15)),
-      accent: colors.yellow[500],
-    },
-    {
-      icon: "calendar" as const,
-      label: "Ballots mailed",
-      value: monthDay(shiftDays(election.electionDay, -8)),
-      accent: colors.textSecondary,
-    },
     {
       icon: "flag" as const,
       label: "Election Day",
