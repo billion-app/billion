@@ -390,6 +390,7 @@ content and are completed later by these standalone entry points. All are
 | `retroactive-lenses`         | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows           | `--dry-run` to preview                                        |
 | `retroactive-videos`         | `retroactive-videos.ts`         | Missing `video` feed rows                   | —                                                             |
 | `backfill-bill-descriptions` | `backfill-bill-descriptions.ts` | Bills with no source/AI description         | `--apply` (+ `--yes` on prod)                                 |
+| `prune-bills`                | `prune-bills.ts`                | Bills beyond the newest N per jurisdiction  | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
 
 `reprocess-content` is the most general and the model the others follow:
 

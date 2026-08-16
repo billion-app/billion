@@ -35,6 +35,7 @@ the arguments it takes; the supervisor supplies everything else.
 | `federalregister-weekly`          | Sundays 03:15     | Executive orders and presidential documents                                     |
 | `scc-cvig-weekly`                 | Sundays 03:15     | Santa Clara County voter guide                                                  |
 | `ca-sos-weekly`                   | Sundays 03:15     | California SoS candidate statements                                             |
+| `prune-bills-weekly`              | Sundays 23:30     | Keeps the 100 most recently updated bills in each jurisdiction                  |
 | `retro-briefs`                    | manual            | Fills in missing structured briefs                                              |
 | `retro-lenses`                    | manual            | Fills in missing dual-lens perspectives                                         |
 | `retro-videos`                    | manual            | Header art backfill                                                             |
@@ -59,6 +60,14 @@ something a scheduler starts at 3am.
 The three weekly scrapers are listed individually rather than as one `main.js
 all` run, so that dropping `all` (which would drag the cursor walk back in)
 cannot silently stop them.
+
+The Sunday-night retention job runs after ingestion and caps each jurisdiction
+independently, so the federal feed cannot displace California or another state.
+It deletes the evicted bills and their polymorphic feed images, briefs, lenses,
+saved references, and cascading brief-change images in one transaction. The
+underlying command is read-only unless passed `--apply`; production also
+requires `--yes`. PostgreSQL autovacuum makes the freed space reusable; the
+reported physical disk size may not fall immediately after deletion.
 
 A job that has never run fires immediately if it is interval-based, and waits
 for its next occurrence if it is on a calendar schedule — deploying at 4pm must

@@ -77,6 +77,18 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
+  {
+    id: "prune-bills-weekly",
+    description: "Keep the 100 most recently updated bills per jurisdiction",
+    script: "prune-bills.js",
+    args: ["--keep-per-jurisdiction", "100", "--apply", "--yes"],
+    // Run after the Sunday ingestion jobs so the cap applies to the complete
+    // weekly picture. The supervisor serialises jobs if an earlier run is late.
+    schedule: { kind: "weekly", weekday: 0, hour: 23, minute: 30 },
+    priority: 18,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 12,
+  },
 
   // Everything below is manual: it runs only when someone drops a request file,
   // never on a schedule.
