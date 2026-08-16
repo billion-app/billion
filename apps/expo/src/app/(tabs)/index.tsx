@@ -21,6 +21,7 @@ import {
   JurisdictionPicker,
   JurisdictionScopeRow,
 } from "~/components/JurisdictionPicker";
+import { LocalGovernmentCard } from "~/components/LocalGovernmentCard";
 import { Text } from "~/components/Themed";
 import { ContentCard, Icon, Pill, Pills, SearchInput } from "~/components/ui";
 import { posthog } from "~/config/posthog";
@@ -225,6 +226,12 @@ export default function BrowseScreen() {
               <JurisdictionScopeRow
                 jurisdiction={jurisdiction}
                 onPress={() => setJurisdictionPickerOpen(true)}
+              />
+              {/* City and county activity — the same "which government?"
+                  question as the row above, one level down. */}
+              <LocalGovernmentCard
+                address={address}
+                onPress={() => router.push("/local-elections")}
               />
               <SearchInput
                 placeholder="Search bills, cases, orders…"

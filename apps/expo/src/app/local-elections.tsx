@@ -2,41 +2,42 @@ import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
 
-import { KeyDatesSection } from "~/components/KeyDatesSection";
 import { LocalBillsSection } from "~/components/LocalBillsSection";
-import { MyBallotSection } from "~/components/MyBallotSection";
-import { PollingPlacesSection } from "~/components/PollingPlacesSection";
 import { RepsSection } from "~/components/RepsSection";
 import { Text, View } from "~/components/Themed";
 import { UpcomingMeetingsSection } from "~/components/UpcomingMeetingsSection";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontDisplay, fontSize, sp, useTheme } from "~/styles";
-import { trpc } from "~/utils/api";
-import { daysUntil } from "~/utils/dates";
+import {
+  colors,
+  fontBody,
+  fontDisplay,
+  fontSize,
+  rd,
+  sp,
+  useTheme,
+} from "~/styles";
+import { coveredJurisdiction } from "~/utils/local-government";
 
 /**
- * "Where & How to Vote" — the civic logistics hub. This is intentionally NOT a
- * second copy of the ballot (that lives on the Elections tab). It answers the
- * questions the ballot can't: where do I vote, when, who represents me, and
- * what's my city/county doing right now (local bills + meetings).
+ * "Your Local Government" — city and county activity: local bills, upcoming
+ * public meetings, and who represents you.
+ *
+ * This used to be "Where & How to Vote" and also carried polling places, key
+ * dates, and an address card. All three moved to the How to Vote screen, which
+ * is now the single home for voting logistics. What's left is the part that
+ * was never about voting.
+ *
+ * Coverage note: Legistar is wired for San Jose, Santa Clara County, and
+ * Sunnyvale only, and the router merges all three regardless of the reader's
+ * address — so the header states the coverage instead of implying it's theirs.
  */
-export default function LocalElectionsScreen() {
+export default function LocalGovernmentScreen() {
   const { theme } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { address, setAddress, clearAddress } = useUserAddress();
-
-  const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
-  const upcomingElection = electionsQuery.data
-    ?.filter((e) => daysUntil(e.electionDay) >= 0)
-    .sort((a, b) => a.electionDay.localeCompare(b.electionDay))[0];
-
-  const voterInfoQuery = useQuery({
-    ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
-    enabled: !!address,
-  });
+  const { address } = useUserAddress();
+  const covered = coveredJurisdiction(address);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -47,7 +48,9 @@ export default function LocalElectionsScreen() {
         >
           <FontAwesome name="arrow-left" size={18} color={colors.white} />
         </TouchableOpacity>
-        <Text style={styles.title}>Where & How to Vote</Text>
+        <Text style={styles.title}>
+          {covered ? "Your Local Government" : "Local Government"}
+        </Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -56,31 +59,25 @@ export default function LocalElectionsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <MyBallotSection
-          address={address}
-          onAddressSubmit={setAddress}
-          onEditAddress={clearAddress}
-          onViewBallot={() => router.push("/(tabs)/elections")}
-        />
-
-        <PollingPlacesSection
-          pollingLocations={voterInfoQuery.data?.pollingLocations}
-          earlyVoteSites={voterInfoQuery.data?.earlyVoteSites}
-          dropOffLocations={voterInfoQuery.data?.dropOffLocations}
-          mailOnly={voterInfoQuery.data?.mailOnly}
-          isLoading={voterInfoQuery.isLoading}
-          hasAddress={!!address}
-        />
-
-        {upcomingElection && (
-          <KeyDatesSection electionDate={upcomingElection.electionDay} />
+        {/* Coverage is a scope, not a failure — say which governments these
+            are rather than letting the reader assume they're theirs. */}
+        {!covered && (
+          <View style={styles.coverage}>
+            <Text style={styles.coverageTitle}>
+              Billion covers three Bay Area governments
+            </Text>
+            <Text style={styles.coverageBody}>
+              San Jose, Santa Clara County, and Sunnyvale. Your area isn&apos;t
+              one of them yet.
+            </Text>
+          </View>
         )}
-
-        <RepsSection address={address} />
 
         <LocalBillsSection />
 
         <UpcomingMeetingsSection />
+
+        <RepsSection address={address} />
       </ScrollView>
     </View>
   );
@@ -114,5 +111,26 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: sp[5],
+  },
+  coverage: {
+    marginHorizontal: sp[4],
+    marginBottom: sp[6],
+    padding: sp[4],
+    borderRadius: rd.lg,
+    borderWidth: 1,
+    borderColor: "rgba(74,124,255,0.30)",
+    backgroundColor: "rgba(74,124,255,0.08)",
+  },
+  coverageTitle: {
+    fontFamily: fontBody.semibold,
+    fontSize: fontSize.sm,
+    color: colors.white,
+  },
+  coverageBody: {
+    fontFamily: fontBody.regular,
+    fontSize: fontSize.xs,
+    lineHeight: 18,
+    color: "rgba(255,255,255,0.72)",
+    marginTop: sp[1],
   },
 });

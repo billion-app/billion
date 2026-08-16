@@ -65,8 +65,14 @@ export interface VotingMethod {
   subtitle: string;
   /** Locations this method applies to, if any were published. */
   locations: PollingLocation[];
-  /** Numbered checklist. Titles carry the instruction; details add consequence. */
+  /**
+   * Numbered checklist — a summary of the authority's own instructions, never
+   * Billion's independent advice. Empty unless `instructionsUrl` is set: if we
+   * can't point at the source we summarized, we don't show a summary.
+   */
   steps: VotingStep[];
+  /** The authority page these steps summarize. Gates `steps` entirely. */
+  instructionsUrl?: string;
   /** Published window for the method, when the feed carried one. */
   startDate?: string;
   endDate?: string;
@@ -90,6 +96,21 @@ export interface OfficialSource {
   electionRulesUrl?: string;
   /** First official phone number we can offer as an Election Day fallback. */
   phone?: string;
+}
+
+/**
+ * Where to send someone who doesn't know whether they're registered.
+ *
+ * Always resolves: county/state tool if the feed carried one, otherwise the
+ * federal portal. A registration prompt with no action is worse than no
+ * prompt at all, so this never returns undefined.
+ */
+export function registrationCheckUrl(source?: OfficialSource): string {
+  return (
+    source?.registrationConfirmationUrl ??
+    source?.registrationUrl ??
+    "https://vote.gov"
+  );
 }
 
 export interface VotingPlan {
@@ -201,7 +222,10 @@ function countLabel(n: number, singular: string, plural: string): string {
 function mailMethod(
   resp: VoterInfoResponse | undefined,
   isCalifornia: boolean,
+  source: OfficialSource | undefined,
 ): VotingMethod {
+  const instructionsUrl =
+    source?.absenteeVotingInfoUrl ?? source?.electionInfoUrl;
   const mailOnly = resp?.mailOnly === true;
   const steps: VotingStep[] = [
     {
@@ -230,6 +254,7 @@ function mailMethod(
 
   return {
     id: "mail",
+    instructionsUrl,
     title: mailOnly ? "Return your ballot by mail" : "Vote by mail",
     // Every registered voter in an all-mail election is sent a ballot; outside
     // one we can't confirm this voter gets one without a source, so the status
@@ -240,18 +265,24 @@ function mailMethod(
       ? "Every registered voter is mailed a ballot"
       : "Return deadline not available",
     locations: [],
-    steps,
+    steps: instructionsUrl ? steps : [],
   };
 }
 
 /** Ballot drop boxes. */
-function dropBoxMethod(locations: PollingLocation[]): VotingMethod {
+function dropBoxMethod(
+  locations: PollingLocation[],
+  source: OfficialSource | undefined,
+): VotingMethod {
+  const instructionsUrl =
+    source?.absenteeVotingInfoUrl ?? source?.electionInfoUrl;
   const start = earliestStart(locations);
   const end = latestEnd(locations);
   const status = windowStatus(locations, start, end);
 
   return {
     id: "dropBox",
+    instructionsUrl,
     title: "Return at a drop box",
     status,
     chip:
@@ -265,22 +296,29 @@ function dropBoxMethod(locations: PollingLocation[]): VotingMethod {
     locations,
     startDate: start,
     endDate: end,
-    steps: [
-      {
-        title: "Mark, seal, and sign your ballot first",
-        detail: "A drop box takes the same sealed return envelope.",
-      },
-      { title: "Drop it in any box in your county" },
-      {
-        title: "Arrive before your county's cutoff on Election Day",
-        detail: "Boxes are locked at closing; later isn't counted.",
-      },
-    ],
+    steps: !instructionsUrl
+      ? []
+      : [
+          {
+            title: "Mark, seal, and sign your ballot first",
+            detail: "A drop box takes the same sealed return envelope.",
+          },
+          { title: "Drop it in any box in your county" },
+          {
+            title: "Arrive before your county's cutoff on Election Day",
+            detail: "Boxes are locked at closing; later isn't counted.",
+          },
+        ],
   };
 }
 
 /** Early in-person voting / vote centers open before Election Day. */
-function earlyMethod(locations: PollingLocation[]): VotingMethod {
+function earlyMethod(
+  locations: PollingLocation[],
+  source: OfficialSource | undefined,
+): VotingMethod {
+  const instructionsUrl =
+    source?.votingLocationFinderUrl ?? source?.electionInfoUrl;
   const start = earliestStart(locations);
   const end = latestEnd(locations);
   const status = windowStatus(locations, start, end);
@@ -296,6 +334,7 @@ function earlyMethod(locations: PollingLocation[]): VotingMethod {
 
   return {
     id: "earlyInPerson",
+    instructionsUrl,
     title: "Vote early in person",
     status,
     chip,
@@ -306,14 +345,16 @@ function earlyMethod(locations: PollingLocation[]): VotingMethod {
     locations,
     startDate: start,
     endDate: end,
-    steps: [
-      { title: "Go to any early vote site in your county" },
-      {
-        title: "Bring your mailed ballot if you have it",
-        detail: "You can surrender it and vote in person instead.",
-      },
-      { title: "Check the site's hours before you go" },
-    ],
+    steps: !instructionsUrl
+      ? []
+      : [
+          { title: "Go to any early vote site in your county" },
+          {
+            title: "Bring your mailed ballot if you have it",
+            detail: "You can surrender it and vote in person instead.",
+          },
+          { title: "Check the site's hours before you go" },
+        ],
   };
 }
 
@@ -321,31 +362,38 @@ function earlyMethod(locations: PollingLocation[]): VotingMethod {
 function electionDayMethod(
   locations: PollingLocation[],
   mailOnly: boolean,
+  source: OfficialSource | undefined,
 ): VotingMethod {
+  const instructionsUrl =
+    source?.votingLocationFinderUrl ?? source?.electionInfoUrl;
   // In an all-mail election in-person service still exists — usually one
   // office for replacement ballots and assistance. Dropping the row entirely
   // would read as "you cannot vote in person", which isn't what mailOnly means.
   if (mailOnly) {
     return {
       id: "electionDay",
+      instructionsUrl,
       title: "Vote in person",
       status: "limited",
       chip: CHIP.limited,
       subtitle: "In-person help is available for replacement ballots",
       locations,
-      steps: [
-        { title: "Contact your county election office" },
-        {
-          title: "Ask about in-person service for this election",
-          detail: "All-mail elections still staff at least one location.",
-        },
-      ],
+      steps: !instructionsUrl
+        ? []
+        : [
+            { title: "Contact your county election office" },
+            {
+              title: "Ask about in-person service for this election",
+              detail: "All-mail elections still staff at least one location.",
+            },
+          ],
     };
   }
 
   const status: MethodStatus = locations.length > 0 ? "available" : "unknown";
   return {
     id: "electionDay",
+    instructionsUrl,
     title: "Vote in person on Election Day",
     status,
     chip: status === "available" ? CHIP.available : CHIP.unknown,
@@ -354,17 +402,19 @@ function electionDayMethod(
         ? countLabel(locations.length, "polling place", "polling places")
         : "Locations not published yet",
     locations,
-    steps: [
-      { title: "Go to a polling place listed below" },
-      {
-        title: "Bring your mailed ballot if you received one",
-        detail: "You can surrender it and vote in person instead.",
-      },
-      {
-        title: "If you're in line when polls close, stay in line",
-        detail: "Anyone already in line is entitled to vote.",
-      },
-    ],
+    steps: !instructionsUrl
+      ? []
+      : [
+          { title: "Go to a polling place listed below" },
+          {
+            title: "Bring your mailed ballot if you received one",
+            detail: "You can surrender it and vote in person instead.",
+          },
+          {
+            title: "If you're in line when polls close, stay in line",
+            detail: "Anyone already in line is entitled to vote.",
+          },
+        ],
   };
 }
 
@@ -424,11 +474,14 @@ export function buildVotingPlan(
   const early = resp?.earlyVoteSites ?? [];
   const polling = resp?.pollingLocations ?? [];
 
+  // Resolved first: it gates whether any method may show a step summary.
+  const source = resolveOfficialSource(resp);
+
   const methods: VotingMethod[] = [
-    mailMethod(resp, isCalifornia),
-    dropBoxMethod(dropOff),
-    ...(mailOnly ? [] : [earlyMethod(early)]),
-    electionDayMethod(polling, mailOnly),
+    mailMethod(resp, isCalifornia, source),
+    dropBoxMethod(dropOff, source),
+    ...(mailOnly ? [] : [earlyMethod(early, source)]),
+    electionDayMethod(polling, mailOnly, source),
   ];
 
   return {
@@ -437,7 +490,7 @@ export function buildVotingPlan(
     mailOnly,
     noLocationsPublished:
       dropOff.length === 0 && early.length === 0 && polling.length === 0,
-    source: resolveOfficialSource(resp),
+    source,
   };
 }
 

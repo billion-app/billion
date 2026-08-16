@@ -48,7 +48,12 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { daysUntil, formatDate } from "~/utils/dates";
-import { buildVotingPlan, electionPhase, shortAddress } from "~/utils/voting";
+import {
+  buildVotingPlan,
+  electionPhase,
+  registrationCheckUrl,
+  shortAddress,
+} from "~/utils/voting";
 
 export const ErrorBoundary = createRouteErrorBoundary("how-to-vote");
 
@@ -286,16 +291,19 @@ export default function HowToVoteScreen() {
 
           <View style={s.rule} />
 
-          {/* Registration is context for the address, not a step of its own.
-              Billion has no registration data, so this never asserts status. */}
+          {/* Context for the address, not a step of its own. Billion holds no
+              registration data, so this asks the question the voter has rather
+              than announcing what we can't do — and the action always resolves,
+              because a prompt with no exit is worse than no prompt. */}
           <FactRow
-            icon="info"
-            label="Billion can't confirm whether you're registered"
-            value="Registration deadlines vary by county — check with your election office."
+            icon="help"
+            iconColor={colors.bill}
+            label="Not sure if you're registered?"
+            value="Billion can't check for you — your state can, in about a minute."
           />
           <LinkRow
             label="Check my registration status"
-            url={source?.registrationConfirmationUrl ?? source?.registrationUrl}
+            url={registrationCheckUrl(source)}
           />
         </Card>
       )}
@@ -350,7 +358,7 @@ export default function HowToVoteScreen() {
                 method={method}
                 expanded={openMethod === method.id}
                 onToggle={() => toggleMethod(method.id)}
-                absenteeUrl={source?.absenteeVotingInfoUrl}
+                authorityName={source?.name}
                 locationFinderUrl={
                   source?.votingLocationFinderUrl ?? source?.electionInfoUrl
                 }

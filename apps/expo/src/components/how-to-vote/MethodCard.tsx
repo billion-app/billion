@@ -48,14 +48,14 @@ export function MethodCard({
   method,
   expanded,
   onToggle,
-  absenteeUrl,
+  authorityName,
   locationFinderUrl,
 }: {
   method: VotingMethod;
   expanded: boolean;
   onToggle: () => void;
-  /** Official vote-by-mail detail page, when the feed carried one. */
-  absenteeUrl?: string;
+  /** Named above the steps, so whose words they are is clear before reading. */
+  authorityName?: string;
   /** Official location finder — the fallback when nothing is published. */
   locationFinderUrl?: string;
 }) {
@@ -107,7 +107,30 @@ export function MethodCard({
 
       {expanded && (
         <View style={s.open}>
-          <StepList steps={method.steps} />
+          {/* Steps are a summary of the authority's instructions, never
+              Billion's own advice — so they only render when we can name and
+              link the source they came from. */}
+          {method.steps.length > 0 && (
+            <>
+              <Text style={s.kicker}>
+                {authorityName
+                  ? `SUMMARIZED FROM ${authorityName.toUpperCase()}`
+                  : "SUMMARIZED FROM YOUR ELECTION OFFICE"}
+              </Text>
+              <StepList steps={method.steps} />
+              <LinkRow
+                label="Full instructions from the source"
+                url={method.instructionsUrl}
+              />
+            </>
+          )}
+
+          {method.steps.length === 0 && (
+            <LinkRow
+              label="Instructions from your election office"
+              url={method.instructionsUrl ?? locationFinderUrl}
+            />
+          )}
 
           {method.locations.length > 0 ? (
             <>
@@ -133,10 +156,6 @@ export function MethodCard({
               />
             </>
           ) : null}
-
-          {method.id === "mail" && (
-            <LinkRow label="Vote-by-mail details" url={absenteeUrl} />
-          )}
         </View>
       )}
     </View>

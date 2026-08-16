@@ -9,6 +9,7 @@ import {
   electionPhase,
   entryCardSubtitle,
   formatCivicAddress,
+  registrationCheckUrl,
   resolveOfficialSource,
   shortAddress,
 } from "./voting";
@@ -169,11 +170,12 @@ void test("no step or subtitle ever states a deadline we cannot source", () => {
 });
 
 void test("California postage guidance is gated on the resolved state", () => {
-  const caMail = method(buildVotingPlan(response()), "mail");
+  // Steps only exist alongside a citable source, so both halves need one.
+  const caMail = method(buildVotingPlan(withSource()), "mail");
   assert.match(caMail.steps.at(-1)?.title ?? "", /no stamp needed/);
 
   const nvPlan = buildVotingPlan(
-    response({
+    withSource({
       normalizedInput: {
         line1: "1 Main St",
         city: "Reno",
@@ -290,4 +292,86 @@ void test("entryCardSubtitle never promises a deadline it doesn't have", () => {
     entryCardSubtitle(true, buildVotingPlan(response()), "upcoming"),
     /postmark|deadline by|due/i,
   );
+});
+
+// --- source gating: no source, no step summary -----------------------------
+
+/** A response carrying an administration body, i.e. a citable source. */
+function withSource(
+  overrides: Partial<VoterInfoResponse> = {},
+): VoterInfoResponse {
+  return response({
+    state: [
+      {
+        name: "California",
+        localJurisdiction: {
+          name: "Sacramento County",
+          electionAdministrationBody: {
+            name: "Sacramento County Voter Registration & Elections",
+            electionInfoUrl: "https://elections.saccounty.gov",
+            absenteeVotingInfoUrl: "https://elections.saccounty.gov/vbm",
+            votingLocationFinderUrl: "https://elections.saccounty.gov/centers",
+          },
+        },
+      },
+    ],
+    ...overrides,
+  });
+}
+
+void test("steps are withheld entirely when no source can be cited", () => {
+  // The steps summarize an authority's instructions. With nothing to point at,
+  // showing them would make Billion the author of voting procedure.
+  const plan = buildVotingPlan(response());
+  for (const m of plan.methods) {
+    assert.equal(m.steps.length, 0, `${m.id} must not carry unsourced steps`);
+    assert.equal(m.instructionsUrl, undefined);
+  }
+});
+
+void test("steps appear once an official instructions URL exists", () => {
+  const plan = buildVotingPlan(withSource());
+  const mail = method(plan, "mail");
+  assert.ok(mail.steps.length > 0);
+  assert.equal(mail.instructionsUrl, "https://elections.saccounty.gov/vbm");
+
+  const day = method(plan, "electionDay");
+  assert.ok(day.steps.length > 0);
+  assert.equal(day.instructionsUrl, "https://elections.saccounty.gov/centers");
+});
+
+void test("every method with steps can name the page it summarizes", () => {
+  const plan = buildVotingPlan(withSource());
+  for (const m of plan.methods) {
+    if (m.steps.length > 0) {
+      assert.ok(m.instructionsUrl, `${m.id} has steps but no source URL`);
+    }
+  }
+});
+
+// --- registration check always resolves ------------------------------------
+
+void test("registrationCheckUrl prefers the most specific official tool", () => {
+  assert.equal(
+    registrationCheckUrl({
+      name: "x",
+      registrationConfirmationUrl: "https://voterstatus.sos.ca.gov",
+      registrationUrl: "https://registertovote.ca.gov",
+    }),
+    "https://voterstatus.sos.ca.gov",
+  );
+  assert.equal(
+    registrationCheckUrl({
+      name: "x",
+      registrationUrl: "https://registertovote.ca.gov",
+    }),
+    "https://registertovote.ca.gov",
+  );
+});
+
+void test("registrationCheckUrl never leaves the reader without an exit", () => {
+  // The old build rendered "we can't confirm you're registered" with no action
+  // whenever Civic omitted both URLs. There must always be somewhere to go.
+  assert.equal(registrationCheckUrl(undefined), "https://vote.gov");
+  assert.equal(registrationCheckUrl({ name: "x" }), "https://vote.gov");
 });
