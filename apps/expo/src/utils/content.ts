@@ -54,7 +54,7 @@ function relativeActivity(value: Date | undefined): string | undefined {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/** Map API content onto a card, preserving state-legislation context. */
+/** Map API content onto a card, preserving legislative status and context. */
 export function toCardItem(
   item: ContentItem,
   options: { showJurisdiction?: boolean } = {},
@@ -62,8 +62,12 @@ export function toCardItem(
   const stateName = isStateJurisdiction(item.jurisdiction)
     ? JURISDICTIONS[item.jurisdiction].name
     : undefined;
-  const isStateBill = item.type === "bill" && !!stateName;
+  const isBill = item.type === "bill";
+  const isStateBill = isBill && !!stateName;
   const activity = relativeActivity(item.activityAt);
+  const legislativeStatus = [item.billStatus, activity]
+    .filter(Boolean)
+    .join(" · ");
   return {
     id: item.id,
     type: resolveType(item.type),
@@ -72,8 +76,8 @@ export function toCardItem(
       : item.billNumber,
     title: item.title,
     gist: item.description,
-    status: isStateBill
-      ? [item.billStatus, activity].filter(Boolean).join(" · ")
+    status: isBill
+      ? legislativeStatus || STATUS_LABEL.bill
       : STATUS_LABEL[item.type],
     meta: isStateBill
       ? [item.chamber && `${stateName} ${item.chamber}`, item.sponsor]
