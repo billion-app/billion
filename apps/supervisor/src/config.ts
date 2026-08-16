@@ -11,9 +11,17 @@ import type { JobDefinition } from "./types.js";
 export const jobs: readonly JobDefinition[] = [
   {
     id: "congress-daily",
-    description: "Add and update the 100 most recently updated bills",
+    description: "Refresh and retain the 100 most recently updated bills",
     script: "main.js",
-    args: ["congress", "--recent", "100", "--concurrency", "4"],
+    args: [
+      "congress",
+      "--recent",
+      "100",
+      "--retain",
+      "100",
+      "--concurrency",
+      "4",
+    ],
     schedule: { kind: "daily", hour: 3, minute: 15 },
     // Most of the 100 will be unchanged and cost nothing beyond the fetch —
     // derived assets are keyed on content, so an unchanged bill regenerates
@@ -27,9 +35,17 @@ export const jobs: readonly JobDefinition[] = [
   ...(["ca", "mo", "nc", "tx"] as const).map(
     (stateCode, index): JobDefinition => ({
       id: `open-states-${stateCode}-daily`,
-      description: `Add and update the 100 most recently updated ${stateCode.toUpperCase()} measures`,
+      description: `Refresh and retain the 100 most recently updated ${stateCode.toUpperCase()} measures`,
       script: "main.js",
-      args: ["open-states", "--recent", "100", "--concurrency", "4"],
+      args: [
+        "open-states",
+        "--recent",
+        "100",
+        "--retain",
+        "100",
+        "--concurrency",
+        "4",
+      ],
       schedule: { kind: "daily", hour: 3, minute: 30 },
       env: {
         OPEN_STATES_STATES: stateCode,
@@ -77,7 +93,6 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
-
   // Everything below is manual: it runs only when someone drops a request file,
   // never on a schedule.
   //

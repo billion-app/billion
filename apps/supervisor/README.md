@@ -28,16 +28,16 @@ Three properties follow from that, and they are what this app is for:
 Defined in `src/config.ts`. Each names a script in the scraper's `dist/` and
 the arguments it takes; the supervisor supplies everything else.
 
-| id                                | schedule          | notes                                                                           |
-| --------------------------------- | ----------------- | ------------------------------------------------------------------------------- |
-| `congress-daily`                  | daily 03:15 local | Adds and updates the 100 most recently updated bills                            |
-| `open-states-{ca,mo,nc,tx}-daily` | daily 03:30 local | Adds and updates the 100 most recently updated measures in each supported state |
-| `federalregister-weekly`          | Sundays 03:15     | Executive orders and presidential documents                                     |
-| `scc-cvig-weekly`                 | Sundays 03:15     | Santa Clara County voter guide                                                  |
-| `ca-sos-weekly`                   | Sundays 03:15     | California SoS candidate statements                                             |
-| `retro-briefs`                    | manual            | Fills in missing structured briefs                                              |
-| `retro-lenses`                    | manual            | Fills in missing dual-lens perspectives                                         |
-| `retro-videos`                    | manual            | Header art backfill                                                             |
+| id                                | schedule          | notes                                                                            |
+| --------------------------------- | ----------------- | -------------------------------------------------------------------------------- |
+| `congress-daily`                  | daily 03:15 local | Refreshes and retains the 100 most recently updated federal bills                |
+| `open-states-{ca,mo,nc,tx}-daily` | daily 03:30 local | Refreshes and retains the 100 most recently updated measures per supported state |
+| `federalregister-weekly`          | Sundays 03:15     | Executive orders and presidential documents                                      |
+| `scc-cvig-weekly`                 | Sundays 03:15     | Santa Clara County voter guide                                                   |
+| `ca-sos-weekly`                   | Sundays 03:15     | California SoS candidate statements                                              |
+| `retro-briefs`                    | manual            | Fills in missing structured briefs                                               |
+| `retro-lenses`                    | manual            | Fills in missing dual-lens perspectives                                          |
+| `retro-videos`                    | manual            | Header art backfill                                                              |
 
 The federal and state daily jobs are the point of the whole arrangement: the
 app is a news feed, so a bill whose status changed today matters more than one
@@ -59,6 +59,14 @@ something a scheduler starts at 3am.
 The three weekly scrapers are listed individually rather than as one `main.js
 all` run, so that dropping `all` (which would drag the cursor walk back in)
 cannot silently stop them.
+
+Each daily bill refresh finishes by applying its own 100-row retention cap.
+Ranking and deletion happen inside PostgreSQL and return only aggregate counts,
+so retention does not download candidate rows from Supabase. Jurisdictions are
+capped independently, so federal activity cannot displace a state's measures.
+The manual `prune-bills` command remains available as a read-only-by-default
+repair tool. PostgreSQL autovacuum makes freed space reusable; reported physical
+disk size may not fall immediately after deletion.
 
 A job that has never run fires immediately if it is interval-based, and waits
 for its next occurrence if it is on a calendar schedule — deploying at 4pm must

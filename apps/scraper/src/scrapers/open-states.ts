@@ -69,7 +69,7 @@ const PAGE_SIZE = 20;
  */
 const PAGE_DELAY_MS = 1_000;
 
-const DEFAULT_STATES = ["ca"];
+export const DEFAULT_STATES = ["ca"];
 
 interface OpenStatesScraperConfig {
   maxBills?: number;

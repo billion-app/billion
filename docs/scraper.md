@@ -376,12 +376,13 @@ all of them for one run. This is distinct from `SCRAPER_MAX_NEW_ITEMS_PER_RUN`,
 which caps how many fetched items may _pay for AI_ (see
 [The new-item budget](#the-new-item-budget)).
 
-## Backfill & reprocessing scripts
+## Maintenance, backfill & reprocessing scripts
 
 The scrape path persists every fetched item but only lets
 `SCRAPER_MAX_NEW_ITEMS_PER_RUN` of them generate AI assets; the rest carry raw
-content and are completed later by these standalone entry points. All are
-`pnpm`-scripted in `apps/scraper` and share the pipeline's gates and providers.
+content and are completed later by these standalone entry points. This section
+also includes the manual retention command. All are `pnpm`-scripted in
+`apps/scraper` and share the pipeline's database safety conventions.
 
 | Command                      | File                            | What it fills                               | Safety                                                        |
 | ---------------------------- | ------------------------------- | ------------------------------------------- | ------------------------------------------------------------- |
@@ -390,6 +391,12 @@ content and are completed later by these standalone entry points. All are
 | `retroactive-lenses`         | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows           | `--dry-run` to preview                                        |
 | `retroactive-videos`         | `retroactive-videos.ts`         | Missing `video` feed rows                   | —                                                             |
 | `backfill-bill-descriptions` | `backfill-bill-descriptions.ts` | Bills with no source/AI description         | `--apply` (+ `--yes` on prod)                                 |
+| `prune-bills`                | `prune-bills.ts`                | Bills beyond the newest N per jurisdiction  | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
+
+The scheduled Congress and Open States refreshes pass `--retain 100`. After a
+successful `--recent` run, PostgreSQL ranks and deletes overflow for only the
+refreshed jurisdiction, returning aggregate counts rather than bill rows. The
+standalone command is for manual inventory and repair, not routine scheduling.
 
 `reprocess-content` is the most general and the model the others follow:
 

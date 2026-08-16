@@ -47,7 +47,8 @@
     "retroactive-briefs": "tsx src/retroactive-briefs-entry.ts",
     "reprocess-content": "tsx src/reprocess-content-entry.ts",
     "retroactive-videos": "tsx src/retroactive-videos-entry.ts",
-    "backfill-bill-descriptions": "tsx src/backfill-bill-descriptions-entry.ts"
+    "backfill-bill-descriptions": "tsx src/backfill-bill-descriptions-entry.ts",
+    "prune-bills": "tsx src/prune-bills-entry.ts"
   },
   "author": "It's not you it's me",
   "license": "ISC"

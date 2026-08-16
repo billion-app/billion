@@ -24,12 +24,28 @@ void test("every supported state has an isolated daily refresh", () => {
       "open-states",
       "--recent",
       "100",
+      "--retain",
+      "100",
       "--concurrency",
       "4",
     ]);
     assert.equal(job.env?.OPEN_STATES_STATES, stateCode);
     assert.equal(job.schedule.kind, "daily");
   }
+});
+
+void test("daily Congress refresh applies the same retention cap", () => {
+  const job = findJob("congress-daily");
+  assert.ok(job, "daily Congress job is missing");
+  assert.deepEqual(job.args, [
+    "congress",
+    "--recent",
+    "100",
+    "--retain",
+    "100",
+    "--concurrency",
+    "4",
+  ]);
 });
 
 void test("limits are generous enough not to kill healthy work", () => {
