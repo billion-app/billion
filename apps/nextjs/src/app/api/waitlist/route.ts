@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
+import type { MailingListSignupPlatform } from "./waitlist-confirmation-email";
 import { env } from "~/env";
-import {
-  MAILING_LIST_CONFIRMATION_HTML,
-  MAILING_LIST_CONFIRMATION_SUBJECT,
-  MAILING_LIST_CONFIRMATION_TEXT,
-} from "./waitlist-confirmation-email";
+import { isAndroidUserAgent } from "../../_lib/platform";
+import { mailingListConfirmationEmail } from "./waitlist-confirmation-email";
 
 export const runtime = "nodejs";
 
@@ -46,7 +44,16 @@ export async function POST(req: Request) {
   // is first created. A delivery problem should never prevent someone from
   // joining the mailing list.
   if (result === "joined") {
-    await sendMailingListConfirmation(email).catch((err: unknown) => {
+    // Read from the signup request rather than passed by the form: the header
+    // is what actually says which device is in someone's hand, and it covers
+    // every form on the site without each one having to declare itself.
+    const platform: MailingListSignupPlatform = isAndroidUserAgent(
+      req.headers.get("user-agent"),
+    )
+      ? "android"
+      : "default";
+
+    await sendMailingListConfirmation(email, platform).catch((err: unknown) => {
       console.error("mailing list confirmation email failed", err);
     });
   }
@@ -54,9 +61,14 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true, result });
 }
 
-async function sendMailingListConfirmation(email: string) {
+async function sendMailingListConfirmation(
+  email: string,
+  platform: MailingListSignupPlatform,
+) {
   const from = env.RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL;
   if (!from) return;
+
+  const { subject, text, html } = mailingListConfirmationEmail(platform);
 
   const response = await fetch(`${RESEND_API_BASE_URL}/emails`, {
     method: "POST",
@@ -67,9 +79,9 @@ async function sendMailingListConfirmation(email: string) {
     body: JSON.stringify({
       from,
       to: [email],
-      subject: MAILING_LIST_CONFIRMATION_SUBJECT,
-      text: MAILING_LIST_CONFIRMATION_TEXT,
-      html: MAILING_LIST_CONFIRMATION_HTML,
+      subject,
+      text,
+      html,
     }),
   });
 
