@@ -18,7 +18,7 @@ The root router (`packages/api/src/root.ts`) composes **nine** sub-routers:
 | `auth`       | `getSession` (Q), `getSecretMessage` (Q 🔒)                                                                                                    |
 | `civic`      | `getElections`, `getVoterInfo`, `getRepresentatives`, `getRepresentativesEnriched` (all Q) — Google Civic + measure/candidate cross-validation |
 | `places`     | `autocomplete` (Q), `details` (M) — Google Places address autocomplete for the ballot lookup                                                   |
-| `legistar`   | `getLocalBills`, `getMeetings`, `getAgenda`, `getVotes`, `getBodies`, `getMeetingVotes` (all Q) — local councils                               |
+| `legistar`   | `listDecisions`, `getDecision`, `listBodies`, `getIngestionHealth` (Q); deprecated source-format queries remain temporarily — local decisions  |
 | `openStates` | `searchBills`, `getBillDetails`, `getLegislators`, `getBillVotes` (all Q) — CA state legislature (Open States v3)                              |
 | `content`    | `getAll`, `getByType`, `getById` (all Q) — aggregates bill / government_content / court_case                                                   |
 | `video`      | `getInfinite` (Q) — cursor-paginated feed; converts `bytea` images to data URIs                                                                |
@@ -31,7 +31,7 @@ The `civic` router calls the **Google Civic Information API** (`GOOGLE_CIVIC_API
 
 Other live civic integrations:
 
-- **`legistar`** — reads configured Legistar instances through an on-demand API client with a 24-hour database cache. It is not registered in the scraper supervisor. See [Local government decisions and Legistar](./local-government-legistar.md) for the planned ingestion and evidence model.
+- **`legistar`** — new clients read durable, normalized local-government decisions populated by the registered scraper. The source transport is stateless and paged; deprecated prototype queries still make read-only source calls during the UI transition. See [Local government decisions and Legistar](./local-government-legistar.md).
 - **`openStates`** — California bills, legislators, and votes via the Open States v3 API (`OPEN_STATES_API_KEY`).
 - **`places`** — Google **Places Autocomplete (New)** for the ballot address entry (`packages/api/src/lib/places.ts`). `autocomplete` returns US street-address predictions (biased `includedRegionCodes: ["us"]`, `includedPrimaryTypes: street_address/premise/subpremise`) for queries ≥3 chars; `details` resolves a `placeId` to its full `formattedAddress` (the ZIP the prediction omits, which Civic wants). A **session token** (UUID stable across one address entry) bundles all keystroke calls plus the closing `details` into a single billed unit. Reuses `GOOGLE_PLACES_API_KEY` → `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`; with no key it serves a small mock list so the dropdown still works in dev (same fallback pattern as `civic`).
 
