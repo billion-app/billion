@@ -210,12 +210,12 @@ const votes = await legistar.getVotes("sanjose", eventItemId);
 | ------------------------------------------------------- | ------------------------------------------------------------------------ |
 | `legistar.getMeetings(jurisdiction, dateRange?)`        | `LegistarMeeting[]` — meetings in an optional date range                 |
 | `legistar.getLegislation(jurisdiction, query?)`         | `LegistarMatter[]` — matters matching optional filters                   |
-| `legistar.getAgendas(jurisdiction, eventId)`            | `LegistarAgendaItem[]` — EventItems for one meeting                      |
+| `legistar.getAgendaItems(jurisdiction, eventId)`        | `LegistarAgendaItem[]` — complete EventItems for one meeting             |
 | `legistar.getVotes(jurisdiction, eventItemId)`          | `LegistarVote[]` — structured votes when the jurisdiction publishes them |
 | `legistar.getBodies(jurisdiction)`                      | `LegistarBody[]` — committees and boards                                 |
 | `legistar.getMatterAttachments(jurisdiction, matterId)` | `LegistarAttachment[]` — PDFs, staff reports, and links                  |
 
-The current implementation is an on-demand client with a 24-hour database cache, not a scheduled scraper. Read [Local government decisions and Legistar](./local-government-legistar.md) before extending it; client ids, field usage, publication lifecycle, and outcome completeness vary by jurisdiction.
+This is the stateless source transport used by the registered San José scraper. New application reads use the durable `legistar.listDecisions`, `getDecision`, `listBodies`, and `getIngestionHealth` tRPC procedures rather than calling the source client. Read [Local government decisions and Legistar](./local-government-legistar.md) before adding a jurisdiction; client IDs, field population, publication lifecycle, and outcome completeness vary.
 
 ---
 

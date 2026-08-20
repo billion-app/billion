@@ -574,157 +574,375 @@ export const UserSettings = pgTable(
   }),
 );
 
-// Legistar local government data cache tables
+// Local-government decision pipeline. These tables deliberately model the
+// product domain rather than Legistar's wire format so another municipal
+// records adapter can populate the same read model later.
 
-export const LegistarBody = pgTable(
-  "legistar_body",
+export const LocalJurisdiction = pgTable("local_jurisdiction", (t) => ({
+  key: t.varchar({ length: 50 }).notNull().primaryKey(),
+  name: t.varchar({ length: 256 }).notNull(),
+  state: t.varchar({ length: 2 }).notNull(),
+  governmentLevel: t.varchar({ length: 30 }).notNull(),
+  timezone: t.varchar({ length: 64 }).notNull(),
+  sourceType: t.varchar({ length: 30 }).notNull(),
+  sourceClient: t.varchar({ length: 100 }).notNull(),
+  sourceBaseUrl: t.text().notNull(),
+  publicPortalUrl: t.text(),
+  active: t.boolean().notNull().default(true),
+  createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  updatedAt: t
+    .timestamp({ withTimezone: true })
+    .defaultNow()
+    .$onUpdateFn(() => sql`now()`)
+    .notNull(),
+}));
+
+export const LocalBody = pgTable(
+  "local_body",
   (t) => ({
     id: t.uuid().notNull().primaryKey().defaultRandom(),
-    jurisdiction: t.varchar({ length: 50 }).notNull(),
-    bodyId: t.integer().notNull(),
-    bodyGuid: t.varchar({ length: 100 }),
+    jurisdictionKey: t
+      .varchar({ length: 50 })
+      .notNull()
+      .references(() => LocalJurisdiction.key, { onDelete: "cascade" }),
+    sourceBodyId: t.integer().notNull(),
+    sourceGuid: t.varchar({ length: 100 }),
     name: t.text().notNull(),
     typeName: t.varchar({ length: 100 }),
-    activeFlag: t.boolean().default(true),
+    active: t.boolean().notNull().default(true),
+    included: t.boolean().notNull().default(false),
+    relevanceTier: t.integer().notNull().default(3),
     numberOfMembers: t.integer(),
     description: t.text(),
     contactName: t.varchar({ length: 256 }),
     contactEmail: t.varchar({ length: 256 }),
     contactPhone: t.varchar({ length: 50 }),
-    fetchedAt: t.timestamp().defaultNow().notNull(),
-    createdAt: t.timestamp().defaultNow().notNull(),
+    sourceUpdatedAt: t.timestamp({ withTimezone: true }),
+    lastSeenAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    sourcePayload: t.jsonb().$type<Record<string, unknown>>(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
     updatedAt: t
-      .timestamp({ mode: "date", withTimezone: true })
-      .$onUpdateFn(() => sql`now()`),
+      .timestamp({ withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
   }),
   (table) => ({
-    uniqueBody: unique().on(table.jurisdiction, table.bodyId),
+    uniqueSourceBody: unique().on(table.jurisdictionKey, table.sourceBodyId),
+    jurisdictionIncludedIdx: index("local_body_jurisdiction_included_idx").on(
+      table.jurisdictionKey,
+      table.included,
+      table.relevanceTier,
+    ),
   }),
 );
 
-export const LegistarMatter = pgTable(
-  "legistar_matter",
+export const LocalDecision = pgTable(
+  "local_decision",
   (t) => ({
     id: t.uuid().notNull().primaryKey().defaultRandom(),
-    jurisdiction: t.varchar({ length: 50 }).notNull(),
-    matterId: t.integer().notNull(),
-    matterGuid: t.varchar({ length: 100 }),
-    matterFile: t.varchar({ length: 100 }),
+    jurisdictionKey: t
+      .varchar({ length: 50 })
+      .notNull()
+      .references(() => LocalJurisdiction.key, { onDelete: "cascade" }),
+    primaryBodyId: t
+      .uuid()
+      .references(() => LocalBody.id, { onDelete: "set null" }),
+    sourceMatterId: t.integer().notNull(),
+    sourceGuid: t.varchar({ length: 100 }),
+    fileNumber: t.varchar({ length: 100 }),
     title: t.text().notNull(),
     name: t.text(),
     typeName: t.varchar({ length: 100 }),
     statusName: t.varchar({ length: 100 }),
-    bodyName: t.varchar({ length: 256 }),
-    bodyId: t.integer(),
-    introDate: t.timestamp(),
-    agendaDate: t.timestamp(),
-    passedDate: t.timestamp(),
-    enactmentDate: t.timestamp(),
+    topic: t.varchar({ length: 80 }),
+    scopeKind: t.varchar({ length: 30 }).notNull().default("unknown"),
+    districtNumbers: t.integer().array(),
+    geographicText: t.text(),
+    introDate: t.timestamp({ withTimezone: true }),
+    agendaDate: t.timestamp({ withTimezone: true }),
+    passedDate: t.timestamp({ withTimezone: true }),
+    enactmentDate: t.timestamp({ withTimezone: true }),
     enactmentNumber: t.varchar({ length: 100 }),
     requester: t.text(),
     notes: t.text(),
-    lastModifiedUtc: t.timestamp().notNull(),
-    fetchedAt: t.timestamp().defaultNow().notNull(),
-    createdAt: t.timestamp().defaultNow().notNull(),
+    sourceUrl: t.text(),
+    sourceUpdatedAt: t.timestamp({ withTimezone: true }).notNull(),
+    lastSeenAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    sourceDeletedAt: t.timestamp({ withTimezone: true }),
+    sourcePayload: t.jsonb().$type<Record<string, unknown>>(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
     updatedAt: t
-      .timestamp({ mode: "date", withTimezone: true })
-      .$onUpdateFn(() => sql`now()`),
+      .timestamp({ withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      (): SQL => sql`(
+        setweight(to_tsvector('english', coalesce(file_number, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(type_name, '') || ' ' || coalesce(topic, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(requester, '') || ' ' || coalesce(notes, '') || ' ' || coalesce(geographic_text, '')), 'C')
+      )`,
+    ),
   }),
   (table) => ({
-    uniqueMatter: unique().on(table.jurisdiction, table.matterId),
-    matterFileIdx: index("legistar_matter_file_idx").on(table.matterFile),
+    uniqueSourceMatter: unique().on(
+      table.jurisdictionKey,
+      table.sourceMatterId,
+    ),
+    primaryBodyIdx: index("local_decision_primary_body_idx").on(
+      table.primaryBodyId,
+    ),
+    activeUpdatedIdx: index("local_decision_active_updated_idx")
+      .on(table.jurisdictionKey, table.sourceUpdatedAt)
+      .where(sql`${table.sourceDeletedAt} is null`),
+    searchVectorIdx: index("local_decision_search_vector_idx").using(
+      "gin",
+      table.searchVector,
+    ),
   }),
 );
 
-export const LegistarMeeting = pgTable(
-  "legistar_meeting",
+export const LocalMeeting = pgTable(
+  "local_meeting",
   (t) => ({
     id: t.uuid().notNull().primaryKey().defaultRandom(),
-    jurisdiction: t.varchar({ length: 50 }).notNull(),
-    eventId: t.integer().notNull(),
-    eventGuid: t.varchar({ length: 100 }),
-    bodyId: t.integer(),
-    bodyName: t.varchar({ length: 256 }),
-    date: t.timestamp().notNull(),
-    time: t.text(),
+    jurisdictionKey: t
+      .varchar({ length: 50 })
+      .notNull()
+      .references(() => LocalJurisdiction.key, { onDelete: "cascade" }),
+    bodyId: t
+      .uuid()
+      .notNull()
+      .references(() => LocalBody.id, { onDelete: "cascade" }),
+    sourceEventId: t.integer().notNull(),
+    sourceGuid: t.varchar({ length: 100 }),
+    startsAt: t.timestamp({ withTimezone: true }).notNull(),
+    localDate: t.varchar({ length: 10 }).notNull(),
+    timeLabel: t.text(),
     location: t.text(),
-    agendaFile: t.text(),
-    minutesFile: t.text(),
-    videoPath: t.text(),
+    agendaUrl: t.text(),
+    minutesUrl: t.text(),
+    videoUrl: t.text(),
+    sourceUrl: t.text(),
     agendaStatusName: t.varchar({ length: 100 }),
     minutesStatusName: t.varchar({ length: 100 }),
     comment: t.text(),
-    inSiteUrl: t.text(),
-    lastModifiedUtc: t.timestamp().notNull(),
-    fetchedAt: t.timestamp().defaultNow().notNull(),
-    createdAt: t.timestamp().defaultNow().notNull(),
+    cancelled: t.boolean().notNull().default(false),
+    sourceUpdatedAt: t.timestamp({ withTimezone: true }).notNull(),
+    lastSeenAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    sourceDeletedAt: t.timestamp({ withTimezone: true }),
+    sourcePayload: t.jsonb().$type<Record<string, unknown>>(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
     updatedAt: t
-      .timestamp({ mode: "date", withTimezone: true })
-      .$onUpdateFn(() => sql`now()`),
+      .timestamp({ withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
   }),
   (table) => ({
-    uniqueMeeting: unique().on(table.jurisdiction, table.eventId),
-    meetingDateIdx: index("legistar_meeting_date_idx").on(table.date),
+    uniqueSourceEvent: unique().on(table.jurisdictionKey, table.sourceEventId),
+    bodyStartsAtIdx: index("local_meeting_body_starts_at_idx").on(
+      table.bodyId,
+      table.startsAt,
+    ),
+    activeStartsAtIdx: index("local_meeting_active_starts_at_idx")
+      .on(table.jurisdictionKey, table.startsAt)
+      .where(sql`${table.sourceDeletedAt} is null`),
   }),
 );
 
-export const LegistarAgendaItem = pgTable(
-  "legistar_agenda_item",
+export const LocalMeetingItem = pgTable(
+  "local_meeting_item",
   (t) => ({
     id: t.uuid().notNull().primaryKey().defaultRandom(),
-    jurisdiction: t.varchar({ length: 50 }).notNull(),
-    eventItemId: t.integer().notNull(),
-    eventId: t.integer().notNull(),
+    meetingId: t
+      .uuid()
+      .notNull()
+      .references(() => LocalMeeting.id, { onDelete: "cascade" }),
+    decisionId: t
+      .uuid()
+      .references(() => LocalDecision.id, { onDelete: "set null" }),
+    sourceEventItemId: t.integer().notNull(),
+    sourceGuid: t.varchar({ length: 100 }),
     agendaSequence: t.integer(),
+    minutesSequence: t.integer(),
     agendaNumber: t.varchar({ length: 50 }),
     title: t.text(),
     actionName: t.varchar({ length: 256 }),
+    actionText: t.text(),
     passedFlagName: t.varchar({ length: 50 }),
     tally: t.varchar({ length: 50 }),
     moverName: t.varchar({ length: 256 }),
     seconderName: t.varchar({ length: 256 }),
-    matterId: t.integer(),
-    matterFile: t.varchar({ length: 100 }),
-    matterName: t.text(),
-    matterType: t.varchar({ length: 100 }),
-    matterStatus: t.varchar({ length: 100 }),
-    consent: t.boolean().default(false),
+    consent: t.boolean().notNull().default(false),
+    rollCall: t.boolean().notNull().default(false),
     agendaNote: t.text(),
     minutesNote: t.text(),
-    lastModifiedUtc: t.timestamp().notNull(),
-    fetchedAt: t.timestamp().defaultNow().notNull(),
-    createdAt: t.timestamp().defaultNow().notNull(),
+    videoIndex: t.integer(),
+    sourceUpdatedAt: t.timestamp({ withTimezone: true }).notNull(),
+    lastSeenAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    sourceDeletedAt: t.timestamp({ withTimezone: true }),
+    sourcePayload: t.jsonb().$type<Record<string, unknown>>(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
     updatedAt: t
-      .timestamp({ mode: "date", withTimezone: true })
-      .$onUpdateFn(() => sql`now()`),
+      .timestamp({ withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
   }),
   (table) => ({
-    uniqueAgendaItem: unique().on(table.jurisdiction, table.eventItemId),
-    agendaEventIdx: index("legistar_agenda_item_event_idx").on(table.eventId),
+    uniqueSourceItem: unique().on(table.meetingId, table.sourceEventItemId),
+    meetingSequenceIdx: index("local_meeting_item_sequence_idx").on(
+      table.meetingId,
+      table.agendaSequence,
+    ),
+    decisionIdx: index("local_meeting_item_decision_idx").on(table.decisionId),
   }),
 );
 
-export const LegistarVote = pgTable(
-  "legistar_vote",
+export const LocalDecisionDocument = pgTable(
+  "local_decision_document",
   (t) => ({
     id: t.uuid().notNull().primaryKey().defaultRandom(),
-    jurisdiction: t.varchar({ length: 50 }).notNull(),
-    voteId: t.integer().notNull(),
-    eventItemId: t.integer().notNull(),
-    personId: t.integer().notNull(),
-    personName: t.varchar({ length: 256 }).notNull(),
-    valueName: t.varchar({ length: 50 }).notNull(),
-    sort: t.integer(),
-    lastModifiedUtc: t.timestamp().notNull(),
-    fetchedAt: t.timestamp().defaultNow().notNull(),
-    createdAt: t.timestamp().defaultNow().notNull(),
+    jurisdictionKey: t
+      .varchar({ length: 50 })
+      .notNull()
+      .references(() => LocalJurisdiction.key, { onDelete: "cascade" }),
+    decisionId: t
+      .uuid()
+      .notNull()
+      .references(() => LocalDecision.id, { onDelete: "cascade" }),
+    sourceAttachmentId: t.integer().notNull(),
+    sourceGuid: t.varchar({ length: 100 }),
+    name: t.text().notNull(),
+    description: t.text(),
+    url: t.text().notNull(),
+    fileName: t.text(),
+    category: t.varchar({ length: 50 }).notNull(),
+    sortOrder: t.integer(),
+    isSupportingDocument: t.boolean().notNull().default(false),
+    isPublicComment: t.boolean().notNull().default(false),
+    processingPolicy: t.varchar({ length: 30 }).notNull(),
+    extractionStatus: t.varchar({ length: 30 }).notNull().default("pending"),
+    extractedText: t.text(),
+    extractionMethod: t.varchar({ length: 30 }),
+    extractionQuality: t.real(),
+    pageCount: t.integer(),
+    byteSize: t.integer(),
+    mimeType: t.varchar({ length: 100 }),
+    contentHash: t.varchar({ length: 64 }),
+    sourceUpdatedAt: t.timestamp({ withTimezone: true }),
+    lastSeenAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    sourceDeletedAt: t.timestamp({ withTimezone: true }),
+    sourcePayload: t.jsonb().$type<Record<string, unknown>>(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
   }),
   (table) => ({
-    uniqueVote: unique().on(table.jurisdiction, table.voteId),
-    voteEventItemIdx: index("legistar_vote_event_item_idx").on(
-      table.eventItemId,
+    uniqueSourceAttachment: unique().on(
+      table.jurisdictionKey,
+      table.sourceAttachmentId,
     ),
-    votePersonIdx: index("legistar_vote_person_idx").on(table.personId),
+    decisionCategoryIdx: index("local_document_decision_category_idx").on(
+      table.decisionId,
+      table.category,
+    ),
+    extractionQueueIdx: index("local_document_extraction_queue_idx")
+      .on(table.extractionStatus)
+      .where(sql`${table.sourceDeletedAt} is null`),
+  }),
+);
+
+export const LocalDecisionHistory = pgTable(
+  "local_decision_history",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    decisionId: t
+      .uuid()
+      .notNull()
+      .references(() => LocalDecision.id, { onDelete: "cascade" }),
+    sourceHistoryId: t.integer().notNull(),
+    sourceEventId: t.integer(),
+    sourceEventItemId: t.integer(),
+    bodyName: t.varchar({ length: 256 }),
+    actionName: t.varchar({ length: 256 }),
+    actionText: t.text(),
+    actionDate: t.timestamp({ withTimezone: true }),
+    agendaNumber: t.varchar({ length: 50 }),
+    sourcePayload: t.jsonb().$type<Record<string, unknown>>(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
+  }),
+  (table) => ({
+    uniqueSourceHistory: unique().on(table.decisionId, table.sourceHistoryId),
+    decisionActionDateIdx: index("local_history_decision_action_date_idx").on(
+      table.decisionId,
+      table.actionDate,
+    ),
+  }),
+);
+
+export const LocalDecisionVote = pgTable(
+  "local_decision_vote",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    meetingItemId: t
+      .uuid()
+      .notNull()
+      .references(() => LocalMeetingItem.id, { onDelete: "cascade" }),
+    sourceVoteId: t.integer().notNull(),
+    sourcePersonId: t.integer().notNull(),
+    personName: t.varchar({ length: 256 }).notNull(),
+    valueName: t.varchar({ length: 50 }).notNull(),
+    sortOrder: t.integer(),
+    sourceUpdatedAt: t.timestamp({ withTimezone: true }).notNull(),
+    sourcePayload: t.jsonb().$type<Record<string, unknown>>(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
+  }),
+  (table) => ({
+    uniqueSourceVote: unique().on(table.meetingItemId, table.sourceVoteId),
+    meetingItemIdx: index("local_vote_meeting_item_idx").on(
+      table.meetingItemId,
+    ),
+    personIdx: index("local_vote_source_person_idx").on(table.sourcePersonId),
+  }),
+);
+
+export const LocalIngestionRun = pgTable(
+  "local_ingestion_run",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    jurisdictionKey: t
+      .varchar({ length: 50 })
+      .notNull()
+      .references(() => LocalJurisdiction.key, { onDelete: "cascade" }),
+    status: t.varchar({ length: 20 }).notNull(),
+    windowStart: t.timestamp({ withTimezone: true }).notNull(),
+    windowEnd: t.timestamp({ withTimezone: true }).notNull(),
+    startedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    completedAt: t.timestamp({ withTimezone: true }),
+    counts: t.jsonb().$type<Record<string, number>>().notNull().default({}),
+    error: t.text(),
+  }),
+  (table) => ({
+    jurisdictionStartedIdx: index(
+      "local_ingestion_jurisdiction_started_idx",
+    ).on(table.jurisdictionKey, table.startedAt),
   }),
 );
 

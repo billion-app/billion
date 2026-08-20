@@ -1,0 +1,44 @@
+{
+  "body": {
+    "BodyId": 138,
+    "BodyName": "City Council",
+    "BodyTypeName": "Primary Legislative Body",
+    "BodyActiveFlag": 1
+  },
+  "meeting": {
+    "EventId": 7986,
+    "EventBodyId": 138,
+    "EventBodyName": "City Council",
+    "EventDate": "2026-06-23T00:00:00",
+    "EventTime": "1:30 PM",
+    "EventLocation": "Council Chambers"
+  },
+  "item": {
+    "EventItemId": 130822,
+    "EventItemMatterId": 16072,
+    "EventItemTitle": "City Landmark Designation for Property Located at 647 South Sixth Street in Council District 3.",
+    "EventItemActionText": "Approve the designation.",
+    "EventItemAgendaNumber": "4.2"
+  },
+  "matter": {
+    "MatterId": 16072,
+    "MatterTitle": "City Landmark Designation for Property Located at 647 South Sixth Street.",
+    "MatterTypeName": "Land Use",
+    "MatterRequester": "Planning, Building and Code Enforcement",
+    "MatterNotes": null
+  },
+  "staffDocument": {
+    "MatterAttachmentId": 1,
+    "MatterAttachmentName": "Memorandum",
+    "MatterAttachmentDescription": null,
+    "MatterAttachmentIsMinuteOrder": false,
+    "MatterAttachmentIsHyperlink": false
+  },
+  "publicCommentDocument": {
+    "MatterAttachmentId": 2,
+    "MatterAttachmentName": "Letters from the Public",
+    "MatterAttachmentDescription": null,
+    "MatterAttachmentIsMinuteOrder": false,
+    "MatterAttachmentIsHyperlink": false
+  }
+}
