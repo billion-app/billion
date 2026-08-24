@@ -343,7 +343,8 @@ export const envRegistry = [
   }),
   define({
     key: "OPENROUTER_API_KEY",
-    description: "Preferred key for AI text generation through OpenRouter.",
+    description:
+      "OpenRouter key for AI text generation; used when LOCAL_LLM_BASE_URL is unset or unreachable, and preferred for bill briefs and web search.",
     group: "AI",
     secret: true,
     setupUrl: "https://openrouter.ai/settings/keys",
@@ -372,7 +373,7 @@ export const envRegistry = [
   define({
     key: "LOCAL_LLM_BASE_URL",
     description:
-      "OpenAI-compatible local inference base URL used after OpenRouter, for example Ollama's /v1 endpoint.",
+      "Preferred OpenAI-compatible local inference base URL for AI text generation, for example Ollama's /v1 endpoint; OpenRouter is the fallback.",
     group: "AI",
     secret: false,
     example: "http://host.docker.internal:11434/v1",
@@ -454,7 +455,7 @@ export const envRegistry = [
   define({
     key: "LOCAL_FLUX_BASE_URL",
     description:
-      "Local FLUX API base URL used when BFL is unavailable or unconfigured.",
+      "Preferred local FLUX API base URL for generated images; hosted BFL is the fallback.",
     group: "Scraper images",
     secret: false,
     example: "http://host.docker.internal:8080",

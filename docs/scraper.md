@@ -299,7 +299,7 @@ by the scrape path and the retroactive scripts.
 
 ## AI Pipeline
 
-Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text uses **OpenRouter** first, then an OpenAI-compatible local endpoint (`LOCAL_LLM_BASE_URL`, such as Ollama), with direct DeepSeek retained only as a deprecated last resort. PDF vision fallback uses **Gemini `gemini-2.5-flash`**. Images use hosted **Black Forest Labs FLUX.2 Klein 9B**, then `LOCAL_FLUX_BASE_URL` as a local fallback. Provider usage and hosted-image costs are tracked per run.
+Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text uses an OpenAI-compatible local endpoint (`LOCAL_LLM_BASE_URL`, such as Ollama) first, then **OpenRouter**, with direct DeepSeek retained only as a deprecated last resort. Two workloads stay API-first regardless: bill briefs (`getStructuredLlm()`), because local servers advertise structured output but cannot compile the brief's JSON grammar, and the dual lens (`getSearchModel()`), which needs a provider-native web-search tool. PDF vision fallback uses **Gemini `gemini-2.5-flash`**. Images use the local FLUX server (`LOCAL_FLUX_BASE_URL`) first, then hosted **Black Forest Labs FLUX.2 Klein 9B**. Provider usage and hosted-image costs are tracked per run.
 
 Each new/changed item runs through:
 
@@ -313,7 +313,7 @@ Each new/changed item runs through:
 5. **Marketing copy** (`marketing-generation.ts`) — Zod-validated `{ title ≤25 chars, description ≤25 words, imagePrompt }` for the `video` feed card.
 6. **Imagery** — multiple sources:
    - _Scraped thumbnail_ (preferred, free): source-provided image URL → `thumbnail_url`.
-   - _Generated_: hosted FLUX.2 Klein 9B produces a 1024×1024 image, falling back to the configured local FLUX server at 768×768; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Hosted calls retry with backoff; moderation blocks return `null` silently.
+   - _Generated_: the configured local FLUX server produces a 768×768 image, falling back to hosted FLUX.2 Klein 9B at 1024×1024; `sharp` converts PNG→JPEG (q85); bytes land in the `image_data` `bytea` column. Hosted calls retry with backoff; moderation blocks return `null` silently.
    - _Stock-photo fallback_: `image-keywords.ts` → Google Custom Search (`GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`) can supply a thumbnail URL.
 
 New bills that need an AI description generate it before the initial insert. A
@@ -353,8 +353,8 @@ loud instead of mid-run. The contract has four tiers:
 - **`required`** — hard failure if absent (`POSTGRES_URL` everywhere;
   `CONGRESS_API_KEY` for congress).
 - **`requiredAny`** — at least one of a group must be set. The text-AI group is
-  `[OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, DEEPSEEK_API_KEY]`: OpenRouter is
-  preferred, the local endpoint is the offline fallback, and DeepSeek is the
+  `[OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, DEEPSEEK_API_KEY]`: the local
+  endpoint is preferred, OpenRouter is the fallback, and DeepSeek is the
   deprecated last resort. The civic scrapers omit this group entirely (no AI).
 - **`recommended`** — warn but proceed (e.g. `COURTLISTENER_API_KEY` for scotus).
 - **`optional`** — image/stock/model overrides and the per-scraper item caps.

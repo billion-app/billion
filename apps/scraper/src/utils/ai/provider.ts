@@ -126,26 +126,27 @@ function withFallbacks(
 
 /**
  * Resolve the text model lazily so keyless/cache-only scrapers can load without
- * an AI key. OpenRouter is preferred, an OpenAI-compatible local server (such
- * as Ollama) is the keyless fallback, and direct DeepSeek remains deprecated.
+ * an AI key. An OpenAI-compatible local server (such as Ollama) is preferred
+ * because it costs nothing, OpenRouter is the fallback for when it is down or
+ * unconfigured, and direct DeepSeek remains deprecated.
  */
 export function getTextLlm(): LanguageModel {
   if (textLlm) return textLlm;
 
   const candidates: { label: string; model: V3Model }[] = [];
-  const openrouterKey = getOpenRouterApiKey();
-  if (openrouterKey) {
-    candidates.push({
-      label: "OpenRouter",
-      model: getOpenRouterProvider(openrouterKey).chat(getOpenRouterModel()),
-    });
-  }
-
   const localBaseUrl = getLocalBaseUrl();
   if (localBaseUrl) {
     candidates.push({
       label: "local LLM",
       model: getLocalTextModel(localBaseUrl),
+    });
+  }
+
+  const openrouterKey = getOpenRouterApiKey();
+  if (openrouterKey) {
+    candidates.push({
+      label: "OpenRouter",
+      model: getOpenRouterProvider(openrouterKey).chat(getOpenRouterModel()),
     });
   }
 
@@ -156,7 +157,7 @@ export function getTextLlm(): LanguageModel {
   }
   if (!deepseekKey) {
     throw new Error(
-      "OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, or deprecated DEEPSEEK_API_KEY is required for scraper AI generation",
+      "LOCAL_LLM_BASE_URL, OPENROUTER_API_KEY, or deprecated DEEPSEEK_API_KEY is required for scraper AI generation",
     );
   }
 
@@ -193,7 +194,15 @@ export function getStructuredLlm(): LanguageModel {
   return structuredLlm;
 }
 
-/** Provider-qualified model identifier recorded with generated content. */
+/**
+ * Provider-qualified model identifier recorded with generated content.
+ *
+ * The order here is deliberately frozen and no longer tracks `getTextLlm()`'s
+ * preference order: this string is part of the dual-lens cache key, so
+ * reordering it invalidates every cached lens and pays for a fresh agentic
+ * research loop that can only come back the same or worse. Add a provider here
+ * only when the set of configured providers actually changes.
+ */
 export function getTextModelVersion(): string {
   const modernProviders = [
     getOpenRouterApiKey() && `openrouter:${getOpenRouterModel()}`,

@@ -1,5 +1,6 @@
 /**
- * AI image generation using BFL-hosted FLUX with a local FLUX HTTP fallback.
+ * AI image generation using a local FLUX HTTP server, with BFL-hosted FLUX as
+ * the fallback.
  */
 
 import { trackFluxImage } from "../costs.js";
@@ -160,9 +161,10 @@ async function generateViaLocalFlux(
  * the prompt passed through verbatim.
  *
  * `generateImage()` below is the wrong tool for anything that is not header
- * art: it wraps the prompt in an illustrated-editorial instruction and prefers
- * the paid BFL API when a key is present. This one never spends money and never
- * editorialises the prompt, so callers own their own art direction.
+ * art: it wraps the prompt in an illustrated-editorial instruction and falls
+ * back to the paid BFL API when the local server is unavailable. This one never
+ * spends money and never editorialises the prompt, so callers own their own art
+ * direction.
  */
 export async function generateLocalPhoto(
   prompt: string,
@@ -184,14 +186,20 @@ export async function generateImage(
 ): Promise<GeneratedImage | null> {
   const fullPrompt = `Grounded editorial documentary image about this civic issue: ${prompt}. Show a plausible real-world scene with one clear subject, natural light, restrained color, accurate objects and architecture, and a calm photojournalistic composition. Keep people anatomically realistic and the setting specific to the issue. Avoid fantasy, surreal metaphors, floating objects, exaggerated scale, glowing effects, generic handshakes, glossy advertising, and staged corporate meeting rooms. No readable text, captions, labels, logos, UI, or watermark.`;
 
-  if (!BFL_API_KEY) {
+  // Local-first: the local FLUX server is free, so it gets the first attempt and
+  // the paid BFL API is the fallback for when it is down or unconfigured.
+  if (LOCAL_FLUX_BASE_URL) {
     const localImage = await generateViaLocalFlux(fullPrompt);
-    if (!localImage && !LOCAL_FLUX_BASE_URL) {
+    if (localImage) return localImage;
+  }
+
+  if (!BFL_API_KEY) {
+    if (!LOCAL_FLUX_BASE_URL) {
       logger.error(
         "BFL_API_KEY and LOCAL_FLUX_BASE_URL are not set — cannot generate images",
       );
     }
-    return localImage;
+    return null;
   }
 
   let lastError: Error | null = null;
@@ -258,8 +266,6 @@ export async function generateImage(
 
       // If it's the last attempt or not a rate limit error, break
       if (attempt === maxRetries) {
-        const localImage = await generateViaLocalFlux(fullPrompt);
-        if (localImage) return localImage;
         if (isRateLimitError) {
           setRateLimitHit(true);
           throw new AIRateLimitError();
@@ -274,7 +280,7 @@ export async function generateImage(
       // For other errors, don't retry
       if (!isRateLimitError) {
         logger.error("Image generation failed", lastError);
-        return generateViaLocalFlux(fullPrompt);
+        return null;
       }
     }
   }
