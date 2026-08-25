@@ -24,6 +24,10 @@ const ContentVisualPlanSchema = z.object({
 
 export type ContentVisualPlan = z.infer<typeof ContentVisualPlanSchema>;
 
+type VisualPlanner = (
+  source: ContentVisualSource,
+) => Promise<ContentVisualPlan>;
+
 const WRITTEN_MATERIAL =
   /\b(?:banner|caption|document|headline|label|letter|logo|numeral|poster|reading|screen|sign|text|title|watermark|word|written)\b/i;
 
@@ -56,6 +60,27 @@ export function renderContentImagePrompt(plan: ContentVisualPlan): string {
   }
 
   return `NO WORDS OR TYPOGRAPHY ANYWHERE IN THE IMAGE. Full-bleed imaginative editorial illustration with the playful, information-dense, slightly surreal character of early generative artwork. Scene: ${scene}. Build one coherent composition with a strong focal point and several story-specific details across foreground, subject, and background. Use bold color, expressive characters, visual metaphor, symbolic scale, witty or uncanny juxtapositions, cinematic light, and tactile painterly texture. Make it visually rich and immediately connected to the civic issue, never corporate stock photography or a magazine cover. Avoid storefronts, billboards, banners, paperwork, books, screens, and every other surface that would normally carry writing. Architecture and objects must be blank and unmarked. Every part of the frame must be pictorial. No letters, words, numerals, captions, signs, labels, documents, screens, logos, borders, UI, or watermark.`;
+}
+
+/**
+ * Planning is probabilistic: even a strongly worded prompt occasionally asks
+ * FLUX to draw a sign, screen, or document. Retry the cheap text-planning step
+ * instead of failing the expensive image job before FLUX is ever called.
+ */
+export async function planRenderedContentImagePrompt(
+  source: ContentVisualSource,
+  planner: VisualPlanner = planContentVisual,
+  maxAttempts = 3,
+): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return renderContentImagePrompt(await planner(source));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 export function versionContentImageHash(contentHash: string): string {

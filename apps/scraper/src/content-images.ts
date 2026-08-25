@@ -14,8 +14,7 @@ import {
 
 import {
   CONTENT_IMAGE_STYLE_VERSION,
-  planContentVisual,
-  renderContentImagePrompt,
+  planRenderedContentImagePrompt,
   versionContentImageHash,
 } from "./utils/ai/content-image-visual.js";
 import { generateLocalPhoto } from "./utils/ai/image-generation.js";
@@ -120,8 +119,7 @@ async function courtCandidates(limit: number): Promise<Candidate[]> {
 }
 
 async function generate(item: Candidate): Promise<void> {
-  const plan = await planContentVisual(item);
-  const prompt = renderContentImagePrompt(plan);
+  const prompt = await planRenderedContentImagePrompt(item);
   const generated = await generateLocalPhoto(prompt, 1024, 768);
   if (!generated) throw new Error("Local FLUX returned no image");
   const data = await sharp(generated.data)
@@ -168,11 +166,11 @@ const argv = await yargs(hideBin(process.argv))
   .strict()
   .parseAsync();
 
-if (argv.billLimit < 0 || argv.billLimit > 80) {
-  throw new Error("--bill-limit must be between 0 and 80");
+if (argv.billLimit < 0 || argv.billLimit > 1000) {
+  throw new Error("--bill-limit must be between 0 and 1000");
 }
-if (argv.otherLimit < 0 || argv.otherLimit > 50) {
-  throw new Error("--other-limit must be between 0 and 50");
+if (argv.otherLimit < 0 || argv.otherLimit > 1000) {
+  throw new Error("--other-limit must be between 0 and 1000");
 }
 if (argv.concurrency < 1 || argv.concurrency > 2) {
   throw new Error("--concurrency must be 1 or 2");
