@@ -11,19 +11,19 @@ import type { JobDefinition } from "./types.js";
 export const jobs: readonly JobDefinition[] = [
   {
     id: "congress-daily",
-    description: "Refresh and retain the 100 most recently updated bills",
+    description: "Refresh and retain the 80 most recently updated bills",
     script: "main.js",
     args: [
       "congress",
       "--recent",
-      "100",
+      "80",
       "--retain",
-      "100",
+      "80",
       "--concurrency",
       "4",
     ],
     schedule: { kind: "daily", hour: 3, minute: 15 },
-    // Most of the 100 will be unchanged and cost nothing beyond the fetch —
+    // Most of the 80 will be unchanged and cost nothing beyond the fetch —
     // derived assets are keyed on content, so an unchanged bill regenerates
     // nothing. The budget bounds the days when that is not true, such as a bill
     // whose text was replaced by a substitute amendment.

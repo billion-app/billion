@@ -30,7 +30,7 @@ the arguments it takes; the supervisor supplies everything else.
 
 | id                             | schedule          | notes                                                                            |
 | ------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
-| `congress-daily`               | daily 03:15 local | Refreshes and retains the 100 most recently updated federal bills                |
+| `congress-daily`               | daily 03:15 local | Refreshes and retains the 80 most recently updated federal bills                 |
 | `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes and retains the 100 most recently updated measures per supported state |
 | `federalregister-weekly`       | Sundays 03:15     | Executive orders and presidential documents                                      |
 | `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
@@ -47,7 +47,7 @@ jobs are isolated so an upstream failure in one jurisdiction cannot prevent the
 other states from refreshing.
 
 Know the tradeoff: these cover the _head_ of each feed, not all of it. Roughly
-250 House bills are updated upstream per day, so a 100-bill window sees the most
+250 House bills are updated upstream per day, so an 80-bill window sees the most
 recent activity rather than every change. Widen a window by raising `--recent`.
 
 There is deliberately **no scheduled archive backfill**. The cursor walk starts
@@ -60,7 +60,8 @@ The three weekly scrapers are listed individually rather than as one `main.js
 all` run, so that dropping `all` (which would drag the cursor walk back in)
 cannot silently stop them.
 
-Each daily bill refresh finishes by applying its own 100-row retention cap.
+The federal refresh applies an 80-row retention cap. Each state refresh applies
+its own 100-row cap.
 Ranking and deletion happen inside PostgreSQL and return only aggregate counts,
 so retention does not download candidate rows from Supabase. Jurisdictions are
 capped independently, so federal activity cannot displace a state's measures.

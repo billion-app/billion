@@ -393,10 +393,11 @@ also includes the manual retention command. All are `pnpm`-scripted in
 | `backfill-bill-descriptions` | `backfill-bill-descriptions.ts` | Bills with no source/AI description         | `--apply` (+ `--yes` on prod)                                 |
 | `prune-bills`                | `prune-bills.ts`                | Bills beyond the newest N per jurisdiction  | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
 
-The scheduled Congress and Open States refreshes pass `--retain 100`. After a
-successful `--recent` run, PostgreSQL ranks and deletes overflow for only the
-refreshed jurisdiction, returning aggregate counts rather than bill rows. The
-standalone command is for manual inventory and repair, not routine scheduling.
+The scheduled Congress refresh passes `--recent 80 --retain 80`; Open States
+refreshes pass `--recent 100 --retain 100`. After a successful `--recent` run,
+PostgreSQL ranks and deletes overflow for only the refreshed jurisdiction,
+returning aggregate counts rather than bill rows. The standalone command is for
+manual inventory and repair, not routine scheduling.
 
 `reprocess-content` is the most general and the model the others follow:
 
