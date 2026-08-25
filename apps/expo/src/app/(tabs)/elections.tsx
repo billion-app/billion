@@ -14,6 +14,7 @@ import type { Contest } from "@acme/api";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
 import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
@@ -286,6 +287,9 @@ export default function ElectionsScreen() {
           </Card>
         </View>
       )}
+
+      {/* local government decisions — what city hall is doing right now */}
+      <LocalDecisionsPreview />
 
       {/* election hero — what election is happening, what it means */}
       {selected && <ElectionHero election={selected} />}

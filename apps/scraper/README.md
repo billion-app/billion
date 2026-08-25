@@ -4,13 +4,14 @@ Pulls in government content like bills, court cases, and White House content and
 
 ## Active data sources
 
-Only these five are registered and run by `all`:
+These sources are registered and run by `all`:
 
 | CLI name            | Source and data fetched                                                                    | Stored/used as                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `federalregister`   | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article and summary enrichment                                               |
-| `congress`          | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI enrichment                                                 |
-| `scotus`            | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI enrichment                                                  |
+| `federalregister`   | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article/summary and feed-image enrichment                                    |
+| `congress`          | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI/feed enrichment                                            |
+| `legistar`          | San José Legistar meetings, matters, attachments, histories, and structured votes          | Normalized `local_*` decision, occurrence, document, vote, and ingestion-run tables                   |
+| `scotus`            | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
 | `scc-cvig`          | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
 | `ca-sos-statements` | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
 
@@ -47,13 +48,13 @@ work:
 | Variable                                     | Required by                             | Why it matters                                                                                                     |
 | -------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `POSTGRES_URL`                               | Every active scraper                    | Your Postgres connection. If inserting credentials manually, percent-encode only the username/password components. |
-| `OPENROUTER_API_KEY`                         | `federalregister`, `congress`, `scotus` | Preferred provider for article, summary, image-keyword, and web-research generation.                               |
+| `OPENROUTER_API_KEY`                         | `federalregister`, `congress`, `scotus` | Preferred provider for article, summary, image-keyword, feed-copy, and web-research generation.                    |
 | `OPENROUTER_MODEL`                           | Optional                                | OpenRouter model slug; defaults to `deepseek/deepseek-v4-flash`.                                                   |
 | `LOCAL_LLM_BASE_URL` / `LOCAL_LLM_MODEL`     | Local fallback                          | OpenAI-compatible local text endpoint and model; the Big Mac deployment uses bounded-context Qwen.                 |
 | `DEEPSEEK_API_KEY`                           | Deprecated fallback                     | Keeps direct DeepSeek generation working during the OpenRouter credential migration.                               |
 | `CONGRESS_API_KEY`                           | `congress`                              | Free at [api.congress.gov/sign-up](https://api.congress.gov/sign-up/).                                             |
-| `BFL_API_KEY`                                | Optional                                | Reserved for image workflows; the disabled video feed does not use it.                                             |
-| `LOCAL_FLUX_BASE_URL` / `LOCAL_FLUX_MODEL`   | Optional                                | Local FLUX HTTP fallback for explicit image jobs.                                                                  |
+| `BFL_API_KEY`                                | Optional                                | FLUX feed images; raw content and AI text still persist without it.                                                |
+| `LOCAL_FLUX_BASE_URL` / `LOCAL_FLUX_MODEL`   | Optional                                | Local FLUX HTTP fallback; the Big Mac deployment uses FLUX.2 Klein.                                                |
 | `COURTLISTENER_API_KEY`                      | Optional                                | Higher CourtListener limits for `scotus`.                                                                          |
 | `GOOGLE_API_KEY` / `GOOGLE_SEARCH_ENGINE_ID` | Optional pair                           | Google Custom Search article thumbnails.                                                                           |
 | `GOOGLE_GENERATIVE_AI_API_KEY`               | Optional                                | Gemini vision fallback for `scc-cvig` PDF extraction.                                                              |
@@ -79,8 +80,8 @@ pnpm --filter @acme/scraper build
 Vite writes the scraper CLI to `dist/main.js`, the dual-lens backfill to
 `dist/retroactive-lenses.js`, the incomplete-content repair job to
 `dist/reprocess-content.js`, the missing bill-description repair job to
-`dist/backfill-bill-descriptions.js`. The build can also emit shared chunks;
-deploy the
+`dist/backfill-bill-descriptions.js`, and the retroactive-video job to
+`dist/retroactive-videos.js`. The build can also emit shared chunks; deploy the
 whole `dist/` directory rather than copying only an entry file. Linked
 `@acme/*` workspace source is included in the build, while normal third-party
 packages remain runtime dependencies.
@@ -139,7 +140,7 @@ bills that require a generated description are deferred before insertion;
 other content may still be stored raw for later backfill.
 
 For a large, explicitly bounded seed, set `SCRAPER_SKIP_DUAL_LENS=1` to write
-each bill as soon as its required summary and brief are complete.
+each bill as soon as its required summary, brief, and header art are complete.
 The optional lenses can then be filled by `retroactive-lenses` without holding
 up the source backfill.
 

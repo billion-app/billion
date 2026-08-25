@@ -86,6 +86,7 @@ const scraperSourceLimitDefinitions = [
   ["SCC_CVIG_MAX_ITEMS", "Santa Clara voter-guide PDFs per run.", "10"],
   ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
   ["OPEN_STATES_MAX_ITEMS", "Open States bills per state per run.", "100"],
+  ["LEGISTAR_MAX_ITEMS", "Legistar meetings per run.", "100"],
 ] as const;
 
 export const envRegistry = [
@@ -509,6 +510,43 @@ export const envRegistry = [
     defaultValue: "10",
     requirements: { scraper: "optional" },
     schema: positiveNumber,
+  }),
+  define({
+    key: "LEGISTAR_PAST_DAYS",
+    description: "Days of past Legistar meetings refreshed on every run.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "45",
+    requirements: {},
+    schema: positiveInteger,
+  }),
+  define({
+    key: "LEGISTAR_FUTURE_DAYS",
+    description: "Days of upcoming Legistar meetings ingested on every run.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "120",
+    requirements: {},
+    schema: positiveInteger,
+  }),
+  define({
+    key: "LEGISTAR_MAX_DOCUMENT_BYTES",
+    description: "Largest Legistar PDF downloaded for native text extraction.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "15728640",
+    requirements: {},
+    schema: positiveInteger,
+  }),
+  define({
+    key: "LEGISTAR_SKIP_DOCUMENT_TEXT",
+    description:
+      "Set to 1 to ingest Legistar document metadata without downloading PDFs.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "0",
+    requirements: {},
+    schema: z.enum(["0", "1"]),
   }),
   ...scraperSourceLimitDefinitions.map(([key, description, defaultValue]) =>
     define({
