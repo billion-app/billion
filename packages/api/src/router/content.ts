@@ -93,9 +93,9 @@ interface ContentImageRef {
   thumbnailUrl?: string;
 }
 
-async function attachContentImages<T extends ContentImageRef>(
+function attachContentImages<T extends ContentImageRef>(
   items: readonly T[],
-): Promise<(T & { imageUri?: string })[]> {
+): (T & { imageUri?: string })[] {
   return items.map((item) => ({ ...item, imageUri: undefined }));
 }
 
