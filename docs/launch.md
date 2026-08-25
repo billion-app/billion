@@ -95,10 +95,10 @@ data, email workflows, and the registered scraper suite:
 | `OPENROUTER_API_KEY`    | Feature required | Content-enriching scrapers                   | Preferred by `federalregister`, `congress`, and `scotus`; the deprecated direct DeepSeek key remains accepted during migration. |
 | `CONGRESS_API_KEY`      | Feature required | `congress` scraper                           | Authenticates Congress.gov bill ingestion.                                                                                      |
 
-`BFL_API_KEY` is strongly recommended for a complete feed, but it is not a hard
-scraper startup requirement: without it, raw content and AI text can still be
-stored, while generated feed images are omitted. Likewise, optional enrichment
-keys below improve coverage but do not prevent the core app from starting.
+`BFL_API_KEY` and the local FLUX variables are reserved for explicit image
+jobs. The disabled video feed does not generate or store feed images. Optional
+enrichment keys below improve coverage but do not prevent the core app from
+starting.
 
 ## Next.js website and API
 
@@ -136,12 +136,12 @@ string copied from the provider is normally already safe to paste.
 
 ### Civic and address data
 
-| Variable                | Requirement      | Used for                                                             | Default / missing behavior                                                                                            | Where to get it                                                                                                                                                                                                                             |
-| ----------------------- | ---------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GOOGLE_CIVIC_API_KEY`  | Launch required  | Elections, representatives, polling locations, and voter information | Some civic calls use mock development data; explicit live voter-info calls can report that the key is not configured. | Create a server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials), enable the [Civic Information API](https://developers.google.com/civic-information/docs/using_api), and restrict the key to that API. |
-| `GOOGLE_PLACES_API_KEY` | Launch required  | Address autocomplete and place details                               | Falls back to `GOOGLE_API_KEY`, then `GOOGLE_CIVIC_API_KEY`, then local mock suggestions.                             | Enable **Places API (New)** and create a restricted server key; see [Places setup](https://developers.google.com/maps/documentation/places/web-service/cloud-setup).                                                                        |
-| `OPEN_STATES_API_KEY`   | Feature required | California state bills, legislators, and voting records; required by the `open-states` scraper | Open States-backed enrichments are skipped or return no enrichment, and the `open-states` scraper fails env validation. | [Open States account/API keys](https://open.pluralpolicy.com/accounts/profile/).                                                                                                                                                                   |
-| `VOTE_SMART_API_KEY`    | Feature required | Candidate and state-measure enrichment                               | Vote Smart-backed adapters skip enrichment.                                                                           | Request access from [Vote Smart](https://votesmart.org/share/api).                                                                                                                                                                          |
+| Variable                | Requirement      | Used for                                                                                       | Default / missing behavior                                                                                              | Where to get it                                                                                                                                                                                                                             |
+| ----------------------- | ---------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_CIVIC_API_KEY`  | Launch required  | Elections, representatives, polling locations, and voter information                           | Some civic calls use mock development data; explicit live voter-info calls can report that the key is not configured.   | Create a server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials), enable the [Civic Information API](https://developers.google.com/civic-information/docs/using_api), and restrict the key to that API. |
+| `GOOGLE_PLACES_API_KEY` | Launch required  | Address autocomplete and place details                                                         | Falls back to `GOOGLE_API_KEY`, then `GOOGLE_CIVIC_API_KEY`, then local mock suggestions.                               | Enable **Places API (New)** and create a restricted server key; see [Places setup](https://developers.google.com/maps/documentation/places/web-service/cloud-setup).                                                                        |
+| `OPEN_STATES_API_KEY`   | Feature required | California state bills, legislators, and voting records; required by the `open-states` scraper | Open States-backed enrichments are skipped or return no enrichment, and the `open-states` scraper fails env validation. | [Open States account/API keys](https://open.pluralpolicy.com/accounts/profile/).                                                                                                                                                            |
+| `VOTE_SMART_API_KEY`    | Feature required | Candidate and state-measure enrichment                                                         | Vote Smart-backed adapters skip enrichment.                                                                             | Request access from [Vote Smart](https://votesmart.org/share/api).                                                                                                                                                                          |
 
 Use a dedicated `GOOGLE_PLACES_API_KEY` in production even though the code has
 fallbacks. It allows tighter API restrictions and keeps Places usage separate
@@ -215,14 +215,14 @@ Each scraper owns a lightweight adjacent `*.config.ts` declaration containing
 its source and environment requirements. Both `env:setup` and runtime Zod
 validation consume those declarations. An `all` run validates their union.
 
-| CLI name            | Required variables                                                | Optional source/enrichment variables                             | Notes                                                                                      |
-| ------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `federalregister`   | `POSTGRES_URL`; one of `OPENROUTER_API_KEY` or `DEEPSEEK_API_KEY` | `BFL_API_KEY`; `GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`      | Uses the keyless Federal Register API.                                                     |
-| `congress`          | `POSTGRES_URL`, `CONGRESS_API_KEY`; one of the two AI keys        | `BFL_API_KEY`; Google image-search pair                          | Get a free Congress key from [Congress.gov API signup](https://api.congress.gov/sign-up/). |
+| CLI name            | Required variables                                                | Optional source/enrichment variables                             | Notes                                                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `federalregister`   | `POSTGRES_URL`; one of `OPENROUTER_API_KEY` or `DEEPSEEK_API_KEY` | `BFL_API_KEY`; `GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID`      | Uses the keyless Federal Register API.                                                                                                                       |
+| `congress`          | `POSTGRES_URL`, `CONGRESS_API_KEY`; one of the two AI keys        | `BFL_API_KEY`; Google image-search pair                          | Get a free Congress key from [Congress.gov API signup](https://api.congress.gov/sign-up/).                                                                   |
 | `open-states`       | `POSTGRES_URL`, `OPEN_STATES_API_KEY`; one of the two AI keys     | `BFL_API_KEY`; Google image-search pair                          | Free key from [Open States](https://open.pluralpolicy.com/accounts/profile/); default tier ~500 req/day. `OPEN_STATES_STATES` selects states (default `ca`). |
-| `scotus`            | `POSTGRES_URL`; one of the two AI keys                            | `COURTLISTENER_API_KEY`, `BFL_API_KEY`; Google image-search pair | Runs anonymously at lower CourtListener rate limits when its token is absent.              |
-| `scc-cvig`          | `POSTGRES_URL`                                                    | `GOOGLE_GENERATIVE_AI_API_KEY`                                   | Text-layer PDF extraction still runs; Gemini is only a fallback.                           |
-| `ca-sos-statements` | `POSTGRES_URL`                                                    | None                                                             | Uses public California SOS voter-guide pages.                                              |
+| `scotus`            | `POSTGRES_URL`; one of the two AI keys                            | `COURTLISTENER_API_KEY`, `BFL_API_KEY`; Google image-search pair | Runs anonymously at lower CourtListener rate limits when its token is absent.                                                                                |
+| `scc-cvig`          | `POSTGRES_URL`                                                    | `GOOGLE_GENERATIVE_AI_API_KEY`                                   | Text-layer PDF extraction still runs; Gemini is only a fallback.                                                                                             |
+| `ca-sos-statements` | `POSTGRES_URL`                                                    | None                                                             | Uses public California SOS voter-guide pages.                                                                                                                |
 
 ### Per-run source limits
 
@@ -301,8 +301,7 @@ pnpm --filter @acme/scraper run start federalregister --concurrency 1
 The stable production entries are `dist/main.js` for the scraper CLI,
 `dist/retroactive-lenses.js` for the dual-lens backfill, and
 `dist/backfill-bill-descriptions.js` for missing bill summaries,
-`dist/reprocess-content.js` for incomplete derived assets, and
-`dist/retroactive-videos.js` for the retroactive-video job; Vite may also emit
+`dist/reprocess-content.js` for incomplete derived assets. Vite may also emit
 shared chunks, so deploy the complete `dist/` directory. The production scraper
 command remains `node dist/main.js`. It does **not** load an env file or contain
 build-time environment values; inject variables through the
@@ -344,7 +343,6 @@ pnpm build
 pnpm --filter @acme/scraper build
 test -f apps/scraper/dist/main.js
 test -f apps/scraper/dist/retroactive-lenses.js
-test -f apps/scraper/dist/retroactive-videos.js
 ```
 
 The final three checks exercise the scraper's Vite build directly and verify only

@@ -313,59 +313,6 @@ export const CreateCourtCaseSchema = createInsertSchema(CourtCase).omit({
   updatedAt: true,
 });
 
-// Video table for AI-generated feed content
-export const Video = pgTable(
-  "video",
-  (t) => ({
-    id: t.uuid().notNull().primaryKey().defaultRandom(),
-
-    // Polymorphic reference to original content (Bill, GovernmentContent, CourtCase)
-    contentType: t.varchar({ length: 20 }).notNull(), // "bill", "government_content", "court_case"
-    contentId: t.uuid().notNull(), // References id from source table
-
-    // AI-generated marketing copy
-    title: t.varchar({ length: 100 }).notNull(), // Max 100 chars
-    description: t.text().notNull(), // 50-word catchy headline
-
-    // Hybrid image storage: Binary AI-generated images OR URL-based scraped thumbnails
-    imageData: bytea("image_data"), // Raw JPEG bytes (AI-generated)
-    imageMimeType: t.varchar("image_mime_type", { length: 50 }), // "image/jpeg"
-    imageWidth: t.integer("image_width"),
-    imageHeight: t.integer("image_height"),
-    thumbnailUrl: t.text(), // URL from source content (scraped)
-
-    // Metadata
-    author: t.varchar({ length: 100 }), // "govtrack.com", "whitehouse.gov", etc.
-    engagementMetrics: t
-      .jsonb()
-      .$type<{
-        likes: number;
-        comments: number;
-        shares: number;
-      }>()
-      .default({ likes: 0, comments: 0, shares: 0 }),
-
-    // Cache invalidation
-    sourceContentHash: t.varchar({ length: 64 }).notNull(), // Match source content hash
-
-    createdAt: t.timestamp().defaultNow().notNull(),
-    updatedAt: t
-      .timestamp({ mode: "date", withTimezone: true })
-      .$onUpdateFn(() => sql`now()`),
-  }),
-  (table) => ({
-    uniqueContentReference: unique().on(table.contentType, table.contentId),
-    contentIdIndex: index("video_content_id_idx").on(table.contentId),
-    createdAtIndex: index("video_created_at_idx").on(table.createdAt),
-  }),
-);
-
-export const CreateVideoSchema = createInsertSchema(Video).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
 // Elections table — persists scraped election data from Google Civic, VOTE411, etc.
 export const ElectionRecord = pgTable(
   "election",

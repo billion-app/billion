@@ -11,7 +11,7 @@ export default function TabLayout() {
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="index" options={{ title: "Browse" }} />
-      <Tabs.Screen name="feed" options={{ title: "Feed" }} />
+      <Tabs.Screen name="feed" options={{ title: "Feed", href: null }} />
       <Tabs.Screen name="elections" options={{ title: "Elections" }} />
       {/* Temporary: routes feedback to email while server-side intake is pending. */}
       <Tabs.Screen name="feedback" options={{ title: "Feedback" }} />

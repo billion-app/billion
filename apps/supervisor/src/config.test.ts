@@ -35,15 +35,15 @@ void test("every supported state has an isolated daily refresh", () => {
   assert.equal(findJob("open-states-mo-daily"), undefined);
 });
 
-void test("daily Congress refresh applies the same retention cap", () => {
+void test("daily Congress refresh retains its bounded federal window", () => {
   const job = findJob("congress-daily");
   assert.ok(job, "daily Congress job is missing");
   assert.deepEqual(job.args, [
     "congress",
     "--recent",
-    "100",
+    "80",
     "--retain",
-    "100",
+    "80",
     "--concurrency",
     "4",
   ]);

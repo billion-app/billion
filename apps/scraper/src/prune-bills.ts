@@ -107,10 +107,6 @@ async function main() {
     results.reduce((total, result) => total + result.bills, 0),
   );
   printKeyValue(
-    "Feed images",
-    results.reduce((total, result) => total + result.videos, 0),
-  );
-  printKeyValue(
     "Briefs",
     results.reduce((total, result) => total + result.briefs, 0),
   );

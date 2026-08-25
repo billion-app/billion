@@ -11,7 +11,6 @@ export interface BillRetentionResult {
   jurisdiction: string;
   selected: number;
   bills: number;
-  videos: number;
   briefs: number;
   lenses: number;
   saves: number;
@@ -19,6 +18,20 @@ export interface BillRetentionResult {
 }
 
 type RetentionExecutor = Pick<typeof db, "execute">;
+
+/**
+ * Source-controlled editorial pins stay inside the jurisdiction cap. They sort
+ * ahead of the recency window, so adding one protected bill displaces one
+ * ordinary federal slot instead of allowing storage to grow without a bound.
+ */
+const federalProtectionOrder = sql`
+  case
+    when source_website <> 'openstates.org'
+      and bill_number in ('H.R. 3633')
+      then 0
+    else 1
+  end
+`;
 
 function positiveInteger(value: number, name: string): void {
   if (!Number.isInteger(value) || value < 1) {
@@ -68,7 +81,8 @@ export async function billRetentionInventory(
               then coalesce(substring(bill_number from '^([A-Z]{2}) '), 'STATE')
             else 'US'
           end
-          order by source_updated_at desc nulls last,
+          order by ${federalProtectionOrder},
+            source_updated_at desc nulls last,
             last_action_at desc nulls last,
             created_at desc,
             id desc
@@ -121,7 +135,8 @@ export async function pruneBillJurisdiction(
         and source_website = 'openstates.org'
         and bill_number like ${statePattern}
       )
-      order by source_updated_at desc nulls last,
+      order by ${federalProtectionOrder},
+        source_updated_at desc nulls last,
         last_action_at desc nulls last,
         created_at desc,
         id desc
@@ -132,13 +147,6 @@ export async function pruneBillJurisdiction(
       from content_brief
       inner join victims on victims.id = content_brief.content_id
       where content_brief.content_type = 'bill'
-    ),
-    deleted_videos as (
-      delete from video
-      using victims
-      where video.content_type = 'bill'
-        and video.content_id = victims.id
-      returning video.id
     ),
     deleted_lenses as (
       delete from content_lens
@@ -169,7 +177,6 @@ export async function pruneBillJurisdiction(
     select
       (select count(*)::integer from victims) as selected,
       (select count(*)::integer from deleted_bills) as bills,
-      (select count(*)::integer from deleted_videos) as videos,
       (select count(*)::integer from deleted_briefs) as briefs,
       (select count(*)::integer from deleted_lenses) as lenses,
       (select count(*)::integer from deleted_saves) as saves,
@@ -188,7 +195,6 @@ export async function pruneBillJurisdiction(
     jurisdiction,
     selected: number(row.selected),
     bills: number(row.bills),
-    videos: number(row.videos),
     briefs: number(row.briefs),
     lenses: number(row.lenses),
     saves: number(row.saves),

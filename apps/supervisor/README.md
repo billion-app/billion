@@ -30,14 +30,13 @@ the arguments it takes; the supervisor supplies everything else.
 
 | id                             | schedule          | notes                                                                            |
 | ------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
-| `congress-daily`               | daily 03:15 local | Refreshes and retains the 100 most recently updated federal bills                |
+| `congress-daily`               | daily 03:15 local | Refreshes and retains the 80 most recently updated federal bills                 |
 | `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes and retains the 100 most recently updated measures per supported state |
 | `federalregister-weekly`       | Sundays 03:15     | Executive orders and presidential documents                                      |
 | `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
 | `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                              |
 | `retro-briefs`                 | manual            | Fills in missing structured briefs                                               |
 | `retro-lenses`                 | manual            | Fills in missing dual-lens perspectives                                          |
-| `retro-videos`                 | manual            | Header art backfill                                                              |
 
 The federal and state daily jobs are the point of the whole arrangement: the
 app is a news feed, so a bill whose status changed today matters more than one
@@ -47,12 +46,12 @@ jobs are isolated so an upstream failure in one jurisdiction cannot prevent the
 other states from refreshing.
 
 Know the tradeoff: these cover the _head_ of each feed, not all of it. Roughly
-250 House bills are updated upstream per day, so a 100-bill window sees the most
+250 House bills are updated upstream per day, so an 80-bill window sees the most
 recent activity rather than every change. Widen a window by raising `--recent`.
 
 There is deliberately **no scheduled archive backfill**. The cursor walk starts
 near the beginning of the congress (~17,000 measures), and each bill it enriches
-pays for a brief, a dual-lens research loop and header art. The retro jobs are
+pays for a brief and a dual-lens research loop. The retro jobs are
 manual for the same reason — filling in the archive is a supervised spend, not
 something a scheduler starts at 3am.
 
@@ -60,7 +59,8 @@ The three weekly scrapers are listed individually rather than as one `main.js
 all` run, so that dropping `all` (which would drag the cursor walk back in)
 cannot silently stop them.
 
-Each daily bill refresh finishes by applying its own 100-row retention cap.
+The federal refresh applies an 80-row retention cap. Each state refresh applies
+its own 100-row cap.
 Ranking and deletion happen inside PostgreSQL and return only aggregate counts,
 so retention does not download candidate rows from Supabase. Jurisdictions are
 capped independently, so federal activity cannot displace a state's measures.
@@ -90,7 +90,6 @@ ssh big-mac 'tail -f ~/Library/Logs/billion/supervisor.log'
 ssh big-mac 'cat ~/.local/state/billion/supervisor-state.json'
 
 # Run a job now, without waiting for its schedule
-ssh big-mac 'touch ~/.local/state/billion/requests/retro-videos'
 ```
 
 Requests are a directory rather than a socket or an HTTP port: no client is

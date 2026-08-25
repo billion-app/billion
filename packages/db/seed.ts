@@ -11,7 +11,6 @@ import {
   ContentLens,
   CourtCase,
   GovernmentContent,
-  Video,
 } from "./src/schema";
 
 function hash(content: string) {
@@ -905,64 +904,8 @@ async function seed() {
   console.log(`  ${insertedCases.length} court cases inserted`);
 
   console.log("Inserting videos (feed items)...");
-  const videoRecords = [
-    ...insertedBills.map((b, i) => ({
-      contentType: "bill" as const,
-      contentId: b.id,
-      title: bills[i]!.title.slice(0, 100),
-      description: bills[i]!.description!,
-      thumbnailUrl: bills[i]!.thumbnailUrl,
-      author: "congress.gov",
-      engagementMetrics: {
-        likes: Math.floor(1000 + i * 2345),
-        comments: Math.floor(100 + i * 234),
-        shares: Math.floor(50 + i * 123),
-      },
-      sourceContentHash: b.contentHash,
-    })),
-    ...insertedGov.map((g, i) => ({
-      contentType: "government_content" as const,
-      contentId: g.id,
-      title: govContent[i]!.title.slice(0, 100),
-      description: govContent[i]!.description!,
-      thumbnailUrl: govContent[i]!.thumbnailUrl,
-      author: govContent[i]!.source,
-      engagementMetrics: {
-        likes: Math.floor(2000 + i * 1567),
-        comments: Math.floor(200 + i * 345),
-        shares: Math.floor(100 + i * 234),
-      },
-      sourceContentHash: g.contentHash,
-    })),
-    ...insertedCases.map((c, i) => ({
-      contentType: "court_case" as const,
-      contentId: c.id,
-      title: courtCases[i]!.title.slice(0, 100),
-      description: courtCases[i]!.description!,
-      thumbnailUrl: courtCases[i]!.thumbnailUrl,
-      author: "courtlistener.com",
-      engagementMetrics: {
-        likes: Math.floor(3000 + i * 1234),
-        comments: Math.floor(300 + i * 456),
-        shares: Math.floor(150 + i * 345),
-      },
-      sourceContentHash: c.contentHash,
-    })),
-  ];
-
-  if (videoRecords.length === 0) {
-    console.log("  0 videos inserted (no new content to link)");
-  } else {
-    const insertedVideos = await db
-      .insert(Video)
-      .values(videoRecords)
-      .onConflictDoNothing()
-      .returning({ id: Video.id });
-    console.log(`  ${insertedVideos.length} videos inserted`);
-  }
-
   console.log(
-    `\nDone! Seeded ${insertedBills.length} bills, ${insertedGov.length} gov content, ${insertedCases.length} court cases, ${videoRecords.length} videos.`,
+    `\nDone! Seeded ${insertedBills.length} bills, ${insertedGov.length} gov content, and ${insertedCases.length} court cases.`,
   );
   process.exit(0);
 }
