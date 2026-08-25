@@ -32,7 +32,7 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
-  ...(["ca", "mo", "nc", "tx"] as const).map(
+  ...(["ca", "nc", "tx"] as const).map(
     (stateCode, index): JobDefinition => ({
       id: `open-states-${stateCode}-daily`,
       description: `Refresh and retain the 100 most recently updated ${stateCode.toUpperCase()} measures`,
