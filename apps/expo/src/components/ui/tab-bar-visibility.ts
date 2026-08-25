@@ -5,6 +5,12 @@ export interface TabVisibilityInput {
   itemDisplay?: string;
 }
 
+export function getTabBarItemDisplay(
+  itemStyle: { display?: string } | undefined,
+): string | undefined {
+  return itemStyle?.display;
+}
+
 export function isTabRouteHidden({
   routeName,
   isDev,

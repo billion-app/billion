@@ -14,7 +14,10 @@ import { BlurView } from "expo-blur";
 import type { IconName } from "./Icon";
 import { colors, fontBody, hair } from "~/styles";
 import { Icon } from "./Icon";
-import { isTabRouteHidden } from "./tab-bar-visibility";
+import {
+  getTabBarItemDisplay,
+  isTabRouteHidden,
+} from "./tab-bar-visibility";
 
 // expo-router's Tabs accepts a custom `tabBar` render prop; derive its props
 // type from there so we don't depend on @react-navigation/bottom-tabs directly.
@@ -51,7 +54,7 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
               routeName: route.name,
               isDev: __DEV__,
               href: (options as { href?: unknown }).href,
-              itemDisplay: itemStyle.display,
+              itemDisplay: getTabBarItemDisplay(itemStyle),
             })
           ) {
             return null;
