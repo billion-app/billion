@@ -38,7 +38,9 @@ ${source.title}
 SUMMARY
 ${source.description || "No summary is available."}
 
-Translate the policy into a scene, not a poster. Pick recognizable people, places, objects, and consequences that are specific to this story. Abstract policy may use a playful surreal metaphor, symbolic scale, or an uncanny juxtaposition, but the subject must remain easy to connect to the story.
+Translate the policy into a scene, not a poster. Name at least three concrete, recognizable objects or activities that come directly from this story. Keep those literal details prominent. Abstract policy may add a playful surreal metaphor, symbolic scale, or an uncanny juxtaposition, but fantasy must support the topic rather than replace it.
+
+Do not fall back to generic fantasy scenery such as crystal caverns, foggy labyrinths, glowing portals, or vague beams of light unless the story is literally about those things. A viewer who has not read the title should still be able to identify the real-world subject from the objects and actions in the illustration.
 
 Write only what an illustrator should draw. Never repeat or paraphrase the title as display copy. Do not include documents, screens, signs, captions, labels, letters, numerals, logos, flags, watermarks, or any other readable material. Avoid podiums, handshakes, conference rooms, and generic people smiling at the camera.`;
 }

@@ -20,6 +20,9 @@ test("the planner sees the source copy but tells the model to translate it into 
   assert.match(prompt, /Digital Asset Market Clarity Act/);
   assert.match(prompt, /crypto trading/);
   assert.match(prompt, /Translate the policy into a scene, not a poster/);
+  assert.match(prompt, /at least three concrete, recognizable objects/);
+  assert.match(prompt, /fantasy must support the topic rather than replace it/);
+  assert.match(prompt, /crystal caverns, foggy labyrinths, glowing portals/);
 });
 
 test("the FLUX prompt contains only the visual plan, never the bill title or summary", () => {
