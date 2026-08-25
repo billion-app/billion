@@ -15,7 +15,7 @@ import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 import {
   jurisdictionFromAddress,
   JURISDICTIONS,
-  STATE_JURISDICTIONS,
+  SUPPORTED_STATE_JURISDICTIONS,
 } from "~/utils/jurisdiction";
 
 export function JurisdictionScopeRow({
@@ -111,7 +111,7 @@ export function JurisdictionPicker({
             />
 
             <Kicker style={s.groupLabel}>States</Kicker>
-            {STATE_JURISDICTIONS.map((jurisdiction) => (
+            {SUPPORTED_STATE_JURISDICTIONS.map((jurisdiction) => (
               <JurisdictionOption
                 key={jurisdiction}
                 jurisdiction={jurisdiction}
@@ -124,8 +124,8 @@ export function JurisdictionPicker({
             <View style={s.coverageNote}>
               <Icon name="info" size={16} color={colors.textSecondary} />
               <Text style={s.coverageText}>
-                State bill coverage currently includes California, Missouri,
-                North Carolina and Texas.
+                State bill coverage currently includes California, North
+                Carolina and Texas.
               </Text>
             </View>
           </ScrollView>

@@ -28,16 +28,16 @@ Three properties follow from that, and they are what this app is for:
 Defined in `src/config.ts`. Each names a script in the scraper's `dist/` and
 the arguments it takes; the supervisor supplies everything else.
 
-| id                                | schedule          | notes                                                                            |
-| --------------------------------- | ----------------- | -------------------------------------------------------------------------------- |
-| `congress-daily`                  | daily 03:15 local | Refreshes and retains the 100 most recently updated federal bills                |
-| `open-states-{ca,mo,nc,tx}-daily` | daily 03:30 local | Refreshes and retains the 100 most recently updated measures per supported state |
-| `federalregister-weekly`          | Sundays 03:15     | Executive orders and presidential documents                                      |
-| `scc-cvig-weekly`                 | Sundays 03:15     | Santa Clara County voter guide                                                   |
-| `ca-sos-weekly`                   | Sundays 03:15     | California SoS candidate statements                                              |
-| `retro-briefs`                    | manual            | Fills in missing structured briefs                                               |
-| `retro-lenses`                    | manual            | Fills in missing dual-lens perspectives                                          |
-| `retro-videos`                    | manual            | Header art backfill                                                              |
+| id                             | schedule          | notes                                                                            |
+| ------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
+| `congress-daily`               | daily 03:15 local | Refreshes and retains the 100 most recently updated federal bills                |
+| `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes and retains the 100 most recently updated measures per supported state |
+| `federalregister-weekly`       | Sundays 03:15     | Executive orders and presidential documents                                      |
+| `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
+| `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                              |
+| `retro-briefs`                 | manual            | Fills in missing structured briefs                                               |
+| `retro-lenses`                 | manual            | Fills in missing dual-lens perspectives                                          |
+| `retro-videos`                 | manual            | Header art backfill                                                              |
 
 The federal and state daily jobs are the point of the whole arrangement: the
 app is a news feed, so a bill whose status changed today matters more than one
