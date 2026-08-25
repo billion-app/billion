@@ -48,6 +48,9 @@ const listInput = z
     query: z.string().trim().min(2).max(200).optional(),
     limit: z.number().int().min(1).max(100).default(30),
     offset: z.number().int().min(0).max(10_000).default(0),
+    // Alias of `offset` so tRPC's tanstack infinite-query helpers can drive
+    // keyset-free paging from the client.
+    cursor: z.number().int().min(0).max(10_000).optional(),
   })
   .optional();
 
@@ -58,6 +61,7 @@ async function listDecisions(input: z.infer<typeof listInput>) {
     limit: 30,
     offset: 0,
   };
+  const effectiveOffset = options.cursor ?? options.offset;
   const now = new Date();
   const conditions: SQL[] = [
     eq(LocalMeeting.jurisdictionKey, options.jurisdiction),
@@ -89,11 +93,15 @@ async function listDecisions(input: z.infer<typeof listInput>) {
         when ${LocalDecision.scopeKind} = 'citywide' then 1
         else 2
       end`
-    : sql<number>`0`;
-  const order =
-    options.timeline === "recent"
-      ? [asc(relevance), desc(LocalMeeting.startsAt)]
-      : [asc(relevance), asc(LocalMeeting.startsAt)];
+    : null;
+  // A bare constant like `order by 0` is an ordinal reference in Postgres and
+  // errors out; the relevance term only exists when a district is provided.
+  const order = [
+    ...(relevance !== null ? [asc(relevance)] : []),
+    ...(options.timeline === "recent"
+      ? [desc(LocalMeeting.startsAt)]
+      : [asc(LocalMeeting.startsAt)]),
+  ];
 
   return db
     .select({
@@ -133,7 +141,7 @@ async function listDecisions(input: z.infer<typeof listInput>) {
     .where(and(...conditions))
     .orderBy(...order)
     .limit(options.limit)
-    .offset(options.offset);
+    .offset(effectiveOffset);
 }
 
 export const legistarRouter = {
