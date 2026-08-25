@@ -1,8 +1,8 @@
-import { generateText, Output } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 
 import { trackLLMUsage } from "../costs.js";
-import { getStructuredLlm } from "./provider.js";
+import { getTextLlm } from "./provider.js";
 
 export const CONTENT_IMAGE_STYLE_VERSION = "illustrated-fantasy-v2";
 
@@ -62,11 +62,10 @@ export function versionContentImageHash(contentHash: string): string {
 export async function planContentVisual(
   source: ContentVisualSource,
 ): Promise<ContentVisualPlan> {
-  const { output, usage } = await generateText({
-    model: getStructuredLlm(),
-    output: Output.object({ schema: ContentVisualPlanSchema }),
-    prompt: contentVisualPlanningPrompt(source),
+  const { text, usage } = await generateText({
+    model: getTextLlm(),
+    prompt: `${contentVisualPlanningPrompt(source)}\n\nReturn ONLY the scene description. No JSON, heading, quotation marks, or explanation.`,
   });
   trackLLMUsage(usage.inputTokens, usage.outputTokens);
-  return output;
+  return ContentVisualPlanSchema.parse({ scene: text.trim() });
 }
