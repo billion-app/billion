@@ -27,6 +27,10 @@ export const STATE_JURISDICTIONS: Record<
     currentSession: "2025-2026",
     currentSessionLabel: "2025–2026 regular session",
   },
+  // Kept for compatibility with installed app builds that can still send
+  // `jurisdiction: "mo"`. Missouri is no longer scheduled or offered by the
+  // current client, so these requests return an empty bill feed after cleanup
+  // instead of failing input validation.
   mo: {
     code: "MO",
     name: "Missouri",

@@ -182,7 +182,7 @@ export async function generateImage(
   prompt: string,
   maxRetries = 3,
 ): Promise<GeneratedImage | null> {
-  const fullPrompt = `Imaginative editorial illustration with the playful, information-dense, slightly surreal character of early generative artwork: ${prompt}. Build one memorable composition with a strong focal point and multiple story-specific details across foreground, subject, and background. Use bold color, expressive characters, visual metaphor, symbolic scale, witty or uncanny juxtapositions, and tactile illustrated texture where useful. The image should reveal more on a second look while still clearly communicating the real civic issue. Avoid corporate stock photography, sterile meeting-room staging, generic handshakes, glossy ad aesthetics, and photorealistic paperwork. No readable text, captions, labels, logos, UI, or watermark.`;
+  const fullPrompt = `Grounded editorial documentary image about this civic issue: ${prompt}. Show a plausible real-world scene with one clear subject, natural light, restrained color, accurate objects and architecture, and a calm photojournalistic composition. Keep people anatomically realistic and the setting specific to the issue. Avoid fantasy, surreal metaphors, floating objects, exaggerated scale, glowing effects, generic handshakes, glossy advertising, and staged corporate meeting rooms. No readable text, captions, labels, logos, UI, or watermark.`;
 
   if (!BFL_API_KEY) {
     const localImage = await generateViaLocalFlux(fullPrompt);

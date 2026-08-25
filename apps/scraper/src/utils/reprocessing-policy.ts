@@ -8,9 +8,6 @@ export interface ReprocessingState {
   aiGeneratedArticle: string | null;
   /** Whether a structured brief exists. Bills only — see `needsReprocessing`. */
   hasBrief: boolean;
-  videoId: string | null;
-  videoImageData: Buffer | null;
-  videoThumbnailUrl: string | null;
 }
 
 const REQUIRED_ARTICLE_SECTIONS = [
@@ -63,10 +60,6 @@ export function isUsableAIArticle(article: string | undefined | null): boolean {
   );
 }
 
-export function hasVideoImage(state: ReprocessingState): boolean {
-  return Boolean(state.videoImageData || state.videoThumbnailUrl);
-}
-
 /**
  * Which long-form asset a content type is actually read from.
  *
@@ -90,8 +83,6 @@ export function needsReprocessing(
   if (mode === "replace") return true;
 
   if (!isUsableSourceText(state.fullText)) return true;
-  if (!state.videoId || !hasVideoImage(state)) return true;
-
   return requiresBrief(state.contentType)
     ? !state.hasBrief
     : !isUsableAIArticle(state.aiGeneratedArticle);

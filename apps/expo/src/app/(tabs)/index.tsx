@@ -13,8 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-import type { VideoPost } from "@acme/api";
-
 import type { ContentItem } from "~/utils/content";
 import { ElectionBanner } from "~/components/ElectionBanner";
 import {
@@ -39,7 +37,14 @@ const MIN_SEARCH_LENGTH = 2;
 
 const PAGE_SIZE = 20;
 
-const FILTERS: { id: VideoPost["type"] | "all"; label: string }[] = [
+type ContentFilter =
+  | "bill"
+  | "government_content"
+  | "court_case"
+  | "general"
+  | "all";
+
+const FILTERS: { id: ContentFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "bill", label: "Bills" },
   { id: "government_content", label: "Executive" },
@@ -49,7 +54,7 @@ const FILTERS: { id: VideoPost["type"] | "all"; label: string }[] = [
 
 export default function BrowseScreen() {
   const router = useRouter();
-  const [filter, setFilter] = useState<VideoPost["type"] | "all">("all");
+  const [filter, setFilter] = useState<ContentFilter>("all");
   const [query, setQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [jurisdictionPickerOpen, setJurisdictionPickerOpen] = useState(false);
@@ -59,7 +64,7 @@ export default function BrowseScreen() {
   const isState = isStateJurisdiction(jurisdiction);
   const otherJurisdiction = jurisdiction === "federal" ? "ca" : "federal";
 
-  const handleFilterChange = (f: VideoPost["type"] | "all") => {
+  const handleFilterChange = (f: ContentFilter) => {
     setFilter(f);
     posthog.capture("content_filter_applied", { filter_type: f });
   };

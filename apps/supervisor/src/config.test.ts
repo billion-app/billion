@@ -16,7 +16,7 @@ void test("every job is reachable by id", () => {
 });
 
 void test("every supported state has an isolated daily refresh", () => {
-  const stateCodes = ["ca", "mo", "nc", "tx"];
+  const stateCodes = ["ca", "nc", "tx"];
   for (const stateCode of stateCodes) {
     const job = findJob(`open-states-${stateCode}-daily`);
     assert.ok(job, `${stateCode} has no daily Open States job`);
@@ -32,17 +32,18 @@ void test("every supported state has an isolated daily refresh", () => {
     assert.equal(job.env?.OPEN_STATES_STATES, stateCode);
     assert.equal(job.schedule.kind, "daily");
   }
+  assert.equal(findJob("open-states-mo-daily"), undefined);
 });
 
-void test("daily Congress refresh applies the same retention cap", () => {
+void test("daily Congress refresh retains its bounded federal window", () => {
   const job = findJob("congress-daily");
   assert.ok(job, "daily Congress job is missing");
   assert.deepEqual(job.args, [
     "congress",
     "--recent",
-    "100",
+    "80",
     "--retain",
-    "100",
+    "80",
     "--concurrency",
     "4",
   ]);

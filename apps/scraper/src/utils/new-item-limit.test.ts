@@ -6,7 +6,7 @@ import { budgetFromEnv, createNewItemLimiter } from "./new-item-limit.js";
 test("a configured budget of zero is honoured, not treated as unset", () => {
   // `Number(env) || DEFAULT` used to turn an explicit 0 into 10, so a run
   // configured to fetch without generating anything quietly generated ten
-  // items' worth of briefs, lenses and header art.
+  // items' worth of briefs and lenses.
   assert.equal(budgetFromEnv("0"), 0);
   assert.equal(createNewItemLimiter(budgetFromEnv("0")).tryConsume(), false);
 });

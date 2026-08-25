@@ -29,7 +29,7 @@ let stopping = false;
 
 /**
  * Ad-hoc runs are requested by dropping a file named after a job into
- * `requests/` — `touch requests/retro-videos`. A directory beats a socket or an
+ * `requests/`, for example `touch requests/retro-briefs`. A directory beats a socket or an
  * HTTP port here: it needs no client, it survives a supervisor restart, and it
  * is trivially inspectable over SSH, which is how this host is actually
  * operated.
