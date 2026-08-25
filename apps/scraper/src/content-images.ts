@@ -52,7 +52,7 @@ async function billCandidates(limit: number): Promise<Candidate[]> {
     .where(
       or(
         isNull(ContentImage.id),
-        sql`${ContentImage.contentHash} <> ${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${Bill.contentHash}`,
+        sql`${ContentImage.contentHash} <> md5(${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${Bill.contentHash})`,
       ),
     )
     .orderBy(
@@ -84,7 +84,7 @@ async function governmentCandidates(limit: number): Promise<Candidate[]> {
     .where(
       or(
         isNull(ContentImage.id),
-        sql`${ContentImage.contentHash} <> ${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${GovernmentContent.contentHash}`,
+        sql`${ContentImage.contentHash} <> md5(${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${GovernmentContent.contentHash})`,
       ),
     )
     .orderBy(desc(GovernmentContent.publishedDate))
@@ -111,7 +111,7 @@ async function courtCandidates(limit: number): Promise<Candidate[]> {
     .where(
       or(
         isNull(ContentImage.id),
-        sql`${ContentImage.contentHash} <> ${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${CourtCase.contentHash}`,
+        sql`${ContentImage.contentHash} <> md5(${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${CourtCase.contentHash})`,
       ),
     )
     .orderBy(desc(CourtCase.filedDate), desc(CourtCase.createdAt))

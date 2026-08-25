@@ -49,8 +49,10 @@ test("a visual plan containing written material is rejected", () => {
 });
 
 test("the style version makes old documentary rows stale", () => {
-  assert.equal(
-    versionContentImageHash("bill-hash"),
-    `${CONTENT_IMAGE_STYLE_VERSION}:bill-hash`,
-  );
+  const versioned = versionContentImageHash("bill-hash");
+
+  assert.match(versioned, /^[a-f0-9]{32}$/);
+  assert.notEqual(versioned, "bill-hash");
+  assert.equal(versioned, versionContentImageHash("bill-hash"));
+  assert.notEqual(versioned, versionContentImageHash("different-bill-hash"));
 });
