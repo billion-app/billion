@@ -11,19 +11,19 @@ import type { JobDefinition } from "./types.js";
 export const jobs: readonly JobDefinition[] = [
   {
     id: "congress-daily",
-    description: "Refresh and retain the 100 most recently updated bills",
+    description: "Refresh and retain the 80 most recently updated bills",
     script: "main.js",
     args: [
       "congress",
       "--recent",
-      "100",
+      "80",
       "--retain",
-      "100",
+      "80",
       "--concurrency",
       "4",
     ],
     schedule: { kind: "daily", hour: 3, minute: 15 },
-    // Most of the 100 will be unchanged and cost nothing beyond the fetch —
+    // Most of the 80 will be unchanged and cost nothing beyond the fetch —
     // derived assets are keyed on content, so an unchanged bill regenerates
     // nothing. The budget bounds the days when that is not true, such as a bill
     // whose text was replaced by a substitute amendment.
@@ -32,7 +32,7 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
-  ...(["ca", "mo", "nc", "tx"] as const).map(
+  ...(["ca", "nc", "tx"] as const).map(
     (stateCode, index): JobDefinition => ({
       id: `open-states-${stateCode}-daily`,
       description: `Refresh and retain the 100 most recently updated ${stateCode.toUpperCase()} measures`,
@@ -56,6 +56,16 @@ export const jobs: readonly JobDefinition[] = [
       maxRuntimeHours: 24,
     }),
   ),
+  {
+    id: "content-images-daily",
+    description: "Generate grounded header art for retained content",
+    script: "content-images.js",
+    args: ["--bill-limit", "80", "--other-limit", "20", "--concurrency", "1"],
+    schedule: { kind: "daily", hour: 4, minute: 15 },
+    priority: 5,
+    idleTimeoutMinutes: 120,
+    maxRuntimeHours: 12,
+  },
   // The other three registered scrapers. These used to ride along in a weekly
   // `main.js all` run; they are listed individually so that dropping the `all`
   // run does not silently stop them, and so each can be rescheduled or paused
@@ -99,7 +109,7 @@ export const jobs: readonly JobDefinition[] = [
   // There is deliberately no scheduled archive backfill. The `scraper_cursor`
   // walk starts near the beginning of the congress, so an unattended job would
   // grind through ~17,000 measures paying for a brief, a dual-lens research
-  // loop and header art on each one it enriched. The daily job above keeps
+  // loop on each one it enriched. The daily job above keeps
   // *active* legislation current, which is what a news feed needs.
   //
   // The retro jobs are manual for the same reason: each is bounded by how much
@@ -157,16 +167,6 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 72,
   },
   {
-    id: "retro-videos",
-    description: "Generate missing header art",
-    script: "retroactive-videos.js",
-    args: ["--type", "bill"],
-    schedule: { kind: "manual" },
-    priority: 30,
-    idleTimeoutMinutes: 60,
-    maxRuntimeHours: 48,
-  },
-  {
     id: "change-images",
     description: "Generate photographs for brief changes that warrant one",
     script: "change-images.js",
@@ -184,7 +184,7 @@ export const jobs: readonly JobDefinition[] = [
   },
   {
     id: "reprocess-bare",
-    description: "Fill in bills left without an article or header art",
+    description: "Fill in bills left without required text or briefs",
     script: "reprocess-content.js",
     // `--mode missing` selects only rows whose derived assets are actually
     // incomplete, so a run costs nothing once there is nothing left to fix.

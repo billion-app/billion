@@ -1,6 +1,6 @@
 {
-  "id": "5dc2537e-e6b9-4303-93c5-85c4f41904b2",
-  "prevId": "d27f89da-2614-4e96-9c2f-8fbb2d98ac57",
+  "id": "c6d45e7b-5849-4c8a-adac-3600f3d31bf2",
+  "prevId": "789ac976-2232-4d2d-8d67-ad09e5391a5a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -195,7 +195,10 @@
         "bill_billNumber_sourceWebsite_unique": {
           "name": "bill_billNumber_sourceWebsite_unique",
           "nullsNotDistinct": false,
-          "columns": ["bill_number", "source_website"]
+          "columns": [
+            "bill_number",
+            "source_website"
+          ]
         }
       },
       "policies": {},
@@ -267,7 +270,11 @@
         "blocked_content_userId_name_type_unique": {
           "name": "blocked_content_userId_name_type_unique",
           "nullsNotDistinct": false,
-          "columns": ["user_id", "name", "type"]
+          "columns": [
+            "user_id",
+            "name",
+            "type"
+          ]
         }
       },
       "policies": {},
@@ -369,8 +376,12 @@
           "name": "brief_change_image_content_brief_id_content_brief_id_fk",
           "tableFrom": "brief_change_image",
           "tableTo": "content_brief",
-          "columnsFrom": ["content_brief_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "content_brief_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -380,7 +391,10 @@
         "brief_change_image_contentBriefId_changeIndex_unique": {
           "name": "brief_change_image_contentBriefId_changeIndex_unique",
           "nullsNotDistinct": false,
-          "columns": ["content_brief_id", "change_index"]
+          "columns": [
+            "content_brief_id",
+            "change_index"
+          ]
         }
       },
       "policies": {},
@@ -565,7 +579,11 @@
         "civic_api_cache_addressHash_endpoint_params_unique": {
           "name": "civic_api_cache_addressHash_endpoint_params_unique",
           "nullsNotDistinct": false,
-          "columns": ["address_hash", "endpoint", "params"]
+          "columns": [
+            "address_hash",
+            "endpoint",
+            "params"
+          ]
         }
       },
       "policies": {},
@@ -650,7 +668,116 @@
         "content_brief_contentType_contentId_unique": {
           "name": "content_brief_contentType_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": ["content_type", "content_id"]
+          "columns": [
+            "content_type",
+            "content_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.content_image": {
+      "name": "content_image",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "content_type": {
+          "name": "content_type",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_id": {
+          "name": "content_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_hash": {
+          "name": "content_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_path": {
+          "name": "storage_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_hash": {
+          "name": "image_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt": {
+          "name": "prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "content_image_content_id_idx": {
+          "name": "content_image_content_id_idx",
+          "columns": [
+            {
+              "expression": "content_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "content_image_content_type_content_id_unique": {
+          "name": "content_image_content_type_content_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "content_type",
+            "content_id"
+          ]
         }
       },
       "policies": {},
@@ -735,7 +862,10 @@
         "content_lens_contentType_contentId_unique": {
           "name": "content_lens_contentType_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": ["content_type", "content_id"]
+          "columns": [
+            "content_type",
+            "content_id"
+          ]
         }
       },
       "policies": {},
@@ -1044,7 +1174,10 @@
         "court_case_caseNumber_court_unique": {
           "name": "court_case_caseNumber_court_unique",
           "nullsNotDistinct": false,
-          "columns": ["case_number", "court"]
+          "columns": [
+            "case_number",
+            "court"
+          ]
         }
       },
       "policies": {},
@@ -1126,7 +1259,10 @@
         "election_externalId_source_unique": {
           "name": "election_externalId_source_unique",
           "nullsNotDistinct": false,
-          "columns": ["external_id", "source"]
+          "columns": [
+            "external_id",
+            "source"
+          ]
         }
       },
       "policies": {},
@@ -1260,15 +1396,17 @@
         "government_content_url_unique": {
           "name": "government_content_url_unique",
           "nullsNotDistinct": false,
-          "columns": ["url"]
+          "columns": [
+            "url"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.local_body": {
-      "name": "local_body",
+    "public.legistar_agenda_item": {
+      "name": "legistar_agenda_item",
       "schema": "",
       "columns": {
         "id": {
@@ -1278,20 +1416,206 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "jurisdiction_key": {
-          "name": "jurisdiction_key",
+        "jurisdiction": {
+          "name": "jurisdiction",
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
-        "source_body_id": {
-          "name": "source_body_id",
+        "event_item_id": {
+          "name": "event_item_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "source_guid": {
-          "name": "source_guid",
+        "event_id": {
+          "name": "event_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agenda_sequence": {
+          "name": "agenda_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agenda_number": {
+          "name": "agenda_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "action_name": {
+          "name": "action_name",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "passed_flag_name": {
+          "name": "passed_flag_name",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tally": {
+          "name": "tally",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mover_name": {
+          "name": "mover_name",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seconder_name": {
+          "name": "seconder_name",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "matter_id": {
+          "name": "matter_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "matter_file": {
+          "name": "matter_file",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "matter_name": {
+          "name": "matter_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "matter_type": {
+          "name": "matter_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "matter_status": {
+          "name": "matter_status",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "consent": {
+          "name": "consent",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "agenda_note": {
+          "name": "agenda_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minutes_note": {
+          "name": "minutes_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_modified_utc": {
+          "name": "last_modified_utc",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "legistar_agenda_item_event_idx": {
+          "name": "legistar_agenda_item_event_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "legistar_agenda_item_jurisdiction_eventItemId_unique": {
+          "name": "legistar_agenda_item_jurisdiction_eventItemId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "jurisdiction",
+            "event_item_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.legistar_body": {
+      "name": "legistar_body",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "jurisdiction": {
+          "name": "jurisdiction",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body_id": {
+          "name": "body_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body_guid": {
+          "name": "body_guid",
           "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
@@ -1308,26 +1632,12 @@
           "primaryKey": false,
           "notNull": false
         },
-        "active": {
-          "name": "active",
+        "active_flag": {
+          "name": "active_flag",
           "type": "boolean",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "default": true
-        },
-        "included": {
-          "name": "included",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "relevance_tier": {
-          "name": "relevance_tier",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 3
         },
         "number_of_members": {
           "name": "number_of_members",
@@ -1359,28 +1669,16 @@
           "primaryKey": false,
           "notNull": false
         },
-        "source_updated_at": {
-          "name": "source_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "timestamp with time zone",
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "source_payload": {
-          "name": "source_payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp with time zone",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
@@ -1389,64 +1687,28 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": false
         }
       },
-      "indexes": {
-        "local_body_jurisdiction_included_idx": {
-          "name": "local_body_jurisdiction_included_idx",
-          "columns": [
-            {
-              "expression": "jurisdiction_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "included",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "relevance_tier",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "local_body_jurisdiction_key_local_jurisdiction_key_fk": {
-          "name": "local_body_jurisdiction_key_local_jurisdiction_key_fk",
-          "tableFrom": "local_body",
-          "tableTo": "local_jurisdiction",
-          "columnsFrom": ["jurisdiction_key"],
-          "columnsTo": ["key"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "local_body_jurisdictionKey_sourceBodyId_unique": {
-          "name": "local_body_jurisdictionKey_sourceBodyId_unique",
+        "legistar_body_jurisdiction_bodyId_unique": {
+          "name": "legistar_body_jurisdiction_bodyId_unique",
           "nullsNotDistinct": false,
-          "columns": ["jurisdiction_key", "source_body_id"]
+          "columns": [
+            "jurisdiction",
+            "body_id"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.local_decision": {
-      "name": "local_decision",
+    "public.legistar_matter": {
+      "name": "legistar_matter",
       "schema": "",
       "columns": {
         "id": {
@@ -1456,32 +1718,26 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "jurisdiction_key": {
-          "name": "jurisdiction_key",
+        "jurisdiction": {
+          "name": "jurisdiction",
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
-        "primary_body_id": {
-          "name": "primary_body_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_matter_id": {
-          "name": "source_matter_id",
+        "matter_id": {
+          "name": "matter_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "source_guid": {
-          "name": "source_guid",
+        "matter_guid": {
+          "name": "matter_guid",
           "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
         },
-        "file_number": {
-          "name": "file_number",
+        "matter_file": {
+          "name": "matter_file",
           "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
@@ -1510,52 +1766,39 @@
           "primaryKey": false,
           "notNull": false
         },
-        "topic": {
-          "name": "topic",
-          "type": "varchar(80)",
+        "body_name": {
+          "name": "body_name",
+          "type": "varchar(256)",
           "primaryKey": false,
           "notNull": false
         },
-        "scope_kind": {
-          "name": "scope_kind",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'unknown'"
-        },
-        "district_numbers": {
-          "name": "district_numbers",
-          "type": "integer[]",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "geographic_text": {
-          "name": "geographic_text",
-          "type": "text",
+        "body_id": {
+          "name": "body_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
         "intro_date": {
           "name": "intro_date",
-          "type": "timestamp with time zone",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
         "agenda_date": {
           "name": "agenda_date",
-          "type": "timestamp with time zone",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
         "passed_date": {
           "name": "passed_date",
-          "type": "timestamp with time zone",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
         "enactment_date": {
           "name": "enactment_date",
-          "type": "timestamp with time zone",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
@@ -1577,40 +1820,22 @@
           "primaryKey": false,
           "notNull": false
         },
-        "source_url": {
-          "name": "source_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_updated_at": {
-          "name": "source_updated_at",
-          "type": "timestamp with time zone",
+        "last_modified_utc": {
+          "name": "last_modified_utc",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true
         },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "timestamp with time zone",
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "source_deleted_at": {
-          "name": "source_deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_payload": {
-          "name": "source_payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp with time zone",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
@@ -1619,26 +1844,15 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "search_vector": {
-          "name": "search_vector",
-          "type": "tsvector",
-          "primaryKey": false,
-          "notNull": false,
-          "generated": {
-            "as": "(\n        setweight(to_tsvector('english', coalesce(file_number, '')), 'A') ||\n        setweight(to_tsvector('english', coalesce(title, '')), 'A') ||\n        setweight(to_tsvector('english', coalesce(type_name, '') || ' ' || coalesce(topic, '')), 'B') ||\n        setweight(to_tsvector('english', coalesce(requester, '') || ' ' || coalesce(notes, '') || ' ' || coalesce(geographic_text, '')), 'C')\n      )",
-            "type": "stored"
-          }
+          "notNull": false
         }
       },
       "indexes": {
-        "local_decision_primary_body_idx": {
-          "name": "local_decision_primary_body_idx",
+        "legistar_matter_file_idx": {
+          "name": "legistar_matter_file_idx",
           "columns": [
             {
-              "expression": "primary_body_id",
+              "expression": "matter_file",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1648,79 +1862,26 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "local_decision_active_updated_idx": {
-          "name": "local_decision_active_updated_idx",
-          "columns": [
-            {
-              "expression": "jurisdiction_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "source_updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"local_decision\".\"source_deleted_at\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "local_decision_search_vector_idx": {
-          "name": "local_decision_search_vector_idx",
-          "columns": [
-            {
-              "expression": "search_vector",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
         }
       },
-      "foreignKeys": {
-        "local_decision_jurisdiction_key_local_jurisdiction_key_fk": {
-          "name": "local_decision_jurisdiction_key_local_jurisdiction_key_fk",
-          "tableFrom": "local_decision",
-          "tableTo": "local_jurisdiction",
-          "columnsFrom": ["jurisdiction_key"],
-          "columnsTo": ["key"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "local_decision_primary_body_id_local_body_id_fk": {
-          "name": "local_decision_primary_body_id_local_body_id_fk",
-          "tableFrom": "local_decision",
-          "tableTo": "local_body",
-          "columnsFrom": ["primary_body_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "local_decision_jurisdictionKey_sourceMatterId_unique": {
-          "name": "local_decision_jurisdictionKey_sourceMatterId_unique",
+        "legistar_matter_jurisdiction_matterId_unique": {
+          "name": "legistar_matter_jurisdiction_matterId_unique",
           "nullsNotDistinct": false,
-          "columns": ["jurisdiction_key", "source_matter_id"]
+          "columns": [
+            "jurisdiction",
+            "matter_id"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.local_decision_document": {
-      "name": "local_decision_document",
+    "public.legistar_meeting": {
+      "name": "legistar_meeting",
       "schema": "",
       "columns": {
         "id": {
@@ -1730,277 +1891,26 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "jurisdiction_key": {
-          "name": "jurisdiction_key",
+        "jurisdiction": {
+          "name": "jurisdiction",
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
-        "decision_id": {
-          "name": "decision_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_attachment_id": {
-          "name": "source_attachment_id",
+        "event_id": {
+          "name": "event_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "source_guid": {
-          "name": "source_guid",
+        "event_guid": {
+          "name": "event_guid",
           "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
         },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "url": {
-          "name": "url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_name": {
-          "name": "file_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "category": {
-          "name": "category",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_supporting_document": {
-          "name": "is_supporting_document",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "is_public_comment": {
-          "name": "is_public_comment",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "processing_policy": {
-          "name": "processing_policy",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "extraction_status": {
-          "name": "extraction_status",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "extracted_text": {
-          "name": "extracted_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "extraction_method": {
-          "name": "extraction_method",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "extraction_quality": {
-          "name": "extraction_quality",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "page_count": {
-          "name": "page_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "byte_size": {
-          "name": "byte_size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "content_hash": {
-          "name": "content_hash",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_updated_at": {
-          "name": "source_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "source_deleted_at": {
-          "name": "source_deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_payload": {
-          "name": "source_payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "local_document_decision_category_idx": {
-          "name": "local_document_decision_category_idx",
-          "columns": [
-            {
-              "expression": "decision_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "category",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "local_document_extraction_queue_idx": {
-          "name": "local_document_extraction_queue_idx",
-          "columns": [
-            {
-              "expression": "extraction_status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"local_decision_document\".\"source_deleted_at\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "local_decision_document_jurisdiction_key_local_jurisdiction_key_fk": {
-          "name": "local_decision_document_jurisdiction_key_local_jurisdiction_key_fk",
-          "tableFrom": "local_decision_document",
-          "tableTo": "local_jurisdiction",
-          "columnsFrom": ["jurisdiction_key"],
-          "columnsTo": ["key"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "local_decision_document_decision_id_local_decision_id_fk": {
-          "name": "local_decision_document_decision_id_local_decision_id_fk",
-          "tableFrom": "local_decision_document",
-          "tableTo": "local_decision",
-          "columnsFrom": ["decision_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "local_decision_document_jurisdictionKey_sourceAttachmentId_unique": {
-          "name": "local_decision_document_jurisdictionKey_sourceAttachmentId_unique",
-          "nullsNotDistinct": false,
-          "columns": ["jurisdiction_key", "source_attachment_id"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.local_decision_history": {
-      "name": "local_decision_history",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "decision_id": {
-          "name": "decision_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_history_id": {
-          "name": "source_history_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_event_id": {
-          "name": "source_event_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_event_item_id": {
-          "name": "source_event_item_id",
+        "body_id": {
+          "name": "body_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -2011,465 +1921,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "action_name": {
-          "name": "action_name",
-          "type": "varchar(256)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "action_text": {
-          "name": "action_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "action_date": {
-          "name": "action_date",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "agenda_number": {
-          "name": "agenda_number",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_payload": {
-          "name": "source_payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "local_history_decision_action_date_idx": {
-          "name": "local_history_decision_action_date_idx",
-          "columns": [
-            {
-              "expression": "decision_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "action_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "local_decision_history_decision_id_local_decision_id_fk": {
-          "name": "local_decision_history_decision_id_local_decision_id_fk",
-          "tableFrom": "local_decision_history",
-          "tableTo": "local_decision",
-          "columnsFrom": ["decision_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "local_decision_history_decisionId_sourceHistoryId_unique": {
-          "name": "local_decision_history_decisionId_sourceHistoryId_unique",
-          "nullsNotDistinct": false,
-          "columns": ["decision_id", "source_history_id"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.local_decision_vote": {
-      "name": "local_decision_vote",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "meeting_item_id": {
-          "name": "meeting_item_id",
-          "type": "uuid",
+        "date": {
+          "name": "date",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true
         },
-        "source_vote_id": {
-          "name": "source_vote_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_person_id": {
-          "name": "source_person_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "person_name": {
-          "name": "person_name",
-          "type": "varchar(256)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value_name": {
-          "name": "value_name",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_updated_at": {
-          "name": "source_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_payload": {
-          "name": "source_payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "local_vote_meeting_item_idx": {
-          "name": "local_vote_meeting_item_idx",
-          "columns": [
-            {
-              "expression": "meeting_item_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "local_vote_source_person_idx": {
-          "name": "local_vote_source_person_idx",
-          "columns": [
-            {
-              "expression": "source_person_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "local_decision_vote_meeting_item_id_local_meeting_item_id_fk": {
-          "name": "local_decision_vote_meeting_item_id_local_meeting_item_id_fk",
-          "tableFrom": "local_decision_vote",
-          "tableTo": "local_meeting_item",
-          "columnsFrom": ["meeting_item_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "local_decision_vote_meetingItemId_sourceVoteId_unique": {
-          "name": "local_decision_vote_meetingItemId_sourceVoteId_unique",
-          "nullsNotDistinct": false,
-          "columns": ["meeting_item_id", "source_vote_id"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.local_ingestion_run": {
-      "name": "local_ingestion_run",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "jurisdiction_key": {
-          "name": "jurisdiction_key",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "window_start": {
-          "name": "window_start",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "window_end": {
-          "name": "window_end",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "counts": {
-          "name": "counts",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "local_ingestion_jurisdiction_started_idx": {
-          "name": "local_ingestion_jurisdiction_started_idx",
-          "columns": [
-            {
-              "expression": "jurisdiction_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "started_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "local_ingestion_run_jurisdiction_key_local_jurisdiction_key_fk": {
-          "name": "local_ingestion_run_jurisdiction_key_local_jurisdiction_key_fk",
-          "tableFrom": "local_ingestion_run",
-          "tableTo": "local_jurisdiction",
-          "columnsFrom": ["jurisdiction_key"],
-          "columnsTo": ["key"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.local_jurisdiction": {
-      "name": "local_jurisdiction",
-      "schema": "",
-      "columns": {
-        "key": {
-          "name": "key",
-          "type": "varchar(50)",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(256)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "varchar(2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "government_level": {
-          "name": "government_level",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "timezone": {
-          "name": "timezone",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_type": {
-          "name": "source_type",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_client": {
-          "name": "source_client",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_base_url": {
-          "name": "source_base_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "public_portal_url": {
-          "name": "public_portal_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.local_meeting": {
-      "name": "local_meeting",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "jurisdiction_key": {
-          "name": "jurisdiction_key",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "body_id": {
-          "name": "body_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_event_id": {
-          "name": "source_event_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_guid": {
-          "name": "source_guid",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "starts_at": {
-          "name": "starts_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "local_date": {
-          "name": "local_date",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "time_label": {
-          "name": "time_label",
+        "time": {
+          "name": "time",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2480,26 +1939,20 @@
           "primaryKey": false,
           "notNull": false
         },
-        "agenda_url": {
-          "name": "agenda_url",
+        "agenda_file": {
+          "name": "agenda_file",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "minutes_url": {
-          "name": "minutes_url",
+        "minutes_file": {
+          "name": "minutes_file",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "video_url": {
-          "name": "video_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_url": {
-          "name": "source_url",
+        "video_path": {
+          "name": "video_path",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2522,41 +1975,28 @@
           "primaryKey": false,
           "notNull": false
         },
-        "cancelled": {
-          "name": "cancelled",
-          "type": "boolean",
+        "in_site_url": {
+          "name": "in_site_url",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": false
+          "notNull": false
         },
-        "source_updated_at": {
-          "name": "source_updated_at",
-          "type": "timestamp with time zone",
+        "last_modified_utc": {
+          "name": "last_modified_utc",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true
         },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "timestamp with time zone",
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "source_deleted_at": {
-          "name": "source_deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_payload": {
-          "name": "source_payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp with time zone",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
@@ -2565,22 +2005,15 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": false
         }
       },
       "indexes": {
-        "local_meeting_body_starts_at_idx": {
-          "name": "local_meeting_body_starts_at_idx",
+        "legistar_meeting_date_idx": {
+          "name": "legistar_meeting_date_idx",
           "columns": [
             {
-              "expression": "body_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "starts_at",
+              "expression": "date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2590,64 +2023,26 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "local_meeting_active_starts_at_idx": {
-          "name": "local_meeting_active_starts_at_idx",
-          "columns": [
-            {
-              "expression": "jurisdiction_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "starts_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"local_meeting\".\"source_deleted_at\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
-      "foreignKeys": {
-        "local_meeting_jurisdiction_key_local_jurisdiction_key_fk": {
-          "name": "local_meeting_jurisdiction_key_local_jurisdiction_key_fk",
-          "tableFrom": "local_meeting",
-          "tableTo": "local_jurisdiction",
-          "columnsFrom": ["jurisdiction_key"],
-          "columnsTo": ["key"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "local_meeting_body_id_local_body_id_fk": {
-          "name": "local_meeting_body_id_local_body_id_fk",
-          "tableFrom": "local_meeting",
-          "tableTo": "local_body",
-          "columnsFrom": ["body_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "local_meeting_jurisdictionKey_sourceEventId_unique": {
-          "name": "local_meeting_jurisdictionKey_sourceEventId_unique",
+        "legistar_meeting_jurisdiction_eventId_unique": {
+          "name": "legistar_meeting_jurisdiction_eventId_unique",
           "nullsNotDistinct": false,
-          "columns": ["jurisdiction_key", "source_event_id"]
+          "columns": [
+            "jurisdiction",
+            "event_id"
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.local_meeting_item": {
-      "name": "local_meeting_item",
+    "public.legistar_vote": {
+      "name": "legistar_vote",
       "schema": "",
       "columns": {
         "id": {
@@ -2657,174 +2052,75 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "meeting_id": {
-          "name": "meeting_id",
-          "type": "uuid",
+        "jurisdiction": {
+          "name": "jurisdiction",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
-        "decision_id": {
-          "name": "decision_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_event_item_id": {
-          "name": "source_event_item_id",
+        "vote_id": {
+          "name": "vote_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "source_guid": {
-          "name": "source_guid",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "agenda_sequence": {
-          "name": "agenda_sequence",
+        "event_item_id": {
+          "name": "event_item_id",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "minutes_sequence": {
-          "name": "minutes_sequence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "agenda_number": {
-          "name": "agenda_number",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "action_name": {
-          "name": "action_name",
-          "type": "varchar(256)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "action_text": {
-          "name": "action_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "passed_flag_name": {
-          "name": "passed_flag_name",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tally": {
-          "name": "tally",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "mover_name": {
-          "name": "mover_name",
-          "type": "varchar(256)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "seconder_name": {
-          "name": "seconder_name",
-          "type": "varchar(256)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "consent": {
-          "name": "consent",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "roll_call": {
-          "name": "roll_call",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "agenda_note": {
-          "name": "agenda_note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "minutes_note": {
-          "name": "minutes_note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "video_index": {
-          "name": "video_index",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_updated_at": {
-          "name": "source_updated_at",
-          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "timestamp with time zone",
+        "person_id": {
+          "name": "person_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_name": {
+          "name": "person_name",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value_name": {
+          "name": "value_name",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort": {
+          "name": "sort",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_modified_utc": {
+          "name": "last_modified_utc",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "source_deleted_at": {
-          "name": "source_deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_payload": {
-          "name": "source_payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         }
       },
       "indexes": {
-        "local_meeting_item_sequence_idx": {
-          "name": "local_meeting_item_sequence_idx",
+        "legistar_vote_event_item_idx": {
+          "name": "legistar_vote_event_item_idx",
           "columns": [
             {
-              "expression": "meeting_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "agenda_sequence",
+              "expression": "event_item_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2835,11 +2131,11 @@
           "method": "btree",
           "with": {}
         },
-        "local_meeting_item_decision_idx": {
-          "name": "local_meeting_item_decision_idx",
+        "legistar_vote_person_idx": {
+          "name": "legistar_vote_person_idx",
           "columns": [
             {
-              "expression": "decision_id",
+              "expression": "person_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2851,32 +2147,16 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "local_meeting_item_meeting_id_local_meeting_id_fk": {
-          "name": "local_meeting_item_meeting_id_local_meeting_id_fk",
-          "tableFrom": "local_meeting_item",
-          "tableTo": "local_meeting",
-          "columnsFrom": ["meeting_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "local_meeting_item_decision_id_local_decision_id_fk": {
-          "name": "local_meeting_item_decision_id_local_decision_id_fk",
-          "tableFrom": "local_meeting_item",
-          "tableTo": "local_decision",
-          "columnsFrom": ["decision_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "local_meeting_item_meetingId_sourceEventItemId_unique": {
-          "name": "local_meeting_item_meetingId_sourceEventItemId_unique",
+        "legistar_vote_jurisdiction_voteId_unique": {
+          "name": "legistar_vote_jurisdiction_voteId_unique",
           "nullsNotDistinct": false,
-          "columns": ["meeting_id", "source_event_item_id"]
+          "columns": [
+            "jurisdiction",
+            "vote_id"
+          ]
         }
       },
       "policies": {},
@@ -3119,7 +2399,10 @@
         "role_description_role_level_unique": {
           "name": "role_description_role_level_unique",
           "nullsNotDistinct": false,
-          "columns": ["role", "level"]
+          "columns": [
+            "role",
+            "level"
+          ]
         }
       },
       "policies": {},
@@ -3186,7 +2469,10 @@
         "saved_article_userId_contentId_unique": {
           "name": "saved_article_userId_contentId_unique",
           "nullsNotDistinct": false,
-          "columns": ["user_id", "content_id"]
+          "columns": [
+            "user_id",
+            "content_id"
+          ]
         }
       },
       "policies": {},
@@ -3302,7 +2588,10 @@
       "compositePrimaryKeys": {
         "scraper_retry_scraper_key_item_key_pk": {
           "name": "scraper_retry_scraper_key_item_key_pk",
-          "columns": ["scraper_key", "item_key"]
+          "columns": [
+            "scraper_key",
+            "item_key"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -3362,7 +2651,9 @@
         "user_preference_userId_unique": {
           "name": "user_preference_userId_unique",
           "nullsNotDistinct": false,
-          "columns": ["user_id"]
+          "columns": [
+            "user_id"
+          ]
         }
       },
       "policies": {},
@@ -3442,150 +2733,9 @@
         "user_settings_userId_unique": {
           "name": "user_settings_userId_unique",
           "nullsNotDistinct": false,
-          "columns": ["user_id"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.video": {
-      "name": "video",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "content_type": {
-          "name": "content_type",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content_id": {
-          "name": "content_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "image_data": {
-          "name": "image_data",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "image_mime_type": {
-          "name": "image_mime_type",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "image_width": {
-          "name": "image_width",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "image_height": {
-          "name": "image_height",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "thumbnail_url": {
-          "name": "thumbnail_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "author": {
-          "name": "author",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "engagement_metrics": {
-          "name": "engagement_metrics",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'{\"likes\":0,\"comments\":0,\"shares\":0}'::jsonb"
-        },
-        "source_content_hash": {
-          "name": "source_content_hash",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "video_content_id_idx": {
-          "name": "video_content_id_idx",
           "columns": [
-            {
-              "expression": "content_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "video_created_at_idx": {
-          "name": "video_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "video_contentType_contentId_unique": {
-          "name": "video_contentType_contentId_unique",
-          "nullsNotDistinct": false,
-          "columns": ["content_type", "content_id"]
+            "user_id"
+          ]
         }
       },
       "policies": {},
@@ -3681,8 +2831,12 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3752,8 +2906,12 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3763,7 +2921,9 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -3824,7 +2984,9 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},

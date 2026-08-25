@@ -3,24 +3,77 @@ const BILLION_SITE_URL = "https://www.billion-news.app";
 const BILLION_APP_STORE_URL =
   "https://apps.apple.com/us/app/billion-news/id6761675243";
 
+/**
+ * Where someone signed up from, as far as it changes what we can tell them.
+ *
+ * Only Android is called out: they came from a device with nothing to install,
+ * so "Download on the App Store" would be an instruction they cannot follow.
+ * Everyone else — the site, an iPhone, a desktop — gets the store link.
+ */
+export type MailingListSignupPlatform = "android" | "default";
+
 export const MAILING_LIST_CONFIRMATION_SUBJECT =
   "You're subscribed to Billion updates";
 
-export const MAILING_LIST_CONFIRMATION_TEXT = [
-  "You're subscribed to Billion updates.",
-  "",
-  "Thanks for subscribing to Billion—the simpler way to see what your government is actually doing.",
-  "",
-  "We'll send occasional updates about feature releases, Android availability, and what's happening in civic life.",
-  "",
-  "Billion is available now on the App Store:",
-  BILLION_APP_STORE_URL,
-  "",
-  "Thanks for following along.",
-  "— The Billion team",
-].join("\n");
+export function mailingListConfirmationEmail(
+  platform: MailingListSignupPlatform,
+) {
+  return {
+    subject: MAILING_LIST_CONFIRMATION_SUBJECT,
+    text: confirmationText(platform),
+    html: confirmationHtml(platform),
+  };
+}
 
-export const MAILING_LIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+function confirmationText(platform: MailingListSignupPlatform) {
+  const closing =
+    platform === "android"
+      ? [
+          "We'll email you the day the Android app is ready.",
+          "",
+          "If you have an iPhone nearby, Billion is on the App Store today:",
+          BILLION_APP_STORE_URL,
+        ]
+      : ["Billion is available now on the App Store:", BILLION_APP_STORE_URL];
+
+  return [
+    "You're subscribed to Billion updates.",
+    "",
+    "Thanks for subscribing to Billion—the simpler way to see what your government is actually doing.",
+    "",
+    "We'll send occasional updates about feature releases, Android availability, and what's happening in civic life.",
+    "",
+    ...closing,
+    "",
+    "Thanks for following along.",
+    "— The Billion team",
+  ].join("\n");
+}
+
+/**
+ * The call-to-action row. Android gets a sentence where the button would be:
+ * a button promising a download they can't make is worse than no button.
+ */
+function confirmationCallToAction(platform: MailingListSignupPlatform) {
+  if (platform === "android") {
+    return `<td class="content" style="padding:24px 48px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:26px;color:#E7E9F0;">
+                      <p style="margin:0;">We’ll email you the day the Android app is ready. If you have an iPhone nearby, Billion is <a href="${BILLION_APP_STORE_URL}" target="_blank" rel="noopener noreferrer" style="color:#9DB8FF;text-decoration:underline;">on the App Store</a> today.</p>
+                    </td>`;
+  }
+
+  return `<td class="content" style="padding:28px 48px 0;">
+                      <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                        <tr>
+                          <td style="background-color:#4A7CFF;border-radius:999px;">
+                            <a href="${BILLION_APP_STORE_URL}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 22px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;">Download on the App Store</a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>`;
+}
+
+function confirmationHtml(platform: MailingListSignupPlatform) {
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html dir="ltr" lang="en" xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -118,15 +171,7 @@ export const MAILING_LIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DT
                   </tr>
 
                   <tr>
-                    <td class="content" style="padding:28px 48px 0;">
-                      <table border="0" cellpadding="0" cellspacing="0" role="presentation">
-                        <tr>
-                          <td style="background-color:#4A7CFF;border-radius:999px;">
-                            <a href="${BILLION_APP_STORE_URL}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 22px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#FFFFFF;">Download on the App Store</a>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
+                    ${confirmationCallToAction(platform)}
                   </tr>
 
                   <tr>
@@ -163,3 +208,4 @@ export const MAILING_LIST_CONFIRMATION_HTML = `<!DOCTYPE html PUBLIC "-//W3C//DT
     </table>
   </body>
 </html>`;
+}

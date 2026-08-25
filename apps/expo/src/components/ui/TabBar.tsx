@@ -14,6 +14,10 @@ import { BlurView } from "expo-blur";
 import type { IconName } from "./Icon";
 import { colors, fontBody, hair } from "~/styles";
 import { Icon } from "./Icon";
+import {
+  getTabBarItemDisplay,
+  isTabRouteHidden,
+} from "./tab-bar-visibility";
 
 // expo-router's Tabs accepts a custom `tabBar` render prop; derive its props
 // type from there so we don't depend on @react-navigation/bottom-tabs directly.
@@ -39,17 +43,22 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
     >
       <View style={s.inner}>
         {state.routes.map((route, index) => {
-          // Do not expose Settings in production. `href: null` is retained on
-          // the route as a second guard, but custom tab bars cannot rely on
-          // Expo Router forwarding that value into runtime descriptors.
-          if (!__DEV__ && route.name === "settings") return null;
-
           const descriptor = descriptors[route.key];
           if (!descriptor) return null;
           const { options } = descriptor;
-          // Expo Router hides tab routes with href: null; custom tab bars need
-          // to respect that option explicitly.
-          if ((options as { href?: unknown }).href === null) return null;
+          const itemStyle = StyleSheet.flatten(options.tabBarItemStyle);
+          // Expo Router removes `href` before descriptors reach custom bars
+          // and translates hidden routes to `display: none` instead.
+          if (
+            isTabRouteHidden({
+              routeName: route.name,
+              isDev: __DEV__,
+              href: (options as { href?: unknown }).href,
+              itemDisplay: getTabBarItemDisplay(itemStyle),
+            })
+          ) {
+            return null;
+          }
           const label =
             typeof options.tabBarLabel === "string"
               ? options.tabBarLabel

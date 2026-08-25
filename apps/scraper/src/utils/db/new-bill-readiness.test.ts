@@ -5,9 +5,8 @@ import { newBillReadiness } from "./operations.js";
 
 /**
  * These assertions describe what a reader would see if the rule were loosened.
- * A bill that fails any of them renders as a grey "bill · header art"
- * placeholder above a wall of raw GPO text — which is the state that prompted
- * this path to exist, not a hypothetical.
+ * A bill that fails any of them renders a wall of raw GPO text instead of the
+ * structured explainer. Generated header art is disabled and is not required.
  */
 
 // Long enough and prose-like enough to pass `isUsableSourceText`.
@@ -22,35 +21,10 @@ const complete = {
   description: "This bill would require hospitals to publish their prices.",
   fullText: usableText,
   hasBrief: true,
-  headerArt: { imageData: Buffer.from("jpeg"), thumbnailUrl: null },
 };
 
-test("a bill with description, text, brief and art is ready", () => {
+test("a bill with description, text and brief is ready", () => {
   assert.deepEqual(newBillReadiness(complete), { ready: true });
-});
-
-test("a scraped thumbnail counts as header art", () => {
-  // Either one renders; only the absence of both shows the placeholder.
-  const result = newBillReadiness({
-    ...complete,
-    headerArt: { imageData: null, thumbnailUrl: "https://example.gov/i.jpg" },
-  });
-  assert.equal(result.ready, true);
-});
-
-test("art generation producing neither image nor thumbnail blocks the bill", () => {
-  const result = newBillReadiness({
-    ...complete,
-    headerArt: { imageData: null, thumbnailUrl: null },
-  });
-  assert.equal(result.ready, false);
-  assert.match(result.reason!, /header art/);
-});
-
-test("art generation failing outright blocks the bill", () => {
-  const result = newBillReadiness({ ...complete, headerArt: null });
-  assert.equal(result.ready, false);
-  assert.match(result.reason!, /header art/);
 });
 
 test("a missing brief blocks the bill", () => {
@@ -64,7 +38,11 @@ test("a missing brief blocks the bill", () => {
 test("a blank or whitespace description blocks the bill", () => {
   for (const description of [undefined, null, "", "   "]) {
     const result = newBillReadiness({ ...complete, description });
-    assert.equal(result.ready, false, `description ${JSON.stringify(description)}`);
+    assert.equal(
+      result.ready,
+      false,
+      `description ${JSON.stringify(description)}`,
+    );
     assert.match(result.reason!, /description/);
   }
 });

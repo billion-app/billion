@@ -6,6 +6,8 @@ export const CONTENT_JURISDICTIONS = [
   "tx",
 ] as const;
 
+const SUPPORTED_CONTENT_JURISDICTIONS = ["federal", "ca", "nc", "tx"] as const;
+
 export type ContentJurisdiction = (typeof CONTENT_JURISDICTIONS)[number];
 export type StateJurisdiction = Exclude<ContentJurisdiction, "federal">;
 export type JurisdictionCode = "US" | "CA" | "MO" | "NC" | "TX";
@@ -21,9 +23,8 @@ export interface JurisdictionDefinition {
   subtitlePlace: string;
 }
 
-export const STATE_JURISDICTIONS: StateJurisdiction[] = [
+export const SUPPORTED_STATE_JURISDICTIONS: StateJurisdiction[] = [
   "ca",
-  "mo",
   "nc",
   "tx",
 ];
@@ -52,6 +53,9 @@ export const JURISDICTIONS: Record<
     icon: "pin",
     subtitlePlace: "Sacramento",
   },
+  // Legacy API responses and saved navigation state may still contain `mo`.
+  // Keep the display definition until those installed clients age out, but do
+  // not include it in SUPPORTED_STATE_JURISDICTIONS.
   mo: {
     id: "mo",
     name: "Missouri",
@@ -94,7 +98,9 @@ const ADDRESS_PATTERNS: Record<StateJurisdiction, RegExp> = {
 export function isContentJurisdiction(
   value: string | null,
 ): value is ContentJurisdiction {
-  return CONTENT_JURISDICTIONS.some((jurisdiction) => jurisdiction === value);
+  return SUPPORTED_CONTENT_JURISDICTIONS.some(
+    (jurisdiction) => jurisdiction === value,
+  );
 }
 
 export function isStateJurisdiction(
@@ -107,7 +113,7 @@ export function jurisdictionFromAddress(
   address: string | null,
 ): StateJurisdiction | undefined {
   if (!address) return undefined;
-  return STATE_JURISDICTIONS.find((jurisdiction) =>
+  return SUPPORTED_STATE_JURISDICTIONS.find((jurisdiction) =>
     ADDRESS_PATTERNS[jurisdiction].test(address),
   );
 }

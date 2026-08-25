@@ -8,7 +8,6 @@ import {
   ContentLens,
   CourtCase,
   GovernmentContent,
-  Video,
 } from "@acme/db/schema";
 import { isCurrentBillBrief } from "@acme/validators";
 
@@ -18,7 +17,6 @@ import type {
   CourtCaseData,
   GovernmentContentData,
 } from "../types.js";
-import type { BuiltVideoRecord, DbExecutor } from "./video-operations.js";
 import { generateBillBrief } from "../ai/bill-brief.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
@@ -49,15 +47,10 @@ import {
   incrementImagesSearched,
   incrementNewEntries,
   incrementTotalProcessed,
-  incrementVideosGenerated,
 } from "./metrics.js";
-import {
-  buildVideoRecord,
-  generateVideoForContent,
-  persistVideoRecord,
-} from "./video-operations.js";
 
 const logger = createLogger("db");
+type DbExecutor = Pick<typeof db, "insert">;
 const forceAIRegeneration = process.env.SCRAPER_FORCE_AI_REGEN === "1";
 const skipOptionalDualLens = process.env.SCRAPER_SKIP_DUAL_LENS === "1";
 
@@ -314,17 +307,15 @@ export async function upsertContent(
 
   // A bill we have never stored is assembled completely before anything is
   // written. Everything below this point in the ordinary path writes the row
-  // first and enriches afterwards, which leaves the bill visible — titled,
-  // described, but with a grey placeholder where its header art belongs and raw
-  // GPO text under "Plain explainer" — for the two to four minutes its assets
-  // take to generate. For an existing bill that is the right trade, because the
+  // first and enriches afterwards, which leaves the bill visible with raw GPO
+  // text under "Plain explainer" for the time its brief takes to generate. For
+  // an existing bill that is the right trade, because the
   // row is already public and refreshing it in place only improves it. For a
   // new one it means publishing something unfinished, which is what this path
   // exists to prevent.
   //
-  // The id is minted here rather than by the database so the brief and the
-  // video can reference the bill before it exists, and all three rows land in
-  // one transaction.
+  // The id is minted here rather than by the database so the brief can
+  // reference the bill before it exists, and both rows land in one transaction.
   if (!existing && input.type === "bill" && !budgetExhausted) {
     const assembled = await assembleNewBill({
       data: input.data,
@@ -478,11 +469,6 @@ export async function upsertContent(
           eq(ContentBrief.contentType, input.type),
           eq(ContentBrief.contentId, rowId),
         ),
-      );
-    await db
-      .delete(Video)
-      .where(
-        and(eq(Video.contentType, input.type), eq(Video.contentId, rowId)),
       );
     await db.delete(table).where(eq(idCol, rowId));
   };
@@ -664,41 +650,6 @@ export async function upsertContent(
     }
   }
 
-  if (fullText && !budgetExhausted) {
-    try {
-      const videoSource =
-        input.type === "bill"
-          ? input.data.sourceWebsite
-          : input.type === "government_content"
-            ? (input.data.source ?? "whitehouse.gov")
-            : input.data.court;
-      await generateVideoForContent(
-        input.type,
-        result.id,
-        title,
-        fullText,
-        newContentHash,
-        videoSource,
-        result.thumbnailUrl,
-        {},
-        claimBudget,
-      );
-    } catch (error) {
-      if (error instanceof AIRateLimitError) {
-        logger.warn(
-          `AI rate limit hit — ${label} saved without video, will retry next run`,
-        );
-      } else {
-        // Video generation is supplementary — a failure here must not abort
-        // content processing or propagate the raw DB error (which can contain
-        // binary image data) up to the scraper's generic error handler
-        logger.warn(
-          `Video generation failed for ${label} — content was saved successfully: ${error instanceof Error ? error.message : error}`,
-        );
-      }
-    }
-  }
-
   tickProgress({
     newEntries: progressKind === "new" ? 1 : 0,
     unchanged: progressKind === "unchanged" ? 1 : 0,
@@ -842,7 +793,6 @@ export function newBillReadiness(candidate: {
   description?: string | null;
   fullText?: string | null;
   hasBrief: boolean;
-  headerArt: { imageData: Buffer | null; thumbnailUrl: string | null } | null;
 }): { ready: boolean; reason?: string } {
   if (!candidate.description?.trim()) {
     return { ready: false, reason: "no description could be produced" };
@@ -853,25 +803,16 @@ export function newBillReadiness(candidate: {
   if (!candidate.hasBrief) {
     return { ready: false, reason: "brief generation failed" };
   }
-  if (!candidate.headerArt) {
-    return { ready: false, reason: "header art generation failed" };
-  }
-  // Generated art or a scraped thumbnail both render; neither means the reader
-  // gets the grey placeholder.
-  if (!candidate.headerArt.imageData && !candidate.headerArt.thumbnailUrl) {
-    return { ready: false, reason: "no header art could be produced" };
-  }
   return { ready: true };
 }
 
 /**
- * Build every required asset for a brand-new bill, then write the bill, its
- * header art and its brief in a single transaction.
+ * Build every required asset for a brand-new bill, then write the bill and its
+ * brief in a single transaction.
  *
- * "Required" is deliberately narrow: a description, a structured brief, and
- * header art. Those are what the detail screen renders — without them a reader
- * gets a grey placeholder and a wall of raw GPO text, which is worse than the
- * bill simply not being there yet. The dual lens is *not* required: it runs an
+ * "Required" is deliberately narrow: a description and a structured brief.
+ * Generated header art is absent while the video feed is disabled. The dual
+ * lens is *not* required: it runs an
  * agentic research loop that can legitimately come back empty, and the UI
  * degrades cleanly without it, so gating on it would suppress good bills for a
  * reason readers would never see.
@@ -891,14 +832,13 @@ async function assembleNewBill(args: {
   const description = args.description ?? data.description;
 
   // Cheap preconditions first, so a bill that can never be completed this run
-  // does not spend budget or a generation call finding that out. The brief and
-  // art are stubbed as present here because they have not been attempted yet —
-  // the same rule runs again for real once they have.
+  // does not spend budget or a generation call finding that out. The brief is
+  // stubbed as present here because it has not been attempted yet. The same
+  // rule runs again for real once it has.
   const precheck = newBillReadiness({
     description,
     fullText: data.fullText,
     hasBrief: true,
-    headerArt: { imageData: null, thumbnailUrl: "pending" },
   });
   if (!precheck.ready) {
     return { status: "incomplete", reason: precheck.reason! };
@@ -927,29 +867,20 @@ async function assembleNewBill(args: {
     return { status: "incomplete", reason: "brief generation failed" };
   }
 
-  const video = await buildVideoRecord(
-    "bill",
-    data.title,
-    data.fullText,
-    contentHash,
-    data.sourceWebsite,
-  );
-
   const readiness = newBillReadiness({
     description,
     fullText: data.fullText,
     hasBrief: Boolean(brief),
-    headerArt: video,
   });
-  if (!readiness.ready || !video) {
+  if (!readiness.ready) {
     return {
       status: "incomplete",
-      reason: readiness.reason ?? "header art generation failed",
+      reason: readiness.reason ?? "required bill content is incomplete",
     };
   }
 
   // Every required asset now exists in memory. The single transaction below is
-  // the first and only write: either the bill, its art and its brief all become
+  // the first and only write: either the bill and its brief both become
   // visible together, or none of them ever existed.
   await db.transaction(async (tx) => {
     await tx.insert(Bill).values({
@@ -959,12 +890,10 @@ async function assembleNewBill(args: {
       contentHash,
       versions: [],
     });
-    await persistVideoRecord(tx, "bill", billId, video);
     await persistBillBrief(tx, billId, contentHash, brief);
   });
 
-  incrementVideosGenerated();
-  logger.success(`${label} stored complete (brief + header art)`);
+  logger.success(`${label} stored complete (brief)`);
 
   // The lens comes after the commit, on purpose. It is additive rather than
   // required, so it must not be able to hold back a bill that is otherwise
@@ -999,9 +928,8 @@ async function assembleNewBill(args: {
 /**
  * A structured brief, generated but not yet stored.
  *
- * Split out for the same reason as the video record: a bill's assets are all
- * produced before any row exists, so the bill can be written complete in one
- * transaction rather than appearing and then filling in.
+ * Split out so the required assets are produced before any row exists and the
+ * bill can be written complete in one transaction.
  */
 export interface BuiltBillBrief {
   brief: NonNullable<Awaited<ReturnType<typeof generateBillBrief>>> & {

@@ -1,18 +1,19 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, desc, eq, inArray, or, sql, unionAll } from "@acme/db";
+import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
 import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
+import { resolveContentImageUrl } from "@acme/db/content-images";
 import {
   Bill,
   BriefChangeImage,
   ContentBrief,
+  ContentImage,
   ContentLens,
   CourtCase,
   GovernmentContent,
   SavedArticle,
-  Video,
 } from "@acme/db/schema";
 import { parseBillBriefRecord, sanitizeBillStatus } from "@acme/validators";
 
@@ -94,67 +95,35 @@ interface ContentImageRef {
   thumbnailUrl?: string;
 }
 
-interface VideoImage {
-  imageUri?: string;
-  thumbnailUrl?: string;
-}
-
-function videoImageUri(
-  imageData: Buffer | null,
-  imageMimeType: string | null,
-): string | undefined {
-  if (!imageData || !imageMimeType) return undefined;
-  return `data:${imageMimeType};base64,${imageData.toString("base64")}`;
-}
-
-async function loadVideoImages(
-  refs: readonly ContentImageRef[],
-): Promise<Map<string, VideoImage>> {
-  const conditions = SAVED_CONTENT_TYPES.flatMap((type) => {
-    const ids = refs.filter((ref) => ref.type === type).map((ref) => ref.id);
-    return ids.length > 0
-      ? [and(eq(Video.contentType, type), inArray(Video.contentId, ids))]
-      : [];
-  });
-  if (conditions.length === 0) return new Map();
-
-  const videos = await db
-    .select({
-      contentType: Video.contentType,
-      contentId: Video.contentId,
-      imageData: Video.imageData,
-      imageMimeType: Video.imageMimeType,
-      thumbnailUrl: Video.thumbnailUrl,
-    })
-    .from(Video)
-    .where(or(...conditions));
-
-  return new Map(
-    videos.map((video) => [
-      `${video.contentType}:${video.contentId}`,
-      {
-        imageUri: videoImageUri(video.imageData, video.imageMimeType),
-        thumbnailUrl: video.thumbnailUrl ?? undefined,
-      },
-    ]),
-  );
-}
-
-async function attachVideoImages<T extends ContentImageRef>(
+export async function attachContentImages<T extends ContentImageRef>(
   items: readonly T[],
 ): Promise<(T & { imageUri?: string })[]> {
-  const videoImages = await loadVideoImages(items);
-  return items.map((item) => {
-    const video = videoImages.get(`${item.type}:${item.id}`);
-    const thumbnailUrl = item.thumbnailUrl ?? video?.thumbnailUrl;
-    return {
-      ...item,
-      thumbnailUrl,
-      // Source thumbnails remain preferred. Use the generated JPEG only when
-      // the source content has no usable URL of its own.
-      imageUri: thumbnailUrl ? undefined : video?.imageUri,
-    };
-  });
+  if (items.length === 0) return [];
+
+  const rows = await db
+    .select({
+      contentType: ContentImage.contentType,
+      contentId: ContentImage.contentId,
+      storagePath: ContentImage.storagePath,
+    })
+    .from(ContentImage)
+    .where(
+      inArray(
+        ContentImage.contentId,
+        items.map((item) => item.id),
+      ),
+    );
+  const pathByContent = new Map(
+    rows.map((row) => [`${row.contentType}:${row.contentId}`, row.storagePath]),
+  );
+
+  return items.map((item) => ({
+    ...item,
+    imageUri: resolveContentImageUrl(
+      item.thumbnailUrl,
+      pathByContent.get(`${item.type}:${item.id}`),
+    ),
+  }));
 }
 
 // Look up cached dual-lens perspectives for a content item. Returns null when
@@ -262,22 +231,7 @@ export async function getThumbnailForContent(
         .limit(1);
       thumbnailUrl = result[0]?.thumbnailUrl ?? null;
     }
-    if (thumbnailUrl || type === "general") return thumbnailUrl;
-
-    const [video] = await db
-      .select({
-        imageData: Video.imageData,
-        imageMimeType: Video.imageMimeType,
-        thumbnailUrl: Video.thumbnailUrl,
-      })
-      .from(Video)
-      .where(and(eq(Video.contentType, type), eq(Video.contentId, id)))
-      .limit(1);
-    return (
-      videoImageUri(video?.imageData ?? null, video?.imageMimeType ?? null) ??
-      video?.thumbnailUrl ??
-      null
-    );
+    return thumbnailUrl;
   } catch (error) {
     console.error(`Error fetching thumbnail for ${type} ${id}:`, error);
     return null;
@@ -403,7 +357,7 @@ export const contentRouter = {
       })),
     ];
 
-    return attachVideoImages(allContent);
+    return await attachContentImages(allContent);
   }),
 
   // Get content filtered by type from database, paginated for infinite scroll.
@@ -524,7 +478,7 @@ export const contentRouter = {
         );
 
         return {
-          items: await attachVideoImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -541,7 +495,7 @@ export const contentRouter = {
         const page = hasMore ? bills.slice(0, limit) : bills;
         const items: ContentCard[] = page.map(toBillCard);
         return {
-          items: await attachVideoImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -569,7 +523,7 @@ export const contentRouter = {
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
         return {
-          items: await attachVideoImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -595,7 +549,7 @@ export const contentRouter = {
         thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
       }));
       return {
-        items: await attachVideoImages(items),
+        items: await attachContentImages(items),
         nextCursor: hasMore ? cursor + limit : undefined,
       };
     }),
@@ -649,7 +603,7 @@ export const contentRouter = {
           .orderBy(desc(billRank))
           .limit(limit);
         const items: ContentCard[] = bills.map(toBillCard);
-        return attachVideoImages(items);
+        return await attachContentImages(items);
       }
 
       if (type === "government_content" || type === "general") {
@@ -668,7 +622,7 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
-        return attachVideoImages(items);
+        return await attachContentImages(items);
       }
 
       if (type === "court_case") {
@@ -687,7 +641,7 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
         }));
-        return attachVideoImages(items);
+        return await attachContentImages(items);
       }
 
       // "all" — union matches from all three tables, re-ranked together.
@@ -779,7 +733,7 @@ export const contentRouter = {
               jurisdictionCode: "US",
             },
       );
-      return attachVideoImages(items);
+      return await attachContentImages(items);
     }),
 
   // Get detailed content by ID from database
@@ -824,7 +778,7 @@ export const contentRouter = {
               imageUrl: official?.image,
             }
           : undefined;
-        const [result] = await attachVideoImages([
+        const [result] = await attachContentImages([
           {
             id: b.id,
             title: b.title,
@@ -863,7 +817,7 @@ export const contentRouter = {
         .limit(1);
       if (content[0]) {
         const c = content[0];
-        const [result] = await attachVideoImages([
+        const [result] = await attachContentImages([
           {
             id: c.id,
             title: c.title,
@@ -893,7 +847,7 @@ export const contentRouter = {
         .limit(1);
       if (courtCase[0]) {
         const c = courtCase[0];
-        const [result] = await attachVideoImages([
+        const [result] = await attachContentImages([
           {
             id: c.id,
             title: c.title,
@@ -958,7 +912,7 @@ export const contentRouter = {
             ).catch(() => undefined)
           : undefined,
       ]);
-      const sponsoredBills = await attachVideoImages(
+      const sponsoredBills = await attachContentImages(
         sponsoredBillRows.map((item) => ({
           ...item,
           type: "bill" as const,
@@ -1085,7 +1039,7 @@ export const contentRouter = {
                 },
           );
         return {
-          items: await attachVideoImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }),
