@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CONTENT_IMAGE_STYLE_VERSION,
   contentVisualPlanningPrompt,
+  planRenderedContentImagePrompt,
   renderContentImagePrompt,
   versionContentImageHash,
 } from "./content-image-visual.js";
@@ -49,6 +50,22 @@ test("a visual plan containing written material is rejected", () => {
       }),
     /includes written material/,
   );
+});
+
+test("invalid visual plans are retried before the image job fails", async () => {
+  let attempts = 0;
+  const prompt = await planRenderedContentImagePrompt(source, async () => {
+    attempts += 1;
+    return attempts < 3
+      ? { scene: "A courthouse screen covered in words" }
+      : {
+          scene:
+            "A brass market scale balancing luminous coins while civic stewards guide traders through bright guardrails",
+        };
+  });
+
+  assert.equal(attempts, 3);
+  assert.match(prompt, /brass market scale/);
 });
 
 test("the style version makes old documentary rows stale", () => {

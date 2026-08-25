@@ -58,7 +58,7 @@ export const jobs: readonly JobDefinition[] = [
   ),
   {
     id: "content-images-daily",
-    description: "Generate grounded header art for retained content",
+    description: "Generate illustrated header art for recent retained content",
     script: "content-images.js",
     args: ["--bill-limit", "80", "--other-limit", "20", "--concurrency", "1"],
     schedule: { kind: "daily", hour: 4, minute: 15 },
@@ -134,6 +134,26 @@ export const jobs: readonly JobDefinition[] = [
     priority: 19,
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
+  },
+  {
+    id: "backfill-content-images",
+    description: "Generate illustrated header art for all retained content",
+    script: "content-images.js",
+    // A generous ceiling drains the current retained corpus in one durable
+    // supervisor run. The query selects only missing or style-stale rows, so
+    // rerunning this job after completion is a cheap no-op.
+    args: [
+      "--bill-limit",
+      "1000",
+      "--other-limit",
+      "1000",
+      "--concurrency",
+      "1",
+    ],
+    schedule: { kind: "manual" },
+    priority: 18,
+    idleTimeoutMinutes: 120,
+    maxRuntimeHours: 72,
   },
   {
     id: "retro-briefs",
