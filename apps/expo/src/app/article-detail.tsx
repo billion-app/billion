@@ -3,7 +3,6 @@ import type { LayoutChangeEvent } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   ScrollView,
   StyleSheet,
@@ -13,10 +12,12 @@ import {
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "@ronradtke/react-native-markdown-display";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import type { BillBriefData, BriefQuote } from "~/components/ui";
+import type { ShareSurface } from "~/utils/share";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
+import { ShareSheet } from "~/components/ShareSheet";
 import { Text } from "~/components/Themed";
 import {
   Avatar,
@@ -33,6 +34,8 @@ import {
   Segmented,
 } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useSavedContent } from "~/hooks/useSavedContent";
+import { useScreenshotDetection } from "~/hooks/useScreenshotDetection";
 import {
   colors,
   contentType,
@@ -45,8 +48,7 @@ import {
   planes,
   resolveType,
 } from "~/styles";
-import { queryClient, trpc } from "~/utils/api";
-import { authClient } from "~/utils/auth";
+import { trpc } from "~/utils/api";
 import { formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
@@ -64,6 +66,9 @@ export default function ArticleDetailScreen() {
     null,
   );
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  // Which surface opened the share sheet, or null when it is closed. The
+  // surface is what the share is attributed to, so it is the state.
+  const [shareSurface, setShareSurface] = useState<ShareSurface | null>(null);
   const [failedHeaderImageKey, setFailedHeaderImageKey] = useState<
     string | undefined
   >();
@@ -107,69 +112,29 @@ export default function ArticleDetailScreen() {
     ? `${content.title}:${headerImageUri ?? "local"}`
     : undefined;
 
-  // content.saved.isSaved is a protected procedure — only query it when signed in,
-  // otherwise it throws UNAUTHORIZED.
-  const { data: session } = authClient.useSession();
-  const isSignedIn = !!session?.user;
+  const { isSaved, toggleSave } = useSavedContent();
+  const saved = !!articleId && isSaved(articleId);
 
-  const savedQuery = useQuery({
-    ...trpc.content.saved.isSaved.queryOptions({ contentId: articleId ?? "" }),
-    enabled: !!articleId && isSignedIn,
-  });
-  const saved = savedQuery.data?.saved ?? false;
-
-  const saveMutation = useMutation({
-    ...trpc.content.saved.add.mutationOptions(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: trpc.content.saved.isSaved.queryKey({
-          contentId: articleId ?? "",
-        }),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: trpc.content.saved.list.infiniteQueryKey(),
-      });
-    },
-  });
-  const unsaveMutation = useMutation({
-    ...trpc.content.saved.remove.mutationOptions(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: trpc.content.saved.isSaved.queryKey({
-          contentId: articleId ?? "",
-        }),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: trpc.content.saved.list.infiniteQueryKey(),
-      });
-    },
-  });
-
-  const toggleSave = () => {
+  const handleToggleSave = () => {
     if (!articleId || !content) return;
-    if (!isSignedIn) {
-      Alert.alert(
-        "Sign in to save",
-        "Sign in to bookmark and revisit content.",
-      );
-      return;
-    }
-    if (saved) {
-      unsaveMutation.mutate({ contentId: articleId });
-      posthog.capture("content_unsaved", {
-        content_id: articleId,
-        content_type: content.type,
-        content_title: content.title,
-      });
-    } else {
-      saveMutation.mutate({ contentId: articleId, contentType: content.type });
-      posthog.capture("content_saved", {
-        content_id: articleId,
-        content_type: content.type,
-        content_title: content.title,
-      });
-    }
+    toggleSave({ id: articleId, type: content.type, title: content.title });
   };
+
+  /**
+   * A screenshot is a reader telling us they want to show this to someone, in
+   * the only way the app has so far given them. Meeting that with the share
+   * sheet turns a flat image into a link that travels — and, unlike the
+   * screenshot, one we can attribute.
+   */
+  useScreenshotDetection(() => {
+    if (!content) return;
+    posthog.capture("article_screenshotted", {
+      content_id: content.id,
+      content_type: content.type,
+      content_title: content.title,
+    });
+    setShareSurface("screenshot");
+  }, !!content);
 
   if (isLoading) {
     return (
@@ -366,15 +331,32 @@ export default function ArticleDetailScreen() {
         title={t.label}
         onBack={() => router.back()}
         action={
-          __DEV__ ? (
-            <TouchableOpacity onPress={toggleSave} hitSlop={8}>
+          <>
+            <TouchableOpacity
+              onPress={() => setShareSurface("article_header")}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Share this record"
+              testID="article-share"
+            >
+              <Icon name="share" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleToggleSave}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={
+                saved ? "Remove from saved" : "Save to read later"
+              }
+              testID="article-save"
+            >
               <Icon
                 name={saved ? "bookmarkFill" : "bookmark"}
                 size={21}
                 color={saved ? colors.white : colors.textSecondary}
               />
             </TouchableOpacity>
-          ) : undefined
+          </>
         }
       />
 
@@ -677,6 +659,28 @@ export default function ArticleDetailScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      {shareSurface ? (
+        <ShareSheet
+          visible
+          onClose={() => setShareSurface(null)}
+          contentId={content.id}
+          contentType={content.type}
+          contentTitle={content.title}
+          surface={shareSurface}
+          accent={t.color}
+          heading={
+            shareSurface === "screenshot"
+              ? "Send the real thing instead"
+              : undefined
+          }
+          subheading={
+            shareSurface === "screenshot"
+              ? "A link opens the whole brief, stays readable, and works for anyone you send it to."
+              : undefined
+          }
+        />
+      ) : null}
     </View>
   );
 }

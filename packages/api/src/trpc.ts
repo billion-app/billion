@@ -74,6 +74,17 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
 export const createTRPCRouter = t.router;
 
 /**
+ * Calls procedures in-process, with no HTTP hop.
+ *
+ * Used by React Server Components that render a procedure's result straight
+ * into HTML — the public bill page and its image routes — rather than handing
+ * it to a client-side query. They have no browser to fetch from.
+ *
+ * @see https://trpc.io/docs/server/server-side-calls
+ */
+export const createCallerFactory = t.createCallerFactory;
+
+/**
  * Middleware for timing procedure execution and adding an articifial delay in development.
  *
  * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating

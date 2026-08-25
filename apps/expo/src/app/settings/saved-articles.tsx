@@ -113,6 +113,14 @@ export default function SavedArticlesScreen() {
       void queryClient.invalidateQueries({
         queryKey: trpc.content.saved.list.infiniteQueryKey(),
       });
+      // Browse and the article screen both read saved state from elsewhere;
+      // an unsave here has to reach them or the bookmark stays filled.
+      void queryClient.invalidateQueries({
+        queryKey: trpc.content.saved.allIds.queryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: trpc.content.saved.isSaved.pathKey(),
+      });
     },
   });
 

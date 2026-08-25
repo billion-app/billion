@@ -1081,6 +1081,25 @@ export const contentRouter = {
         return { success: true };
       }),
 
+    // Every content id the current user has saved.
+    //
+    // Browse renders a page of cards at once, and asking `isSaved` per row
+    // would put a round trip behind every card. A reader's saved set is small
+    // and only changes when they tap a bookmark, so the whole set is cheaper
+    // to fetch once than to ask about piecemeal — and unlike a per-page
+    // lookup it stays correct as the list pages in.
+    //
+    // This replaced `isSaved` on every screen. That procedure is kept because
+    // app builds already on people's phones still call it, and they keep
+    // calling it until they update.
+    allIds: protectedProcedure.query(async ({ ctx }) => {
+      const rows = await db
+        .select({ contentId: SavedArticle.contentId })
+        .from(SavedArticle)
+        .where(eq(SavedArticle.userId, ctx.session.user.id));
+      return { savedIds: rows.map((row) => row.contentId) };
+    }),
+
     // Whether the given content is already saved by the current user.
     isSaved: protectedProcedure
       .input(z.object({ contentId: z.string().uuid() }))

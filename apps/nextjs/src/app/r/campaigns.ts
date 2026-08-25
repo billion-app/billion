@@ -28,6 +28,15 @@ export const CAMPAIGN_CODES: Record<string, Record<string, string>> = {
     utm_campaign: "instagram_bio",
   },
 
+  // The install call to action on a shared record's web page (`/b/<id>`).
+  // Its own campaign because a reader who arrived from someone else's link is
+  // a different acquisition story from one who came off a flyer.
+  share_web: {
+    utm_source: "share",
+    utm_medium: "referral",
+    utm_campaign: "share_web",
+  },
+
   // Anything else can set its own combination, e.g.
   // yt_1: { utm_source: "youtube", utm_medium: "video", utm_campaign: "yt_1" },
 };
