@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isTabRouteHidden } from "./tab-bar-visibility.ts";
+import {
+  getTabBarItemDisplay,
+  isTabRouteHidden,
+} from "./tab-bar-visibility.ts";
+
+test("ordinary native tabs can omit tabBarItemStyle", () => {
+  assert.equal(getTabBarItemDisplay(undefined), undefined);
+});
 
 test("hides Feed after Expo Router transforms href null", () => {
   assert.equal(
