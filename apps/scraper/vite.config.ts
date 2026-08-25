@@ -41,6 +41,9 @@ export default defineConfig({
         "change-images": fileURLToPath(
           new URL("./src/change-images.ts", import.meta.url),
         ),
+        "content-images": fileURLToPath(
+          new URL("./src/content-images.ts", import.meta.url),
+        ),
         "prune-bills": fileURLToPath(
           new URL("./src/prune-bills.ts", import.meta.url),
         ),

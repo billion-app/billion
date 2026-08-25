@@ -32,6 +32,7 @@ the arguments it takes; the supervisor supplies everything else.
 | ------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
 | `congress-daily`               | daily 03:15 local | Refreshes and retains the 80 most recently updated federal bills                 |
 | `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes and retains the 100 most recently updated measures per supported state |
+| `content-images-daily`         | daily 04:15 local | Generates grounded Storage-backed header art for retained content                |
 | `federalregister-weekly`       | Sundays 03:15     | Executive orders and presidential documents                                      |
 | `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
 | `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                              |

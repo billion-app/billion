@@ -1,13 +1,15 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, desc, eq, sql, unionAll } from "@acme/db";
+import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
 import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
+import { resolveContentImageUrl } from "@acme/db/content-images";
 import {
   Bill,
   BriefChangeImage,
   ContentBrief,
+  ContentImage,
   ContentLens,
   CourtCase,
   GovernmentContent,
@@ -93,10 +95,35 @@ interface ContentImageRef {
   thumbnailUrl?: string;
 }
 
-function attachContentImages<T extends ContentImageRef>(
+export async function attachContentImages<T extends ContentImageRef>(
   items: readonly T[],
-): (T & { imageUri?: string })[] {
-  return items.map((item) => ({ ...item, imageUri: undefined }));
+): Promise<(T & { imageUri?: string })[]> {
+  if (items.length === 0) return [];
+
+  const rows = await db
+    .select({
+      contentType: ContentImage.contentType,
+      contentId: ContentImage.contentId,
+      storagePath: ContentImage.storagePath,
+    })
+    .from(ContentImage)
+    .where(
+      inArray(
+        ContentImage.contentId,
+        items.map((item) => item.id),
+      ),
+    );
+  const pathByContent = new Map(
+    rows.map((row) => [`${row.contentType}:${row.contentId}`, row.storagePath]),
+  );
+
+  return items.map((item) => ({
+    ...item,
+    imageUri: resolveContentImageUrl(
+      item.thumbnailUrl,
+      pathByContent.get(`${item.type}:${item.id}`),
+    ),
+  }));
 }
 
 // Look up cached dual-lens perspectives for a content item. Returns null when
@@ -330,7 +357,7 @@ export const contentRouter = {
       })),
     ];
 
-    return attachContentImages(allContent);
+    return await attachContentImages(allContent);
   }),
 
   // Get content filtered by type from database, paginated for infinite scroll.
@@ -451,7 +478,7 @@ export const contentRouter = {
         );
 
         return {
-          items: attachContentImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -468,7 +495,7 @@ export const contentRouter = {
         const page = hasMore ? bills.slice(0, limit) : bills;
         const items: ContentCard[] = page.map(toBillCard);
         return {
-          items: attachContentImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -496,7 +523,7 @@ export const contentRouter = {
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
         return {
-          items: attachContentImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -522,7 +549,7 @@ export const contentRouter = {
         thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
       }));
       return {
-        items: attachContentImages(items),
+        items: await attachContentImages(items),
         nextCursor: hasMore ? cursor + limit : undefined,
       };
     }),
@@ -576,7 +603,7 @@ export const contentRouter = {
           .orderBy(desc(billRank))
           .limit(limit);
         const items: ContentCard[] = bills.map(toBillCard);
-        return attachContentImages(items);
+        return await attachContentImages(items);
       }
 
       if (type === "government_content" || type === "general") {
@@ -595,7 +622,7 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
-        return attachContentImages(items);
+        return await attachContentImages(items);
       }
 
       if (type === "court_case") {
@@ -614,7 +641,7 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
         }));
-        return attachContentImages(items);
+        return await attachContentImages(items);
       }
 
       // "all" — union matches from all three tables, re-ranked together.
@@ -706,7 +733,7 @@ export const contentRouter = {
               jurisdictionCode: "US",
             },
       );
-      return attachContentImages(items);
+      return await attachContentImages(items);
     }),
 
   // Get detailed content by ID from database
@@ -751,7 +778,7 @@ export const contentRouter = {
               imageUrl: official?.image,
             }
           : undefined;
-        const [result] = attachContentImages([
+        const [result] = await attachContentImages([
           {
             id: b.id,
             title: b.title,
@@ -790,7 +817,7 @@ export const contentRouter = {
         .limit(1);
       if (content[0]) {
         const c = content[0];
-        const [result] = attachContentImages([
+        const [result] = await attachContentImages([
           {
             id: c.id,
             title: c.title,
@@ -820,7 +847,7 @@ export const contentRouter = {
         .limit(1);
       if (courtCase[0]) {
         const c = courtCase[0];
-        const [result] = attachContentImages([
+        const [result] = await attachContentImages([
           {
             id: c.id,
             title: c.title,
@@ -885,7 +912,7 @@ export const contentRouter = {
             ).catch(() => undefined)
           : undefined,
       ]);
-      const sponsoredBills = attachContentImages(
+      const sponsoredBills = await attachContentImages(
         sponsoredBillRows.map((item) => ({
           ...item,
           type: "bill" as const,
@@ -1012,7 +1039,7 @@ export const contentRouter = {
                 },
           );
         return {
-          items: attachContentImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }),

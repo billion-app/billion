@@ -381,6 +381,7 @@ also includes the manual retention command. All are `pnpm`-scripted in
 | `retroactive-briefs`         | `retroactive-briefs.ts`         | Missing/stale bill `content_brief` rows     | `--dry-run` to preview                                        |
 | `retroactive-lenses`         | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows           | `--dry-run` to preview                                        |
 | `backfill-bill-descriptions` | `backfill-bill-descriptions.ts` | Bills with no source/AI description         | `--apply` (+ `--yes` on prod)                                 |
+| `content-images`             | `content-images.ts`             | Missing or stale Storage-backed header art  | Bill selection is hard-limited to 80; local FLUX only         |
 | `prune-bills`                | `prune-bills.ts`                | Bills beyond the newest N per jurisdiction  | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
 
 The scheduled Congress refresh passes `--recent 80 --retain 80`; Open States

@@ -744,6 +744,33 @@ export const ContentLens = pgTable(
 );
 
 /**
+ * Generated header artwork. Only the immutable Supabase Storage path and its
+ * checksum live in Postgres. The image bytes never consume database space.
+ */
+export const ContentImage = pgTable(
+  "content_image",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentType: t.varchar("content_type", { length: 20 }).notNull(),
+    contentId: t.uuid("content_id").notNull(),
+    contentHash: t.varchar("content_hash", { length: 64 }).notNull(),
+    storagePath: t.text("storage_path").notNull(),
+    imageHash: t.varchar("image_hash", { length: 64 }).notNull(),
+    prompt: t.text().notNull(),
+    width: t.integer().notNull(),
+    height: t.integer().notNull(),
+    createdAt: t.timestamp().defaultNow().notNull(),
+    updatedAt: t
+      .timestamp({ mode: "date", withTimezone: true })
+      .$onUpdateFn(() => sql`now()`),
+  }),
+  (table) => ({
+    uniqueContentImage: unique().on(table.contentType, table.contentId),
+    contentIdIndex: index("content_image_content_id_idx").on(table.contentId),
+  }),
+);
+
+/**
  * Structured article briefs — one row per content item, cached the same way as
  * ContentLens (regenerated when `contentHash` moves). Kept out of the content
  * tables so a brief can be regenerated, versioned, or dropped without touching
