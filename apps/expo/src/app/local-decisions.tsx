@@ -15,7 +15,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { DecisionCard } from "~/components/local-government/DecisionCard";
@@ -44,9 +44,11 @@ type TimelineTab = "upcoming" | "recent";
 export default function LocalDecisionsScreen() {
   const router = useRouter();
   const { theme } = useTheme();
-  const { address } = useUserAddress();
+  const { address, isLoading: isAddressLoading } = useUserAddress();
 
-  const jurisdiction = detectJurisdictionKey(address);
+  const detectedJurisdiction = detectJurisdictionKey(address);
+  const isSanJoseResident = detectedJurisdiction === "sanjose";
+  const jurisdiction = "sanjose" as const;
   const jurisdictionName = JURISDICTION_FALLBACK_NAMES[jurisdiction];
 
   const [tab, setTab] = useState<TimelineTab>("upcoming");
@@ -75,6 +77,7 @@ export default function LocalDecisionsScreen() {
     trpc.legistar.listDecisions.infiniteQueryOptions(
       { ...listInput, cursor: 0 },
       {
+        enabled: !isAddressLoading && isSanJoseResident,
         initialCursor: 0,
         getNextPageParam: (lastPage, allPages) =>
           lastPage.length === PAGE_SIZE ? allPages.length * PAGE_SIZE : null,
@@ -84,13 +87,14 @@ export default function LocalDecisionsScreen() {
 
   // One bounded probe so filter pills only appear for topics that actually
   // have decisions right now.
-  const topicsProbe = useQuery(
-    trpc.legistar.listDecisions.queryOptions({
+  const topicsProbe = useQuery({
+    ...trpc.legistar.listDecisions.queryOptions({
       jurisdiction,
       timeline: "all",
       limit: 100,
     }),
-  );
+    enabled: !isAddressLoading && isSanJoseResident,
+  });
   const availableTopics = useMemo(() => {
     const seen = new Set<string>();
     for (const row of topicsProbe.data ?? []) {
@@ -99,9 +103,10 @@ export default function LocalDecisionsScreen() {
     return [...seen].sort();
   }, [topicsProbe.data]);
 
-  const healthQuery = useQuery(
-    trpc.legistar.getIngestionHealth.queryOptions({ jurisdiction }),
-  );
+  const healthQuery = useQuery({
+    ...trpc.legistar.getIngestionHealth.queryOptions({ jurisdiction }),
+    enabled: !isAddressLoading && isSanJoseResident,
+  });
   const latestRun = healthQuery.data?.latestRun ?? null;
   const syncFailed = latestRun?.status === "failed";
   const lastSyncedAt = latestRun?.startedAt ?? null;
@@ -136,6 +141,20 @@ export default function LocalDecisionsScreen() {
       refreshInFlight.current = false;
     }
   };
+
+  if (isAddressLoading) {
+    return (
+      <View style={[s.screen, { backgroundColor: theme.background }]}>
+        <View style={s.center}>
+          <ActivityIndicator size="large" color={colors.white} />
+        </View>
+      </View>
+    );
+  }
+
+  if (!isSanJoseResident) {
+    return <Redirect href="/(tabs)/elections" />;
+  }
 
   return (
     <View style={[s.screen, { backgroundColor: theme.background }]}>

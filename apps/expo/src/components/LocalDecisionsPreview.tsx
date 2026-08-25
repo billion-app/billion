@@ -31,17 +31,20 @@ export function LocalDecisionsPreview() {
   const { address } = useUserAddress();
 
   const jurisdiction = detectJurisdictionKey(address);
-  const jurisdictionName = JURISDICTION_FALLBACK_NAMES[jurisdiction];
+  const isSanJoseResident = jurisdiction === "sanjose";
+  const jurisdictionName = JURISDICTION_FALLBACK_NAMES.sanjose;
 
-  const query = useQuery(
-    trpc.legistar.listDecisions.queryOptions({
-      jurisdiction,
+  const query = useQuery({
+    ...trpc.legistar.listDecisions.queryOptions({
+      jurisdiction: "sanjose",
       timeline: "upcoming",
       limit: PREVIEW_COUNT,
     }),
-  );
-
+    enabled: isSanJoseResident,
+  });
   const rows = query.data ?? [];
+
+  if (!isSanJoseResident) return null;
 
   return (
     <TouchableOpacity

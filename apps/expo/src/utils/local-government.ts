@@ -22,22 +22,27 @@ export const LOCAL_JURISDICTIONS = [
 export type LocalJurisdictionKey = (typeof LOCAL_JURISDICTIONS)[number];
 
 /**
- * Best-effort jurisdiction detection from a saved address string. Falls back
- * to the first-release default rather than pretending every address is
- * covered. City names are matched conservatively; county wording maps to the
- * county record.
+ * Best-effort jurisdiction detection from a saved address string. Unknown or
+ * missing addresses return null so callers do not expose city-specific UI to
+ * people outside a supported jurisdiction.
  */
 export function detectJurisdictionKey(
   address: string | null | undefined,
-): LocalJurisdictionKey {
-  if (!address) return "sanjose";
+): LocalJurisdictionKey | null {
+  if (!address) return null;
   const normalized = address.toLowerCase();
-  // City names are checked before street parsing so a street like
-  // "Santa Clara St, San Jose" stays San José.
-  if (/san jose|san jos[eé]/.test(normalized)) return "sanjose";
+  // Match a city component, not a street such as "San Jose Boulevard" in a
+  // different city. Google Places returns comma-delimited formatted addresses.
+  if (
+    /(?:^|,\s*)san jos[eé](?:,\s*ca(?:\s+\d{5}(?:-\d{4})?)?)?(?:,\s*usa)?$/.test(
+      normalized,
+    )
+  ) {
+    return "sanjose";
+  }
   if (normalized.includes("sunnyvale")) return "sunnyvale";
   if (/santa clara county|unincorporated/.test(normalized)) return "santaclara";
-  return "sanjose";
+  return null;
 }
 
 /** Best-effort display name while the DB record loads. */

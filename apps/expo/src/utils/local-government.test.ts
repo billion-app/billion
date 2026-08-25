@@ -213,21 +213,30 @@ describe("vote availability language", () => {
 });
 
 describe("jurisdiction detection", () => {
-  it("defaults to san jose when nothing is saved", () => {
-    assert.equal(detectJurisdictionKey(null), "sanjose");
-    assert.equal(detectJurisdictionKey(undefined), "sanjose");
+  it("does not assume san jose when no address is saved", () => {
+    assert.equal(detectJurisdictionKey(null), null);
+    assert.equal(detectJurisdictionKey(undefined), null);
   });
 
   it("detects san jose addresses", () => {
     assert.equal(
-      detectJurisdictionKey("200 E Santa Clara St, San Jose, CA"),
+      detectJurisdictionKey("200 E Santa Clara St, San Jose, CA 95113, USA"),
       "sanjose",
     );
+    assert.equal(detectJurisdictionKey("San José, CA"), "sanjose");
   });
 
   it("separates county and neighboring cities", () => {
     assert.equal(detectJurisdictionKey("Santa Clara County"), "santaclara");
     assert.equal(detectJurisdictionKey("Sunnyvale, CA"), "sunnyvale");
+  });
+
+  it("rejects unknown cities and san jose street names elsewhere", () => {
+    assert.equal(detectJurisdictionKey("Oakland, CA"), null);
+    assert.equal(
+      detectJurisdictionKey("123 San Jose Blvd, Jacksonville, FL"),
+      null,
+    );
   });
 });
 
