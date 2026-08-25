@@ -12,6 +12,12 @@ import {
   GovernmentContent,
 } from "@acme/db/schema";
 
+import {
+  CONTENT_IMAGE_STYLE_VERSION,
+  planContentVisual,
+  renderContentImagePrompt,
+  versionContentImageHash,
+} from "./utils/ai/content-image-visual.js";
 import { generateLocalPhoto } from "./utils/ai/image-generation.js";
 import { createLogger } from "./utils/log.js";
 import { uploadContentImage } from "./utils/storage/content-images.js";
@@ -25,18 +31,6 @@ interface Candidate {
   title: string;
   description: string;
   contentHash: string;
-}
-
-function promptFor(item: Candidate): string {
-  return [
-    `Create a grounded editorial documentary photograph for a civic-news story titled "${item.title}".`,
-    item.description ? `The story is about: ${item.description}.` : "",
-    "Depict the concrete people, place, public service, workplace, or everyday consequence at the center of the policy.",
-    "Use one clear focal subject, natural light, restrained color, realistic anatomy, and accurate contemporary American surroundings.",
-    "Do not depict a written bill, a politician at a podium, a handshake, fantasy, surreal symbolism, floating objects, glowing effects, text, logos, flags as decoration, or watermarks.",
-  ]
-    .filter(Boolean)
-    .join(" ");
 }
 
 async function billCandidates(limit: number): Promise<Candidate[]> {
@@ -58,7 +52,7 @@ async function billCandidates(limit: number): Promise<Candidate[]> {
     .where(
       or(
         isNull(ContentImage.id),
-        sql`${ContentImage.contentHash} <> ${Bill.contentHash}`,
+        sql`${ContentImage.contentHash} <> ${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${Bill.contentHash}`,
       ),
     )
     .orderBy(
@@ -90,7 +84,7 @@ async function governmentCandidates(limit: number): Promise<Candidate[]> {
     .where(
       or(
         isNull(ContentImage.id),
-        sql`${ContentImage.contentHash} <> ${GovernmentContent.contentHash}`,
+        sql`${ContentImage.contentHash} <> ${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${GovernmentContent.contentHash}`,
       ),
     )
     .orderBy(desc(GovernmentContent.publishedDate))
@@ -117,7 +111,7 @@ async function courtCandidates(limit: number): Promise<Candidate[]> {
     .where(
       or(
         isNull(ContentImage.id),
-        sql`${ContentImage.contentHash} <> ${CourtCase.contentHash}`,
+        sql`${ContentImage.contentHash} <> ${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${CourtCase.contentHash}`,
       ),
     )
     .orderBy(desc(CourtCase.filedDate), desc(CourtCase.createdAt))
@@ -126,7 +120,8 @@ async function courtCandidates(limit: number): Promise<Candidate[]> {
 }
 
 async function generate(item: Candidate): Promise<void> {
-  const prompt = promptFor(item);
+  const plan = await planContentVisual(item);
+  const prompt = renderContentImagePrompt(plan);
   const generated = await generateLocalPhoto(prompt, 1024, 768);
   if (!generated) throw new Error("Local FLUX returned no image");
   const data = await sharp(generated.data)
@@ -140,7 +135,7 @@ async function generate(item: Candidate): Promise<void> {
   const values = {
     contentType: item.type,
     contentId: item.id,
-    contentHash: item.contentHash,
+    contentHash: versionContentImageHash(item.contentHash),
     storagePath: stored.path,
     imageHash: stored.hash,
     prompt,
