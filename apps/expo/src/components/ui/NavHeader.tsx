@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, fontDisplay, hair, planes } from "~/styles";
+import { colors, fontDisplay, hair, planes, useTheme } from "~/styles";
 import { Icon } from "./Icon";
 
 export function NavHeader({
@@ -18,6 +18,7 @@ export function NavHeader({
   large?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
   return (
     <View style={[s.wrap, { paddingTop: insets.top + 4 }]}>
       <View style={s.row}>
@@ -28,15 +29,19 @@ export function NavHeader({
             activeOpacity={0.7}
             hitSlop={8}
           >
-            <Icon name="chevL" size={20} color={colors.white} />
+            <Icon name="chevL" size={20} color={theme.foreground} />
           </TouchableOpacity>
         ) : (
           <View style={s.spacer} />
         )}
-        {!large && <Text style={s.title}>{title}</Text>}
+        {!large && (
+          <Text style={[s.title, { color: theme.foreground }]}>{title}</Text>
+        )}
         <View style={s.action}>{action}</View>
       </View>
-      {large && <Text style={s.large}>{title}</Text>}
+      {large && (
+        <Text style={[s.large, { color: theme.foreground }]}>{title}</Text>
+      )}
     </View>
   );
 }
