@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { generateText } from "ai";
 import { z } from "zod";
 
@@ -56,7 +57,9 @@ export function renderContentImagePrompt(plan: ContentVisualPlan): string {
 }
 
 export function versionContentImageHash(contentHash: string): string {
-  return `${CONTENT_IMAGE_STYLE_VERSION}:${contentHash}`;
+  return createHash("md5")
+    .update(`${CONTENT_IMAGE_STYLE_VERSION}:${contentHash}`)
+    .digest("hex");
 }
 
 export async function planContentVisual(
