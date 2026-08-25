@@ -57,6 +57,16 @@ export const jobs: readonly JobDefinition[] = [
     }),
   ),
   {
+    id: "legistar-daily",
+    description: "Refresh San Jose local-government decisions",
+    script: "main.js",
+    args: ["legistar", "--concurrency", "2"],
+    schedule: { kind: "daily", hour: 3, minute: 45 },
+    priority: 4,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
+  },
+  {
     id: "content-images-daily",
     description: "Generate illustrated header art for recent retained content",
     script: "content-images.js",

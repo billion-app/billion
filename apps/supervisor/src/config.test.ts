@@ -49,6 +49,13 @@ void test("daily Congress refresh retains its bounded federal window", () => {
   ]);
 });
 
+void test("San Jose decisions refresh daily through the Legistar scraper", () => {
+  const job = findJob("legistar-daily");
+  assert.ok(job, "daily Legistar job is missing");
+  assert.deepEqual(job.args, ["legistar", "--concurrency", "2"]);
+  assert.deepEqual(job.schedule, { kind: "daily", hour: 3, minute: 45 });
+});
+
 void test("limits are generous enough not to kill healthy work", () => {
   // The first version of this config used wall-clock timeouts picked by guess,
   // and one of them (12h for a 15.4h backfill) would have killed a healthy run
