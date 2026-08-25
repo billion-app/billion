@@ -99,7 +99,7 @@ export const jobs: readonly JobDefinition[] = [
   // There is deliberately no scheduled archive backfill. The `scraper_cursor`
   // walk starts near the beginning of the congress, so an unattended job would
   // grind through ~17,000 measures paying for a brief, a dual-lens research
-  // loop and header art on each one it enriched. The daily job above keeps
+  // loop on each one it enriched. The daily job above keeps
   // *active* legislation current, which is what a news feed needs.
   //
   // The retro jobs are manual for the same reason: each is bounded by how much
@@ -157,16 +157,6 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 72,
   },
   {
-    id: "retro-videos",
-    description: "Generate missing header art",
-    script: "retroactive-videos.js",
-    args: ["--type", "bill"],
-    schedule: { kind: "manual" },
-    priority: 30,
-    idleTimeoutMinutes: 60,
-    maxRuntimeHours: 48,
-  },
-  {
     id: "change-images",
     description: "Generate photographs for brief changes that warrant one",
     script: "change-images.js",
@@ -184,7 +174,7 @@ export const jobs: readonly JobDefinition[] = [
   },
   {
     id: "reprocess-bare",
-    description: "Fill in bills left without an article or header art",
+    description: "Fill in bills left without required text or briefs",
     script: "reprocess-content.js",
     // `--mode missing` selects only rows whose derived assets are actually
     // incomplete, so a run costs nothing once there is nothing left to fix.

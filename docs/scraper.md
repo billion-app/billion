@@ -337,19 +337,10 @@ flowchart TD
 
     ai --> summary["Summary (≤100 chars)"]
     summary --> article["Article (4-section markdown)<br/>→ ai_generated_article"]
-    article --> marketing["Marketing copy<br/>(title ≤25, desc, imagePrompt)"]
-    marketing --> img{"Scraped<br/>thumbnail?"}
-
-    img -->|yes| thumburl["thumbnail_url"]
-    img -->|no| flux["FLUX.2 Klein 9B → sharp JPEG<br/>→ image_data (bytea)"]
-    flux -.->|moderation block / fail| stock["Google Custom Search<br/>stock thumbnail URL"]
-
+    article --> thumburl["Optional source/search thumbnail_url"]
     thumburl --> upsert["upsertContent()<br/>onConflictDoUpdate + append versions"]
-    flux --> upsert
-    stock --> upsert
     skipai --> upsert
     backfill --> upsert
-    upsert --> video["generateVideoForContent()<br/>→ video feed row"]
 ```
 
 ## Environment & provider-fallback contract
@@ -389,7 +380,6 @@ also includes the manual retention command. All are `pnpm`-scripted in
 | `reprocess-content`          | `reprocess-content.ts`          | Any derived asset across all content tables | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
 | `retroactive-briefs`         | `retroactive-briefs.ts`         | Missing/stale bill `content_brief` rows     | `--dry-run` to preview                                        |
 | `retroactive-lenses`         | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows           | `--dry-run` to preview                                        |
-| `retroactive-videos`         | `retroactive-videos.ts`         | Missing `video` feed rows                   | —                                                             |
 | `backfill-bill-descriptions` | `backfill-bill-descriptions.ts` | Bills with no source/AI description         | `--apply` (+ `--yes` on prod)                                 |
 | `prune-bills`                | `prune-bills.ts`                | Bills beyond the newest N per jurisdiction  | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
 
@@ -402,15 +392,15 @@ manual inventory and repair, not routine scheduling.
 `reprocess-content` is the most general and the model the others follow:
 
 - **Read-only unless `--apply`.** It first prints an inventory per content type
-  (rows, usable source text, missing article, missing feed image, selected) and
+  (rows, usable source text, missing article or brief, selected) and
   exits without writing. Production writes additionally require `--yes`, and
   `--apply` refuses to start without a text-AI provider and an image provider so
   a run can't silently leave rows half-generated.
 - **`--mode missing`** backfills only rows that fail a gate (`needsReprocessing`:
-  no usable source text, no valid article, no video, or no feed image);
+  no usable source text, no valid article, or no structured bill brief);
   **`--mode replace`** (the default) regenerates every derived asset.
-- **`--assets images`** limits work to feed imagery; `--assets all` (default)
-  regenerates article, dual lens, and video too.
+- **`--assets images`** limits work to source/search thumbnails;
+  `--assets all` (default) also regenerates long-form text and dual lenses.
 - Selection can be scoped with `--type`, `--limit`, `--id`, and `--after-id`
   (resume-after-UUID, single-type only), at `--concurrency` 1–5.
 - **Missing source text is re-fetched, not skipped.** When a row's `full_text`
@@ -422,6 +412,6 @@ manual inventory and repair, not routine scheduling.
   assets regenerate against it.
 - **Success is re-queried from the database**, not inferred from provider
   responses: after the run it reloads the processed rows and counts only those
-  that persisted a valid article _and_ a feed image as verified. Partial/failed
+  that persisted a valid article or structured bill brief. Partial/failed
   IDs are printed for a targeted retry, and rate-limit failures re-raise
   `AIRateLimitError` so an orchestrator can back off.

@@ -38,9 +38,6 @@ export default defineConfig({
         "backfill-bill-descriptions": fileURLToPath(
           new URL("./src/backfill-bill-descriptions.ts", import.meta.url),
         ),
-        "retroactive-videos": fileURLToPath(
-          new URL("./src/retroactive-videos.ts", import.meta.url),
-        ),
         "change-images": fileURLToPath(
           new URL("./src/change-images.ts", import.meta.url),
         ),
