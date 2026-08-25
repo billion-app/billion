@@ -102,6 +102,25 @@ export const envRegistry = [
     schema: postgresUrl,
   }),
   define({
+    key: "SUPABASE_URL",
+    description:
+      "Supabase project URL for generated content images. Derived from POSTGRES_URL when omitted.",
+    group: "Database",
+    secret: false,
+    example: "https://your-project-ref.supabase.co",
+    requirements: { nextjs: "optional", scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "SUPABASE_SECRET_KEY",
+    description:
+      "Server-only Supabase secret used by the Big Mac image job to upload Storage objects.",
+    group: "Database",
+    secret: true,
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "BETTER_AUTH_SECRET",
     description:
       "High-entropy secret used to sign and encrypt Better Auth data.",

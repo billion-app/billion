@@ -56,6 +56,16 @@ export const jobs: readonly JobDefinition[] = [
       maxRuntimeHours: 24,
     }),
   ),
+  {
+    id: "content-images-daily",
+    description: "Generate grounded header art for retained content",
+    script: "content-images.js",
+    args: ["--bill-limit", "80", "--other-limit", "20", "--concurrency", "1"],
+    schedule: { kind: "daily", hour: 4, minute: 15 },
+    priority: 5,
+    idleTimeoutMinutes: 120,
+    maxRuntimeHours: 12,
+  },
   // The other three registered scrapers. These used to ride along in a weekly
   // `main.js all` run; they are listed individually so that dropping the `all`
   // run does not silently stop them, and so each can be rescheduled or paused

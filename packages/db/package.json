@@ -18,6 +18,10 @@
     "./bill-description": {
       "types": "./dist/bill-description.d.ts",
       "default": "./src/bill-description.ts"
+    },
+    "./content-images": {
+      "types": "./dist/content-images.d.ts",
+      "default": "./src/content-images.ts"
     }
   },
   "license": "MIT",
