@@ -51,16 +51,10 @@ const listInput = z
     // Alias of `offset` so tRPC's tanstack infinite-query helpers can drive
     // keyset-free paging from the client.
     cursor: z.number().int().min(0).max(10_000).optional(),
-  })
-  .optional();
+  });
 
 async function listDecisions(input: z.infer<typeof listInput>) {
-  const options = input ?? {
-    jurisdiction: "sanjose" as const,
-    timeline: "upcoming" as const,
-    limit: 30,
-    offset: 0,
-  };
+  const options = input;
   const effectiveOffset = options.cursor ?? options.offset;
   const now = new Date();
   const conditions: SQL[] = [
