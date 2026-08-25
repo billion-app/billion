@@ -451,7 +451,7 @@ export const contentRouter = {
         );
 
         return {
-          items: await attachContentImages(items),
+          items: attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -468,7 +468,7 @@ export const contentRouter = {
         const page = hasMore ? bills.slice(0, limit) : bills;
         const items: ContentCard[] = page.map(toBillCard);
         return {
-          items: await attachContentImages(items),
+          items: attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -496,7 +496,7 @@ export const contentRouter = {
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
         return {
-          items: await attachContentImages(items),
+          items: attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -522,7 +522,7 @@ export const contentRouter = {
         thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
       }));
       return {
-        items: await attachContentImages(items),
+        items: attachContentImages(items),
         nextCursor: hasMore ? cursor + limit : undefined,
       };
     }),
@@ -751,7 +751,7 @@ export const contentRouter = {
               imageUrl: official?.image,
             }
           : undefined;
-        const [result] = await attachContentImages([
+        const [result] = attachContentImages([
           {
             id: b.id,
             title: b.title,
@@ -790,7 +790,7 @@ export const contentRouter = {
         .limit(1);
       if (content[0]) {
         const c = content[0];
-        const [result] = await attachContentImages([
+        const [result] = attachContentImages([
           {
             id: c.id,
             title: c.title,
@@ -820,7 +820,7 @@ export const contentRouter = {
         .limit(1);
       if (courtCase[0]) {
         const c = courtCase[0];
-        const [result] = await attachContentImages([
+        const [result] = attachContentImages([
           {
             id: c.id,
             title: c.title,
@@ -885,7 +885,7 @@ export const contentRouter = {
             ).catch(() => undefined)
           : undefined,
       ]);
-      const sponsoredBills = await attachContentImages(
+      const sponsoredBills = attachContentImages(
         sponsoredBillRows.map((item) => ({
           ...item,
           type: "bill" as const,
@@ -1012,7 +1012,7 @@ export const contentRouter = {
                 },
           );
         return {
-          items: await attachContentImages(items),
+          items: attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }),
