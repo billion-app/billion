@@ -13,6 +13,15 @@ on, what it doesn't settle — with the same AI-provenance note the app shows an
 a link to the official record. The install ask is at the bottom, after the
 reader has been given something.
 
+It is **the app's article screen with blocks removed**, not a second design:
+same navy canvas, same serif headline, same accent-bordered summary card, same
+before/after change cards, same four-hue outcome palette where colour is a
+navigation aid rather than a verdict and never the only signal. Someone who
+follows the install prompt should recognise where they landed. What it drops is
+everything needing interaction or depth — the dual lens, the timeline, the
+glossary, the deep dive — because this page's job is to be skimmed and
+forwarded, then finished in the app or on the source.
+
 | Path                | What it is                                              |
 | ------------------- | ------------------------------------------------------- |
 | `/b/<id>`           | The readable page                                       |
@@ -26,7 +35,9 @@ engines consolidate on one URL without a redirect hop.
 
 The page is public and deliberately builds a tRPC context with **no session**
 (`shared-content.ts`): resolving one would add a database round trip to every
-link preview to produce a page that looks the same either way.
+link preview to produce a page that looks the same either way. A missing id
+becomes a 404; every other failure is rethrown so it reaches the logs rather
+than being dressed up as a missing page.
 
 ### The generated images
 
@@ -54,16 +65,34 @@ card in the wrong typeface still previews the link, a missing card does not.
 
 ## Saving
 
-The backend, the saved list, and the bookmark UI already existed but were
-hidden behind `__DEV__`. They are now shipped, and reachable: the saved list
-lives at `/settings/saved-articles`, which the Settings tab does not expose
-outside development, so Browse carries its own **Saved** entry point.
+Saving does not require an account, and deliberately so: bookmarking something
+to come back to is not a social act, and account creation isn't built yet — a
+server-backed bookmark would mean no bookmarks at all.
 
-`useSavedContent` holds the reader's whole saved set in one query rather than
-asking `isSaved` per card — a list screen would otherwise open one request per
-row. It is also the single source of truth, so a bill saved on the article page
-is already filled in when the reader swipes back to Browse. The bookmark fills
-optimistically and rolls back if the write fails.
+The set lives on the device (`utils/saved-store.ts`, AsyncStorage) as an
+ordered list, newest first, capped at 200 so the saved screen can hydrate it in
+one request. The list rules are pure functions so they can be tested without a
+device; only a thin async pair touches disk. A corrupt or wrongly-shaped store
+reads as "nothing saved" rather than throwing — a bad bookmark list must not
+stop the app opening — and a failed write is swallowed, because the cost is a
+bookmark that doesn't survive a restart, not an error on a tap.
+
+`useSavedContent` holds that set in one React Query cache entry so every screen
+agrees: a bill saved on the article page is already filled in when the reader
+swipes back to Browse, and a list screen reads it once instead of asking per
+card. The bookmark fills the instant it is tapped and the disk write follows.
+
+The saved screen arrives holding ids and no session, so `content.byIds`
+hydrates them — public for that reason, and it returns rows in the order asked
+for, which is save order. Ids with no row are dropped rather than held as
+holes, since content can be retired after someone saved it.
+
+The server-side `SavedArticle` table and its procedures are left in place for
+app builds already on people's phones. When accounts land, the device list is
+what should be synced up.
+
+The saved list lives at `/settings/saved-articles`, which the Settings tab does
+not expose outside development, so Browse carries its own **Saved** entry point.
 
 ## Screenshot detection
 
@@ -96,11 +125,24 @@ follow-up.
 
 ## Sharing to Instagram Stories
 
-There is no supported way to hand an image straight to Instagram Stories
-without a custom native module and a pasteboard write. `shareContentStory`
-downloads `/b/<id>/story` into the cache and opens the system share sheet on
-the file instead — Instagram appears there and offers "Add to story", as does
-every other app the reader might post to.
+Instagram's documented handoff is a pasteboard write plus a URL open: the image
+goes on the general pasteboard under `com.instagram.sharedSticker.*` keys, and
+opening `instagram-stories://share?source_application=<id>` tells Instagram to
+read it. Those are custom pasteboard types, so it cannot be done from
+JavaScript — hence the local module at `modules/instagram-story`.
+
+With Instagram installed, "Share as an image" drops the reader straight into
+the story composer with the card already placed. Without it — or on anything
+that isn't iOS — the same file goes to the system share sheet instead, which is
+what the module reports by resolving `false` rather than throwing.
+
+Two things the module has to get right:
+
+- **`LSApplicationQueriesSchemes`** must list `instagram-stories`, or
+  `canOpenURL` answers false and the app concludes Instagram isn't installed.
+  The app config declares it.
+- **The pasteboard item carries an expiry.** A story the reader opens and never
+  posts should not leave the image sitting in their clipboard.
 
 Rendering the card on the server rather than on the phone means it can be
 redesigned without an App Store release, and the phone only downloads a PNG.

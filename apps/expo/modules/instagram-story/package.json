@@ -1,0 +1,7 @@
+{
+  "name": "instagram-story",
+  "version": "0.1.0",
+  "description": "Hands a story-sized image straight to Instagram Stories.",
+  "main": "src/index.ts",
+  "private": true
+}

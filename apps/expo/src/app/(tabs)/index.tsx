@@ -70,16 +70,9 @@ export default function BrowseScreen() {
     posthog.capture("content_filter_applied", { filter_type: f });
   };
 
-  const { isSaved, toggleSave, isSignedIn } = useSavedContent();
+  const { isSaved, toggleSave } = useSavedContent();
 
   const openSaved = () => {
-    if (!isSignedIn) {
-      Alert.alert(
-        "Sign in to save",
-        "Sign in to bookmark and revisit content.",
-      );
-      return;
-    }
     posthog.capture("saved_articles_opened", { source: "browse_header" });
     router.push("/settings/saved-articles" as Href);
   };

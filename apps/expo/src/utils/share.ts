@@ -12,6 +12,10 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
 import { posthog } from "~/config/posthog";
+import {
+  isInstagramStoryAvailable,
+  shareToInstagramStory,
+} from "../../modules/instagram-story/src";
 import { getBaseUrl } from "./base-url";
 
 /** Where in the app a share started, so the surfaces can be told apart. */
@@ -93,12 +97,13 @@ export async function shareContentLink(target: ShareTarget): Promise<boolean> {
 }
 
 /**
- * The system share sheet, on a story-shaped image of the record.
+ * Shares a story-shaped image of the record.
  *
- * There is no supported way to hand an image straight to Instagram Stories
- * without a custom native module and a pasteboard write, so this opens the
- * share sheet on the file instead: Instagram appears there and offers "Add to
- * story", as does every other app the reader might post to.
+ * Goes straight into Instagram's story composer when Instagram is installed —
+ * that is what the local `instagram-story` module is for, since the handoff
+ * needs a pasteboard write under Instagram's own keys and cannot be done from
+ * JavaScript. Everywhere else, and for anyone posting somewhere other than
+ * Instagram, it falls through to the system share sheet on the same file.
  *
  * The image is rendered by the web app rather than the phone, so the card can
  * be redesigned without an App Store release.
@@ -107,8 +112,11 @@ export async function shareContentStory(target: ShareTarget): Promise<boolean> {
   const base = baseUrl();
   if (!base) return false;
 
-  if (!(await Sharing.isAvailableAsync())) {
-    // No share sheet on this platform (web). The link is the next best thing
+  const canShareSheet = await Sharing.isAvailableAsync();
+  const canInstagram = await isInstagramStoryAvailable();
+
+  if (!canShareSheet && !canInstagram) {
+    // No way to hand a file anywhere (web). The link is the next best thing
     // and is what the reader was trying to do anyway.
     return shareContentLink(target);
   }
@@ -126,6 +134,26 @@ export async function shareContentStory(target: ShareTarget): Promise<boolean> {
       destination,
       { idempotent: true },
     );
+
+    // Instagram first when it is there: it drops the reader into the story
+    // composer with the card already placed, instead of into a list of apps.
+    if (canInstagram) {
+      const handedOff = await shareToInstagramStory({
+        fileUri: destination.uri,
+        contentUrl: shareUrlFor(target.contentId, target.surface) ?? undefined,
+      });
+      if (handedOff) {
+        posthog.capture("content_story_shared", {
+          content_id: target.contentId,
+          content_type: target.contentType,
+          surface: target.surface,
+          destination: "instagram_stories",
+        });
+        return true;
+      }
+    }
+
+    if (!canShareSheet) return false;
 
     await Sharing.shareAsync(destination.uri, {
       mimeType: "image/png",

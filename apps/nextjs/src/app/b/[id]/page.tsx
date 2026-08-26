@@ -24,17 +24,47 @@ import { getSharedContent } from "./shared-content";
  *
  * A link out of the app has to be worth opening on its own — someone who was
  * sent one has no app, and telling them to install before they may read
- * anything is how a shared link dies. So this page carries the brief itself:
- * the summary, what changes, and who it lands on, with the same provenance
- * note the app shows. The install ask comes after the reader has been given
- * something, not before.
+ * anything is how a shared link dies. So this page carries the brief itself,
+ * with the same provenance note the app shows. The install ask comes after the
+ * reader has been given something, not before.
  *
- * It deliberately stops short of the full explainer. The point of the page is
- * to be forwarded and to be finished in the app or on the official record,
- * both of which it links to.
+ * It is deliberately the app's article screen with blocks removed rather than
+ * a second design: same navy canvas, same serif headline, same summary card,
+ * same before/after change cards, same outcome palette. Someone who follows
+ * the install prompt should recognise where they landed. What it drops is
+ * everything that needs interaction or depth — the dual lens, the timeline,
+ * the glossary, the deep dive — because this page's job is to be skimmed and
+ * forwarded, and finished in the app or on the official record.
  */
 
 const APP_STORE_CAMPAIGN = "share_web";
+
+/* The app's planes and hairlines, so the two surfaces stay one design. */
+const SLATE = "#272D3C";
+const SURFACE = "#323848";
+const HAIR_1 = "rgba(255,255,255,0.06)";
+const HAIR_2 = "rgba(255,255,255,0.10)";
+
+/**
+ * Outcome colour is a navigation aid, not a verdict — the same four hues the
+ * app uses, deliberately avoiding a red-versus-green or red-versus-blue
+ * binary, and never the only signal: each one carries a written label too.
+ */
+interface Outcome {
+  label: string;
+  color: string;
+  mark: string;
+}
+
+/** Also the fallback: a direction we do not recognise reads as unclear. */
+const UNCLEAR: Outcome = { label: "Unclear", color: "#F4C95D", mark: "?" };
+
+const DIRECTION: Record<string, Outcome | undefined> = {
+  gains: { label: "Gains", color: "#55D6BE", mark: "↑" },
+  loses: { label: "Loses", color: "#FF9575", mark: "↓" },
+  mixed: { label: "Mixed", color: "#B8A1FF", mark: "–" },
+  unclear: UNCLEAR,
+};
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -81,56 +111,26 @@ export default async function SharedContentPage({ params }: PageProps) {
   const brief = briefOf(content);
   const art = headerImage(content);
   const isAndroid = isAndroidUserAgent((await headers()).get("user-agent"));
+  const summary = brief?.summary ? plainText(brief.summary) : "";
 
   return (
     <main className="bg-background text-foreground min-h-screen">
       <nav
-        className="mx-auto flex items-center justify-between px-6 py-5"
-        style={{ maxWidth: 760 }}
+        className="mx-auto flex items-center justify-between px-5 py-4"
+        style={{ maxWidth: 640 }}
       >
         <Link
           href="/"
-          className="text-foreground font-display text-[22px] font-bold tracking-[-0.02em] no-underline"
+          className="text-foreground font-display text-[20px] font-bold tracking-[-0.02em] no-underline"
         >
           Billion
         </Link>
-        <span className="text-muted-foreground font-sans text-[13px] font-medium">
+        <span className="text-muted-foreground font-sans text-[12px] font-medium tracking-[0.04em] uppercase">
           {type.kind}
         </span>
       </nav>
 
-      <article className="mx-auto px-6 pb-16" style={{ maxWidth: 760 }}>
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <span
-            className="rounded-full border px-3 py-1 font-sans text-[11px] font-bold tracking-[0.09em]"
-            style={{
-              color: type.color,
-              borderColor: type.color,
-              backgroundColor: `${type.color}1F`,
-            }}
-          >
-            {type.label}
-          </span>
-          {content.billNumber ? (
-            <span className="text-muted-foreground font-sans text-[13px] font-semibold tracking-[0.03em]">
-              {content.billNumber}
-            </span>
-          ) : null}
-        </div>
-
-        <h1
-          className="mb-4 leading-[1.14] font-bold tracking-[-0.02em]"
-          style={{ fontSize: "clamp(2rem, 6vw, 2.85rem)" }}
-        >
-          {content.title}
-        </h1>
-
-        {content.description ? (
-          <p className="text-muted-foreground mb-8 font-sans text-[17px] leading-[1.6]">
-            {content.description}
-          </p>
-        ) : null}
-
+      <article className="mx-auto px-5 pb-14" style={{ maxWidth: 640 }}>
         {art ? (
           // Header art is usually an inline data: URI written by the
           // pipeline, which the image optimizer cannot process.
@@ -138,31 +138,60 @@ export default async function SharedContentPage({ params }: PageProps) {
           <img
             src={art}
             alt=""
-            className="mb-10 h-auto w-full rounded-[14px] border border-white/10"
+            className="mb-[18px] h-[170px] w-full rounded-[16px] object-cover"
+            style={{ backgroundColor: SURFACE }}
           />
         ) : null}
 
+        <div className="mb-[14px] flex flex-wrap items-center gap-[9px]">
+          <span
+            className="rounded-[7px] px-[9px] py-[5px] font-sans text-[10.5px] font-bold tracking-[0.06em]"
+            style={{ color: "#fff", backgroundColor: type.color }}
+          >
+            {type.label}
+          </span>
+          {content.billNumber ? (
+            <span className="text-muted-foreground font-sans text-[12px] font-semibold tracking-[0.3px]">
+              {content.billNumber}
+            </span>
+          ) : null}
+        </div>
+
+        <h1
+          className="font-display mb-4 font-bold tracking-[-0.02em]"
+          style={{ fontSize: "clamp(1.9rem, 6.4vw, 2.4rem)", lineHeight: 1.14 }}
+        >
+          {content.title}
+        </h1>
+
+        {content.description ? (
+          <p className="text-muted-foreground mb-[22px] font-sans text-[15px] leading-[22px]">
+            {content.description}
+          </p>
+        ) : null}
+
+        {/* The app's provenance note, verbatim in intent: this is AI writing
+            over an official record, and the reader is told before they read. */}
+        {/* Quiet on purpose. The reader has to be told this before they read,
+            but it is not the thing they came for — a filled card here competes
+            with the summary directly beneath it for the same attention. */}
+        <p
+          className="text-muted-foreground mb-[22px] flex items-center gap-[7px] border-t pt-[13px] font-sans text-[12px] leading-[16px]"
+          style={{ borderColor: HAIR_1 }}
+        >
+          <span aria-hidden style={{ color: type.color }}>
+            ✦
+          </span>
+          Written by Billion AI · Always check the source
+        </p>
+
         {brief ? (
-          <BriefSections brief={brief} accent={type.color} />
+          <Brief brief={brief} summary={summary} accent={type.color} />
         ) : (
           <Excerpt content={content} />
         )}
 
-        <p className="text-muted-foreground mt-10 mb-10 rounded-[14px] border border-white/10 bg-white/[0.04] px-5 py-4 font-sans text-[13px] leading-[1.6]">
-          Written by Billion AI from the official text — always check the
-          source.{" "}
-          {content.url ? (
-            <a
-              href={content.url}
-              rel="noopener noreferrer nofollow"
-              target="_blank"
-              className="text-accent font-medium"
-            >
-              Read the original record →
-            </a>
-          ) : null}
-        </p>
-
+        <ExitToSource url={content.url} />
         <InstallCta isAndroid={isAndroid} />
       </article>
     </main>
@@ -177,64 +206,87 @@ function briefOf(content: SharedContent): BillBriefRecord | null {
   return (content.brief as BillBriefRecord | null | undefined) ?? null;
 }
 
-const DIRECTION_LABEL: Record<string, string> = {
-  gains: "Gains",
-  loses: "Loses",
-  mixed: "Mixed",
-  unclear: "Unclear",
-};
-
-function BriefSections({
+function Brief({
   brief,
+  summary,
   accent,
 }: {
   brief: BillBriefRecord;
+  summary: string;
   accent: string;
 }) {
   return (
-    <div className="flex flex-col gap-10">
-      {brief.summary ? (
-        <p
-          className="font-editorial border-l-[3px] pl-5 text-[22px] leading-[1.45] font-bold"
-          style={{ borderColor: accent }}
+    <div className="flex flex-col gap-7">
+      {summary ? (
+        <section
+          className="rounded-[14px] border p-4"
+          style={{
+            backgroundColor: SLATE,
+            borderColor: HAIR_1,
+            borderLeftWidth: 3,
+            borderLeftColor: accent,
+          }}
         >
-          <Emphasis text={brief.summary} />
-        </p>
+          <div className="mb-[13px] flex items-center gap-[9px]">
+            <span
+              className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] text-[13px]"
+              style={{ backgroundColor: `${accent}28`, color: accent }}
+              aria-hidden
+            >
+              ✦
+            </span>
+            <h2 className="font-editorial flex-1 text-[17px] font-bold">
+              The short version
+            </h2>
+            <span
+              className="rounded-full border px-[9px] py-[3px] font-sans text-[9.5px] font-bold tracking-[0.08em] uppercase"
+              style={{ borderColor: `${accent}66`, color: accent }}
+            >
+              {brief.legalStatus === "enacted" ? "Enacted" : "Proposed"}
+            </span>
+          </div>
+          <p className="font-sans text-[15px] leading-[23px] text-white">
+            <Emphasis text={brief.summary} />
+          </p>
+        </section>
       ) : null}
 
       <section>
-        <SectionLabel accent={accent}>What this means for you</SectionLabel>
-        <p className="font-sans text-[17px] leading-[1.7] text-white/85">
+        <BlockTitle>What this means for you</BlockTitle>
+        <p className="font-sans text-[15px] leading-[23px] text-white/[0.82]">
           <Emphasis text={brief.hook} />
         </p>
       </section>
 
       <section>
-        <SectionLabel accent={accent}>What changes</SectionLabel>
-        <div className="flex flex-col gap-4">
+        <BlockTitle>What would change</BlockTitle>
+        <div className="flex flex-col gap-3">
           {brief.changes.map((change, index) => (
             <div
               key={index}
-              className="rounded-[14px] border border-white/10 bg-white/[0.04] p-5"
+              className="rounded-[14px] border p-[15px]"
+              style={{ backgroundColor: SLATE, borderColor: HAIR_1 }}
             >
-              <h3 className="mb-3 text-[18px] font-bold">{change.title}</h3>
-              <dl className="flex flex-col gap-2 font-sans text-[15px] leading-[1.6]">
-                <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-                  <dt className="text-muted-foreground shrink-0 text-[12px] font-semibold tracking-[0.06em] uppercase sm:w-14">
+              <h3 className="mb-[11px] font-sans text-[16px] leading-[22px] font-semibold">
+                {change.title}
+              </h3>
+              <dl className="flex flex-col gap-2 font-sans text-[14px] leading-[20px]">
+                <div className="flex flex-col gap-[3px] sm:flex-row sm:gap-3">
+                  <dt className="text-muted-foreground shrink-0 text-[10.5px] font-bold tracking-[0.08em] uppercase sm:w-[52px] sm:pt-[3px]">
                     Now
                   </dt>
                   <dd className="text-muted-foreground m-0">
                     <Emphasis text={change.before} />
                   </dd>
                 </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                <div className="flex flex-col gap-[3px] sm:flex-row sm:gap-3">
                   <dt
-                    className="shrink-0 text-[12px] font-semibold tracking-[0.06em] uppercase sm:w-14"
+                    className="shrink-0 text-[10.5px] font-bold tracking-[0.08em] uppercase sm:w-[52px] sm:pt-[3px]"
                     style={{ color: accent }}
                   >
                     After
                   </dt>
-                  <dd className="m-0 text-white/85">
+                  <dd className="m-0 text-white/[0.88]">
                     <Emphasis text={change.after} />
                   </dd>
                 </div>
@@ -245,54 +297,78 @@ function BriefSections({
       </section>
 
       <section>
-        <SectionLabel accent={accent}>Who it lands on</SectionLabel>
-        <div className="flex flex-col gap-4">
-          {brief.affected.map((group, index) => (
-            <div key={index} className="border-l border-white/10 pl-4">
-              <div className="mb-1 flex flex-wrap items-baseline gap-2">
-                <h3 className="text-[17px] font-bold">{group.group}</h3>
-                <span className="text-muted-foreground font-sans text-[11px] font-semibold tracking-[0.06em] uppercase">
-                  {DIRECTION_LABEL[group.direction] ?? group.direction}
-                </span>
+        <BlockTitle>Who it lands on</BlockTitle>
+        <div className="flex flex-col gap-[14px]">
+          {brief.affected.map((group, index) => {
+            const outcome = DIRECTION[group.direction] ?? UNCLEAR;
+            return (
+              <div
+                key={index}
+                className="border-l-2 pl-[13px]"
+                style={{ borderColor: `${outcome.color}66` }}
+              >
+                <div className="mb-[5px] flex flex-wrap items-center gap-[7px]">
+                  <span
+                    className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                    style={{
+                      backgroundColor: `${outcome.color}22`,
+                      color: outcome.color,
+                    }}
+                    aria-hidden
+                  >
+                    {outcome.mark}
+                  </span>
+                  <h3 className="font-sans text-[14.5px] font-bold">
+                    {group.group}
+                  </h3>
+                  <span
+                    className="font-sans text-[10px] font-bold tracking-[0.08em] uppercase"
+                    style={{ color: outcome.color }}
+                  >
+                    {outcome.label}
+                  </span>
+                </div>
+                <p className="font-editorial text-[15.5px] leading-[21px] text-white/[0.72]">
+                  <Emphasis text={group.takeaway} />
+                </p>
               </div>
-              <p className="text-muted-foreground font-sans text-[15px] leading-[1.6]">
-                <Emphasis text={group.takeaway} />
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
       {brief.unknowns.length > 0 ? (
-        <section>
-          <SectionLabel accent={accent}>
-            What it doesn&apos;t settle
-          </SectionLabel>
-          <ul className="text-muted-foreground m-0 flex list-disc flex-col gap-2 pl-5 font-sans text-[15px] leading-[1.6]">
+        <section
+          className="rounded-[14px] border p-[15px]"
+          style={{ backgroundColor: SURFACE, borderColor: HAIR_2 }}
+        >
+          <h2 className="font-editorial mb-[10px] text-[15px] font-bold">
+            What the text doesn&apos;t settle
+          </h2>
+          <ol className="m-0 flex list-none flex-col gap-[9px] p-0">
             {brief.unknowns.map((unknown, index) => (
-              <li key={index}>
-                <Emphasis text={unknown} />
+              <li key={index} className="flex gap-[10px]">
+                <span
+                  className="shrink-0 font-sans text-[13.5px] font-bold tabular-nums"
+                  style={{ color: "#F4C95D" }}
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="font-sans text-[13.5px] leading-[20px] text-white/[0.78]">
+                  <Emphasis text={unknown} />
+                </span>
               </li>
             ))}
-          </ul>
+          </ol>
         </section>
       ) : null}
     </div>
   );
 }
 
-function SectionLabel({
-  accent,
-  children,
-}: {
-  accent: string;
-  children: React.ReactNode;
-}) {
+function BlockTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2
-      className="mb-4 font-sans text-[11px] font-bold tracking-[0.12em] uppercase"
-      style={{ color: accent }}
-    >
+    <h2 className="font-editorial mb-[13px] text-[18px] font-bold">
       {children}
     </h2>
   );
@@ -332,26 +408,55 @@ function Excerpt({ content }: { content: SharedContent }) {
   if (!excerpt) return null;
 
   return (
-    <p className="font-sans text-[17px] leading-[1.75] text-white/85">
+    <p className="font-sans text-[15px] leading-[24px] text-white/[0.82]">
       {excerpt}
     </p>
   );
 }
 
-/* ---------- install ---------- */
+/* ---------- exits ---------- */
+
+/** The app ends its explainer by handing the reader back to the record. */
+function ExitToSource({ url }: { url?: string }) {
+  if (!url) return null;
+  return (
+    <section
+      className="mt-8 rounded-[16px] border p-5"
+      style={{ backgroundColor: SLATE, borderColor: HAIR_2 }}
+    >
+      <h2 className="font-display mb-[6px] text-[18px] font-bold">
+        Don&apos;t take our word for it.
+      </h2>
+      <p className="text-muted-foreground mb-4 font-sans text-[14px] leading-[20px]">
+        Read the full, unedited text on the official record.
+      </p>
+      <a
+        href={url}
+        rel="noopener noreferrer nofollow"
+        target="_blank"
+        className="text-accent font-sans text-[14px] font-semibold no-underline"
+      >
+        Open the source →
+      </a>
+    </section>
+  );
+}
 
 function InstallCta({ isAndroid }: { isAndroid: boolean }) {
   return (
-    <aside className="rounded-[16px] border border-white/10 bg-white/[0.04] p-6">
-      <h2 className="mb-2 text-[21px] font-bold">
+    <aside
+      className="mt-4 rounded-[16px] border p-5"
+      style={{ backgroundColor: SURFACE, borderColor: HAIR_2 }}
+    >
+      <h2 className="font-display mb-[6px] text-[18px] font-bold">
         {isAndroid
           ? "Billion isn't on Android yet."
           : "Every bill, explained like this."}
       </h2>
-      <p className="text-muted-foreground mb-5 font-sans text-[15px] leading-[1.6]">
+      <p className="text-muted-foreground mb-4 font-sans text-[14px] leading-[20px]">
         {isAndroid
           ? "We're building it. Leave your email and we'll tell you the day it's ready."
-          : "Billion turns bills, executive orders, and court cases into plain language, with the original text one tap away."}
+          : "Bills, executive orders and court cases in plain language, with the original text one tap away."}
       </p>
 
       {isAndroid ? (
@@ -359,7 +464,7 @@ function InstallCta({ isAndroid }: { isAndroid: boolean }) {
       ) : (
         <a
           href={`/r?dest=app&p=${APP_STORE_CAMPAIGN}`}
-          className="bg-primary text-primary-foreground inline-flex items-center rounded-full px-6 py-3 font-sans text-[15px] font-semibold no-underline transition-opacity duration-200 hover:opacity-90"
+          className="bg-primary text-primary-foreground inline-flex items-center rounded-full px-[22px] py-[11px] font-sans text-[14.5px] font-semibold no-underline transition-opacity duration-200 hover:opacity-90"
         >
           Get Billion for iPhone
         </a>

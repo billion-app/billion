@@ -1,4 +1,5 @@
 import type { TRPCRouterRecord } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
@@ -867,7 +868,13 @@ export const contentRouter = {
         return result;
       }
 
-      throw new Error(`Content with id ${input.id} not found`);
+      // A typed code rather than a bare Error: the public share page turns
+      // this one case into a 404 and has to let every other failure through
+      // to the logs, which it cannot do if they all look alike.
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: `Content with id ${input.id} not found`,
+      });
     }),
 
   // Profile and related legislation for the member who formally sponsored a bill.
@@ -939,6 +946,87 @@ export const contentRouter = {
           introducedDate: item.introducedDate?.toISOString(),
         })),
       };
+    }),
+
+  // Card data for an arbitrary set of ids, in the order asked for.
+  //
+  // Public on purpose. Saving is stored on the device so it works before
+  // anyone has an account, which means the list screen arrives holding ids
+  // and no session — it needs a way to turn them into something renderable.
+  byIds: publicProcedure
+    .input(z.object({ ids: z.array(z.string().uuid()).max(200) }))
+    .query(async ({ input }) => {
+      if (input.ids.length === 0) return { items: [] };
+
+      const [bills, government, courtCases] = await Promise.all([
+        db
+          .select({
+            id: Bill.id,
+            title: Bill.title,
+            description: Bill.description,
+            thumbnailUrl: Bill.thumbnailUrl,
+            billNumber: Bill.billNumber,
+            sourceWebsite: Bill.sourceWebsite,
+            status: Bill.status,
+            lastActionAt: Bill.lastActionAt,
+            introducedDate: Bill.introducedDate,
+            chamber: Bill.chamber,
+            sponsor: Bill.sponsor,
+          })
+          .from(Bill)
+          .where(inArray(Bill.id, input.ids)),
+        db
+          .select({
+            id: GovernmentContent.id,
+            title: GovernmentContent.title,
+            description: GovernmentContent.description,
+            thumbnailUrl: GovernmentContent.thumbnailUrl,
+          })
+          .from(GovernmentContent)
+          .where(inArray(GovernmentContent.id, input.ids)),
+        db
+          .select({
+            id: CourtCase.id,
+            title: CourtCase.title,
+            description: CourtCase.description,
+            thumbnailUrl: CourtCase.thumbnailUrl,
+          })
+          .from(CourtCase)
+          .where(inArray(CourtCase.id, input.ids)),
+      ]);
+
+      const byId = new Map<string, ContentCard>();
+      for (const row of bills) byId.set(row.id, toBillCard(row));
+      for (const row of government) {
+        byId.set(row.id, {
+          ...row,
+          type: "government_content" as const,
+          isAIGenerated: false,
+          description: row.description ?? "",
+          thumbnailUrl: row.thumbnailUrl ?? undefined,
+          jurisdiction: "federal" as const,
+          jurisdictionCode: "US" as const,
+        });
+      }
+      for (const row of courtCases) {
+        byId.set(row.id, {
+          ...row,
+          type: "court_case" as const,
+          isAIGenerated: false,
+          description: row.description ?? "",
+          thumbnailUrl: row.thumbnailUrl ?? undefined,
+          jurisdiction: "federal" as const,
+          jurisdictionCode: "US" as const,
+        });
+      }
+
+      // Caller order is save order. An id with no row is dropped rather than
+      // held as a hole: content can be retired after someone saved it.
+      const ordered = input.ids
+        .map((id) => byId.get(id))
+        .filter((item) => item != null);
+
+      return { items: await attachContentImages(ordered) };
     }),
 
   // --- Saved Articles ---
@@ -1080,25 +1168,6 @@ export const contentRouter = {
           );
         return { success: true };
       }),
-
-    // Every content id the current user has saved.
-    //
-    // Browse renders a page of cards at once, and asking `isSaved` per row
-    // would put a round trip behind every card. A reader's saved set is small
-    // and only changes when they tap a bookmark, so the whole set is cheaper
-    // to fetch once than to ask about piecemeal — and unlike a per-page
-    // lookup it stays correct as the list pages in.
-    //
-    // This replaced `isSaved` on every screen. That procedure is kept because
-    // app builds already on people's phones still call it, and they keep
-    // calling it until they update.
-    allIds: protectedProcedure.query(async ({ ctx }) => {
-      const rows = await db
-        .select({ contentId: SavedArticle.contentId })
-        .from(SavedArticle)
-        .where(eq(SavedArticle.userId, ctx.session.user.id));
-      return { savedIds: rows.map((row) => row.contentId) };
-    }),
 
     // Whether the given content is already saved by the current user.
     isSaved: protectedProcedure
