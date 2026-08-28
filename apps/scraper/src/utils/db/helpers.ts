@@ -3,7 +3,7 @@
  * Check for existing records before performing expensive operations
  */
 
-import { and, eq, inArray, sql } from "@acme/db";
+import { and, desc, eq, inArray } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -98,36 +98,37 @@ export async function checkExistingGovernmentContent(
   }
 }
 
+export interface GovernmentContentTitleMatch {
+  id: string;
+  normalizedTitle: string;
+  federalRegisterDocumentNumber: string | null;
+}
+
 /**
- * Count how many rows from `source` carry each of the given normalized titles.
+ * Find source rows that can receive a citation from a later publisher.
  *
- * Used to stop the Federal Register re-ingesting documents whitehouse.gov has
- * already published days earlier. Returns counts rather than booleans because a
- * title does not identify a document — see `normalizeTitle` — and the caller
- * has to know whether it is looking at one prior row or three.
- *
- * Normalisation is applied in SQL so it matches `normalizeTitle` exactly and
- * the comparison stays on the database side; pulling every presidential
- * document back to normalise in JS would grow with the archive.
- *
- * @param normalizedTitles - Titles already passed through `normalizeTitle`
- * @param source - Value of `government_content.source` to count within
- * @returns Map of normalized title to row count; absent means zero
+ * The arrays matter because separate presidential documents can share a title.
+ * Newest rows come first so they pair with the newest-first Federal Register
+ * response in a stable one-to-one order.
  */
-export async function countGovernmentContentTitles(
+export async function findGovernmentContentTitleMatches(
   normalizedTitles: readonly string[],
   source: string,
-): Promise<Map<string, number>> {
-  const counts = new Map<string, number>();
-  if (normalizedTitles.length === 0) return counts;
+): Promise<Map<string, GovernmentContentTitleMatch[]>> {
+  const matches = new Map<string, GovernmentContentTitleMatch[]>();
+  if (normalizedTitles.length === 0) return matches;
 
   const normalized = normalizeGovernmentContentTitleSql(
     GovernmentContent.title,
   );
-
   try {
     const rows = await db
-      .select({ key: normalized, total: sql<number>`count(*)::int` })
+      .select({
+        id: GovernmentContent.id,
+        normalizedTitle: normalized,
+        federalRegisterDocumentNumber:
+          GovernmentContent.federalRegisterDocumentNumber,
+      })
       .from(GovernmentContent)
       .where(
         and(
@@ -135,20 +136,20 @@ export async function countGovernmentContentTitles(
           inArray(normalized, [...normalizedTitles]),
         ),
       )
-      .groupBy(normalized);
+      .orderBy(desc(GovernmentContent.publishedDate));
 
     for (const row of rows) {
-      counts.set(row.key, Number(row.total));
+      const sourceMatches = matches.get(row.normalizedTitle) ?? [];
+      sourceMatches.push(row);
+      matches.set(row.normalizedTitle, sourceMatches);
     }
   } catch (error) {
-    // An empty map means "nothing already covers these", so a failure here
-    // costs a duplicate row rather than a silently dropped document. That is
-    // the right way round: a duplicate is visible and fixable, while a document
-    // that was never stored looks identical to one that was never published.
-    logger.error("Error counting government content titles", error);
+    // Fail open. A separate Federal Register row is visible and fixable, while
+    // throwing here would prevent every unmatched document from being stored.
+    logger.error("Error finding government content title matches", error);
   }
 
-  return counts;
+  return matches;
 }
 
 /**

@@ -289,6 +289,11 @@ export const GovernmentContent = pgTable(
     thumbnailUrl: t.text(), // URL of the thumbnail image
     url: t.text().notNull().unique(), // Unique constraint for upsert by URL
     source: t.varchar({ length: 100 }).notNull().default("whitehouse.gov"), // Source website
+    // White House RSS is the fast publication source. The Federal Register
+    // follows later with the durable citation, so keep both links on one row.
+    federalRegisterUrl: t.text().unique(),
+    federalRegisterDocumentNumber: t.varchar({ length: 50 }).unique(),
+    federalRegisterPublishedDate: t.timestamp(),
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
     versions: t
       .jsonb()
