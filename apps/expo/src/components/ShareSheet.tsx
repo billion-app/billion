@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 
 import type { IconName } from "~/components/ui";
 import type { ShareSurface } from "~/utils/share";
@@ -34,6 +35,7 @@ export interface ShareSheetProps {
   contentId: string;
   contentType: string;
   contentTitle: string;
+  thumbnailUrl?: string;
   surface: ShareSurface;
   accent: string;
   /** Overrides the default heading — the screenshot prompt says its own thing. */
@@ -47,6 +49,7 @@ export function ShareSheet({
   contentId,
   contentType,
   contentTitle,
+  thumbnailUrl,
   surface,
   accent,
   heading = "Send this to someone",
@@ -128,6 +131,7 @@ export function ShareSheet({
           label="Share as an image"
           hint="Sized for a story or a post"
           accent={accent}
+          thumbnailUrl={thumbnailUrl}
           loading={busy === "image"}
           disabled={busy !== null}
           onPress={() => void run("image")}
@@ -164,6 +168,7 @@ function ShareOption({
   label,
   hint,
   accent,
+  thumbnailUrl,
   loading,
   disabled,
   onPress,
@@ -173,11 +178,17 @@ function ShareOption({
   label: string;
   hint: string;
   accent: string;
+  thumbnailUrl?: string;
   loading: boolean;
   disabled: boolean;
   onPress: () => void;
   testID: string;
 }) {
+  const [failedThumbnailUrl, setFailedThumbnailUrl] = useState<string | null>(
+    null,
+  );
+  const showThumbnail = !!thumbnailUrl && thumbnailUrl !== failedThumbnailUrl;
+
   return (
     <TouchableOpacity
       style={[s.option, disabled && !loading ? s.optionDimmed : null]}
@@ -188,9 +199,23 @@ function ShareOption({
       accessibilityLabel={`${label}. ${hint}`}
       testID={testID}
     >
-      <View style={[s.optionIcon, { backgroundColor: `${accent}22` }]}>
+      <View
+        style={[
+          s.optionIcon,
+          { backgroundColor: `${accent}22` },
+          showThumbnail ? s.thumbnailFrame : null,
+        ]}
+      >
         {loading ? (
           <ActivityIndicator size="small" color={accent} />
+        ) : showThumbnail ? (
+          <Image
+            source={{ uri: thumbnailUrl }}
+            style={s.thumbnail}
+            contentFit="cover"
+            transition={180}
+            onError={() => setFailedThumbnailUrl(thumbnailUrl)}
+          />
         ) : (
           <Icon name={icon} size={19} color={accent} />
         )}
@@ -255,6 +280,13 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  thumbnailFrame: {
+    width: 52,
+    height: 52,
+    overflow: "hidden",
+    borderRadius: 10,
+  },
+  thumbnail: { width: "100%", height: "100%" },
   optionCopy: { flex: 1, gap: 2 },
   optionLabel: {
     fontFamily: fontBody.semibold,

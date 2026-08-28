@@ -683,6 +683,9 @@ export default function ArticleDetailScreen() {
           contentId={content.id}
           contentType={content.type}
           contentTitle={content.title}
+          thumbnailUrl={
+            headerImageSource ? (headerImageUri ?? undefined) : undefined
+          }
           surface={shareSurface}
           accent={t.color}
           heading={
