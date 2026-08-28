@@ -13,7 +13,7 @@ import "server-only";
 interface OgFont {
   name: string;
   data: ArrayBuffer;
-  weight: 400 | 700;
+  weight: 400 | 700 | 800;
   style: "normal";
 }
 
@@ -34,7 +34,7 @@ const cache = new Map<string, ArrayBuffer>();
 
 async function loadGoogleFont(
   family: string,
-  weight: 400 | 700,
+  weight: 400 | 700 | 800,
 ): Promise<ArrayBuffer | null> {
   const key = `${family}:${weight}`;
   const cached = cache.get(key);
@@ -73,10 +73,11 @@ async function loadGoogleFont(
  * the UI sans for everything else. Returns only what loaded.
  */
 export async function brandFonts(): Promise<OgFont[]> {
-  const [serif, sansRegular, sansBold] = await Promise.all([
+  const [serif, sansRegular, sansBold, sansExtraBold] = await Promise.all([
     loadGoogleFont("IBM Plex Serif", 700),
     loadGoogleFont("Albert Sans", 400),
     loadGoogleFont("Albert Sans", 700),
+    loadGoogleFont("Albert Sans", 800),
   ]);
 
   return [
@@ -87,6 +88,11 @@ export async function brandFonts(): Promise<OgFont[]> {
       weight: 400 as const,
     },
     sansBold && { name: "Albert Sans", data: sansBold, weight: 700 as const },
+    sansExtraBold && {
+      name: "Albert Sans",
+      data: sansExtraBold,
+      weight: 800 as const,
+    },
   ]
     .filter((font) => font !== null)
     .map((font) => ({ ...font, style: "normal" as const }));

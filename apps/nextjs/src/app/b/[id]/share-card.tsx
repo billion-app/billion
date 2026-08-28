@@ -42,7 +42,7 @@ function EmphasizedSummary({
         <span
           key={index}
           style={{
-            fontWeight: part.emphasized ? 700 : 400,
+            fontWeight: part.emphasized ? 800 : 400,
             color: part.emphasized ? WHITE : "rgba(255,255,255,0.72)",
           }}
         >
