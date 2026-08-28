@@ -62,10 +62,20 @@ void test("bill interest scoring runs before source refreshes", () => {
 });
 
 void test("executive actions refresh daily", () => {
+  const whiteHouseJob = findJob("whitehouse-daily");
+  assert.ok(whiteHouseJob, "daily White House job is missing");
+  assert.deepEqual(whiteHouseJob.args, ["whitehouse", "--concurrency", "2"]);
+  assert.deepEqual(whiteHouseJob.schedule, {
+    kind: "daily",
+    hour: 1,
+    minute: 0,
+  });
+
   const job = findJob("federalregister-daily");
   assert.ok(job, "daily Federal Register job is missing");
   assert.deepEqual(job.args, ["federalregister", "--concurrency", "2"]);
   assert.deepEqual(job.schedule, { kind: "daily", hour: 1, minute: 30 });
+  assert.ok(whiteHouseJob.priority < job.priority);
 });
 
 void test("San Jose decisions refresh daily through the Legistar scraper", () => {

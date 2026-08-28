@@ -98,8 +98,19 @@ export const jobs: readonly JobDefinition[] = [
   // without touching the others.
   //
   // Executive actions run daily because each new action is immediately
-  // newsworthy even though the source publishes infrequently. The election
-  // sources stay weekly because their underlying material changes slowly.
+  // newsworthy even though the sources publish infrequently. White House RSS
+  // runs first for same-day discovery; Federal Register follows as the durable
+  // official record and skips documents the RSS feed already supplied.
+  {
+    id: "whitehouse-daily",
+    description: "Executive orders and proclamations, same-day from the source",
+    script: "main.js",
+    args: ["whitehouse", "--concurrency", "2"],
+    schedule: { kind: "daily", hour: 1, minute: 0 },
+    priority: 4,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 12,
+  },
   {
     id: "federalregister-daily",
     description: "Executive orders and presidential documents",
