@@ -7,11 +7,13 @@ import { db } from "@acme/db/client";
 import { resolveContentImageUrl } from "@acme/db/content-images";
 import {
   Bill,
+  BillInterest,
   BriefChangeImage,
   ContentBrief,
   ContentImage,
   ContentLens,
   CourtCase,
+  FeaturedBill,
   GovernmentContent,
   SavedArticle,
 } from "@acme/db/schema";
@@ -30,6 +32,10 @@ import {
   parseStateBillNumber,
 } from "../lib/content-jurisdiction";
 import { getFederalOfficialByName } from "../lib/elected-officials";
+import {
+  FEATURED_BILL_LIMIT,
+  rankFeaturedBillCandidates,
+} from "../lib/featured-bills";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
 const SAVED_CONTENT_TYPES = [
@@ -276,6 +282,22 @@ interface BillCardSource {
   sponsor?: string | null;
 }
 
+const BILL_CARD_COLUMNS = {
+  id: Bill.id,
+  title: Bill.title,
+  description: Bill.description,
+  summary: Bill.summary,
+  thumbnailUrl: Bill.thumbnailUrl,
+  billNumber: Bill.billNumber,
+  sourceWebsite: Bill.sourceWebsite,
+  status: Bill.status,
+  lastActionAt: Bill.lastActionAt,
+  introducedDate: Bill.introducedDate,
+  createdAt: Bill.createdAt,
+  chamber: Bill.chamber,
+  sponsor: Bill.sponsor,
+};
+
 function toBillCard(bill: BillCardSource): ContentCard & { type: "bill" } {
   const jurisdiction = billJurisdiction(bill.sourceWebsite, bill.billNumber);
   const identity = parseStateBillNumber(bill.billNumber);
@@ -360,6 +382,105 @@ export const contentRouter = {
 
     return await attachContentImages(allContent);
   }),
+
+  // Featured bills are score-driven by default, with one-row editorial
+  // overrides for pins, ordering, scheduling, and exclusions. Any failure is
+  // isolated from Browse so the ordinary feed remains usable.
+  getFeaturedBills: publicProcedure
+    .input(
+      z.object({
+        jurisdiction: z.enum(JURISDICTIONS).default("federal"),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        const jurisdictionCondition = billJurisdictionCondition(
+          input.jurisdiction,
+        );
+        const editorialQuery = db
+          .select({
+            bill: BILL_CARD_COLUMNS,
+            rationale: FeaturedBill.rationale,
+            displayOrder: FeaturedBill.displayOrder,
+            overrideActive: FeaturedBill.active,
+            startsAt: FeaturedBill.startsAt,
+            endsAt: FeaturedBill.endsAt,
+          })
+          .from(FeaturedBill)
+          .innerJoin(Bill, eq(Bill.id, FeaturedBill.billId))
+          .where(jurisdictionCondition)
+          .orderBy(
+            FeaturedBill.displayOrder,
+            desc(FeaturedBill.updatedAt),
+            desc(FeaturedBill.billId),
+          );
+
+        const scoredQuery = db
+          .select({
+            bill: BILL_CARD_COLUMNS,
+            interestScore: BillInterest.interestScore,
+            controversyScore: BillInterest.controversyScore,
+            attentionScore: BillInterest.attentionScore,
+          })
+          .from(Bill)
+          .innerJoin(BillInterest, eq(BillInterest.billId, Bill.id))
+          .where(
+            and(
+              jurisdictionCondition,
+              eq(BillInterest.contentHash, Bill.contentHash),
+            ),
+          );
+
+        const [editorialRows, scoredRows] = await Promise.all([
+          editorialQuery,
+          scoredQuery,
+        ]);
+        const now = new Date();
+        const liveEditorialRows = editorialRows.filter(
+          (row) =>
+            row.overrideActive &&
+            (!row.startsAt || row.startsAt <= now) &&
+            (!row.endsAt || row.endsAt > now),
+        );
+        const overriddenIds = new Set(editorialRows.map((row) => row.bill.id));
+
+        const rankedRows = rankFeaturedBillCandidates(
+          scoredRows
+            .filter((row) => !overriddenIds.has(row.bill.id))
+            .map((row) => ({
+              ...row,
+              id: row.bill.id,
+              activityAt:
+                row.bill.lastActionAt ??
+                row.bill.introducedDate ??
+                row.bill.createdAt,
+            })),
+          now,
+        );
+
+        const selected = [
+          ...liveEditorialRows.map((row) => ({
+            bill: row.bill,
+            featureTakeaway: row.rationale ?? undefined,
+          })),
+          ...rankedRows.map((row) => ({
+            bill: row.bill,
+            featureTakeaway: undefined,
+          })),
+        ].slice(0, FEATURED_BILL_LIMIT);
+
+        const cards = selected.map(({ bill, featureTakeaway }, index) => ({
+          ...toBillCard(bill),
+          featureTakeaway,
+          featuredPosition: index + 1,
+        }));
+
+        return await attachContentImages(cards);
+      } catch (error) {
+        console.error("Unable to load featured bills", error);
+        return [];
+      }
+    }),
 
   // Get content filtered by type from database, paginated for infinite scroll.
   //
