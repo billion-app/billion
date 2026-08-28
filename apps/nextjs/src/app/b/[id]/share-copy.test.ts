@@ -8,6 +8,7 @@ import {
   presentType,
   shareSegment,
   shareSummary,
+  shareSummaryParts,
   truncate,
 } from "./share-copy";
 
@@ -143,6 +144,51 @@ void test("a share prefers the brief's purpose-written summary", () => {
   assert.equal(
     shareSummary({ ...record, brief: { summary: "The **real** takeaway." } }),
     "The real takeaway.",
+  );
+});
+
+void test("authored key phrases stay emphasized in share images", () => {
+  assert.deepEqual(
+    shareSummaryParts(
+      {
+        ...record,
+        brief: {
+          summary: "States get **new enforcement grants** for senior fraud.",
+        },
+      },
+      200,
+    ),
+    [
+      { text: "States get ", emphasized: false },
+      { text: "new enforcement grants", emphasized: true },
+      { text: " for senior fraud.", emphasized: false },
+    ],
+  );
+});
+
+void test("emphasized share copy truncates by visible text", () => {
+  const parts = shareSummaryParts(
+    {
+      ...record,
+      brief: {
+        summary:
+          "States get **new enforcement grants** for a substantially expanded senior fraud program.",
+      },
+    },
+    48,
+  );
+
+  assert.equal(
+    parts.map((part) => part.text).join(""),
+    "States get new enforcement grants for a…",
+  );
+  assert.equal(
+    parts.some((part) => part.text.includes("**")),
+    false,
+  );
+  assert.equal(
+    parts.find((part) => part.text === "new enforcement grants")?.emphasized,
+    true,
   );
 });
 

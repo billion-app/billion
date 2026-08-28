@@ -1,5 +1,5 @@
 import type { ShareableContent } from "./share-copy";
-import { presentType, shareSummary, truncate } from "./share-copy";
+import { presentType, shareSummaryParts, truncate } from "./share-copy";
 
 /**
  * The images a shared bill turns into.
@@ -21,6 +21,37 @@ const HAIRLINE = "rgba(255,255,255,0.10)";
 
 const SERIF = '"IBM Plex Serif", serif';
 const SANS = '"Albert Sans", sans-serif';
+
+function EmphasizedSummary({
+  parts,
+}: {
+  parts: ReturnType<typeof shareSummaryParts>;
+}) {
+  // Satori lays these spans out as flex children and otherwise trims normal
+  // spaces where two differently weighted spans meet. Non-breaking spaces at
+  // just those boundaries preserve natural copy without preventing wrapping
+  // inside a longer emphasized phrase.
+  const preserveBoundarySpaces = (text: string) =>
+    text
+      .replace(/^ +/, (spaces) => "\u00A0".repeat(spaces.length))
+      .replace(/ +$/, (spaces) => "\u00A0".repeat(spaces.length));
+
+  return (
+    <span style={{ display: "flex", flexWrap: "wrap" }}>
+      {parts.map((part, index) => (
+        <span
+          key={index}
+          style={{
+            fontWeight: part.emphasized ? 700 : 400,
+            color: part.emphasized ? WHITE : "rgba(255,255,255,0.72)",
+          }}
+        >
+          {preserveBoundarySpaces(part.text)}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function Wordmark({ size }: { size: number }) {
   return (
@@ -83,7 +114,7 @@ export function OgCard({
   const type = presentType(content.type);
   // Sized for the worst case this canvas has to hold: a four-line headline
   // and header art, on 630px of height that cannot scroll.
-  const summary = truncate(shareSummary(content), art ? 130 : 165);
+  const summary = shareSummaryParts(content, art ? 130 : 165);
 
   return (
     <div
@@ -166,7 +197,7 @@ export function OgCard({
             {truncate(content.title, 105)}
           </div>
 
-          {summary ? (
+          {summary.length ? (
             <div
               style={{
                 display: "flex",
@@ -176,7 +207,7 @@ export function OgCard({
                 color: "rgba(255,255,255,0.72)",
               }}
             >
-              {summary}
+              <EmphasizedSummary parts={summary} />
             </div>
           ) : null}
         </div>
@@ -243,7 +274,7 @@ export function StoryCard({
   art?: string;
 }) {
   const type = presentType(content.type);
-  const summary = truncate(shareSummary(content), 220);
+  const summary = shareSummaryParts(content, 220);
 
   return (
     <div
@@ -354,7 +385,7 @@ export function StoryCard({
             {truncate(content.title, 120)}
           </div>
 
-          {summary ? (
+          {summary.length ? (
             <div
               style={{
                 display: "flex",
@@ -364,7 +395,7 @@ export function StoryCard({
                 color: "rgba(255,255,255,0.74)",
               }}
             >
-              {summary}
+              <EmphasizedSummary parts={summary} />
             </div>
           ) : null}
         </div>

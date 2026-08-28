@@ -141,11 +141,74 @@ export function truncate(value: string, limit: number): string {
  * description the app itself shows.
  */
 export function shareSummary(content: ShareableContent): string {
+  return plainText(rawShareSummary(content));
+}
+
+function rawShareSummary(content: ShareableContent): string {
   const brief = content.brief;
   const summary =
     brief && typeof brief === "object" && "summary" in brief
       ? (brief.summary as string | undefined)
       : undefined;
 
-  return plainText(summary ?? content.description);
+  return summary ?? content.description;
+}
+
+export interface ShareSummaryPart {
+  text: string;
+  emphasized: boolean;
+}
+
+/**
+ * Share copy with the brief author's `**key phrase**` emphasis preserved.
+ * Other Markdown is still removed, and truncation operates on visible text so
+ * formatting markers never consume the card's character budget or leak out.
+ */
+export function shareSummaryParts(
+  content: ShareableContent,
+  limit: number,
+): ShareSummaryPart[] {
+  const emphasized: string[] = [];
+  const tokenized = rawShareSummary(content).replace(
+    /\*\*(.+?)\*\*/g,
+    (_match, phrase: string) => {
+      const index = emphasized.push(plainText(phrase)) - 1;
+      return `\uE000${index}\uE001`;
+    },
+  );
+  const normalized = plainText(tokenized);
+  const parts: ShareSummaryPart[] = [];
+  const token = /\uE000(\d+)\uE001/g;
+  let cursor = 0;
+
+  for (const match of normalized.matchAll(token)) {
+    const index = match.index;
+    if (index > cursor) {
+      parts.push({ text: normalized.slice(cursor, index), emphasized: false });
+    }
+    parts.push({
+      text: emphasized[Number(match[1])] ?? "",
+      emphasized: true,
+    });
+    cursor = index + match[0].length;
+  }
+  if (cursor < normalized.length) {
+    parts.push({ text: normalized.slice(cursor), emphasized: false });
+  }
+
+  const visible = parts.map((part) => part.text).join("");
+  const shortened = truncate(visible, limit);
+  const wasTruncated = shortened.endsWith("…");
+  let remaining = wasTruncated ? shortened.length - 1 : shortened.length;
+  const result: ShareSummaryPart[] = [];
+
+  for (const part of parts) {
+    if (remaining <= 0) break;
+    const text = part.text.slice(0, remaining);
+    if (text) result.push({ ...part, text });
+    remaining -= text.length;
+  }
+  if (wasTruncated) result.push({ text: "…", emphasized: false });
+
+  return result;
 }
