@@ -16,10 +16,16 @@ import {
 const logger = createLogger("bill-retention");
 
 const argv = await yargs(hideBin(process.argv))
-  .option("keep-per-jurisdiction", {
+  .option("active-days", {
     type: "number",
-    default: 100,
-    description: "Newest bills to retain independently in each jurisdiction",
+    default: 90,
+    description: "Keep bills with activity inside this rolling window",
+  })
+  .option("top-per-category", {
+    type: "number",
+    default: 50,
+    description:
+      "Keep this many popular, controversial, and talked-about bills globally",
   })
   .option("apply", {
     type: "boolean",
@@ -33,13 +39,21 @@ const argv = await yargs(hideBin(process.argv))
     description: "Acknowledge production deletions",
   })
   .check((args) => {
-    const keepPerJurisdiction = args.keepPerJurisdiction;
+    const activeDays = args.activeDays;
+    const topPerCategory = args.topPerCategory;
     if (
-      typeof keepPerJurisdiction !== "number" ||
-      !Number.isInteger(keepPerJurisdiction) ||
-      keepPerJurisdiction < 1
+      typeof activeDays !== "number" ||
+      !Number.isInteger(activeDays) ||
+      activeDays < 1
     ) {
-      throw new Error("--keep-per-jurisdiction must be a positive integer");
+      throw new Error("--active-days must be a positive integer");
+    }
+    if (
+      typeof topPerCategory !== "number" ||
+      !Number.isInteger(topPerCategory) ||
+      topPerCategory < 1
+    ) {
+      throw new Error("--top-per-category must be a positive integer");
     }
     return true;
   })
@@ -54,7 +68,7 @@ function printInventory(
   for (const row of inventory) {
     printKeyValue(
       row.jurisdiction,
-      `${row.total} total; ${row.evict} selected for eviction`,
+      `${row.total} total; ${row.recent} recent, ${row.unscored} awaiting score, ${row.saved} saved, ${row.popular} popular, ${row.controversial} controversial, ${row.talkedAbout} talked-about; ${row.evict} selected for eviction`,
     );
   }
   printKeyValue(
@@ -77,7 +91,11 @@ async function main() {
     databaseTargetMessage(databaseUrl),
   );
 
-  const inventory = await billRetentionInventory(argv.keepPerJurisdiction);
+  const policy = {
+    activeDays: argv.activeDays,
+    topPerCategory: argv.topPerCategory,
+  };
+  const inventory = await billRetentionInventory(policy);
   printInventory(inventory);
   if (!argv.apply) return;
 
@@ -93,10 +111,7 @@ async function main() {
     );
   }
 
-  const results = await enforceBillRetention(
-    jurisdictions,
-    argv.keepPerJurisdiction,
-  );
+  const results = await enforceBillRetention(jurisdictions, policy);
 
   printHeader("Eviction result");
   for (const result of results) {
@@ -117,6 +132,10 @@ async function main() {
   printKeyValue(
     "Saved references",
     results.reduce((total, result) => total + result.saves, 0),
+  );
+  printKeyValue(
+    "Interest assessments",
+    results.reduce((total, result) => total + result.interests, 0),
   );
   printKeyValue(
     "Brief change images",

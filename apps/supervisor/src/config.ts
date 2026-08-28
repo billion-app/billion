@@ -11,14 +11,17 @@ import type { JobDefinition } from "./types.js";
 export const jobs: readonly JobDefinition[] = [
   {
     id: "congress-daily",
-    description: "Refresh and retain the 80 most recently updated bills",
+    description:
+      "Refresh federal bills and retain 90 active days plus category leaders",
     script: "main.js",
     args: [
       "congress",
       "--recent",
       "80",
       "--retain",
-      "80",
+      "50",
+      "--retention-days",
+      "90",
       "--concurrency",
       "4",
     ],
@@ -35,14 +38,16 @@ export const jobs: readonly JobDefinition[] = [
   ...(["ca", "nc", "tx"] as const).map(
     (stateCode, index): JobDefinition => ({
       id: `open-states-${stateCode}-daily`,
-      description: `Refresh and retain the 100 most recently updated ${stateCode.toUpperCase()} measures`,
+      description: `Refresh ${stateCode.toUpperCase()} measures and retain 90 active days plus category leaders`,
       script: "main.js",
       args: [
         "open-states",
         "--recent",
         "100",
         "--retain",
-        "100",
+        "50",
+        "--retention-days",
+        "90",
         "--concurrency",
         "4",
       ],
@@ -67,12 +72,23 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 24,
   },
   {
+    id: "bill-interest-daily",
+    description:
+      "Score missing or changed bills for interest, controversy, and attention",
+    script: "bill-interest.js",
+    args: ["--limit", "1000", "--concurrency", "4"],
+    schedule: { kind: "daily", hour: 2, minute: 0 },
+    priority: 0,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
+  },
+  {
     id: "content-images-daily",
     description: "Generate illustrated header art for recent retained content",
     script: "content-images.js",
     args: ["--bill-limit", "80", "--other-limit", "20", "--concurrency", "1"],
     schedule: { kind: "daily", hour: 4, minute: 15 },
-    priority: 5,
+    priority: 6,
     idleTimeoutMinutes: 120,
     maxRuntimeHours: 12,
   },

@@ -382,13 +382,23 @@ also includes the manual retention command. All are `pnpm`-scripted in
 | `retroactive-lenses`         | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows           | `--dry-run` to preview                                        |
 | `backfill-bill-descriptions` | `backfill-bill-descriptions.ts` | Bills with no source/AI description         | `--apply` (+ `--yes` on prod)                                 |
 | `content-images`             | `content-images.ts`             | Missing or stale Storage-backed header art  | Bill selection is hard-limited to 80; local FLUX only         |
-| `prune-bills`                | `prune-bills.ts`                | Bills beyond the newest N per jurisdiction  | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
+| `bill-interest`              | `bill-interest.ts`              | Missing/stale editorial ranking assessments | `--dry-run` to preview                                        |
+| `prune-bills`                | `prune-bills.ts`                | Bills outside the editorial retention set   | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
 
-The scheduled Congress refresh passes `--recent 80 --retain 80`; Open States
-refreshes pass `--recent 100 --retain 100`. After a successful `--recent` run,
-PostgreSQL ranks and deletes overflow for only the refreshed jurisdiction,
-returning aggregate counts rather than bill rows. The standalone command is for
-manual inventory and repair, not routine scheduling.
+The scheduled Congress refresh passes `--recent 80 --retain 50
+--retention-days 90`; Open States uses the same retention settings after a
+`--recent 100` refresh. PostgreSQL keeps bills active in that 90-day window,
+every saved bill, and the global top 50 by saves, LLM-scored controversy, or
+demonstrated outside attention. It deletes only from the refreshed jurisdiction
+and returns aggregate counts rather than bill rows. The standalone command is
+for manual inventory and repair, not routine scheduling.
+
+`bill-interest` reads the stored structured brief and dual-lens research. It
+stores three 0–100 scores plus a short reason, model version, and bill content
+hash. Popularity never comes from the model; retention counts real saves. A
+changed content hash invalidates the old assessment until the scheduled scorer
+replaces it. Retention protects missing and stale assessments, so scoring must
+succeed before an older bill can become eligible for deletion.
 
 `reprocess-content` is the most general and the model the others follow:
 

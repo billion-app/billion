@@ -206,6 +206,63 @@ export const CreateBillSchema = createInsertSchema(Bill).omit({
   updatedAt: true,
 });
 
+/**
+ * Cached editorial ranking signals for a bill.
+ *
+ * Popularity is deliberately absent: it comes from real save counts at query
+ * time. These scores cover the two judgments that need interpretation of the
+ * bill and its researched context. `contentHash` makes the cache stale as soon
+ * as the underlying bill changes.
+ */
+export const BillInterest = pgTable(
+  "bill_interest",
+  (t) => ({
+    billId: t
+      .uuid("bill_id")
+      .notNull()
+      .primaryKey()
+      .references(() => Bill.id, { onDelete: "cascade" }),
+    contentHash: t.varchar("content_hash", { length: 64 }).notNull(),
+    interestScore: t.integer("interest_score").notNull(),
+    controversyScore: t.integer("controversy_score").notNull(),
+    attentionScore: t.integer("attention_score").notNull(),
+    reason: t.text().notNull(),
+    modelVersion: t.varchar("model_version", { length: 100 }).notNull(),
+    generatedAt: t
+      .timestamp("generated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: t
+      .timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
+  }),
+  (table) => ({
+    interestRange: check(
+      "bill_interest_interest_score_range",
+      sql`${table.interestScore} between 0 and 100`,
+    ),
+    controversyRange: check(
+      "bill_interest_controversy_score_range",
+      sql`${table.controversyScore} between 0 and 100`,
+    ),
+    attentionRange: check(
+      "bill_interest_attention_score_range",
+      sql`${table.attentionScore} between 0 and 100`,
+    ),
+    interestScoreIdx: index("bill_interest_interest_score_idx").on(
+      table.interestScore,
+    ),
+    controversyScoreIdx: index("bill_interest_controversy_score_idx").on(
+      table.controversyScore,
+    ),
+    attentionScoreIdx: index("bill_interest_attention_score_idx").on(
+      table.attentionScore,
+    ),
+  }),
+);
+
 // Government Content table (executive orders, memoranda, proclamations, news articles, briefings, etc.)
 export const GovernmentContent = pgTable(
   "government_content",

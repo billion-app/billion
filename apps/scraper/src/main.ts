@@ -66,7 +66,12 @@ const argv = await yargs(hideBin(process.argv))
   .option("retain", {
     type: "number",
     describe:
-      "After a successful recent bill refresh, retain only the newest N stored bills in each refreshed jurisdiction",
+      "After a successful recent refresh, retain bills active within --retention-days plus the top N popular, controversial, and talked-about bills",
+  })
+  .option("retention-days", {
+    type: "number",
+    default: 90,
+    describe: "Rolling activity window protected by --retain",
   })
   .check((args) => {
     const maxItems = args.maxItems;
@@ -129,6 +134,14 @@ const argv = await yargs(hideBin(process.argv))
         );
       }
     }
+    const retentionDays = args.retentionDays;
+    if (
+      typeof retentionDays !== "number" ||
+      !Number.isInteger(retentionDays) ||
+      retentionDays <= 0
+    ) {
+      throw new Error("--retention-days must be a positive integer");
+    }
     if (args.congress !== undefined && !bills?.length) {
       throw new Error("--congress only applies alongside --bill");
     }
@@ -152,6 +165,7 @@ const session = (argv as { session?: string }).session;
 const bulkDir = (argv as { bulkDir?: string }).bulkDir;
 const recent = (argv as { recent?: number }).recent;
 const retain = (argv as { retain?: number }).retain;
+const retentionDays = (argv as { retentionDays: number }).retentionDays;
 
 function logDatabaseTarget(): void {
   const target = databaseTarget(process.env.POSTGRES_URL!);
@@ -164,7 +178,8 @@ function logDatabaseTarget(): void {
 
 async function applyRetentionAfterRefresh(
   scraperId: string,
-  keepPerJurisdiction: number,
+  topPerCategory: number,
+  activeDays: number,
 ) {
   const jurisdictions =
     scraperId === "congress"
@@ -172,13 +187,13 @@ async function applyRetentionAfterRefresh(
       : (parseStates(process.env.OPEN_STATES_STATES) ?? DEFAULT_STATES).map(
           (state) => state.toUpperCase(),
         );
-  const results = await enforceBillRetention(
-    jurisdictions,
-    keepPerJurisdiction,
-  );
+  const results = await enforceBillRetention(jurisdictions, {
+    activeDays,
+    topPerCategory,
+  });
   for (const result of results) {
     logger.info(
-      `Retention ${result.jurisdiction}: kept ${keepPerJurisdiction}, evicted ${result.bills}`,
+      `Retention ${result.jurisdiction}: protected ${activeDays} active days plus top ${topPerCategory} category leaders; evicted ${result.bills}`,
     );
   }
 }
@@ -226,7 +241,7 @@ async function main() {
       recent,
     });
     if (retain !== undefined) {
-      await applyRetentionAfterRefresh(arg, retain);
+      await applyRetentionAfterRefresh(arg, retain, retentionDays);
     }
     printMetricsSummary(scraper.name);
   }
