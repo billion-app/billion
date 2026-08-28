@@ -8,7 +8,7 @@ interface JournalEntry {
   when: number;
 }
 
-test("migration journal timestamps increase with migration order", async () => {
+void test("migration journal timestamps increase with migration order", async () => {
   const journalUrl = new URL("../drizzle/meta/_journal.json", import.meta.url);
   const journal = JSON.parse(await readFile(journalUrl, "utf8")) as {
     entries: JournalEntry[];
