@@ -1,23 +1,34 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, desc, eq, inArray, or, sql, unionAll } from "@acme/db";
+import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
 import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
+import { resolveContentImageUrl } from "@acme/db/content-images";
 import {
   Bill,
   BriefChangeImage,
   ContentBrief,
+  ContentImage,
   ContentLens,
   CourtCase,
   GovernmentContent,
   SavedArticle,
-  Video,
 } from "@acme/db/schema";
-import { parseBillBriefRecord } from "@acme/validators";
+import { parseBillBriefRecord, sanitizeBillStatus } from "@acme/validators";
 
+import type { ContentJurisdiction } from "../lib/content-jurisdiction";
 import { toBillTimelineActions } from "../lib/bill-actions";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
+import {
+  billJurisdiction,
+  displaySessionLabel,
+  JURISDICTION_CODES,
+  jurisdictionCode,
+  JURISDICTIONS,
+  officialSourceLabel,
+  parseStateBillNumber,
+} from "../lib/content-jurisdiction";
 import { getFederalOfficialByName } from "../lib/elected-officials";
 import { protectedProcedure, publicProcedure } from "../trpc";
 
@@ -27,6 +38,49 @@ const SAVED_CONTENT_TYPES = [
   "court_case",
 ] as const;
 type SavedContentType = (typeof SAVED_CONTENT_TYPES)[number];
+
+/**
+ * "When did something actually happen to this record", per content type.
+ *
+ * The sort key behind every "recent" listing. Two obvious candidates were both
+ * measured against production and rejected:
+ *
+ * - `createdAt` is our INSERT clock, so it ranks *our ingestion history*. A
+ *   2025 bill first scraped today outranked a 2026 bill scraped last week,
+ *   which is what put "S Corporation Modernization Act of 2025" above the 2026
+ *   one, and any backfill would shuffle old records to the top of Browse.
+ * - `Bill.sourceUpdatedAt` is congress.gov's record-modified time, which moves
+ *   on metadata refreshes rather than legislative events. In production it
+ *   clustered onto 25 distinct days across 326 rows — 44 bills sharing one
+ *   timestamp — and reported S. 2017 as updated 2026-08-07 when its newest
+ *   action was 2025-06-10. Sorting on it put a wall of year-old bills on top.
+ *
+ * `lastActionAt` is the newest real legislative action, written by the
+ * scrapers. It is nullable (a bill congress.gov has published no actions for),
+ * so it falls through to `introducedDate`, which is populated for every row —
+ * `createdAt` is a last resort that should never be reached.
+ *
+ * Each expression normalizes to `timestamptz` so the three can be UNIONed and
+ * compared. The underlying columns are all `timestamp` without a zone holding
+ * UTC values, so they are converted as UTC rather than through the session's
+ * timezone — otherwise a row sorts differently depending on which server ran
+ * the query.
+ */
+const BILL_ACTIVITY_AT = sql<Date>`coalesce(
+  ${Bill.lastActionAt},
+  ${Bill.introducedDate},
+  ${Bill.createdAt}
+) at time zone 'UTC'`;
+
+const GOVERNMENT_CONTENT_ACTIVITY_AT = sql<Date>`coalesce(
+  ${GovernmentContent.publishedDate},
+  ${GovernmentContent.createdAt}
+) at time zone 'UTC'`;
+
+const COURT_CASE_ACTIVITY_AT = sql<Date>`coalesce(
+  ${CourtCase.filedDate},
+  ${CourtCase.createdAt}
+) at time zone 'UTC'`;
 
 function billDescription(
   description: string | null | undefined,
@@ -41,67 +95,35 @@ interface ContentImageRef {
   thumbnailUrl?: string;
 }
 
-interface VideoImage {
-  imageUri?: string;
-  thumbnailUrl?: string;
-}
-
-function videoImageUri(
-  imageData: Buffer | null,
-  imageMimeType: string | null,
-): string | undefined {
-  if (!imageData || !imageMimeType) return undefined;
-  return `data:${imageMimeType};base64,${imageData.toString("base64")}`;
-}
-
-async function loadVideoImages(
-  refs: readonly ContentImageRef[],
-): Promise<Map<string, VideoImage>> {
-  const conditions = SAVED_CONTENT_TYPES.flatMap((type) => {
-    const ids = refs.filter((ref) => ref.type === type).map((ref) => ref.id);
-    return ids.length > 0
-      ? [and(eq(Video.contentType, type), inArray(Video.contentId, ids))]
-      : [];
-  });
-  if (conditions.length === 0) return new Map();
-
-  const videos = await db
-    .select({
-      contentType: Video.contentType,
-      contentId: Video.contentId,
-      imageData: Video.imageData,
-      imageMimeType: Video.imageMimeType,
-      thumbnailUrl: Video.thumbnailUrl,
-    })
-    .from(Video)
-    .where(or(...conditions));
-
-  return new Map(
-    videos.map((video) => [
-      `${video.contentType}:${video.contentId}`,
-      {
-        imageUri: videoImageUri(video.imageData, video.imageMimeType),
-        thumbnailUrl: video.thumbnailUrl ?? undefined,
-      },
-    ]),
-  );
-}
-
-async function attachVideoImages<T extends ContentImageRef>(
+export async function attachContentImages<T extends ContentImageRef>(
   items: readonly T[],
 ): Promise<(T & { imageUri?: string })[]> {
-  const videoImages = await loadVideoImages(items);
-  return items.map((item) => {
-    const video = videoImages.get(`${item.type}:${item.id}`);
-    const thumbnailUrl = item.thumbnailUrl ?? video?.thumbnailUrl;
-    return {
-      ...item,
-      thumbnailUrl,
-      // Source thumbnails remain preferred. Use the generated JPEG only when
-      // the source content has no usable URL of its own.
-      imageUri: thumbnailUrl ? undefined : video?.imageUri,
-    };
-  });
+  if (items.length === 0) return [];
+
+  const rows = await db
+    .select({
+      contentType: ContentImage.contentType,
+      contentId: ContentImage.contentId,
+      storagePath: ContentImage.storagePath,
+    })
+    .from(ContentImage)
+    .where(
+      inArray(
+        ContentImage.contentId,
+        items.map((item) => item.id),
+      ),
+    );
+  const pathByContent = new Map(
+    rows.map((row) => [`${row.contentType}:${row.contentId}`, row.storagePath]),
+  );
+
+  return items.map((item) => ({
+    ...item,
+    imageUri: resolveContentImageUrl(
+      item.thumbnailUrl,
+      pathByContent.get(`${item.type}:${item.id}`),
+    ),
+  }));
 }
 
 // Look up cached dual-lens perspectives for a content item. Returns null when
@@ -209,22 +231,7 @@ export async function getThumbnailForContent(
         .limit(1);
       thumbnailUrl = result[0]?.thumbnailUrl ?? null;
     }
-    if (thumbnailUrl || type === "general") return thumbnailUrl;
-
-    const [video] = await db
-      .select({
-        imageData: Video.imageData,
-        imageMimeType: Video.imageMimeType,
-        thumbnailUrl: Video.thumbnailUrl,
-      })
-      .from(Video)
-      .where(and(eq(Video.contentType, type), eq(Video.contentId, id)))
-      .limit(1);
-    return (
-      videoImageUri(video?.imageData ?? null, video?.imageMimeType ?? null) ??
-      video?.thumbnailUrl ??
-      null
-    );
+    return thumbnailUrl;
   } catch (error) {
     console.error(`Error fetching thumbnail for ${type} ${id}:`, error);
     return null;
@@ -241,9 +248,63 @@ const ContentCardSchema = z.object({
   thumbnailUrl: z.string().optional(),
   imageUri: z.string().optional(), // Add support for AI-generated data URIs
   billNumber: z.string().optional(), // Human-readable bill identifier, e.g. "H.R. 1234"
+  jurisdiction: z.enum(JURISDICTIONS).optional(),
+  jurisdictionCode: z.enum(JURISDICTION_CODES).optional(),
+  billStatus: z.string().optional(),
+  activityAt: z.date().optional(),
+  chamber: z.string().optional(),
+  sponsor: z.string().optional(),
+  sessionLabel: z.string().optional(),
+  sourceLabel: z.string().optional(),
 });
 
 export type ContentCard = z.infer<typeof ContentCardSchema>;
+
+interface BillCardSource {
+  id: string;
+  title: string;
+  description?: string | null;
+  summary?: string | null;
+  thumbnailUrl?: string | null;
+  billNumber: string;
+  sourceWebsite: string;
+  status?: string | null;
+  lastActionAt?: Date | null;
+  introducedDate?: Date | null;
+  createdAt?: Date | null;
+  chamber?: string | null;
+  sponsor?: string | null;
+}
+
+function toBillCard(bill: BillCardSource): ContentCard & { type: "bill" } {
+  const jurisdiction = billJurisdiction(bill.sourceWebsite, bill.billNumber);
+  const identity = parseStateBillNumber(bill.billNumber);
+  return {
+    id: bill.id,
+    title: bill.title,
+    description: billDescription(bill.description, bill.summary),
+    type: "bill",
+    isAIGenerated: false,
+    thumbnailUrl: bill.thumbnailUrl ?? undefined,
+    billNumber: bill.billNumber,
+    jurisdiction,
+    jurisdictionCode: jurisdictionCode(jurisdiction),
+    billStatus: bill.status
+      ? sanitizeBillStatus(bill.status) || undefined
+      : undefined,
+    activityAt:
+      bill.lastActionAt ?? bill.introducedDate ?? bill.createdAt ?? undefined,
+    chamber: bill.chamber ?? undefined,
+    sponsor: bill.sponsor ?? undefined,
+    sessionLabel: identity?.sessionLabel,
+    sourceLabel: officialSourceLabel(jurisdiction),
+  };
+}
+
+const billJurisdictionCondition = (jurisdiction: ContentJurisdiction) =>
+  jurisdiction === "federal"
+    ? sql`${Bill.sourceWebsite} <> 'openstates.org'`
+    : sql`${Bill.sourceWebsite} = 'openstates.org' and ${Bill.billNumber} like ${`${jurisdiction.toUpperCase()} %`}`;
 
 // Schema for detailed content
 const _ContentDetailSchema = ContentCardSchema.extend({
@@ -260,30 +321,22 @@ export const contentRouter = {
     const bills = await db
       .select()
       .from(Bill)
-      .orderBy(desc(Bill.createdAt))
+      .orderBy(desc(BILL_ACTIVITY_AT))
       .limit(20);
     const governmentContent = await db
       .select()
       .from(GovernmentContent)
-      .orderBy(desc(GovernmentContent.createdAt))
+      .orderBy(desc(GOVERNMENT_CONTENT_ACTIVITY_AT))
       .limit(20);
     const courtCases = await db
       .select()
       .from(CourtCase)
-      .orderBy(desc(CourtCase.createdAt))
+      .orderBy(desc(COURT_CASE_ACTIVITY_AT))
       .limit(20);
 
     const allContent: ContentCard[] = [
       // Bills from database
-      ...bills.map((bill) => ({
-        id: bill.id,
-        title: bill.title,
-        description: billDescription(bill.description, bill.summary),
-        type: "bill" as const,
-        isAIGenerated: false,
-        thumbnailUrl: bill.thumbnailUrl ?? undefined,
-        billNumber: bill.billNumber,
-      })),
+      ...bills.map(toBillCard),
       // Government content (news articles, executive orders, etc.) from database
       ...governmentContent.map((content) => ({
         id: content.id,
@@ -304,10 +357,24 @@ export const contentRouter = {
       })),
     ];
 
-    return attachVideoImages(allContent);
+    return await attachContentImages(allContent);
   }),
 
   // Get content filtered by type from database, paginated for infinite scroll.
+  //
+  // Ordering is by when the *government* last touched a record, never by when
+  // we stored it. `createdAt` is stamped at INSERT, so ordering by it ranks our
+  // own ingestion history: a 2025 bill first scraped today outranks a 2026 bill
+  // scraped last week, and any backfill run shuffles a pile of old records
+  // straight to the top of Browse. That is what put "S Corporation
+  // Modernization Act of 2025" directly above the 2026 one under a header
+  // reading "SORTED BY RECENT".
+  //
+  // Only `Bill` gets a real action date. Government content and court
+  // cases fall back to their publication/filing date, the closest thing each
+  // has to "when this happened" — an executive order does not get amended in
+  // place. Giving those tables their own activity tracking is a schema
+  // change, tracked in #278.
   getByType: publicProcedure
     .input(
       z.object({
@@ -316,11 +383,13 @@ export const contentRouter = {
           .optional(),
         limit: z.number().int().min(1).max(50).default(20),
         cursor: z.number().int().min(0).optional(),
+        jurisdiction: z.enum(JURISDICTIONS).default("federal"),
       }),
     )
     .query(async ({ input }) => {
       const { limit } = input;
       const cursor = input.cursor ?? 0;
+      const jurisdiction = input.jurisdiction;
 
       if (!input.type || input.type === "all") {
         // Merge all three source tables into one chronological feed at the
@@ -335,9 +404,16 @@ export const contentRouter = {
               type: sql<string>`'bill'`,
               thumbnailUrl: Bill.thumbnailUrl,
               billNumber: sql<string | null>`${Bill.billNumber}`,
-              createdAt: Bill.createdAt,
+              sourceWebsite: sql<string | null>`${Bill.sourceWebsite}`,
+              status: sql<string | null>`${Bill.status}`,
+              lastActionAt: sql<Date | null>`${Bill.lastActionAt}`,
+              introducedDate: sql<Date | null>`${Bill.introducedDate}`,
+              chamber: sql<string | null>`${Bill.chamber}`,
+              sponsor: sql<string | null>`${Bill.sponsor}`,
+              activityAt: BILL_ACTIVITY_AT.as("activity_at"),
             })
-            .from(Bill),
+            .from(Bill)
+            .where(billJurisdictionCondition(jurisdiction)),
           db
             .select({
               id: GovernmentContent.id,
@@ -346,9 +422,16 @@ export const contentRouter = {
               type: sql<string>`'government_content'`,
               thumbnailUrl: GovernmentContent.thumbnailUrl,
               billNumber: sql<string | null>`null`,
-              createdAt: GovernmentContent.createdAt,
+              sourceWebsite: sql<string | null>`null`,
+              status: sql<string | null>`null`,
+              lastActionAt: sql<Date | null>`null`,
+              introducedDate: sql<Date | null>`null`,
+              chamber: sql<string | null>`null`,
+              sponsor: sql<string | null>`null`,
+              activityAt: GOVERNMENT_CONTENT_ACTIVITY_AT.as("activity_at"),
             })
-            .from(GovernmentContent),
+            .from(GovernmentContent)
+            .where(sql`${jurisdiction} = 'federal'`),
           db
             .select({
               id: CourtCase.id,
@@ -357,32 +440,45 @@ export const contentRouter = {
               type: sql<string>`'court_case'`,
               thumbnailUrl: CourtCase.thumbnailUrl,
               billNumber: sql<string | null>`null`,
-              createdAt: CourtCase.createdAt,
+              sourceWebsite: sql<string | null>`null`,
+              status: sql<string | null>`null`,
+              lastActionAt: sql<Date | null>`null`,
+              introducedDate: sql<Date | null>`null`,
+              chamber: sql<string | null>`null`,
+              sponsor: sql<string | null>`null`,
+              activityAt: COURT_CASE_ACTIVITY_AT.as("activity_at"),
             })
-            .from(CourtCase),
+            .from(CourtCase)
+            .where(sql`${jurisdiction} = 'federal'`),
         )
-          .orderBy(sql`"created_at" desc`)
+          .orderBy(sql`"activity_at" desc nulls last`)
           .limit(limit + 1)
           .offset(cursor);
 
         const hasMore = rows.length > limit;
         const page = hasMore ? rows.slice(0, limit) : rows;
 
-        const items: ContentCard[] = page.map((row) => ({
-          id: row.id,
-          title: row.title,
-          description:
-            row.type === "bill"
-              ? billDescription(row.description)
-              : row.description,
-          type: row.type as ContentCard["type"],
-          isAIGenerated: false,
-          thumbnailUrl: row.thumbnailUrl ?? undefined,
-          billNumber: row.billNumber ?? undefined,
-        }));
+        const items: ContentCard[] = page.map((row) =>
+          row.type === "bill" && row.billNumber && row.sourceWebsite
+            ? toBillCard({
+                ...row,
+                billNumber: row.billNumber,
+                sourceWebsite: row.sourceWebsite,
+              })
+            : {
+                id: row.id,
+                title: row.title,
+                description: row.description,
+                type: row.type as ContentCard["type"],
+                isAIGenerated: false,
+                thumbnailUrl: row.thumbnailUrl ?? undefined,
+                jurisdiction: "federal",
+                jurisdictionCode: "US",
+              },
+        );
 
         return {
-          items: await attachVideoImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
@@ -391,31 +487,27 @@ export const contentRouter = {
         const bills = await db
           .select()
           .from(Bill)
-          .orderBy(desc(Bill.createdAt))
+          .where(billJurisdictionCondition(jurisdiction))
+          .orderBy(desc(BILL_ACTIVITY_AT))
           .limit(limit + 1)
           .offset(cursor);
         const hasMore = bills.length > limit;
         const page = hasMore ? bills.slice(0, limit) : bills;
-        const items: ContentCard[] = page.map((bill) => ({
-          id: bill.id,
-          title: bill.title,
-          description: billDescription(bill.description, bill.summary),
-          type: "bill" as const,
-          isAIGenerated: false,
-          thumbnailUrl: bill.thumbnailUrl ?? undefined,
-          billNumber: bill.billNumber,
-        }));
+        const items: ContentCard[] = page.map(toBillCard);
         return {
-          items: await attachVideoImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
 
       if (input.type === "government_content" || input.type === "general") {
+        if (jurisdiction !== "federal") {
+          return { items: [] as ContentCard[], nextCursor: undefined };
+        }
         const governmentContent = await db
           .select()
           .from(GovernmentContent)
-          .orderBy(desc(GovernmentContent.createdAt))
+          .orderBy(desc(GOVERNMENT_CONTENT_ACTIVITY_AT))
           .limit(limit + 1)
           .offset(cursor);
         const hasMore = governmentContent.length > limit;
@@ -431,16 +523,19 @@ export const contentRouter = {
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
         return {
-          items: await attachVideoImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }
 
       // input.type === "court_case" — only remaining branch
+      if (jurisdiction !== "federal") {
+        return { items: [] as ContentCard[], nextCursor: undefined };
+      }
       const courtCases = await db
         .select()
         .from(CourtCase)
-        .orderBy(desc(CourtCase.createdAt))
+        .orderBy(desc(COURT_CASE_ACTIVITY_AT))
         .limit(limit + 1)
         .offset(cursor);
       const hasMore = courtCases.length > limit;
@@ -454,7 +549,7 @@ export const contentRouter = {
         thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
       }));
       return {
-        items: await attachVideoImages(items),
+        items: await attachContentImages(items),
         nextCursor: hasMore ? cursor + limit : undefined,
       };
     }),
@@ -472,11 +567,13 @@ export const contentRouter = {
           .enum(["all", "bill", "government_content", "court_case", "general"])
           .optional(),
         limit: z.number().int().min(1).max(50).default(20),
+        jurisdiction: z.enum(JURISDICTIONS).default("federal"),
       }),
     )
     .query(async ({ input }) => {
       const { limit, query } = input;
       const type = input.type ?? "all";
+      const jurisdiction = input.jurisdiction;
       const tsQuery = sql`websearch_to_tsquery('english', ${query})`;
 
       const billRank = sql<number>`greatest(
@@ -502,22 +599,15 @@ export const contentRouter = {
         const bills = await db
           .select()
           .from(Bill)
-          .where(billMatch)
+          .where(and(billMatch, billJurisdictionCondition(jurisdiction)))
           .orderBy(desc(billRank))
           .limit(limit);
-        const items: ContentCard[] = bills.map((bill) => ({
-          id: bill.id,
-          title: bill.title,
-          description: billDescription(bill.description, bill.summary),
-          type: "bill" as const,
-          isAIGenerated: false,
-          thumbnailUrl: bill.thumbnailUrl ?? undefined,
-          billNumber: bill.billNumber,
-        }));
-        return attachVideoImages(items);
+        const items: ContentCard[] = bills.map(toBillCard);
+        return await attachContentImages(items);
       }
 
       if (type === "government_content" || type === "general") {
+        if (jurisdiction !== "federal") return [];
         const governmentContent = await db
           .select()
           .from(GovernmentContent)
@@ -532,10 +622,11 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: content.thumbnailUrl ?? undefined,
         }));
-        return attachVideoImages(items);
+        return await attachContentImages(items);
       }
 
       if (type === "court_case") {
+        if (jurisdiction !== "federal") return [];
         const courtCases = await db
           .select()
           .from(CourtCase)
@@ -550,7 +641,7 @@ export const contentRouter = {
           isAIGenerated: false,
           thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
         }));
-        return attachVideoImages(items);
+        return await attachContentImages(items);
       }
 
       // "all" — union matches from all three tables, re-ranked together.
@@ -569,10 +660,16 @@ export const contentRouter = {
             type: sql<string>`'bill'`.as("type"),
             thumbnailUrl: Bill.thumbnailUrl,
             billNumber: sql<string | null>`${Bill.billNumber}`,
+            sourceWebsite: sql<string | null>`${Bill.sourceWebsite}`,
+            status: sql<string | null>`${Bill.status}`,
+            lastActionAt: sql<Date | null>`${Bill.lastActionAt}`,
+            introducedDate: sql<Date | null>`${Bill.introducedDate}`,
+            chamber: sql<string | null>`${Bill.chamber}`,
+            sponsor: sql<string | null>`${Bill.sponsor}`,
             rank: billRank.as("rank"),
           })
           .from(Bill)
-          .where(billMatch),
+          .where(and(billMatch, billJurisdictionCondition(jurisdiction))),
         db
           .select({
             id: GovernmentContent.id,
@@ -584,10 +681,16 @@ export const contentRouter = {
             type: sql<string>`'government_content'`.as("type"),
             thumbnailUrl: GovernmentContent.thumbnailUrl,
             billNumber: sql<string | null>`null`,
+            sourceWebsite: sql<string | null>`null`,
+            status: sql<string | null>`null`,
+            lastActionAt: sql<Date | null>`null`,
+            introducedDate: sql<Date | null>`null`,
+            chamber: sql<string | null>`null`,
+            sponsor: sql<string | null>`null`,
             rank: govRank.as("rank"),
           })
           .from(GovernmentContent)
-          .where(govMatch),
+          .where(and(govMatch, sql`${jurisdiction} = 'federal'`)),
         db
           .select({
             id: CourtCase.id,
@@ -598,27 +701,39 @@ export const contentRouter = {
             type: sql<string>`'court_case'`.as("type"),
             thumbnailUrl: CourtCase.thumbnailUrl,
             billNumber: sql<string | null>`null`,
+            sourceWebsite: sql<string | null>`null`,
+            status: sql<string | null>`null`,
+            lastActionAt: sql<Date | null>`null`,
+            introducedDate: sql<Date | null>`null`,
+            chamber: sql<string | null>`null`,
+            sponsor: sql<string | null>`null`,
             rank: caseRank.as("rank"),
           })
           .from(CourtCase)
-          .where(caseMatch),
+          .where(and(caseMatch, sql`${jurisdiction} = 'federal'`)),
       )
         .orderBy(sql`"rank" desc`)
         .limit(limit);
 
-      const items: ContentCard[] = rows.map((row) => ({
-        id: row.id,
-        title: row.title,
-        description:
-          row.type === "bill"
-            ? billDescription(row.description)
-            : row.description,
-        type: row.type as ContentCard["type"],
-        isAIGenerated: false,
-        thumbnailUrl: row.thumbnailUrl ?? undefined,
-        billNumber: row.billNumber ?? undefined,
-      }));
-      return attachVideoImages(items);
+      const items: ContentCard[] = rows.map((row) =>
+        row.type === "bill" && row.billNumber && row.sourceWebsite
+          ? toBillCard({
+              ...row,
+              billNumber: row.billNumber,
+              sourceWebsite: row.sourceWebsite,
+            })
+          : {
+              id: row.id,
+              title: row.title,
+              description: row.description,
+              type: row.type as ContentCard["type"],
+              isAIGenerated: false,
+              thumbnailUrl: row.thumbnailUrl ?? undefined,
+              jurisdiction: "federal",
+              jurisdictionCode: "US",
+            },
+      );
+      return await attachContentImages(items);
     }),
 
   // Get detailed content by ID from database
@@ -637,13 +752,33 @@ export const contentRouter = {
         .limit(1);
       if (bill[0]) {
         const b = bill[0];
-        const sponsor = b.sponsor
+        const jurisdiction = billJurisdiction(b.sourceWebsite, b.billNumber);
+        const stateIdentity = parseStateBillNumber(b.billNumber);
+        const sponsorIdentity = b.sponsor
+          ? parseBillSponsor(b.sponsor, jurisdiction)
+          : undefined;
+        // The people export is a network fetch, so run it alongside the other
+        // per-bill lookups and treat a miss as "no headshot" rather than an
+        // error — the card falls back to initials.
+        const [official, lensData, brief] = await Promise.all([
+          sponsorIdentity && jurisdiction === "federal"
+            ? getFederalOfficialByName(
+                sponsorIdentity.name,
+                b.chamber,
+                sponsorIdentity.state,
+              ).catch(() => undefined)
+            : undefined,
+          getLensData(b.id, "bill"),
+          getBrief(b.id, "bill"),
+        ]);
+        const sponsor = sponsorIdentity
           ? {
-              ...parseBillSponsor(b.sponsor),
-              role: sponsorRole(b.chamber),
+              ...sponsorIdentity,
+              role: sponsorRole(b.chamber, jurisdiction),
+              imageUrl: official?.image,
             }
           : undefined;
-        const [result] = await attachVideoImages([
+        const [result] = await attachContentImages([
           {
             id: b.id,
             title: b.title,
@@ -652,6 +787,13 @@ export const contentRouter = {
             isAIGenerated: !!b.aiGeneratedArticle,
             thumbnailUrl: b.thumbnailUrl ?? undefined,
             billNumber: b.billNumber,
+            jurisdiction,
+            jurisdictionCode: jurisdictionCode(jurisdiction),
+            sessionLabel: displaySessionLabel(
+              jurisdiction,
+              stateIdentity?.sessionLabel,
+            ),
+            sourceLabel: officialSourceLabel(jurisdiction),
             sponsor,
             articleContent:
               b.aiGeneratedArticle ?? b.fullText ?? "No content available",
@@ -659,8 +801,8 @@ export const contentRouter = {
             url: b.url,
             actions: toBillTimelineActions(b.actions ?? []),
             status: b.status ?? undefined,
-            lensData: await getLensData(b.id, "bill"),
-            brief: await getBrief(b.id, "bill"),
+            lensData,
+            brief,
           },
         ]);
         if (!result) throw new Error(`Failed to decorate bill ${b.id}`);
@@ -675,7 +817,7 @@ export const contentRouter = {
         .limit(1);
       if (content[0]) {
         const c = content[0];
-        const [result] = await attachVideoImages([
+        const [result] = await attachContentImages([
           {
             id: c.id,
             title: c.title,
@@ -705,7 +847,7 @@ export const contentRouter = {
         .limit(1);
       if (courtCase[0]) {
         const c = courtCase[0];
-        const [result] = await attachVideoImages([
+        const [result] = await attachContentImages([
           {
             id: c.id,
             title: c.title,
@@ -741,7 +883,11 @@ export const contentRouter = {
       if (!bill) throw new Error(`Bill with id ${input.billId} not found`);
       if (!bill.sponsor) return null;
 
-      const sponsorIdentity = parseBillSponsor(bill.sponsor);
+      const jurisdiction = billJurisdiction(
+        bill.sourceWebsite,
+        bill.billNumber,
+      );
+      const sponsorIdentity = parseBillSponsor(bill.sponsor, jurisdiction);
       const [sponsoredBillRows, official] = await Promise.all([
         db
           .select({
@@ -758,13 +904,15 @@ export const contentRouter = {
           .where(eq(Bill.sponsor, bill.sponsor))
           .orderBy(desc(Bill.introducedDate), desc(Bill.createdAt))
           .limit(20),
-        getFederalOfficialByName(
-          sponsorIdentity.name,
-          bill.chamber,
-          sponsorIdentity.state,
-        ).catch(() => undefined),
+        jurisdiction === "federal"
+          ? getFederalOfficialByName(
+              sponsorIdentity.name,
+              bill.chamber,
+              sponsorIdentity.state,
+            ).catch(() => undefined)
+          : undefined,
       ]);
-      const sponsoredBills = await attachVideoImages(
+      const sponsoredBills = await attachContentImages(
         sponsoredBillRows.map((item) => ({
           ...item,
           type: "bill" as const,
@@ -773,9 +921,10 @@ export const contentRouter = {
       );
 
       return {
+        jurisdiction,
         sponsor: {
           ...sponsorIdentity,
-          role: sponsorRole(bill.chamber),
+          role: sponsorRole(bill.chamber, jurisdiction),
           imageUrl: official?.image,
         },
         sourceUrl: bill.url,
@@ -827,6 +976,12 @@ export const contentRouter = {
                   description: Bill.description,
                   thumbnailUrl: Bill.thumbnailUrl,
                   billNumber: Bill.billNumber,
+                  sourceWebsite: Bill.sourceWebsite,
+                  status: Bill.status,
+                  lastActionAt: Bill.lastActionAt,
+                  introducedDate: Bill.introducedDate,
+                  chamber: Bill.chamber,
+                  sponsor: Bill.sponsor,
                 })
                 .from(Bill)
                 .where(eq(Bill.id, s.contentId))
@@ -872,16 +1027,19 @@ export const contentRouter = {
 
         const items = results
           .filter((item) => item != null)
-          .map((item) => ({
-            ...item,
-            description:
-              item.type === "bill"
-                ? billDescription(item.description)
-                : (item.description ?? ""),
-            thumbnailUrl: item.thumbnailUrl ?? undefined,
-          }));
+          .map((item) =>
+            item.type === "bill"
+              ? { ...toBillCard(item), savedAt: item.savedAt }
+              : {
+                  ...item,
+                  description: item.description ?? "",
+                  thumbnailUrl: item.thumbnailUrl ?? undefined,
+                  jurisdiction: "federal" as const,
+                  jurisdictionCode: "US" as const,
+                },
+          );
         return {
-          items: await attachVideoImages(items),
+          items: await attachContentImages(items),
           nextCursor: hasMore ? cursor + limit : undefined,
         };
       }),

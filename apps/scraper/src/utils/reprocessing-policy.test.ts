@@ -23,9 +23,6 @@ const completeState = {
   fullText: "A normal source sentence with enough context. ".repeat(20),
   aiGeneratedArticle: article,
   hasBrief: false,
-  videoId: "video-id",
-  videoImageData: Buffer.from("image"),
-  videoThumbnailUrl: null,
 };
 
 /** A bill stored the way the scraper now stores them: brief, no article. */
@@ -55,10 +52,6 @@ void test("AI article requires all expected sections", () => {
 
 void test("missing mode selects incomplete derived assets only", () => {
   assert.equal(needsReprocessing(completeState, "missing"), false);
-  assert.equal(
-    needsReprocessing({ ...completeState, videoImageData: null }, "missing"),
-    true,
-  );
   assert.equal(needsReprocessing(completeState, "replace"), true);
   assert.equal(
     needsReprocessing({ ...completeState, fullText: null }, "missing"),
@@ -106,13 +99,7 @@ void test("non-bill types still require an article, having no brief schema", () 
   }
 });
 
-void test("missing source text or header art outranks the long-form check", () => {
-  // Both apply to every type, so a bill with a perfect brief still needs work
-  // if its art is gone.
-  assert.equal(
-    needsReprocessing({ ...completeBill, videoImageData: null }, "missing"),
-    true,
-  );
+void test("missing source text outranks the long-form check", () => {
   assert.equal(
     needsReprocessing({ ...completeBill, fullText: null }, "missing"),
     true,

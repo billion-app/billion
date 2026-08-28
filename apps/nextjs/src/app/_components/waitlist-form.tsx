@@ -6,8 +6,12 @@ import posthog from "posthog-js";
 
 export function WaitlistForm({
   size = "default",
+  buttonText = "Get updates",
+  placeholder = "Enter your email",
 }: {
   size?: "default" | "large";
+  buttonText?: string;
+  placeholder?: string;
 }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<WaitlistStatus>("idle");
@@ -20,7 +24,7 @@ export function WaitlistForm({
     setStatus("loading");
     setErrorMsg("");
 
-    posthog.capture("waitlist_form_submitted", { form_location: size });
+    posthog.capture("mailing_list_form_submitted", { form_location: size });
 
     try {
       const res = await fetch("/api/waitlist", {
@@ -39,16 +43,16 @@ export function WaitlistForm({
         setEmail("");
 
         if (alreadyJoined) {
-          posthog.capture("waitlist_already_joined", {
+          posthog.capture("mailing_list_already_joined", {
             form_location: size,
           });
         } else {
-          posthog.capture("waitlist_joined", { form_location: size });
+          posthog.capture("mailing_list_joined", { form_location: size });
         }
       } else {
         setStatus("error");
         setErrorMsg(data?.error ?? "Something went wrong. Please try again.");
-        posthog.capture("waitlist_signup_error", {
+        posthog.capture("mailing_list_signup_error", {
           form_location: size,
           error: data?.error ?? "unknown",
         });
@@ -56,7 +60,7 @@ export function WaitlistForm({
     } catch {
       setStatus("error");
       setErrorMsg("Something went wrong. Please try again.");
-      posthog.capture("waitlist_signup_error", {
+      posthog.capture("mailing_list_signup_error", {
         form_location: size,
         error: "network_error",
       });
@@ -139,7 +143,7 @@ export function WaitlistForm({
             <input
               type="email"
               required
-              placeholder="Enter your email"
+              placeholder={placeholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={status === "loading"}
@@ -169,7 +173,7 @@ export function WaitlistForm({
                   animate={{ opacity: [1, 0.4, 1] }}
                   transition={{ repeat: Infinity, duration: 1.2 }}
                 >
-                  Joining
+                  Submitting
                 </motion.span>
                 <span className="flex gap-[3px]">
                   {[0, 1, 2].map((i) => (
@@ -187,7 +191,7 @@ export function WaitlistForm({
                 </span>
               </span>
             ) : (
-              "Join waitlist"
+              buttonText
             )}
           </motion.button>
           <AnimatePresence>

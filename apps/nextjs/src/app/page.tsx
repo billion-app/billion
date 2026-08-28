@@ -4,6 +4,7 @@ import type { MotionValue } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "motion/react";
+import posthog from "posthog-js";
 
 import {
   AnimatedSection,
@@ -13,26 +14,10 @@ import {
 } from "./_components/animations";
 import { AppTour } from "./_components/app-tour";
 import { HeroExperience } from "./_components/hero-experience";
-import {
-  AndroidIcon,
-  AppleIcon,
-  GithubIcon,
-  InstagramIcon,
-} from "./_components/icons";
+import { AndroidIcon, GithubIcon, InstagramIcon } from "./_components/icons";
 import { WaitlistForm } from "./_components/waitlist-form";
 
-const platforms = [
-  {
-    Icon: AppleIcon,
-    name: "iOS",
-    status: "Coming soon",
-  },
-  {
-    Icon: AndroidIcon,
-    name: "Android",
-    status: "Coming soon",
-  },
-];
+const APP_STORE_URL = "https://apps.apple.com/us/app/billion-news/id6761675243";
 
 // Footer-only, not the platforms section — GitHub and Instagram are
 // nice-to-follow, not the point of "built where you already are", and a
@@ -127,12 +112,17 @@ export default function LandingPage() {
             Billion
           </span>
         </div>
-        <Link
-          href="#waitlist"
+        <a
+          href={APP_STORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() =>
+            posthog.capture("app_store_download_clicked", { location: "nav" })
+          }
           className="text-muted-foreground hover:text-accent font-sans text-[15px] font-medium no-underline transition-colors duration-200"
         >
-          Get Early Access
-        </Link>
+          Download for iOS
+        </a>
       </motion.nav>
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
@@ -162,13 +152,46 @@ export default function LandingPage() {
           <StaggerItem variant="focusIn">
             <HeroSubheading />
           </StaggerItem>
-          <StaggerItem variant="focusIn" className="flex flex-col gap-4">
-            <WaitlistForm />
+          <StaggerItem variant="focusIn" className="flex flex-col gap-6">
+            <div className="flex flex-wrap items-center justify-center gap-4 lg:justify-start">
+              <a
+                href={APP_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() =>
+                  posthog.capture("app_store_download_clicked", {
+                    location: "hero",
+                  })
+                }
+                className="inline-flex shrink-0 transition-transform duration-200 hover:scale-[1.03] active:scale-[0.98]"
+              >
+                <Image
+                  src="/apple-download.svg"
+                  alt="Download on the App Store"
+                  width={161}
+                  height={48}
+                  className="h-[44px] w-[148px] shrink-0 object-contain sm:h-[48px] sm:w-[161px]"
+                />
+              </a>
+
+              <div
+                onClick={() =>
+                  posthog.capture("android_coming_soon_clicked", {
+                    location: "hero",
+                  })
+                }
+                className="text-muted-foreground flex h-[44px] cursor-default items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-4 font-sans text-[13px] font-medium sm:h-[48px]"
+              >
+                <AndroidIcon className="h-4 w-4 shrink-0 text-emerald-400" />
+                <span>Coming Soon to Android</span>
+              </div>
+            </div>
+
             <Link
               href="#app-tour"
-              className="text-muted-foreground hover:text-accent inline-flex h-[52px] items-center justify-center px-1 font-sans text-[16px] font-medium no-underline transition-colors duration-200"
+              className="text-muted-foreground hover:text-accent inline-flex h-[36px] items-center justify-center px-1 font-sans text-[15px] font-medium no-underline transition-colors duration-200"
             >
-              See it in the app
+              See it in the app ↓
             </Link>
           </StaggerItem>
         </StaggerContainer>
@@ -204,64 +227,75 @@ export default function LandingPage() {
 
       <Divider />
 
-      {/* ── WAITLIST ──────────────────────────────────────────────── */}
+      {/* ── DOWNLOAD & WAITLIST ────────────────────────────────────── */}
       <AnimatedSection
         variant="fadeUp"
         className="mx-auto px-6 py-10 text-center md:py-14"
         style={{ maxWidth: 1120 }}
         id="waitlist"
       >
+        <p className="tracking-label text-muted-foreground mb-[14px] text-center font-sans text-[12px] font-medium uppercase">
+          Available Now on iOS
+        </p>
         <h2
           className="text-foreground font-display mb-4 leading-[1.2] font-bold tracking-[-0.02em]"
           style={{ fontSize: "clamp(2rem, 4vw, 3.2rem)" }}
         >
-          Be first when Billion opens.
+          Download Billion today.
         </h2>
-        <p className="text-muted-foreground mx-auto mb-7 max-w-[44ch] font-sans text-[18px] leading-[1.6]">
-          Early access, updates, and pilot invites.
+        <p className="text-muted-foreground mx-auto mb-8 max-w-[44ch] font-sans text-[18px] leading-[1.6]">
+          Get source-grounded civic intelligence directly on your iPhone.
+          Android app coming soon.
         </p>
-        <WaitlistForm size="large" />
-      </AnimatedSection>
 
-      <Divider />
+        <div className="mb-10 flex flex-wrap items-center justify-center gap-4">
+          <a
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() =>
+              posthog.capture("app_store_download_clicked", {
+                location: "download_section",
+              })
+            }
+            className="inline-flex shrink-0 transition-transform duration-200 hover:scale-[1.04] active:scale-[0.98]"
+          >
+            <Image
+              src="/apple-download.svg"
+              alt="Download on the App Store"
+              width={181}
+              height={54}
+              className="h-[48px] w-[161px] shrink-0 object-contain sm:h-[54px] sm:w-[181px]"
+            />
+          </a>
 
-      {/* ── PLATFORMS ─────────────────────────────────────────────── */}
-      <AnimatedSection
-        variant="fadeUp"
-        className="mx-auto px-6 py-10 text-center md:py-14"
-        style={{ maxWidth: 1120 }}
-      >
-        <h2
-          className="text-foreground font-display mb-4 leading-[1.2] font-normal tracking-[-0.01em]"
-          style={{ fontSize: "clamp(1.6rem, 3vw, 2.25rem)" }}
-        >
-          Available on the platforms you use.
-        </h2>
-        <p className="text-muted-foreground mx-auto mb-9 max-w-[38ch] font-sans text-[16px] leading-[1.6]">
-          The app is coming to iOS and Android.
-        </p>
-        <StaggerContainer
-          staggerDelay={0.1}
-          className="flex flex-col items-center justify-center gap-4 sm:flex-row"
-        >
-          {platforms.map(({ Icon, name, status }) => (
-            <StaggerItem
-              key={name}
-              variant="fadeUp"
-              className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] px-6 py-3.5 transition-colors duration-200 hover:bg-white/[0.06]"
-            >
-              <Icon className="text-foreground h-6 w-6 shrink-0" />
-              <span className="flex flex-col items-start text-left">
-                <span className="text-foreground font-sans text-[14px] font-semibold">
-                  {name}
-                </span>
-                <span className="text-muted-foreground font-sans text-[12px]">
-                  {status}
-                </span>
-              </span>
-            </StaggerItem>
-          ))}
-        </StaggerContainer>
+          <div
+            onClick={() =>
+              posthog.capture("android_coming_soon_clicked", {
+                location: "download_section",
+              })
+            }
+            className="text-muted-foreground flex h-[48px] cursor-default items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-5 font-sans text-[14px] font-medium sm:h-[54px]"
+          >
+            <AndroidIcon className="h-5 w-5 shrink-0 text-emerald-400" />
+            <span>Coming Soon to Android</span>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-md border-t border-white/10 pt-8">
+          <h3 className="text-foreground mb-2 font-sans text-[15px] font-semibold">
+            Stay in the loop
+          </h3>
+          <p className="text-muted-foreground mb-4 font-sans text-[14px]">
+            Join our mailing list for feature releases, Android availability,
+            and civic updates.
+          </p>
+          <WaitlistForm
+            size="large"
+            buttonText="Subscribe"
+            placeholder="Enter your email"
+          />
+        </div>
       </AnimatedSection>
 
       <Divider />
@@ -310,7 +344,7 @@ export default function LandingPage() {
             Privacy
           </Link>
           <span className="text-muted-foreground/70">
-            &copy; 2026 Billion. All rights reserved.
+            &copy; 2026 Bryan Hu. All rights reserved.
           </span>
         </div>
       </AnimatedSection>

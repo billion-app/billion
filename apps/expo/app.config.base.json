@@ -2,7 +2,7 @@
   "name": "billion",
   "slug": "billion",
   "scheme": "billion",
-  "version": "0.6.0",
+  "version": "0.6.3",
   "orientation": "portrait",
   "icon": "./assets/billion-logo.png",
   "userInterfaceStyle": "dark",
@@ -115,7 +115,10 @@
   },
   "plugins": [
     "expo-router",
+    "expo-image",
+    "expo-localization",
     "expo-secure-store",
+    "expo-status-bar",
     "expo-web-browser",
     [
       "expo-splash-screen",

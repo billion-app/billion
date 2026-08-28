@@ -23,6 +23,7 @@ import {
   fontSize,
   hair,
   planes,
+  useTheme,
 } from "~/styles";
 import { Icon } from "./Icon";
 
@@ -193,13 +194,17 @@ export function Pill({
   onPress?: () => void;
   icon?: IconName;
 }) {
+  const { theme } = useTheme();
   return (
     <TouchableOpacity
       style={[
         s.pill,
         active
           ? { backgroundColor: colors.white, borderColor: colors.white }
-          : { backgroundColor: "transparent", borderColor: hair[2] },
+          : {
+              backgroundColor: "transparent",
+              borderColor: theme.border,
+            },
       ]}
       onPress={onPress}
       activeOpacity={0.8}
@@ -208,13 +213,13 @@ export function Pill({
         <Icon
           name={icon}
           size={14}
-          color={active ? planes.ink : "rgba(255,255,255,0.6)"}
+          color={active ? planes.ink : theme.textSecondary}
         />
       )}
       <Text
         style={[
           s.pillText,
-          { color: active ? planes.ink : "rgba(255,255,255,0.6)" },
+          { color: active ? planes.ink : theme.textSecondary },
         ]}
       >
         {label}

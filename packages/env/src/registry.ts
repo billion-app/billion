@@ -90,6 +90,8 @@ const scraperSourceLimitDefinitions = [
   ["SCOTUS_MAX_ITEMS", "CourtListener opinion clusters per run.", "50"],
   ["SCC_CVIG_MAX_ITEMS", "Santa Clara voter-guide PDFs per run.", "10"],
   ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
+  ["OPEN_STATES_MAX_ITEMS", "Open States bills per state per run.", "100"],
+  ["LEGISTAR_MAX_ITEMS", "Legistar meetings per run.", "100"],
 ] as const;
 
 export const envRegistry = [
@@ -104,6 +106,25 @@ export const envRegistry = [
     example: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
     requirements: { nextjs: "required", database: "required" },
     schema: postgresUrl,
+  }),
+  define({
+    key: "SUPABASE_URL",
+    description:
+      "Supabase project URL for generated content images. Derived from POSTGRES_URL when omitted.",
+    group: "Database",
+    secret: false,
+    example: "https://your-project-ref.supabase.co",
+    requirements: { nextjs: "optional", scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "SUPABASE_SECRET_KEY",
+    description:
+      "Server-only Supabase secret used by the Big Mac image job to upload Storage objects.",
+    group: "Database",
+    secret: true,
+    requirements: { scraper: "optional" },
+    schema: string,
   }),
   define({
     key: "BETTER_AUTH_SECRET",
@@ -136,7 +157,7 @@ export const envRegistry = [
   define({
     key: "RESEND_API_KEY",
     description:
-      "Full-access Resend key for waitlist contacts and feedback email.",
+      "Full-access Resend key for mailing-list contacts and feedback email.",
     group: "Email",
     secret: true,
     setupUrl: "https://resend.com/docs/dashboard/api-keys/introduction",
@@ -162,8 +183,9 @@ export const envRegistry = [
     schema: string,
   }),
   define({
-    key: "RESEND_WAITLIST_SEGMENT_ID",
-    description: "Optional Resend segment assigned to waitlist contacts.",
+    key: "RESEND_GENERAL_UPDATES_SEGMENT_ID",
+    description:
+      "Optional Resend segment assigned to general-updates subscribers.",
     group: "Email",
     secret: false,
     setupUrl: "https://resend.com/docs/dashboard/segments/introduction",
@@ -171,8 +193,8 @@ export const envRegistry = [
     schema: string,
   }),
   define({
-    key: "RESEND_LAUNCH_UPDATES_TOPIC_ID",
-    description: "Optional Resend topic for launch-update consent.",
+    key: "RESEND_GENERAL_UPDATES_TOPIC_ID",
+    description: "Optional Resend topic for general-updates consent.",
     group: "Email",
     secret: false,
     setupUrl: "https://resend.com/docs/knowledge-base/why-use-topics",
@@ -180,22 +202,12 @@ export const envRegistry = [
     schema: string,
   }),
   define({
-    key: "RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL",
+    key: "RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL",
     description:
-      "Verified Resend sender for the immediate waitlist confirmation email.",
+      "Verified Resend sender for the immediate mailing-list confirmation email.",
     group: "Email",
     secret: false,
     setupUrl: "https://resend.com/docs/dashboard/domains/introduction",
-    requirements: { nextjs: "optional" },
-    schema: string,
-  }),
-  define({
-    key: "RESEND_TESTFLIGHT_BATCH_SEGMENT_ID",
-    description:
-      "Optional active TestFlight batch segment assigned to new waitlist contacts.",
-    group: "Email",
-    secret: false,
-    setupUrl: "https://resend.com/docs/dashboard/segments/introduction",
     requirements: { nextjs: "optional" },
     schema: string,
   }),
@@ -295,8 +307,18 @@ export const envRegistry = [
       "Open States key for state bills, legislators, and voting records.",
     group: "Civic data",
     secret: true,
-    setupUrl: "https://openstates.org/accounts/profile/",
+    setupUrl: "https://open.pluralpolicy.com/accounts/profile/",
     requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "OPEN_STATES_STATES",
+    description:
+      "Comma-separated state codes the Open States scraper ingests (default: ca).",
+    group: "Civic data",
+    secret: false,
+    defaultValue: "ca",
+    requirements: {},
     schema: string,
   }),
   define({
@@ -475,6 +497,16 @@ export const envRegistry = [
     schema: z.enum(["0", "1"]),
   }),
   define({
+    key: "SCRAPER_SKIP_DUAL_LENS",
+    description:
+      "Set to 1 for bounded backfills that will generate optional dual lenses separately later.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "0",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["0", "1"]),
+  }),
+  define({
     key: "SCRAPER_MAX_NEW_ITEMS_PER_RUN",
     description:
       "Max brand-new items (per data source) that get AI enrichment in one run; extras roll over to the next run.",
@@ -483,6 +515,43 @@ export const envRegistry = [
     defaultValue: "10",
     requirements: { scraper: "optional" },
     schema: positiveNumber,
+  }),
+  define({
+    key: "LEGISTAR_PAST_DAYS",
+    description: "Days of past Legistar meetings refreshed on every run.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "45",
+    requirements: {},
+    schema: positiveInteger,
+  }),
+  define({
+    key: "LEGISTAR_FUTURE_DAYS",
+    description: "Days of upcoming Legistar meetings ingested on every run.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "120",
+    requirements: {},
+    schema: positiveInteger,
+  }),
+  define({
+    key: "LEGISTAR_MAX_DOCUMENT_BYTES",
+    description: "Largest Legistar PDF downloaded for native text extraction.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "15728640",
+    requirements: {},
+    schema: positiveInteger,
+  }),
+  define({
+    key: "LEGISTAR_SKIP_DOCUMENT_TEXT",
+    description:
+      "Set to 1 to ingest Legistar document metadata without downloading PDFs.",
+    group: "Scraper operations",
+    secret: false,
+    defaultValue: "0",
+    requirements: {},
+    schema: z.enum(["0", "1"]),
   }),
   ...scraperSourceLimitDefinitions.map(([key, description, defaultValue]) =>
     define({

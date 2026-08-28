@@ -55,7 +55,8 @@ export default function BillSponsorProfileScreen() {
     );
   }
 
-  const { sponsor, sponsoredBills, sourceUrl } = query.data;
+  const { jurisdiction, sponsor, sponsoredBills, sourceUrl } = query.data;
+  const isStateSponsor = jurisdiction !== "federal";
   const location = [
     sponsor.state,
     sponsor.district && `District ${sponsor.district}`,
@@ -77,7 +78,9 @@ export default function BillSponsorProfileScreen() {
             imageUri={sponsor.imageUrl}
             size={88}
           />
-          <Text style={s.eyebrow}>Primary sponsor</Text>
+          <Text style={s.eyebrow}>
+            {isStateSponsor ? "Primary author" : "Primary sponsor"}
+          </Text>
           <Text style={s.name}>{sponsor.name}</Text>
           <Text style={s.role}>{sponsor.role}</Text>
           {sponsor.party || location ? (
@@ -91,9 +94,9 @@ export default function BillSponsorProfileScreen() {
           <Kicker>About this role</Kicker>
           <Card>
             <Text style={s.body}>
-              The primary sponsor is the member of Congress who formally
-              introduced the bill. Sponsors guide legislation through the
-              process, while other members may join as cosponsors.
+              {isStateSponsor
+                ? "The primary author is the state legislator who formally introduced the bill. Authors guide legislation through the state Legislature while other members may join as coauthors."
+                : "The primary sponsor is the member of Congress who formally introduced the bill. Sponsors guide legislation through the process, while other members may join as cosponsors."}
             </Text>
           </Card>
         </View>
@@ -107,7 +110,9 @@ export default function BillSponsorProfileScreen() {
                 item={{
                   id: bill.id,
                   type: "bill",
-                  tag: bill.billNumber,
+                  tag: isStateSponsor
+                    ? bill.billNumber.replace(/\s+\([^)]+\)$/, "")
+                    : bill.billNumber,
                   title: bill.title,
                   gist: bill.description,
                   status: bill.status,

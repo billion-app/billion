@@ -4,12 +4,13 @@ Pulls in government content like bills, court cases, and White House content and
 
 ## Active data sources
 
-Only these five are registered and run by `all`:
+These sources are registered and run by `all`:
 
 | CLI name            | Source and data fetched                                                                    | Stored/used as                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `federalregister`   | Federal Register API presidential documents, then each document's body HTML                | `government_content`; AI article/summary and feed-image enrichment                                    |
 | `congress`          | Congress.gov API bill list, detail, CRS summaries, formatted text, and legislative actions | `bill`; powers federal bill content and AI/feed enrichment                                            |
+| `legistar`          | San José Legistar meetings, matters, attachments, histories, and structured votes          | Normalized `local_*` decision, occurrence, document, vote, and ingestion-run tables                   |
 | `scotus`            | CourtListener opinion clusters, dockets, and sub-opinion text for the Supreme Court        | `court_case`; powers court content and AI/feed enrichment                                             |
 | `scc-cvig`          | Hand-configured Santa Clara County voter-guide PDFs                                        | Candidate statements in `CivicApiCache`; the API matches statements to candidates                     |
 | `ca-sos-statements` | California SOS statewide-office candidate-statement pages                                  | Candidate statements in `CivicApiCache`; the API reads the cache and can fall back to the live source |
@@ -129,6 +130,7 @@ CONGRESS_MAX_ITEMS=10 pnpm --filter @acme/scraper run start congress
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Voter-guide PDF documents                           |
 | `CA_SOS_MAX_ITEMS`              |       9 | Statewide-office candidate-statement pages          |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving expensive AI/image enrichment |
+| `SCRAPER_SKIP_DUAL_LENS`        |       0 | Skip optional dual-lens generation during backfills |
 
 These are per-run limits, not durable calendar-day quotas. Schedule one run per
 day to obtain a daily cap. If the scheduler retries or runs multiple times, each
@@ -136,6 +138,11 @@ invocation gets a fresh allowance. Source limits cap API/page work;
 `SCRAPER_MAX_NEW_ITEMS_PER_RUN` separately caps expensive enrichment. Extra
 bills that require a generated description are deferred before insertion;
 other content may still be stored raw for later backfill.
+
+For a large, explicitly bounded seed, set `SCRAPER_SKIP_DUAL_LENS=1` to write
+each bill as soon as its required summary, brief, and header art are complete.
+The optional lenses can then be filled by `retroactive-lenses` without holding
+up the source backfill.
 
 ---
 

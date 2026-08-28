@@ -38,11 +38,17 @@ export default defineConfig({
         "backfill-bill-descriptions": fileURLToPath(
           new URL("./src/backfill-bill-descriptions.ts", import.meta.url),
         ),
-        "retroactive-videos": fileURLToPath(
-          new URL("./src/retroactive-videos.ts", import.meta.url),
-        ),
         "change-images": fileURLToPath(
           new URL("./src/change-images.ts", import.meta.url),
+        ),
+        "content-images": fileURLToPath(
+          new URL("./src/content-images.ts", import.meta.url),
+        ),
+        "bill-interest": fileURLToPath(
+          new URL("./src/bill-interest.ts", import.meta.url),
+        ),
+        "prune-bills": fileURLToPath(
+          new URL("./src/prune-bills.ts", import.meta.url),
         ),
       },
       output: {

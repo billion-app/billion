@@ -173,7 +173,7 @@ All three content tables share a common pattern:
 | `polling_location` | Polling places / early-vote sites / drop boxes, geo-located (lat/long), with hours                                                                                                                                                                                                          |
 | `role_description` | Reusable descriptions of offices/roles by level (seeded with ~18 federal→local roles)                                                                                                                                                                                                       |
 
-**Local government (Legistar cache)** — `legistar_body`, `legistar_matter`, `legistar_meeting`, `legistar_agenda_item`, `legistar_vote`. These cache San Jose / Santa Clara / Sunnyvale council data (ordinances, meetings, agenda items, votes) keyed by `(jurisdiction, *_id)` with a `fetched_at` timestamp.
+**Local government decisions** — `local_jurisdiction`, `local_body`, `local_decision`, `local_meeting`, `local_meeting_item`, `local_decision_document`, `local_decision_history`, `local_decision_vote`, and `local_ingestion_run`. These source-neutral tables normalize Legistar Matters separately from their meeting occurrences, retain raw provenance and document hashes/extraction state, record complete ingestion windows, and soft-delete records that disappear upstream. San José is the first active adapter. See [Local government decisions and Legistar](./local-government-legistar.md).
 
 **User engagement & caching:**
 

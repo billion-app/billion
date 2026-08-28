@@ -28,28 +28,34 @@ Three properties follow from that, and they are what this app is for:
 Defined in `src/config.ts`. Each names a script in the scraper's `dist/` and
 the arguments it takes; the supervisor supplies everything else.
 
-| id | schedule | notes |
-| --- | --- | --- |
-| `congress-daily` | daily 03:15 local | Adds and updates the 100 most recently updated bills |
-| `federalregister-weekly` | Sundays 03:15 | Executive orders and presidential documents |
-| `scc-cvig-weekly` | Sundays 03:15 | Santa Clara County voter guide |
-| `ca-sos-weekly` | Sundays 03:15 | California SoS candidate statements |
-| `retro-briefs` | manual | Fills in missing structured briefs |
-| `retro-lenses` | manual | Fills in missing dual-lens perspectives |
-| `retro-videos` | manual | Header art backfill |
+| id                             | schedule          | notes                                                                            |
+| ------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
+| `congress-daily`               | daily 03:15 local | Refreshes federal bills and applies the 90-day editorial retention policy        |
+| `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes state measures and applies the same retention policy                   |
+| `bill-interest-daily`          | daily 02:00 local | Scores missing or changed bills for interest, controversy, and outside attention |
+| `whitehouse-daily`             | daily 01:00 local | Reads presidential actions directly from the White House RSS feed                |
+| `federalregister-daily`        | daily 01:30 local | Refreshes executive orders and presidential documents                            |
+| `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content      |
+| `backfill-content-images`      | manual            | Drains missing or style-stale header art across all retained content             |
+| `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
+| `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                              |
+| `retro-briefs`                 | manual            | Fills in missing structured briefs                                               |
+| `retro-lenses`                 | manual            | Fills in missing dual-lens perspectives                                          |
 
-`congress-daily` is the point of the whole arrangement: the app is a news feed,
-so a bill whose status changed today matters more than one introduced in early
-2025 that nothing has touched since. It re-reads the head of the update feed
-every day and does not use `scraper_cursor` at all.
+The federal and state daily jobs are the point of the whole arrangement: the
+app is a news feed, so a bill whose status changed today matters more than one
+introduced in early 2025 that nothing has touched since. They re-read the head
+of their update feeds every day and do not use `scraper_cursor` at all. State
+jobs are isolated so an upstream failure in one jurisdiction cannot prevent the
+other states from refreshing.
 
-Know the tradeoff: this covers the *head* of the feed, not all of it. Roughly
-250 House bills are updated upstream per day, so a 100-bill window sees the most
-recent activity rather than every change. Widen it by raising `--recent`.
+Know the tradeoff: these cover the _head_ of each feed, not all of it. Roughly
+250 House bills are updated upstream per day, so an 80-bill window sees the most
+recent activity rather than every change. Widen a window by raising `--recent`.
 
 There is deliberately **no scheduled archive backfill**. The cursor walk starts
 near the beginning of the congress (~17,000 measures), and each bill it enriches
-pays for a brief, a dual-lens research loop and header art. The retro jobs are
+pays for a brief and a dual-lens research loop. The retro jobs are
 manual for the same reason — filling in the archive is a supervised spend, not
 something a scheduler starts at 3am.
 
@@ -57,10 +63,23 @@ The three weekly scrapers are listed individually rather than as one `main.js
 all` run, so that dropping `all` (which would drag the cursor walk back in)
 cannot silently stop them.
 
+Retention keeps bills with legislative activity in the past 90 days, every bill
+saved by a user, the 50 most saved bills, the 50 highest controversy scores, and
+the 50 bills with the strongest evidence of outside discussion. Those category
+lists are global and deduplicated. Ranking and deletion happen inside PostgreSQL
+and return only aggregate counts, so retention does not download candidate rows
+from Supabase. The LLM scores are cached by bill content hash; changed bills stop
+qualifying on a stale score until the daily scorer reassesses them. Unscored or
+stale bills are protected, so an LLM outage delays pruning instead of deleting
+unjudged candidates.
+The manual `prune-bills` command remains available as a read-only-by-default
+repair tool. PostgreSQL autovacuum makes freed space reusable; reported physical
+disk size may not fall immediately after deletion.
+
 A job that has never run fires immediately if it is interval-based, and waits
 for its next occurrence if it is on a calendar schedule — deploying at 4pm must
 not kick off the overnight run. A calendar job whose last run predates the most
-recent occurrence *is* due, so an outage over the scheduled time is caught up
+recent occurrence _is_ due, so an outage over the scheduled time is caught up
 rather than skipped.
 
 ## Operating it
@@ -79,7 +98,6 @@ ssh big-mac 'tail -f ~/Library/Logs/billion/supervisor.log'
 ssh big-mac 'cat ~/.local/state/billion/supervisor-state.json'
 
 # Run a job now, without waiting for its schedule
-ssh big-mac 'touch ~/.local/state/billion/requests/retro-videos'
 ```
 
 Requests are a directory rather than a socket or an HTTP port: no client is

@@ -18,6 +18,10 @@
     "./bill-description": {
       "types": "./dist/bill-description.d.ts",
       "default": "./src/bill-description.ts"
+    },
+    "./content-images": {
+      "types": "./dist/content-images.d.ts",
+      "default": "./src/content-images.ts"
     }
   },
   "license": "MIT",
@@ -25,12 +29,13 @@
     "build": "tsc",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "dev": "tsc",
-    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .prettierignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
     "push": "drizzle-kit push",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "db-check": "drizzle-kit check --dialect postgresql --out drizzle",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "baseline": "tsx baseline.ts",
     "seed": "tsx seed-entry.ts",
     "studio": "drizzle-kit studio",

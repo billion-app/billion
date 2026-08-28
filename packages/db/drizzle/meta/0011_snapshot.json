@@ -1,5 +1,5 @@
 {
-  "id": "e0a6569b-4f3f-4349-9054-686192f2bbc9",
+  "id": "d27f89da-2614-4e96-9c2f-8fbb2d98ac57",
   "prevId": "89a5c573-d230-4579-a4cb-c4233b53c286",
   "version": "7",
   "dialect": "postgresql",
@@ -47,6 +47,12 @@
         },
         "introduced_date": {
           "name": "introduced_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_action_at": {
+          "name": "last_action_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
@@ -1232,27 +1238,6 @@
         }
       },
       "indexes": {
-        "government_content_source_normalized_title_idx": {
-          "name": "government_content_source_normalized_title_idx",
-          "columns": [
-            {
-              "expression": "source",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "lower(regexp_replace(\"title\", '[^a-zA-Z0-9]', '', 'g'))",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "government_content_search_vector_idx": {
           "name": "government_content_search_vector_idx",
           "columns": [

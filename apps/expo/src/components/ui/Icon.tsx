@@ -52,7 +52,10 @@ type IconName =
   | "arrowRight"
   | "minus"
   | "quote"
-  | "book";
+  | "book"
+  | "users"
+  | "mic"
+  | "link";
 
 type Family = "ion" | "feather" | "fa";
 
@@ -102,6 +105,9 @@ const MAP: Record<IconName, { family: Family; name: string }> = {
   minus: { family: "feather", name: "minus" },
   quote: { family: "fa", name: "quote-left" },
   book: { family: "feather", name: "book-open" },
+  users: { family: "feather", name: "users" },
+  mic: { family: "feather", name: "mic" },
+  link: { family: "feather", name: "link" },
 };
 
 export interface IconProps {

@@ -8,12 +8,12 @@ Invoke via CLI: `pnpm start [scraper|all] [options]` (`scraper` defaults to
 `all`). From the repo root, use
 `pnpm --filter @acme/scraper run start [scraper] [options]`. Flags (`apps/scraper/src/main.ts`):
 
-| Flag                   | Default | Meaning                                                                                             |
-| ---------------------- | ------- | -------------------------------------------------------------------------------------------------- |
-| `--concurrency`, `-c`  | `3`     | Items processed concurrently within each scraper, via `p-limit`.                                    |
-| `--max-items`, `-n`    | —       | Cap on source records per scraper this run; overrides each scraper's `*_MAX_ITEMS` env value.       |
-| `--bill`, `-b`         | —       | Fetch specific congress.gov bills by number (repeatable); requires the `congress` scraper.           |
-| `--congress`           | `119`   | Congress number for `--bill`; only valid alongside `--bill`.                                         |
+| Flag                  | Default | Meaning                                                                                       |
+| --------------------- | ------- | --------------------------------------------------------------------------------------------- |
+| `--concurrency`, `-c` | `3`     | Items processed concurrently within each scraper, via `p-limit`.                              |
+| `--max-items`, `-n`   | —       | Cap on source records per scraper this run; overrides each scraper's `*_MAX_ITEMS` env value. |
+| `--bill`, `-b`        | —       | Fetch specific congress.gov bills by number (repeatable); requires the `congress` scraper.    |
+| `--congress`          | `119`   | Congress number for `--bill`; only valid alongside `--bill`.                                  |
 
 `all` runs every registered scraper with `Promise.allSettled` (one failure does
 not abort the others) and validates env for the whole set up front; a single
@@ -38,14 +38,15 @@ source of truth for what `all` runs**, in this order:
 | ---------------------- | ------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `federalregister.ts`   | federalregister.gov REST API   | `government_content` | REST (presidential documents); HTML→Markdown via Turndown                                                                       |
 | `congress.ts`          | congress.gov REST API          | `bill`               | REST (`CONGRESS_API_KEY`), incremental by source `updateDate` — see [Incremental discovery](#incremental-discovery-congressgov) |
-| `scc-cvig.ts`          | Santa Clara County voter guide | `civic_api_cache`    | PDF extraction; optional Gemini fallback (`GOOGLE_GENERATIVE_AI_API_KEY`)                                                        |
-| `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages, PDF fallback via `ca-sos-vig-pdf.ts`                                                         |
+| `open-states.ts`       | Open States v3 API             | `bill`               | REST (`OPEN_STATES_API_KEY`), incremental by source `updated_at` — see [State bills](#state-bills-open-states)                  |
+| `scc-cvig.ts`          | Santa Clara County voter guide | `civic_api_cache`    | PDF extraction; optional Gemini fallback (`GOOGLE_GENERATIVE_AI_API_KEY`)                                                       |
+| `ca-sos-statements.ts` | CA Secretary of State guide    | `civic_api_cache`    | official candidate-statement pages, PDF fallback via `ca-sos-vig-pdf.ts`                                                        |
 
 The feed content types (`bill`, `government_content`, and `court_case` from the
 unregistered scotus scraper) all write through `upsertContent()` and share the
 full AI pipeline below. The two
 **civic** scrapers are different in kind: each collapses a whole election's
-material into a *single* `CivicApiCache` row (`insert … onConflictDoUpdate` keyed
+material into a _single_ `CivicApiCache` row (`insert … onConflictDoUpdate` keyed
 on `(addressHash, endpoint, params)`), runs no AI pipeline, and feeds
 candidate/ballot enrichment rather than the content feed. See
 [candidate enrichment](./candidate-enrichment.md) and
@@ -107,6 +108,78 @@ backfills run — stop and restart freely, the cursor is durable.
 `--bill "H.R. 7008"` (repeatable, plus `--congress`) fetches specific bills
 directly and bypasses the cursor entirely, for backfilling a single bill or
 regenerating one for testing.
+
+## State bills (Open States)
+
+`open-states.ts` ingests state-legislature bills into the same `Bill` table and
+the same AI pipeline as federal ones. Browse currently supports California,
+North Carolina, and Texas
+(`OPEN_STATES_STATES=ca,nc,tx`); each state walks its own cursor keyed
+`open-states:{state}`.
+
+**Identity.** A state bill's `billNumber` is `"CA SB 243 (2025-2026)"` and its
+`sourceWebsite` is `openstates.org`. All three parts are load-bearing: the
+uniqueness constraint is `(billNumber, sourceWebsite)`, SB 243 exists in most
+states, and SB 243 exists in _every_ California session as an unrelated bill.
+Changing that format silently duplicates every row already stored.
+`Bill.congress` stays null for state bills — it is a federal field, and the
+session lives in the bill number instead. Chamber is the state's own vocabulary:
+California's lower house is the **Assembly**, not the House.
+
+**One request per twenty bills.** The walk asks `/bills` for sponsorships,
+abstracts, actions and versions inline rather than fetching each bill's detail
+separately. This is a quota decision, not a style one — the free Open States
+tier allows a few hundred requests a day, and at one request per bill a
+California session would take weeks to drain, which is exactly why the
+CourtListener scraper is parked. Bill _text_ is fetched from the state's own
+site (leginfo for CA), so it does not draw on the API budget at all.
+
+Everything else matches the federal walk: ascending `updated_since` from a
+durable cursor, retry queue, and the same three-way `upsertContent` outcome
+contract. `updated_since` is date-granular, so the cursor rounds _back_ to its
+own day — an unchanged bill re-offered is a no-op upsert, whereas rounding
+forward would drop everything updated later that day.
+
+`--recent 100` is the production freshness mode. It re-reads the 100 most
+recently updated measures in each selected state without touching the ascending
+backfill cursor. The supervisor runs this mode daily and isolates each supported
+state in its own job, so one state's source failure cannot block the others.
+
+`--bill "SB 243"` (with optional `--session 20252026`) fetches specific bills and
+bypasses the cursor, the same way `--bill` does for congress.gov.
+
+### Bulk backfill
+
+`--bulk-dir <path>` imports an unzipped Open States session-CSV export through
+the same normalization and upsert path as the API, with no API requests at all.
+It is the fast way to seed a session before letting the incremental walk take
+over.
+
+It takes a local directory rather than downloading, because the archives at
+<https://open.pluralpolicy.com/data/session-csv/> sit behind a **site login**,
+not the API key — an unauthenticated fetch gets "Please log in to access download
+links". Automating it would mean storing account credentials in the scraper. So:
+sign in, download the session archive, unzip it, and point `--bulk-dir` at the
+directory.
+
+```sh
+pnpm --filter @acme/scraper run start open-states --bulk-dir ~/Downloads/CA_2025-2026_csv --session 20252026
+```
+
+The import deliberately does **not** move the cursor. An export is a snapshot of
+a whole session with no position in the update feed, so there is no high-water
+mark to take from it, and writing one would strand every bill changed since the
+export was built.
+
+Open States documents the CSV format as experimental. The reader maps columns by
+name with a few aliases and raises `BulkExportShapeError` listing the columns it
+actually found if the shape has moved — it will not quietly import shifted data.
+Pass `--session` for exports that omit a session column; it becomes part of each
+bill's stable identity.
+
+**Not ingested:** roll-call votes. `Bill` has no column for them and inventing
+one is out of scope here; the `openStates` tRPC router already serves votes
+live for the bill detail screen.
 
 ## Bill text: which version, and how much
 
@@ -264,19 +337,10 @@ flowchart TD
 
     ai --> summary["Summary (≤100 chars)"]
     summary --> article["Article (4-section markdown)<br/>→ ai_generated_article"]
-    article --> marketing["Marketing copy<br/>(title ≤25, desc, imagePrompt)"]
-    marketing --> img{"Scraped<br/>thumbnail?"}
-
-    img -->|yes| thumburl["thumbnail_url"]
-    img -->|no| flux["FLUX.2 Klein 9B → sharp JPEG<br/>→ image_data (bytea)"]
-    flux -.->|moderation block / fail| stock["Google Custom Search<br/>stock thumbnail URL"]
-
+    article --> thumburl["Optional source/search thumbnail_url"]
     thumburl --> upsert["upsertContent()<br/>onConflictDoUpdate + append versions"]
-    flux --> upsert
-    stock --> upsert
     skipai --> upsert
     backfill --> upsert
-    upsert --> video["generateVideoForContent()<br/>→ video feed row"]
 ```
 
 ## Environment & provider-fallback contract
@@ -300,36 +364,54 @@ loud instead of mid-run. The contract has four tiers:
 `SCOTUS_MAX_ITEMS`, `SCC_CVIG_MAX_ITEMS`, `CA_SOS_MAX_ITEMS`) which bounds how
 many source records that scraper pulls per run. The `--max-items` flag overrides
 all of them for one run. This is distinct from `SCRAPER_MAX_NEW_ITEMS_PER_RUN`,
-which caps how many fetched items may *pay for AI* (see
+which caps how many fetched items may _pay for AI_ (see
 [The new-item budget](#the-new-item-budget)).
 
-## Backfill & reprocessing scripts
+## Maintenance, backfill & reprocessing scripts
 
 The scrape path persists every fetched item but only lets
 `SCRAPER_MAX_NEW_ITEMS_PER_RUN` of them generate AI assets; the rest carry raw
-content and are completed later by these standalone entry points. All are
-`pnpm`-scripted in `apps/scraper` and share the pipeline's gates and providers.
+content and are completed later by these standalone entry points. This section
+also includes the manual retention command. All are `pnpm`-scripted in
+`apps/scraper` and share the pipeline's database safety conventions.
 
-| Command                       | File                            | What it fills                                    | Safety                                              |
-| ----------------------------- | ------------------------------- | ------------------------------------------------ | --------------------------------------------------- |
-| `reprocess-content`           | `reprocess-content.ts`          | Any derived asset across all content tables      | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
-| `retroactive-briefs`          | `retroactive-briefs.ts`         | Missing/stale bill `content_brief` rows          | `--dry-run` to preview                              |
-| `retroactive-lenses`          | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows                | `--dry-run` to preview                              |
-| `retroactive-videos`          | `retroactive-videos.ts`         | Missing `video` feed rows                        | —                                                   |
-| `backfill-bill-descriptions`  | `backfill-bill-descriptions.ts` | Bills with no source/AI description              | `--apply` (+ `--yes` on prod)                       |
+| Command                      | File                            | What it fills                               | Safety                                                        |
+| ---------------------------- | ------------------------------- | ------------------------------------------- | ------------------------------------------------------------- |
+| `reprocess-content`          | `reprocess-content.ts`          | Any derived asset across all content tables | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
+| `retroactive-briefs`         | `retroactive-briefs.ts`         | Missing/stale bill `content_brief` rows     | `--dry-run` to preview                                        |
+| `retroactive-lenses`         | `retroactive-lenses.ts`         | Missing/stale `content_lens` rows           | `--dry-run` to preview                                        |
+| `backfill-bill-descriptions` | `backfill-bill-descriptions.ts` | Bills with no source/AI description         | `--apply` (+ `--yes` on prod)                                 |
+| `content-images`             | `content-images.ts`             | Missing or stale Storage-backed header art  | Bill selection is hard-limited to 80; local FLUX only         |
+| `bill-interest`              | `bill-interest.ts`              | Missing/stale editorial ranking assessments | `--dry-run` to preview                                        |
+| `prune-bills`                | `prune-bills.ts`                | Bills outside the editorial retention set   | **Read-only by default**; needs `--apply` (+ `--yes` on prod) |
+
+The scheduled Congress refresh passes `--recent 80 --retain 50
+--retention-days 90`; Open States uses the same retention settings after a
+`--recent 100` refresh. PostgreSQL keeps bills active in that 90-day window,
+every saved bill, and the global top 50 by saves, LLM-scored controversy, or
+demonstrated outside attention. It deletes only from the refreshed jurisdiction
+and returns aggregate counts rather than bill rows. The standalone command is
+for manual inventory and repair, not routine scheduling.
+
+`bill-interest` reads the stored structured brief and dual-lens research. It
+stores three 0–100 scores plus a short reason, model version, and bill content
+hash. Popularity never comes from the model; retention counts real saves. A
+changed content hash invalidates the old assessment until the scheduled scorer
+replaces it. Retention protects missing and stale assessments, so scoring must
+succeed before an older bill can become eligible for deletion.
 
 `reprocess-content` is the most general and the model the others follow:
 
 - **Read-only unless `--apply`.** It first prints an inventory per content type
-  (rows, usable source text, missing article, missing feed image, selected) and
+  (rows, usable source text, missing article or brief, selected) and
   exits without writing. Production writes additionally require `--yes`, and
   `--apply` refuses to start without a text-AI provider and an image provider so
   a run can't silently leave rows half-generated.
 - **`--mode missing`** backfills only rows that fail a gate (`needsReprocessing`:
-  no usable source text, no valid article, no video, or no feed image);
+  no usable source text, no valid article, or no structured bill brief);
   **`--mode replace`** (the default) regenerates every derived asset.
-- **`--assets images`** limits work to feed imagery; `--assets all` (default)
-  regenerates article, dual lens, and video too.
+- **`--assets images`** limits work to source/search thumbnails;
+  `--assets all` (default) also regenerates long-form text and dual lenses.
 - Selection can be scoped with `--type`, `--limit`, `--id`, and `--after-id`
   (resume-after-UUID, single-type only), at `--concurrency` 1–5.
 - **Missing source text is re-fetched, not skipped.** When a row's `full_text`
@@ -341,6 +423,6 @@ content and are completed later by these standalone entry points. All are
   assets regenerate against it.
 - **Success is re-queried from the database**, not inferred from provider
   responses: after the run it reloads the processed rows and counts only those
-  that persisted a valid article *and* a feed image as verified. Partial/failed
+  that persisted a valid article or structured bill brief. Partial/failed
   IDs are printed for a targeted retry, and rate-limit failures re-raise
   `AIRateLimitError` so an orchestrator can back off.

@@ -15,6 +15,76 @@ void test("every job is reachable by id", () => {
   assert.equal(findJob("no-such-job"), undefined);
 });
 
+void test("every supported state has an isolated daily refresh", () => {
+  const stateCodes = ["ca", "nc", "tx"];
+  for (const stateCode of stateCodes) {
+    const job = findJob(`open-states-${stateCode}-daily`);
+    assert.ok(job, `${stateCode} has no daily Open States job`);
+    assert.deepEqual(job.args, [
+      "open-states",
+      "--recent",
+      "100",
+      "--retain",
+      "50",
+      "--retention-days",
+      "90",
+      "--concurrency",
+      "4",
+    ]);
+    assert.equal(job.env?.OPEN_STATES_STATES, stateCode);
+    assert.equal(job.schedule.kind, "daily");
+  }
+  assert.equal(findJob("open-states-mo-daily"), undefined);
+});
+
+void test("daily Congress refresh applies the editorial retention policy", () => {
+  const job = findJob("congress-daily");
+  assert.ok(job, "daily Congress job is missing");
+  assert.deepEqual(job.args, [
+    "congress",
+    "--recent",
+    "80",
+    "--retain",
+    "50",
+    "--retention-days",
+    "90",
+    "--concurrency",
+    "4",
+  ]);
+});
+
+void test("bill interest scoring runs before source refreshes", () => {
+  const job = findJob("bill-interest-daily");
+  assert.ok(job, "daily bill-interest job is missing");
+  assert.deepEqual(job.args, ["--limit", "1000", "--concurrency", "4"]);
+  assert.deepEqual(job.schedule, { kind: "daily", hour: 2, minute: 0 });
+  assert.equal(job.priority, 0);
+});
+
+void test("executive actions refresh daily", () => {
+  const whiteHouseJob = findJob("whitehouse-daily");
+  assert.ok(whiteHouseJob, "daily White House job is missing");
+  assert.deepEqual(whiteHouseJob.args, ["whitehouse", "--concurrency", "2"]);
+  assert.deepEqual(whiteHouseJob.schedule, {
+    kind: "daily",
+    hour: 1,
+    minute: 0,
+  });
+
+  const job = findJob("federalregister-daily");
+  assert.ok(job, "daily Federal Register job is missing");
+  assert.deepEqual(job.args, ["federalregister", "--concurrency", "2"]);
+  assert.deepEqual(job.schedule, { kind: "daily", hour: 1, minute: 30 });
+  assert.ok(whiteHouseJob.priority < job.priority);
+});
+
+void test("San Jose decisions refresh daily through the Legistar scraper", () => {
+  const job = findJob("legistar-daily");
+  assert.ok(job, "daily Legistar job is missing");
+  assert.deepEqual(job.args, ["legistar", "--concurrency", "2"]);
+  assert.deepEqual(job.schedule, { kind: "daily", hour: 3, minute: 45 });
+});
+
 void test("limits are generous enough not to kill healthy work", () => {
   // The first version of this config used wall-clock timeouts picked by guess,
   // and one of them (12h for a 15.4h backfill) would have killed a healthy run

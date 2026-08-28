@@ -20,6 +20,9 @@ export interface ContentCardItem {
   gist?: string;
   status?: string;
   updated?: string;
+  meta?: string;
+  jurisdictionCode?: string;
+  statusTone?: "accent" | "warning";
   thumbnailUrl?: string;
   imageUri?: string;
 }
@@ -53,6 +56,13 @@ export function ContentCard({
             <Badge type={item.type} />
           </View>
           {item.tag && <Text style={s.tag}>{item.tag}</Text>}
+          {item.jurisdictionCode ? (
+            <View style={s.jurisdictionChip}>
+              <Text style={s.jurisdictionChipText}>
+                {item.jurisdictionCode}
+              </Text>
+            </View>
+          ) : null}
         </View>
         {onSave && (
           <TouchableOpacity onPress={onSave} hitSlop={8} style={s.bookmark}>
@@ -97,7 +107,16 @@ export function ContentCard({
       </View>
       <View style={s.bottom}>
         {item.status ? (
-          <Text style={[s.status, { color: t.color }]} numberOfLines={2}>
+          <Text
+            style={[
+              s.status,
+              {
+                color:
+                  item.statusTone === "warning" ? colors.yellow[500] : t.color,
+              },
+            ]}
+            numberOfLines={2}
+          >
             {item.status}
           </Text>
         ) : (
@@ -106,6 +125,11 @@ export function ContentCard({
         {item.updated ? (
           <Text style={s.updated} numberOfLines={1}>
             {item.updated}
+          </Text>
+        ) : null}
+        {item.meta ? (
+          <Text style={s.meta} numberOfLines={2}>
+            {item.meta}
           </Text>
         ) : null}
       </View>
@@ -135,7 +159,13 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 11,
   },
-  topLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
+  topLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    flexShrink: 1,
+    gap: 9,
+  },
   contentRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -169,6 +199,19 @@ const s = StyleSheet.create({
     letterSpacing: 0.3,
     color: colors.textSecondary,
   },
+  jurisdictionChip: {
+    borderWidth: 1,
+    borderColor: hair[3],
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  jurisdictionChipText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    color: colors.textSecondary,
+  },
   bookmark: { padding: 4 },
   title: {
     fontFamily: "InriaSerif-Bold",
@@ -199,6 +242,13 @@ const s = StyleSheet.create({
     width: "100%",
     fontFamily: "AlbertSans-Medium",
     fontSize: 12,
+    color: colors.textSecondary,
+  },
+  meta: {
+    width: "100%",
+    fontFamily: "AlbertSans-Medium",
+    fontSize: 12,
+    lineHeight: 17,
     color: colors.textSecondary,
   },
 });

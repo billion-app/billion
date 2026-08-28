@@ -6,6 +6,7 @@ import type { UpsertOutcome } from "../utils/db/operations.js";
 import type { NewItemLimiter } from "../utils/new-item-limit.js";
 import type { Scraper } from "../utils/types.js";
 import { getItemLimit } from "../utils/concurrency.js";
+import { advancesCursor, cursorHighWaterMark } from "../utils/cursor.js";
 import { setExpectedTotal } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
 import {
@@ -15,9 +16,14 @@ import {
   retryQueueDepth,
 } from "../utils/db/retry-queue.js";
 import { fetchWithRetry } from "../utils/fetch.js";
+import { latestActionDate } from "../utils/last-action.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
 import { congressConfig } from "./congress.config.js";
+
+// Re-exported for congress.test.ts, which has covered these since they lived
+// here; they now back the open-states walk too (see utils/cursor.ts).
+export { advancesCursor, cursorHighWaterMark };
 
 const BASE_URL = "https://api.congress.gov/v3";
 const logger = createLogger("Congress.gov");
@@ -374,45 +380,6 @@ async function fetchActions(
 }
 
 /**
- * Whether an item's outcome lets the cursor move past it.
- *
- * `deferred` is the one that must not: the bill is not in the database in the
- * state we want it, for a reason a later run can fix. `skipped` may, because
- * re-offering the bill unchanged would reach the same conclusion — and any real
- * change upstream moves its `updateDate`, which puts it back in the feed.
- */
-export function advancesCursor(
-  outcome: UpsertOutcome,
-): outcome is Exclude<UpsertOutcome, { status: "deferred" }> {
-  return outcome.status !== "deferred";
-}
-
-/**
- * How far the cursor may move given this run's outcomes, in feed order.
- *
- * Only the leading run of clean bills counts. The feed is sorted oldest-first,
- * so the first bill we could not settle is the true high-water mark: moving
- * past it would strand it exactly the way the old wall-clock cursor did.
- * Everything from there on is simply re-offered next run, however many of them
- * happened to succeed.
- */
-export function cursorHighWaterMark(
-  outcomes: { ok: boolean; sourceUpdatedAt?: Date }[],
-): { highWaterMark: Date | undefined; held: number } {
-  const firstFailure = outcomes.findIndex((outcome) => !outcome.ok);
-  const settled =
-    firstFailure === -1 ? outcomes : outcomes.slice(0, firstFailure);
-  const highWaterMark = settled.reduce<Date | undefined>(
-    (newest, outcome) =>
-      outcome.sourceUpdatedAt && (!newest || outcome.sourceUpdatedAt > newest)
-        ? outcome.sourceUpdatedAt
-        : newest,
-    undefined,
-  );
-  return { highWaterMark, held: outcomes.length - settled.length };
-}
-
-/**
  * Fetch one bill's detail/summary/text/actions and upsert it. Shared by the
  * incremental feed walk and the targeted `--bill` path.
  */
@@ -475,6 +442,10 @@ async function processBill(
         summary,
         fullText,
         actions,
+        // Not `sourceUpdatedAt`: that is congress.gov's record-modified time,
+        // which moves on metadata refreshes and is why sorting "recent" on it
+        // surfaced year-old bills. This is the newest real legislative event.
+        lastActionAt: latestActionDate(actions),
         url: billUrl,
         sourceWebsite: "congress.gov",
         sourceUpdatedAt,

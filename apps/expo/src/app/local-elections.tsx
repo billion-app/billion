@@ -5,12 +5,11 @@ import { FontAwesome } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 
 import { KeyDatesSection } from "~/components/KeyDatesSection";
-import { LocalBillsSection } from "~/components/LocalBillsSection";
+import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
 import { MyBallotSection } from "~/components/MyBallotSection";
 import { PollingPlacesSection } from "~/components/PollingPlacesSection";
 import { RepsSection } from "~/components/RepsSection";
 import { Text, View } from "~/components/Themed";
-import { UpcomingMeetingsSection } from "~/components/UpcomingMeetingsSection";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontDisplay, fontSize, sp, useTheme } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -78,9 +77,7 @@ export default function LocalElectionsScreen() {
 
         <RepsSection address={address} />
 
-        <LocalBillsSection />
-
-        <UpcomingMeetingsSection />
+        <LocalDecisionsPreview />
       </ScrollView>
     </View>
   );

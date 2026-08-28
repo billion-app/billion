@@ -11,7 +11,6 @@ import {
   ContentLens,
   CourtCase,
   GovernmentContent,
-  Video,
 } from "./src/schema";
 
 function hash(content: string) {
@@ -422,9 +421,11 @@ const billBriefs: (Omit<
   "generatedAt" | "modelVersion"
 > | null)[] = [
   {
-    version: 7,
+    version: 8,
     legalStatus: "proposed",
     verifiedQuotes: 1,
+    summary:
+      "States would get **ten years of road and bridge funding authority**, but Congress would still approve the actual money each year.",
     hook: "If this bill becomes law, states would get **a longer window to plan road and bridge repairs**, while cities could apply for **new public-transit money**. The $200 billion is a maximum, not guaranteed money; Congress would still decide how much can actually be spent each year.",
     facts: [
       {
@@ -542,9 +543,11 @@ const billBriefs: (Omit<
     ],
   },
   {
-    version: 7,
+    version: 8,
     legalStatus: "proposed",
     verifiedQuotes: 2,
+    summary:
+      "Companies would need permission to collect or sell personal data, and people could **review and delete what companies hold**.",
     hook: "If passed, the bill would require companies to **get permission before collecting or selling personal data**. People across the country could also **review and delete information held about them**, although the text does not settle whether **stronger state privacy laws** would remain in place.",
     facts: [{ label: "Chamber status", value: "In Committee" }],
     changes: [
@@ -901,64 +904,8 @@ async function seed() {
   console.log(`  ${insertedCases.length} court cases inserted`);
 
   console.log("Inserting videos (feed items)...");
-  const videoRecords = [
-    ...insertedBills.map((b, i) => ({
-      contentType: "bill" as const,
-      contentId: b.id,
-      title: bills[i]!.title.slice(0, 100),
-      description: bills[i]!.description!,
-      thumbnailUrl: bills[i]!.thumbnailUrl,
-      author: "congress.gov",
-      engagementMetrics: {
-        likes: Math.floor(1000 + i * 2345),
-        comments: Math.floor(100 + i * 234),
-        shares: Math.floor(50 + i * 123),
-      },
-      sourceContentHash: b.contentHash,
-    })),
-    ...insertedGov.map((g, i) => ({
-      contentType: "government_content" as const,
-      contentId: g.id,
-      title: govContent[i]!.title.slice(0, 100),
-      description: govContent[i]!.description!,
-      thumbnailUrl: govContent[i]!.thumbnailUrl,
-      author: govContent[i]!.source,
-      engagementMetrics: {
-        likes: Math.floor(2000 + i * 1567),
-        comments: Math.floor(200 + i * 345),
-        shares: Math.floor(100 + i * 234),
-      },
-      sourceContentHash: g.contentHash,
-    })),
-    ...insertedCases.map((c, i) => ({
-      contentType: "court_case" as const,
-      contentId: c.id,
-      title: courtCases[i]!.title.slice(0, 100),
-      description: courtCases[i]!.description!,
-      thumbnailUrl: courtCases[i]!.thumbnailUrl,
-      author: "courtlistener.com",
-      engagementMetrics: {
-        likes: Math.floor(3000 + i * 1234),
-        comments: Math.floor(300 + i * 456),
-        shares: Math.floor(150 + i * 345),
-      },
-      sourceContentHash: c.contentHash,
-    })),
-  ];
-
-  if (videoRecords.length === 0) {
-    console.log("  0 videos inserted (no new content to link)");
-  } else {
-    const insertedVideos = await db
-      .insert(Video)
-      .values(videoRecords)
-      .onConflictDoNothing()
-      .returning({ id: Video.id });
-    console.log(`  ${insertedVideos.length} videos inserted`);
-  }
-
   console.log(
-    `\nDone! Seeded ${insertedBills.length} bills, ${insertedGov.length} gov content, ${insertedCases.length} court cases, ${videoRecords.length} videos.`,
+    `\nDone! Seeded ${insertedBills.length} bills, ${insertedGov.length} gov content, and ${insertedCases.length} court cases.`,
   );
   process.exit(0);
 }

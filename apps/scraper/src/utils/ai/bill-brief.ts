@@ -575,19 +575,32 @@ export function verifyBriefReading(
  * Historical context may use only pages the research agent successfully
  * opened. Keep exact researched URLs, remove invented citations, and omit the
  * entire section unless at least two distinct sources remain.
+ *
+ * Both drop paths are logged. This is the filter that decides whether a reader
+ * ever sees `whyNotBefore`, and it used to drop the section without a trace,
+ * which made a legitimate editorial bar indistinguishable from a citation
+ * matching bug: only ~11% of briefs carry the section, and nothing recorded
+ * whether the rest were never written or written and then discarded here. The
+ * counts name which one it was — `unverifiable` rising while the model keeps
+ * emitting points means the URLs are real but absent from `sources`, not that
+ * the history is unsupported.
  */
 export function verifyBriefContext(
   brief: BillBrief,
   sources: readonly DualLensSource[],
+  billNumber: string,
 ): BillBrief {
   if (!brief.whyNotBefore) return brief;
 
   const verified = new Map(
     sources.map((source) => [comparableUrl(source.url), source.url]),
   );
-  const points = brief.whyNotBefore.points.flatMap((point) => {
+  const offered = brief.whyNotBefore.points;
+  let unverifiable = 0;
+  const points = offered.flatMap((point) => {
     const citations = point.citations.flatMap((citation) => {
       const url = verified.get(comparableUrl(citation.url));
+      if (!url) unverifiable += 1;
       return url ? [{ ...citation, url }] : [];
     });
     return citations.length > 0 ? [{ ...point, citations }] : [];
@@ -597,8 +610,24 @@ export function verifyBriefContext(
   );
 
   if (points.length === 0 || distinctSources.size < 2) {
+    const reason =
+      points.length === 0
+        ? "every point lost all of its citations"
+        : `only ${distinctSources.size} distinct verified source(s), needs 2`;
+    logger.warn(
+      `Brief for ${billNumber}: dropped whyNotBefore — ${reason} ` +
+        `(${offered.length} point(s) offered, ${points.length} survived, ` +
+        `${unverifiable} citation(s) not among ${sources.length} researched source(s))`,
+    );
     const { whyNotBefore: _dropped, ...rest } = brief;
     return rest;
+  }
+
+  if (unverifiable > 0) {
+    logger.warn(
+      `Brief for ${billNumber}: kept whyNotBefore but dropped ${unverifiable} ` +
+        `unverifiable citation(s); ${points.length}/${offered.length} point(s) survived`,
+    );
   }
 
   return {
@@ -664,6 +693,7 @@ const LOADED_PATTERN = new RegExp(
  */
 function authoredProse(brief: BillBrief): string[] {
   return [
+    brief.summary,
     brief.hook,
     ...brief.facts.flatMap((f) => [f.label, f.value, f.note ?? ""]),
     ...brief.changes.flatMap((c) => [c.title, c.before, c.after]),
@@ -768,6 +798,7 @@ const JARGON_RULES = [
 
 function readerFacingProse(brief: BillBrief): string[] {
   return [
+    brief.summary,
     brief.hook,
     ...brief.facts.flatMap((f) => [f.label, f.value, f.note ?? ""]),
     ...brief.changes.flatMap((c) => [c.title, c.before, c.after]),
@@ -823,6 +854,7 @@ const EMPHASIS_PATTERN = /\*\*[^*\n]+\*\*/;
  */
 export function findMissingEmphasis(brief: BillBrief): string[] {
   const fields: { label: string; value: string }[] = [
+    { label: "summary", value: brief.summary },
     { label: "hook", value: brief.hook },
     ...brief.changes.flatMap((change, index) => [
       { label: `changes[${index}].before`, value: change.before },
@@ -968,9 +1000,10 @@ Rules that decide whether this brief ships:
 - **Plain language.** Aim for an 8th-grade reading level everywhere. Prefer familiar verbs and concrete descriptions: "Congress approves the money each year", not "subject to annual appropriations"; "several federal programs", not "discretionary federal grants"; "how long states can plan ahead", not "funding horizon". If a general reader might have to look a term up, either translate it or define it in "terms". Even when defined, explain its practical meaning where it appears.
 - **Emphasis is a brief-wide scan aid, not decoration.** Every reader-facing prose field should identify the one phrase a scanner most needs to retain. Use **double asterisks** around one short, concrete phrase in each affected-group "takeaway" and "effect", each "unknowns" item, each term definition, each reading recommendation, the deep-dive preview, and each historical summary or point. "before" and "after" may use up to two short spans; "hook" may use two or three. In long-form deep-dive paragraphs, use one or two only when useful. Never bold a whole sentence, a heading, a verdict, loaded language, or any verbatim source quote.
 - **Concise still means coherent.** Every visible field must make sense when read by itself. Never emit a noun phrase, dangling clause, missing subject, or sentence fragment merely to save words. Read each field independently before returning it.
-- **Length limits are hard.** Keep the hook at 600 characters or fewer; fact labels at 48, values at 60, and notes at 90; change titles at 70 and each before/after at 240; affected-group names at 80, takeaways at 240, and effects at 400; unknowns and term definitions at 250; the "whyNotBefore" summary and each of its point texts at 250 and 420; the deep-dive title at 90 and its preview at 250. Count conservatively, including **bold** markers. Prefer a shorter complete sentence over extra detail. Omit an optional field instead of returning an overlong value.
+- **Length limits are hard.** Keep the summary at 180 characters or fewer and the hook at 600; fact labels at 48, values at 60, and notes at 90; change titles at 70 and each before/after at 240; affected-group names at 80, takeaways at 240, and effects at 400; unknowns and term definitions at 250; the "whyNotBefore" summary and each of its point texts at 250 and 420; the deep-dive title at 90 and its preview at 250. Count conservatively, including **bold** markers. Prefer a shorter complete sentence over extra detail. Omit an optional field instead of returning an overlong value.
 
 Field notes:
+- "summary" is the only sentence shown before the reader chooses to expand. State the single most important practical change or catch in one standalone sentence under 180 characters. Preserve legal status, include one short **bold** scan target, and do not spend words introducing the bill.
 - "hook" is rendered under the heading "What this means for you" and replaces a grid of disconnected fact tiles. Write one coherent paragraph of 2–3 short sentences. First explain the most consequential practical changes; then state the most important limitation, condition, or uncertainty. Connect the ideas naturally instead of listing figures. Preserve legal status ("would" for proposals), and do not imply every reader is personally affected. Wrap two or three short, concrete phrases in **double asterisks** so a scanner can retain the key changes. Never bold a whole sentence, generic transition, verdict, or loaded language.
 - Surprise belongs in the "hook". A reader who knows only the bill's title and short description should not be able to predict it. Two things are almost always more useful than restating the title: (a) **provisions unrelated to the bill's stated subject** — unrelated policy riding along in the same text is one of the most consequential things a reader can learn, and a title will never reveal it; and (b) **the gap between what the title promises and what the text does** — a bill named for banning something that restricts only one narrow form of it, grandfathers everything existing, or omits an asset class the reader would assume is covered. When either is present, it belongs in the hook ahead of a fuller recitation of the main provisions. Only describe what the source actually supports; do not manufacture a twist for a bill that genuinely has none, and keep the framing neutral — state the mismatch, let the reader judge it.
 - "changes" must contrast current law ("before") with the proposal ("after"). If the source does not establish current law, say that in "before" instead of guessing. Evaluate every change independently for a direct supporting quote; when the official text contains one, include it so every supported card has its own route back to the text. Never invent or stretch a quote merely to make the cards look consistent.
@@ -1091,6 +1124,7 @@ export async function generateBillBrief(args: {
       const brief = verifyBriefContext(
         briefWithReading,
         readingResearch.sources,
+        args.billNumber,
       );
       const { verified, dropped } = quoteResult;
       if (dropped > 0) {

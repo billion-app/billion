@@ -47,7 +47,7 @@ Most US legislatures are **bicameral** — split into two **chambers** that must
 
 | Document type | What it is | Current coverage |
 |---|---|---|
-| **State bill** | Same concept as federal bill; CA uses AB (Assembly) and SB (Senate) numbering | Partial — Open States API key held; integration planned |
+| **State bill** | Same concept as federal bill; CA uses AB (Assembly) and SB (Senate) numbering | ✓ CA — ingested into `Bill` by the `open-states` scraper |
 | **State resolution** | Same as federal equivalents | Not covered |
 
 ### Executive — Governor
@@ -118,7 +118,7 @@ This is where the most government decisions affecting daily life are made — an
 | Federal | Legislative | Regulations | Partial |
 | Federal | Executive | Presidential actions (EO, proclamation, memoranda) | ✓ |
 | Federal | Judicial | SCOTUS opinions | ✓ |
-| State (CA) | Legislative | State bills | Planned (Open States) |
+| State (CA) | Legislative | State bills | ✓ (Open States) |
 | State (CA) | Direct democracy | Statewide propositions | ✓ |
 | State (CA) | Direct democracy | LAO fiscal analyses | ✓ |
 | Local | Council/Board | City/county legislation | ✓ (Legistar) |

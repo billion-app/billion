@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
+import type { MailingListSignupPlatform } from "./waitlist-confirmation-email";
 import { env } from "~/env";
-import {
-  WAITLIST_CONFIRMATION_HTML,
-  WAITLIST_CONFIRMATION_SUBJECT,
-  WAITLIST_CONFIRMATION_TEXT,
-} from "./waitlist-confirmation-email";
+import { isAndroidUserAgent } from "../../_lib/platform";
+import { mailingListConfirmationEmail } from "./waitlist-confirmation-email";
 
 export const runtime = "nodejs";
 
 const RESEND_API_BASE_URL = "https://api.resend.com";
 
-const CreateWaitlistSchema = z.object({
+const CreateMailingListSignupSchema = z.object({
   email: z.email().max(320),
 });
 
@@ -24,39 +22,53 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const parsed = CreateWaitlistSchema.safeParse(body);
+  const parsed = CreateMailingListSignupSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
 
   const email = parsed.data.email.trim().toLowerCase();
-  let result: WaitlistSignupResult;
+  let result: MailingListSignupResult;
 
   try {
-    result = await addWaitlistContact(email);
+    result = await addMailingListContact(email);
   } catch (err) {
-    console.error("waitlist resend contact failed", err);
+    console.error("mailing list resend contact failed", err);
     return NextResponse.json(
-      { error: "Could not join waitlist" },
+      { error: "Could not join the mailing list" },
       { status: 500 },
     );
   }
 
   // A confirmation is transactional: it is sent only once, when the Contact
   // is first created. A delivery problem should never prevent someone from
-  // joining the waitlist.
+  // joining the mailing list.
   if (result === "joined") {
-    await sendWaitlistConfirmation(email).catch((err: unknown) => {
-      console.error("waitlist confirmation email failed", err);
+    // Read from the signup request rather than passed by the form: the header
+    // is what actually says which device is in someone's hand, and it covers
+    // every form on the site without each one having to declare itself.
+    const platform: MailingListSignupPlatform = isAndroidUserAgent(
+      req.headers.get("user-agent"),
+    )
+      ? "android"
+      : "default";
+
+    await sendMailingListConfirmation(email, platform).catch((err: unknown) => {
+      console.error("mailing list confirmation email failed", err);
     });
   }
 
   return NextResponse.json({ ok: true, result });
 }
 
-async function sendWaitlistConfirmation(email: string) {
-  const from = env.RESEND_WAITLIST_CONFIRMATION_FROM_EMAIL;
+async function sendMailingListConfirmation(
+  email: string,
+  platform: MailingListSignupPlatform,
+) {
+  const from = env.RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL;
   if (!from) return;
+
+  const { subject, text, html } = mailingListConfirmationEmail(platform);
 
   const response = await fetch(`${RESEND_API_BASE_URL}/emails`, {
     method: "POST",
@@ -67,9 +79,9 @@ async function sendWaitlistConfirmation(email: string) {
     body: JSON.stringify({
       from,
       to: [email],
-      subject: WAITLIST_CONFIRMATION_SUBJECT,
-      text: WAITLIST_CONFIRMATION_TEXT,
-      html: WAITLIST_CONFIRMATION_HTML,
+      subject,
+      text,
+      html,
     }),
   });
 
@@ -78,14 +90,11 @@ async function sendWaitlistConfirmation(email: string) {
   throwResendError([["send confirmation", await parseResendError(response)]]);
 }
 
-async function addWaitlistContact(
+async function addMailingListContact(
   email: string,
-): Promise<WaitlistSignupResult> {
-  const segmentIds = [
-    env.RESEND_WAITLIST_SEGMENT_ID,
-    env.RESEND_TESTFLIGHT_BATCH_SEGMENT_ID,
-  ].filter((id, index, ids): id is string => !!id && ids.indexOf(id) === index);
-  const topicId = env.RESEND_LAUNCH_UPDATES_TOPIC_ID;
+): Promise<MailingListSignupResult> {
+  const segmentId = env.RESEND_GENERAL_UPDATES_SEGMENT_ID;
+  const topicId = env.RESEND_GENERAL_UPDATES_TOPIC_ID;
   const encodedEmail = encodeURIComponent(email);
   const topics = topicId
     ? [{ id: topicId, subscription: "opt_in" as const }]
@@ -93,7 +102,7 @@ async function addWaitlistContact(
 
   const existing = await resendRequest("GET", `/contacts/${encodedEmail}`);
   if (!existing.error) {
-    await updateWaitlistContact(encodedEmail, segmentIds, topics);
+    await updateMailingListContact(encodedEmail, segmentId, topics);
     return "already_joined";
   }
 
@@ -103,9 +112,7 @@ async function addWaitlistContact(
 
   const created = await resendRequest("POST", "/contacts", {
     email,
-    ...(segmentIds.length
-      ? { segments: segmentIds.map((id) => ({ id })) }
-      : {}),
+    ...(segmentId ? { segments: [{ id: segmentId }] } : {}),
     ...(topics ? { topics } : {}),
     unsubscribed: false,
   });
@@ -117,10 +124,10 @@ async function addWaitlistContact(
   return "joined";
 }
 
-async function updateWaitlistContact(
+async function updateMailingListContact(
   encodedEmail: string,
-  segmentIds: string[],
-  topics: WaitlistTopic[] | undefined,
+  segmentId: string | undefined,
+  topics: GeneralUpdatesTopic[] | undefined,
 ) {
   const updated = await resendRequest("PATCH", `/contacts/${encodedEmail}`, {
     unsubscribed: false,
@@ -128,11 +135,11 @@ async function updateWaitlistContact(
 
   if (updated.error) throwResendError([["update", updated.error]]);
 
-  for (const segmentId of segmentIds) {
+  if (segmentId) {
     await ensureSegment(encodedEmail, segmentId);
   }
 
-  await ensureLaunchUpdatesTopic(encodedEmail, topics);
+  await ensureGeneralUpdatesTopic(encodedEmail, topics);
 }
 
 async function ensureSegment(encodedEmail: string, segmentId: string) {
@@ -146,9 +153,9 @@ async function ensureSegment(encodedEmail: string, segmentId: string) {
   throwResendError([["add segment", segmented.error]]);
 }
 
-async function ensureLaunchUpdatesTopic(
+async function ensureGeneralUpdatesTopic(
   encodedEmail: string,
-  topics: WaitlistTopic[] | undefined,
+  topics: GeneralUpdatesTopic[] | undefined,
 ) {
   if (!topics) return;
 
@@ -175,7 +182,7 @@ function throwResendError(
 
 type ResendRequestMethod = "GET" | "POST" | "PATCH";
 
-type WaitlistSignupResult = "joined" | "already_joined";
+type MailingListSignupResult = "joined" | "already_joined";
 
 interface ResendError {
   message: string;
@@ -185,7 +192,7 @@ interface ResendError {
 
 type ResendResult = { error: null } | { error: ResendError };
 
-interface WaitlistTopic {
+interface GeneralUpdatesTopic {
   id: string;
   subscription: "opt_in";
 }

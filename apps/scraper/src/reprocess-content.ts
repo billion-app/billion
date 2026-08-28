@@ -9,7 +9,6 @@ import {
   ContentBrief,
   CourtCase,
   GovernmentContent,
-  Video,
 } from "@acme/db/schema";
 
 import type { ReprocessMode } from "./utils/reprocessing-policy.js";
@@ -22,7 +21,6 @@ import {
 import { getThumbnailImage } from "./utils/api/google-images.js";
 import { getCostSummary, resetCosts } from "./utils/costs.js";
 import { upsertBillBrief, upsertContentLens } from "./utils/db/operations.js";
-import { generateVideoForContent } from "./utils/db/video-operations.js";
 import { createContentHash } from "./utils/hash.js";
 import {
   createLogger,
@@ -31,7 +29,6 @@ import {
   printKeyValue,
 } from "./utils/log.js";
 import {
-  hasVideoImage,
   isUsableAIArticle,
   isUsableSourceText,
   needsReprocessing,
@@ -53,11 +50,7 @@ interface ContentItem {
   thumbnailUrl: string | null;
   url: string;
   contentHash: string;
-  author: string;
   articleType: string;
-  videoId: string | null;
-  videoImageData: Buffer | null;
-  videoThumbnailUrl: string | null;
   /** Structured brief presence. Always false for types that have no brief. */
   hasBrief: boolean;
   billNumber: string | null;
@@ -78,9 +71,6 @@ function rowState(item: ContentItem) {
     fullText: item.fullText,
     aiGeneratedArticle: item.aiGeneratedArticle,
     hasBrief: item.hasBrief,
-    videoId: item.videoId,
-    videoImageData: item.videoImageData,
-    videoThumbnailUrl: item.videoThumbnailUrl,
   };
 }
 
@@ -98,20 +88,12 @@ async function loadContentItems(
         thumbnailUrl: Bill.thumbnailUrl,
         url: Bill.url,
         contentHash: Bill.contentHash,
-        author: Bill.sourceWebsite,
-        videoId: Video.id,
-        videoImageData: Video.imageData,
-        videoThumbnailUrl: Video.thumbnailUrl,
         briefId: ContentBrief.id,
         billNumber: Bill.billNumber,
         officialSummary: Bill.summary,
         status: Bill.status,
       })
       .from(Bill)
-      .leftJoin(
-        Video,
-        and(eq(Video.contentType, "bill"), eq(Video.contentId, Bill.id)),
-      )
       .leftJoin(
         ContentBrief,
         and(
@@ -141,20 +123,9 @@ async function loadContentItems(
         thumbnailUrl: GovernmentContent.thumbnailUrl,
         url: GovernmentContent.url,
         contentHash: GovernmentContent.contentHash,
-        author: GovernmentContent.source,
         articleType: GovernmentContent.type,
-        videoId: Video.id,
-        videoImageData: Video.imageData,
-        videoThumbnailUrl: Video.thumbnailUrl,
       })
       .from(GovernmentContent)
-      .leftJoin(
-        Video,
-        and(
-          eq(Video.contentType, "government_content"),
-          eq(Video.contentId, GovernmentContent.id),
-        ),
-      )
       .orderBy(asc(GovernmentContent.id));
     const rows = afterId
       ? await query.where(gt(GovernmentContent.id, afterId))
@@ -178,19 +149,8 @@ async function loadContentItems(
       thumbnailUrl: CourtCase.thumbnailUrl,
       url: CourtCase.url,
       contentHash: CourtCase.contentHash,
-      author: CourtCase.court,
-      videoId: Video.id,
-      videoImageData: Video.imageData,
-      videoThumbnailUrl: Video.thumbnailUrl,
     })
     .from(CourtCase)
-    .leftJoin(
-      Video,
-      and(
-        eq(Video.contentType, "court_case"),
-        eq(Video.contentId, CourtCase.id),
-      ),
-    )
     .orderBy(asc(CourtCase.id));
   const rows = afterId
     ? await query.where(gt(CourtCase.id, afterId))
@@ -394,25 +354,6 @@ async function processItem(
     }
   }
 
-  const effectiveThumbnail = replacementThumbnail ?? item.thumbnailUrl;
-  let videoHasImage = hasVideoImage(rowState(item));
-  try {
-    const video = await generateVideoForContent(
-      item.type,
-      item.id,
-      item.title,
-      fullText,
-      contentHash,
-      item.author,
-      effectiveThumbnail,
-      { force: mode === "replace", preserveCopy: assets === "images" },
-    );
-    videoHasImage = video.hasImage;
-    if (!videoHasImage) errors.push("video has no generated or fallback image");
-  } catch (error) {
-    errors.push(error instanceof Error ? error.message : String(error));
-  }
-
   // A bill counts as complete on its brief; everything else on its article.
   const longFormIsUsable = requiresBrief(item.type)
     ? briefPresent
@@ -420,12 +361,11 @@ async function processItem(
   return {
     id: item.id,
     type: item.type,
-    status:
-      longFormIsUsable && videoHasImage
-        ? errors.length === 0
-          ? "updated"
-          : "partial"
-        : "partial",
+    status: longFormIsUsable
+      ? errors.length === 0
+        ? "updated"
+        : "partial"
+      : "partial",
     errors,
   };
 }
@@ -446,10 +386,6 @@ function printInventory(
   printKeyValue(
     "Invalid/missing article",
     items.filter((item) => !isUsableAIArticle(item.aiGeneratedArticle)).length,
-  );
-  printKeyValue(
-    "Missing feed image",
-    items.filter((item) => !hasVideoImage(rowState(item))).length,
   );
   printKeyValue(`Selected (${mode})`, selected.length);
   printFooter();
@@ -547,22 +483,12 @@ async function main(): Promise<void> {
       "OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, or deprecated DEEPSEEK_API_KEY is required when --apply is set",
     );
   }
-  if (
-    argv.apply &&
-    !process.env.BFL_API_KEY &&
-    !process.env.LOCAL_FLUX_BASE_URL
-  ) {
-    throw new Error(
-      "BFL_API_KEY or LOCAL_FLUX_BASE_URL is required to guarantee generated feed images",
-    );
-  }
-
   logger[target.target === "production" ? "warn" : "info"](
     databaseTargetMessage(databaseUrl),
   );
   if (!process.env.GOOGLE_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
     logger.info(
-      "Google image search is not configured; content thumbnails will be preserved and feed images will use FLUX",
+      "Google image search is not configured; existing content thumbnails will be preserved",
     );
   }
 
@@ -638,8 +564,9 @@ async function main(): Promise<void> {
     verified += persisted.filter(
       (item) =>
         processedIds.has(item.id) &&
-        isUsableAIArticle(item.aiGeneratedArticle) &&
-        hasVideoImage(rowState(item)),
+        (requiresBrief(item.type)
+          ? item.hasBrief
+          : isUsableAIArticle(item.aiGeneratedArticle)),
     ).length;
   }
 

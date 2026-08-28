@@ -9,4 +9,11 @@ export default defineConfig(
   },
   baseConfig,
   reactConfig,
+  {
+    // node:test's it()/describe() return promises by design.
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
+    },
+  },
 );

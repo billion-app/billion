@@ -11,11 +11,22 @@ import type { JobDefinition } from "./types.js";
 export const jobs: readonly JobDefinition[] = [
   {
     id: "congress-daily",
-    description: "Add and update the 100 most recently updated bills",
+    description:
+      "Refresh federal bills and retain 90 active days plus category leaders",
     script: "main.js",
-    args: ["congress", "--recent", "100", "--concurrency", "4"],
+    args: [
+      "congress",
+      "--recent",
+      "80",
+      "--retain",
+      "50",
+      "--retention-days",
+      "90",
+      "--concurrency",
+      "4",
+    ],
     schedule: { kind: "daily", hour: 3, minute: 15 },
-    // Most of the 100 will be unchanged and cost nothing beyond the fetch —
+    // Most of the 80 will be unchanged and cost nothing beyond the fetch —
     // derived assets are keyed on content, so an unchanged bill regenerates
     // nothing. The budget bounds the days when that is not true, such as a bill
     // whose text was replaced by a substitute amendment.
@@ -24,39 +35,89 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
+  ...(["ca", "nc", "tx"] as const).map(
+    (stateCode, index): JobDefinition => ({
+      id: `open-states-${stateCode}-daily`,
+      description: `Refresh ${stateCode.toUpperCase()} measures and retain 90 active days plus category leaders`,
+      script: "main.js",
+      args: [
+        "open-states",
+        "--recent",
+        "100",
+        "--retain",
+        "50",
+        "--retention-days",
+        "90",
+        "--concurrency",
+        "4",
+      ],
+      schedule: { kind: "daily", hour: 3, minute: 30 },
+      env: {
+        OPEN_STATES_STATES: stateCode,
+        SCRAPER_MAX_NEW_ITEMS_PER_RUN: "25",
+      },
+      priority: index + 1,
+      idleTimeoutMinutes: 60,
+      maxRuntimeHours: 24,
+    }),
+  ),
+  {
+    id: "legistar-daily",
+    description: "Refresh San Jose local-government decisions",
+    script: "main.js",
+    args: ["legistar", "--concurrency", "2"],
+    schedule: { kind: "daily", hour: 3, minute: 45 },
+    priority: 4,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
+  },
+  {
+    id: "bill-interest-daily",
+    description:
+      "Score missing or changed bills for interest, controversy, and attention",
+    script: "bill-interest.js",
+    args: ["--limit", "1000", "--concurrency", "4"],
+    schedule: { kind: "daily", hour: 2, minute: 0 },
+    priority: 0,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
+  },
+  {
+    id: "content-images-daily",
+    description: "Generate illustrated header art for recent retained content",
+    script: "content-images.js",
+    args: ["--bill-limit", "80", "--other-limit", "20", "--concurrency", "1"],
+    schedule: { kind: "daily", hour: 4, minute: 15 },
+    priority: 6,
+    idleTimeoutMinutes: 120,
+    maxRuntimeHours: 12,
+  },
   // The other three registered scrapers. These used to ride along in a weekly
   // `main.js all` run; they are listed individually so that dropping the `all`
   // run does not silently stop them, and so each can be rescheduled or paused
   // without touching the others.
   //
-  // They stay weekly because their sources move slowly compared with the
-  // congressional feed.
-  // Daily, unlike the sources below it, because this is the one that decides
-  // how fast a signed executive order reaches the app. whitehouse.gov posts
-  // within a day of signing; the Federal Register takes three to five more, so
-  // leaving this on the Sunday batch would throw away the entire reason for
-  // having it. One request for the whole feed, and an unchanged action costs
-  // nothing beyond that.
+  // Executive actions run daily because each new action is immediately
+  // newsworthy even though the sources publish infrequently. White House RSS
+  // runs first for same-day discovery; Federal Register follows as the durable
+  // official record and skips documents the RSS feed already supplied.
   {
     id: "whitehouse-daily",
     description: "Executive orders and proclamations, same-day from the source",
     script: "main.js",
     args: ["whitehouse", "--concurrency", "2"],
-    schedule: { kind: "daily", hour: 4, minute: 30 },
-    // Comfortably after congress-daily's 03:15 start so the two are not
-    // queued against each other every morning; the supervisor runs one job at
-    // a time regardless, this just keeps the ordering intentional.
-    priority: 5,
+    schedule: { kind: "daily", hour: 1, minute: 0 },
+    priority: 4,
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 12,
   },
   {
-    id: "federalregister-weekly",
+    id: "federalregister-daily",
     description: "Executive orders and presidential documents",
     script: "main.js",
     args: ["federalregister", "--concurrency", "2"],
-    schedule: { kind: "weekly", weekday: 0, hour: 3, minute: 15 },
-    priority: 10,
+    schedule: { kind: "daily", hour: 1, minute: 30 },
+    priority: 5,
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
@@ -80,14 +141,13 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
-
   // Everything below is manual: it runs only when someone drops a request file,
   // never on a schedule.
   //
   // There is deliberately no scheduled archive backfill. The `scraper_cursor`
   // walk starts near the beginning of the congress, so an unattended job would
   // grind through ~17,000 measures paying for a brief, a dual-lens research
-  // loop and header art on each one it enriched. The daily job above keeps
+  // loop on each one it enriched. The daily job above keeps
   // *active* legislation current, which is what a news feed needs.
   //
   // The retro jobs are manual for the same reason: each is bounded by how much
@@ -112,6 +172,26 @@ export const jobs: readonly JobDefinition[] = [
     priority: 19,
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
+  },
+  {
+    id: "backfill-content-images",
+    description: "Generate illustrated header art for all retained content",
+    script: "content-images.js",
+    // A generous ceiling drains the current retained corpus in one durable
+    // supervisor run. The query selects only missing or style-stale rows, so
+    // rerunning this job after completion is a cheap no-op.
+    args: [
+      "--bill-limit",
+      "1000",
+      "--other-limit",
+      "1000",
+      "--concurrency",
+      "1",
+    ],
+    schedule: { kind: "manual" },
+    priority: 18,
+    idleTimeoutMinutes: 120,
+    maxRuntimeHours: 72,
   },
   {
     id: "retro-briefs",
@@ -145,16 +225,6 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 72,
   },
   {
-    id: "retro-videos",
-    description: "Generate missing header art",
-    script: "retroactive-videos.js",
-    args: ["--type", "bill"],
-    schedule: { kind: "manual" },
-    priority: 30,
-    idleTimeoutMinutes: 60,
-    maxRuntimeHours: 48,
-  },
-  {
     id: "change-images",
     description: "Generate photographs for brief changes that warrant one",
     script: "change-images.js",
@@ -172,7 +242,7 @@ export const jobs: readonly JobDefinition[] = [
   },
   {
     id: "reprocess-bare",
-    description: "Fill in bills left without an article or header art",
+    description: "Fill in bills left without required text or briefs",
     script: "reprocess-content.js",
     // `--mode missing` selects only rows whose derived assets are actually
     // incomplete, so a run costs nothing once there is nothing left to fix.
