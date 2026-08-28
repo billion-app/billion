@@ -1,5 +1,5 @@
 import type { Href } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,9 @@ import { useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import type { ContentItem } from "~/utils/content";
+import type { FeaturedBillItem } from "~/utils/featured-bills";
 import { ElectionBanner } from "~/components/ElectionBanner";
+import { FeaturedBills } from "~/components/FeaturedBills";
 import {
   JurisdictionPicker,
   JurisdictionScopeRow,
@@ -29,6 +31,7 @@ import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
+import { withoutFeaturedBills } from "~/utils/featured-bills";
 import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 
 // Below this length a query is treated as "not searching yet" to avoid
@@ -63,6 +66,7 @@ export default function BrowseScreen() {
   const jurisdictionInfo = JURISDICTIONS[jurisdiction];
   const isState = isStateJurisdiction(jurisdiction);
   const otherJurisdiction = jurisdiction === "federal" ? "ca" : "federal";
+  const featuredViews = useRef(new Set<string>());
 
   const handleFilterChange = (f: ContentFilter) => {
     setFilter(f);
@@ -124,6 +128,11 @@ export default function BrowseScreen() {
   // query is long enough to be worth a round trip.
   const debouncedQuery = useDebounced(query, 300);
   const isSearching = debouncedQuery.trim().length >= MIN_SEARCH_LENGTH;
+  const showFeatured = !isSearching && (filter === "all" || filter === "bill");
+  const featuredQuery = useQuery({
+    ...trpc.content.getFeaturedBills.queryOptions({ jurisdiction }),
+    enabled: showFeatured,
+  });
   const searchQuery = useQuery({
     ...trpc.content.search.queryOptions({
       query: debouncedQuery,
@@ -142,11 +151,31 @@ export default function BrowseScreen() {
     enabled: isSearching,
   });
 
+  const featuredBills = useMemo(
+    () => (featuredQuery.data ?? []) as FeaturedBillItem[],
+    [featuredQuery.data],
+  );
   const items = (
-    isSearching ? (searchQuery.data ?? []) : allItems
+    isSearching
+      ? (searchQuery.data ?? [])
+      : showFeatured
+        ? withoutFeaturedBills(allItems, featuredBills)
+        : allItems
   ) as ContentItem[];
   const listIsLoading = isSearching ? searchQuery.isLoading : isLoading;
   const listError = isSearching ? searchQuery.error : error;
+
+  useEffect(() => {
+    if (!showFeatured || featuredBills.length === 0) return;
+    const viewKey = `${jurisdiction}:${filter}`;
+    if (featuredViews.current.has(viewKey)) return;
+    featuredViews.current.add(viewKey);
+    posthog.capture("featured_bills_viewed", {
+      jurisdiction,
+      filter_type: filter,
+      bill_ids: featuredBills.map((item) => item.id),
+    });
+  }, [featuredBills, filter, jurisdiction, showFeatured]);
 
   const loadMore = () => {
     if (isSearching) return;
@@ -186,6 +215,7 @@ export default function BrowseScreen() {
         );
       }
       if (isSearching) void otherSearchQuery.refetch();
+      if (showFeatured) void featuredQuery.refetch();
     } catch {
       Alert.alert(
         "Unable to refresh",
@@ -259,6 +289,21 @@ export default function BrowseScreen() {
                 onPress={() => router.push("/elections" as Href)}
               />
             )}
+
+            {showFeatured ? (
+              <FeaturedBills
+                items={featuredBills}
+                loading={featuredQuery.isLoading}
+                onOpen={(item, index) => {
+                  posthog.capture("featured_bill_opened", {
+                    bill_id: item.id,
+                    position: index + 1,
+                    jurisdiction,
+                  });
+                  router.push(`/article-detail?id=${item.id}`);
+                }}
+              />
+            ) : null}
 
             {!listIsLoading && !listError && items.length > 0 && (
               <View style={s.resultsCountWrap}>

@@ -275,6 +275,45 @@ export const BillInterest = pgTable(
   }),
 );
 
+/**
+ * Editorial overrides for the automatically ranked Featured Bills row.
+ *
+ * A live row pins a bill ahead of automatic candidates. An inactive or expired
+ * row suppresses that bill from automatic selection until the row is removed,
+ * which gives editors one small interface for pins, ordering, and exclusions.
+ */
+export const FeaturedBill = pgTable(
+  "featured_bill",
+  (t) => ({
+    billId: t
+      .uuid("bill_id")
+      .notNull()
+      .primaryKey()
+      .references(() => Bill.id, { onDelete: "cascade" }),
+    displayOrder: t.integer("display_order").notNull().default(0),
+    active: t.boolean("active").notNull().default(true),
+    startsAt: t.timestamp("starts_at", { withTimezone: true }),
+    endsAt: t.timestamp("ends_at", { withTimezone: true }),
+    rationale: t.text("rationale"),
+    curatedBy: t.varchar("curated_by", { length: 200 }),
+    createdAt: t
+      .timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: t
+      .timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
+  }),
+  (table) => ({
+    activeOrderIdx: index("featured_bill_active_order_idx").on(
+      table.active,
+      table.displayOrder,
+    ),
+  }),
+);
+
 // Government Content table (executive orders, memoranda, proclamations, news articles, briefings, etc.)
 export const GovernmentContent = pgTable(
   "government_content",
