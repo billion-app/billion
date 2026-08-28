@@ -33,9 +33,9 @@ the arguments it takes; the supervisor supplies everything else.
 | `congress-daily`               | daily 03:15 local | Refreshes federal bills and applies the 90-day editorial retention policy        |
 | `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes state measures and applies the same retention policy                   |
 | `bill-interest-daily`          | daily 02:00 local | Scores missing or changed bills for interest, controversy, and outside attention |
+| `federalregister-daily`        | daily 01:30 local | Refreshes executive orders and presidential documents                            |
 | `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content      |
 | `backfill-content-images`      | manual            | Drains missing or style-stale header art across all retained content             |
-| `federalregister-weekly`       | Sundays 03:15     | Executive orders and presidential documents                                      |
 | `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
 | `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                              |
 | `retro-briefs`                 | manual            | Fills in missing structured briefs                                               |

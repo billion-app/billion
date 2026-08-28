@@ -9,9 +9,9 @@ const now = new Date(2026, 6, 28, 12, 0);
 void test("seeding stamps jobs that have no state at all", () => {
   const state: SupervisorState = { jobs: {} };
 
-  assert.equal(seedFirstSeen(state, ["federalregister-weekly"], now), true);
+  assert.equal(seedFirstSeen(state, ["federalregister-daily"], now), true);
   assert.equal(
-    state.jobs["federalregister-weekly"]?.firstSeenAt,
+    state.jobs["federalregister-daily"]?.firstSeenAt,
     now.toISOString(),
   );
 });

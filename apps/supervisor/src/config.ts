@@ -97,15 +97,16 @@ export const jobs: readonly JobDefinition[] = [
   // run does not silently stop them, and so each can be rescheduled or paused
   // without touching the others.
   //
-  // They stay weekly because their sources move slowly compared with the
-  // congressional feed.
+  // Executive actions run daily because each new action is immediately
+  // newsworthy even though the source publishes infrequently. The election
+  // sources stay weekly because their underlying material changes slowly.
   {
-    id: "federalregister-weekly",
+    id: "federalregister-daily",
     description: "Executive orders and presidential documents",
     script: "main.js",
     args: ["federalregister", "--concurrency", "2"],
-    schedule: { kind: "weekly", weekday: 0, hour: 3, minute: 15 },
-    priority: 10,
+    schedule: { kind: "daily", hour: 1, minute: 30 },
+    priority: 5,
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
