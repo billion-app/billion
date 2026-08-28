@@ -233,17 +233,20 @@ export default function ArticleDetailScreen() {
     },
   };
 
+  const officialUrl =
+    "officialUrl" in content ? content.officialUrl : undefined;
+  const sourceUrl = officialUrl ?? content.url;
   const handleOpenOriginal = async () => {
-    if (!content.url) return;
+    if (!sourceUrl) return;
     posthog.capture("original_source_opened", {
       content_id: content.id,
       content_type: content.type,
       content_title: content.title,
-      source_url: content.url,
+      source_url: sourceUrl,
     });
     try {
-      if (await Linking.canOpenURL(content.url)) {
-        await Linking.openURL(content.url);
+      if (await Linking.canOpenURL(sourceUrl)) {
+        await Linking.openURL(sourceUrl);
       }
     } catch (e) {
       posthog.captureException(e as Error, { content_id: content.id });
@@ -522,9 +525,13 @@ export default function ArticleDetailScreen() {
           </TouchableOpacity>
         )}
 
-        {mode === "source" && content.url && (
+        {mode === "source" && sourceUrl && (
           <PrimaryButton
-            label="View on Original Site"
+            label={
+              officialUrl
+                ? "View Federal Register record"
+                : "View on Original Site"
+            }
             icon="external"
             onPress={handleOpenOriginal}
             style={{ marginBottom: 18 }}

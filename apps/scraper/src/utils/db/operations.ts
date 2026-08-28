@@ -77,6 +77,36 @@ export type UpsertOutcome =
   | { status: "skipped"; reason: string }
   | { status: "deferred"; reason: string };
 
+export interface FederalRegisterCitation {
+  url: string;
+  documentNumber: string;
+  publishedDate: Date;
+}
+
+/** Attach the later official citation without replacing the direct source. */
+export async function mergeFederalRegisterCitation(
+  contentId: string,
+  citation: FederalRegisterCitation,
+): Promise<boolean> {
+  const [updated] = await db
+    .update(GovernmentContent)
+    .set({
+      federalRegisterUrl: citation.url,
+      federalRegisterDocumentNumber: citation.documentNumber,
+      federalRegisterPublishedDate: citation.publishedDate,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(GovernmentContent.id, contentId),
+        eq(GovernmentContent.source, "whitehouse.gov"),
+      ),
+    )
+    .returning({ id: GovernmentContent.id });
+
+  return updated !== undefined;
+}
+
 /**
  * Thrown when enrichment we committed to producing did not materialise, but
  * nothing threw — an AI call that returns an empty article, for instance.
