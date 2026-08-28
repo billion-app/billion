@@ -11,6 +11,7 @@ import { WaitlistForm } from "../../_components/waitlist-form";
 import { isAndroidUserAgent } from "../../_lib/platform";
 import {
   headerImage,
+  markdownToPlainText,
   plainText,
   presentType,
   shareSegment,
@@ -166,7 +167,7 @@ export default async function SharedContentPage({ params }: PageProps) {
 
         {content.description ? (
           <p className="text-muted-foreground mb-[22px] font-sans text-[15px] leading-[22px]">
-            {content.description}
+            {markdownToPlainText(content.description)}
           </p>
         ) : null}
 
@@ -403,8 +404,7 @@ function Emphasis({ text }: { text: string }) {
  * here would give the reader no reason to open either the app or the source.
  */
 function Excerpt({ content }: { content: SharedContent }) {
-  const body = plainText(content.articleContent).replace(/^#{1,6}\s.*$/gm, "");
-  const excerpt = truncate(body.replace(/\s+/g, " ").trim(), 900);
+  const excerpt = truncate(markdownToPlainText(content.articleContent), 900);
   if (!excerpt) return null;
 
   return (

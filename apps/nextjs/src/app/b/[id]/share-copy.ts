@@ -90,14 +90,33 @@ export function headerImage(content: ShareableContent): string | undefined {
 /* ---------- copy ---------- */
 
 /**
- * Strips the `**bold**` spans briefs use for scan emphasis.
- *
- * Brief prose is written for a renderer that understands those markers. Meta
- * descriptions, OG cards, and story images have no way to draw them, and
- * leaving the asterisks in shows the reader our markup.
+ * Turns the Markdown stored for articles into readable unformatted prose.
+ * This intentionally keeps link labels and image alt text while dropping the
+ * syntax that only a Markdown renderer understands.
  */
+export function markdownToPlainText(value: string): string {
+  return value
+    .replace(/```[^\n]*\n([\s\S]*?)```/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+(.+)$/gm, "$1.\n")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*(?:[-+*]|\d+[.)])\s+/gm, "")
+    .replace(/^\s*(?:-{3,}|_{3,}|\*{3,})\s*$/gm, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/~~(.+?)~~/g, "$1")
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "$1")
+    .replace(/(?<!_)_([^_\n]+)_(?!_)/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\\([\\`*{}[\]()#+\-.!_>])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Backwards-compatible name for unformatted share copy. */
 export function plainText(value: string): string {
-  return value.replace(/\*\*(.+?)\*\*/g, "$1").trim();
+  return markdownToPlainText(value);
 }
 
 /**

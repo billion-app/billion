@@ -64,7 +64,7 @@ export default function SavedArticlesScreen() {
   // The saved set lives on the device, so the screen arrives holding ids and
   // has to turn them into something renderable. Order is save order, newest
   // first, and the server returns them in the order it was asked for.
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     ...trpc.content.byIds.queryOptions({ ids: savedIds }),
     enabled: savedIds.length > 0,
   });
@@ -76,6 +76,21 @@ export default function SavedArticlesScreen() {
       <NavHeader title="Saved" onBack={() => router.back()} />
       {isLoading && savedIds.length > 0 ? (
         <ActivityIndicator color={colors.white} style={{ marginTop: 40 }} />
+      ) : error && savedIds.length > 0 ? (
+        <View style={s.empty}>
+          <Text style={s.emptyTitle}>Saved items didn't load</Text>
+          <Text style={s.emptySub}>
+            Your bookmarks are still on this device. Try loading their details
+            again.
+          </Text>
+          <TouchableOpacity
+            style={s.retry}
+            onPress={() => void refetch()}
+            accessibilityRole="button"
+          >
+            <Text style={s.retryText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={list}
@@ -145,6 +160,19 @@ const s = StyleSheet.create({
     lineHeight: 20,
     textAlign: "center",
     color: colors.textSecondary,
+  },
+  retry: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  retryText: {
+    fontFamily: "AlbertSans-SemiBold",
+    fontSize: 14,
+    color: colors.white,
   },
   unsaveAction: {
     justifyContent: "center",

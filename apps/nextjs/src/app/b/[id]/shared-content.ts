@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { TRPCError } from "@trpc/server";
 
 import type { RouterOutputs } from "@acme/api";
 import { createCaller } from "@acme/api";
@@ -33,10 +34,11 @@ export const getSharedContent = cache(
 
     try {
       return await caller.content.getById({ id });
-    } catch {
+    } catch (error) {
       // `content.getById` throws for an id it cannot find, which is the
       // ordinary case for a mistyped or retired link rather than an error.
-      return null;
+      if (error instanceof TRPCError && error.code === "NOT_FOUND") return null;
+      throw error;
     }
   },
 );

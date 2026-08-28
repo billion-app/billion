@@ -22,11 +22,11 @@ everything needing interaction or depth — the dual lens, the timeline, the
 glossary, the deep dive — because this page's job is to be skimmed and
 forwarded, then finished in the app or on the source.
 
-| Path                | What it is                                              |
-| ------------------- | ------------------------------------------------------- |
-| `/b/<id>`           | The readable page                                       |
-| `/b/<id>` (OG)      | 1200×630 card a link unfurls into, via `next/og`         |
-| `/b/<id>/story`     | 1080×1920 PNG for Instagram Stories                     |
+| Path            | What it is                                       |
+| --------------- | ------------------------------------------------ |
+| `/b/<id>`       | The readable page                                |
+| `/b/<id>` (OG)  | 1200×630 card a link unfurls into, via `next/og` |
+| `/b/<id>/story` | 1080×1920 PNG for Instagram Stories              |
 
 `<id>` is either a bare UUID or `<title-slug>-<uuid>`. Only the trailing UUID
 is read, so a link shared under a title that has since been corrected still
@@ -48,7 +48,7 @@ container states `display: flex`.
 Two constraints are baked into the sizing and are easy to break by accident:
 
 - **The 630px OG canvas cannot scroll.** It is sized for the worst case it has
-  to hold: a four-line headline *and* header art. Raising the title size or the
+  to hold: a four-line headline _and_ header art. Raising the title size or the
   summary clamp will overflow that case before it overflows the common one.
 - **Instagram covers the top and bottom of a story** with its own chrome —
   roughly 250px each at 1080×1920. Everything that has to be read sits inside
@@ -115,7 +115,7 @@ request them.
 
 ### The version we did not build
 
-[Bluesky puts its logo *into* the screenshot](https://timmarinin.net/2026/bluesky-screenshots/):
+[Bluesky puts its logo _into_ the screenshot](https://timmarinin.net/2026/bluesky-screenshots/):
 a `UITextField` with `isSecureTextEntry` renders a Follow button that iOS blanks
 at capture time, revealing branding underneath. It is the better version of
 this idea — it marks the image itself rather than reacting after the fact — but
@@ -131,16 +131,21 @@ opening `instagram-stories://share?source_application=<id>` tells Instagram to
 read it. Those are custom pasteboard types, so it cannot be done from
 JavaScript — hence the local module at `modules/instagram-story`.
 
-With Instagram installed, "Share as an image" drops the reader straight into
-the story composer with the card already placed. Without it — or on anything
-that isn't iOS — the same file goes to the system share sheet instead, which is
-what the module reports by resolving `false` rather than throwing.
+"Share as an image" always opens the system share sheet, so it never silently
+chooses a destination for the reader. On iOS, a separate "Instagram Story"
+option appears when Instagram is installed and the build has `META_APP_ID`
+configured. That option drops the reader into the story composer with the card
+already placed; if the handoff fails, the same file falls back to the system
+share sheet.
 
 Two things the module has to get right:
 
 - **`LSApplicationQueriesSchemes`** must list `instagram-stories`, or
   `canOpenURL` answers false and the app concludes Instagram isn't installed.
   The app config declares it.
+- **`META_APP_ID`** must contain the numeric Facebook App ID registered for the
+  iOS app. Instagram requires it as the `source_application` query parameter;
+  builds without it keep generic image sharing but hide the direct option.
 - **The pasteboard item carries an expiry.** A story the reader opens and never
   posts should not leave the image sitting in their clipboard.
 
@@ -149,18 +154,20 @@ redesigned without an App Store release, and the phone only downloads a PNG.
 
 ## Analytics
 
-| Event                       | Fired when                                                |
-| --------------------------- | --------------------------------------------------------- |
-| `content_saved`             | Bookmark filled                                           |
-| `content_unsaved`           | Bookmark cleared                                          |
-| `saved_articles_opened`     | Saved list opened, with the surface that opened it        |
-| `article_screenshotted`     | Screenshot taken on the article screen                    |
-| `content_shared`            | Link actually sent from the system share sheet            |
-| `content_share_dismissed`   | Share sheet opened for a link and backed out of           |
-| `content_share_sheet_opened`| Story image handed to the share sheet                     |
+| Event                           | Fired when                                               |
+| ------------------------------- | -------------------------------------------------------- |
+| `content_saved`                 | Bookmark filled                                          |
+| `content_unsaved`               | Bookmark cleared                                         |
+| `saved_articles_opened`         | Saved list opened, with the surface that opened it       |
+| `article_screenshotted`         | Screenshot taken on the article screen                   |
+| `content_shared`                | Link actually sent from the iOS system share sheet       |
+| `content_share_dismissed`       | iOS link share sheet opened and backed out of            |
+| `content_share_sheet_opened`    | Image handed to a share sheet, or Android chooser opened |
+| `content_story_composer_opened` | Instagram confirmed it opened the story composer         |
 
-The story share reports reaching the sheet, not sending: the OS tells us
-nothing about what the reader picked, or whether they picked anything.
+Image shares and Android link shares report reaching the chooser, not sending:
+those APIs do not tell us what the reader picked, or whether they picked
+anything. iOS link sharing does report completion versus dismissal.
 
 Inbound attribution is separate. Shares carry
 `utm_source=app&utm_medium=share&utm_campaign=<surface>`, and the install call
@@ -171,9 +178,9 @@ flyer.
 
 ## Native dependencies
 
-`expo-screen-capture` and `expo-sharing` are both native modules, so this needs
-a new binary build before it reaches devices — an OTA update alone will not
-pick them up. See [iOS release builds](./ios-release.md).
+`expo-screen-capture`, `expo-sharing`, and the local Instagram Stories module
+all require a new binary build before they reach devices — an OTA update alone
+will not pick them up. See [iOS release builds](./ios-release.md).
 
 ### The coupling CI cannot see
 

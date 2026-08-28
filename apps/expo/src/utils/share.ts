@@ -62,8 +62,9 @@ export function shareUrlFor(
 /**
  * The system share sheet, on the link.
  *
- * Resolves to whether the reader actually sent it, so callers can dismiss
- * their own UI on success and leave it up if the reader backed out.
+ * Resolves to whether the native share UI accepted the request. iOS reports
+ * whether the reader completed or dismissed it; Android does not expose that
+ * distinction, so reaching the chooser is the strongest truthful signal.
  */
 export async function shareContentLink(target: ShareTarget): Promise<boolean> {
   const url = shareUrlFor(target.contentId, target.surface);
@@ -78,6 +79,16 @@ export async function shareContentLink(target: ShareTarget): Promise<boolean> {
         ? { message: target.title, url }
         : { message: `${target.title}\n\n${url}` },
     );
+
+    if (Platform.OS === "android") {
+      posthog.capture("content_share_sheet_opened", {
+        content_id: target.contentId,
+        content_type: target.contentType,
+        surface: target.surface,
+        format: "link",
+      });
+      return true;
+    }
 
     const shared = result.action === Share.sharedAction;
     posthog.capture(shared ? "content_shared" : "content_share_dismissed", {
@@ -97,79 +108,101 @@ export async function shareContentLink(target: ShareTarget): Promise<boolean> {
 }
 
 /**
- * Shares a story-shaped image of the record.
- *
- * Goes straight into Instagram's story composer when Instagram is installed —
- * that is what the local `instagram-story` module is for, since the handoff
- * needs a pasteboard write under Instagram's own keys and cannot be done from
- * JavaScript. Everywhere else, and for anyone posting somewhere other than
- * Instagram, it falls through to the system share sheet on the same file.
- *
- * The image is rendered by the web app rather than the phone, so the card can
- * be redesigned without an App Store release.
+ * Downloads the story-shaped image rendered by the web app. Keeping rendering
+ * on the server means the card can be redesigned without an App Store release.
  */
-export async function shareContentStory(target: ShareTarget): Promise<boolean> {
+async function downloadStoryImage(target: ShareTarget): Promise<File> {
   const base = baseUrl();
-  if (!base) return false;
+  if (!base) throw new Error("Share image URL is not configured");
 
+  // `Paths.cache` always exists, so the download needs no directory setup,
+  // and the OS reclaims the file when it needs the space. The name is fixed
+  // per record so a re-share overwrites rather than accumulating.
+  const destination = new File(
+    Paths.cache,
+    `billion-story-${target.contentId}.png`,
+  );
+  await File.downloadFileAsync(
+    `${base}/b/${target.contentId}/story`,
+    destination,
+    { idempotent: true },
+  );
+  return destination;
+}
+
+async function openImageShareSheet(
+  destination: File,
+  target: ShareTarget,
+): Promise<boolean> {
+  if (!(await Sharing.isAvailableAsync())) return false;
+
+  await Sharing.shareAsync(destination.uri, {
+    mimeType: "image/png",
+    UTI: "public.png",
+    dialogTitle: "Share this brief",
+  });
+
+  // expo-sharing reports nothing about what the reader picked — or whether
+  // they picked anything — so this counts reaching the sheet, not sending.
+  posthog.capture("content_share_sheet_opened", {
+    content_id: target.contentId,
+    content_type: target.contentType,
+    surface: target.surface,
+    format: "story_image",
+  });
+  return true;
+}
+
+/** Whether this build and device support the direct Instagram handoff. */
+export async function canShareToInstagramStory(): Promise<boolean> {
+  return isInstagramStoryAvailable();
+}
+
+/** Shares the image through the system chooser, without assuming a destination. */
+export async function shareContentImage(target: ShareTarget): Promise<boolean> {
   const canShareSheet = await Sharing.isAvailableAsync();
-  const canInstagram = await isInstagramStoryAvailable();
 
-  if (!canShareSheet && !canInstagram) {
+  if (!canShareSheet) {
     // No way to hand a file anywhere (web). The link is the next best thing
     // and is what the reader was trying to do anyway.
     return shareContentLink(target);
   }
 
   try {
-    // `Paths.cache` always exists, so the download needs no directory setup,
-    // and the OS reclaims the file when it needs the space. The name is fixed
-    // per record so a re-share overwrites rather than accumulating.
-    const destination = new File(
-      Paths.cache,
-      `billion-story-${target.contentId}.png`,
-    );
-    await File.downloadFileAsync(
-      `${base}/b/${target.contentId}/story`,
-      destination,
-      { idempotent: true },
-    );
+    return openImageShareSheet(await downloadStoryImage(target), target);
+  } catch (error) {
+    posthog.captureException(error as Error, {
+      content_id: target.contentId,
+      surface: target.surface,
+    });
+    return false;
+  }
+}
 
-    // Instagram first when it is there: it drops the reader into the story
-    // composer with the card already placed, instead of into a list of apps.
-    if (canInstagram) {
-      const handedOff = await shareToInstagramStory({
-        fileUri: destination.uri,
-        contentUrl: shareUrlFor(target.contentId, target.surface) ?? undefined,
+/** Opens Instagram's story composer with the rendered card already placed. */
+export async function shareContentToInstagramStory(
+  target: ShareTarget,
+): Promise<boolean> {
+  if (!(await canShareToInstagramStory())) return shareContentImage(target);
+
+  try {
+    const destination = await downloadStoryImage(target);
+    const handedOff = await shareToInstagramStory({
+      fileUri: destination.uri,
+      contentUrl: shareUrlFor(target.contentId, target.surface) ?? undefined,
+    });
+
+    if (handedOff) {
+      posthog.capture("content_story_composer_opened", {
+        content_id: target.contentId,
+        content_type: target.contentType,
+        surface: target.surface,
+        destination: "instagram_stories",
       });
-      if (handedOff) {
-        posthog.capture("content_story_shared", {
-          content_id: target.contentId,
-          content_type: target.contentType,
-          surface: target.surface,
-          destination: "instagram_stories",
-        });
-        return true;
-      }
+      return true;
     }
 
-    if (!canShareSheet) return false;
-
-    await Sharing.shareAsync(destination.uri, {
-      mimeType: "image/png",
-      UTI: "public.png",
-      dialogTitle: "Share this brief",
-    });
-
-    // The share sheet reports nothing about what the reader picked — or
-    // whether they picked anything — so this counts reaching it, not sending.
-    posthog.capture("content_share_sheet_opened", {
-      content_id: target.contentId,
-      content_type: target.contentType,
-      surface: target.surface,
-      format: "story_image",
-    });
-    return true;
+    return openImageShareSheet(destination, target);
   } catch (error) {
     posthog.captureException(error as Error, {
       content_id: target.contentId,

@@ -9,6 +9,7 @@ module.exports = {
       ...base.extra,
       posthogProjectToken: process.env.POSTHOG_PROJECT_TOKEN,
       posthogHost: process.env.POSTHOG_HOST ?? "https://us.i.posthog.com",
+      metaAppId: process.env.META_APP_ID,
     },
   },
 };

@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import { requireOptionalNativeModule } from "expo";
+import Constants from "expo-constants";
 
 /**
  * Instagram Stories handoff.
@@ -17,7 +18,7 @@ interface InstagramStoryNativeModule {
   isAvailableAsync: () => Promise<boolean>;
   shareAsync: (
     fileUri: string,
-    appId: string | null,
+    appId: string,
     contentUrl: string | null,
   ) => Promise<boolean>;
 }
@@ -25,9 +26,20 @@ interface InstagramStoryNativeModule {
 const native =
   requireOptionalNativeModule<InstagramStoryNativeModule>("InstagramStory");
 
+function configuredMetaAppId(): string | null {
+  const extra: unknown = Constants.expoConfig?.extra;
+  const value =
+    extra && typeof extra === "object" && "metaAppId" in extra
+      ? (extra as Record<string, unknown>).metaAppId
+      : undefined;
+  return typeof value === "string" && /^\d+$/.test(value.trim())
+    ? value.trim()
+    : null;
+}
+
 /** Whether this device can take a story directly — iOS, with Instagram installed. */
 export async function isInstagramStoryAvailable(): Promise<boolean> {
-  if (Platform.OS !== "ios" || !native) return false;
+  if (Platform.OS !== "ios" || !native || !configuredMetaAppId()) return false;
   try {
     return await native.isAvailableAsync();
   } catch {
@@ -44,16 +56,15 @@ export async function isInstagramStoryAvailable(): Promise<boolean> {
  */
 export async function shareToInstagramStory(options: {
   fileUri: string;
-  /** Facebook app id Instagram attributes the share to, when there is one. */
-  appId?: string;
   /** Link carried alongside the sticker, for accounts allowed to attach one. */
   contentUrl?: string;
 }): Promise<boolean> {
-  if (Platform.OS !== "ios" || !native) return false;
+  const appId = configuredMetaAppId();
+  if (Platform.OS !== "ios" || !native || !appId) return false;
   try {
     return await native.shareAsync(
       options.fileUri,
-      options.appId ?? null,
+      appId,
       options.contentUrl ?? null,
     );
   } catch {

@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { brandFonts } from "~/app/_lib/og-fonts";
+import { loadShareArt } from "./share-art";
 import { OgCard } from "./share-card";
 import { getSharedContent } from "./shared-content";
 
@@ -25,8 +26,10 @@ export default async function OpenGraphImage({
   // The page 404s for the same id; an image route has nothing better to say.
   if (!content) return new Response("Not found", { status: 404 });
 
-  return new ImageResponse(<OgCard content={content} />, {
+  const [fonts, art] = await Promise.all([brandFonts(), loadShareArt(content)]);
+
+  return new ImageResponse(<OgCard content={content} art={art} />, {
     ...size,
-    fonts: await brandFonts(),
+    fonts,
   });
 }

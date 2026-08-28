@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { brandFonts } from "~/app/_lib/og-fonts";
+import { loadShareArt } from "../share-art";
 import { StoryCard } from "../share-card";
 import { getSharedContent } from "../shared-content";
 
@@ -22,10 +23,12 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  return new ImageResponse(<StoryCard content={content} />, {
+  const [fonts, art] = await Promise.all([brandFonts(), loadShareArt(content)]);
+
+  return new ImageResponse(<StoryCard content={content} art={art} />, {
     width: 1080,
     height: 1920,
-    fonts: await brandFonts(),
+    fonts,
     headers: {
       // A brief changes when the pipeline regenerates it, which is rare and
       // never urgent. An hour at the edge keeps a story that several people

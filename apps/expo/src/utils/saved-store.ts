@@ -56,33 +56,73 @@ export function withoutSavedId(ids: readonly string[], contentId: string) {
 
 /* ---------- the disk ---------- */
 
-export async function readSavedIds(): Promise<string[]> {
-  try {
-    return parseSavedIds(await AsyncStorage.getItem(STORAGE_KEY));
-  } catch {
-    return [];
-  }
+export interface SavedStorage {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
 }
 
-async function write(ids: string[]): Promise<void> {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-  } catch {
-    // Out of space, or storage unavailable. The set the UI is reading stays
-    // correct for this session; the bookmark just will not survive a restart,
-    // which is better than surfacing a write error on a tap.
-  }
+/**
+ * One ordered saved-set transaction log.
+ *
+ * AsyncStorage has no compare-and-swap operation. Serializing the whole
+ * read/transform/write sequence is therefore the only way to stop two quick
+ * taps from reading the same old array and overwriting each other. The cached
+ * value also keeps this session internally consistent if a disk write fails.
+ */
+export function createSavedStore(storage: SavedStorage) {
+  let loaded: Promise<string[]> | undefined;
+  let updates = Promise.resolve();
+
+  const read = (): Promise<string[]> => {
+    loaded ??= storage
+      .getItem(STORAGE_KEY)
+      .then(parseSavedIds)
+      .catch(() => []);
+    return loaded;
+  };
+
+  const update = async (
+    transform: (current: readonly string[]) => string[],
+  ): Promise<string[]> => {
+    let committed: string[] = [];
+    const operation = updates.then(async () => {
+      committed = transform(await read());
+      loaded = Promise.resolve(committed);
+      try {
+        await storage.setItem(STORAGE_KEY, JSON.stringify(committed));
+      } catch {
+        // Keep the in-memory value. The bookmark remains correct for this
+        // session even if the device cannot persist it across a restart.
+      }
+      return committed;
+    });
+
+    // A failed adapter must not poison every later update in the queue.
+    updates = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
+  };
+
+  return {
+    read,
+    add: (contentId: string) =>
+      update((current) => withSavedId(current, contentId)),
+    remove: (contentId: string) =>
+      update((current) => withoutSavedId(current, contentId)),
+    set: (contentId: string, saved: boolean) =>
+      update((current) =>
+        saved
+          ? withSavedId(current, contentId)
+          : withoutSavedId(current, contentId),
+      ),
+  };
 }
 
-/** Adds `contentId` and returns the list that was committed. */
-export async function addSavedId(contentId: string): Promise<string[]> {
-  const next = withSavedId(await readSavedIds(), contentId);
-  await write(next);
-  return next;
-}
+const savedStore = createSavedStore(AsyncStorage);
 
-export async function removeSavedId(contentId: string): Promise<string[]> {
-  const next = withoutSavedId(await readSavedIds(), contentId);
-  await write(next);
-  return next;
-}
+export const readSavedIds = savedStore.read;
+export const addSavedId = savedStore.add;
+export const removeSavedId = savedStore.remove;
+export const setSavedId = savedStore.set;

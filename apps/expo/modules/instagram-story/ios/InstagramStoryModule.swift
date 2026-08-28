@@ -15,7 +15,7 @@ import UIKit
  posts does not sit in their clipboard afterwards.
 
  `Info.plist` must list `instagram-stories` under `LSApplicationQueriesSchemes`
- or `canOpenURL` always answers false; the config plugin adds it.
+ or `canOpenURL` always answers false; the app config declares it.
  */
 public final class InstagramStoryModule: Module {
   /// Instagram reads these exact keys. They are contractual, not descriptive.
@@ -40,14 +40,14 @@ public final class InstagramStoryModule: Module {
 
      - Parameters:
        - fileUri: a local `file://` URL for a PNG or JPEG.
-       - appId: the Facebook app id Instagram attributes the share to. Passed
-         as `source_application`; Instagram still opens without a registered
-         id, it simply does not attribute the share.
+       - appId: the Facebook app id required as `source_application` by
+         Instagram's iOS handoff contract.
        - contentUrl: optional link carried alongside the sticker, surfaced by
          Instagram for accounts allowed to attach links.
      */
-    AsyncFunction("shareAsync") { (fileUri: String, appId: String?, contentUrl: String?) -> Bool in
+    AsyncFunction("shareAsync") { (fileUri: String, appId: String, contentUrl: String?) -> Bool in
       guard let shareURL = Self.shareURL else { return false }
+      guard !appId.isEmpty else { throw InstagramConfigurationException() }
 
       guard
         let source = URL(string: fileUri),
@@ -61,11 +61,16 @@ public final class InstagramStoryModule: Module {
         throw ImageUnreadableException(fileUri)
       }
 
-      return try await MainActor.run {
-        guard UIApplication.shared.canOpenURL(shareURL) else {
-          throw InstagramMissingException()
-        }
+      let available = await MainActor.run {
+        UIApplication.shared.canOpenURL(shareURL)
+      }
+      guard available else { throw InstagramMissingException() }
 
+      var components = URLComponents(url: shareURL, resolvingAgainstBaseURL: false)
+      components?.queryItems = [URLQueryItem(name: "source_application", value: appId)]
+      guard let destination = components?.url else { throw InstagramMissingException() }
+
+      await MainActor.run {
         var item: [String: Any] = [Self.backgroundImageKey: png]
         if let contentUrl, !contentUrl.isEmpty {
           item[Self.contentURLKey] = contentUrl
@@ -76,15 +81,15 @@ public final class InstagramStoryModule: Module {
           [item],
           options: [.expirationDate: Date().addingTimeInterval(300)]
         )
+      }
 
-        var components = URLComponents(url: shareURL, resolvingAgainstBaseURL: false)
-        if let appId, !appId.isEmpty {
-          components?.queryItems = [URLQueryItem(name: "source_application", value: appId)]
+      // Do not claim the handoff succeeded until iOS confirms the URL opened.
+      return await withCheckedContinuation { continuation in
+        DispatchQueue.main.async {
+          UIApplication.shared.open(destination, options: [:]) { opened in
+            continuation.resume(returning: opened)
+          }
         }
-        guard let opened = components?.url else { throw InstagramMissingException() }
-
-        UIApplication.shared.open(opened, options: [:], completionHandler: nil)
-        return true
       }
     }
 
@@ -98,6 +103,12 @@ public final class InstagramStoryModule: Module {
 internal final class InstagramMissingException: Exception {
   override var reason: String {
     "Instagram is not installed, or instagram-stories is missing from LSApplicationQueriesSchemes"
+  }
+}
+
+internal final class InstagramConfigurationException: Exception {
+  override var reason: String {
+    "META_APP_ID is required to share directly to Instagram Stories"
   }
 }
 

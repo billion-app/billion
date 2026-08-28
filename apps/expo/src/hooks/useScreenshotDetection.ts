@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
+import { useFocusEffect } from "expo-router";
 import * as ScreenCapture from "expo-screen-capture";
 
 /**
@@ -31,34 +32,36 @@ export function useScreenshotDetection(
     callback.current = onScreenshot;
   }, [onScreenshot]);
 
-  useEffect(() => {
-    if (!enabled || Platform.OS === "web") return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!enabled || Platform.OS === "web") return;
 
-    let subscription:
-      | ReturnType<typeof ScreenCapture.addScreenshotListener>
-      | undefined;
-    // An object rather than a plain `let` so the read after the permission
-    // check is not narrowed away: the effect can be torn down while that
-    // check is still in flight.
-    const teardown = { cancelled: false };
+      let subscription:
+        | ReturnType<typeof ScreenCapture.addScreenshotListener>
+        | undefined;
+      // An object rather than a plain `let` so the read after the permission
+      // check is not narrowed away: the route can blur while that check is
+      // still in flight.
+      const teardown = { cancelled: false };
 
-    void (async () => {
-      try {
-        const { granted } = await ScreenCapture.getPermissionsAsync();
-        if (!granted || teardown.cancelled) return;
+      void (async () => {
+        try {
+          const { granted } = await ScreenCapture.getPermissionsAsync();
+          if (!granted || teardown.cancelled) return;
 
-        subscription = ScreenCapture.addScreenshotListener(() =>
-          callback.current(),
-        );
-      } catch {
-        // Screenshot detection is an enhancement. A device that will not do it
-        // simply does not, and the reader notices nothing.
-      }
-    })();
+          subscription = ScreenCapture.addScreenshotListener(() =>
+            callback.current(),
+          );
+        } catch {
+          // Screenshot detection is an enhancement. A device that will not do
+          // it simply does not, and the reader notices nothing.
+        }
+      })();
 
-    return () => {
-      teardown.cancelled = true;
-      subscription?.remove();
-    };
-  }, [enabled]);
+      return () => {
+        teardown.cancelled = true;
+        subscription?.remove();
+      };
+    }, [enabled]),
+  );
 }

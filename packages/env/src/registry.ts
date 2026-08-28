@@ -276,6 +276,17 @@ export const envRegistry = [
     schema: url,
   }),
   define({
+    key: "META_APP_ID",
+    description:
+      "Facebook App ID compiled into Expo builds for Instagram Stories sharing.",
+    group: "Expo",
+    secret: false,
+    setupUrl:
+      "https://developers.facebook.com/docs/instagram-platform/sharing-to-stories/",
+    requirements: { expo: "recommended" },
+    schema: positiveInteger,
+  }),
+  define({
     key: "GOOGLE_CIVIC_API_KEY",
     description:
       "Google Civic Information API key for real ballot and representative data.",

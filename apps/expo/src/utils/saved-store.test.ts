@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  createSavedStore,
   MAX_SAVED,
   parseSavedIds,
   withoutSavedId,
@@ -15,6 +16,21 @@ import {
 
 const A = "aaaaaaaa-1111-2222-3333-444444444444";
 const B = "bbbbbbbb-1111-2222-3333-444444444444";
+
+function memoryStorage(initial: string | null = null) {
+  let value = initial;
+  return {
+    storage: {
+      getItem: () => Promise.resolve(value),
+      setItem: async (_key: string, next: string) => {
+        // Yield so concurrent callers overlap unless the store serializes them.
+        await Promise.resolve();
+        value = next;
+      },
+    },
+    value: () => value,
+  };
+}
 
 /* ---------- reading what is on disk ---------- */
 
@@ -65,4 +81,24 @@ void test("removing something that was never saved is a no-op", () => {
 
 void test("a save then an unsave leaves the list as it started", () => {
   assert.deepEqual(withoutSavedId(withSavedId([A], B), B), [A]);
+});
+
+void test("concurrent saves commit in tap order without losing either id", async () => {
+  const memory = memoryStorage();
+  const store = createSavedStore(memory.storage);
+
+  await Promise.all([store.add(A), store.add(B)]);
+
+  assert.deepEqual(await store.read(), [B, A]);
+  assert.deepEqual(parseSavedIds(memory.value()), [B, A]);
+});
+
+void test("a rapid save then unsave cannot be reordered", async () => {
+  const memory = memoryStorage();
+  const store = createSavedStore(memory.storage);
+
+  await Promise.all([store.set(A, true), store.set(A, false)]);
+
+  assert.deepEqual(await store.read(), []);
+  assert.deepEqual(parseSavedIds(memory.value()), []);
 });

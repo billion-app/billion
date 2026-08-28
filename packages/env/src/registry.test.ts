@@ -31,7 +31,12 @@ void test("registry keys are unique", () => {
 void test("Expo surface never includes secrets", () => {
   assert.deepEqual(
     definitionsFor("expo").map(({ definition }) => definition.key),
-    ["POSTHOG_PROJECT_TOKEN", "POSTHOG_HOST", "EXPO_PUBLIC_API_URL"],
+    [
+      "POSTHOG_PROJECT_TOKEN",
+      "POSTHOG_HOST",
+      "EXPO_PUBLIC_API_URL",
+      "META_APP_ID",
+    ],
   );
   assert.equal(
     definitionsFor("expo").every(({ definition }) => !definition.secret),

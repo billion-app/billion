@@ -3,7 +3,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { posthog } from "~/config/posthog";
 import { queryClient } from "~/utils/api";
-import { addSavedId, readSavedIds, removeSavedId } from "~/utils/saved-store";
+import {
+  readSavedIds,
+  setSavedId,
+  withoutSavedId,
+  withSavedId,
+} from "~/utils/saved-store";
 
 /** The content types the saved list can render. */
 const SAVEABLE_TYPES = new Set(["bill", "government_content", "court_case"]);
@@ -22,6 +27,11 @@ export interface SaveTarget {
 
 /** Shared by every screen that reads or writes the saved set. */
 export const savedIdsQueryKey = ["saved-content-ids"] as const;
+
+// Hook instances live on several screens, but they all write one device set.
+// Only the last queued write may reconcile the shared cache; applying an
+// earlier completion would briefly erase newer optimistic taps.
+let pendingSavedWrites = 0;
 
 /**
  * The reader's saved set, and the one way to change it.
@@ -53,18 +63,15 @@ export function useSavedContent() {
     [savedIds],
   );
 
-  const saveMutation = useMutation({
-    mutationFn: addSavedId,
-    // The write returns the list it committed, so the cache ends up agreeing
-    // with the device rather than with what the tap assumed.
-    onSuccess: (committed) =>
-      queryClient.setQueryData(savedIdsQueryKey, committed),
-  });
-
-  const unsaveMutation = useMutation({
-    mutationFn: removeSavedId,
-    onSuccess: (committed) =>
-      queryClient.setQueryData(savedIdsQueryKey, committed),
+  const { mutate: persist } = useMutation({
+    mutationFn: ({ contentId, saved }: { contentId: string; saved: boolean }) =>
+      setSavedId(contentId, saved),
+    onSuccess: (committed) => {
+      pendingSavedWrites = Math.max(0, pendingSavedWrites - 1);
+      if (pendingSavedWrites === 0) {
+        queryClient.setQueryData(savedIdsQueryKey, committed);
+      }
+    },
   });
 
   const toggleSave = useCallback(
@@ -77,24 +84,26 @@ export function useSavedContent() {
         content_title: target.title,
       };
 
-      // A bookmark has to fill the moment it is tapped, so the cache moves
-      // first and the device write follows.
-      const withoutTarget = ids.filter((id) => id !== target.id);
+      // Derive from the cache at tap time, not from this render's snapshot.
+      // A second tap can arrive before React renders the first optimistic move.
+      const current =
+        queryClient.getQueryData<string[]>(savedIdsQueryKey) ?? ids;
+      const wasSaved = current.includes(target.id);
+      queryClient.setQueryData(
+        savedIdsQueryKey,
+        wasSaved
+          ? withoutSavedId(current, target.id)
+          : withSavedId(current, target.id),
+      );
 
-      if (savedIds.has(target.id)) {
-        queryClient.setQueryData(savedIdsQueryKey, withoutTarget);
-        unsaveMutation.mutate(target.id);
-        posthog.capture("content_unsaved", properties);
-      } else {
-        queryClient.setQueryData(savedIdsQueryKey, [
-          target.id,
-          ...withoutTarget,
-        ]);
-        saveMutation.mutate(target.id);
-        posthog.capture("content_saved", properties);
-      }
+      pendingSavedWrites += 1;
+      persist({ contentId: target.id, saved: !wasSaved });
+      posthog.capture(
+        wasSaved ? "content_unsaved" : "content_saved",
+        properties,
+      );
     },
-    [ids, savedIds, saveMutation, unsaveMutation],
+    [ids, persist],
   );
 
   return { savedIds: ids, isSaved, toggleSave };

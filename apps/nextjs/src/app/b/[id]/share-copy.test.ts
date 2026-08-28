@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   contentIdFromSegment,
+  markdownToPlainText,
   plainText,
   presentType,
   shareSegment,
@@ -78,6 +79,24 @@ void test("brief emphasis markers are unwrapped, not shown", () => {
 
 void test("prose without markers is left alone", () => {
   assert.equal(plainText("  No markers here.  "), "No markers here.");
+});
+
+void test("article Markdown becomes readable prose", () => {
+  assert.equal(
+    markdownToPlainText(
+      "# What changed\n\n- The **agency** adopted [the rule](https://example.gov).\n- ![Map of affected areas](https://example.gov/map.png)",
+    ),
+    "What changed. The agency adopted the rule. Map of affected areas",
+  );
+});
+
+void test("inline code, quotes, and numbered lists lose their markers", () => {
+  assert.equal(
+    markdownToPlainText(
+      "> The order uses `shall`.\n\n1. First step\n2. Second _step_",
+    ),
+    "The order uses shall. First step Second step",
+  );
 });
 
 void test("text within the limit is not truncated", () => {

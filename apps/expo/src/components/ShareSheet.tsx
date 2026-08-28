@@ -1,13 +1,11 @@
 /**
  * ShareSheet — the choice between sharing a record as a link or as an image.
  *
- * Both options end in the system share sheet, so this is not a second share
- * UI on top of the OS one. It exists because those two shares are genuinely
- * different acts: a link is something you send one person to read, an image is
- * something you post. Collapsing them into one button would mean guessing
- * which the reader meant, and the wrong guess is the one that never gets sent.
+ * Link and image are genuinely different acts, so the app asks which artifact
+ * the reader wants before opening the system UI. A direct Instagram option is
+ * shown separately when the installed app and this build support its handoff.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -23,7 +21,12 @@ import type { ShareSurface } from "~/utils/share";
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
-import { shareContentLink, shareContentStory } from "~/utils/share";
+import {
+  canShareToInstagramStory,
+  shareContentImage,
+  shareContentLink,
+  shareContentToInstagramStory,
+} from "~/utils/share";
 
 export interface ShareSheetProps {
   visible: boolean;
@@ -50,7 +53,23 @@ export function ShareSheet({
   subheading = "They can read the whole brief without installing anything.",
 }: ShareSheetProps) {
   const insets = useSafeAreaInsets();
-  const [busy, setBusy] = useState<"link" | "story" | null>(null);
+  const [busy, setBusy] = useState<"link" | "image" | "instagram" | null>(null);
+  const [instagramAvailable, setInstagramAvailable] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setInstagramAvailable(false);
+      return;
+    }
+
+    let current = true;
+    void canShareToInstagramStory().then((available) => {
+      if (current) setInstagramAvailable(available);
+    });
+    return () => {
+      current = false;
+    };
+  }, [visible]);
 
   const target = {
     contentId,
@@ -59,14 +78,15 @@ export function ShareSheet({
     surface,
   };
 
-  const run = async (format: "link" | "story") => {
+  const run = async (format: "link" | "image" | "instagram") => {
     if (busy) return;
     setBusy(format);
     try {
-      const done =
-        format === "link"
-          ? await shareContentLink(target)
-          : await shareContentStory(target);
+      const done = await (format === "link"
+        ? shareContentLink(target)
+        : format === "image"
+          ? shareContentImage(target)
+          : shareContentToInstagramStory(target));
       if (done) onClose();
     } finally {
       setBusy(null);
@@ -108,11 +128,23 @@ export function ShareSheet({
           label="Share as an image"
           hint="Sized for a story or a post"
           accent={accent}
-          loading={busy === "story"}
+          loading={busy === "image"}
           disabled={busy !== null}
-          onPress={() => void run("story")}
+          onPress={() => void run("image")}
           testID="share-story"
         />
+        {instagramAvailable ? (
+          <ShareOption
+            icon="instagram"
+            label="Instagram Story"
+            hint="Opens the Instagram story composer"
+            accent={accent}
+            loading={busy === "instagram"}
+            disabled={busy !== null}
+            onPress={() => void run("instagram")}
+            testID="share-instagram-story"
+          />
+        ) : null}
 
         <TouchableOpacity
           style={s.cancel}

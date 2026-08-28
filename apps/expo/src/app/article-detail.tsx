@@ -1,6 +1,6 @@
 import type { RenderRules } from "@ronradtke/react-native-markdown-display";
 import type { LayoutChangeEvent } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import Markdown from "@ronradtke/react-native-markdown-display";
 import { useQuery } from "@tanstack/react-query";
 
@@ -74,6 +74,15 @@ export default function ArticleDetailScreen() {
   >();
   const scrollRef = useRef<ScrollView>(null);
   const sourcePanelY = useRef(0);
+
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        setShareSurface(null);
+      },
+      [],
+    ),
+  );
 
   const handleModeChange = (newMode: "explainer" | "source") => {
     setSourceHighlight(null);

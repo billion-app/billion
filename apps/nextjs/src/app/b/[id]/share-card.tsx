@@ -1,5 +1,5 @@
 import type { ShareableContent } from "./share-copy";
-import { headerImage, presentType, shareSummary, truncate } from "./share-copy";
+import { presentType, shareSummary, truncate } from "./share-copy";
 
 /**
  * The images a shared bill turns into.
@@ -21,16 +21,6 @@ const HAIRLINE = "rgba(255,255,255,0.10)";
 
 const SERIF = '"IBM Plex Serif", serif';
 const SANS = '"Albert Sans", sans-serif';
-
-/**
- * Satori fetches remote images itself, and a slow or missing thumbnail host
- * would take the whole card down with it. Header art is an inline `data:` URI
- * for most records anyway, so only those are drawn.
- */
-function inlineArt(content: ShareableContent): string | undefined {
-  const uri = headerImage(content);
-  return uri?.startsWith("data:") ? uri : undefined;
-}
 
 function Wordmark({ size }: { size: number }) {
   return (
@@ -83,9 +73,14 @@ function Badge({
 }
 
 /** The 1200×630 card a link unfurls into. */
-export function OgCard({ content }: { content: ShareableContent }) {
+export function OgCard({
+  content,
+  art,
+}: {
+  content: ShareableContent;
+  art?: string;
+}) {
   const type = presentType(content.type);
-  const art = inlineArt(content);
   // Sized for the worst case this canvas has to hold: a four-line headline
   // and header art, on 630px of height that cannot scroll.
   const summary = truncate(shareSummary(content), art ? 130 : 165);
@@ -240,9 +235,14 @@ export function OgCard({ content }: { content: ShareableContent }) {
 }
 
 /** The 1080×1920 image for an Instagram story. */
-export function StoryCard({ content }: { content: ShareableContent }) {
+export function StoryCard({
+  content,
+  art,
+}: {
+  content: ShareableContent;
+  art?: string;
+}) {
   const type = presentType(content.type);
-  const art = inlineArt(content);
   const summary = truncate(shareSummary(content), 220);
 
   return (
