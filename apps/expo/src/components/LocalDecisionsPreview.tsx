@@ -13,7 +13,6 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { Icon } from "~/components/ui/Icon";
-import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
@@ -26,9 +25,12 @@ import {
 
 const PREVIEW_COUNT = 3;
 
-export function LocalDecisionsPreview() {
+export function LocalDecisionsPreview({
+  address,
+}: {
+  address: string | null | undefined;
+}) {
   const router = useRouter();
-  const { address } = useUserAddress();
 
   const jurisdiction = detectJurisdictionKey(address);
   const isSanJoseResident = jurisdiction === "sanjose";

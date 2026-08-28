@@ -11,16 +11,16 @@
  *   Body / UI:   "AlbertSans-Regular", "AlbertSans-Medium", "AlbertSans-SemiBold", "AlbertSans-Bold"
  */
 
-import { StyleSheet, useColorScheme } from "react-native";
+import { StyleSheet } from "react-native";
 
 import {
   colors,
-  darkTheme,
   fontSize,
   fontWeight,
-  lightTheme,
   shadows,
 } from "@acme/ui/theme-tokens";
+
+import { resolveAppTheme } from "./app-theme";
 
 // Re-export everything from theme-tokens so you only need to import from one place
 export {
@@ -122,17 +122,14 @@ export const fonts = {
 // THEME HOOK - Use this to get the current theme based on color scheme
 // ============================================================================
 
-export type Theme = typeof darkTheme;
+export type Theme = ReturnType<typeof resolveAppTheme>["theme"];
 
 export function useTheme(): {
   theme: Theme;
   colorScheme: "light" | "dark";
   isDark: boolean;
 } {
-  const colorScheme: "light" | "dark" =
-    (useColorScheme() as "light" | "dark" | null | undefined) ?? "dark";
-  const theme = colorScheme === "dark" ? darkTheme : lightTheme;
-  return { theme, colorScheme, isDark: colorScheme === "dark" };
+  return resolveAppTheme(null);
 }
 
 // ============================================================================

@@ -29,7 +29,12 @@ export function DocumentsSection({
           <Text style={[s.sectionLabel, { color: theme.textSecondary }]}>
             Official documents
           </Text>
-          <View style={[s.docCard, { backgroundColor: theme.card }]}>
+          <View
+            style={[
+              s.docCard,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
             {documents.map((doc, index) => (
               <ExternalLink key={doc.id} href={doc.url}>
                 <View

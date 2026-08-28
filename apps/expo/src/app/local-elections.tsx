@@ -77,7 +77,7 @@ export default function LocalElectionsScreen() {
 
         <RepsSection address={address} />
 
-        <LocalDecisionsPreview />
+        <LocalDecisionsPreview address={address} />
       </ScrollView>
     </View>
   );
