@@ -55,6 +55,8 @@ type IconName =
   | "book"
   | "users"
   | "mic"
+  | "image"
+  | "instagram"
   | "link";
 
 type Family = "ion" | "feather" | "fa";
@@ -107,6 +109,8 @@ const MAP: Record<IconName, { family: Family; name: string }> = {
   book: { family: "feather", name: "book-open" },
   users: { family: "feather", name: "users" },
   mic: { family: "feather", name: "mic" },
+  image: { family: "feather", name: "image" },
+  instagram: { family: "fa", name: "instagram" },
   link: { family: "feather", name: "link" },
 };
 

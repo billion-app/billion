@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { env } from "~/env";
+import { APP_STORE_URL } from "../_lib/app-store";
 import { campaignFor } from "./campaigns";
 
 /**
@@ -16,6 +17,8 @@ import { campaignFor } from "./campaigns";
 const DESTINATIONS: Record<string, string> = {
   // Rotates with every batch — see docs/testflight-waitlist-batches.md
   tf: "https://testflight.apple.com/join/m2ay41KF",
+  // The public listing. Shared records send iPhone readers here.
+  app: APP_STORE_URL,
   // Relative, so it picks up campaign params below. External destinations do
   // not: nothing over there reads a utm, which is why the event exists.
   home: "/",

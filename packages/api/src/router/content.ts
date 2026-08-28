@@ -1,4 +1,5 @@
 import type { TRPCRouterRecord } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
@@ -990,7 +991,13 @@ export const contentRouter = {
         return result;
       }
 
-      throw new Error(`Content with id ${input.id} not found`);
+      // A typed code rather than a bare Error: the public share page turns
+      // this one case into a 404 and has to let every other failure through
+      // to the logs, which it cannot do if they all look alike.
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: `Content with id ${input.id} not found`,
+      });
     }),
 
   // Profile and related legislation for the member who formally sponsored a bill.
@@ -1062,6 +1069,87 @@ export const contentRouter = {
           introducedDate: item.introducedDate?.toISOString(),
         })),
       };
+    }),
+
+  // Card data for an arbitrary set of ids, in the order asked for.
+  //
+  // Public on purpose. Saving is stored on the device so it works before
+  // anyone has an account, which means the list screen arrives holding ids
+  // and no session — it needs a way to turn them into something renderable.
+  byIds: publicProcedure
+    .input(z.object({ ids: z.array(z.string().uuid()).max(200) }))
+    .query(async ({ input }) => {
+      if (input.ids.length === 0) return { items: [] };
+
+      const [bills, government, courtCases] = await Promise.all([
+        db
+          .select({
+            id: Bill.id,
+            title: Bill.title,
+            description: Bill.description,
+            thumbnailUrl: Bill.thumbnailUrl,
+            billNumber: Bill.billNumber,
+            sourceWebsite: Bill.sourceWebsite,
+            status: Bill.status,
+            lastActionAt: Bill.lastActionAt,
+            introducedDate: Bill.introducedDate,
+            chamber: Bill.chamber,
+            sponsor: Bill.sponsor,
+          })
+          .from(Bill)
+          .where(inArray(Bill.id, input.ids)),
+        db
+          .select({
+            id: GovernmentContent.id,
+            title: GovernmentContent.title,
+            description: GovernmentContent.description,
+            thumbnailUrl: GovernmentContent.thumbnailUrl,
+          })
+          .from(GovernmentContent)
+          .where(inArray(GovernmentContent.id, input.ids)),
+        db
+          .select({
+            id: CourtCase.id,
+            title: CourtCase.title,
+            description: CourtCase.description,
+            thumbnailUrl: CourtCase.thumbnailUrl,
+          })
+          .from(CourtCase)
+          .where(inArray(CourtCase.id, input.ids)),
+      ]);
+
+      const byId = new Map<string, ContentCard>();
+      for (const row of bills) byId.set(row.id, toBillCard(row));
+      for (const row of government) {
+        byId.set(row.id, {
+          ...row,
+          type: "government_content" as const,
+          isAIGenerated: false,
+          description: row.description ?? "",
+          thumbnailUrl: row.thumbnailUrl ?? undefined,
+          jurisdiction: "federal" as const,
+          jurisdictionCode: "US" as const,
+        });
+      }
+      for (const row of courtCases) {
+        byId.set(row.id, {
+          ...row,
+          type: "court_case" as const,
+          isAIGenerated: false,
+          description: row.description ?? "",
+          thumbnailUrl: row.thumbnailUrl ?? undefined,
+          jurisdiction: "federal" as const,
+          jurisdictionCode: "US" as const,
+        });
+      }
+
+      // Caller order is save order. An id with no row is dropped rather than
+      // held as a hole: content can be retired after someone saved it.
+      const ordered = input.ids
+        .map((id) => byId.get(id))
+        .filter((item) => item != null);
+
+      return { items: await attachContentImages(ordered) };
     }),
 
   // --- Saved Articles ---

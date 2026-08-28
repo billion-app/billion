@@ -24,7 +24,8 @@
     },
     "infoPlist": {
       "ITSAppUsesNonExemptEncryption": false,
-      "LSApplicationCategoryType": "public.app-category.news"
+      "LSApplicationCategoryType": "public.app-category.news",
+      "LSApplicationQueriesSchemes": ["instagram-stories", "instagram"]
     },
     "privacyManifests": {
       "NSPrivacyTracking": false,

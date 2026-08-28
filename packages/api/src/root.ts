@@ -8,7 +8,7 @@ import { placesRouter } from "./router/places";
 import { postRouter } from "./router/post";
 import { userRouter } from "./router/user";
 import { videoRouter } from "./router/video";
-import { createTRPCRouter } from "./trpc";
+import { createCallerFactory, createTRPCRouter } from "./trpc";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -25,3 +25,6 @@ export const appRouter = createTRPCRouter({
 
 // export type definition of API
 export type AppRouter = typeof appRouter;
+
+/** Server-side caller — see `createCallerFactory`. */
+export const createCaller = createCallerFactory(appRouter);

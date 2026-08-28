@@ -7,10 +7,9 @@ import { redirect } from "next/navigation";
 import { env } from "~/env";
 import { AndroidIcon } from "../_components/icons";
 import { WaitlistForm } from "../_components/waitlist-form";
+import { APP_STORE_URL } from "../_lib/app-store";
 import { isAndroidUserAgent } from "../_lib/platform";
 import { campaignFor } from "../r/campaigns";
-
-const APP_STORE_URL = "https://apps.apple.com/us/app/billion-news/id6761675243";
 
 const INSTAGRAM_CAMPAIGN = campaignFor("instagram_bio");
 

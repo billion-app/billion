@@ -65,7 +65,21 @@ export function ContentCard({
           ) : null}
         </View>
         {onSave && (
-          <TouchableOpacity onPress={onSave} hitSlop={8} style={s.bookmark}>
+          <TouchableOpacity
+            onPress={(event) => {
+              event.stopPropagation();
+              onSave();
+            }}
+            hitSlop={8}
+            style={s.bookmark}
+            accessibilityRole="button"
+            accessibilityLabel={
+              saved
+                ? `Remove ${item.title} from saved`
+                : `Save ${item.title} for later`
+            }
+            accessibilityState={{ selected: !!saved }}
+          >
             <Icon
               name={saved ? "bookmarkFill" : "bookmark"}
               size={19}

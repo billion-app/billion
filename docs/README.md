@@ -15,6 +15,7 @@ Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for dev setup. These docs go de
 | [Local government and Legistar](./local-government-legistar.md) | Draft RFC for local-decision ingestion, evidence, lifecycle, geography, and outcomes                 |
 | [Article generation](./article-generation.md)                   | How a bill becomes a readable brief: the structured schema, quote verification, framing lint         |
 | [Frontend apps](./frontend.md)                                  | Expo mobile app, Next.js web, shared UI, cross-platform auth                                         |
+| [Virality markers](./virality.md)                               | Saving, screenshot detection, the shared web preview, and the generated share images                 |
 
 ## How to do things
 

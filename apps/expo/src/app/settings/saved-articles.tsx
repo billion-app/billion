@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -8,40 +8,22 @@ import {
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
-import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
-import type {
-  ContentJurisdiction,
-  JurisdictionCode,
-} from "~/utils/jurisdiction";
+import type { ContentItem } from "~/utils/content";
 import { Text } from "~/components/Themed";
 import { ContentCard, Icon, NavHeader } from "~/components/ui";
+import { useSavedContent } from "~/hooks/useSavedContent";
 import { colors, hair, planes } from "~/styles";
-import { queryClient, trpc } from "~/utils/api";
+import { trpc } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
-
-const PAGE_SIZE = 10;
-
-interface SavedItem {
-  id: string;
-  title: string;
-  description: string | null;
-  type: "bill" | "government_content" | "court_case";
-  billNumber?: string;
-  jurisdiction?: ContentJurisdiction;
-  jurisdictionCode?: JurisdictionCode;
-  billStatus?: string;
-  activityAt?: Date;
-  chamber?: string;
-  sponsor?: string;
-}
 
 function SwipeableSavedCard({
   item,
   onPress,
   onUnsave,
 }: {
-  item: SavedItem;
+  item: ContentItem;
   onPress: () => void;
   onUnsave: () => void;
 }) {
@@ -59,6 +41,8 @@ function SwipeableSavedCard({
             swipeableRef.current?.close();
             onUnsave();
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Remove from saved"
         >
           <Icon name="bookmarkFill" size={20} color={colors.white} />
         </TouchableOpacity>
@@ -66,22 +50,7 @@ function SwipeableSavedCard({
     >
       <ContentCard
         saved
-        item={toCardItem(
-          {
-            id: item.id,
-            title: item.title,
-            description: item.description ?? "",
-            type: item.type,
-            billNumber: item.billNumber,
-            jurisdiction: item.jurisdiction,
-            jurisdictionCode: item.jurisdictionCode,
-            billStatus: item.billStatus,
-            activityAt: item.activityAt,
-            chamber: item.chamber,
-            sponsor: item.sponsor,
-          },
-          { showJurisdiction: true },
-        )}
+        item={toCardItem(item, { showJurisdiction: true })}
         onPress={onPress}
       />
     </Swipeable>
@@ -90,45 +59,38 @@ function SwipeableSavedCard({
 
 export default function SavedArticlesScreen() {
   const router = useRouter();
+  const { savedIds, toggleSave } = useSavedContent();
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery(
-      trpc.content.saved.list.infiniteQueryOptions(
-        { limit: PAGE_SIZE },
-        {
-          initialCursor: 0,
-          getNextPageParam: (lastPage) => lastPage.nextCursor,
-        },
-      ),
-    );
-
-  const list = useMemo(
-    () => data?.pages.flatMap((page) => page.items) ?? [],
-    [data],
-  );
-
-  const removeMutation = useMutation({
-    ...trpc.content.saved.remove.mutationOptions(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: trpc.content.saved.list.infiniteQueryKey(),
-      });
-    },
+  // The saved set lives on the device, so the screen arrives holding ids and
+  // has to turn them into something renderable. Order is save order, newest
+  // first, and the server returns them in the order it was asked for.
+  const { data, isLoading, error, refetch } = useQuery({
+    ...trpc.content.byIds.queryOptions({ ids: savedIds }),
+    enabled: savedIds.length > 0,
   });
 
-  const loadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
-  };
+  const list = data?.items ?? [];
 
   return (
     <View style={s.screen}>
-      <NavHeader
-        title="Saved"
-        onBack={() => router.back()}
-        action={<Icon name="filter" size={20} color={colors.textSecondary} />}
-      />
-      {isLoading ? (
+      <NavHeader title="Saved" onBack={() => router.back()} />
+      {isLoading && savedIds.length > 0 ? (
         <ActivityIndicator color={colors.white} style={{ marginTop: 40 }} />
+      ) : error && savedIds.length > 0 ? (
+        <View style={s.empty}>
+          <Text style={s.emptyTitle}>Saved items didn't load</Text>
+          <Text style={s.emptySub}>
+            Your bookmarks are still on this device. Try loading their details
+            again.
+          </Text>
+          <TouchableOpacity
+            style={s.retry}
+            onPress={() => void refetch()}
+            accessibilityRole="button"
+          >
+            <Text style={s.retryText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={list}
@@ -136,28 +98,33 @@ export default function SavedArticlesScreen() {
           contentContainerStyle={s.content}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <Text style={s.intro}>
-              {list.length} article{list.length === 1 ? "" : "s"} saved to read
-              later.
-            </Text>
+            list.length > 0 ? (
+              <Text style={s.intro}>{list.length} saved to read later.</Text>
+            ) : null
           }
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           renderItem={({ item }) => (
             <SwipeableSavedCard
               item={item}
               onPress={() => router.push(`/article-detail?id=${item.id}`)}
-              onUnsave={() => removeMutation.mutate({ contentId: item.id })}
+              onUnsave={() =>
+                toggleSave({
+                  id: item.id,
+                  type: item.type,
+                  title: item.title,
+                })
+              }
             />
           )}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            isFetchingNextPage ? (
-              <ActivityIndicator
-                color={colors.white}
-                style={{ marginVertical: 16 }}
-              />
-            ) : null
+          ListEmptyComponent={
+            <View style={s.empty}>
+              <Icon name="bookmark" size={26} color={colors.textSecondary} />
+              <Text style={s.emptyTitle}>Nothing saved yet</Text>
+              <Text style={s.emptySub}>
+                Tap the bookmark on anything you want to come back to. Saved
+                items stay on this device — no account needed.
+              </Text>
+            </View>
           }
         />
       )}
@@ -167,12 +134,45 @@ export default function SavedArticlesScreen() {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: planes.navy },
-  content: { paddingHorizontal: 20, paddingBottom: 48 },
+  content: { paddingHorizontal: 20, paddingBottom: 48, flexGrow: 1 },
   intro: {
     fontFamily: "AlbertSans-Regular",
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 18,
+  },
+  empty: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 24,
+    paddingTop: 80,
+  },
+  emptyTitle: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 19,
+    color: colors.white,
+  },
+  emptySub: {
+    fontFamily: "AlbertSans-Regular",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    color: colors.textSecondary,
+  },
+  retry: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  retryText: {
+    fontFamily: "AlbertSans-SemiBold",
+    fontSize: 14,
+    color: colors.white,
   },
   unsaveAction: {
     justifyContent: "center",
