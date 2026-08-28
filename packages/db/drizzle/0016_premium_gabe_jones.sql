@@ -1,0 +1,1 @@
+CREATE INDEX "government_content_source_normalized_title_idx" ON "government_content" USING btree ("source",lower(regexp_replace("title", '[^a-zA-Z0-9]', '', 'g')));

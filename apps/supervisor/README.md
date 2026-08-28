@@ -30,11 +30,13 @@ the arguments it takes; the supervisor supplies everything else.
 
 | id                             | schedule          | notes                                                                            |
 | ------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
-| `congress-daily`               | daily 03:15 local | Refreshes and retains the 80 most recently updated federal bills                 |
-| `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes and retains the 100 most recently updated measures per supported state |
+| `congress-daily`               | daily 03:15 local | Refreshes federal bills and applies the 90-day editorial retention policy        |
+| `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes state measures and applies the same retention policy                   |
+| `bill-interest-daily`          | daily 02:00 local | Scores missing or changed bills for interest, controversy, and outside attention |
+| `whitehouse-daily`             | daily 01:00 local | Reads presidential actions directly from the White House RSS feed                |
+| `federalregister-daily`        | daily 01:30 local | Refreshes executive orders and presidential documents                            |
 | `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content      |
 | `backfill-content-images`      | manual            | Drains missing or style-stale header art across all retained content             |
-| `federalregister-weekly`       | Sundays 03:15     | Executive orders and presidential documents                                      |
 | `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
 | `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                              |
 | `retro-briefs`                 | manual            | Fills in missing structured briefs                                               |
@@ -61,11 +63,15 @@ The three weekly scrapers are listed individually rather than as one `main.js
 all` run, so that dropping `all` (which would drag the cursor walk back in)
 cannot silently stop them.
 
-The federal refresh applies an 80-row retention cap. Each state refresh applies
-its own 100-row cap.
-Ranking and deletion happen inside PostgreSQL and return only aggregate counts,
-so retention does not download candidate rows from Supabase. Jurisdictions are
-capped independently, so federal activity cannot displace a state's measures.
+Retention keeps bills with legislative activity in the past 90 days, every bill
+saved by a user, the 50 most saved bills, the 50 highest controversy scores, and
+the 50 bills with the strongest evidence of outside discussion. Those category
+lists are global and deduplicated. Ranking and deletion happen inside PostgreSQL
+and return only aggregate counts, so retention does not download candidate rows
+from Supabase. The LLM scores are cached by bill content hash; changed bills stop
+qualifying on a stale score until the daily scorer reassesses them. Unscored or
+stale bills are protected, so an LLM outage delays pruning instead of deleting
+unjudged candidates.
 The manual `prune-bills` command remains available as a read-only-by-default
 repair tool. PostgreSQL autovacuum makes freed space reusable; reported physical
 disk size may not fall immediately after deletion.

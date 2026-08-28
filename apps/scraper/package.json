@@ -48,6 +48,7 @@
     "reprocess-content": "tsx src/reprocess-content-entry.ts",
     "backfill-bill-descriptions": "tsx src/backfill-bill-descriptions-entry.ts",
     "content-images": "tsx src/content-images.ts",
+    "bill-interest": "tsx src/bill-interest-entry.ts",
     "prune-bills": "tsx src/prune-bills-entry.ts"
   },
   "author": "It's not you it's me",

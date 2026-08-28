@@ -80,6 +80,11 @@ const scraperCostDefinitions = [
   ],
 ] as const;
 const scraperSourceLimitDefinitions = [
+  [
+    "WHITEHOUSE_MAX_ITEMS",
+    "whitehouse.gov presidential actions per run.",
+    "20",
+  ],
   ["FEDERALREGISTER_MAX_ITEMS", "Federal Register documents per run.", "20"],
   ["CONGRESS_MAX_ITEMS", "Congress.gov bills per run.", "100"],
   ["SCOTUS_MAX_ITEMS", "CourtListener opinion clusters per run.", "50"],

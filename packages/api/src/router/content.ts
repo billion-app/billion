@@ -312,6 +312,7 @@ const _ContentDetailSchema = ContentCardSchema.extend({
   articleContent: z.string(),
   originalContent: z.string(),
   url: z.string().optional(), // URL to original source
+  officialUrl: z.string().optional(),
 });
 
 export type ContentDetail = z.infer<typeof _ContentDetailSchema>;
@@ -831,6 +832,7 @@ export const contentRouter = {
               c.aiGeneratedArticle ?? c.fullText ?? "No content available",
             originalContent: c.fullText ?? "Full text not available",
             url: c.url,
+            officialUrl: c.federalRegisterUrl ?? undefined,
             lensData: await getLensData(c.id, "government_content"),
           },
         ]);

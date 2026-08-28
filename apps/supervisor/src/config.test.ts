@@ -25,7 +25,9 @@ void test("every supported state has an isolated daily refresh", () => {
       "--recent",
       "100",
       "--retain",
-      "100",
+      "50",
+      "--retention-days",
+      "90",
       "--concurrency",
       "4",
     ]);
@@ -35,7 +37,7 @@ void test("every supported state has an isolated daily refresh", () => {
   assert.equal(findJob("open-states-mo-daily"), undefined);
 });
 
-void test("daily Congress refresh retains its bounded federal window", () => {
+void test("daily Congress refresh applies the editorial retention policy", () => {
   const job = findJob("congress-daily");
   assert.ok(job, "daily Congress job is missing");
   assert.deepEqual(job.args, [
@@ -43,10 +45,37 @@ void test("daily Congress refresh retains its bounded federal window", () => {
     "--recent",
     "80",
     "--retain",
-    "80",
+    "50",
+    "--retention-days",
+    "90",
     "--concurrency",
     "4",
   ]);
+});
+
+void test("bill interest scoring runs before source refreshes", () => {
+  const job = findJob("bill-interest-daily");
+  assert.ok(job, "daily bill-interest job is missing");
+  assert.deepEqual(job.args, ["--limit", "1000", "--concurrency", "4"]);
+  assert.deepEqual(job.schedule, { kind: "daily", hour: 2, minute: 0 });
+  assert.equal(job.priority, 0);
+});
+
+void test("executive actions refresh daily", () => {
+  const whiteHouseJob = findJob("whitehouse-daily");
+  assert.ok(whiteHouseJob, "daily White House job is missing");
+  assert.deepEqual(whiteHouseJob.args, ["whitehouse", "--concurrency", "2"]);
+  assert.deepEqual(whiteHouseJob.schedule, {
+    kind: "daily",
+    hour: 1,
+    minute: 0,
+  });
+
+  const job = findJob("federalregister-daily");
+  assert.ok(job, "daily Federal Register job is missing");
+  assert.deepEqual(job.args, ["federalregister", "--concurrency", "2"]);
+  assert.deepEqual(job.schedule, { kind: "daily", hour: 1, minute: 30 });
+  assert.ok(whiteHouseJob.priority < job.priority);
 });
 
 void test("San Jose decisions refresh daily through the Legistar scraper", () => {

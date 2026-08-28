@@ -3,9 +3,14 @@
  * Check for existing records before performing expensive operations
  */
 
-import { and, eq } from "@acme/db";
+import { and, desc, eq, inArray } from "@acme/db";
 import { db } from "@acme/db/client";
-import { Bill, CourtCase, GovernmentContent } from "@acme/db/schema";
+import {
+  Bill,
+  CourtCase,
+  GovernmentContent,
+  normalizeGovernmentContentTitleSql,
+} from "@acme/db/schema";
 
 import type { ExistingRecordCheck } from "../types.js";
 import { createLogger } from "../log.js";
@@ -91,6 +96,60 @@ export async function checkExistingGovernmentContent(
     logger.error("Error checking existing government content", error);
     return null;
   }
+}
+
+export interface GovernmentContentTitleMatch {
+  id: string;
+  normalizedTitle: string;
+  federalRegisterDocumentNumber: string | null;
+}
+
+/**
+ * Find source rows that can receive a citation from a later publisher.
+ *
+ * The arrays matter because separate presidential documents can share a title.
+ * Newest rows come first so they pair with the newest-first Federal Register
+ * response in a stable one-to-one order.
+ */
+export async function findGovernmentContentTitleMatches(
+  normalizedTitles: readonly string[],
+  source: string,
+): Promise<Map<string, GovernmentContentTitleMatch[]>> {
+  const matches = new Map<string, GovernmentContentTitleMatch[]>();
+  if (normalizedTitles.length === 0) return matches;
+
+  const normalized = normalizeGovernmentContentTitleSql(
+    GovernmentContent.title,
+  );
+  try {
+    const rows = await db
+      .select({
+        id: GovernmentContent.id,
+        normalizedTitle: normalized,
+        federalRegisterDocumentNumber:
+          GovernmentContent.federalRegisterDocumentNumber,
+      })
+      .from(GovernmentContent)
+      .where(
+        and(
+          eq(GovernmentContent.source, source),
+          inArray(normalized, [...normalizedTitles]),
+        ),
+      )
+      .orderBy(desc(GovernmentContent.publishedDate));
+
+    for (const row of rows) {
+      const sourceMatches = matches.get(row.normalizedTitle) ?? [];
+      sourceMatches.push(row);
+      matches.set(row.normalizedTitle, sourceMatches);
+    }
+  } catch (error) {
+    // Fail open. A separate Federal Register row is visible and fixable, while
+    // throwing here would prevent every unmatched document from being stored.
+    logger.error("Error finding government content title matches", error);
+  }
+
+  return matches;
 }
 
 /**

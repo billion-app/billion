@@ -6,8 +6,10 @@ import { federalregisterConfig } from "./scrapers/federalregister.config.js";
 import { legistarConfig } from "./scrapers/legistar.config.js";
 import { sccCvigConfig } from "./scrapers/scc-cvig.config.js";
 import { scotusConfig } from "./scrapers/scotus.config.js";
+import { whitehouseConfig } from "./scrapers/whitehouse.config.js";
 
 export const scraperContracts: readonly ScraperEnvContract[] = [
+  whitehouseConfig,
   federalregisterConfig,
   legistarConfig,
   congressConfig,

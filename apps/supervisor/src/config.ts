@@ -11,14 +11,17 @@ import type { JobDefinition } from "./types.js";
 export const jobs: readonly JobDefinition[] = [
   {
     id: "congress-daily",
-    description: "Refresh and retain the 80 most recently updated bills",
+    description:
+      "Refresh federal bills and retain 90 active days plus category leaders",
     script: "main.js",
     args: [
       "congress",
       "--recent",
       "80",
       "--retain",
-      "80",
+      "50",
+      "--retention-days",
+      "90",
       "--concurrency",
       "4",
     ],
@@ -35,14 +38,16 @@ export const jobs: readonly JobDefinition[] = [
   ...(["ca", "nc", "tx"] as const).map(
     (stateCode, index): JobDefinition => ({
       id: `open-states-${stateCode}-daily`,
-      description: `Refresh and retain the 100 most recently updated ${stateCode.toUpperCase()} measures`,
+      description: `Refresh ${stateCode.toUpperCase()} measures and retain 90 active days plus category leaders`,
       script: "main.js",
       args: [
         "open-states",
         "--recent",
         "100",
         "--retain",
-        "100",
+        "50",
+        "--retention-days",
+        "90",
         "--concurrency",
         "4",
       ],
@@ -67,12 +72,23 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 24,
   },
   {
+    id: "bill-interest-daily",
+    description:
+      "Score missing or changed bills for interest, controversy, and attention",
+    script: "bill-interest.js",
+    args: ["--limit", "1000", "--concurrency", "4"],
+    schedule: { kind: "daily", hour: 2, minute: 0 },
+    priority: 0,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 24,
+  },
+  {
     id: "content-images-daily",
     description: "Generate illustrated header art for recent retained content",
     script: "content-images.js",
     args: ["--bill-limit", "80", "--other-limit", "20", "--concurrency", "1"],
     schedule: { kind: "daily", hour: 4, minute: 15 },
-    priority: 5,
+    priority: 6,
     idleTimeoutMinutes: 120,
     maxRuntimeHours: 12,
   },
@@ -81,15 +97,27 @@ export const jobs: readonly JobDefinition[] = [
   // run does not silently stop them, and so each can be rescheduled or paused
   // without touching the others.
   //
-  // They stay weekly because their sources move slowly compared with the
-  // congressional feed.
+  // Executive actions run daily because each new action is immediately
+  // newsworthy even though the sources publish infrequently. White House RSS
+  // runs first for same-day discovery; Federal Register follows as the durable
+  // official record and skips documents the RSS feed already supplied.
   {
-    id: "federalregister-weekly",
+    id: "whitehouse-daily",
+    description: "Executive orders and proclamations, same-day from the source",
+    script: "main.js",
+    args: ["whitehouse", "--concurrency", "2"],
+    schedule: { kind: "daily", hour: 1, minute: 0 },
+    priority: 4,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 12,
+  },
+  {
+    id: "federalregister-daily",
     description: "Executive orders and presidential documents",
     script: "main.js",
     args: ["federalregister", "--concurrency", "2"],
-    schedule: { kind: "weekly", weekday: 0, hour: 3, minute: 15 },
-    priority: 10,
+    schedule: { kind: "daily", hour: 1, minute: 30 },
+    priority: 5,
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },

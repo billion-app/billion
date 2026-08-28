@@ -1,4 +1,4 @@
-import type { SQL } from "drizzle-orm";
+import type { SQL, SQLWrapper } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import {
   check,
@@ -32,6 +32,18 @@ const tsvector = customType<{ data: string }>({
     return "tsvector";
   },
 });
+
+/**
+ * SQL counterpart to the scraper's presidential-title normalization.
+ *
+ * Keep the lookup and its expression index on the exact same syntax tree so
+ * PostgreSQL can use the index when matching titles across publishers.
+ */
+export function normalizeGovernmentContentTitleSql(
+  title: SQLWrapper,
+): SQL<string> {
+  return sql<string>`lower(regexp_replace(${title}, '[^a-zA-Z0-9]', '', 'g'))`;
+}
 
 export const Post = pgTable("post", (t) => ({
   id: t.uuid().notNull().primaryKey().defaultRandom(),
@@ -206,6 +218,63 @@ export const CreateBillSchema = createInsertSchema(Bill).omit({
   updatedAt: true,
 });
 
+/**
+ * Cached editorial ranking signals for a bill.
+ *
+ * Popularity is deliberately absent: it comes from real save counts at query
+ * time. These scores cover the two judgments that need interpretation of the
+ * bill and its researched context. `contentHash` makes the cache stale as soon
+ * as the underlying bill changes.
+ */
+export const BillInterest = pgTable(
+  "bill_interest",
+  (t) => ({
+    billId: t
+      .uuid("bill_id")
+      .notNull()
+      .primaryKey()
+      .references(() => Bill.id, { onDelete: "cascade" }),
+    contentHash: t.varchar("content_hash", { length: 64 }).notNull(),
+    interestScore: t.integer("interest_score").notNull(),
+    controversyScore: t.integer("controversy_score").notNull(),
+    attentionScore: t.integer("attention_score").notNull(),
+    reason: t.text().notNull(),
+    modelVersion: t.varchar("model_version", { length: 100 }).notNull(),
+    generatedAt: t
+      .timestamp("generated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: t
+      .timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
+  }),
+  (table) => ({
+    interestRange: check(
+      "bill_interest_interest_score_range",
+      sql`${table.interestScore} between 0 and 100`,
+    ),
+    controversyRange: check(
+      "bill_interest_controversy_score_range",
+      sql`${table.controversyScore} between 0 and 100`,
+    ),
+    attentionRange: check(
+      "bill_interest_attention_score_range",
+      sql`${table.attentionScore} between 0 and 100`,
+    ),
+    interestScoreIdx: index("bill_interest_interest_score_idx").on(
+      table.interestScore,
+    ),
+    controversyScoreIdx: index("bill_interest_controversy_score_idx").on(
+      table.controversyScore,
+    ),
+    attentionScoreIdx: index("bill_interest_attention_score_idx").on(
+      table.attentionScore,
+    ),
+  }),
+);
+
 // Government Content table (executive orders, memoranda, proclamations, news articles, briefings, etc.)
 export const GovernmentContent = pgTable(
   "government_content",
@@ -220,6 +289,11 @@ export const GovernmentContent = pgTable(
     thumbnailUrl: t.text(), // URL of the thumbnail image
     url: t.text().notNull().unique(), // Unique constraint for upsert by URL
     source: t.varchar({ length: 100 }).notNull().default("whitehouse.gov"), // Source website
+    // White House RSS is the fast publication source. The Federal Register
+    // follows later with the durable citation, so keep both links on one row.
+    federalRegisterUrl: t.text().unique(),
+    federalRegisterDocumentNumber: t.varchar({ length: 50 }).unique(),
+    federalRegisterPublishedDate: t.timestamp(),
     contentHash: t.varchar({ length: 64 }).notNull().default(""), // SHA-256 hash for version tracking
     versions: t
       .jsonb()
@@ -239,6 +313,9 @@ export const GovernmentContent = pgTable(
     ),
   }),
   (table) => ({
+    sourceNormalizedTitleIdx: index(
+      "government_content_source_normalized_title_idx",
+    ).on(table.source, normalizeGovernmentContentTitleSql(table.title)),
     searchVectorIdx: index("government_content_search_vector_idx").using(
       "gin",
       table.searchVector,

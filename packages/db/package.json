@@ -35,6 +35,7 @@
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "db-check": "drizzle-kit check --dialect postgresql --out drizzle",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "baseline": "tsx baseline.ts",
     "seed": "tsx seed-entry.ts",
     "studio": "drizzle-kit studio",
