@@ -298,7 +298,7 @@ function SectionHeading({ children }: { children: string }) {
 function FactRow({ label, value }: { label: string; value: string }) {
   const { theme } = useTheme();
   return (
-    <View style={s.factRow}>
+    <View style={[s.factRow, { borderBottomColor: theme.border }]}>
       <Text style={[s.factLabel, { color: theme.textSecondary }]}>{label}</Text>
       <Text style={[s.factValue, { color: theme.foreground }]}>{value}</Text>
     </View>

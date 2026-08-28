@@ -289,7 +289,7 @@ export default function ElectionsScreen() {
       )}
 
       {/* local government decisions — what city hall is doing right now */}
-      <LocalDecisionsPreview />
+      <LocalDecisionsPreview address={storedAddress} />
 
       {/* election hero — what election is happening, what it means */}
       {selected && <ElectionHero election={selected} />}
