@@ -21,7 +21,10 @@
     "preview": {
       "extends": "base",
       "channel": "preview",
-      "distribution": "internal",
+      "distribution": "internal"
+    },
+    "preview-simulator": {
+      "extends": "preview",
       "ios": {
         "simulator": true
       }

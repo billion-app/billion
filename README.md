@@ -86,6 +86,21 @@ cd apps/scrapers && pnpm dev
 
 Make sure you have the relevant environment variables set up
 
+## Mobile release flow
+
+Merges to `main` publish Expo updates to the `preview` channel. They never
+publish straight to production. Use an internal `preview` build to test those
+updates on a device.
+
+To ship a production OTA, open **Actions → Release OTA (Production)** and enter
+the source branch, tag, or commit plus the exact EAS build ID installed by the
+target users. The workflow runs the repository checks and refuses to publish if
+the source fingerprint does not match that store build.
+
+See the [iOS release guide](./docs/ios-release.md#production-ota-updates) for the
+full workflow, including when a release-branch backport or a new store build is
+required.
+
 ---
 
 If anything goes wrong, continue reading to see the old, manual set up instructions:

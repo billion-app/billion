@@ -1,0 +1,151 @@
+name: Release OTA (Production)
+
+# Production OTA releases are deliberately dispatched from a chosen ref. The
+# runtime guard proves that ref can reach the exact store build selected below.
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Git ref containing the OTA (release branch, tag, or SHA)"
+        required: true
+        type: string
+      target_build_id:
+        description: "EAS build ID currently installed by the target users"
+        required: true
+        type: string
+      platform:
+        description: "Store build platform"
+        required: true
+        type: choice
+        options:
+          - ios
+          - android
+      message:
+        description: "Human-readable release message"
+        required: true
+        type: string
+
+concurrency:
+  group: production-ota-${{ inputs.platform }}
+  cancel-in-progress: false
+
+env:
+  FORCE_COLOR: 3
+  OTA_MESSAGE: ${{ inputs.message }}
+  OTA_PLATFORM: ${{ inputs.platform }}
+  SOURCE_REF: ${{ inputs.source_ref }}
+  TARGET_BUILD_ID: ${{ inputs.target_build_id }}
+
+jobs:
+  validate-publish:
+    name: Validate runtime and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: Production
+    permissions:
+      contents: read
+    steps:
+      # Keep the trusted workflow guard on main while allowing the OTA source to
+      # be an older release line whose native fingerprint matches a store build.
+      - name: Checkout workflow guard
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: workflow
+          persist-credentials: false
+
+      - name: Checkout OTA source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source_ref }}
+          path: source
+          persist-credentials: false
+
+      - name: Resolve source commit
+        id: source
+        working-directory: source
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: source/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: source/.nvmrc
+          cache: pnpm
+          cache-dependency-path: source/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: source
+        run: pnpm install --frozen-lockfile
+
+      - name: Copy test environment
+        working-directory: source
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Run repository checks
+        working-directory: source
+        run: |
+          pnpm lint
+          pnpm lint:ws
+          pnpm typecheck
+          pnpm test
+
+      - name: Bundle app
+        working-directory: source/apps/expo
+        run: pnpm exec expo export --platform "$OTA_PLATFORM" --output-dir dist
+
+      # Do not expose the release token until the selected source has passed its
+      # install hooks, tests, lint, typecheck, and bundle.
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Read target store build
+        working-directory: source/apps/expo
+        run: eas build:view "$TARGET_BUILD_ID" --json > "$RUNNER_TEMP/eas-target-build.json"
+
+      - name: Generate OTA fingerprint
+        working-directory: source/apps/expo
+        run: |
+          eas fingerprint:generate \
+            --platform "$OTA_PLATFORM" \
+            --environment production \
+            --json > "$RUNNER_TEMP/eas-update-fingerprint.json"
+
+      - name: Assert runtime compatibility
+        id: runtime
+        run: |
+          node workflow/scripts/assert-eas-update-runtime.mjs \
+            --build-file "$RUNNER_TEMP/eas-target-build.json" \
+            --fingerprint-file "$RUNNER_TEMP/eas-update-fingerprint.json" \
+            --platform "$OTA_PLATFORM"
+
+      - name: Publish production update
+        working-directory: source/apps/expo
+        run: |
+          eas update \
+            --channel production \
+            --platform "$OTA_PLATFORM" \
+            --environment production \
+            --message "$OTA_MESSAGE" \
+            --non-interactive
+
+      - name: Summarise
+        if: success()
+        run: |
+          {
+            echo "### Production OTA published"
+            echo
+            echo "- Source: \`${SOURCE_REF}\` (\`${{ steps.source.outputs.sha }}\`)"
+            echo "- Target: ${{ steps.runtime.outputs.platform }} build \`${{ steps.runtime.outputs.buildId }}\`"
+            echo "- App: ${{ steps.runtime.outputs.appVersion }} (${{ steps.runtime.outputs.buildVersion }})"
+            echo "- Fingerprint: \`${{ steps.runtime.outputs.fingerprint }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

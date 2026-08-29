@@ -83,10 +83,9 @@ jobs:
       - name: Bundle Android
         run: cd apps/expo && npx expo export --platform android --output-dir dist
 
-  # Publish only after the same checks that gate production, plus successful
-  # native bundles. The fingerprint runtime policy prevents an update that
-  # changes native code or config from reaching an incompatible installed app.
-  eas-update:
+  # Main is the integration line. Publish it to preview for device testing;
+  # production OTA releases go through the explicit, runtime-guarded workflow.
+  eas-update-preview:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [lint, typecheck, test, bundle-expo]
     runs-on: ubuntu-latest
@@ -104,12 +103,13 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Publish production update
+      - name: Publish preview update
         working-directory: apps/expo
         run: |
           eas update \
-            --channel production \
-            --environment production \
+            --channel preview \
+            --platform all \
+            --environment preview \
             --message "main@${GITHUB_SHA}" \
             --non-interactive
 

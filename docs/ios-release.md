@@ -32,6 +32,39 @@ For EAS builds, set this in your EAS environment variables dashboard or via:
 eas env:create --name EXPO_PUBLIC_API_URL --value https://www.billion-news.app
 ```
 
+## Production OTA updates
+
+Merging to `main` does **not** publish to production. After CI passes, `main`
+publishes to the `preview` channel so it can be exercised on a device first.
+Create an internal preview build with:
+
+```bash
+cd apps/expo
+eas build --platform ios --profile preview
+```
+
+Use `--profile preview-simulator` when the target is an iOS Simulator instead.
+
+Production OTA updates use the **Release OTA (Production)** workflow in GitHub
+Actions. The workflow requires:
+
+- `source_ref`: the release branch, tag, or commit containing the JS hotfix
+- `target_build_id`: the exact EAS store build installed by the affected users
+- `platform`: `ios` or `android`
+- `message`: a human-readable description of the update
+
+The workflow checks out that ref, runs the repository checks and app bundle,
+then compares its generated native fingerprint with the selected store build.
+It publishes to the production channel only when the fingerprints and app
+identities match.
+
+If `main` still matches the installed build, it can be the `source_ref`. If
+native code or native configuration has changed since that build, create a
+release branch from the tag or commit used for the store build and cherry-pick
+only the JS hotfix. A mismatch is not bypassable: either publish from the
+matching release line or ship a new store binary. Never replace the fingerprint
+runtime policy with a fixed version to force an incompatible OTA through.
+
 ## Releasing a new build
 
 From the **monorepo root** (requires `just` — `brew install just`):

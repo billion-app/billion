@@ -8,7 +8,7 @@
   "packageManager": "pnpm@10.15.1",
   "scripts": {
     "build": "turbo run build",
-    "test": "turbo run test",
+    "test": "turbo run test && node --test scripts/assert-eas-update-runtime.test.mjs scripts/eas-update-policy.test.mjs",
     "clean": "git clean -xdf node_modules",
     "clean:workspaces": "turbo run clean",
     "auth:generate": "pnpm -F @acme/auth generate",
