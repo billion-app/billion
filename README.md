@@ -97,6 +97,35 @@ the source branch, tag, or commit plus the exact EAS build ID installed by the
 target users. The workflow runs the repository checks and refuses to publish if
 the source fingerprint does not match that store build.
 
+Get the EAS build ID from the monorepo root with:
+
+```bash
+cd apps/expo
+pnpm dlx eas-cli@latest build:list \
+  --platform ios \
+  --build-profile production \
+  --status finished \
+  --limit 10
+```
+
+Match the app version and build number to the binary installed by the target
+users, then copy its `ID` UUID into the workflow's `target_build_id` field. Do
+not use the numeric iOS build number or the EAS project ID. If you already know
+the exact version and build number, narrow the result:
+
+```bash
+pnpm dlx eas-cli@latest build:list \
+  --platform ios \
+  --build-profile production \
+  --status finished \
+  --app-version 0.7.0 \
+  --app-build-version 33 \
+  --limit 1
+```
+
+Replace `ios` with `android` for an Android OTA. The release workflow also
+prints the EAS build ID in its **EAS build + auto-submit to TestFlight** step.
+
 See the [iOS release guide](./docs/ios-release.md#production-ota-updates) for the
 full workflow, including when a release-branch backport or a new store build is
 required.
