@@ -119,6 +119,7 @@
     "expo-image",
     "expo-localization",
     "expo-secure-store",
+    "expo-sharing",
     "expo-status-bar",
     "expo-web-browser",
     [
