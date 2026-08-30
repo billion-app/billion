@@ -274,7 +274,9 @@ export function StoryCard({
   art?: string;
 }) {
   const type = presentType(content.type);
-  const summary = shareSummaryParts(content, 220);
+  const summary = shareSummaryParts(content, 150);
+  const title = truncate(content.title, 110);
+  const titleSize = title.length > 88 ? 54 : title.length > 58 ? 60 : 66;
 
   return (
     <div
@@ -284,30 +286,31 @@ export function StoryCard({
         width: "100%",
         height: "100%",
         backgroundColor: NAVY,
-        // Instagram lays its own chrome over the top and bottom of a story —
-        // roughly 250px each at this size — so everything that has to be read
-        // is kept inside the middle band rather than centred on the canvas.
-        paddingTop: 260,
-        paddingBottom: 270,
-        paddingLeft: 80,
-        paddingRight: 80,
+        // Instagram covers the top and bottom of the canvas with composer UI.
+        // Keep the card compact and inside the unobstructed middle band.
+        paddingTop: 250,
+        paddingBottom: 230,
+        paddingLeft: 72,
+        paddingRight: 72,
       }}
     >
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
-          gap: 14,
+          justifyContent: "space-between",
+          paddingLeft: 8,
+          paddingRight: 8,
         }}
       >
-        <Wordmark size={56} />
+        <Wordmark size={52} />
         <div
           style={{
             display: "flex",
             fontFamily: SANS,
-            fontSize: 28,
-            letterSpacing: 1,
+            fontWeight: 700,
+            fontSize: 24,
+            letterSpacing: 0.8,
             color: MUTED,
           }}
         >
@@ -319,21 +322,18 @@ export function StoryCard({
         style={{
           display: "flex",
           flexDirection: "column",
-          flex: 1,
-          justifyContent: "center",
-          paddingTop: 44,
-          paddingBottom: 44,
+          marginTop: 38,
         }}
       >
         <div
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 34,
+            gap: 24,
             backgroundColor: SLATE,
             border: `1px solid ${HAIRLINE}`,
-            borderRadius: 44,
-            padding: 64,
+            borderRadius: 38,
+            padding: 48,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -360,11 +360,11 @@ export function StoryCard({
             <img
               src={art}
               width={792}
-              height={320}
+              height={260}
               style={{
                 width: "100%",
-                height: 320,
-                borderRadius: 28,
+                height: 260,
+                borderRadius: 24,
                 objectFit: "cover",
                 border: `1px solid ${HAIRLINE}`,
               }}
@@ -376,13 +376,13 @@ export function StoryCard({
               display: "flex",
               fontFamily: SERIF,
               fontWeight: 700,
-              fontSize: 68,
-              lineHeight: 1.12,
-              letterSpacing: -1.5,
+              fontSize: titleSize,
+              lineHeight: 1.08,
+              letterSpacing: -1.2,
               color: WHITE,
             }}
           >
-            {truncate(content.title, 120)}
+            {title}
           </div>
 
           {summary.length ? (
@@ -390,8 +390,8 @@ export function StoryCard({
               style={{
                 display: "flex",
                 fontFamily: SANS,
-                fontSize: 34,
-                lineHeight: 1.45,
+                fontSize: 30,
+                lineHeight: 1.38,
                 color: "rgba(255,255,255,0.74)",
               }}
             >
@@ -406,14 +406,15 @@ export function StoryCard({
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 18,
+          gap: 14,
+          marginTop: 38,
         }}
       >
         <div
           style={{
             display: "flex",
-            width: 96,
-            height: 5,
+            width: 72,
+            height: 4,
             borderRadius: 3,
             backgroundColor: type.color,
           }}
@@ -423,7 +424,7 @@ export function StoryCard({
             display: "flex",
             fontFamily: SANS,
             fontWeight: 700,
-            fontSize: 34,
+            fontSize: 30,
             color: WHITE,
           }}
         >
@@ -433,7 +434,7 @@ export function StoryCard({
           style={{
             display: "flex",
             fontFamily: SANS,
-            fontSize: 30,
+            fontSize: 26,
             color: MUTED,
           }}
         >

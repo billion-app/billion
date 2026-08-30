@@ -111,6 +111,7 @@ export function markdownToPlainText(value: string): string {
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\\([\\`*{}[\]()#+\-.!_>])/g, "$1")
     .replace(/\s+/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
     .trim();
 }
 
@@ -210,5 +211,19 @@ export function shareSummaryParts(
   }
   if (wasTruncated) result.push({ text: "…", emphasized: false });
 
-  return result;
+  // Satori treats differently weighted spans as separate flex children. Keep
+  // punctuation with the phrase before it so a comma cannot begin a new line
+  // after an emphasized phrase.
+  for (let index = 1; index < result.length; index += 1) {
+    const current = result[index];
+    const previous = result[index - 1];
+    if (!current || !previous) continue;
+
+    const punctuation = /^[,.;:!?]+/.exec(current.text)?.[0];
+    if (!punctuation) continue;
+    previous.text += punctuation;
+    current.text = current.text.slice(punctuation.length);
+  }
+
+  return result.filter((part) => part.text.length > 0);
 }

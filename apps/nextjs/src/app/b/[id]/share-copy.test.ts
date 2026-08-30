@@ -82,6 +82,13 @@ void test("prose without markers is left alone", () => {
   assert.equal(plainText("  No markers here.  "), "No markers here.");
 });
 
+void test("spaces before punctuation are removed", () => {
+  assert.equal(
+    plainText("Call for the **SAVE America Act** , but change no law."),
+    "Call for the SAVE America Act, but change no law.",
+  );
+});
+
 void test("article Markdown becomes readable prose", () => {
   assert.equal(
     markdownToPlainText(
@@ -162,6 +169,25 @@ void test("authored key phrases stay emphasized in share images", () => {
       { text: "States get ", emphasized: false },
       { text: "new enforcement grants", emphasized: true },
       { text: " for senior fraud.", emphasized: false },
+    ],
+  );
+});
+
+void test("punctuation stays attached to the preceding emphasized phrase", () => {
+  assert.deepEqual(
+    shareSummaryParts(
+      {
+        ...record,
+        brief: {
+          summary: "Call for the **SAVE America Act** , but change no law.",
+        },
+      },
+      200,
+    ),
+    [
+      { text: "Call for the ", emphasized: false },
+      { text: "SAVE America Act,", emphasized: true },
+      { text: " but change no law.", emphasized: false },
     ],
   );
 });
