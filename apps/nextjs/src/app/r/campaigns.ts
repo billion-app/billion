@@ -14,12 +14,19 @@ const printed = (campaign: string) => ({
   utm_campaign: campaign,
 });
 
+const CAMPAIGN_CODE = /^[a-z0-9_-]{1,32}$/i;
+
 export const CAMPAIGN_CODES: Record<string, Record<string, string>> = {
   // Flyer locations — one printed stack each.
   neighborhood: printed("neighborhood"),
   campus: printed("campus"),
   local_event: printed("local_event"),
   irl_talk: printed("irl_talk"),
+  d10_leadership_2026_09_05: {
+    utm_source: "d10_leadership_coalition",
+    utm_medium: "qr",
+    utm_campaign: "d10_leadership_2026_09_05",
+  },
 
   // The short, memorable link used in the Instagram profile bio.
   instagram_bio: {
@@ -41,6 +48,12 @@ export const CAMPAIGN_CODES: Record<string, Record<string, string>> = {
   // yt_1: { utm_source: "youtube", utm_medium: "video", utm_campaign: "yt_1" },
 };
 
+/** Return a printable campaign code, or an empty string when it is invalid. */
+export function sanitizeCampaignCode(raw: string): string {
+  const code = raw.trim();
+  return CAMPAIGN_CODE.test(code) ? code : "";
+}
+
 /**
  * UTM parameters for a code.
  *
@@ -54,6 +67,6 @@ export function campaignFor(code: string): Record<string, string> {
   if (known) return known;
 
   return {
-    utm_campaign: /^[a-z0-9_-]{1,32}$/i.test(code) ? code : "unknown",
+    utm_campaign: sanitizeCampaignCode(code) || "unknown",
   };
 }

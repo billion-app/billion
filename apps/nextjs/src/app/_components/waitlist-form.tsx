@@ -8,10 +8,12 @@ export function WaitlistForm({
   size = "default",
   buttonText = "Get updates",
   placeholder = "Enter your email",
+  formLocation,
 }: {
   size?: "default" | "large";
   buttonText?: string;
   placeholder?: string;
+  formLocation?: string;
 }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<WaitlistStatus>("idle");
@@ -24,7 +26,10 @@ export function WaitlistForm({
     setStatus("loading");
     setErrorMsg("");
 
-    posthog.capture("mailing_list_form_submitted", { form_location: size });
+    const location = formLocation ?? size;
+    posthog.capture("mailing_list_form_submitted", {
+      form_location: location,
+    });
 
     try {
       const res = await fetch("/api/waitlist", {
@@ -44,16 +49,16 @@ export function WaitlistForm({
 
         if (alreadyJoined) {
           posthog.capture("mailing_list_already_joined", {
-            form_location: size,
+            form_location: location,
           });
         } else {
-          posthog.capture("mailing_list_joined", { form_location: size });
+          posthog.capture("mailing_list_joined", { form_location: location });
         }
       } else {
         setStatus("error");
         setErrorMsg(data?.error ?? "Something went wrong. Please try again.");
         posthog.capture("mailing_list_signup_error", {
-          form_location: size,
+          form_location: location,
           error: data?.error ?? "unknown",
         });
       }
@@ -61,7 +66,7 @@ export function WaitlistForm({
       setStatus("error");
       setErrorMsg("Something went wrong. Please try again.");
       posthog.capture("mailing_list_signup_error", {
-        form_location: size,
+        form_location: location,
         error: "network_error",
       });
     }
@@ -98,6 +103,7 @@ export function WaitlistForm({
       {status === "success" || status === "already" ? (
         <motion.div
           key={confirmation.key}
+          role="status"
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
@@ -143,6 +149,7 @@ export function WaitlistForm({
             <input
               type="email"
               required
+              aria-label="Email address"
               placeholder={placeholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -197,6 +204,7 @@ export function WaitlistForm({
           <AnimatePresence>
             {status === "error" && (
               <motion.p
+                role="alert"
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}

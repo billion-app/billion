@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 
-import { CAMPAIGN_CODES } from "../r/campaigns";
+import type { TrackedDestination } from "../r/destinations";
+import type { QrCode } from "./qr";
+import { CAMPAIGN_CODES, sanitizeCampaignCode } from "../r/campaigns";
+import { isTrackedDestination, TRACKED_DESTINATIONS } from "../r/destinations";
 import { FlyerSheet } from "./flyer";
 import { PrintButton } from "./print-button";
 import { buildQr } from "./qr";
 
 export const metadata: Metadata = {
-  title: "Campaign flyer generator — Billion",
-  description: "Generate a printable flyer sheet for a campaign code.",
+  title: "Tracked QR generator — Billion",
+  description: "Generate tracked QR codes and printable campaign flyers.",
   robots: { index: false, follow: false },
 };
 
@@ -23,11 +26,6 @@ const BETA_INCHES = 1.02;
  * produce an unscannable stack.
  */
 const MODULE_FLOOR_PT = 1.42;
-
-/** Matches the sanitising in `campaignFor`, so the preview cannot lie. */
-function sanitize(raw: string): string {
-  return /^[a-z0-9_-]{1,32}$/i.test(raw) ? raw : "";
-}
 
 function Readout({
   label,
@@ -68,21 +66,46 @@ function Readout({
   );
 }
 
+function QrPreview({ code, label }: { code: QrCode; label: string }) {
+  return (
+    <svg
+      viewBox={`0 0 ${code.size} ${code.size}`}
+      shapeRendering="crispEdges"
+      role="img"
+      aria-label={label}
+      className="h-auto w-full"
+    >
+      <path fill="#FFFFFF" d={`M0 0h${code.size}v${code.size}H0z`} />
+      <path stroke="#0E1530" d={code.path} />
+    </svg>
+  );
+}
+
 export default async function CampaignGeneratorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string }>;
+  searchParams: Promise<{ dest?: string; p?: string }>;
 }) {
-  const { p } = await searchParams;
+  const { dest, p } = await searchParams;
   const requested = (p ?? "neighborhood").trim();
-  const code = sanitize(requested) || "neighborhood";
-  const rejected = requested !== "" && sanitize(requested) === "";
+  const code = sanitizeCampaignCode(requested) || "neighborhood";
+  const rejected = requested !== "" && sanitizeCampaignCode(requested) === "";
   const mapped = Object.hasOwn(CAMPAIGN_CODES, code);
+  const requestedDest = dest ?? "";
+  const standaloneDest: TrackedDestination = isTrackedDestination(requestedDest)
+    ? requestedDest
+    : "app";
 
   const waitlistUrl = `${SITE}/r?dest=home&p=${code}`;
   const betaUrl = `${SITE}/r?dest=tf&p=${code}`;
   const waitlist = buildQr(waitlistUrl, "H");
   const beta = buildQr(betaUrl, "M");
+  const standaloneUrl = `${SITE}/r?dest=${standaloneDest}&p=${code}`;
+  const standalone = buildQr(standaloneUrl, "H");
+  const downloadQuery = new URLSearchParams({
+    dest: standaloneDest,
+    p: code,
+  });
 
   return (
     <>
@@ -91,15 +114,15 @@ export default async function CampaignGeneratorPage({
           Internal tool
         </span>
         <h1 className="text-foreground mb-4 text-[32px] leading-[1.15] font-bold tracking-[-0.02em]">
-          Campaign flyer generator
+          Tracked QR generator
         </h1>
         <p className="text-muted-foreground mb-8 max-w-[60ch] font-sans text-[15px] leading-[1.7]">
-          Both QR codes below carry the campaign code, so each stack reports
-          separately. Print one run per code &mdash; a stack can only carry one.
+          Make a standalone QR for a slide, sign, or handout. Every scan records
+          the campaign and destination before sending the person onward.
         </p>
 
         <form method="get" className="mb-8 flex flex-wrap items-end gap-3">
-          <label className="flex-1">
+          <label className="min-w-[260px] flex-1">
             <span className="text-foreground mb-1.5 block font-sans text-[13px] font-semibold">
               Campaign code
             </span>
@@ -115,6 +138,24 @@ export default async function CampaignGeneratorPage({
                 <option key={known} value={known} />
               ))}
             </datalist>
+          </label>
+          <label className="min-w-48">
+            <span className="text-foreground mb-1.5 block font-sans text-[13px] font-semibold">
+              Destination
+            </span>
+            <select
+              name="dest"
+              defaultValue={standaloneDest}
+              className="border-border text-foreground min-h-11 w-full rounded-lg border bg-transparent px-3 font-sans text-[14px]"
+            >
+              {Object.entries(TRACKED_DESTINATIONS).map(
+                ([value, destination]) => (
+                  <option key={value} value={value} className="bg-background">
+                    {destination.label}
+                  </option>
+                ),
+              )}
+            </select>
           </label>
           <button
             type="submit"
@@ -143,6 +184,54 @@ export default async function CampaignGeneratorPage({
             to set a full combination.
           </p>
         )}
+
+        <section className="border-border mb-12 grid gap-6 rounded-2xl border p-5 sm:grid-cols-[220px_1fr] sm:p-6">
+          <div className="overflow-hidden rounded-xl bg-white p-3">
+            <QrPreview
+              code={standalone}
+              label={`${code} QR code for ${TRACKED_DESTINATIONS[standaloneDest].label}`}
+            />
+          </div>
+          <div className="flex min-w-0 flex-col justify-center">
+            <span className="tracking-label text-muted-foreground mb-2 font-sans text-[11px] font-semibold uppercase">
+              Standalone tracked QR
+            </span>
+            <h2 className="text-foreground mb-2 text-[23px] font-bold">
+              {TRACKED_DESTINATIONS[standaloneDest].label}
+            </h2>
+            <p className="text-muted-foreground mb-5 font-mono text-[11.5px] break-all">
+              {standaloneUrl}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={`/campaign-generator/download?${downloadQuery.toString()}&format=png`}
+                download
+                className="bg-accent text-accent-foreground inline-flex min-h-11 items-center rounded-full px-5 py-2.5 font-sans text-[14px] font-semibold transition-opacity hover:opacity-90"
+              >
+                Download PNG
+              </a>
+              <a
+                href={`/campaign-generator/download?${downloadQuery.toString()}&format=svg`}
+                download
+                className="border-border text-foreground inline-flex min-h-11 items-center rounded-full border px-5 py-2.5 font-sans text-[14px] font-semibold"
+              >
+                Download SVG
+              </a>
+            </div>
+            <p className="text-muted-foreground mt-4 font-sans text-[12px] leading-[1.6]">
+              Use PNG in slides and documents. Use SVG when a printer or
+              designer needs a code that stays sharp at any size.
+            </p>
+          </div>
+        </section>
+
+        <h2 className="text-foreground mb-2 text-[25px] font-bold">
+          Printable flyer sheet
+        </h2>
+        <p className="text-muted-foreground mb-6 max-w-[60ch] font-sans text-[13px] leading-[1.6]">
+          The sheet carries two tracked codes for the same campaign. Print one
+          run per code so every physical stack reports separately.
+        </p>
 
         <div className="mb-10 grid gap-3">
           <Readout

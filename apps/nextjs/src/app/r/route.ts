@@ -2,8 +2,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { env } from "~/env";
-import { APP_STORE_URL } from "../_lib/app-store";
 import { campaignFor } from "./campaigns";
+import { isTrackedDestination, TRACKED_DESTINATIONS } from "./destinations";
 
 /**
  * Tracked redirect. `?dest` names where to go, `?p` optionally carries a
@@ -14,23 +14,15 @@ import { campaignFor } from "./campaigns";
  * destinations are baked into printed QR codes, so they have to be changeable
  * here rather than on paper.
  */
-const DESTINATIONS: Record<string, string> = {
-  // Rotates with every batch — see docs/testflight-waitlist-batches.md
-  tf: "https://testflight.apple.com/join/m2ay41KF",
-  // The public listing. Shared records send iPhone readers here.
-  app: APP_STORE_URL,
-  // Relative, so it picks up campaign params below. External destinations do
-  // not: nothing over there reads a utm, which is why the event exists.
-  home: "/",
-};
-
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const dest = searchParams.get("dest") ?? "";
   const code = searchParams.get("p") ?? "";
   const campaign = campaignFor(code);
 
-  let target: string | URL | undefined = DESTINATIONS[dest];
+  let target: string | URL | undefined = isTrackedDestination(dest)
+    ? TRACKED_DESTINATIONS[dest].target
+    : undefined;
   if (typeof target === "string" && target.startsWith("/")) {
     const url = new URL(target, origin);
     for (const [key, value] of Object.entries(campaign)) {
