@@ -34,7 +34,10 @@ import { clampBillDescription } from "../bill-description.js";
 import { createContentHash } from "../hash.js";
 import { createLogger } from "../log.js";
 import { tickProgress } from "../progress.js";
-import { isUsableSourceText } from "../reprocessing-policy.js";
+import {
+  governmentContentSourceDeferralReason,
+  isUsableSourceText,
+} from "../reprocessing-policy.js";
 import {
   checkExistingBill,
   checkExistingCourtCase,
@@ -179,7 +182,6 @@ export async function upsertContent(
   options?: { newItemLimiter?: NewItemLimiter },
 ): Promise<UpsertOutcome> {
   const newContentHash = createContentHash(hashFields(input));
-  const existing = await checkExisting(input);
   const label = contentLabel(input);
 
   incrementTotalProcessed();
@@ -188,6 +190,16 @@ export async function upsertContent(
   const title = input.data.title;
   const url = input.data.url;
   const sourceDescription = input.data.description;
+
+  if (input.type === "government_content") {
+    const reason = governmentContentSourceDeferralReason(title, fullText);
+    if (reason) {
+      logger.warn(`${label}: ${reason}, deferring without writing`);
+      return { status: "deferred", reason };
+    }
+  }
+
+  const existing = await checkExisting(input);
 
   const hasUsableText = isUsableSourceText(fullText);
   if (!hasUsableText && fullText) {

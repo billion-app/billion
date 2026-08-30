@@ -13,6 +13,7 @@ import { fetchWithRetry } from "../utils/fetch.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
 import { normalizeTitle } from "../utils/normalize-title.js";
+import { isUsableGovernmentContentTitle } from "../utils/reprocessing-policy.js";
 import { federalregisterConfig } from "./federalregister.config.js";
 
 const NAME = "Federal Register";
@@ -63,9 +64,54 @@ async function fetchDocumentText(
       codeBlockStyle: "fenced",
     });
     return turndown.turndown(html).trim() || undefined;
-  } catch {
+  } catch (error) {
+    logger.warn(
+      `Could not fetch Federal Register body ${bodyHtmlUrl}: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return undefined;
   }
+}
+
+type DeferredDocumentReason =
+  | "placeholder title"
+  | "missing publication date"
+  | "not published yet";
+
+export function partitionReadyFederalRegisterDocuments(
+  documents: readonly FrDocument[],
+  now = new Date(),
+): {
+  ready: FrDocument[];
+  deferred: { document: FrDocument; reason: DeferredDocumentReason }[];
+} {
+  const ready: FrDocument[] = [];
+  const deferred: {
+    document: FrDocument;
+    reason: DeferredDocumentReason;
+  }[] = [];
+
+  for (const document of documents) {
+    if (!isUsableGovernmentContentTitle(document.title)) {
+      deferred.push({ document, reason: "placeholder title" });
+      continue;
+    }
+
+    const publicationTime = document.publication_date
+      ? Date.parse(`${document.publication_date}T00:00:00.000Z`)
+      : Number.NaN;
+    if (Number.isNaN(publicationTime)) {
+      deferred.push({ document, reason: "missing publication date" });
+      continue;
+    }
+    if (publicationTime > now.getTime()) {
+      deferred.push({ document, reason: "not published yet" });
+      continue;
+    }
+
+    ready.push(document);
+  }
+
+  return { ready, deferred };
 }
 
 /**
@@ -202,7 +248,12 @@ async function scrape(maxDocuments = 20) {
 
   logger.info(`Fetched ${fetched.length} presidential documents`);
 
-  const documents = await mergeWhiteHouseDuplicates(fetched);
+  const { ready, deferred } = partitionReadyFederalRegisterDocuments(fetched);
+  for (const { document, reason } of deferred) {
+    logger.warn(`Deferring ${document.document_number}: ${reason}`);
+  }
+
+  const documents = await mergeWhiteHouseDuplicates(ready);
   setExpectedTotal(documents.length);
 
   const limit = getItemLimit();
@@ -220,7 +271,7 @@ async function scrape(maxDocuments = 20) {
             ? new Date(doc.publication_date)
             : new Date();
 
-          await upsertContent(
+          const outcome = await upsertContent(
             {
               type: "government_content",
               data: {
@@ -236,7 +287,13 @@ async function scrape(maxDocuments = 20) {
             { newItemLimiter },
           );
 
-          logger.success(`Scraped ${contentType}: ${doc.title}`);
+          if (outcome.status === "written") {
+            logger.success(`Scraped ${contentType}: ${doc.title}`);
+          } else {
+            logger.warn(
+              `${outcome.status === "deferred" ? "Deferred" : "Skipped"} ${doc.document_number}: ${outcome.reason}`,
+            );
+          }
         } catch (error) {
           logger.error(`Error processing ${doc.document_number}`, error);
         }

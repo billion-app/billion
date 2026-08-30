@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  governmentContentSourceDeferralReason,
   isUsableAIArticle,
   isUsableSourceText,
   needsReprocessing,
@@ -40,6 +41,27 @@ void test("source text rejects short and boilerplate-heavy input", () => {
     false,
   );
   assert.equal(isUsableSourceText(completeState.fullText), true);
+});
+
+void test("government content requires a real title and usable source text", () => {
+  assert.equal(
+    governmentContentSourceDeferralReason(
+      "[No title available]",
+      completeState.fullText,
+    ),
+    "placeholder title",
+  );
+  assert.equal(
+    governmentContentSourceDeferralReason("A real title", undefined),
+    "source text unavailable or unusable",
+  );
+  assert.equal(
+    governmentContentSourceDeferralReason(
+      "A real title",
+      completeState.fullText,
+    ),
+    undefined,
+  );
 });
 
 void test("AI article requires all expected sections", () => {

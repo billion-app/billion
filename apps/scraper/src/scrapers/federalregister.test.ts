@@ -3,7 +3,10 @@ import test from "node:test";
 
 import type { GovernmentContentTitleMatch } from "../utils/db/helpers.js";
 import { normalizeTitle } from "../utils/normalize-title.js";
-import { assignWhiteHouseMatches } from "./federalregister.js";
+import {
+  assignWhiteHouseMatches,
+  partitionReadyFederalRegisterDocuments,
+} from "./federalregister.js";
 
 const counts = (
   entries: [string, number][],
@@ -100,4 +103,57 @@ void test("an empty match map keeps everything", () => {
 
   assert.equal(unmatched.length, 2);
   assert.deepEqual(matched, []);
+});
+
+void test("the production placeholder record never reaches ingestion", () => {
+  const document = {
+    title: "[No title available]",
+    type: "Presidential Document",
+    document_number: "X26-20831",
+    publication_date: "2026-08-31",
+    abstract: null,
+    html_url:
+      "https://www.federalregister.gov/documents/2026/08/31/X26-20831/no-title-available",
+    body_html_url:
+      "https://www.federalregister.gov/documents/full_text/html/2026/08/31/X26-20831.html",
+    subtype: null,
+  };
+
+  const result = partitionReadyFederalRegisterDocuments(
+    [document],
+    new Date("2026-08-30T01:30:11.526Z"),
+  );
+
+  assert.deepEqual(result.ready, []);
+  assert.deepEqual(result.deferred, [
+    { document, reason: "placeholder title" },
+  ]);
+});
+
+void test("a real title waits until its Federal Register publication date", () => {
+  const document = {
+    title: "Further Ensuring Affordable Beef for the American Consumer",
+    type: "Presidential Document",
+    document_number: "X26-10831",
+    publication_date: "2026-08-31",
+    abstract: null,
+    html_url:
+      "https://www.federalregister.gov/documents/2026/08/31/X26-10831/further-ensuring-affordable-beef-for-the-american-consumer",
+    body_html_url: null,
+    subtype: null,
+  };
+
+  const beforePublication = partitionReadyFederalRegisterDocuments(
+    [document],
+    new Date("2026-08-30T23:59:59.999Z"),
+  );
+  const onPublicationDate = partitionReadyFederalRegisterDocuments(
+    [document],
+    new Date("2026-08-31T00:00:00.000Z"),
+  );
+
+  assert.deepEqual(beforePublication.ready, []);
+  assert.equal(beforePublication.deferred[0]?.reason, "not published yet");
+  assert.deepEqual(onPublicationDate.ready, [document]);
+  assert.deepEqual(onPublicationDate.deferred, []);
 });

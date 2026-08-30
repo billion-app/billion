@@ -117,7 +117,7 @@ async function scrape(maxItems = 20) {
             ? turndown.turndown(item.bodyHtml).trim() || undefined
             : undefined;
 
-          await upsertContent(
+          const outcome = await upsertContent(
             {
               type: "government_content",
               data: {
@@ -132,7 +132,13 @@ async function scrape(maxItems = 20) {
             { newItemLimiter },
           );
 
-          logger.success(`Scraped ${item.type}: ${item.title}`);
+          if (outcome.status === "written") {
+            logger.success(`Scraped ${item.type}: ${item.title}`);
+          } else {
+            logger.warn(
+              `${outcome.status === "deferred" ? "Deferred" : "Skipped"} ${item.url}: ${outcome.reason}`,
+            );
+          }
         } catch (error) {
           logger.error(`Error processing ${item.url}`, error);
         }

@@ -2,6 +2,12 @@ export type ReprocessMode = "missing" | "replace";
 
 export type ReprocessContentType = "bill" | "government_content" | "court_case";
 
+const PLACEHOLDER_GOVERNMENT_CONTENT_TITLES = new Set([
+  "notitleavailable",
+  "titleunavailable",
+  "untitled",
+]);
+
 export interface ReprocessingState {
   contentType: ReprocessContentType;
   fullText: string | null;
@@ -47,6 +53,25 @@ export function isUsableSourceText(
   });
 
   return boilerplateLines.length / meaningfulLines.length < 0.5;
+}
+
+export function isUsableGovernmentContentTitle(title: string): boolean {
+  const normalized = title.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (
+    normalized.length > 0 &&
+    !PLACEHOLDER_GOVERNMENT_CONTENT_TITLES.has(normalized)
+  );
+}
+
+export function governmentContentSourceDeferralReason(
+  title: string,
+  fullText: string | undefined | null,
+): "placeholder title" | "source text unavailable or unusable" | undefined {
+  if (!isUsableGovernmentContentTitle(title)) return "placeholder title";
+  if (!isUsableSourceText(fullText)) {
+    return "source text unavailable or unusable";
+  }
+  return undefined;
 }
 
 export function isUsableAIArticle(article: string | undefined | null): boolean {
