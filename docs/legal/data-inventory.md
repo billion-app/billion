@@ -198,11 +198,9 @@ The checked-in `apps/expo/store.config.json` codifies the public URLs. Sync it f
 - **Stray `billion.app` references** in non-shipped code: scraper/measure-source `User-Agent`
   strings and a `civic@billion.app` address (`apps/scraper/...`, `packages/api/src/lib/measure-sources/*`,
   `candidate-sources/*`). Not user-visible, but they point at a domain we don't own.
-- **Contact address — resolved.** The public-facing contact is now
-  `billionnewsapp@gmail.com` (the organization inbox) across the legal copy, the in-app
-  privacy screen, the Feedback tab, and the `FEEDBACK_TO_EMAIL` default. The owner's personal
-  `thatxliner@gmail.com` is retained only as the review-owner of record (above), not as a
-  public contact.
+- **Contact address — temporary fallback.** The public-facing contact is
+  `thatxliner@gmail.com` across the legal copy, the in-app privacy screen, the Feedback tab,
+  and the `FEEDBACK_TO_EMAIL` default while the organization inbox is unavailable.
 - **No acceptance gate.** There is no onboarding or first-launch flow, so users never
   affirmatively accept the Terms. Not required by Apple for a no-account, read-only app, but a
   first-launch notice ("By continuing you agree to…") linking both documents would materially

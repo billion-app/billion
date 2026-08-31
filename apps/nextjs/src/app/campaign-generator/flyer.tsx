@@ -122,7 +122,7 @@ function Flyer({ waitlist, beta }: { waitlist: QrCode; beta: QrCode }) {
               <rect x="1.2" y="1.2" width="21.6" height="15.6" rx="2.2" />
               <path d="M2.3 2.3 L12 9.9 L21.7 2.3" />
             </svg>
-            billionnewsapp@gmail.com
+            thatxliner@gmail.com
           </span>
         </span>
       </footer>

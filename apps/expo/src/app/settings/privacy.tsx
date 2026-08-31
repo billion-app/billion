@@ -50,7 +50,7 @@ const CONTROLS: Row[] = [
   {
     icon: "message",
     label: "Access or delete your data",
-    sub: "Email billionnewsapp@gmail.com and we'll help with any request.",
+    sub: "Email thatxliner@gmail.com and we'll help with any request.",
   },
 ];
 

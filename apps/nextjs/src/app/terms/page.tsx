@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Terms of Service — Billion",
 };
 
-const LAST_UPDATED = "July 23, 2026";
+const LAST_UPDATED = "August 31, 2026";
 
 const SECTIONS = [
   {
@@ -51,7 +51,7 @@ const SECTIONS = [
   },
   {
     title: "11. Contact",
-    body: "Questions about these Terms? Email us at billionnewsapp@gmail.com.",
+    body: "Questions about these Terms? Email us at thatxliner@gmail.com.",
   },
 ];
 

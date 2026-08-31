@@ -7,7 +7,7 @@ import type { Theme } from "~/styles";
 import { Text, View } from "~/components/Themed";
 import { colors, fonts, sp, useTheme } from "~/styles";
 
-const LAST_UPDATED = "July 24, 2026";
+const LAST_UPDATED = "August 31, 2026";
 
 const TERMS_SECTIONS = [
   {
@@ -52,7 +52,7 @@ const TERMS_SECTIONS = [
   },
   {
     title: "11. Contact",
-    body: "Questions about these Terms? Email us at billionnewsapp@gmail.com.",
+    body: "Questions about these Terms? Email us at thatxliner@gmail.com.",
   },
 ];
 
@@ -63,7 +63,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     title: "2. Waitlist and Landing Page",
-    body: "When you sign up for our waitlist on our website, we collect your email address to notify you when the App becomes available and to send occasional updates about Billion. Waitlist addresses are stored with our email provider, and we send a confirmation email. You can unsubscribe at any time using the link in our emails or by emailing billionnewsapp@gmail.com.",
+    body: "When you sign up for our waitlist on our website, we collect your email address to notify you when the App becomes available and to send occasional updates about Billion. Waitlist addresses are stored with our email provider, and we send a confirmation email. You can unsubscribe at any time using the link in our emails or by emailing thatxliner@gmail.com.",
   },
   {
     title: "3. How We Use Your Information",
@@ -87,7 +87,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     title: "8. Your Choices",
-    body: "You can control your information in several ways. You can edit or clear your saved address in the app at any time, and uninstalling the app removes it from your device. Uninstalling the app also stops any further analytics collection from it. You can unsubscribe from waitlist emails at any time. You may also email billionnewsapp@gmail.com to request access to, or deletion of, the information we hold about you — such as your waitlist email address or feedback you have sent — and we will honor applicable requests.",
+    body: "You can control your information in several ways. You can edit or clear your saved address in the app at any time, and uninstalling the app removes it from your device. Uninstalling the app also stops any further analytics collection from it. You can unsubscribe from waitlist emails at any time. You may also email thatxliner@gmail.com to request access to, or deletion of, the information we hold about you — such as your waitlist email address or feedback you have sent — and we will honor applicable requests.",
   },
   {
     title: "9. Security",
@@ -103,7 +103,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     title: "12. Contact",
-    body: "Questions about this Privacy Policy or your data? Email us at billionnewsapp@gmail.com.",
+    body: "Questions about this Privacy Policy or your data? Email us at thatxliner@gmail.com.",
   },
 ];
 

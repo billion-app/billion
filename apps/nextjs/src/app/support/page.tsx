@@ -81,10 +81,10 @@ export default function SupportPage() {
               We read every support request and will respond as soon as we can.
             </p>
             <a
-              href="mailto:billionnewsapp@gmail.com?subject=Billion%20app%20support"
+              href="mailto:thatxliner@gmail.com?subject=Billion%20app%20support"
               className="bg-accent text-accent-foreground inline-flex min-h-11 items-center rounded-full px-5 py-2.5 font-sans text-[14px] font-semibold no-underline transition-opacity hover:opacity-90"
             >
-              Email billionnewsapp@gmail.com
+              Email thatxliner@gmail.com
             </a>
           </div>
         </section>
