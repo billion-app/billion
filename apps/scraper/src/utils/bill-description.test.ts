@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildDualLensGrounding,
+  framingForContentType,
   isUsableDualLens,
 } from "./ai/text-generation.js";
 import {
@@ -52,6 +53,15 @@ const validLens = {
     ],
   },
 };
+
+test("every content type uses proponent/opponent lens framing", () => {
+  assert.equal(framingForContentType("bill"), "proponent_opponent");
+  assert.equal(
+    framingForContentType("government_content"),
+    "proponent_opponent",
+  );
+  assert.equal(framingForContentType("court_case"), "proponent_opponent");
+});
 
 test("isUsableDualLens rejects placeholder arguments", () => {
   assert.equal(isUsableDualLens(validLens), true);

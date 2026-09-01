@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "@types/pg": "^8.20.0",
     "@types/turndown": "^5.0.6",
     "@types/yargs": "^17.0.35",
     "tsx": "^4.21.0",
@@ -44,6 +45,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "retroactive-lenses": "tsx src/retroactive-lenses-entry.ts",
+    "normalize-lens-framing": "tsx src/normalize-lens-framing-entry.ts",
     "retroactive-briefs": "tsx src/retroactive-briefs-entry.ts",
     "reprocess-content": "tsx src/reprocess-content-entry.ts",
     "backfill-bill-descriptions": "tsx src/backfill-bill-descriptions-entry.ts",

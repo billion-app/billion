@@ -30,8 +30,8 @@ export interface LensPoint {
 export type LensFraming = "proponent_opponent" | "left_right";
 
 export interface LensData {
-  // How the two sides split: ideological (left/right) vs support-based
-  // (proponent/opponent). Defaults to proponent/opponent when absent.
+  // `left_right` is accepted only for compatibility with older cached rows.
+  // The UI always presents the two sides as proponents and opponents.
   framing?: LensFraming;
   // Points may be the new cited shape or legacy bare strings (old cached rows).
   left: { stance: string; points: (LensPoint | string)[] };
@@ -44,11 +44,30 @@ function toPoint(p: LensPoint | string): LensPoint {
   return typeof p === "string" ? { text: p, sourceIds: [] } : p;
 }
 
-/** Column axis labels for the current framing (left side, right side). */
-function kickers(framing: LensFraming | undefined): [string, string] {
-  return framing === "left_right"
-    ? ["PROGRESSIVE", "CONSERVATIVE"]
-    : ["PROPONENTS", "OPPONENTS"];
+const NEUTRAL_SIDE_LABELS = [
+  { kicker: "PROPONENTS", stance: "Proponents argue" },
+  { kicker: "OPPONENTS", stance: "Opponents counter" },
+] as const;
+
+function sideLabels(data: LensData) {
+  if (data.framing === "left_right") return NEUTRAL_SIDE_LABELS;
+
+  const kicker = (stance: string, fallback: "PROPONENTS" | "OPPONENTS") => {
+    if (/^proponents?\b/i.test(stance)) return "PROPONENTS";
+    if (/^opponents?\b/i.test(stance)) return "OPPONENTS";
+    return fallback;
+  };
+
+  return [
+    {
+      kicker: kicker(data.left.stance, "PROPONENTS"),
+      stance: data.left.stance,
+    },
+    {
+      kicker: kicker(data.right.stance, "OPPONENTS"),
+      stance: data.right.stance,
+    },
+  ] as const;
 }
 
 /* ---------- LensStrip ---------- */
@@ -106,6 +125,7 @@ export function LensStrip({
 /* ---------- LensPanel ---------- */
 export function LensPanel({ data }: { data: LensData }) {
   const sources = data.sources ?? [];
+  const labels = sideLabels(data);
   return (
     <View style={s.panel}>
       <View style={s.panelHead}>
@@ -120,6 +140,7 @@ export function LensPanel({ data }: { data: LensData }) {
       <View style={s.cols}>
         {(["left", "right"] as const).map((k, i) => {
           const lensAccent = i === 0 ? "#6DD6C7" : "#F2B56B";
+          const label = i === 0 ? labels[0] : labels[1];
           return (
             <View
               key={k}
@@ -132,9 +153,9 @@ export function LensPanel({ data }: { data: LensData }) {
               ]}
             >
               <Text style={[s.colKicker, { color: lensAccent }]}>
-                {kickers(data.framing)[i]}
+                {label.kicker}
               </Text>
-              <Text style={s.colStance}>{data[k].stance}</Text>
+              <Text style={s.colStance}>{label.stance}</Text>
               <View style={s.points}>
                 {data[k].points.map(toPoint).map((p, i) => {
                   const example =

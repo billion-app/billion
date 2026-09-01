@@ -222,24 +222,17 @@ export interface DualLensSource {
 }
 
 /**
- * How the two sides are framed. `left_right` for ideological/partisan splits
- * (progressive vs conservative); `proponent_opponent` for support-vs-oppose
- * splits. `left` is always the progressive/proponent side. Chosen
- * deterministically by content type — see framingForContentType.
+ * How the two sides are framed. New lenses always use support-vs-oppose.
+ * `left_right` remains in the type while older cached rows are migrated.
  */
 export type LensFraming = "proponent_opponent" | "left_right";
 
 /** Content types the dual-lens pipeline runs on. */
 export type LensContentType = "bill" | "government_content" | "court_case";
 
-/**
- * Deterministic framing per content type:
- *  - bill           → proponent/opponent (support vs oppose this specific bill)
- *  - government_content (executive actions) → left/right (inherently partisan policy)
- *  - court_case     → proponent/opponent (for vs against the ruling)
- */
-export function framingForContentType(type: LensContentType): LensFraming {
-  return type === "government_content" ? "left_right" : "proponent_opponent";
+/** Every content type uses the same neutral support-vs-oppose framing. */
+export function framingForContentType(_type: LensContentType): LensFraming {
+  return "proponent_opponent";
 }
 
 export interface DualLens {
@@ -304,11 +297,11 @@ const LensPointSchema = z.object({
 /** New generations must ground every argument in a cited concrete example. */
 const GeneratedDualLensSchema = z.object({
   left: z.object({
-    stance: z.string().trim().min(3),
+    stance: z.literal("Proponents argue"),
     points: z.array(LensPointSchema).min(2).max(4),
   }),
   right: z.object({
-    stance: z.string().trim().min(3),
+    stance: z.literal("Opponents counter"),
     points: z.array(LensPointSchema).min(2).max(4),
   }),
 });
@@ -644,7 +637,6 @@ ${text.substring(0, SOURCE_WINDOW)}`;
 const STRUCTURE_PROMPT = (
   title: string,
   type: string,
-  framing: LensFraming,
   research: string,
   sourceList: string,
 ) =>
@@ -659,11 +651,9 @@ and everyday words. Replace government jargon with what it means in practice:
 - Say "money promised for ten years," not "a ten-year authorization."
 If a technical term is essential, define it in the same sentence.
 
-${
-  framing === "left_right"
-    ? `Frame the two sides ideologically: "left" = the progressive/liberal view, "right" = the conservative view. Set left.stance = "Progressive view" and right.stance = "Conservative view".`
-    : `Frame the two sides by support: "left" = proponents/supporters, "right" = opponents/critics. Set left.stance = "Proponents argue" and right.stance = "Opponents counter".`
-}
+Frame the two sides by support: "left" = proponents/supporters, "right" =
+opponents/critics. Set left.stance = "Proponents argue" and right.stance =
+"Opponents counter".
 
 For each point, set "sourceIds" to the numbers of the sources (from the Sources
 list) that directly support both the argument and its example. Omit an
@@ -756,7 +746,7 @@ export async function generateDualLens(
       const { output, usage } = await generateText({
         model: getTextLlm(),
         output: Output.object({ schema: GeneratedDualLensSchema }),
-        prompt: STRUCTURE_PROMPT(title, type, framing, grounding, sourceList),
+        prompt: STRUCTURE_PROMPT(title, type, grounding, sourceList),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
       const verified = verifyCitations(output, framing, sources);
