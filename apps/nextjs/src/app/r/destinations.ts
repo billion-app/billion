@@ -18,6 +18,10 @@ export const TRACKED_DESTINATIONS = {
     // Rotates with every batch. See docs/testflight-waitlist-batches.md.
     target: "https://testflight.apple.com/join/m2ay41KF",
   },
+  ig: {
+    label: "Instagram",
+    target: "/ig",
+  },
 } as const;
 
 export type TrackedDestination = keyof typeof TRACKED_DESTINATIONS;
