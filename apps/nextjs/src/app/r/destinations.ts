@@ -19,7 +19,7 @@ export const TRACKED_DESTINATIONS = {
     target: "https://testflight.apple.com/join/m2ay41KF",
   },
   ig: {
-    label: "Instagram",
+    label: "App Store or Waitlist",
     target: "/ig",
   },
 } as const;
