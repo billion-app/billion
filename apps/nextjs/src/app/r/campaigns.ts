@@ -27,6 +27,11 @@ export const CAMPAIGN_CODES: Record<string, Record<string, string>> = {
     utm_medium: "qr",
     utm_campaign: "d10_leadership_2026_09_05",
   },
+  d10_260905_card:  {
+    utm_source: "d10_leadership_coalition",
+    utm_medium: "card",
+    utm_campaign: "d10_leadership_2026_09_05",
+  },
 
   // The short, memorable link used in the Instagram profile bio.
   instagram_bio: {
