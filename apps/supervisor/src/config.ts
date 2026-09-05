@@ -143,6 +143,18 @@ export const jobs: readonly JobDefinition[] = [
   },
   // Everything below is manual: it runs only when someone drops a request file,
   // never on a schedule.
+  {
+    id: "open-states-targeted",
+    description:
+      "Import an explicit state/session bill manifest without advancing the cursor",
+    script: "main.js",
+    // Resolved from the validated state-directory manifest before spawning.
+    args: [],
+    schedule: { kind: "manual" },
+    priority: 17,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 72,
+  },
   //
   // There is deliberately no scheduled archive backfill. The `scraper_cursor`
   // walk starts near the beginning of the congress, so an unattended job would

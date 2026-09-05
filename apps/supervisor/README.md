@@ -104,6 +104,25 @@ Requests are a directory rather than a socket or an HTTP port: no client is
 needed, they survive a supervisor restart, and they are inspectable over SSH,
 which is how this host is actually operated.
 
+### Finite state-bill imports
+
+Write `~/.local/state/billion/open-states-targeted.json` atomically on the host,
+then `touch ~/.local/state/billion/requests/open-states-targeted`. For example:
+
+```json
+{ "state": "ca", "session": "20232024", "bills": ["SB 1470"] }
+```
+
+The manual job accepts one supported state, an explicit session, and 1–200 bill
+identifiers. It runs the existing targeted CLI through the serial supervisor,
+with ordinary enrichment and no cursor advancement or retention pass. Unknown
+fields, empty lists, and CLI arguments in place of bill identifiers are rejected.
+Keep the manifest unchanged until the job has finished, including interrupted
+runs that will resume after restart. Check job state and the actual database
+records before replacing the manifest for another batch or session. Preserve a
+copy of each manifest alongside the operator's import log. Older imported bills
+remain subject to the ordinary retention policy on later daily refreshes.
+
 ## Deployment model
 
 ```
