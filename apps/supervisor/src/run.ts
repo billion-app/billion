@@ -3,6 +3,7 @@ import { createInterface } from "node:readline";
 import type { ConsolaInstance } from "consola";
 
 import type { JobDefinition } from "./types.js";
+import { resolveTargetedJob } from "./targeted.js";
 
 export interface RunResult {
   readonly exitCode: number;
@@ -32,6 +33,13 @@ export async function runJob(
 ): Promise<RunResult> {
   const { scraperDist, logger, signal } = options;
   const startedAt = Date.now();
+
+  try {
+    job = await resolveTargetedJob(job);
+  } catch (error) {
+    logger.error(`[${job.id}] Invalid targeted import manifest`, error);
+    return { exitCode: 1, timedOut: false, durationMs: Date.now() - startedAt };
+  }
 
   const child = spawn(
     process.execPath,
