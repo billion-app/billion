@@ -33,6 +33,8 @@ import { PostHogProvider } from "posthog-react-native";
 
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { GREAT_VIBES } from "~/components/digest/staticAssets";
+import { ClaimWorkspaceGate } from "~/components/onboarding/ClaimWorkspaceSheet";
+import { OnboardingGate } from "~/components/onboarding/OnboardingGate";
 import { UpdatePrompt } from "~/components/UpdatePrompt";
 import { posthog } from "~/config/posthog";
 import { useTheme } from "~/styles";
@@ -193,7 +195,10 @@ export default function RootLayout() {
             }}
           >
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="(onboarding)" />
           </Stack>
+          <OnboardingGate />
+          <ClaimWorkspaceGate />
           {/* Absolute overlay: update banner sits above Stack without affecting tab/stack layout */}
           <UpdatePrompt />
           <StatusBar style={statusBarStyleFor(pathname)} />
