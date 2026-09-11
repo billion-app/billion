@@ -1,6 +1,7 @@
 import type { Href } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
@@ -15,7 +16,16 @@ import {
   TabScreen,
 } from "~/components/ui";
 import { posthog } from "~/config/posthog";
-import { colors, hair, planes } from "~/styles";
+import {
+  colors,
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette as P,
+  DigestRadii,
+  DigestSpace,
+  DigestType,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import { getAppVersion } from "~/utils/app-version";
 import { authClient } from "~/utils/auth";
@@ -112,6 +122,7 @@ function buildGroups(
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const sessionQuery = useQuery(trpc.auth.getSession.queryOptions());
   const prefsQuery = useQuery({
     ...trpc.user.getPreferences.queryOptions(),
@@ -128,7 +139,7 @@ export default function SettingsScreen() {
   const topicCount = prefsQuery.data?.topics.length ?? 0;
 
   return (
-    <TabScreen title="Settings" contentStyle={{ gap: 22 }}>
+    <TabScreen title="Settings" contentStyle={{ gap: 14 }}>
       {/* profile card */}
       <View style={s.section}>
         <TouchableOpacity
@@ -141,15 +152,15 @@ export default function SettingsScreen() {
               <Text style={s.profileName}>{profileName}</Text>
               <Text style={s.profileMeta}>{profileMeta}</Text>
             </View>
-            <Icon name="chevR" size={18} color="#5B6172" />
+            <Icon name="chevR" size={18} color={P.quiet} />
           </Card>
         </TouchableOpacity>
       </View>
 
       {buildGroups(profileEmail, topicCount).map((g) => (
         <View key={g.title} style={s.section}>
-          <Kicker style={{ paddingLeft: 4 }}>{g.title}</Kicker>
-          <Card flush>
+          <Kicker style={s.sectionKicker}>{g.title}</Kicker>
+          <Card flush style={s.groupCard}>
             {g.items.map((it, i) => (
               <SettingsRow
                 key={it.label}
@@ -167,36 +178,51 @@ export default function SettingsScreen() {
       <GhostButton
         label="Sign out"
         color={colors.red[500]}
-        style={{ alignSelf: "center" }}
+        style={{ alignSelf: "center", marginTop: 4, marginBottom: 8 }}
         onPress={() => {
           posthog.capture("user_signed_out");
           posthog.reset();
           void authClient.signOut();
         }}
       />
+      {/* Peek pad — SUPPORT / Help&FAQ clear tab fold. */}
+      <View style={{ height: 48 + insets.bottom }} />
     </TabScreen>
   );
 }
 
 const s = StyleSheet.create({
-  section: { paddingHorizontal: 20 },
+  section: { paddingHorizontal: DigestSpace.screenPadX + 4 },
+  sectionKicker: {
+    ...DigestType.sectionEyebrow,
+    color: P.quiet,
+    paddingLeft: 4,
+    marginBottom: 8,
+  },
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
     padding: 18,
-    borderColor: hair[1],
-    backgroundColor: planes.slate,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: P.stone,
+    borderRadius: DigestRadii.card,
+  },
+  groupCard: {
+    backgroundColor: P.stone,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.card,
   },
   profileName: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 18,
-    color: colors.white,
+    letterSpacing: -0.3,
+    color: P.inkOnNight,
   },
   profileMeta: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: P.quiet,
     marginTop: 2,
   },
 });
