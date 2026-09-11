@@ -32,7 +32,7 @@ void test("Expo surface never includes secrets", () => {
   assert.deepEqual(
     definitionsFor("expo").map(({ definition }) => definition.key),
     [
-      "POSTHOG_PROJECT_TOKEN",
+      "EXPO_PUBLIC_POSTHOG_TOKEN",
       "POSTHOG_HOST",
       "EXPO_PUBLIC_API_URL",
       "META_APP_ID",
@@ -51,20 +51,20 @@ void test("Expo requires valid PostHog configuration", () => {
   });
   assert.deepEqual(
     missing.issues.map((issue) => issue.key),
-    ["POSTHOG_PROJECT_TOKEN", "POSTHOG_HOST"],
+    ["EXPO_PUBLIC_POSTHOG_TOKEN", "POSTHOG_HOST"],
   );
 
   const invalid = validateEnvironment({
     environment: {
       EXPO_PUBLIC_API_URL: "https://example.com",
-      POSTHOG_PROJECT_TOKEN: "not-a-project-token",
+      EXPO_PUBLIC_POSTHOG_TOKEN: "not-a-project-token",
       POSTHOG_HOST: "not-a-url",
     },
     surface: "expo",
   });
   assert.deepEqual(
     invalid.issues.map((issue) => issue.key),
-    ["POSTHOG_PROJECT_TOKEN", "POSTHOG_HOST"],
+    ["EXPO_PUBLIC_POSTHOG_TOKEN", "POSTHOG_HOST"],
   );
 });
 

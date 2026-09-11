@@ -182,6 +182,19 @@ Do not append `/api/trpc`; the client appends it. Do not use a trailing slash.
 Because this is an `EXPO_PUBLIC_*` variable, its value is visible in the app
 bundle. It must contain only the public API origin, never an API key or secret.
 
+Mobile analytics reads `EXPO_PUBLIC_POSTHOG_TOKEN` directly in
+[PostHog initialization](../apps/expo/src/config/posthog.ts). Configure this
+public project token in `apps/expo/.env` locally and in each EAS environment.
+Expo inlines it into the JavaScript bundle; it is not a secret. Keeping it out
+of `app.config.js` means future token rotations do not change the native
+fingerprint and can ship in a compatible OTA update. The initial migration
+changes the fingerprint because it removes the old `extra.posthogProjectToken`
+field, so it still needs a new store build.
+
+`POSTHOG_HOST` continues to configure the ingestion host through app config.
+The old `POSTHOG_PROJECT_TOKEN` EAS variable is retained only for releases built
+from older source; current source uses `EXPO_PUBLIC_POSTHOG_TOKEN`.
+
 ## Scraper and scheduled data jobs
 
 The registered CLI scrapers are `whitehouse`, `federalregister`, `legistar`,

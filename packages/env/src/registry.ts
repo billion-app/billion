@@ -259,7 +259,7 @@ export const envRegistry = [
     schema: positiveInteger,
   }),
   define({
-    key: "POSTHOG_PROJECT_TOKEN",
+    key: "EXPO_PUBLIC_POSTHOG_TOKEN",
     description: "PostHog project token compiled into Expo builds.",
     group: "Analytics",
     secret: false,
