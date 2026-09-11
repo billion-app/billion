@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
@@ -17,6 +17,8 @@ import type { ContentItem } from "~/utils/content";
 import type { FeaturedBillItem } from "~/utils/featured-bills";
 import { ElectionBanner } from "~/components/ElectionBanner";
 import { FeaturedBills } from "~/components/FeaturedBills";
+import { DigestHome } from "~/components/DigestHome";
+import { ProfileMarkButton } from "~/components/DigestProfileMark";
 import {
   JurisdictionPicker,
   JurisdictionScopeRow,
@@ -28,7 +30,14 @@ import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useDebounced } from "~/hooks/useDebounce";
 import { isSaveable, useSavedContent } from "~/hooks/useSavedContent";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
@@ -56,8 +65,9 @@ const FILTERS: { id: ContentFilter; label: string }[] = [
   { id: "general", label: "Briefings" },
 ];
 
-export default function BrowseScreen() {
+export function BrowseCatalog() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<ContentFilter>("all");
   const [query, setQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -254,7 +264,7 @@ export default function BrowseScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={() => void handleRefresh()}
-            tintColor={colors.white}
+            tintColor={DigestPalette.inkOnNight}
           />
         }
         ListHeaderComponent={
@@ -277,9 +287,10 @@ export default function BrowseScreen() {
                   accessibilityLabel="Open saved articles"
                   testID="browse-saved"
                 >
-                  <Icon name="bookmark" size={16} color={colors.white} />
+                  <Icon name="bookmark" size={16} color={DigestPalette.inkOnNight} />
                   <Text style={s.savedBtnText}>Saved</Text>
                 </TouchableOpacity>
+                <ProfileMarkButton menuTop={insets.top + 52} />
               </View>
               <Text style={s.subtitle}>
                 What {jurisdictionInfo.subtitlePlace} is{" "}
@@ -295,7 +306,7 @@ export default function BrowseScreen() {
                 onChangeText={handleSearch}
                 clearButtonMode="while-editing"
                 returnKeyType="search"
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: 12 }}
               />
             </View>
 
@@ -384,7 +395,7 @@ export default function BrowseScreen() {
                   onPress={() => void setJurisdiction(otherJurisdiction)}
                 >
                   <Text style={s.switchText}>Switch</Text>
-                  <Icon name="chevR" size={15} color={colors.bill} />
+                  <Icon name="chevR" size={15} color={DigestPalette.spark} />
                 </TouchableOpacity>
               </View>
               {(otherSearchQuery.data ?? []).map((item) => (
@@ -409,7 +420,7 @@ export default function BrowseScreen() {
             </View>
           ) : !isSearching && isFetchingNextPage ? (
             <ActivityIndicator
-              color={colors.white}
+              color={DigestPalette.inkOnNight}
               style={{ marginVertical: 16 }}
             />
           ) : null
@@ -418,7 +429,7 @@ export default function BrowseScreen() {
           listIsLoading ? (
             <ActivityIndicator
               size="large"
-              color={colors.white}
+              color={DigestPalette.inkOnNight}
               style={{ marginTop: 48 }}
             />
           ) : listError ? (
@@ -492,8 +503,8 @@ export default function BrowseScreen() {
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: planes.navy },
-  headerPad: { paddingHorizontal: 20 },
+  screen: { flex: 1, backgroundColor: DigestPalette.canvas },
+  headerPad: { paddingHorizontal: DigestSpace.screenPadX },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -505,9 +516,9 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    backgroundColor: planes.slate,
+    backgroundColor: DigestPalette.card,
     borderWidth: 1,
-    borderColor: hair[2],
+    borderColor: DigestHair.cardBorder,
     borderRadius: 18,
     paddingVertical: 8,
     paddingHorizontal: 13,
@@ -515,80 +526,86 @@ const s = StyleSheet.create({
   savedBtnText: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   display: {
     fontFamily: fontDisplay.bold,
     fontSize: 36,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
     lineHeight: 40,
+    letterSpacing: -0.7,
   },
   subtitle: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 14.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     marginTop: 4,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   subtitleEm: {
     fontFamily: fontDisplay.italic,
     fontStyle: "italic",
-    color: "rgba(255,255,255,0.85)",
+    color: DigestPalette.inkOnNight,
   },
-  cardWrap: { paddingHorizontal: 20 },
-  resultsCountWrap: { paddingHorizontal: 20, paddingTop: 18 },
+  cardWrap: { paddingHorizontal: DigestSpace.screenPadX },
+  resultsCountWrap: {
+    paddingHorizontal: DigestSpace.screenPadX,
+    // Tighten featured→list gap (eggbot card→dots / section rhythm).
+    paddingTop: 12,
+  },
   resultsCount: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
     letterSpacing: 0.6,
     textTransform: "uppercase",
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     marginBottom: 12,
   },
   center: {
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: DigestSpace.screenPadX,
     paddingVertical: 64,
     gap: 8,
   },
   errorText: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 16,
-    color: colors.red[500],
+    color: DigestPalette.spark,
   },
   emptyTitle: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 18,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   emptySub: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     textAlign: "center",
     lineHeight: 20,
   },
   emptyAction: {
     borderWidth: 1,
-    borderColor: hair[2],
+    borderColor: DigestHair.cardBorder,
     borderRadius: 999,
     paddingHorizontal: 18,
     paddingVertical: 10,
     marginTop: 10,
+    backgroundColor: DigestHair.tabActivePill,
   },
   emptyActionText: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   otherResults: {
-    marginHorizontal: 20,
+    marginHorizontal: DigestSpace.screenPadX,
     marginTop: 24,
     padding: 14,
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: hair[3],
-    borderRadius: 16,
+    borderColor: DigestHair.sectionRule,
+    borderRadius: DigestRadii.card,
   },
   otherResultsHead: {
     flexDirection: "row",
@@ -599,7 +616,11 @@ const s = StyleSheet.create({
   switchText: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: colors.bill,
+    color: DigestPalette.spark,
   },
   otherCard: { marginTop: 12 },
 });
+
+export default function BrowseScreen() {
+  return <DigestHome />;
+}

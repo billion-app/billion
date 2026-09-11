@@ -1,54 +1,53 @@
-/** TabBar — blurred translucent bottom bar matching new-design. */
+/**
+ * TabBar — Billion Digest editorial chrome.
+ * Quiet luxury: canvas night, spark active signal, hairline top rule,
+ * hand-crafted stroke icons, underline active mark (no soft AI pill blob).
+ */
 import type { Tabs } from "expo-router";
 import type { ComponentProps } from "react";
 import {
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BlurView } from "expo-blur";
 
-import type { IconName } from "./Icon";
-import { colors, fontBody, hair } from "~/styles";
-import { Icon } from "./Icon";
+import {
+  DigestPalette as P,
+  DigestSpace,
+  DigestTabBar,
+  DigestType,
+} from "~/styles";
 import {
   getTabBarItemDisplay,
   isTabRouteHidden,
 } from "./tab-bar-visibility";
+import { TAB_ROUTE_ICON, TabChromeIcon } from "./TabChromeIcons";
 
-// expo-router's Tabs accepts a custom `tabBar` render prop; derive its props
-// type from there so we don't depend on @react-navigation/bottom-tabs directly.
 type TabBarProps = Parameters<
   NonNullable<ComponentProps<typeof Tabs>["tabBar"]>
 >[0];
 
-const ICONS: Record<string, IconName> = {
-  index: "search",
-  feed: "layers",
-  elections: "vote",
-  feedback: "message",
-  settings: "settings",
-};
-
 export function TabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   return (
-    <BlurView
-      intensity={Platform.OS === "ios" ? 40 : 0}
-      tint="dark"
-      style={[s.bar, { paddingBottom: insets.bottom }]}
+    <View
+      style={[
+        s.bar,
+        {
+          paddingBottom: Math.max(insets.bottom, 8),
+          backgroundColor: DigestTabBar.background,
+        },
+      ]}
     >
+      <View style={s.rule} />
       <View style={s.inner}>
         {state.routes.map((route, index) => {
           const descriptor = descriptors[route.key];
           if (!descriptor) return null;
           const { options } = descriptor;
           const itemStyle = StyleSheet.flatten(options.tabBarItemStyle);
-          // Expo Router removes `href` before descriptors reach custom bars
-          // and translates hidden routes to `display: none` instead.
           if (
             isTabRouteHidden({
               routeName: route.name,
@@ -74,41 +73,95 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
               navigation.navigate(route.name);
             }
           };
-          const color = focused ? colors.white : colors.textSecondary;
+          const color = focused ? DigestTabBar.active : DigestTabBar.inactive;
+          const iconName = TAB_ROUTE_ICON[route.name] ?? "home";
           return (
             <TouchableOpacity
               key={route.key}
               style={s.tab}
               onPress={onPress}
-              activeOpacity={0.7}
+              activeOpacity={0.72}
+              accessibilityRole="button"
+              accessibilityState={{ selected: focused }}
+              accessibilityLabel={label}
             >
-              <Icon
-                name={ICONS[route.name] ?? "home"}
-                size={23}
-                color={color}
-              />
-              <Text style={[s.label, { color }]}>{label}</Text>
+              <View style={s.iconCol}>
+                <TabChromeIcon
+                  name={iconName}
+                  size={DigestTabBar.iconSize}
+                  color={color}
+                  strokeWidth={focused ? 1.75 : 1.55}
+                />
+                <View
+                  style={[
+                    s.activeMark,
+                    focused ? s.activeMarkOn : s.activeMarkOff,
+                  ]}
+                />
+              </View>
+              <Text
+                style={[
+                  s.label,
+                  { color },
+                  focused ? s.labelOn : null,
+                ]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
             </TouchableOpacity>
           );
         })}
       </View>
-    </BlurView>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
   bar: {
-    backgroundColor: "rgba(14,21,48,0.86)",
-    borderTopWidth: 1,
-    borderTopColor: hair[1],
+    borderTopWidth: 0,
+  },
+  /** Explicit hairline so density reads intentional on night canvas. */
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: DigestTabBar.borderTop,
   },
   inner: {
     flexDirection: "row",
-    paddingTop: 10,
-    paddingHorizontal: 24,
-    gap: 4,
-    height: 74,
+    paddingTop: DigestSpace.tabBarPadTop,
+    paddingHorizontal: DigestSpace.tabBarPadX,
+    height: DigestSpace.tabBarInnerHeight,
   },
-  tab: { flex: 1, alignItems: "center", gap: 5, paddingTop: 4 },
-  label: { fontFamily: fontBody.semibold, fontSize: 11, letterSpacing: 0.2 },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 4,
+    paddingTop: 2,
+  },
+  iconCol: {
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activeMark: {
+    marginTop: 4,
+    height: 2,
+    borderRadius: 1,
+  },
+  activeMarkOn: {
+    width: 16,
+    backgroundColor: P.spark,
+  },
+  activeMarkOff: {
+    width: 16,
+    backgroundColor: "transparent",
+  },
+  label: {
+    ...DigestType.tabLabel,
+  },
+  labelOn: {
+    fontFamily: DigestType.tabLabel.fontFamily,
+    letterSpacing: 0.35,
+  },
 });

@@ -9,15 +9,21 @@ export default function TabLayout() {
     <Tabs
       tabBar={(props) => <TabBar {...props} />}
       screenOptions={{ headerShown: false }}
+      initialRouteName="index"
     >
-      <Tabs.Screen name="index" options={{ title: "Browse" }} />
-      <Tabs.Screen name="feed" options={{ title: "Feed", href: null }} />
+      <Tabs.Screen name="index" options={{ title: "Home" }} />
+      <Tabs.Screen name="feed" options={{ title: "Browse" }} />
       <Tabs.Screen name="elections" options={{ title: "Elections" }} />
-      {/* Temporary: routes feedback to email while server-side intake is pending. */}
-      <Tabs.Screen name="feedback" options={{ title: "Feedback" }} />
+      {/* Feedback and Settings are reached from the profile mark in the top
+          right (DigestProfileMark), not the tab bar. The routes stay mounted
+          so router.push keeps working. */}
+      <Tabs.Screen
+        name="feedback"
+        options={{ title: "Feedback", href: null }}
+      />
       <Tabs.Screen
         name="settings"
-        options={{ title: "Settings", href: __DEV__ ? undefined : null }}
+        options={{ title: "Settings", href: null }}
       />
     </Tabs>
   );
