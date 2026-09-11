@@ -873,15 +873,23 @@ export function BillBrief({
       ) : null}
       <Terms terms={data.terms} accent={accent} />
 
-      <BlockTitle>What would change</BlockTitle>
-      <Changes
-        changes={data.changes}
-        accent={accent}
-        onViewSource={onViewSource}
-      />
+      {data.changes.length > 0 ? (
+        <>
+          <BlockTitle>What would change</BlockTitle>
+          <Changes
+            changes={data.changes}
+            accent={accent}
+            onViewSource={onViewSource}
+          />
+        </>
+      ) : null}
 
-      <BlockTitle>Who it lands on</BlockTitle>
-      <Affected affected={data.affected} />
+      {data.affected.length > 0 ? (
+        <>
+          <BlockTitle>Who it lands on</BlockTitle>
+          <Affected affected={data.affected} />
+        </>
+      ) : null}
 
       <Unknowns unknowns={data.unknowns} accent={accent} />
 
@@ -907,7 +915,7 @@ export function BillBrief({
 }
 
 const s = StyleSheet.create({
-  root: { gap: 18 },
+  root: { gap: 16 },
 
   /* summary */
   summaryCard: {

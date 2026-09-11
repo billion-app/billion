@@ -8,7 +8,15 @@ import { Image } from "expo-image";
 
 import type { ContentTypeKey } from "~/styles";
 import { useRelativeActivity } from "~/hooks/useRelativeActivity";
-import { colors, contentType, fontBody, hair, planes } from "~/styles";
+import {
+  contentType,
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { Icon } from "./Icon";
 import { Badge, Spine } from "./primitives";
@@ -87,7 +95,7 @@ export function ContentCard({
             <Icon
               name={saved ? "bookmarkFill" : "bookmark"}
               size={19}
-              color={saved ? colors.white : colors.textSecondary}
+              color={saved ? DigestPalette.spark : DigestPalette.quiet}
             />
           </TouchableOpacity>
         )}
@@ -130,7 +138,9 @@ export function ContentCard({
               s.status,
               {
                 color:
-                  item.statusTone === "warning" ? colors.yellow[500] : t.color,
+                  item.statusTone === "warning"
+                    ? DigestPalette.spark
+                    : DigestPalette.quiet,
               },
             ]}
             numberOfLines={2}
@@ -157,25 +167,20 @@ export function ContentCard({
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: planes.slate,
+    backgroundColor: DigestPalette.card,
     borderWidth: 1,
-    borderColor: hair[1],
-    borderRadius: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.card,
+    paddingTop: DigestSpace.cardBodyPadTop,
+    paddingBottom: DigestSpace.cardBodyPadBottom,
     paddingLeft: 22,
-    paddingRight: 18,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.32,
-    shadowRadius: 24,
-    elevation: 3,
+    paddingRight: DigestSpace.cardBodyPadX,
   },
   top: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 11,
+    marginBottom: 8,
   },
   topLeft: {
     flexDirection: "row",
@@ -187,17 +192,17 @@ const s = StyleSheet.create({
   contentRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 14,
+    gap: DigestSpace.railGap,
   },
   copy: { flex: 1, minWidth: 0 },
   thumbnail: {
     width: 78,
     aspectRatio: 1,
-    borderRadius: 11,
+    borderRadius: DigestRadii.coverArt,
     overflow: "hidden",
-    backgroundColor: planes.surface,
+    backgroundColor: DigestPalette.stone,
     borderWidth: 1,
-    borderColor: hair[2],
+    borderColor: DigestHair.cardBorder,
   },
   thumbnailFallback: {
     flex: 1,
@@ -209,41 +214,44 @@ const s = StyleSheet.create({
     fontFamily: fontBody.bold,
     fontSize: 10,
     letterSpacing: 0.8,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   tag: {
-    fontFamily: fontBody.semibold,
-    fontSize: 12,
-    letterSpacing: 0.3,
-    color: colors.textSecondary,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 0.15,
+    textTransform: "uppercase",
+    color: DigestPalette.spark,
   },
   jurisdictionChip: {
     borderWidth: 1,
-    borderColor: hair[3],
-    borderRadius: 6,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.menuRow,
     paddingHorizontal: 7,
     paddingVertical: 2,
+    backgroundColor: DigestHair.tabActivePill,
   },
   jurisdictionChipText: {
-    fontFamily: fontBody.semibold,
+    fontFamily: fontBody.bold,
     fontSize: 10,
     letterSpacing: 0.8,
-    color: colors.textSecondary,
+    color: DigestPalette.spark,
   },
   bookmark: { padding: 4 },
   title: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 19,
-    color: colors.white,
-    marginBottom: 7,
+    color: DigestPalette.inkOnNight,
+    marginBottom: 4,
     lineHeight: 23,
+    letterSpacing: -0.35,
   },
   gist: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
+    fontFamily: fontBody.regular,
+    fontSize: 13.5,
+    color: DigestPalette.quiet,
     lineHeight: 19,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   bottom: {
     alignItems: "flex-start",
@@ -258,15 +266,15 @@ const s = StyleSheet.create({
   },
   updated: {
     width: "100%",
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
   meta: {
     width: "100%",
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 12,
     lineHeight: 17,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
 });
