@@ -11,7 +11,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ContentJurisdiction } from "~/utils/jurisdiction";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker } from "~/components/ui";
-import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestShadow,
+  DigestSpace,
+} from "~/styles";
 import {
   jurisdictionFromAddress,
   JURISDICTIONS,
@@ -36,7 +44,7 @@ export function JurisdictionScopeRow({
       testID="jurisdiction-scope"
     >
       <View style={s.scopeIcon}>
-        <Icon name={item.icon} size={22} color={colors.bill} />
+        <Icon name={item.icon} size={22} color={DigestPalette.spark} />
       </View>
       <View style={s.scopeCopy}>
         <Kicker style={s.scopeKicker}>Jurisdiction</Kicker>
@@ -45,7 +53,7 @@ export function JurisdictionScopeRow({
       </View>
       <View style={s.change}>
         <Text style={s.changeText}>Change</Text>
-        <Icon name="chevR" size={17} color={colors.bill} />
+        <Icon name="chevR" size={17} color={DigestPalette.spark} />
       </View>
     </TouchableOpacity>
   );
@@ -92,14 +100,14 @@ export function JurisdictionPicker({
 
             {!address ? (
               <TouchableOpacity style={s.addressOffer} onPress={onSetAddress}>
-                <Icon name="pin" size={17} color={colors.bill} />
+                <Icon name="pin" size={17} color={DigestPalette.spark} />
                 <View style={s.addressCopy}>
                   <Text style={s.addressTitle}>Set my address</Text>
                   <Text style={s.addressSub}>
                     We’ll mark your state when it’s covered.
                   </Text>
                 </View>
-                <Icon name="chevR" size={16} color={colors.bill} />
+                <Icon name="chevR" size={16} color={DigestPalette.spark} />
               </TouchableOpacity>
             ) : null}
 
@@ -122,7 +130,7 @@ export function JurisdictionPicker({
             ))}
 
             <View style={s.coverageNote}>
-              <Icon name="info" size={16} color={colors.textSecondary} />
+              <Icon name="info" size={16} color={DigestPalette.quiet} />
               <Text style={s.coverageText}>
                 State bill coverage currently includes California, North
                 Carolina and Texas.
@@ -165,7 +173,9 @@ function JurisdictionOption({
         </Text>
         <Text style={s.optionDescription}>{item.description}</Text>
       </View>
-      {selected ? <Icon name="check" size={22} color={colors.bill} /> : null}
+      {selected ? (
+        <Icon name="check" size={22} color={DigestPalette.spark} />
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -173,10 +183,10 @@ function JurisdictionOption({
 const s = StyleSheet.create({
   scope: {
     minHeight: 80,
-    backgroundColor: planes.slate,
+    backgroundColor: DigestPalette.card,
     borderWidth: 1,
-    borderColor: hair[1],
-    borderRadius: 16,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.card,
     padding: 14,
     marginBottom: 16,
     flexDirection: "row",
@@ -186,31 +196,36 @@ const s = StyleSheet.create({
   scopeIcon: {
     width: 42,
     height: 42,
-    borderRadius: 12,
-    backgroundColor: "rgba(74,124,255,0.16)",
+    borderRadius: DigestRadii.menu,
+    backgroundColor: DigestHair.tabActivePill,
     alignItems: "center",
     justifyContent: "center",
   },
   scopeCopy: { flex: 1, minWidth: 0 },
-  scopeKicker: { marginBottom: 3 },
+  scopeKicker: {
+    marginBottom: 3,
+    color: DigestPalette.spark,
+    fontFamily: fontBody.bold,
+    letterSpacing: 2.1,
+  },
   scopeBody: {
     fontFamily: fontBody.semibold,
     fontSize: 16,
     lineHeight: 21,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   scopeSession: {
     fontFamily: fontBody.regular,
     fontSize: 12.5,
     lineHeight: 18,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     marginTop: 2,
   },
   change: { flexDirection: "row", alignItems: "center", gap: 2 },
   changeText: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: colors.bill,
+    color: DigestPalette.spark,
   },
   modal: { flex: 1, justifyContent: "flex-end" },
   scrim: {
@@ -219,23 +234,24 @@ const s = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: "rgba(4,8,22,0.72)",
+    backgroundColor: DigestHair.menuScrim,
   },
   sheet: {
     maxHeight: "82%",
-    backgroundColor: planes.navy,
+    backgroundColor: DigestPalette.canvas,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingHorizontal: 20,
+    paddingHorizontal: DigestSpace.screenPadX,
     paddingTop: 10,
     borderWidth: 1,
-    borderColor: hair[2],
+    borderColor: DigestHair.menuBorder,
+    ...DigestShadow.menu,
   },
   handle: {
     width: 38,
     height: 5,
     borderRadius: 3,
-    backgroundColor: hair[3],
+    backgroundColor: DigestHair.sectionRule,
     alignSelf: "center",
     marginBottom: 24,
   },
@@ -243,13 +259,14 @@ const s = StyleSheet.create({
     fontFamily: fontDisplay.bold,
     fontSize: 30,
     lineHeight: 36,
-    color: colors.white,
+    letterSpacing: -0.7,
+    color: DigestPalette.inkOnNight,
   },
   intro: {
     fontFamily: fontBody.regular,
     fontSize: 15,
     lineHeight: 23,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     marginTop: 6,
     marginBottom: 22,
   },
@@ -259,66 +276,79 @@ const s = StyleSheet.create({
     gap: 10,
     paddingVertical: 12,
     paddingHorizontal: 13,
-    borderRadius: 12,
+    borderRadius: DigestRadii.menu,
     borderWidth: 1,
-    borderColor: hair[2],
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.card,
     marginBottom: 20,
   },
   addressCopy: { flex: 1 },
   addressTitle: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   addressSub: {
     fontFamily: fontBody.regular,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     marginTop: 2,
   },
-  groupLabel: { marginTop: 4, marginBottom: 10 },
+  groupLabel: {
+    marginTop: 4,
+    marginBottom: 10,
+    color: DigestPalette.spark,
+    fontFamily: fontBody.bold,
+    letterSpacing: 2.1,
+  },
   option: {
     minHeight: 88,
     flexDirection: "row",
     alignItems: "center",
     gap: 13,
     padding: 14,
-    backgroundColor: planes.slate,
+    backgroundColor: DigestPalette.card,
     borderWidth: 1,
-    borderColor: hair[1],
-    borderRadius: 16,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.card,
     marginBottom: 22,
   },
-  optionSelected: { borderColor: colors.bill },
+  optionSelected: {
+    borderColor: DigestPalette.spark,
+    backgroundColor: DigestHair.menuRowOn,
+  },
   codeTile: {
     width: 42,
     height: 42,
-    borderRadius: 11,
+    borderRadius: DigestRadii.menuRow,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: planes.surface,
+    backgroundColor: DigestPalette.stone,
     borderWidth: 1,
-    borderColor: hair[3],
+    borderColor: DigestHair.cardBorder,
   },
-  codeTileSelected: { borderColor: colors.bill },
+  codeTileSelected: {
+    borderColor: DigestPalette.spark,
+    backgroundColor: DigestHair.tabActivePill,
+  },
   code: {
     fontFamily: fontDisplay.regular,
     fontSize: 17,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
-  codeSelected: { color: colors.bill },
+  codeSelected: { color: DigestPalette.spark },
   optionCopy: { flex: 1, minWidth: 0 },
   optionTitle: {
     fontFamily: fontBody.semibold,
     fontSize: 16,
     lineHeight: 21,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   optionDescription: {
     fontFamily: fontBody.regular,
     fontSize: 13.5,
     lineHeight: 20,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     marginTop: 3,
   },
   coverageNote: {
@@ -332,6 +362,6 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 20,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
 });

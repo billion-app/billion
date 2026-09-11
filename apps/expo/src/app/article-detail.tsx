@@ -39,15 +39,19 @@ import { useScreenshotDetection } from "~/hooks/useScreenshotDetection";
 import {
   colors,
   contentType,
-  darkTheme,
   fontBody,
   fontDisplay,
   fontEditorial,
   getMarkdownStyles,
-  hair,
-  planes,
+  lightTheme,
   resolveType,
+  DigestHair,
+  DigestPalette as P,
+  DigestRadii,
+  DigestSpace,
+  DigestType,
 } from "~/styles";
+import { PullQuoteMark } from "~/components/digest/CraftMarks";
 import { trpc } from "~/utils/api";
 import { formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
@@ -147,8 +151,8 @@ export default function ArticleDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
-        <ActivityIndicator size="large" color={colors.white} />
+      <View style={[s.fullCenter, { backgroundColor: P.paper }]}>
+        <ActivityIndicator size="large" color={P.spark} />
         <Text style={s.loadingText}>Loading content…</Text>
       </View>
     );
@@ -156,7 +160,7 @@ export default function ArticleDetailScreen() {
 
   if (error || !content) {
     return (
-      <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
+      <View style={[s.fullCenter, { backgroundColor: P.paper }]}>
         <Text style={s.errorTitle}>
           {error ? "Failed to load content" : "Content not found"}
         </Text>
@@ -171,10 +175,18 @@ export default function ArticleDetailScreen() {
 
   const typeKey = resolveType(content.type);
   const t = contentType[typeKey];
-  // This screen is always rendered on the dark navy canvas, independent of
-  // the phone's appearance setting. Using the light system theme here made
-  // valid article markdown navy-on-navy and appear completely empty.
-  const markdownStyles = getMarkdownStyles(darkTheme);
+  // Paper-brief reading surface (NavHeader tone="paper"). Override lightTheme
+  // slots with Digest paper/ink/quiet/spark so markdown matches the cream page.
+  const markdownStyles = getMarkdownStyles({
+    ...lightTheme,
+    background: P.paper,
+    foreground: P.ink,
+    card: P.cream,
+    cardForeground: P.ink,
+    muted: P.cream,
+    mutedForeground: P.quiet,
+    accent: P.spark,
+  });
   const markdownRules: RenderRules = {
     image: (
       node,
@@ -252,8 +264,64 @@ export default function ArticleDetailScreen() {
   // generated. Content without a brief (every type except bills, and bills the
   // pipeline hasn't reached yet) keeps rendering the long-form article, so this
   // is additive rather than a cutover.
-  const brief: BillBriefData | null =
+  const rawBrief: BillBriefData | null =
     "brief" in content ? (content.brief as BillBriefData | null) : null;
+
+  // TRUST P0 (eggbot / craft-loop): fail-closed mismatch hide.
+  // Never keep a brief that only title-echoes ("this 'Wildfire' bill…") while the
+  // proposal text drifts (youth housing). Prefer hide → plain explainer, or
+  // BillBrief trustFallback uses real content.description (getById — not invented).
+  const briefAligned = (briefData: BillBriefData): boolean => {
+    const STOP = new Set([
+      "this", "that", "with", "from", "would", "could", "should", "about",
+      "after", "before", "their", "there", "these", "those", "into", "onto",
+      "over", "under", "than", "then", "also", "only", "just", "been", "have",
+      "will", "shall", "each", "such", "when", "what", "which", "while", "where",
+      "your", "ours", "them", "they", "were", "been", "and", "the", "for", "are",
+      "was", "but", "not", "you", "all", "can", "her", "his", "its", "our", "out",
+      "bill", "acts", "act", "state", "year", "years", "passed", "pass",
+      "create", "rules", "let", "see", "puts", "put", "make", "made",
+    ]);
+    const tokenize = (s: string) =>
+      [
+        ...new Set(
+          s
+            .toLowerCase()
+            .split(/[^a-z0-9]+/)
+            .filter((w) => w.length > 3 && !STOP.has(w)),
+        ),
+      ];
+    const titleTokens = new Set(tokenize(content.title));
+    const dekTokens = tokenize(content.description).filter(
+      (t) => !titleTokens.has(t),
+    );
+    const body = `${briefData.summary ?? ""} ${briefData.hook}`.toLowerCase();
+    const bodyToks = tokenize(body);
+    if (!body.trim()) return false;
+
+    // Fail-closed when no dek: reject title-echo + novel-dominated briefs.
+    if (dekTokens.length === 0) {
+      const novel = bodyToks.filter((t) => !titleTokens.has(t));
+      if (titleTokens.size > 0 && novel.length >= 4) return false;
+      return true;
+    }
+
+    const dekHits = dekTokens.filter((t) => body.includes(t));
+    return dekHits.length >= 1 && dekHits.length / dekTokens.length >= 0.35;
+  };
+
+  const brief: BillBriefData | null =
+    rawBrief && briefAligned(rawBrief) ? rawBrief : null;
+
+  // Editorial pull quote — first notable BriefQuote (≥48 chars), not decorative chrome.
+  const pullQuote: BriefQuote | null = (() => {
+    if (!brief) return null;
+    const candidates = [
+      ...brief.changes.map((c) => c.quote),
+      ...brief.facts.map((f) => f.quote),
+    ].filter((q): q is BriefQuote => !!q?.text && q.text.trim().length >= 48);
+    return candidates[0] ?? null;
+  })();
 
   const rawContent =
     mode === "explainer" ? content.articleContent : content.originalContent;
@@ -278,6 +346,7 @@ export default function ArticleDetailScreen() {
       ? (content.actions as { date: string; text: string }[])
       : [];
   const hasRealActions = actions.length > 0;
+  // Only render official actions from getById — never invent a completed path.
   const timeline = hasRealActions
     ? actions
         .slice()
@@ -288,33 +357,8 @@ export default function ArticleDetailScreen() {
           date: a.date,
           done: true,
         }))
-    : [
-        {
-          label: "Introduced",
-          fullText: "",
-          date: "",
-          done: true,
-        },
-        {
-          label: "Committee review",
-          fullText: "",
-          date: "",
-          done: true,
-        },
-        {
-          label: "Latest action",
-          fullText: "",
-          date: "",
-          done: true,
-        },
-        {
-          label: "Becomes law",
-          fullText: "",
-          date: "",
-          done: false,
-        },
-      ];
-  const currentTimelineIndex = hasRealActions ? timeline.length - 1 : 2;
+    : [];
+  const currentTimelineIndex = hasRealActions ? timeline.length - 1 : -1;
   // Actions are the official legislative record from the source (congress.gov).
   const timelineSourceUrl = hasRealActions ? content.url : undefined;
   const sponsor = content.type === "bill" ? content.sponsor : undefined;
@@ -341,6 +385,7 @@ export default function ArticleDetailScreen() {
     <View style={s.screen}>
       <NavHeader
         title={t.label}
+        tone="paper"
         onBack={() => router.back()}
         action={
           <>
@@ -351,7 +396,7 @@ export default function ArticleDetailScreen() {
               accessibilityLabel="Share this record"
               testID="article-share"
             >
-              <Icon name="share" size={20} color={colors.textSecondary} />
+              <Icon name="share" size={20} color={P.quiet} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleToggleSave}
@@ -365,7 +410,7 @@ export default function ArticleDetailScreen() {
               <Icon
                 name={saved ? "bookmarkFill" : "bookmark"}
                 size={21}
-                color={saved ? colors.white : colors.textSecondary}
+                color={saved ? P.spark : P.quiet}
               />
             </TouchableOpacity>
           </>
@@ -393,9 +438,9 @@ export default function ArticleDetailScreen() {
         ) : (
           <Placeholder
             label={`${t.label.toLowerCase()} · header art`}
-            height={170}
+            height={120}
             radius={16}
-            style={{ marginBottom: 18 }}
+            style={{ marginBottom: 16 }}
           />
         )}
 
@@ -423,6 +468,12 @@ export default function ArticleDetailScreen() {
           <Text style={s.desc} testID="article-description">
             {content.description}
           </Text>
+        ) : null}
+
+        {"sourceLabel" in content && content.sourceLabel ? (
+          <View style={s.sourcePill} accessibilityRole="text">
+            <Text style={s.sourcePillText}>{content.sourceLabel}</Text>
+          </View>
         ) : null}
 
         {sponsor ? (
@@ -456,12 +507,12 @@ export default function ArticleDetailScreen() {
                   .join(" · ")}
               </Text>
             </View>
-            <Icon name="chevR" size={17} color={colors.textSecondary} />
+            <Icon name="chevR" size={17} color={P.quiet} />
           </TouchableOpacity>
         ) : null}
 
         {/* explainer / source toggle */}
-        <View style={{ marginTop: 18, marginBottom: 18 }}>
+        <View style={{ marginTop: 10, marginBottom: 10 }}>
           <Segmented
             value={mode}
             onChange={handleModeChange}
@@ -545,6 +596,23 @@ export default function ArticleDetailScreen() {
               }
               onViewSource={handleViewSource}
             />
+          ) : mode === "explainer" && !brief ? (
+            // No trusted brief: fall back to getById articleContent (AI or
+            // source-derived). Never leave the explainer blank; never invent copy.
+            activeContent.trim().length > 0 ? (
+              renderMarkdown ? (
+                <Markdown style={markdownStyles} rules={markdownRules}>
+                  {activeContent}
+                </Markdown>
+              ) : (
+                <Text style={s.plainText}>{activeContent}</Text>
+              )
+            ) : (
+              <Text style={s.plainText} testID="brief-trust-skipped">
+                A structured brief isn&apos;t ready for this record yet. Use the
+                description above or open the official source.
+              </Text>
+            )
           ) : mode === "source" && sourceHighlight ? (
             <HighlightedSource
               content={content.originalContent}
@@ -552,26 +620,53 @@ export default function ArticleDetailScreen() {
               accent={t.color}
               onTargetLayout={handleSourceTargetLayout}
             />
-          ) : renderMarkdown ? (
+          ) : mode === "source" && renderMarkdown ? (
             <Markdown style={markdownStyles} rules={markdownRules}>
               {activeContent}
             </Markdown>
-          ) : (
+          ) : mode === "source" ? (
             <Text style={s.plainText}>{activeContent}</Text>
-          )}
+          ) : null}
         </View>
 
-        {/* Never present generic copy as if it were generated analysis. */}
-        {mode === "explainer" && content.lensData && !brief && (
-          <View style={{ marginVertical: 24 }}>
+        {/* Lens only with a trusted brief — avoid unmatched AI dual-lens after TRUST hide. */}
+        {mode === "explainer" && content.lensData && brief ? (
+          <View style={{ marginVertical: 12 }}>
             <LensPanel data={content.lensData} />
           </View>
-        )}
+        ) : null}
 
-        {/* timeline */}
-        <Kicker style={s.timelineKicker}>Where it stands</Kicker>
-        <Card style={{ marginBottom: 24 }}>
-          {timeline.map((step, i) => {
+        {/* Zen pack: one editorial pull-quote when data exists, then timeline hugs — no fact-card chrome */}
+        {mode === "explainer" && pullQuote ? (
+          <View style={s.pullQuote} accessibilityRole="summary">
+            <PullQuoteMark size={26} />
+            <Text style={s.pullQuoteText}>"{pullQuote.text.trim()}"</Text>
+            {pullQuote.locator ? (
+              <Text style={s.pullQuoteMeta}>{pullQuote.locator}</Text>
+            ) : (
+              <Text style={s.pullQuoteMeta}>From the official text</Text>
+            )}
+          </View>
+        ) : null}
+
+        {/* timeline — official actions only */}
+        <Kicker style={[s.timelineKicker, { color: P.spark, marginTop: 4 }]}>Where it stands</Kicker>
+        <Card
+          style={{
+            marginBottom: 16,
+            backgroundColor: P.cream,
+            borderRadius: DigestRadii.card,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: "rgba(22,19,26,0.10)",
+          }}
+        >
+          {!hasRealActions ? (
+            <Text style={s.timelineEmpty}>
+              No official actions are attached to this record yet. Check the
+              source for the latest status.
+            </Text>
+          ) : (
+            timeline.map((step, i) => {
             const expandable = !!step.fullText && step.label !== step.fullText;
             const isExpanded = expandedStep === i;
             const isCurrent = i === currentTimelineIndex;
@@ -590,7 +685,7 @@ export default function ArticleDetailScreen() {
                     style={[
                       s.timelineDot,
                       {
-                        borderColor: step.done ? t.color : hair[3],
+                        borderColor: step.done ? t.color : DigestHair.sectionRule,
                         backgroundColor: isCurrent ? t.color : "transparent",
                       },
                     ]}
@@ -599,7 +694,7 @@ export default function ArticleDetailScreen() {
                     <View
                       style={[
                         s.timelineLine,
-                        { backgroundColor: step.done ? t.color : hair[2] },
+                        { backgroundColor: step.done ? t.color : DigestHair.cardBorder },
                       ]}
                     />
                   )}
@@ -614,8 +709,8 @@ export default function ArticleDetailScreen() {
                         s.timelineLabel,
                         {
                           color: step.done
-                            ? colors.white
-                            : colors.textSecondary,
+                            ? P.ink
+                            : P.quiet,
                           fontFamily: isCurrent
                             ? fontBody.bold
                             : fontBody.medium,
@@ -628,27 +723,28 @@ export default function ArticleDetailScreen() {
                       <Icon
                         name={isExpanded ? "chevD" : "chevR"}
                         size={13}
-                        color={colors.textSecondary}
+                        color={P.quiet}
                       />
                     )}
                   </View>
                 </View>
               </TouchableOpacity>
             );
-          })}
+          })
+          )}
           {timelineSourceUrl && (
             <TouchableOpacity
               style={s.timelineSource}
               activeOpacity={0.7}
               onPress={() => void Linking.openURL(timelineSourceUrl)}
             >
-              <Icon name="info" size={13} color={colors.textSecondary} />
+              <Icon name="info" size={13} color={P.quiet} />
               <Text style={s.timelineSourceText}>
                 Official record ·{" "}
                 {("sourceLabel" in content ? content.sourceLabel : undefined) ??
                   "congress.gov"}
               </Text>
-              <Icon name="chevR" size={12} color={colors.textSecondary} />
+              <Icon name="chevR" size={12} color={P.quiet} />
             </TouchableOpacity>
           )}
         </Card>
@@ -769,7 +865,7 @@ function HighlightedSource({
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: planes.navy },
+  screen: { flex: 1, backgroundColor: P.paper },
   fullCenter: {
     flex: 1,
     alignItems: "center",
@@ -777,99 +873,170 @@ const s = StyleSheet.create({
     padding: 20,
   },
   loadingText: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     marginTop: 16,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   errorTitle: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 18,
     color: colors.red[500],
   },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  scrollContent: {
+    paddingHorizontal: DigestSpace.coverPadX,
+    paddingBottom: 48,
+  },
   headerArt: {
-    height: 170,
-    marginBottom: 18,
+    height: 120,
+    marginBottom: 10,
     overflow: "hidden",
-    borderRadius: 16,
-    backgroundColor: planes.surface,
+    borderRadius: DigestRadii.coverArt + 8,
+    backgroundColor: P.cream,
+    borderWidth: 1,
+    borderColor: "rgba(22,19,26,0.10)",
   },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   billNumber: {
-    fontFamily: fontBody.semibold,
-    fontSize: 12,
-    letterSpacing: 0.3,
-    color: colors.textSecondary,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: P.spark,
   },
   jurisdictionLine: {
     fontFamily: fontBody.medium,
     fontSize: 12.5,
     lineHeight: 18,
-    color: colors.textSecondary,
+    color: P.quiet,
     marginTop: -3,
     marginBottom: 14,
   },
   title: {
     fontFamily: fontDisplay.bold,
-    fontSize: 30,
-    color: colors.white,
-    marginBottom: 16,
-    lineHeight: 34,
+    fontSize: 28,
+    color: P.ink,
+    marginBottom: 8,
+    lineHeight: 32,
+    letterSpacing: -0.55,
   },
   desc: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 15,
-    color: colors.textSecondary,
+    color: P.quiet,
     lineHeight: 22,
+    marginBottom: 10,
+  },
+  sourcePill: {
+    alignSelf: "flex-start",
+    marginTop: 12,
+    marginBottom: 4,
+    backgroundColor: P.paper,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(22,19,26,0.16)",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: DigestRadii.sourcePill,
+  },
+  sourcePillText: {
+    ...DigestType.sourcePill,
+    color: P.ink,
+  },
+  pullQuote: {
+    marginTop: 8,
+    marginBottom: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(22,19,26,0.14)",
+    gap: 12,
+  },
+  pullQuoteText: {
+    fontFamily: fontEditorial.italic,
+    fontSize: 20,
+    lineHeight: 28,
+    letterSpacing: -0.2,
+    color: P.ink,
+  },
+  pullQuoteMeta: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: P.spark,
   },
   sponsorCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginTop: 18,
-    padding: 14,
-    backgroundColor: planes.slate,
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: P.cream,
     borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 14,
+    borderColor: "rgba(22,19,26,0.10)",
+    borderRadius: DigestRadii.card,
   },
   sponsorBody: { flex: 1, gap: 1 },
   sponsorLabel: {
-    fontFamily: fontBody.medium,
+    fontFamily: fontBody.bold,
     fontSize: 10.5,
-    letterSpacing: 0.5,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
-    color: colors.textSecondary,
+    color: P.spark,
   },
   sponsorName: {
     fontFamily: fontBody.semibold,
     fontSize: 15,
-    color: colors.white,
+    color: P.ink,
   },
   sponsorMeta: {
     fontFamily: fontBody.regular,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: P.quiet,
+  },
+  trustDekCard: {
+    backgroundColor: P.card,
+    borderRadius: DigestRadii.card,
+    borderWidth: 1,
+    borderColor: "rgba(22,19,26,0.10)",
+    borderLeftWidth: 3,
+    borderLeftColor: P.spark,
+    padding: 16,
+    marginBottom: 16,
+    gap: 10,
+  },
+  trustDekKicker: {
+    fontFamily: fontBody.bold,
+    fontSize: 13,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: P.spark,
+  },
+  trustDekText: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 18,
+    lineHeight: 26,
+    color: P.inkOnNight, // stone/card surface
   },
   disclaimer: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 9,
-    backgroundColor: planes.surface,
+    backgroundColor: P.cream,
     borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    marginBottom: 18,
+    borderColor: "rgba(22,19,26,0.10)",
+    borderRadius: DigestRadii.card,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 10,
   },
-  disclaimerBody: { flex: 1, gap: 8 },
+  disclaimerBody: { flex: 1, gap: 6 },
   disclaimerHead: {
     flexDirection: "row",
     alignItems: "center",
@@ -880,24 +1047,24 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 12.5,
     lineHeight: 17,
-    color: "rgba(255,255,255,0.82)",
+    color: P.ink,
   },
   disclaimerAction: {
     fontFamily: fontBody.semibold,
     fontSize: 10.5,
   },
   disclaimerText: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 11.5,
-    color: "rgba(255,255,255,0.64)",
+    color: P.quiet,
     lineHeight: 17,
   },
   chevFlip: { transform: [{ rotate: "180deg" }] },
   sourcePanel: {
-    backgroundColor: planes.ink,
+    backgroundColor: P.card,
     borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 14,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.card,
     padding: 18,
   },
   highlightedSource: { gap: 14 },
@@ -907,7 +1074,7 @@ const s = StyleSheet.create({
     gap: 10,
     paddingBottom: 13,
     borderBottomWidth: 1,
-    borderBottomColor: hair[2],
+    borderBottomColor: DigestHair.sectionRule,
   },
   sourceDocumentIcon: {
     width: 32,
@@ -920,18 +1087,18 @@ const s = StyleSheet.create({
   sourceDocumentTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: 17,
-    color: colors.white,
+    color: P.inkOnNight,
   },
   sourceDocumentMeta: {
     fontFamily: fontBody.medium,
     fontSize: 11,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   sourceText: {
     fontFamily: fontBody.regular,
     fontSize: 15,
     lineHeight: 25,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(247,244,238,0.7)",
   },
   sourceHighlight: {
     borderLeftWidth: 3,
@@ -940,24 +1107,39 @@ const s = StyleSheet.create({
     gap: 6,
   },
   sourceHighlightLabel: {
-    fontFamily: fontBody.semibold,
+    fontFamily: fontBody.bold,
     fontSize: 9.5,
     letterSpacing: 0.9,
+    textTransform: "uppercase",
   },
   sourceHighlightText: {
     fontFamily: fontEditorial.bold,
     fontSize: 17,
     lineHeight: 25,
-    color: colors.white,
+    color: P.inkOnNight,
   },
   plainText: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 16.5,
     lineHeight: 27,
-    color: "rgba(255,255,255,0.88)",
+    color: P.ink,
   },
   timelineRow: { flexDirection: "row", gap: 12 },
-  timelineKicker: { marginTop: 30 },
+  timelineEmpty: {
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: P.quiet,
+    paddingVertical: 4,
+  },
+  timelineKicker: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+  },
   timelineMarker: { alignItems: "center" },
   timelineDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
   timelineLine: { width: 2, flex: 1, minHeight: 22 },
@@ -966,7 +1148,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 10.5,
     letterSpacing: 0.3,
-    color: colors.textSecondary,
+    color: P.quiet,
     marginBottom: 2,
   },
   timelineLabelRow: {
@@ -982,37 +1164,37 @@ const s = StyleSheet.create({
     marginTop: 4,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: hair[1],
+    borderTopColor: DigestHair.sectionRule,
   },
   timelineSourceText: {
     flex: 1,
     fontFamily: fontBody.regular,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   exit: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: P.cream,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(22,19,26,0.10)",
+    borderRadius: DigestRadii.card,
+    padding: 16,
   },
   exitTitle: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 18,
-    color: colors.white,
+    color: P.ink,
     marginBottom: 6,
   },
   exitSub: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: P.quiet,
     marginBottom: 16,
     lineHeight: 20,
   },
   markdownImage: {
     width: "100%",
-    minHeight: 180,
+    aspectRatio: 16 / 9,
     maxHeight: 320,
     marginVertical: 12,
     alignSelf: "center",

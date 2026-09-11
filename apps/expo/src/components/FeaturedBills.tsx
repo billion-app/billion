@@ -11,12 +11,19 @@ import { Image } from "expo-image";
 import type { FeaturedBillItem } from "~/utils/featured-bills";
 import { Text } from "~/components/Themed";
 import { useRelativeActivity } from "~/hooks/useRelativeActivity";
-import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 import { toCardItem } from "~/utils/content";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { featuredBillAccessibilityLabel } from "~/utils/featured-bills";
 
-const CARD_GAP = 12;
+const CARD_GAP = DigestSpace.railGap;
 
 function FeaturedBillCard({
   item,
@@ -71,9 +78,6 @@ function FeaturedBillCard({
         <View style={s.identityRow}>
           <Text style={s.billNumber} numberOfLines={1}>
             {card.tag ?? "BILL"}
-          </Text>
-          <Text style={s.position}>
-            {index + 1}/{total}
           </Text>
         </View>
         <Text style={s.title} numberOfLines={3}>
@@ -161,115 +165,134 @@ export function FeaturedBills({
 }
 
 const s = StyleSheet.create({
-  section: { marginTop: 20 },
-  heading: { paddingHorizontal: 20, marginBottom: 12 },
+  section: { marginTop: 10, marginBottom: 4 },
+  heading: {
+    paddingHorizontal: DigestSpace.screenPadX,
+    // Tighten header→card air (CRAFT pass-02 / premium).
+    marginBottom: 0,
+  },
   kicker: {
     fontFamily: fontBody.bold,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    color: colors.bill,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: DigestPalette.spark,
   },
   subtitle: {
-    marginTop: 3,
+    marginTop: 0,
+    marginBottom: 0,
     fontFamily: fontBody.medium,
-    fontSize: 13,
-    color: colors.textSecondary,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: DigestPalette.quiet,
   },
-  row: { paddingHorizontal: 20, gap: CARD_GAP },
-  skeletonRow: { flexDirection: "row", paddingHorizontal: 20, gap: CARD_GAP },
+  row: {
+    // Eat dek descender gap (premium header→card).
+    marginTop: -2,
+    paddingHorizontal: DigestSpace.screenPadX,
+    gap: CARD_GAP,
+    alignItems: "flex-start",
+  },
+  skeletonRow: {
+    flexDirection: "row",
+    marginTop: -2,
+    paddingHorizontal: DigestSpace.screenPadX,
+    gap: CARD_GAP,
+  },
   card: {
     overflow: "hidden",
-    borderRadius: 18,
+    borderRadius: DigestRadii.card,
     borderWidth: 1,
-    borderColor: hair[2],
-    backgroundColor: planes.slate,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.card,
   },
   skeletonCard: { opacity: 0.72 },
   artwork: {
-    height: 164,
+    // Fixed photo band OK; copy below hugs (CRAFT.md).
+    height: 152,
     overflow: "hidden",
-    backgroundColor: planes.surface,
+    backgroundColor: DigestPalette.stone,
   },
   artworkFallback: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#18356F",
+    backgroundColor: DigestPalette.night,
   },
   fallbackCode: {
     fontFamily: fontDisplay.bold,
     fontSize: 50,
     lineHeight: 54,
-    color: "rgba(255,255,255,0.22)",
+    color: "rgba(247,244,238,0.22)",
   },
   fallbackLabel: {
     fontFamily: fontBody.bold,
     fontSize: 10,
     letterSpacing: 1.5,
-    color: "rgba(255,255,255,0.72)",
+    color: DigestPalette.quiet,
   },
   artworkBadge: {
     position: "absolute",
-    top: 12,
-    left: 12,
-    borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    backgroundColor: "rgba(14,21,48,0.88)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    top: 10,
+    left: 10,
+    borderRadius: DigestRadii.sourcePill,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: DigestPalette.paper,
   },
   artworkBadgeText: {
     fontFamily: fontBody.bold,
     fontSize: 9,
     letterSpacing: 1,
-    color: colors.white,
+    color: DigestPalette.ink,
   },
-  cardCopy: { minHeight: 208, padding: 16 },
+  cardCopy: {
+    // Hug content — pad only, no minHeight well (CRAFT.md / eggbot).
+    paddingHorizontal: DigestSpace.cardBodyPadX,
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
   identityRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 8,
-    marginBottom: 9,
+    marginBottom: 4,
   },
   billNumber: {
     flex: 1,
     fontFamily: fontBody.bold,
-    fontSize: 11,
+    fontSize: 10.5,
     letterSpacing: 0.7,
-    color: colors.bill,
-  },
-  position: {
-    fontFamily: fontBody.semibold,
-    fontSize: 10,
-    color: colors.textSecondary,
+    textTransform: "uppercase",
+    color: DigestPalette.spark,
   },
   title: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 21,
-    lineHeight: 25,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 24,
+    lineHeight: 29,
+    letterSpacing: -0.45,
+    color: DigestPalette.inkOnNight,
   },
   takeaway: {
-    marginTop: 8,
-    fontFamily: fontBody.regular,
+    marginTop: 4,
+    fontFamily: fontBody.medium,
     fontSize: 13.5,
-    lineHeight: 18,
-    color: "rgba(255,255,255,0.72)",
+    lineHeight: 19,
+    color: DigestPalette.quiet,
   },
   status: {
-    marginTop: 12,
+    // Tight card→meta gap (eggbot: hug / no empty navy under short deks).
+    marginTop: 6,
     fontFamily: fontBody.semibold,
     fontSize: 11.5,
     lineHeight: 16,
-    color: colors.bill,
+    color: DigestPalette.spark,
   },
-  skeletonPlane: { backgroundColor: planes.hi },
+  skeletonPlane: { backgroundColor: "rgba(247,244,238,0.08)" },
   skeletonLine: {
     height: 12,
     marginBottom: 12,
     borderRadius: 6,
-    backgroundColor: planes.hi,
+    backgroundColor: "rgba(247,244,238,0.08)",
   },
 });
