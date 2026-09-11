@@ -2,7 +2,7 @@
   "name": "billion",
   "slug": "billion",
   "scheme": "billion",
-  "version": "0.7.1",
+  "version": "0.7.0",
   "orientation": "portrait",
   "icon": "./assets/billion-logo.png",
   "userInterfaceStyle": "dark",
@@ -14,7 +14,9 @@
     "checkAutomatically": "ON_LOAD",
     "fallbackToCacheTimeout": 0
   },
-  "assetBundlePatterns": ["**/*"],
+  "assetBundlePatterns": [
+    "**/*"
+  ],
   "ios": {
     "bundleIdentifier": "app.billion-news.billion",
     "supportsTablet": true,
@@ -25,7 +27,11 @@
     "infoPlist": {
       "ITSAppUsesNonExemptEncryption": false,
       "LSApplicationCategoryType": "public.app-category.news",
-      "LSApplicationQueriesSchemes": ["instagram-stories", "instagram"]
+      "LSApplicationQueriesSchemes": [
+        "instagram-stories",
+        "instagram"
+      ],
+      "EXDevMenuShowFloatingActionButton": false
     },
     "privacyManifests": {
       "NSPrivacyTracking": false,

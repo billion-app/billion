@@ -1,7 +1,7 @@
 // ThatXliner: I genuinely have no idea why both
 // this file and the other one (in (tabs)) is required.
 // Surely I'm not doing the provider twice... right??
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Font from "expo-font";
 import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
@@ -32,6 +32,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { PostHogProvider } from "posthog-react-native";
 
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
+import { GREAT_VIBES } from "~/components/digest/staticAssets";
 import { UpdatePrompt } from "~/components/UpdatePrompt";
 import { posthog } from "~/config/posthog";
 import { useTheme } from "~/styles";
@@ -46,6 +47,39 @@ export const ErrorBoundary = createRouteErrorBoundary("root");
 
 // Keep splash screen visible while fonts load
 void SplashScreen.preventAutoHideAsync();
+
+/** Hide Expo Dev Client floating Tools/gear FAB — double chrome vs Settings tab. */
+function hideExpoToolsFab() {
+  if (!__DEV__) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { requireOptionalNativeModule } = require("expo-modules-core") as {
+      requireOptionalNativeModule: (name: string) => {
+        setPreferencesAsync?: (s: Record<string, unknown>) => Promise<void>;
+      } | null;
+    };
+    const prefs = requireOptionalNativeModule("DevMenuPreferences");
+    void prefs?.setPreferencesAsync?.({ showFloatingActionButton: false });
+  } catch {
+    // release builds / missing native module
+  }
+}
+hideExpoToolsFab();
+
+/**
+ * Routes whose top edge is the cream paper surface rather than night canvas.
+ *
+ * The clock and battery are drawn by iOS in one colour for the whole app —
+ * this build has no per-view-controller status bar appearance — so a single
+ * owner has to pick it from the route. The digest is night canvas nearly
+ * everywhere and wants light glyphs; the article reader is the one cream page
+ * and wants dark ones. A screen that switches to a paper surface belongs here.
+ */
+const PAPER_ROUTES = new Set(["/article-detail"]);
+
+function statusBarStyleFor(pathname: string): "light" | "dark" {
+  return PAPER_ROUTES.has(pathname) ? "dark" : "light";
+}
 
 function PostHogAuthSync() {
   const { data: session } = authClient.useSession();
@@ -69,6 +103,12 @@ export default function RootLayout() {
   const pathname = usePathname();
   const params = useGlobalSearchParams();
   const previousPathname = useRef<string | undefined>(undefined);
+  /**
+   * Text painted before the faces register keeps the system fallback until
+   * something re-renders it — which static chrome never does. Hold the tree
+   * behind the splash until loading resolves so every glyph starts correct.
+   */
+  const [fontsReady, setFontsReady] = useState(false);
 
   useEffect(() => {
     if (previousPathname.current !== pathname) {
@@ -114,16 +154,22 @@ export default function RootLayout() {
           AlbertSans_500Medium: AlbertSans_500Medium,
           AlbertSans_600SemiBold: AlbertSans_600SemiBold,
           AlbertSans_700Bold: AlbertSans_700Bold,
+          "GreatVibes-Regular": GREAT_VIBES,
+          GreatVibes: GREAT_VIBES,
         });
       } catch (e) {
         // Font loading failure is non-fatal — app falls back to system fonts
         console.warn("Font loading failed:", e);
       } finally {
+        // Set even on failure: system fallbacks beat a stuck splash screen.
+        setFontsReady(true);
         await SplashScreen.hideAsync();
       }
     }
     void loadFonts();
   }, []);
+
+  if (!fontsReady) return null;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -145,10 +191,12 @@ export default function RootLayout() {
                 backgroundColor: theme.background,
               },
             }}
-          />
+          >
+            <Stack.Screen name="(tabs)" />
+          </Stack>
           {/* Absolute overlay: update banner sits above Stack without affecting tab/stack layout */}
           <UpdatePrompt />
-          <StatusBar style="light" />
+          <StatusBar style={statusBarStyleFor(pathname)} />
         </GestureHandlerRootView>
       </PostHogProvider>
     </QueryClientProvider>
