@@ -2,8 +2,14 @@ import { StyleSheet, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
-import { fontBody, fontSize, rd, sp, useTheme } from "~/styles";
-
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 interface ElectionBannerProps {
   daysUntil: number;
   electionName: string;
@@ -15,10 +21,8 @@ export function ElectionBanner({
   electionName,
   onPress,
 }: ElectionBannerProps) {
-  const { theme } = useTheme();
-
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={styles.container}>
       <View style={styles.accent} />
       <View style={styles.content}>
         <View style={styles.textContainer}>
@@ -34,70 +38,67 @@ export function ElectionBanner({
           activeOpacity={0.8}
         >
           <Text style={styles.ctaText}>See My Ballot</Text>
-          <FontAwesome name="arrow-right" size={12} color={colors.black} />
+          <FontAwesome name="arrow-right" size={12} color={DigestPalette.ink} />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const colors = {
-  white: "#FFFFFF",
-  black: "#000000",
-  civicBlue: "#4A7CFF",
-  textMuted: "#8A8FA0",
-};
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    marginHorizontal: sp[4],
-    marginBottom: sp[4],
-    borderRadius: rd.md,
+    marginHorizontal: DigestSpace.screenPadX,
+    marginBottom: 16,
+    borderRadius: DigestRadii.card,
     overflow: "hidden",
+    backgroundColor: DigestPalette.card,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
   },
   accent: {
     width: 4,
-    backgroundColor: colors.civicBlue,
+    backgroundColor: DigestPalette.spark,
   },
   content: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: sp[4],
+    padding: DigestSpace.cardBodyPadX,
   },
   textContainer: {
     flex: 1,
-    marginRight: sp[4],
+    marginRight: 14,
   },
   headline: {
     fontFamily: fontBody.medium,
-    fontSize: fontSize.sm,
-    color: colors.white,
-    marginBottom: sp[2],
+    fontSize: 13.5,
+    color: DigestPalette.inkOnNight,
+    marginBottom: 4,
   },
   days: {
-    fontFamily: fontBody.bold,
-    fontSize: fontSize.base,
+    fontFamily: fontDisplay.bold,
+    fontSize: 15,
+    color: DigestPalette.spark,
   },
   subtext: {
     fontFamily: fontBody.regular,
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
+    fontSize: 12,
+    color: DigestPalette.quiet,
   },
   cta: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.white,
-    paddingVertical: sp[3],
-    paddingHorizontal: sp[4],
-    borderRadius: 9999,
-    gap: sp[2],
+    backgroundColor: DigestPalette.paper,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: DigestRadii.menuRow,
+    gap: 6,
   },
   ctaText: {
     fontFamily: fontBody.semibold,
-    fontSize: fontSize.xs,
-    color: colors.black,
+    fontSize: 12,
+    color: DigestPalette.ink,
   },
 });

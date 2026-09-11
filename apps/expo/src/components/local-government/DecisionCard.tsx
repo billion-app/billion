@@ -6,7 +6,13 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import type { DecisionRow } from "~/utils/local-government";
 import { Icon } from "~/components/ui/Icon";
-import { colors, fontBody, fontEditorial, useTheme } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+} from "~/styles";
 import {
   classifyDecision,
   formatMeetingDate,
@@ -23,7 +29,6 @@ export function DecisionCard({
   decision: DecisionRow;
   onPress: () => void;
 }) {
-  const { theme } = useTheme();
   const lifecycle = classifyDecision({
     status: decision.status,
     type: decision.type,
@@ -47,43 +52,34 @@ export function DecisionCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityHint="Opens the full decision"
-      style={[
-        s.card,
-        { backgroundColor: theme.card, borderColor: theme.border },
-      ]}
+      style={s.card}
     >
-      <View style={[s.spine, { backgroundColor: theme.accent }]} />
+      <View style={s.spine} />
       <View style={s.content}>
         <View style={s.metaRow}>
           <LifecycleChip lifecycle={lifecycle} />
           {topic ? (
-            <Text
-              style={[s.metaText, { color: theme.textSecondary }]}
-              numberOfLines={1}
-            >
+            <Text style={s.metaText} numberOfLines={1}>
               {topic}
             </Text>
           ) : null}
         </View>
 
         {/* Official title — shown as-is; we never invent a summary for it. */}
-        <Text style={[s.title, { color: theme.foreground }]} numberOfLines={3}>
+        <Text style={s.title} numberOfLines={3}>
           {decision.title}
         </Text>
 
         <View style={s.facts}>
           <View style={s.fact}>
-            <Icon name="users" size={12} color={theme.textSecondary} />
-            <Text
-              style={[s.factText, { color: theme.foreground }]}
-              numberOfLines={1}
-            >
+            <Icon name="users" size={12} color={DigestPalette.quiet} />
+            <Text style={s.factText} numberOfLines={1}>
               {decision.body}
             </Text>
           </View>
           <View style={s.fact}>
-            <Icon name="calendar" size={12} color={theme.textSecondary} />
-            <Text style={[s.factText, { color: theme.foreground }]}>
+            <Icon name="calendar" size={12} color={DigestPalette.quiet} />
+            <Text style={s.factText}>
               {when}
               {relative ? ` · ${relative}` : ""}
             </Text>
@@ -93,10 +89,7 @@ export function DecisionCard({
         <View style={s.footerRow}>
           <View style={s.fileWrap}>
             {decision.fileNumber ? (
-              <Text
-                style={[s.file, { color: theme.textSecondary }]}
-                numberOfLines={1}
-              >
+              <Text style={s.file} numberOfLines={1}>
                 File {decision.fileNumber}
                 {decision.agendaNumber
                   ? ` · Agenda ${decision.agendaNumber}`
@@ -104,18 +97,15 @@ export function DecisionCard({
               </Text>
             ) : null}
             {scope.label ? (
-              <View style={[s.scopeBadge, { borderColor: theme.border }]}>
-                <Icon name="pin" size={10} color={theme.textSecondary} />
-                <Text
-                  style={[s.scopeText, { color: theme.textSecondary }]}
-                  numberOfLines={1}
-                >
+              <View style={s.scopeBadge}>
+                <Icon name="pin" size={10} color={DigestPalette.quiet} />
+                <Text style={s.scopeText} numberOfLines={1}>
                   {scope.label}
                 </Text>
               </View>
             ) : null}
           </View>
-          <Icon name="chevR" size={14} color={colors.textSecondary} />
+          <Icon name="chevR" size={14} color={DigestPalette.quiet} />
         </View>
       </View>
     </TouchableOpacity>
@@ -125,11 +115,13 @@ export function DecisionCard({
 const s = StyleSheet.create({
   card: {
     flexDirection: "row",
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: DigestRadii.card,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.card,
     overflow: "hidden",
   },
-  spine: { width: 3 },
+  spine: { width: 3, backgroundColor: DigestPalette.spark },
   content: { flex: 1, padding: 14 },
   metaRow: {
     flexDirection: "row",
@@ -141,12 +133,15 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 11.5,
     flexShrink: 1,
+    color: DigestPalette.quiet,
   },
   title: {
-    fontFamily: fontEditorial.bold,
+    fontFamily: fontDisplay.bold,
     fontSize: 15.5,
     lineHeight: 21,
+    letterSpacing: -0.3,
     marginBottom: 10,
+    color: DigestPalette.inkOnNight,
   },
   facts: { gap: 5, marginBottom: 10 },
   fact: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -154,6 +149,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 12.5,
     flexShrink: 1,
+    color: DigestPalette.inkOnNight,
   },
   footerRow: {
     flexDirection: "row",
@@ -172,12 +168,14 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 11.5,
     flexShrink: 1,
+    color: DigestPalette.quiet,
   },
   scopeBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestPalette.border,
     borderRadius: 999,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -186,5 +184,6 @@ const s = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: 10.5,
     maxWidth: 150,
+    color: DigestPalette.quiet,
   },
 });

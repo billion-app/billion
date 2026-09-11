@@ -1,9 +1,9 @@
 /**
- * "What San Jose Is Deciding" - the local-government decision list.
+ * "What {City} Is Deciding" - the local-government decision list.
  *
- * Jurisdiction-neutral: every place name comes from data or the user's saved
- * address, never from this file. The first-release ingestion pipeline covers
- * San Jose; other jurisdictions show honest empty states.
+ * Jurisdiction comes from the user's saved address via detectJurisdictionKey
+ * (San José / Santa Clara / Sunnyvale). Unsupported addresses redirect back
+ * to Elections — never invent a city.
  */
 import type { Href } from "expo-router";
 import { useMemo, useRef, useState } from "react";
@@ -26,7 +26,12 @@ import { Icon } from "~/components/ui/Icon";
 import { NavHeader } from "~/components/ui/NavHeader";
 import { Segmented } from "~/components/ui/Segmented";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, fontDisplay, useTheme } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestPalette,
+  DigestSpace,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import {
   detectJurisdictionKey,
@@ -43,20 +48,20 @@ type TimelineTab = "upcoming" | "recent";
 
 export default function LocalDecisionsScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
   const { address, isLoading: isAddressLoading } = useUserAddress();
 
   const detectedJurisdiction = detectJurisdictionKey(address);
-  const isSanJoseResident = detectedJurisdiction === "sanjose";
-  const jurisdiction = "sanjose" as const;
-  const jurisdictionName = JURISDICTION_FALLBACK_NAMES[jurisdiction];
+  const jurisdiction = detectedJurisdiction;
+  const jurisdictionName = jurisdiction
+    ? JURISDICTION_FALLBACK_NAMES[jurisdiction]
+    : null;
 
   const [tab, setTab] = useState<TimelineTab>("upcoming");
   const [topic, setTopic] = useState<string | null>(null);
 
   const listInput = useMemo(
     () => ({
-      jurisdiction,
+      jurisdiction: jurisdiction ?? "sanjose",
       timeline: tab,
       topic: topic ?? undefined,
       limit: PAGE_SIZE,
@@ -77,7 +82,7 @@ export default function LocalDecisionsScreen() {
     trpc.legistar.listDecisions.infiniteQueryOptions(
       { ...listInput, cursor: 0 },
       {
-        enabled: !isAddressLoading && isSanJoseResident,
+        enabled: !isAddressLoading && jurisdiction != null,
         initialCursor: 0,
         getNextPageParam: (lastPage, allPages) =>
           lastPage.length === PAGE_SIZE ? allPages.length * PAGE_SIZE : null,
@@ -89,11 +94,11 @@ export default function LocalDecisionsScreen() {
   // have decisions right now.
   const topicsProbe = useQuery({
     ...trpc.legistar.listDecisions.queryOptions({
-      jurisdiction,
+      jurisdiction: listInput.jurisdiction,
       timeline: "all",
       limit: 100,
     }),
-    enabled: !isAddressLoading && isSanJoseResident,
+    enabled: !isAddressLoading && jurisdiction != null,
   });
   const availableTopics = useMemo(() => {
     const seen = new Set<string>();
@@ -104,8 +109,10 @@ export default function LocalDecisionsScreen() {
   }, [topicsProbe.data]);
 
   const healthQuery = useQuery({
-    ...trpc.legistar.getIngestionHealth.queryOptions({ jurisdiction }),
-    enabled: !isAddressLoading && isSanJoseResident,
+    ...trpc.legistar.getIngestionHealth.queryOptions({
+      jurisdiction: listInput.jurisdiction,
+    }),
+    enabled: !isAddressLoading && jurisdiction != null,
   });
   const latestRun = healthQuery.data?.latestRun ?? null;
   const syncFailed = latestRun?.status === "failed";
@@ -144,20 +151,20 @@ export default function LocalDecisionsScreen() {
 
   if (isAddressLoading) {
     return (
-      <View style={[s.screen, { backgroundColor: theme.background }]}>
+      <View style={[s.screen, { backgroundColor: DigestPalette.canvas }]}>
         <View style={s.center}>
-          <ActivityIndicator size="large" color={colors.white} />
+          <ActivityIndicator size="large" color={DigestPalette.inkOnNight} />
         </View>
       </View>
     );
   }
 
-  if (!isSanJoseResident) {
+  if (!jurisdiction || !jurisdictionName) {
     return <Redirect href="/(tabs)/elections" />;
   }
 
   return (
-    <View style={[s.screen, { backgroundColor: theme.background }]}>
+    <View style={[s.screen, { backgroundColor: DigestPalette.canvas }]}>
       <NavHeader
         large
         title={`What ${jurisdictionName} Is Deciding`}
@@ -215,7 +222,7 @@ export default function LocalDecisionsScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={() => void handleRefresh()}
-            tintColor={colors.white}
+            tintColor={DigestPalette.inkOnNight}
           />
         }
         renderItem={({ item }) => (
@@ -232,12 +239,12 @@ export default function LocalDecisionsScreen() {
         onEndReachedThreshold={0.5}
         ListFooterComponent={
           isFetchingNextPage ? (
-            <ActivityIndicator color={colors.white} style={s.footerSpinner} />
+            <ActivityIndicator color={DigestPalette.inkOnNight} style={s.footerSpinner} />
           ) : null
         }
         ListEmptyComponent={
           isLoading ? (
-            <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ paddingHorizontal: DigestSpace.screenPadX }}>
               <DecisionListSkeleton />
             </View>
           ) : error ? (
@@ -285,12 +292,11 @@ function SyncNote({
   syncFailed: boolean;
   lastSyncedAt: Date | string | null;
 }) {
-  const { theme } = useTheme();
   if (!visible) return null;
   return (
     <View style={s.syncNote}>
-      <Icon name="clock" size={12} color={colors.yellow[500]} />
-      <RNText style={[s.syncText, { color: theme.textSecondary }]}>
+      <Icon name="clock" size={12} color={DigestPalette.spark} />
+      <RNText style={[s.syncText, { color: DigestPalette.quiet }]}>
         {syncFailed
           ? `The last sync with ${jurisdictionName}'s official records failed, so this list may be out of date.`
           : lastSyncedAt
@@ -312,18 +318,17 @@ function ListState({
   actionLabel?: string;
   onAction?: () => void;
 }) {
-  const { theme } = useTheme();
   return (
     <View style={s.center}>
-      <Text style={[s.emptyTitle, { color: theme.foreground }]}>{title}</Text>
-      <Text style={[s.emptyBody, { color: theme.textSecondary }]}>{body}</Text>
+      <Text style={[s.emptyTitle, { color: DigestPalette.inkOnNight }]}>{title}</Text>
+      <Text style={[s.emptyBody, { color: DigestPalette.quiet }]}>{body}</Text>
       {actionLabel && onAction ? (
         <TouchableOpacity
-          style={[s.emptyAction, { borderColor: theme.border }]}
+          style={[s.emptyAction, { borderColor: DigestPalette.border }]}
           onPress={onAction}
           accessibilityRole="button"
         >
-          <Text style={[s.emptyActionText, { color: theme.foreground }]}>
+          <Text style={[s.emptyActionText, { color: DigestPalette.inkOnNight }]}>
             {actionLabel}
           </Text>
         </TouchableOpacity>
@@ -334,15 +339,15 @@ function ListState({
 
 const s = StyleSheet.create({
   screen: { flex: 1 },
-  controls: { paddingHorizontal: 20, paddingBottom: 10 },
+  controls: { paddingHorizontal: DigestSpace.screenPadX, paddingBottom: 10 },
   list: { flex: 1 },
-  listContent: { paddingHorizontal: 20, paddingBottom: 48, gap: 12 },
+  listContent: { paddingHorizontal: DigestSpace.screenPadX, paddingBottom: 48, gap: 12 },
   footerSpinner: { marginVertical: 16 },
   syncNote: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: DigestSpace.screenPadX,
     paddingBottom: 8,
   },
   syncText: {
@@ -372,6 +377,7 @@ const s = StyleSheet.create({
   emptyAction: {
     borderWidth: 1,
     borderRadius: 999,
+    borderColor: DigestPalette.border,
     paddingHorizontal: 18,
     paddingVertical: 10,
     marginTop: 10,

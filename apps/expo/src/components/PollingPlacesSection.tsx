@@ -18,8 +18,14 @@ import type { Address, PollingLocation } from "@acme/api";
 
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker } from "~/components/ui";
-import { colors, fontBody, hair, planes } from "~/styles";
-
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 /** Civic returns every county vote center under one address; cap each group. */
 const COLLAPSED_COUNT = 3;
 
@@ -59,7 +65,16 @@ function LocationCard({
 }) {
   const name = loc.name ?? loc.address.locationName ?? "Voting location";
   return (
-    <Card style={styles.locCard}>
+    <Card
+      style={[
+        styles.locCard,
+        {
+          borderRadius: DigestRadii.card,
+          borderColor: DigestHair.cardBorder,
+          backgroundColor: DigestPalette.card,
+        },
+      ]}
+    >
       <View style={[styles.locDot, { backgroundColor: accent }]} />
       <View style={styles.locBody}>
         <Text style={styles.locName} numberOfLines={2}>
@@ -70,7 +85,7 @@ function LocationCard({
         </Text>
         {loc.pollingHours ? (
           <View style={styles.hoursRow}>
-            <Icon name="clock" size={12} color={colors.textSecondary} />
+            <Icon name="clock" size={12} color={DigestPalette.quiet} />
             <Text style={styles.locHours} numberOfLines={2}>
               {loc.pollingHours}
             </Text>
@@ -86,7 +101,7 @@ function LocationCard({
           onPress={() => openDirections(loc)}
           suppressHighlighting
         >
-          <Icon name="pin" size={12} color={colors.bill} /> Directions
+          <Icon name="pin" size={12} color={DigestPalette.spark} /> Directions
         </Text>
       </View>
     </Card>
@@ -112,7 +127,7 @@ function LocationGroup({
 
   return (
     <View style={styles.group}>
-      <Kicker>{title}</Kicker>
+      <Kicker style={styles.groupKicker}>{title}</Kicker>
       {visible.map((loc, i) => (
         <LocationCard key={`${keyPrefix}-${i}`} loc={loc} accent={accent} />
       ))}
@@ -128,7 +143,7 @@ function LocationGroup({
           <Icon
             name={expanded ? "chevD" : "chevR"}
             size={14}
-            color={colors.bill}
+            color={DigestPalette.spark}
           />
         </TouchableOpacity>
       )}
@@ -151,15 +166,25 @@ export function PollingPlacesSection({
 
   return (
     <View style={styles.container}>
+      <Text style={styles.kicker}>VOTING LOCATIONS</Text>
       <Text style={styles.sectionTitle}>Where to Vote</Text>
 
       {isLoading && (
-        <ActivityIndicator color={colors.bill} style={styles.loader} />
+        <ActivityIndicator color={DigestPalette.spark} style={styles.loader} />
       )}
 
       {!isLoading && mailOnly && (
-        <Card style={styles.notice}>
-          <Icon name="info" size={16} color={colors.bill} />
+        <Card
+          style={[
+            styles.notice,
+            {
+              borderRadius: DigestRadii.card,
+              borderColor: DigestHair.cardBorder,
+              backgroundColor: DigestPalette.card,
+            },
+          ]}
+        >
+          <Icon name="info" size={16} color={DigestPalette.spark} />
           <Text style={styles.noticeText}>
             This is a mail-ballot election — every voter is mailed a ballot. Use
             a drop box below or return it by mail.
@@ -171,7 +196,7 @@ export function PollingPlacesSection({
         <LocationGroup
           title="Your polling place"
           locations={polling}
-          accent={colors.green[500]}
+          accent={DigestPalette.badgeTeal}
           keyPrefix="p"
         />
       )}
@@ -180,7 +205,7 @@ export function PollingPlacesSection({
         <LocationGroup
           title="Early vote sites"
           locations={early}
-          accent={colors.bill}
+          accent={DigestPalette.spark}
           keyPrefix="e"
         />
       )}
@@ -189,13 +214,19 @@ export function PollingPlacesSection({
         <LocationGroup
           title="Ballot drop boxes"
           locations={dropOff}
-          accent={colors.yellow[500]}
+          accent={DigestPalette.badgeBlue}
           keyPrefix="d"
         />
       )}
 
       {!isLoading && !hasAny && (
-        <Card>
+        <Card
+          style={{
+            borderRadius: DigestRadii.card,
+            borderColor: DigestHair.cardBorder,
+            backgroundColor: DigestPalette.card,
+          }}
+        >
           <Text style={styles.empty}>
             {hasAddress
               ? "No polling locations published for this address yet. They're typically posted closer to election day."
@@ -209,14 +240,28 @@ export function PollingPlacesSection({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
+    paddingHorizontal: DigestSpace.screenPadX,
     marginBottom: 24,
     gap: 16,
   },
+  kicker: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    color: DigestPalette.spark,
+    textTransform: "uppercase",
+  },
   sectionTitle: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 18,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 22,
+    letterSpacing: -0.45,
+    color: DigestPalette.inkOnNight,
+  },
+  groupKicker: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    color: DigestPalette.spark,
   },
   loader: { marginVertical: 12 },
   group: { gap: 10 },
@@ -231,7 +276,7 @@ const styles = StyleSheet.create({
   showAllText: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: colors.bill,
+    color: DigestPalette.spark,
   },
   locCard: {
     flexDirection: "row",
@@ -244,12 +289,12 @@ const styles = StyleSheet.create({
   locName: {
     fontFamily: fontBody.semibold,
     fontSize: 14.5,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   locAddr: {
     fontFamily: fontBody.regular,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     lineHeight: 18,
   },
   hoursRow: {
@@ -262,40 +307,38 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fontBody.medium,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     lineHeight: 17,
   },
   locNotes: {
     fontFamily: fontBody.regular,
     fontSize: 12.5,
-    color: "rgba(255,255,255,0.7)",
+    color: DigestPalette.quiet,
     lineHeight: 18,
     marginTop: 2,
   },
   directions: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: colors.bill,
+    color: DigestPalette.spark,
     marginTop: 6,
   },
   notice: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    backgroundColor: planes.surface,
-    borderColor: hair[2],
   },
   noticeText: {
     flex: 1,
     fontFamily: fontBody.regular,
     fontSize: 13,
-    color: "rgba(255,255,255,0.85)",
+    color: DigestPalette.inkOnNight,
     lineHeight: 19,
   },
   empty: {
     fontFamily: fontBody.regular,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     textAlign: "center",
   },
 });

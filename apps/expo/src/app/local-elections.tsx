@@ -11,7 +11,7 @@ import { PollingPlacesSection } from "~/components/PollingPlacesSection";
 import { RepsSection } from "~/components/RepsSection";
 import { Text, View } from "~/components/Themed";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontDisplay, fontSize, sp, useTheme } from "~/styles";
+import { fontDisplay, DigestPalette, DigestSpace } from "~/styles";
 import { trpc } from "~/utils/api";
 import { daysUntil } from "~/utils/dates";
 
@@ -22,7 +22,6 @@ import { daysUntil } from "~/utils/dates";
  * what's my city/county doing right now (local bills + meetings).
  */
 export default function LocalElectionsScreen() {
-  const { theme } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { address, setAddress, clearAddress } = useUserAddress();
@@ -38,13 +37,17 @@ export default function LocalElectionsScreen() {
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + sp[3] }]}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <FontAwesome name="arrow-left" size={18} color={colors.white} />
+          <FontAwesome
+            name="arrow-left"
+            size={18}
+            color={DigestPalette.inkOnNight}
+          />
         </TouchableOpacity>
         <Text style={styles.title}>Where & How to Vote</Text>
         <View style={styles.placeholder} />
@@ -86,22 +89,24 @@ export default function LocalElectionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: DigestPalette.canvas,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: sp[4],
-    paddingBottom: sp[4],
+    paddingHorizontal: DigestSpace.screenPadX,
+    paddingBottom: 16,
   },
   backButton: {
-    padding: sp[3],
-    marginLeft: -sp[3],
+    padding: 10,
+    marginLeft: -10,
   },
   title: {
     fontFamily: fontDisplay.bold,
-    fontSize: fontSize.xl,
-    color: colors.white,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    color: DigestPalette.inkOnNight,
   },
   placeholder: {
     width: 34,
@@ -110,6 +115,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: sp[5],
+    paddingBottom: 40,
   },
 });

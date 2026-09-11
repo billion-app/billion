@@ -13,7 +13,14 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { Icon } from "~/components/ui/Icon";
-import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import {
   classifyDecision,
@@ -33,20 +40,21 @@ export function LocalDecisionsPreview({
   const router = useRouter();
 
   const jurisdiction = detectJurisdictionKey(address);
-  const isSanJoseResident = jurisdiction === "sanjose";
-  const jurisdictionName = JURISDICTION_FALLBACK_NAMES.sanjose;
+  const jurisdictionName = jurisdiction
+    ? JURISDICTION_FALLBACK_NAMES[jurisdiction]
+    : null;
 
   const query = useQuery({
     ...trpc.legistar.listDecisions.queryOptions({
-      jurisdiction: "sanjose",
+      jurisdiction: jurisdiction ?? "sanjose",
       timeline: "upcoming",
       limit: PREVIEW_COUNT,
     }),
-    enabled: isSanJoseResident,
+    enabled: jurisdiction != null,
   });
   const rows = query.data ?? [];
 
-  if (!isSanJoseResident) return null;
+  if (!jurisdiction || !jurisdictionName) return null;
 
   return (
     <TouchableOpacity
@@ -54,12 +62,12 @@ export function LocalDecisionsPreview({
       onPress={() => router.push("/local-decisions" as Href)}
       accessibilityRole="button"
       accessibilityHint="Opens the full list of upcoming and recent local decisions"
-      style={[s.card, { backgroundColor: planes.slate, borderColor: hair[2] }]}
+      style={s.card}
     >
       <View style={s.head}>
-        <Icon name="vote" size={18} color={colors.bill} />
+        <Icon name="vote" size={18} color={DigestPalette.spark} />
         <RNText style={s.title}>What {jurisdictionName} is deciding</RNText>
-        <Icon name="chevR" size={15} color={colors.textSecondary} />
+        <Icon name="chevR" size={15} color={DigestPalette.quiet} />
       </View>
       <RNText style={s.subtitle}>
         Upcoming agendas and recently decided items
@@ -67,9 +75,13 @@ export function LocalDecisionsPreview({
 
       {query.isLoading ? (
         <>
-          <View style={[s.skeletonLine, { backgroundColor: planes.surface }]} />
-          <View style={[s.skeletonLine, { backgroundColor: planes.surface }]} />
+          <View style={s.skeletonLine} />
+          <View style={s.skeletonLine} />
         </>
+      ) : query.isError ? (
+        <RNText style={s.empty}>
+          Local decisions didn&apos;t load. Open the list to try again.
+        </RNText>
       ) : rows.length === 0 ? (
         <RNText style={s.empty}>
           No published meetings in the pipeline right now. Open the list for
@@ -88,14 +100,14 @@ export function LocalDecisionsPreview({
           const visual = lifecycleVisual(lifecycle);
           const tint =
             visual.tint === "accent"
-              ? colors.bill
+              ? DigestPalette.spark
               : visual.tint === "success"
-                ? colors.green[500]
+                ? DigestPalette.badgeTeal
                 : visual.tint === "warning"
-                  ? colors.yellow[500]
+                  ? DigestPalette.spark
                   : visual.tint === "danger"
-                    ? colors.red[400]
-                    : colors.textSecondary;
+                    ? DigestPalette.badgeIndigo
+                    : DigestPalette.quiet;
           return (
             <View key={`${row.id}-${row.meetingItemId}`} style={s.row}>
               <Icon name={visual.icon} size={12} color={tint} />
@@ -115,10 +127,12 @@ export function LocalDecisionsPreview({
 
 const s = StyleSheet.create({
   card: {
-    borderRadius: 14,
+    borderRadius: DigestRadii.card,
     borderWidth: 1,
-    padding: 16,
-    marginHorizontal: 20,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.card,
+    padding: DigestSpace.cardBodyPadX,
+    marginHorizontal: DigestSpace.screenPadX,
     marginBottom: 24,
   },
   head: { flexDirection: "row", alignItems: "center", gap: 9 },
@@ -126,20 +140,26 @@ const s = StyleSheet.create({
     flex: 1,
     fontFamily: fontDisplay.bold,
     fontSize: 17,
-    color: colors.white,
+    letterSpacing: -0.35,
+    color: DigestPalette.inkOnNight,
   },
   subtitle: {
     fontFamily: fontBody.regular,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     marginTop: 3,
     marginBottom: 10,
   },
-  skeletonLine: { height: 14, borderRadius: 7, marginTop: 8 },
+  skeletonLine: {
+    height: 14,
+    borderRadius: 7,
+    marginTop: 8,
+    backgroundColor: DigestHair.tabActivePill,
+  },
   empty: {
     fontFamily: fontBody.regular,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     lineHeight: 18,
   },
   row: {
@@ -152,11 +172,11 @@ const s = StyleSheet.create({
     flex: 1,
     fontFamily: fontBody.medium,
     fontSize: 12.5,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   rowDate: {
     fontFamily: fontBody.regular,
     fontSize: 11,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
 });

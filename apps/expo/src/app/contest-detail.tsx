@@ -23,7 +23,22 @@ import {
   SearchInput,
   Segmented,
 } from "~/components/ui";
-import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
+import {
+  colors,
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette as P,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
+import { EmptyBallotMark, SectionFlourish } from "~/components/digest/CraftMarks";
+const cardChrome = {
+  backgroundColor: P.card,
+  borderRadius: DigestRadii.card,
+  borderWidth: StyleSheet.hairlineWidth,
+  borderColor: DigestHair.cardBorder,
+} as const;
 
 interface CandidateCitation {
   field: string;
@@ -87,9 +102,9 @@ function dedupeSources(citations: CandidateCitation[]): FooterSource[] {
 
 function partyColor(party?: string): string {
   const p = (party ?? "").toLowerCase();
-  if (p.startsWith("d")) return "#7BA0FF";
-  if (p.startsWith("r")) return "#C9CDDA";
-  return colors.textSecondary;
+  if (p.startsWith("d")) return P.badgeBlue;
+  if (p.startsWith("r")) return P.quiet;
+  return P.quiet;
 }
 
 function partyInitial(party?: string): string {
@@ -130,7 +145,7 @@ function CandidateStatement({ cand }: { cand: CandidateParam }) {
       )}
       {showingSummary && cand.statementSummaryIsAiGenerated && (
         <View style={s.aiNotice}>
-          <Icon name="sparkle" size={13} color={colors.yellow[500]} />
+          <Icon name="sparkle" size={13} color={P.spark} />
           <Text style={s.aiNoticeText}>
             AI summary of the candidate&apos;s own statement — not an official
             source. Read the full statement for their exact words.
@@ -237,28 +252,32 @@ export default function ContestDetailScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title={params.office} onBack={() => router.back()} />
+      <NavHeader title={params.office} tone="dark" onBack={() => router.back()} />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <Text style={s.contestKicker}>Contest</Text>
         <Text style={s.office}>{params.office}</Text>
         {params.districtName ? (
           <Text style={s.district}>{params.districtName}</Text>
         ) : null}
+        <View style={s.flourishWrap}>
+          <SectionFlourish width={88} />
+        </View>
 
         {description ? (
           <View style={s.section}>
-            <Kicker>About this office</Kicker>
-            <Card>
+            <Kicker style={s.kicker}>About this office</Kicker>
+            <Card style={cardChrome}>
               <Text style={s.descText}>{description}</Text>
             </Card>
           </View>
         ) : null}
 
         <View style={s.section}>
-          <Kicker>
+          <Kicker style={s.kicker}>
             {filtering
               ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
               : `${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
@@ -298,8 +317,10 @@ export default function ContestDetailScreen() {
           ) : null}
 
           {filtered.length === 0 ? (
-            <Card>
-              <Text style={s.noContact}>No candidates match.</Text>
+            <Card style={[cardChrome, s.emptyCard]}>
+              <EmptyBallotMark width={80} />
+              <Text style={s.emptyTitle}>No candidates match</Text>
+              <Text style={s.noContact}>Try clearing search or party filters.</Text>
             </Card>
           ) : null}
 
@@ -348,7 +369,7 @@ export default function ContestDetailScreen() {
                 sources.length > 0;
 
               return (
-                <Card key={key}>
+                <Card key={key} style={cardChrome}>
                   <TouchableOpacity
                     style={s.candHeader}
                     activeOpacity={0.7}
@@ -388,7 +409,7 @@ export default function ContestDetailScreen() {
                     <Icon
                       name={open ? "chevD" : "chevR"}
                       size={16}
-                      color="#5B6172"
+                      color={P.quiet}
                     />
                   </TouchableOpacity>
                   {open && (
@@ -402,7 +423,7 @@ export default function ContestDetailScreen() {
                           <Icon
                             name="doc"
                             size={13}
-                            color={colors.textSecondary}
+                            color={P.quiet}
                           />
                           <Text style={s.noContact}>
                             No statement submitted to the official voter guide.
@@ -425,7 +446,7 @@ export default function ContestDetailScreen() {
                             <Icon
                               name={row.icon}
                               size={16}
-                              color={colors.bill}
+                              color={P.spark}
                             />
                             <View style={{ flex: 1 }}>
                               <Text style={s.contactLabel}>{row.label}</Text>
@@ -436,7 +457,7 @@ export default function ContestDetailScreen() {
                             <Icon
                               name="external"
                               size={13}
-                              color={colors.textSecondary}
+                              color={P.quiet}
                             />
                           </TouchableOpacity>
                         ))}
@@ -450,7 +471,7 @@ export default function ContestDetailScreen() {
                               <Icon
                                 name="globe"
                                 size={16}
-                                color={colors.bill}
+                                color={P.spark}
                               />
                               <View style={{ flex: 1 }}>
                                 <Text style={s.contactLabel}>{ch.type}</Text>
@@ -481,7 +502,7 @@ export default function ContestDetailScreen() {
                                   color={
                                     src.official
                                       ? colors.green[500]
-                                      : colors.textSecondary
+                                      : P.quiet
                                   }
                                 />
                                 <View style={{ flex: 1 }}>
@@ -497,7 +518,7 @@ export default function ContestDetailScreen() {
                                   <Icon
                                     name="external"
                                     size={13}
-                                    color={colors.textSecondary}
+                                    color={P.quiet}
                                   />
                                 ) : null}
                               </Pressable>
@@ -518,29 +539,61 @@ export default function ContestDetailScreen() {
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: planes.navy },
+  screen: { flex: 1, backgroundColor: P.canvas },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  scrollContent: {
+    paddingHorizontal: DigestSpace.coverPadX,
+    paddingTop: 8,
+    paddingBottom: 48,
+  },
+  kicker: {
+    color: P.spark,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  contestKicker: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: P.spark,
+    marginBottom: 8,
+  },
   office: {
     fontFamily: fontDisplay.bold,
-    fontSize: 26,
-    color: colors.white,
-    marginBottom: 6,
-    lineHeight: 32,
+    fontSize: 28,
+    color: P.inkOnNight,
+    marginBottom: 4,
+    lineHeight: 34,
+    letterSpacing: -0.55,
   },
   district: {
     fontFamily: fontBody.medium,
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 24,
+    fontSize: 13.5,
+    color: P.quiet,
+    marginBottom: 12,
   },
-  section: { marginBottom: 24 },
-  filters: { gap: 10, marginBottom: 14 },
+  flourishWrap: { marginBottom: 20, alignItems: "flex-start" },
+  section: { marginBottom: 28 },
+  filters: { gap: 12, marginBottom: 12 },
+  emptyCard: {
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 20,
+  },
+  emptyTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 18,
+    color: P.inkOnNight,
+  },
   pillsBleed: { marginHorizontal: -20 },
   descText: {
     fontFamily: fontBody.regular,
     fontSize: 14.5,
-    color: "rgba(255,255,255,0.85)",
+    color: P.inkOnNight,
     lineHeight: 22,
   },
   candHeader: {
@@ -552,7 +605,7 @@ const s = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 9,
-    backgroundColor: planes.surface,
+    backgroundColor: P.stone,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -565,9 +618,11 @@ const s = StyleSheet.create({
     flexWrap: "wrap",
   },
   candName: {
-    fontFamily: fontBody.semibold,
-    fontSize: 15,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+    color: P.inkOnNight,
   },
   incumbentBadge: {
     backgroundColor: "rgba(16, 185, 129, 0.14)",
@@ -587,19 +642,19 @@ const s = StyleSheet.create({
   candBio: {
     fontFamily: fontBody.regular,
     fontSize: 14,
-    color: "rgba(255,255,255,0.85)",
+    color: P.inkOnNight,
     lineHeight: 21,
     marginBottom: 4,
   },
   candParty: {
     fontFamily: fontBody.medium,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   candBody: {
-    marginTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: hair[1],
+    marginTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.cardBorder,
     paddingTop: 12,
     gap: 8,
   },
@@ -610,17 +665,17 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    backgroundColor: "rgba(245, 200, 66, 0.08)",
+    backgroundColor: DigestHair.tabActivePill,
     borderWidth: 1,
-    borderColor: "rgba(245, 200, 66, 0.25)",
-    borderRadius: 10,
+    borderColor: DigestHair.coverBorder,
+    borderRadius: DigestRadii.menu,
     padding: 12,
   },
   aiNoticeText: {
     flex: 1,
     fontFamily: fontBody.regular,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: P.quiet,
     lineHeight: 18,
   },
   contactRow: {
@@ -632,12 +687,12 @@ const s = StyleSheet.create({
   contactLabel: {
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   contactValue: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: colors.white,
+    color: P.inkOnNight,
     marginTop: 1,
   },
   emptyNote: {
@@ -648,24 +703,24 @@ const s = StyleSheet.create({
   noContact: {
     fontFamily: fontBody.regular,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   channelsWrap: {
     borderTopWidth: 1,
-    borderTopColor: hair[1],
+    borderTopColor: DigestHair.cardBorder,
     paddingTop: 8,
     marginTop: 4,
   },
   sourcesWrap: {
     borderTopWidth: 1,
-    borderTopColor: hair[1],
+    borderTopColor: DigestHair.cardBorder,
     paddingTop: 10,
     marginTop: 4,
   },
   sourcesLabel: {
     fontFamily: fontBody.medium,
     fontSize: 11,
-    color: colors.textSecondary,
+    color: P.quiet,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -679,12 +734,12 @@ const s = StyleSheet.create({
   sourceName: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: colors.white,
+    color: P.inkOnNight,
   },
   sourceMeta: {
     fontFamily: fontBody.regular,
     fontSize: 11,
-    color: colors.textSecondary,
+    color: P.quiet,
     marginTop: 1,
   },
 });

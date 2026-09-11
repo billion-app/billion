@@ -22,10 +22,18 @@ import {
 } from "~/components/local-government/DocumentsSection";
 import { LifecycleChip } from "~/components/local-government/LifecycleChip";
 import { OccurrenceTimeline } from "~/components/local-government/OccurrenceTimeline";
-import { Text, View as ThemedView } from "~/components/Themed";
+import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui/Icon";
 import { NavHeader } from "~/components/ui/NavHeader";
-import { colors, fontBody, fontDisplay, useTheme } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette as P,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
+import { DecisionSeal, SectionFlourish } from "~/components/digest/CraftMarks";
 import { trpc } from "~/utils/api";
 import {
   classifyDecision,
@@ -40,7 +48,6 @@ import {
 
 export default function LocalDecisionDetailScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === "string" ? params.id : undefined;
 
@@ -55,36 +62,36 @@ export default function LocalDecisionDetailScreen() {
 
   if (!id || errorCode === "NOT_FOUND") {
     return (
-      <ThemedView style={[s.screen, { backgroundColor: theme.background }]}>
-        <NavHeader title="Local decision" onBack={() => router.back()} />
+      <View style={s.screen}>
+        <NavHeader title="Local decision" tone="dark" onBack={() => router.back()} />
         <DetailState
           title="This decision isn't available"
           body="It may have been removed from the official record, or the link is out of date."
         />
-      </ThemedView>
+      </View>
     );
   }
 
   if (query.isLoading) {
     return (
-      <ThemedView style={[s.screen, { backgroundColor: theme.background }]}>
-        <NavHeader title="Local decision" onBack={() => router.back()} />
+      <View style={s.screen}>
+        <NavHeader title="Local decision" tone="dark" onBack={() => router.back()} />
         <View style={s.center}>
-          <ActivityIndicator size="large" color={colors.white} />
+          <ActivityIndicator size="large" color={P.spark} />
         </View>
-      </ThemedView>
+      </View>
     );
   }
 
   if (query.error || !query.data) {
     return (
-      <ThemedView style={[s.screen, { backgroundColor: theme.background }]}>
-        <NavHeader title="Local decision" onBack={() => router.back()} />
+      <View style={s.screen}>
+        <NavHeader title="Local decision" tone="dark" onBack={() => router.back()} />
         <DetailState
           title="Couldn't load this decision"
           body="The official records source didn't respond. Your link is still valid — try again."
         />
-      </ThemedView>
+      </View>
     );
   }
 
@@ -98,7 +105,6 @@ function DecisionBody({
   decision: DecisionDetail;
   onBack: () => void;
 }) {
-  const { theme } = useTheme();
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const latest = latestOccurrence(decision.occurrences);
@@ -119,28 +125,29 @@ function DecisionBody({
   const upcoming = nextUpcomingOccurrence(decision.occurrences);
 
   return (
-    <ThemedView style={[s.screen, { backgroundColor: theme.background }]}>
-      <NavHeader title="Local decision" onBack={onBack} />
+    <View style={s.screen}>
+      <NavHeader title="Local decision" tone="dark" onBack={onBack} />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        {topic ? (
-          <Text style={[s.kicker, { color: colors.bill }]}>{topic}</Text>
-        ) : null}
-        <Text
-          style={[s.title, { color: theme.foreground }]}
-          accessibilityRole="header"
-        >
+        {/* Dossier header — unique rhythm vs contest/measure */}
+        <View style={s.dossierMark}>
+          <DecisionSeal size={28} />
+        </View>
+        {topic ? <Text style={s.kicker}>{topic}</Text> : null}
+        <Text style={s.title} accessibilityRole="header">
           {decision.title}
         </Text>
+        <View style={s.flourishWrap}>
+          <SectionFlourish width={72} />
+        </View>
 
         <View style={s.statusRow}>
           <LifecycleChip lifecycle={lifecycle} size="md" />
         </View>
-        <Text style={[s.scopeSentence, { color: theme.textSecondary }]}>
+        <Text style={s.scopeSentence}>
           {[
             decision.jurisdiction,
             scope.sentence ??
@@ -149,7 +156,7 @@ function DecisionBody({
         </Text>
 
         {/* Key facts */}
-        <View style={[s.factsCard, { backgroundColor: theme.card }]}>
+        <View style={s.factsCard}>
           <FactRow
             label="Status"
             value={
@@ -197,12 +204,12 @@ function DecisionBody({
         {/* Official source */}
         {decision.sourceUrl ? (
           <ExternalLink href={decision.sourceUrl}>
-            <View style={[s.sourceButton, { borderColor: theme.border }]}>
-              <Icon name="link" size={13} color={theme.accent} />
-              <Text style={[s.sourceButtonText, { color: theme.accent }]}>
+            <View style={s.sourceButton}>
+              <Icon name="link" size={13} color={P.spark} />
+              <Text style={s.sourceButtonText}>
                 Open on the official {decision.jurisdiction} site
               </Text>
-              <Icon name="external" size={12} color={theme.accent} />
+              <Icon name="external" size={12} color={P.spark} />
             </View>
           </ExternalLink>
         ) : null}
@@ -221,7 +228,7 @@ function DecisionBody({
             />
           </>
         ) : (
-          <Text style={[s.partialNote, { color: theme.textSecondary }]}>
+          <Text style={s.partialNote}>
             This file exists in the official record, but no meeting agenda has
             published it yet.
           </Text>
@@ -232,32 +239,30 @@ function DecisionBody({
           <>
             <TouchableOpacity
               onPress={() => setHistoryOpen((open) => !open)}
-              style={[s.historyToggle, { borderColor: theme.border }]}
+              style={s.historyToggle}
               accessibilityRole="button"
               accessibilityState={{ expanded: historyOpen }}
             >
-              <Text style={[s.historyToggleText, { color: theme.foreground }]}>
+              <Text style={s.historyToggleText}>
                 {historyOpen ? "Hide" : "Show"} published action history (
                 {decision.history.length})
               </Text>
               <Icon
                 name={historyOpen ? "chevD" : "chevR"}
                 size={14}
-                color={theme.textSecondary}
+                color={P.quiet}
               />
             </TouchableOpacity>
             {historyOpen && (
-              <View style={[s.historyCard, { backgroundColor: theme.card }]}>
+              <View style={s.historyCard}>
                 {decision.history.map((entry) => (
                   <View key={entry.id} style={s.historyRow}>
-                    <Text style={[s.historyDate, { color: theme.foreground }]}>
+                    <Text style={s.historyDate}>
                       {entry.actionDate
                         ? formatMeetingDate(entry.actionDate)
                         : "Undated"}
                     </Text>
-                    <Text
-                      style={[s.historyAction, { color: theme.textSecondary }]}
-                    >
+                    <Text style={s.historyAction}>
                       {[entry.body, entry.action].filter(Boolean).join(" · ")}
                     </Text>
                   </View>
@@ -275,52 +280,46 @@ function DecisionBody({
         <ParticipationCard participation={decision.participation} />
 
         {/* Honest provenance footer */}
-        <Text style={[s.provenance, { color: theme.textSecondary }]}>
+        <Text style={s.provenance}>
           Everything above comes from {decision.jurisdiction}'s published
           records, last updated {formatMeetingDate(decision.sourceUpdatedAt)}.
           Blank fields mean the city hasn't published that information — not
           that it doesn't exist.
         </Text>
       </ScrollView>
-    </ThemedView>
+    </View>
   );
 }
 
 function SectionHeading({ children }: { children: string }) {
-  const { theme } = useTheme();
-  return (
-    <Text style={[s.sectionHeading, { color: theme.textSecondary }]}>
-      {children.toUpperCase()}
-    </Text>
-  );
+  return <Text style={s.sectionHeading}>{children.toUpperCase()}</Text>;
 }
 
 function FactRow({ label, value }: { label: string; value: string }) {
-  const { theme } = useTheme();
   return (
-    <View style={[s.factRow, { borderBottomColor: theme.border }]}>
-      <Text style={[s.factLabel, { color: theme.textSecondary }]}>{label}</Text>
-      <Text style={[s.factValue, { color: theme.foreground }]}>{value}</Text>
+    <View style={s.factRow}>
+      <Text style={s.factLabel}>{label}</Text>
+      <Text style={s.factValue}>{value}</Text>
     </View>
   );
 }
 
 function DetailState({ title, body }: { title: string; body: string }) {
-  const { theme } = useTheme();
   return (
     <View style={s.center}>
-      <Text style={[s.stateTitle, { color: theme.foreground }]}>{title}</Text>
-      <Text style={[s.stateBody, { color: theme.textSecondary }]}>{body}</Text>
+      <Text style={s.stateTitle}>{title}</Text>
+      <Text style={s.stateBody}>{body}</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { flex: 1, backgroundColor: P.canvas },
   scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 64,
+    paddingHorizontal: DigestSpace.coverPadX,
+    paddingTop: 8,
+    paddingBottom: 48,
   },
   center: {
     flex: 1,
@@ -329,18 +328,23 @@ const s = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 32,
   },
+  dossierMark: { marginBottom: 12, alignItems: "flex-start" },
+  flourishWrap: { marginBottom: 16, alignItems: "flex-start" },
   kicker: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 6,
+    letterSpacing: 1.4,
+    marginBottom: 8,
+    color: P.spark,
   },
   title: {
     fontFamily: fontDisplay.bold,
-    fontSize: 24,
-    lineHeight: 30,
-    marginBottom: 12,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.45,
+    marginBottom: 8,
+    color: P.inkOnNight,
   },
   statusRow: { flexDirection: "row", marginBottom: 10 },
   scopeSentence: {
@@ -348,12 +352,18 @@ const s = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 19,
     marginBottom: 16,
+    color: P.quiet,
   },
   factsCard: {
-    borderRadius: 12,
+    backgroundColor: P.card,
+    borderRadius: DigestRadii.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    borderLeftWidth: 3,
+    borderLeftColor: P.spark,
     paddingVertical: 4,
-    paddingHorizontal: 12,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   factRow: {
     flexDirection: "row",
@@ -361,17 +371,20 @@ const s = StyleSheet.create({
     gap: 12,
     paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
   },
   factLabel: {
     fontFamily: fontBody.medium,
     fontSize: 12.5,
     flexShrink: 0,
+    color: P.quiet,
   },
   factValue: {
     fontFamily: fontBody.medium,
     fontSize: 12.5,
     textAlign: "right",
     flexShrink: 1,
+    color: P.inkOnNight,
   },
   sourceButton: {
     flexDirection: "row",
@@ -379,6 +392,7 @@ const s = StyleSheet.create({
     alignSelf: "flex-start",
     gap: 7,
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.coverBorder,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -387,26 +401,31 @@ const s = StyleSheet.create({
   sourceButtonText: {
     fontFamily: fontBody.semibold,
     fontSize: 12.5,
+    color: P.spark,
   },
   sectionHeading: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    marginTop: 8,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    marginTop: 16,
     marginBottom: 12,
+    color: P.spark,
+    textTransform: "uppercase",
   },
   partialNote: {
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 18,
     marginVertical: 12,
+    color: P.quiet,
   },
   historyToggle: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.menu,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 4,
@@ -414,38 +433,47 @@ const s = StyleSheet.create({
   historyToggleText: {
     fontFamily: fontBody.semibold,
     fontSize: 12.5,
+    color: P.inkOnNight,
   },
   historyCard: {
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 6,
-    gap: 8,
+    backgroundColor: P.card,
+    borderRadius: DigestRadii.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    padding: 16,
+    marginTop: 8,
+    gap: 12,
   },
   historyRow: { gap: 2 },
   historyDate: {
     fontFamily: fontBody.semibold,
     fontSize: 12.5,
+    color: P.inkOnNight,
   },
   historyAction: {
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 17,
+    color: P.quiet,
   },
   provenance: {
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 20,
+    color: P.quiet,
   },
   stateTitle: {
     fontFamily: fontDisplay.bold,
     fontSize: 18,
     textAlign: "center",
+    color: P.inkOnNight,
   },
   stateBody: {
     fontFamily: fontBody.regular,
     fontSize: 14,
     lineHeight: 20,
     textAlign: "center",
+    color: P.quiet,
   },
 });

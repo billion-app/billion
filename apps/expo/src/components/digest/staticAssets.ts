@@ -5,4 +5,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment */
 
 export const CAPITOL_LINE: number = require("../../../assets/digest/capitol-line.png");
+export const EMPTY_CIVIC: number = require("../../../assets/elections/civic-city-hall.jpg");
 export const GREAT_VIBES: number = require("../../../assets/fonts/GreatVibes-Regular.ttf");

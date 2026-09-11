@@ -1,17 +1,16 @@
-import { useState } from "react";
-import { StyleSheet, TextInput, TouchableOpacity } from "react-native";
+import { StyleSheet, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 
+import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { Text, View } from "~/components/Themed";
-import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
-
-const colors = {
-  white: "#FFFFFF",
-  black: "#000000",
-  civicBlue: "#4A7CFF",
-  textMuted: "#8A8FA0",
-};
-
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 interface MyBallotSectionProps {
   address: string | null;
   onAddressSubmit: (address: string) => void;
@@ -25,6 +24,10 @@ interface MyBallotSectionProps {
  * and links out to the full ballot — it deliberately does NOT re-list the
  * contests, which live on the main "Your Ballot" tab. This screen is for
  * voting logistics, not a second copy of the ballot.
+ *
+ * Address entry goes through places.autocomplete / places.details (via
+ * AddressAutocomplete) — same path as the Elections tab. Never invents a
+ * council district from the address.
  */
 export function MyBallotSection({
   address,
@@ -32,45 +35,28 @@ export function MyBallotSection({
   onEditAddress,
   onViewBallot,
 }: MyBallotSectionProps) {
-  const { theme } = useTheme();
-  const [inputValue, setInputValue] = useState("");
-
   if (!address) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.card }]}>
-        <Text style={styles.sectionTitle}>Your Address</Text>
+      <View style={styles.container}>
+        <Text style={styles.kicker}>YOUR ADDRESS</Text>
+        <Text style={styles.sectionTitle}>Where you vote</Text>
         <Text style={styles.hint}>
-          We'll show your polling place, key dates, and who represents you
+          We&apos;ll show your polling place, key dates, and who represents you
         </Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.background }]}
-            placeholder="Enter your address"
-            placeholderTextColor={colors.textMuted}
-            value={inputValue}
-            onChangeText={setInputValue}
-            autoCapitalize="none"
-            textContentType="fullStreetAddress"
-            autoComplete="street-address"
-          />
-          <TouchableOpacity
-            style={[styles.button, !inputValue && styles.buttonDisabled]}
-            onPress={() => inputValue && onAddressSubmit(inputValue)}
-            disabled={!inputValue}
-          >
-            <Text style={styles.buttonText}>Look Up</Text>
-          </TouchableOpacity>
-        </View>
+        <AddressAutocomplete onSubmit={onAddressSubmit} hint={null} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.card }]}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.sectionTitle}>Your Address</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.kicker}>YOUR ADDRESS</Text>
+          <Text style={styles.sectionTitle}>Where you vote</Text>
+        </View>
         <TouchableOpacity onPress={onEditAddress} style={styles.editButton}>
-          <FontAwesome name="pencil" size={14} color={colors.civicBlue} />
+          <FontAwesome name="pencil" size={14} color={DigestPalette.spark} />
           <Text style={styles.editText}>Edit</Text>
         </TouchableOpacity>
       </View>
@@ -78,20 +64,20 @@ export function MyBallotSection({
 
       {onViewBallot && (
         <TouchableOpacity
-          style={[styles.ballotLink, { backgroundColor: theme.background }]}
+          style={styles.ballotLink}
           onPress={onViewBallot}
           activeOpacity={0.8}
         >
           <FontAwesome
             name="check-square-o"
             size={15}
-            color={colors.civicBlue}
+            color={DigestPalette.spark}
           />
           <Text style={styles.ballotLinkText}>View your full ballot</Text>
           <FontAwesome
             name="chevron-right"
             size={12}
-            color={colors.textMuted}
+            color={DigestPalette.quiet}
           />
         </TouchableOpacity>
       )}
@@ -101,83 +87,74 @@ export function MyBallotSection({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: sp[4],
-    marginBottom: sp[6],
-    padding: sp[4],
-    borderRadius: rd.md,
+    marginHorizontal: DigestSpace.screenPadX,
+    marginBottom: 24,
+    padding: DigestSpace.cardBodyPadX,
+    paddingBottom: DigestSpace.cardBodyPadBottom,
+    borderRadius: DigestRadii.card,
+    backgroundColor: DigestPalette.card,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: sp[3],
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  kicker: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    color: DigestPalette.spark,
+    textTransform: "uppercase",
+    marginBottom: 4,
   },
   sectionTitle: {
-    fontFamily: fontEditorial.bold,
-    fontSize: fontSize.lg,
-    color: colors.white,
-    marginBottom: sp[2],
+    fontFamily: fontDisplay.bold,
+    fontSize: 22,
+    letterSpacing: -0.45,
+    color: DigestPalette.inkOnNight,
   },
   hint: {
     fontFamily: fontBody.regular,
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
-    marginBottom: sp[4],
-  },
-  inputRow: {
-    flexDirection: "row",
-    gap: sp[3],
-  },
-  input: {
-    flex: 1,
-    fontFamily: fontBody.regular,
-    fontSize: fontSize.sm,
-    color: colors.white,
-    padding: sp[3],
-    borderRadius: rd.sm,
-  },
-  button: {
-    backgroundColor: colors.white,
-    paddingVertical: sp[3],
-    paddingHorizontal: sp[4],
-    borderRadius: 9999,
-    justifyContent: "center",
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontFamily: fontBody.semibold,
-    fontSize: fontSize.sm,
-    color: colors.black,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: DigestPalette.quiet,
+    marginBottom: 16,
   },
   editButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: sp[2],
+    gap: 6,
+    paddingTop: 4,
   },
   editText: {
     fontFamily: fontBody.medium,
-    fontSize: fontSize.sm,
-    color: colors.civicBlue,
+    fontSize: 13,
+    color: DigestPalette.spark,
   },
   address: {
     fontFamily: fontBody.regular,
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
+    fontSize: 14,
+    color: DigestPalette.quiet,
+    lineHeight: 20,
   },
   ballotLink: {
     flexDirection: "row",
     alignItems: "center",
-    gap: sp[3],
-    padding: sp[3],
-    borderRadius: rd.sm,
-    marginTop: sp[4],
+    gap: 10,
+    padding: 12,
+    borderRadius: DigestRadii.menu,
+    marginTop: 16,
+    backgroundColor: DigestPalette.canvas,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
   },
   ballotLinkText: {
     flex: 1,
     fontFamily: fontBody.medium,
-    fontSize: fontSize.sm,
-    color: colors.white,
+    fontSize: 13.5,
+    color: DigestPalette.inkOnNight,
   },
 });

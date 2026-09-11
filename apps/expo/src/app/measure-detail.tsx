@@ -5,8 +5,16 @@ import type { MeasureArgumentRef, MeasureCitationRef } from "@acme/api";
 
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, NavHeader, PrimaryButton } from "~/components/ui";
-import { colors, fontBody, fontDisplay, planes } from "~/styles";
-
+import {
+  colors,
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette as P,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
+import { MeasureBalance, SectionFlourish } from "~/components/digest/CraftMarks";
 /** Parse a JSON-encoded route param, tolerating empty/malformed values. */
 function parseJson<T>(raw: string | undefined, fallback: T): T {
   if (!raw) return fallback;
@@ -28,6 +36,13 @@ const TIER_LABEL: Record<string, string> = {
   google_civic: "Google Civic",
   ai_generated: "AI-generated",
 };
+
+const cardChrome = {
+  backgroundColor: P.card,
+  borderRadius: DigestRadii.card,
+  borderWidth: StyleSheet.hairlineWidth,
+  borderColor: DigestHair.cardBorder,
+} as const;
 
 export default function MeasureDetailScreen() {
   const router = useRouter();
@@ -71,17 +86,21 @@ export default function MeasureDetailScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Ballot Measure" onBack={() => router.back()} />
+      <NavHeader title="Ballot Measure" tone="dark" onBack={() => router.back()} />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={s.badge}>
-          <Text style={s.badgeText}>MEASURE</Text>
+        <View style={s.heroMarkRow}>
+          <MeasureBalance width={36} />
+          <Text style={s.measureKicker}>Ballot measure</Text>
         </View>
 
         <Text style={s.title}>{params.referendumTitle}</Text>
+        <View style={s.flourishWrap}>
+          <SectionFlourish width={88} />
+        </View>
 
         {params.summaryLong || params.summary || params.referendumSubtitle ? (
           <>
@@ -92,7 +111,7 @@ export default function MeasureDetailScreen() {
             </Text>
             {summaryIsAi && (
               <View style={s.aiNotice}>
-                <Icon name="sparkle" size={13} color={colors.yellow[500]} />
+                <Icon name="sparkle" size={13} color={P.spark} />
                 <Text style={s.aiNoticeText}>
                   AI-generated summary — not from an official source. Verify
                   against the official text below.
@@ -109,8 +128,8 @@ export default function MeasureDetailScreen() {
         {/* Fiscal impact (official analysis) */}
         {params.fiscalImpact ? (
           <View style={s.section}>
-            <Kicker>Fiscal impact</Kicker>
-            <Card>
+            <Kicker style={s.kicker}>Fiscal impact</Kicker>
+            <Card style={cardChrome}>
               <Text style={s.fiscalText}>{params.fiscalImpact}</Text>
             </Card>
           </View>
@@ -119,7 +138,7 @@ export default function MeasureDetailScreen() {
         {/* Yes / No arguments — one card per side, arguments as bullets. */}
         {(pros.length > 0 || cons.length > 0) && (
           <View style={s.section}>
-            <Kicker>A YES vote vs. a NO vote</Kicker>
+            <Kicker style={s.kicker}>A YES vote vs. a NO vote</Kicker>
             <View style={{ gap: 12 }}>
               {pros.length > 0 && (
                 <StanceCard
@@ -142,8 +161,8 @@ export default function MeasureDetailScreen() {
         {/* Full referendum text */}
         {params.referendumText ? (
           <View style={s.section}>
-            <Kicker>Full text</Kicker>
-            <Card>
+            <Kicker style={s.kicker}>Full text</Kicker>
+            <Card style={cardChrome}>
               <Text style={s.fullText}>{params.referendumText}</Text>
             </Card>
           </View>
@@ -152,8 +171,8 @@ export default function MeasureDetailScreen() {
         {/* Sources / citations — every source points back to its original. */}
         {sources.length > 0 && (
           <View style={s.section}>
-            <Kicker>Sources</Kicker>
-            <Card>
+            <Kicker style={s.kicker}>Sources</Kicker>
+            <Card style={cardChrome}>
               {sources.map((src, i) => {
                 const url = src.sourceUrl;
                 const open = url ? () => void Linking.openURL(url) : undefined;
@@ -167,9 +186,7 @@ export default function MeasureDetailScreen() {
                     <Icon
                       name={src.official ? "shield" : "info"}
                       size={14}
-                      color={
-                        src.official ? colors.green[500] : colors.textSecondary
-                      }
+                      color={src.official ? P.badgeTeal : P.quiet}
                     />
                     <View style={{ flex: 1 }}>
                       <Text style={s.sourceName}>{src.sourceName}</Text>
@@ -180,11 +197,7 @@ export default function MeasureDetailScreen() {
                       </Text>
                     </View>
                     {open ? (
-                      <Icon
-                        name="external"
-                        size={14}
-                        color={colors.textSecondary}
-                      />
+                      <Icon name="external" size={14} color={P.quiet} />
                     ) : null}
                   </Pressable>
                 );
@@ -225,9 +238,8 @@ function StanceCard({
     ),
   ].join(", ");
   return (
-    <Card>
+    <Card style={[cardChrome, s.stanceCard, { borderLeftColor: color }]}>
       <View style={s.stanceHeader}>
-        <View style={[s.stanceDot, { backgroundColor: color }]} />
         <Text style={s.stanceLabel}>{label}</Text>
       </View>
       <View style={{ gap: 8 }}>
@@ -276,46 +288,58 @@ function dedupeSources(citations: MeasureCitationRef[]): FooterSource[] {
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: planes.navy },
+  screen: { flex: 1, backgroundColor: P.canvas },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  badge: {
-    backgroundColor: "#4A7CFF",
-    alignSelf: "flex-start",
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 4,
-    marginBottom: 14,
+  scrollContent: {
+    paddingHorizontal: DigestSpace.coverPadX,
+    paddingTop: 8,
+    paddingBottom: 48,
   },
-  badgeText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11,
-    color: colors.white,
+  kicker: {
+    color: P.spark,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    marginBottom: 8,
   },
+  heroMarkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+  measureKicker: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: P.spark,
+  },
+  flourishWrap: { marginBottom: 16, alignItems: "flex-start" },
   title: {
     fontFamily: fontDisplay.bold,
-    fontSize: 26,
-    color: colors.white,
-    marginBottom: 12,
-    lineHeight: 32,
+    fontSize: 28,
+    color: P.inkOnNight,
+    marginBottom: 8,
+    lineHeight: 34,
+    letterSpacing: -0.55,
   },
   subtitle: {
     fontFamily: fontBody.regular,
     fontSize: 15,
-    color: colors.textSecondary,
+    color: P.quiet,
     lineHeight: 22,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   aiNotice: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    backgroundColor: "rgba(245, 200, 66, 0.08)",
+    backgroundColor: DigestHair.tabActivePill,
     borderWidth: 1,
-    borderColor: "rgba(245, 200, 66, 0.25)",
-    borderRadius: 10,
+    borderColor: DigestHair.coverBorder,
+    borderRadius: DigestRadii.menu,
     padding: 12,
     marginBottom: 16,
   },
@@ -323,33 +347,37 @@ const s = StyleSheet.create({
     flex: 1,
     fontFamily: fontBody.regular,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: P.quiet,
     lineHeight: 18,
   },
-  section: { marginBottom: 24 },
+  section: { marginBottom: 28 },
   fiscalText: {
     fontFamily: fontBody.regular,
     fontSize: 14.5,
-    color: "rgba(255,255,255,0.85)",
+    color: P.inkOnNight,
     lineHeight: 22,
+  },
+  stanceCard: {
+    borderLeftWidth: 3,
+    paddingVertical: 4,
   },
   stanceHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
     marginBottom: 10,
   },
-  stanceDot: { width: 10, height: 10, borderRadius: 5 },
   stanceLabel: {
-    fontFamily: fontBody.semibold,
-    fontSize: 14,
-    color: colors.white,
+    fontFamily: fontBody.bold,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: P.inkOnNight,
   },
   stanceText: {
     flex: 1,
     fontFamily: fontBody.regular,
     fontSize: 14.5,
-    color: "rgba(255,255,255,0.85)",
+    color: P.inkOnNight,
     lineHeight: 22,
   },
   bulletRow: {
@@ -364,13 +392,13 @@ const s = StyleSheet.create({
   argAttribution: {
     fontFamily: fontBody.medium,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: P.quiet,
     marginTop: 8,
   },
   fullText: {
     fontFamily: fontBody.regular,
     fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
+    color: P.inkOnNight,
     lineHeight: 22,
   },
   sourceRow: {
@@ -381,17 +409,17 @@ const s = StyleSheet.create({
   },
   sourceRowBorder: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopColor: DigestHair.cardBorder,
   },
   sourceName: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: colors.white,
+    color: P.inkOnNight,
   },
   sourceMeta: {
     fontFamily: fontBody.regular,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: P.quiet,
     marginTop: 2,
   },
 });

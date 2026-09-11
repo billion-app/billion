@@ -1,7 +1,14 @@
 import { ScrollView, StyleSheet } from "react-native";
 
 import { Text, View } from "~/components/Themed";
-import { fontBody, fontEditorial, fontSize, rd, sp, useTheme } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 import { daysUntil, formatDate } from "~/utils/dates";
 
 interface KeyDate {
@@ -14,8 +21,6 @@ interface KeyDatesSectionProps {
 }
 
 export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
-  const { theme } = useTheme();
-
   const electionDateObj = new Date(electionDate);
   const registrationDeadline = new Date(electionDateObj);
   registrationDeadline.setDate(registrationDeadline.getDate() - 15);
@@ -40,6 +45,7 @@ export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
 
   return (
     <View style={styles.container}>
+      <Text style={styles.kicker}>CALENDAR</Text>
       <Text style={styles.sectionTitle}>Key Dates</Text>
       <ScrollView
         horizontal
@@ -56,11 +62,7 @@ export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
           return (
             <View
               key={item.label}
-              style={[
-                styles.card,
-                { backgroundColor: theme.card },
-                isNext && styles.cardHighlight,
-              ]}
+              style={[styles.card, isNext && styles.cardHighlight]}
             >
               <Text style={[styles.label, isPassed && styles.textMuted]}>
                 {item.label}
@@ -89,59 +91,68 @@ export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
   );
 }
 
-const colors = {
-  white: "#FFFFFF",
-  civicBlue: "#4A7CFF",
-  textMuted: "#8A8FA0",
-};
-
 const styles = StyleSheet.create({
   container: {
-    marginBottom: sp[6],
+    marginBottom: 24,
+  },
+  kicker: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    color: DigestPalette.spark,
+    textTransform: "uppercase",
+    marginHorizontal: DigestSpace.screenPadX,
+    marginBottom: 4,
   },
   sectionTitle: {
-    fontFamily: fontEditorial.bold,
-    fontSize: fontSize.lg,
-    color: colors.white,
-    marginHorizontal: sp[4],
-    marginBottom: sp[3],
+    fontFamily: fontDisplay.bold,
+    fontSize: 22,
+    letterSpacing: -0.45,
+    color: DigestPalette.inkOnNight,
+    marginHorizontal: DigestSpace.screenPadX,
+    marginBottom: 12,
   },
   scrollContent: {
-    paddingHorizontal: sp[4],
-    gap: sp[3],
+    paddingHorizontal: DigestSpace.screenPadX,
+    gap: DigestSpace.railGap,
+    alignItems: "flex-start",
   },
   card: {
-    padding: sp[4],
-    borderRadius: rd.md,
+    padding: DigestSpace.cardBodyPadX,
+    borderRadius: DigestRadii.card,
     minWidth: 140,
+    backgroundColor: DigestPalette.card,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
   },
   cardHighlight: {
-    borderWidth: 2,
-    borderColor: colors.civicBlue,
+    borderWidth: 1,
+    borderColor: DigestHair.coverBorder,
+    backgroundColor: DigestHair.tabActivePill,
   },
   label: {
     fontFamily: fontBody.medium,
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
-    marginBottom: sp[2],
+    fontSize: 11,
+    color: DigestPalette.quiet,
+    marginBottom: 6,
   },
   date: {
     fontFamily: fontBody.semibold,
-    fontSize: fontSize.sm,
-    color: colors.white,
-    marginBottom: sp[2],
+    fontSize: 13.5,
+    color: DigestPalette.inkOnNight,
+    marginBottom: 6,
   },
   countdown: {
     fontFamily: fontBody.regular,
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
+    fontSize: 12,
+    color: DigestPalette.quiet,
   },
   countdownHighlight: {
-    color: colors.civicBlue,
+    color: DigestPalette.spark,
     fontFamily: fontBody.semibold,
   },
   textMuted: {
-    color: colors.textMuted,
+    color: DigestPalette.quiet,
     opacity: 0.6,
   },
 });

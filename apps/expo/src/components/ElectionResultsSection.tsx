@@ -39,7 +39,14 @@ import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker } from "~/components/ui";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 
 /** How often to refetch while the screen is focused (live election night). */
@@ -167,15 +174,15 @@ function partyColor(party?: string): string {
   switch (party?.toLowerCase()) {
     case "dem":
     case "democratic":
-      return colors.bill; // civic blue
+      return DigestPalette.badgeBlue;
     case "rep":
     case "republican":
-      return colors.red[500];
+      return DigestPalette.badgeIndigo;
     case "grn":
     case "green":
-      return colors.green[500];
+      return DigestPalette.badgeTeal;
     default:
-      return colors.general;
+      return DigestPalette.quiet;
   }
 }
 
@@ -204,7 +211,7 @@ function CandidateRow({
           ) : null}
           {candidate.advancing ? (
             <View style={s.advChip}>
-              <Icon name="check" size={9} color={colors.green[500]} />
+              <Icon name="check" size={9} color={DigestPalette.badgeTeal} />
               <Text style={s.advChipText}>Advances</Text>
             </View>
           ) : null}
@@ -240,11 +247,19 @@ function ContestCard({ contest }: { contest: ElectionContestResult }) {
       : contest.title;
 
   return (
-    <Card style={{ padding: 18, gap: 14 }}>
+    <Card
+      style={{
+        padding: 18,
+        gap: 14,
+        borderRadius: DigestRadii.card,
+        borderColor: DigestHair.cardBorder,
+        backgroundColor: DigestPalette.card,
+      }}
+    >
       <View>
         <Text style={s.contestTitle}>{title}</Text>
         <View style={s.reportingRow}>
-          <Icon name="clock" size={11} color={colors.textSecondary} />
+          <Icon name="clock" size={11} color={DigestPalette.quiet} />
           <Text style={s.reportingText} numberOfLines={1}>
             {contest.percentReporting !== null
               ? `${contest.percentReporting}% reporting · as of ${contest.asOf}`
@@ -271,7 +286,7 @@ function ContestCard({ contest }: { contest: ElectionContestResult }) {
         activeOpacity={0.8}
         onPress={() => openUrl(contest.sourceUrl)}
       >
-        <Icon name="external" size={13} color={colors.bill} />
+        <Icon name="external" size={13} color={DigestPalette.spark} />
         <Text style={s.sourceLinkText}>View official results</Text>
       </TouchableOpacity>
     </Card>
@@ -347,7 +362,7 @@ export function ElectionResultsSection({
       </View>
 
       {isLoading && all.length === 0 ? (
-        <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />
+        <ActivityIndicator color={DigestPalette.spark} style={{ marginVertical: 12 }} />
       ) : (
         <>
           {statewide.length > 0 && (
@@ -377,14 +392,14 @@ export function ElectionResultsSection({
         style={s.attributionRow}
       >
         <Text style={s.attribution}>Source: California Secretary of State</Text>
-        <Icon name="external" size={11} color={colors.textSecondary} />
+        <Icon name="external" size={11} color={DigestPalette.quiet} />
       </TouchableOpacity>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  container: { paddingHorizontal: 20, gap: 12 },
+  container: { paddingHorizontal: DigestSpace.screenPadX, gap: 12 },
   group: { gap: 12 },
   headingRow: {
     flexDirection: "row",
@@ -392,15 +407,16 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
   },
   heading: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 18,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 22,
+    letterSpacing: -0.45,
+    color: DigestPalette.inkOnNight,
   },
   liveBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: planes.surface,
+    backgroundColor: DigestHair.tabActivePill,
     borderRadius: 999,
     paddingVertical: 4,
     paddingHorizontal: 10,
@@ -409,18 +425,19 @@ const s = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: colors.red[500],
+    backgroundColor: DigestPalette.spark,
   },
   liveText: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
     letterSpacing: 0.3,
   },
   contestTitle: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 16,
-    color: colors.white,
+    letterSpacing: -0.3,
+    color: DigestPalette.inkOnNight,
   },
   reportingRow: {
     flexDirection: "row",
@@ -431,7 +448,7 @@ const s = StyleSheet.create({
   reportingText: {
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     flex: 1,
   },
   row: { gap: 5 },
@@ -451,13 +468,13 @@ const s = StyleSheet.create({
   candidateName: {
     fontFamily: fontBody.semibold,
     fontSize: 14,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
     flexShrink: 1,
   },
   incumbentTag: {
     fontFamily: fontBody.medium,
     fontSize: 9,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     letterSpacing: 0.4,
   },
   advChip: {
@@ -468,17 +485,17 @@ const s = StyleSheet.create({
   advChipText: {
     fontFamily: fontBody.semibold,
     fontSize: 10,
-    color: colors.green[500],
+    color: DigestPalette.badgeTeal,
   },
   percent: {
     fontFamily: fontBody.bold,
     fontSize: 14,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   barTrack: {
     height: 7,
     borderRadius: 4,
-    backgroundColor: hair[1],
+    backgroundColor: DigestHair.cardBorder,
     overflow: "hidden",
   },
   barFill: {
@@ -488,20 +505,20 @@ const s = StyleSheet.create({
   subline: {
     fontFamily: fontBody.regular,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
   moreText: {
     fontFamily: fontBody.medium,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
   sourceLink: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     alignSelf: "flex-start",
-    backgroundColor: planes.surface,
-    borderRadius: 10,
+    backgroundColor: DigestPalette.canvas,
+    borderRadius: DigestRadii.menu,
     paddingVertical: 9,
     paddingHorizontal: 13,
     marginTop: 2,
@@ -509,7 +526,7 @@ const s = StyleSheet.create({
   sourceLinkText: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: colors.bill,
+    color: DigestPalette.spark,
   },
   attributionRow: {
     flexDirection: "row",
@@ -521,6 +538,6 @@ const s = StyleSheet.create({
   attribution: {
     fontFamily: fontBody.medium,
     fontSize: 11,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
 });

@@ -6,12 +6,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 
 import type { Contest } from "@acme/api";
 
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
+import { EMPTY_CIVIC } from "~/components/digest/staticAssets";
+import { ProfileMarkButton } from "~/components/DigestProfileMark";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
 import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
@@ -20,7 +24,14 @@ import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import { groupContestsByLevel, measureIsStatewide } from "~/utils/elections";
 
@@ -69,7 +80,14 @@ function MeasureCard({
   onReadMore: () => void;
 }) {
   return (
-    <Card style={{ padding: 18 }}>
+    <Card
+      style={{
+        padding: 18,
+        borderRadius: DigestRadii.card,
+        borderColor: DigestHair.cardBorder,
+        backgroundColor: DigestPalette.card,
+      }}
+    >
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onToggle}
@@ -78,7 +96,7 @@ function MeasureCard({
         <Text style={[s.measureTitle, { marginBottom: 0, flex: 1 }]}>
           {m.referendumTitle}
         </Text>
-        <Icon name={expanded ? "chevD" : "chevR"} size={16} color="#5B6172" />
+        <Icon name={expanded ? "chevD" : "chevR"} size={16} color={DigestPalette.quiet} />
       </TouchableOpacity>
       {expanded && (
         <View style={s.measureBody}>
@@ -89,7 +107,7 @@ function MeasureCard({
           ) : null}
           {m.summaryIsAiGenerated && (
             <View style={s.aiChip}>
-              <Icon name="sparkle" size={11} color={colors.yellow[500]} />
+              <Icon name="sparkle" size={11} color={DigestPalette.spark} />
               <Text style={s.aiChipText}>AI-generated summary</Text>
             </View>
           )}
@@ -104,7 +122,7 @@ function MeasureCard({
           {m.referendumProStatement ? (
             <View style={s.stanceRow}>
               <View
-                style={[s.stanceDot, { backgroundColor: colors.green[500] }]}
+                style={[s.stanceDot, { backgroundColor: DigestPalette.badgeTeal }]}
               />
               <View style={{ flex: 1 }}>
                 <Text style={s.stanceLabel}>A YES vote means</Text>
@@ -115,7 +133,7 @@ function MeasureCard({
           {m.referendumConStatement ? (
             <View style={s.stanceRow}>
               <View
-                style={[s.stanceDot, { backgroundColor: colors.red[500] }]}
+                style={[s.stanceDot, { backgroundColor: DigestPalette.badgeIndigo }]}
               />
               <View style={{ flex: 1 }}>
                 <Text style={s.stanceLabel}>A NO vote means</Text>
@@ -128,7 +146,7 @@ function MeasureCard({
             activeOpacity={0.8}
             onPress={onReadMore}
           >
-            <Icon name="doc" size={15} color={colors.bill} />
+            <Icon name="doc" size={15} color={DigestPalette.spark} />
             <Text style={s.readMoreText}>Read full measure</Text>
           </TouchableOpacity>
           {topSourceLabel(m) ? (
@@ -138,7 +156,7 @@ function MeasureCard({
                   m.sources?.some((src) => src.official) ? "shield" : "info"
                 }
                 size={11}
-                color={colors.textSecondary}
+                color={DigestPalette.quiet}
               />
               <Text style={s.sourceChipText} numberOfLines={1}>
                 {topSourceLabel(m)}
@@ -153,6 +171,7 @@ function MeasureCard({
 
 export default function ElectionsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { address: storedAddress, setAddress } = useUserAddress();
   const [editing, setEditing] = useState(false);
   const [expandedMeasures, setExpandedMeasures] = useState<Set<number>>(
@@ -227,11 +246,17 @@ export default function ElectionsScreen() {
   return (
     <TabScreen
       title="Your Ballot"
-      contentStyle={{ gap: 24 }}
+      action={<ProfileMarkButton menuTop={insets.top + 52} />}
+      contentStyle={{
+        gap: 18,
+        // Match DigestHome / tab clearance: tab bar + home-indicator + breath
+        paddingBottom: 100 + insets.bottom,
+      }}
       headerExtra={
         editing || !storedAddress ? (
           <AddressAutocomplete
             initialValue={storedAddress ?? ""}
+            hint={null}
             onSubmit={(addr) => {
               void setAddress(addr);
               setEditing(false);
@@ -242,7 +267,7 @@ export default function ElectionsScreen() {
           />
         ) : (
           <View style={s.addrCard}>
-            <Icon name="pin" size={19} color={colors.bill} />
+            <Icon name="pin" size={19} color={DigestPalette.spark} />
             <View style={s.addrBody}>
               <Text style={s.addrKicker}>REGISTERED ADDRESS</Text>
               <Text style={s.addrText} numberOfLines={1}>
@@ -257,19 +282,65 @@ export default function ElectionsScreen() {
       }
     >
       {!hasAddress && (
-        <View style={s.section}>
-          <Card>
-            <Text style={s.empty}>
-              Enter your registered address above to load the election and
-              ballot for where you vote.
-            </Text>
-          </Card>
+        <View style={s.emptyStack}>
+          {/* Calm editorial empty — photo + one serene lead (tips merged; no duplicate) */}
+          <View style={s.emptyHero}>
+            <Image
+              source={EMPTY_CIVIC}
+              style={s.emptyHeroImage}
+              contentFit="cover"
+              transition={200}
+              accessibilityIgnoresInvertColors
+            />
+            <View style={s.emptyHeroBody}>
+              <Text style={s.emptyEyebrow}>YOUR BALLOT</Text>
+              <Text style={s.emptyLead}>
+                Enter your registered address above.
+              </Text>
+              <Text style={s.emptyDek}>
+                We&apos;ll load official contests, measures, and who represents
+                you for that address — never inventing districts.
+              </Text>
+            </View>
+          </View>
+
+          {/* Generic civic calendar hints only — no invented election/district data */}
+          <View style={s.emptyDates}>
+            <Text style={s.emptyDatesEyebrow}>BEFORE ELECTION DAY</Text>
+            <Text style={s.emptyDatesTitle}>Typical California timeline</Text>
+            <View style={s.emptyDateRow}>
+              <Text style={s.emptyDateLabel}>Register</Text>
+              <Text style={s.emptyDateValue}>
+                About 15 days before Election Day
+              </Text>
+            </View>
+            <View style={s.emptyDateHair} />
+            <View style={s.emptyDateRow}>
+              <Text style={s.emptyDateLabel}>Ballots mailed</Text>
+              <Text style={s.emptyDateValue}>
+                About 4 weeks before Election Day
+              </Text>
+            </View>
+            <View style={s.emptyDateHair} />
+            <View style={s.emptyDateRow}>
+              <Text style={s.emptyDateLabel}>Election Day</Text>
+              <Text style={s.emptyDateValue}>
+                Exact dates appear after address lookup
+              </Text>
+            </View>
+          </View>
         </View>
       )}
 
       {hasAddress && voterInfoQuery.isError && (
         <View style={s.section}>
-          <Card>
+          <Card
+            style={{
+              borderRadius: DigestRadii.card,
+              borderColor: DigestHair.cardBorder,
+              backgroundColor: DigestPalette.card,
+            }}
+          >
             <Text style={s.empty}>
               We couldn't look up your ballot. Check your address and try again.
             </Text>
@@ -279,7 +350,13 @@ export default function ElectionsScreen() {
 
       {unsupportedState && (
         <View style={s.section}>
-          <Card>
+          <Card
+            style={{
+              borderRadius: DigestRadii.card,
+              borderColor: DigestHair.cardBorder,
+              backgroundColor: DigestPalette.card,
+            }}
+          >
             <Text style={s.empty}>
               We only cover California elections right now. Support for your
               state is coming soon.
@@ -313,7 +390,7 @@ export default function ElectionsScreen() {
       {voterInfoQuery.isLoading && (
         <View style={s.section}>
           <Card style={s.lookupCard}>
-            <ActivityIndicator color={colors.bill} />
+            <ActivityIndicator color={DigestPalette.spark} />
             <View style={s.lookupCopy}>
               <Text style={s.lookupTitle}>Looking up your ballot</Text>
               <Text style={s.lookupSub}>
@@ -350,7 +427,13 @@ export default function ElectionsScreen() {
       {contests.length > 0 && tab === "candidates" && (
         <View style={[s.section, { gap: 20 }]}>
           {candidateGroups.length === 0 && (
-            <Card>
+            <Card
+            style={{
+              borderRadius: DigestRadii.card,
+              borderColor: DigestHair.cardBorder,
+              backgroundColor: DigestPalette.card,
+            }}
+          >
               <Text style={s.empty}>No candidate contests on this ballot.</Text>
             </Card>
           )}
@@ -387,6 +470,9 @@ export default function ElectionsScreen() {
                         flexDirection: "row",
                         alignItems: "center",
                         justifyContent: "space-between",
+                        borderRadius: DigestRadii.card,
+                        borderColor: DigestHair.cardBorder,
+                        backgroundColor: DigestPalette.card,
                       }}
                     >
                       <View style={{ flex: 1, marginRight: 10 }}>
@@ -400,7 +486,7 @@ export default function ElectionsScreen() {
                           </Text>
                         )}
                       </View>
-                      <Icon name="chevR" size={16} color="#5B6172" />
+                      <Icon name="chevR" size={16} color={DigestPalette.quiet} />
                     </Card>
                   </TouchableOpacity>
                 ))}
@@ -416,7 +502,13 @@ export default function ElectionsScreen() {
           <View style={{ gap: 12 }}>
             <Kicker>Statewide propositions</Kicker>
             {statewideMeasures.length === 0 ? (
-              <Card>
+              <Card
+            style={{
+              borderRadius: DigestRadii.card,
+              borderColor: DigestHair.cardBorder,
+              backgroundColor: DigestPalette.card,
+            }}
+          >
                 <Text style={s.empty}>
                   No statewide propositions on this ballot.
                 </Text>
@@ -445,7 +537,13 @@ export default function ElectionsScreen() {
           <View style={{ gap: 12 }}>
             <Kicker>Local measures</Kicker>
             {localMeasures.length === 0 ? (
-              <Card>
+              <Card
+            style={{
+              borderRadius: DigestRadii.card,
+              borderColor: DigestHair.cardBorder,
+              backgroundColor: DigestPalette.card,
+            }}
+          >
                 <Text style={s.empty}>No local measures on this ballot.</Text>
               </Card>
             ) : (
@@ -477,7 +575,13 @@ export default function ElectionsScreen() {
         !voterInfoQuery.isLoading &&
         !voterInfoQuery.isError && (
           <View style={s.section}>
-            <Card>
+            <Card
+            style={{
+              borderRadius: DigestRadii.card,
+              borderColor: DigestHair.cardBorder,
+              backgroundColor: DigestPalette.card,
+            }}
+          >
               <Text style={s.empty}>
                 No ballot information for this address yet. Tap Edit above to
                 try a different registered address.
@@ -494,13 +598,13 @@ export default function ElectionsScreen() {
         >
           <Card style={s.pollRow}>
             <View style={s.pollIcon}>
-              <Icon name="pin" size={22} color={colors.green[500]} />
+              <Icon name="pin" size={22} color={DigestPalette.badgeTeal} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.pollTitle}>Find your polling place</Text>
               <Text style={s.pollSub}>Verified on vote.gov</Text>
             </View>
-            <Icon name="external" size={18} color={colors.textSecondary} />
+            <Icon name="external" size={18} color={DigestPalette.quiet} />
           </Card>
         </TouchableOpacity>
       </View>
@@ -513,54 +617,63 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
-    backgroundColor: planes.slate,
+    backgroundColor: DigestPalette.card,
     borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.card,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    marginTop: 12,
+    marginTop: 8,
   },
   addrBody: { flex: 1, minWidth: 0 },
   addrKicker: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 11,
-    color: colors.textSecondary,
-    letterSpacing: 0.4,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    color: DigestPalette.spark,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
   },
   addrText: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
     marginTop: 1,
   },
-  addrEdit: { fontFamily: fontBody.semibold, fontSize: 13, color: colors.bill },
-  section: { paddingHorizontal: 20 },
+  addrEdit: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    color: DigestPalette.spark,
+  },
+  section: { paddingHorizontal: DigestSpace.screenPadX },
   lookupCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 13,
+    borderRadius: DigestRadii.card,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.card,
   },
   lookupCopy: { flex: 1, gap: 2 },
   lookupTitle: {
     fontFamily: fontBody.semibold,
     fontSize: 14,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   lookupSub: {
     fontFamily: fontBody.regular,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
   contestOffice: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 16,
-    color: colors.white,
+    letterSpacing: -0.3,
+    color: DigestPalette.inkOnNight,
   },
   contestMeta: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     marginTop: 3,
   },
   measureHeader: {
@@ -569,16 +682,17 @@ const s = StyleSheet.create({
     gap: 10,
   },
   measureTitle: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 17,
-    color: colors.white,
+    letterSpacing: -0.35,
+    color: DigestPalette.inkOnNight,
     marginBottom: 12,
   },
   measureBody: { marginTop: 14, gap: 12 },
   measureSub: {
     fontFamily: fontBody.regular,
     fontSize: 13.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     lineHeight: 20,
   },
   stanceRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
@@ -586,13 +700,13 @@ const s = StyleSheet.create({
   stanceLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 12.5,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
     marginBottom: 3,
   },
   stanceText: {
     fontFamily: fontBody.regular,
     fontSize: 13.5,
-    color: "rgba(255,255,255,0.8)",
+    color: DigestPalette.quiet,
     lineHeight: 20,
   },
   readMoreBtn: {
@@ -600,8 +714,8 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     alignSelf: "flex-start",
-    backgroundColor: planes.surface,
-    borderRadius: 10,
+    backgroundColor: DigestPalette.canvas,
+    borderRadius: DigestRadii.menu,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginTop: 4,
@@ -609,7 +723,7 @@ const s = StyleSheet.create({
   readMoreText: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: colors.bill,
+    color: DigestPalette.spark,
   },
   aiChip: {
     flexDirection: "row",
@@ -620,20 +734,20 @@ const s = StyleSheet.create({
   aiChipText: {
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: colors.yellow[500],
+    color: DigestPalette.spark,
   },
   fiscalRow: { gap: 3 },
   fiscalLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   fiscalValue: {
     fontFamily: fontBody.regular,
     fontSize: 13,
-    color: "rgba(255,255,255,0.8)",
+    color: DigestPalette.quiet,
     lineHeight: 19,
   },
   sourceChip: {
@@ -646,31 +760,130 @@ const s = StyleSheet.create({
   sourceChipText: {
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
   empty: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: "center",
+    color: DigestPalette.quiet,
+    lineHeight: 20,
+    textAlign: "left",
   },
-  pollRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  emptyStack: {
+    paddingHorizontal: DigestSpace.screenPadX,
+    gap: 10,
+  },
+  emptyHero: {
+    borderRadius: DigestRadii.card,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.card,
+    overflow: "hidden",
+  },
+  emptyHeroImage: {
+    width: "100%",
+    height: 148,
+  },
+  emptyHeroBody: {
+    paddingHorizontal: DigestSpace.cardBodyPadX,
+    paddingTop: DigestSpace.cardBodyPadTop,
+    paddingBottom: DigestSpace.cardBodyPadBottom,
+    gap: 8,
+  },
+  emptyEyebrow: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    color: DigestPalette.spark,
+    textTransform: "uppercase",
+  },
+  emptyLead: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 24,
+    lineHeight: 29,
+    letterSpacing: -0.45,
+    color: DigestPalette.inkOnNight,
+  },
+  emptyDek: {
+    fontFamily: fontBody.regular,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: DigestPalette.quiet,
+  },
+  emptyDates: {
+    borderRadius: DigestRadii.card,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.card,
+    paddingHorizontal: DigestSpace.cardBodyPadX,
+    paddingTop: 14,
+    paddingBottom: 14,
+  },
+  emptyDatesEyebrow: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    color: DigestPalette.spark,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  emptyDatesTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: -0.35,
+    color: DigestPalette.inkOnNight,
+    marginBottom: 12,
+  },
+  emptyDateRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 8,
+  },
+  emptyDateLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    color: DigestPalette.inkOnNight,
+    width: 110,
+  },
+  emptyDateValue: {
+    flex: 1,
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 18,
+    color: DigestPalette.quiet,
+    textAlign: "right",
+  },
+  emptyDateHair: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: DigestHair.sectionRule,
+  },
+  pollRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderRadius: DigestRadii.card,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.card,
+  },
   pollIcon: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: planes.surface,
+    borderRadius: DigestRadii.menu,
+    backgroundColor: DigestHair.tabActivePill,
     alignItems: "center",
     justifyContent: "center",
   },
   pollTitle: {
     fontFamily: fontBody.semibold,
     fontSize: 14.5,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
   },
   pollSub: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
 });

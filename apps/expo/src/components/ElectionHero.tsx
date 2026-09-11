@@ -11,7 +11,14 @@ import type { Election } from "@acme/api";
 
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+} from "~/styles";
 import { daysUntil, monthDay, shiftDays } from "~/utils/dates";
 import {
   electionExplainer,
@@ -35,19 +42,19 @@ export function ElectionHero({ election }: ElectionHeroProps) {
       icon: "clock" as const,
       label: "Registration closes",
       value: monthDay(shiftDays(election.electionDay, -15)),
-      accent: colors.yellow[500],
+      accent: DigestPalette.spark,
     },
     {
       icon: "calendar" as const,
       label: "Ballots mailed",
       value: monthDay(shiftDays(election.electionDay, -8)),
-      accent: colors.textSecondary,
+      accent: DigestPalette.quiet,
     },
     {
       icon: "flag" as const,
       label: "Election Day",
       value: monthDay(election.electionDay),
-      accent: colors.green[500],
+      accent: DigestPalette.spark,
       countdown:
         days > 0 ? `${days} day${days !== 1 ? "s" : ""} left` : "Today",
     },
@@ -82,49 +89,51 @@ export function ElectionHero({ election }: ElectionHeroProps) {
 
 const s = StyleSheet.create({
   card: {
-    marginHorizontal: 20,
-    backgroundColor: planes.slate,
+    marginHorizontal: DigestSpace.screenPadX,
+    backgroundColor: DigestPalette.card,
     borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 16,
-    padding: 18,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.card,
+    padding: DigestSpace.cardBodyPadX,
+    paddingBottom: DigestSpace.cardBodyPadBottom,
   },
   badge: {
     alignSelf: "flex-start",
-    backgroundColor: planes.surface,
+    backgroundColor: DigestHair.tabActivePill,
     borderRadius: 9999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   badgeText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11,
-    color: colors.bill,
-    letterSpacing: 0.4,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    color: DigestPalette.spark,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
   },
   name: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 21,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 24,
+    color: DigestPalette.inkOnNight,
     marginTop: 10,
-    lineHeight: 27,
+    lineHeight: 29,
+    letterSpacing: -0.45,
   },
   date: {
     fontFamily: fontBody.semibold,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: hair[2],
+    backgroundColor: DigestHair.sectionRule,
     marginVertical: 14,
   },
   explainer: {
     fontFamily: fontBody.regular,
     fontSize: 13.5,
-    color: "rgba(255,255,255,0.82)",
+    color: DigestPalette.quiet,
     lineHeight: 20,
   },
   dates: {
@@ -139,7 +148,7 @@ const s = StyleSheet.create({
   dateLabel: {
     fontFamily: fontBody.medium,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     flex: 1,
   },
   dateValue: {
@@ -149,6 +158,6 @@ const s = StyleSheet.create({
   countdown: {
     fontFamily: fontBody.medium,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
 });
