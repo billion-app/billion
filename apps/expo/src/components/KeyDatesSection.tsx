@@ -1,12 +1,10 @@
-import { ScrollView, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { Text, View } from "~/components/Themed";
 import {
   fontBody,
-  fontDisplay,
   DigestHair,
   DigestPalette,
-  DigestRadii,
   DigestSpace,
 } from "~/styles";
 import { daysUntil, formatDate } from "~/utils/dates";
@@ -17,142 +15,114 @@ interface KeyDate {
 }
 
 interface KeyDatesSectionProps {
+  /** Civic `election.electionDay` (ISO date). */
   electionDate: string;
+  /** Civic `earlyVoteSites[].startDate` when voterinfo returned one. */
+  earlyVoteStart?: string;
 }
 
-export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
+export function KeyDatesSection({
+  electionDate,
+  earlyVoteStart,
+}: KeyDatesSectionProps) {
   const electionDateObj = new Date(electionDate);
   const registrationDeadline = new Date(electionDateObj);
   registrationDeadline.setDate(registrationDeadline.getDate() - 15);
 
-  const earlyVotingStart = new Date(electionDateObj);
-  earlyVotingStart.setDate(earlyVotingStart.getDate() - 29);
-
   const dates: KeyDate[] = [
     {
-      label: "Registration Deadline",
+      label: "Register by",
       date: registrationDeadline.toISOString().split("T")[0] ?? "",
-    },
-    {
-      label: "Early Voting Starts",
-      date: earlyVotingStart.toISOString().split("T")[0] ?? "",
     },
     {
       label: "Election Day",
       date: electionDate,
     },
   ];
+  if (earlyVoteStart) {
+    dates.splice(1, 0, { label: "Early voting", date: earlyVoteStart });
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.kicker}>CALENDAR</Text>
-      <Text style={styles.sectionTitle}>Key Dates</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {dates.map((item, index) => {
-          const days = daysUntil(item.date);
-          const isPassed = days < 0;
-          const isNext =
-            !isPassed &&
-            dates.findIndex((d) => daysUntil(d.date) >= 0) === index;
+      <Text style={styles.kicker}>Calendar</Text>
+      {dates.map((item, index) => {
+        const days = daysUntil(item.date);
+        const isPassed = days < 0;
+        const isNext =
+          !isPassed &&
+          dates.findIndex((d) => daysUntil(d.date) >= 0) === index;
+        const countdown = isPassed
+          ? "Passed"
+          : days === 0
+            ? "Today"
+            : `${days} days`;
 
-          return (
-            <View
-              key={item.label}
-              style={[styles.card, isNext && styles.cardHighlight]}
-            >
+        return (
+          <View key={item.label}>
+            {index > 0 ? <View style={styles.hair} /> : null}
+            <View style={styles.row}>
               <Text style={[styles.label, isPassed && styles.textMuted]}>
                 {item.label}
               </Text>
-              <Text style={[styles.date, isPassed && styles.textMuted]}>
-                {formatDate(item.date)}
-              </Text>
               <Text
                 style={[
-                  styles.countdown,
+                  styles.value,
                   isPassed && styles.textMuted,
-                  isNext && styles.countdownHighlight,
+                  isNext && styles.valueOn,
                 ]}
               >
-                {isPassed
-                  ? "Passed"
-                  : days === 0
-                    ? "Today!"
-                    : `in ${days} days`}
+                {formatDate(item.date)}  ·  {countdown}
               </Text>
             </View>
-          );
-        })}
-      </ScrollView>
+          </View>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 24,
+    paddingHorizontal: DigestSpace.screenPadX,
+    marginBottom: 16,
   },
   kicker: {
     fontFamily: fontBody.bold,
-    fontSize: 10.5,
-    letterSpacing: 1.4,
+    fontSize: 11,
+    letterSpacing: 1.8,
     color: DigestPalette.spark,
     textTransform: "uppercase",
-    marginHorizontal: DigestSpace.screenPadX,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  sectionTitle: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 22,
-    letterSpacing: -0.45,
-    color: DigestPalette.inkOnNight,
-    marginHorizontal: DigestSpace.screenPadX,
-    marginBottom: 12,
+  hair: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: DigestHair.sectionRule,
   },
-  scrollContent: {
-    paddingHorizontal: DigestSpace.screenPadX,
-    gap: DigestSpace.railGap,
-    alignItems: "flex-start",
-  },
-  card: {
-    padding: DigestSpace.cardBodyPadX,
-    borderRadius: DigestRadii.card,
-    minWidth: 140,
-    backgroundColor: DigestPalette.card,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
-  },
-  cardHighlight: {
-    borderWidth: 1,
-    borderColor: DigestHair.coverBorder,
-    backgroundColor: DigestHair.tabActivePill,
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 12,
   },
   label: {
     fontFamily: fontBody.medium,
-    fontSize: 11,
+    fontSize: 14,
     color: DigestPalette.quiet,
-    marginBottom: 6,
   },
-  date: {
+  value: {
     fontFamily: fontBody.semibold,
-    fontSize: 13.5,
+    fontSize: 14,
     color: DigestPalette.inkOnNight,
-    marginBottom: 6,
+    textAlign: "right",
+    flexShrink: 1,
   },
-  countdown: {
-    fontFamily: fontBody.regular,
-    fontSize: 12,
-    color: DigestPalette.quiet,
-  },
-  countdownHighlight: {
+  valueOn: {
     color: DigestPalette.spark,
-    fontFamily: fontBody.semibold,
   },
   textMuted: {
     color: DigestPalette.quiet,
-    opacity: 0.6,
+    opacity: 0.55,
   },
 });

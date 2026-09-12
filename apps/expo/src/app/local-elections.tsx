@@ -1,7 +1,5 @@
-import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { FontAwesome } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 
 import { KeyDatesSection } from "~/components/KeyDatesSection";
@@ -9,49 +7,40 @@ import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
 import { MyBallotSection } from "~/components/MyBallotSection";
 import { PollingPlacesSection } from "~/components/PollingPlacesSection";
 import { RepsSection } from "~/components/RepsSection";
-import { Text, View } from "~/components/Themed";
+import { NavHeader } from "~/components/ui";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { fontDisplay, DigestPalette, DigestSpace } from "~/styles";
+import { DigestPalette } from "~/styles";
 import { trpc } from "~/utils/api";
-import { daysUntil } from "~/utils/dates";
+import {
+  earliestEarlyVoteStart,
+  pickUpcomingCaliforniaElection,
+} from "~/utils/elections";
 
 /**
- * "Where & How to Vote" — the civic logistics hub. This is intentionally NOT a
- * second copy of the ballot (that lives on the Elections tab). It answers the
- * questions the ballot can't: where do I vote, when, who represents me, and
- * what's my city/county doing right now (local bills + meetings).
+ * Civic logistics: polling locations, dates, reps, local decisions.
  */
 export default function LocalElectionsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { address, setAddress, clearAddress } = useUserAddress();
 
-  const electionsQuery = useQuery(trpc.civic.getElections.queryOptions());
-  const upcomingElection = electionsQuery.data
-    ?.filter((e) => daysUntil(e.electionDay) >= 0)
-    .sort((a, b) => a.electionDay.localeCompare(b.electionDay))[0];
-
+  const electionsQuery = useQuery({
+    ...trpc.civic.getElections.queryOptions(),
+    enabled: !address,
+  });
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
     enabled: !!address,
   });
 
+  // Address-resolved election wins. Without an address, only a CA-relevant
+  // row from getElections — never the soonest nationwide race.
+  const calendarElection = address
+    ? voterInfoQuery.data?.election
+    : pickUpcomingCaliforniaElection(electionsQuery.data ?? []);
+
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <FontAwesome
-            name="arrow-left"
-            size={18}
-            color={DigestPalette.inkOnNight}
-          />
-        </TouchableOpacity>
-        <Text style={styles.title}>Where & How to Vote</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <NavHeader title="Where to vote" onBack={() => router.back()} />
 
       <ScrollView
         style={styles.scroll}
@@ -74,8 +63,13 @@ export default function LocalElectionsScreen() {
           hasAddress={!!address}
         />
 
-        {upcomingElection && (
-          <KeyDatesSection electionDate={upcomingElection.electionDay} />
+        {calendarElection && (
+          <KeyDatesSection
+            electionDate={calendarElection.electionDay}
+            earlyVoteStart={earliestEarlyVoteStart(
+              voterInfoQuery.data?.earlyVoteSites,
+            )}
+          />
         )}
 
         <RepsSection address={address} />
@@ -90,26 +84,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: DigestPalette.canvas,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: DigestSpace.screenPadX,
-    paddingBottom: 16,
-  },
-  backButton: {
-    padding: 10,
-    marginLeft: -10,
-  },
-  title: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 20,
-    letterSpacing: -0.4,
-    color: DigestPalette.inkOnNight,
-  },
-  placeholder: {
-    width: 34,
   },
   scroll: {
     flex: 1,
