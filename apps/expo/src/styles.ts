@@ -161,6 +161,13 @@ export const DigestHair = {
   menuRowOn: "rgba(196,163,90,0.14)",
   tabActivePill: "rgba(196,163,90,0.16)",
   menuScrim: "rgba(0,0,0,0.42)",
+  inkFaint: "rgba(22,19,26,0.05)",
+  inkHair: "rgba(22,19,26,0.10)",
+  inkBorder: "rgba(22,19,26,0.12)",
+  inkWash: "rgba(22,19,26,0.14)",
+  inkMuted: "rgba(22,19,26,0.42)",
+  inkHint: "rgba(22,19,26,0.50)",
+  inkSecondary: "rgba(22,19,26,0.72)",
 } as const;
 
 /** Shadows from Digest greeting location menu. */
