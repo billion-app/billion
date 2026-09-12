@@ -1,14 +1,11 @@
-/**
- * TabBar — Billion Digest editorial chrome.
- * Quiet luxury: canvas night, spark active signal, hairline top rule,
- * hand-crafted stroke icons, underline active mark (no soft AI pill blob).
- */
 import type { Tabs } from "expo-router";
 import type { ComponentProps } from "react";
+import { useEffect, useRef } from "react";
 import {
+  Animated,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,6 +25,102 @@ import { TAB_ROUTE_ICON, TabChromeIcon } from "./TabChromeIcons";
 type TabBarProps = Parameters<
   NonNullable<ComponentProps<typeof Tabs>["tabBar"]>
 >[0];
+
+function TabButton({
+  label,
+  focused,
+  color,
+  iconName,
+  onPress,
+}: {
+  label: string;
+  focused: boolean;
+  color: string;
+  iconName: NonNullable<(typeof TAB_ROUTE_ICON)[string]>;
+  onPress: () => void;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const mark = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(mark, {
+      toValue: focused ? 1 : 0,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 140,
+    }).start();
+    if (focused) {
+      Animated.sequence([
+        Animated.timing(scale, {
+          toValue: 1.12,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 5,
+          tension: 220,
+        }),
+      ]).start();
+    }
+  }, [focused, mark, scale]);
+
+  const pressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.86,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 400,
+    }).start();
+  };
+
+  const pressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 5,
+      tension: 180,
+    }).start();
+  };
+
+  return (
+    <Pressable
+      style={s.tab}
+      onPress={onPress}
+      onPressIn={pressIn}
+      onPressOut={pressOut}
+      accessibilityRole="button"
+      accessibilityState={{ selected: focused }}
+      accessibilityLabel={label}
+    >
+      <Animated.View style={[s.iconCol, { transform: [{ scale }] }]}>
+        <TabChromeIcon
+          name={iconName}
+          size={DigestTabBar.iconSize}
+          color={color}
+          strokeWidth={focused ? 1.75 : 1.55}
+        />
+        <Animated.View
+          style={[
+            s.activeMark,
+            {
+              backgroundColor: P.spark,
+              opacity: mark,
+              transform: [{ scaleX: mark }],
+            },
+          ]}
+        />
+      </Animated.View>
+      <Text
+        style={[s.label, { color }, focused ? s.labelOn : null]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 export function TabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
@@ -76,40 +169,14 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
           const color = focused ? DigestTabBar.active : DigestTabBar.inactive;
           const iconName = TAB_ROUTE_ICON[route.name] ?? "home";
           return (
-            <TouchableOpacity
+            <TabButton
               key={route.key}
-              style={s.tab}
+              label={label}
+              focused={focused}
+              color={color}
+              iconName={iconName}
               onPress={onPress}
-              activeOpacity={0.72}
-              accessibilityRole="button"
-              accessibilityState={{ selected: focused }}
-              accessibilityLabel={label}
-            >
-              <View style={s.iconCol}>
-                <TabChromeIcon
-                  name={iconName}
-                  size={DigestTabBar.iconSize}
-                  color={color}
-                  strokeWidth={focused ? 1.75 : 1.55}
-                />
-                <View
-                  style={[
-                    s.activeMark,
-                    focused ? s.activeMarkOn : s.activeMarkOff,
-                  ]}
-                />
-              </View>
-              <Text
-                style={[
-                  s.label,
-                  { color },
-                  focused ? s.labelOn : null,
-                ]}
-                numberOfLines={1}
-              >
-                {label}
-              </Text>
-            </TouchableOpacity>
+            />
           );
         })}
       </View>
@@ -121,7 +188,6 @@ const s = StyleSheet.create({
   bar: {
     borderTopWidth: 0,
   },
-  /** Explicit hairline so density reads intentional on night canvas. */
   rule: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: DigestTabBar.borderTop,
@@ -147,15 +213,8 @@ const s = StyleSheet.create({
   activeMark: {
     marginTop: 4,
     height: 2,
+    width: 16,
     borderRadius: 1,
-  },
-  activeMarkOn: {
-    width: 16,
-    backgroundColor: P.spark,
-  },
-  activeMarkOff: {
-    width: 16,
-    backgroundColor: "transparent",
   },
   label: {
     ...DigestType.tabLabel,

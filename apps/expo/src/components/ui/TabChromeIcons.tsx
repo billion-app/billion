@@ -1,9 +1,4 @@
-/**
- * Hand-crafted tab chrome glyphs for Billion Digest.
- * Original SVG stroke icons (viewBox 0 0 24 24) — not stock icon packs.
- * License: original work for Billion; royalty-free for this product.
- */
-import Svg, { Circle, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 
 export type TabChromeName =
   | "home"
@@ -38,7 +33,6 @@ export function TabChromeIcon({
 
   switch (name) {
     case "home":
-      // Peaked brief-house — doorway open, editorial not generic home glyph.
       return (
         <Svg {...common}>
           <Path d="M4.5 11.2 12 4.8l7.5 6.4" {...stroke} />
@@ -47,27 +41,23 @@ export function TabChromeIcon({
         </Svg>
       );
     case "browse":
-      // Lens with a short handle — catalog search, quieter than stock magnifier.
       return (
         <Svg {...common}>
-          <Circle cx="10.6" cy="10.6" r="5.4" {...stroke} />
-          <Path d="M14.6 14.6 19.2 19.2" {...stroke} />
-          <Path d="M8.4 10.6h4.4" {...stroke} strokeWidth={strokeWidth * 0.85} />
+          <Circle cx="11" cy="11" r="7" {...stroke} />
+          <Path d="M16.5 16.5 21 21" {...stroke} />
         </Svg>
       );
     case "elections":
-      // Ballot card with check — civic, not a pencil.
       return (
         <Svg {...common}>
-          <Rect x="5.2" y="3.6" width="13.6" height="16.8" rx="1.6" {...stroke} />
-          <Path d="M8.4 9.2h7.2" {...stroke} />
-          <Path d="M8.4 12.4h7.2" {...stroke} />
-          <Path d="M8.4 15.6h4.2" {...stroke} />
-          <Path d="M8.2 6.4l1.3 1.3 2.4-2.5" {...stroke} />
+          <Path d="M12 20h9" {...stroke} />
+          <Path
+            d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"
+            {...stroke}
+          />
         </Svg>
       );
     case "feedback":
-      // Squared correspondence mark with two brief lines.
       return (
         <Svg {...common}>
           <Path
@@ -79,7 +69,6 @@ export function TabChromeIcon({
         </Svg>
       );
     case "settings":
-      // Dial marks around a hub — quieter luxury than a 6-tooth gear.
       return (
         <Svg {...common}>
           <Circle cx="12" cy="12" r="3.1" {...stroke} />
