@@ -34,8 +34,8 @@ export function validateEnvironment(options: {
     options.scrapers,
     options.scraperContracts,
   ).map(({ definition, requirement }) => {
-    const value = options.environment[definition.key]?.trim();
-    if (!value) {
+    const value = options.environment[definition.key];
+    if (value === undefined) {
       if (definition.defaultValue !== undefined) {
         return { definition, requirement, state: "default" as const };
       }

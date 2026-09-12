@@ -75,6 +75,25 @@ void test("Next.js requires the Google Civic key", () => {
   assert.equal(civic?.requirement, "required");
 });
 
+void test("configured optional values cannot be blank", () => {
+  const result = validateEnvironment({
+    environment: { RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL: "   " },
+    surface: "nextjs",
+  });
+  const issue = result.issues.find(
+    ({ key }) => key === "RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL",
+  );
+
+  assert.equal(issue?.message, "must not be empty");
+  assert.equal(
+    result.statuses.find(
+      ({ definition }) =>
+        definition.key === "RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL",
+    )?.state,
+    "invalid",
+  );
+});
+
 void test("Congress validation requires only its relevant core keys", () => {
   const result = validateEnvironment({
     environment: {},
