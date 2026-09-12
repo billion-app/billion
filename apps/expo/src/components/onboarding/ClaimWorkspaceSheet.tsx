@@ -28,12 +28,12 @@ import { BlurView } from "expo-blur";
 import { useSegments } from "expo-router";
 
 import { useOnboarding } from "~/hooks/useOnboarding";
-import { fontBody, fontDisplay } from "~/styles";
+import { fontBody, fontDisplay, DigestHair, DigestPalette as P } from "~/styles";
 import { SECTOR_SHORT, VECTOR_SHORT } from "~/utils/onboarding-store";
 
-const GOLD = "#C4A35A";
-const INK = "#16131A";
-const PAPER = "#F7F4EE";
+const GOLD = P.spark;
+const INK = P.ink;
+const PAPER = P.inkOnNight;
 
 const RISE_MS = 620;
 const FALL_MS = 360;
@@ -214,7 +214,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "rgba(22,19,26,0.14)",
+    backgroundColor: DigestHair.inkWash,
     marginBottom: 22,
   },
   headline: {
@@ -233,7 +233,7 @@ const s = StyleSheet.create({
   signals: {
     fontFamily: fontBody.regular,
     fontSize: 13,
-    color: "rgba(22,19,26,0.5)",
+    color: DigestHair.inkHint,
     marginTop: 14,
   },
   save: {
@@ -246,7 +246,7 @@ const s = StyleSheet.create({
   },
   provider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(22,19,26,0.12)",
+    borderBottomColor: DigestHair.inkBorder,
     paddingVertical: 14,
   },
   providerText: {
@@ -258,6 +258,6 @@ const s = StyleSheet.create({
   exploreText: {
     fontFamily: fontBody.regular,
     fontSize: 13,
-    color: "rgba(22,19,26,0.45)",
+    color: DigestHair.inkMuted,
   },
 });
