@@ -1,8 +1,5 @@
 /**
- * Layout helpers shared across screens — section kicker, card container,
- * search input, and the top-level tab screen scaffold. These collapse the
- * repeated "slate card", "uppercase label", and "scrolling screen" patterns
- * into one place.
+ * Shared screen layout: kicker, card, search field, tab scaffold.
  */
 import type { ReactNode } from "react";
 import type {
@@ -15,18 +12,16 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
-  colors,
   fontBody,
   fontDisplay,
-  hair,
-  planes,
   DigestHair,
   DigestPalette,
+  DigestRadii,
   DigestSpace,
+  DigestType,
 } from "~/styles";
-import { Icon } from "./Icon";
+import { SearchMark } from "~/components/digest/CraftMarks";
 
-/** Uppercase, letter-spaced section label. */
 export function Kicker({
   children,
   style,
@@ -37,7 +32,6 @@ export function Kicker({
   return <Text style={[l.kicker, style]}>{children}</Text>;
 }
 
-/** Slate card container (the app's default elevated surface). */
 export function Card({
   children,
   style,
@@ -55,7 +49,6 @@ export function Card({
   );
 }
 
-/** Search field with a leading magnifier icon. `style` lays out the wrapper. */
 export function SearchInput({
   style,
   ...props
@@ -63,21 +56,17 @@ export function SearchInput({
   return (
     <View style={[l.searchWrap, style]}>
       <View style={l.searchIcon}>
-        <Icon name="search" size={20} color={DigestPalette.quiet} />
+        <SearchMark size={20} color={DigestPalette.spark} />
       </View>
       <TextInput
         style={l.search}
-        placeholderTextColor={DigestPalette.quiet}
+        placeholderTextColor={DigestHair.inkMuted}
         {...props}
       />
     </View>
   );
 }
 
-/**
- * Top-level tab screen: navy background, top-inset-aware scroll, and an
- * optional large display title. Children render inside the scroll.
- */
 export function TabScreen({
   title,
   headerExtra,
@@ -86,9 +75,7 @@ export function TabScreen({
   contentStyle,
 }: {
   title?: string;
-  /** Extra content rendered under the title, inside the header padding. */
   headerExtra?: ReactNode;
-  /** Trailing control on the title line (profile mark, etc.). */
   action?: ReactNode;
   children: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
@@ -155,33 +142,28 @@ export const l = StyleSheet.create({
     letterSpacing: -0.6,
   },
   kicker: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: colors.textSecondary,
+    ...DigestType.sectionEyebrow,
     marginBottom: 12,
   },
   card: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[1],
-    borderRadius: 16,
+    backgroundColor: DigestPalette.stone,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.card,
   },
   cardPad: { padding: 16 },
   cardFlush: { overflow: "hidden" },
   searchWrap: { position: "relative" },
-  searchIcon: { position: "absolute", left: 16, top: 15, zIndex: 1 },
+  searchIcon: { position: "absolute", left: 18, top: 18, zIndex: 1 },
   search: {
-    height: 50,
-    backgroundColor: DigestPalette.stone,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
-    borderRadius: 12,
-    paddingLeft: 46,
-    paddingRight: 16,
-    color: DigestPalette.inkOnNight,
-    fontFamily: fontBody.regular,
-    fontSize: 16,
+    height: 56,
+    backgroundColor: DigestPalette.paper,
+    borderWidth: 0,
+    borderRadius: 28,
+    paddingLeft: 48,
+    paddingRight: 18,
+    color: DigestPalette.ink,
+    fontFamily: fontBody.medium,
+    fontSize: 17,
   },
 });

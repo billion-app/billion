@@ -1,7 +1,5 @@
 /**
- * NavHeader — editorial back / title / action chrome.
- * Quiet luxury: squircle back control, hairline bottom rule, Digest type.
- * `large` shows a display serif title below the action row.
+ * Screen header with optional large title.
  */
 import type { ReactNode } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -33,9 +31,9 @@ export function NavHeader({
   const insets = useSafeAreaInsets();
   const paper = tone === "paper";
   const foreground = paper ? P.ink : P.inkOnNight;
-  const backBg = paper ? "rgba(22,19,26,0.05)" : P.stone;
-  const backBorder = paper ? "rgba(22,19,26,0.12)" : DigestHair.cardBorder;
-  const rule = paper ? "rgba(22,19,26,0.10)" : DigestHair.sectionRule;
+  const backBg = paper ? DigestHair.inkFaint : P.stone;
+  const backBorder = paper ? DigestHair.inkBorder : DigestHair.cardBorder;
+  const rule = paper ? DigestHair.inkHair : DigestHair.sectionRule;
 
   return (
     <View
@@ -99,7 +97,6 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     minHeight: 40,
   },
-  /** Squircle — editorial, not a perfect iOS circle blob. */
   backBtn: {
     borderWidth: StyleSheet.hairlineWidth,
     width: 36,
