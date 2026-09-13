@@ -302,7 +302,7 @@ export async function reviewContentImage(
           modelVersion: `local:${local.model}`,
           timeoutMs: 120_000,
           trackUsage: false,
-          body: { think: false },
+          body: { think: false, reasoning_effort: "none" },
         },
         imageDataUrls,
         source,

@@ -216,9 +216,12 @@ test("the direct DeepSeek review sends the wide and square app crops", async () 
   assert.match(contentImageReviewPrompt(source), /square centered crop/);
 });
 
-test("image review prefers the configured local model", async () => {
+test("image review prefers the configured local model without hidden reasoning", async () => {
   const generated = await image();
-  const requests: Array<{ url: string; body: { model?: string } }> = [];
+  const requests: Array<{
+    url: string;
+    body: { model?: string; reasoning_effort?: string };
+  }> = [];
   const response = await reviewContentImage(generated, source, {
     apiKey: "deepseek-test-key",
     local: {
@@ -229,7 +232,10 @@ test("image review prefers the configured local model", async () => {
     fetch: async (url, init) => {
       requests.push({
         url: String(url),
-        body: JSON.parse(String(init?.body)) as { model?: string },
+        body: JSON.parse(String(init?.body)) as {
+          model?: string;
+          reasoning_effort?: string;
+        },
       });
       return new Response(
         JSON.stringify({
@@ -243,6 +249,7 @@ test("image review prefers the configured local model", async () => {
   assert.equal(requests.length, 1);
   assert.equal(requests[0]?.url, "http://local.test/v1/chat/completions");
   assert.equal(requests[0]?.body.model, "local-vision");
+  assert.equal(requests[0]?.body.reasoning_effort, "none");
   assert.equal(response.reviewModelVersion, "local:local-vision");
 });
 
