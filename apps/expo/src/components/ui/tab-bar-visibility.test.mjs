@@ -22,15 +22,9 @@ test("hides Feed after Expo Router transforms href null", () => {
 });
 
 test("retains the production Settings fallback", () => {
-  assert.equal(
-    isTabRouteHidden({ routeName: "settings", isDev: false }),
-    true,
-  );
+  assert.equal(isTabRouteHidden({ routeName: "settings", isDev: false }), true);
 });
 
 test("shows ordinary tabs", () => {
-  assert.equal(
-    isTabRouteHidden({ routeName: "index", isDev: false }),
-    false,
-  );
+  assert.equal(isTabRouteHidden({ routeName: "index", isDev: false }), false);
 });

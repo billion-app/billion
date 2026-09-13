@@ -1,8 +1,10 @@
-/** SettingsRow — icon tile + label + optional subtitle + chevron. */
+/**
+ * SettingsRow — airy Cash App–grade line: mark, label, quiet chevron.
+ */
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import type { IconName } from "./Icon";
-import { colors, fontBody, hair, planes } from "~/styles";
+import { DigestHair, fontBody, DigestPalette as P } from "~/styles";
 import { Icon } from "./Icon";
 
 export function SettingsRow({
@@ -20,21 +22,23 @@ export function SettingsRow({
   danger?: boolean;
   last?: boolean;
 }) {
-  const fg = danger ? colors.red[500] : colors.white;
+  const fg = danger ? P.quiet : P.inkOnNight;
   return (
     <TouchableOpacity
       style={[s.row, !last && s.divider]}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={sub ? `${label}. ${sub}` : label}
     >
-      <View style={s.tile}>
-        <Icon name={icon} size={19} color={fg} />
+      <View style={s.mark}>
+        <Icon name={icon} size={18} color={danger ? P.quiet : P.spark} />
       </View>
       <View style={s.body}>
         <Text style={[s.label, { color: fg }]}>{label}</Text>
-        {sub && <Text style={s.sub}>{sub}</Text>}
+        {sub ? <Text style={s.sub}>{sub}</Text> : null}
       </View>
-      <Icon name="chevR" size={18} color="#5B6172" />
+      <Icon name="chevR" size={15} color={P.quiet} />
     </TouchableOpacity>
   );
 }
@@ -44,24 +48,31 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 15,
+    paddingHorizontal: 4,
+    paddingVertical: 16,
   },
-  divider: { borderBottomWidth: 1, borderBottomColor: hair[1] },
-  tile: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: planes.surface,
+  divider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
+  },
+  mark: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: DigestHair.tabActivePill,
     alignItems: "center",
     justifyContent: "center",
   },
-  body: { flex: 1 },
-  label: { fontFamily: fontBody.semibold, fontSize: 15.5 },
+  body: { flex: 1, gap: 2 },
+  label: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    letterSpacing: -0.2,
+  },
   sub: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.regular,
     fontSize: 12.5,
-    color: colors.textSecondary,
-    marginTop: 1,
+    lineHeight: 16,
+    color: P.quiet,
   },
 });
