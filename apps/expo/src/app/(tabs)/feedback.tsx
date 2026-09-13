@@ -3,29 +3,33 @@ import {
   Alert,
   Linking,
   Platform,
+  ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
-import {
-  GhostButton,
-  Icon,
-  Kicker,
-  PrimaryButton,
-  TabScreen,
-} from "~/components/ui";
+import { GhostButton, Icon, Kicker } from "~/components/ui";
 import { posthog } from "~/config/posthog";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  DigestHair,
+  DigestRadii,
+  DigestSpace,
+  DigestType,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+} from "~/styles";
 import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
 import { buildFeedbackFormUrl } from "~/utils/feedback-form";
 
 // Direct contact remains available as a fallback to the guided form.
-const CONTACT_EMAIL = "support@billion-news.app";
+const CONTACT_EMAIL = "thatxliner@gmail.com";
 
 type FeedbackCategory = "bug" | "idea" | "content";
 
@@ -85,6 +89,7 @@ async function openFeedbackForm(url: string): Promise<boolean> {
 
 export default function FeedbackScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [cat, setCat] = useState<FeedbackCategory>("bug");
   const [text, setText] = useState("");
   const message = text.trim();
@@ -138,126 +143,165 @@ export default function FeedbackScreen() {
   };
 
   return (
-    <TabScreen title="Feedback">
-      <View style={s.body}>
-        <Text style={s.title}>What&apos;s on your mind?</Text>
-        <Text style={s.intro}>
-          We read every note — it shapes what we build next. Bug reports and
-          feature ideas open in our guided feedback form.
-        </Text>
+    <View style={{ flex: 1, backgroundColor: P.canvas }}>
+      {/* Pinned title — never eaten by refresh chrome */}
+      <View
+        style={{
+          paddingTop: insets.top + 6,
+          paddingHorizontal: DigestSpace.screenPadX,
+        }}
+      >
+        <Text style={s.screenTitle}>Feedback</Text>
+      </View>
 
-        <Kicker>Category</Kicker>
-        <View style={{ gap: 10, marginBottom: 24 }}>
-          {CATS.map((c) => {
-            const active = cat === c.id;
-            return (
-              <TouchableOpacity
-                key={c.id}
-                activeOpacity={0.8}
-                onPress={() => setCat(c.id)}
-                style={[
-                  s.catRow,
-                  {
-                    backgroundColor: active ? planes.surface : planes.slate,
-                    borderColor: active ? hair[3] : hair[1],
-                  },
-                ]}
-              >
-                <Icon
-                  name={c.icon}
-                  size={19}
-                  color={active ? colors.white : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    s.catLabel,
-                    { color: active ? colors.white : "rgba(255,255,255,0.7)" },
-                  ]}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 16 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+        overScrollMode="never"
+      >
+        <View style={s.body}>
+          <Kicker style={s.kicker}>Category</Kicker>
+          <View style={{ gap: 8, marginBottom: 14 }}>
+            {CATS.map((c) => {
+              const active = cat === c.id;
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  activeOpacity={0.8}
+                  onPress={() => setCat(c.id)}
+                  style={[s.catRow, active ? s.catRowOn : s.catRowOff]}
                 >
-                  {c.label}
-                </Text>
-                <View
-                  style={[
-                    s.radio,
-                    { borderColor: active ? colors.white : hair[3] },
-                  ]}
-                >
-                  {active && <View style={s.radioDot} />}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                  <Icon
+                    name={c.icon}
+                    size={19}
+                    color={active ? P.spark : P.quiet}
+                  />
+                  <Text
+                    style={[
+                      s.catLabel,
+                      {
+                        color: active ? P.inkOnNight : "rgba(247,244,238,0.7)",
+                      },
+                    ]}
+                  >
+                    {c.label}
+                  </Text>
+                  <View
+                    style={[
+                      s.radio,
+                      {
+                        borderColor: active ? P.spark : DigestHair.sectionRule,
+                      },
+                    ]}
+                  >
+                    {active && <View style={s.radioDot} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Kicker style={s.kicker}>Details</Kicker>
+          <TextInput
+            style={s.textarea}
+            value={text}
+            onChangeText={setText}
+            placeholder="Tell us what happened or what you'd love to see…"
+            placeholderTextColor={P.quiet}
+            multiline
+            textAlignVertical="top"
+          />
+          <Text style={s.attached}>
+            App version {getAppVersion()} attached automatically.
+          </Text>
+
+          <TouchableOpacity
+            style={[s.cta, { opacity: canSubmit ? 1 : 0.55 }]}
+            onPress={submit}
+            activeOpacity={0.85}
+            disabled={!canSubmit}
+          >
+            <Text style={s.ctaLabel}>
+              {cat === "bug"
+                ? "Continue to bug report"
+                : cat === "idea"
+                  ? "Continue to feature request"
+                  : "Send content issue via email"}
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={s.orDivider}>or</Text>
+
+          <GhostButton
+            label={`Email us at ${CONTACT_EMAIL}`}
+            onPress={emailDirect}
+            color={P.quiet}
+            style={{ alignSelf: "center" }}
+          />
         </View>
+      </ScrollView>
 
-        <Kicker>Details</Kicker>
-        <TextInput
-          style={s.textarea}
-          value={text}
-          onChangeText={setText}
-          placeholder="Tell us what happened or what you'd love to see…"
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          textAlignVertical="top"
-        />
-        <Text style={s.attached}>
-          App version {getAppVersion()} attached automatically.
-        </Text>
-
-        <PrimaryButton
-          label={
-            cat === "bug"
-              ? "Continue to bug report"
-              : cat === "idea"
-                ? "Continue to feature request"
-                : "Send content issue via email"
-          }
-          onPress={submit}
-          style={{ opacity: canSubmit ? 1 : 0.55 }}
-        />
-
-        <Text style={s.orDivider}>or</Text>
-
-        <GhostButton
-          label={`Email us at ${CONTACT_EMAIL}`}
-          onPress={emailDirect}
-          style={{ alignSelf: "center" }}
-        />
-
-        {/* The Settings tab is hidden in production, so this is the only way
-            to reach the legal copy in a release build. */}
+      {/* Docked legal footer — sits above tab bar, never soft-clipped. */}
+      <View
+        style={[
+          s.legalDock,
+          // Tab bar overlays bottom — pad dock so Terms sits fully above it.
+          { paddingBottom: 72 + Math.max(insets.bottom, 8) },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => router.push("/settings/terms")}
           activeOpacity={0.7}
           style={s.legalLink}
+          accessibilityRole="link"
+          accessibilityLabel="Terms and Privacy Policy"
         >
           <Text style={s.legalLinkText}>Terms and Privacy Policy</Text>
         </TouchableOpacity>
       </View>
-    </TabScreen>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  body: { paddingHorizontal: 20, paddingTop: 18 },
-  legalLink: { alignSelf: "center", marginTop: 26, paddingVertical: 8 },
+  screenTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: -0.6,
+    color: P.inkOnNight,
+  },
+  legalDock: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.sectionRule,
+    paddingTop: 6,
+    paddingHorizontal: DigestSpace.screenPadX,
+    backgroundColor: P.canvas,
+  },
+  body: {
+    paddingHorizontal: DigestSpace.screenPadX + 4,
+    paddingTop: 10,
+    paddingBottom: 8,
+  },
+  kicker: {
+    ...DigestType.sectionEyebrow,
+    color: P.quiet,
+    marginBottom: 10,
+  },
+  legalLink: {
+    alignSelf: "center",
+    marginTop: 2,
+    marginBottom: 2,
+    paddingVertical: 6,
+  },
   legalLinkText: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: P.quiet,
     textDecorationLine: "underline",
-  },
-  title: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 19,
-    color: colors.white,
-    marginBottom: 6,
-  },
-  intro: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 22,
-    lineHeight: 20,
   },
   catRow: {
     flexDirection: "row",
@@ -265,8 +309,16 @@ const s = StyleSheet.create({
     gap: 14,
     paddingVertical: 13,
     paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: DigestRadii.menu,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  catRowOn: {
+    backgroundColor: DigestHair.tabActivePill,
+    borderColor: DigestHair.menuBorder,
+  },
+  catRowOff: {
+    backgroundColor: P.stone,
+    borderColor: DigestHair.cardBorder,
   },
   catLabel: { flex: 1, fontFamily: fontBody.semibold, fontSize: 15 },
   radio: {
@@ -281,32 +333,45 @@ const s = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: colors.white,
+    backgroundColor: P.spark,
   },
   textarea: {
-    minHeight: 130,
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
+    minHeight: 96,
+    backgroundColor: P.stone,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.menu,
     padding: 14,
-    color: colors.white,
-    fontFamily: "AlbertSans-Regular",
+    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
     fontSize: 15,
     lineHeight: 22,
   },
   attached: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: P.quiet,
     marginVertical: 10,
     marginBottom: 20,
   },
+  cta: {
+    height: 52,
+    width: "100%",
+    borderRadius: 9999,
+    backgroundColor: P.spark,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    color: P.ink,
+  },
   orDivider: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: P.quiet,
     textAlign: "center",
-    marginVertical: 14,
+    marginVertical: 10,
   },
 });

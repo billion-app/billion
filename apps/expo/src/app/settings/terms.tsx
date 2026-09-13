@@ -1,11 +1,13 @@
-import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, View } from "react-native";
 
-import type { Theme } from "~/styles";
-import { Text, View } from "~/components/Themed";
-import { colors, fonts, sp, useTheme } from "~/styles";
+import { Text } from "~/components/Themed";
+import { ScreenShell } from "~/components/ui";
+import {
+  DigestHair,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+} from "~/styles";
 
 const LAST_UPDATED = "August 31, 2026";
 
@@ -107,149 +109,67 @@ const PRIVACY_SECTIONS = [
   },
 ];
 
-function DocSection({
-  title,
-  body,
-  theme,
-}: {
-  title: string;
-  body: string;
-  theme: Theme;
-}) {
+function DocSection({ title, body }: { title: string; body: string }) {
   return (
-    <View
-      style={styles.section}
-      lightColor="transparent"
-      darkColor="transparent"
-    >
-      <Text style={[styles.sectionTitle, { color: theme.foreground }]}>
-        {title}
-      </Text>
-      <Text style={[styles.sectionBody, { color: theme.textSecondary }]}>
-        {body}
-      </Text>
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionBody}>{body}</Text>
     </View>
   );
 }
 
 export default function TermsScreen() {
-  const router = useRouter();
-  const { theme } = useTheme();
-
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={["top"]}
-    >
-      <View
-        style={[
-          styles.header,
-          {
-            borderBottomColor: theme.border,
-            backgroundColor: theme.background,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.foreground }]}>
-          Terms & Privacy
-        </Text>
-        <View
-          style={{ width: 44 }}
-          lightColor="transparent"
-          darkColor="transparent"
-        />
-      </View>
+    <ScreenShell title="Terms & Privacy">
+      <Text style={styles.lastUpdated}>Last updated {LAST_UPDATED}</Text>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.lastUpdated, { color: theme.mutedForeground }]}>
-          Last updated {LAST_UPDATED}
-        </Text>
+      <Text style={styles.docTitle}>Terms of Service</Text>
+      {TERMS_SECTIONS.map((s) => (
+        <DocSection key={s.title} {...s} />
+      ))}
 
-        <Text style={[styles.docTitle, { color: theme.foreground }]}>
-          Terms of Service
-        </Text>
-        {TERMS_SECTIONS.map((s) => (
-          <DocSection key={s.title} {...s} theme={theme} />
-        ))}
+      <View style={styles.divider} />
 
-        <View
-          style={[styles.divider, { backgroundColor: theme.border }]}
-          lightColor={theme.border}
-          darkColor={theme.border}
-        />
-
-        <Text style={[styles.docTitle, { color: theme.foreground }]}>
-          Privacy Policy
-        </Text>
-        {PRIVACY_SECTIONS.map((s) => (
-          <DocSection key={s.title} {...s} theme={theme} />
-        ))}
-
-        <View
-          style={{ height: sp[10] }}
-          lightColor="transparent"
-          darkColor="transparent"
-        />
-      </ScrollView>
-    </SafeAreaView>
+      <Text style={styles.docTitle}>Privacy Policy</Text>
+      {PRIVACY_SECTIONS.map((s) => (
+        <DocSection key={s.title} {...s} />
+      ))}
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: sp[4],
-    paddingVertical: sp[4],
-    borderBottomWidth: 1,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    flex: 1,
-    textAlign: "center",
-    fontFamily: fonts.bodySemibold,
-    fontSize: 16,
-  },
-  scroll: { flex: 1, paddingHorizontal: sp[5] },
   lastUpdated: {
-    fontFamily: fonts.body,
+    fontFamily: fontBody.regular,
     fontSize: 12,
-    marginTop: sp[5],
-    marginBottom: sp[6],
+    color: P.quiet,
+    marginBottom: 24,
   },
   docTitle: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 20,
-    marginBottom: sp[5],
+    fontFamily: fontDisplay.bold,
+    fontSize: 24,
+    letterSpacing: -0.4,
+    color: P.inkOnNight,
+    marginBottom: 20,
   },
   divider: {
-    height: 1,
-    marginVertical: sp[8],
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: DigestHair.sectionRule,
+    marginVertical: 32,
   },
   section: {
-    marginBottom: sp[6],
+    marginBottom: 22,
   },
   sectionTitle: {
-    fontFamily: fonts.bodySemibold,
+    fontFamily: fontBody.semibold,
     fontSize: 14,
-    marginBottom: sp[2],
+    color: P.inkOnNight,
+    marginBottom: 6,
   },
   sectionBody: {
-    fontFamily: fonts.body,
+    fontFamily: fontBody.regular,
     fontSize: 14,
     lineHeight: 21,
+    color: P.quiet,
   },
 });

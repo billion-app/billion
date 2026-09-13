@@ -4,7 +4,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Avatar, GhostButton, Icon, ScreenShell } from "~/components/ui";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  DigestHair,
+  DigestRadii,
+  fontBody,
+  DigestPalette as P,
+} from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 
 function getInitials(name: string): string {
@@ -40,8 +45,8 @@ export default function EditProfileScreen() {
   });
 
   const fields = [
-    { label: "DISPLAY NAME", value: name, set: setName },
-    { label: "EMAIL", value: email, set: undefined },
+    { label: "Name", value: name, set: setName },
+    { label: "Email", value: email, set: undefined },
   ];
 
   const handleSave = () => {
@@ -63,27 +68,27 @@ export default function EditProfileScreen() {
     >
       <View style={s.avatarWrap}>
         <View>
-          <Avatar name={getInitials(name || "?")} size={92} />
+          <Avatar name={getInitials(name || "?")} size={92} color={P.spark} />
           <View style={s.editBadge}>
-            <Icon name="edit" size={15} color={planes.ink} />
+            <Icon name="edit" size={14} color={P.ink} />
           </View>
         </View>
         <GhostButton
           label="Change photo"
-          color={colors.bill}
+          color={P.spark}
           style={{ marginTop: 10, height: 32 }}
         />
       </View>
 
       {fields.map((f) => (
-        <View key={f.label} style={{ marginBottom: 18 }}>
+        <View key={f.label} style={{ marginBottom: 22 }}>
           <Text style={s.label}>{f.label}</Text>
           <TextInput
             style={[s.input, !f.set && { opacity: 0.5 }]}
             value={f.value}
             onChangeText={f.set}
             editable={!!f.set}
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={P.quiet}
             autoCapitalize="none"
           />
         </View>
@@ -91,7 +96,7 @@ export default function EditProfileScreen() {
 
       <GhostButton
         label="Delete account"
-        color={colors.red[500]}
+        color={P.quiet}
         style={{ marginTop: 8, alignSelf: "flex-start" }}
       />
     </ScreenShell>
@@ -99,8 +104,8 @@ export default function EditProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  save: { fontFamily: fontBody.bold, fontSize: 15, color: colors.bill },
-  avatarWrap: { alignItems: "center", marginBottom: 28 },
+  save: { fontFamily: fontBody.bold, fontSize: 15, color: P.spark },
+  avatarWrap: { alignItems: "center", marginBottom: 36, marginTop: 8 },
   editBadge: {
     position: "absolute",
     bottom: 0,
@@ -108,29 +113,30 @@ const s = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: colors.white,
+    backgroundColor: P.paper,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 3,
-    borderColor: planes.navy,
+    borderWidth: 2,
+    borderColor: P.canvas,
   },
   label: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
-    letterSpacing: 0.6,
-    color: colors.textSecondary,
-    marginBottom: 9,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: P.spark,
+    marginBottom: 10,
     paddingLeft: 4,
   },
   input: {
-    height: 50,
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
+    height: 52,
+    backgroundColor: P.stone,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.menu,
     paddingHorizontal: 16,
-    color: colors.white,
-    fontFamily: "AlbertSans-Regular",
+    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
     fontSize: 16,
   },
 });

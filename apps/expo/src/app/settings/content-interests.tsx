@@ -4,16 +4,14 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import type { ContentTypeKey } from "~/styles";
 import { Text } from "~/components/Themed";
-import {
-  Badge,
-  Card,
-  Kicker,
-  Pill,
-  ScreenShell,
-  Toggle,
-} from "~/components/ui";
+import { Kicker, Pill, ScreenShell, Toggle } from "~/components/ui";
 import { posthog } from "~/config/posthog";
-import { colors, fontBody, hair } from "~/styles";
+import {
+  contentType,
+  DigestHair,
+  fontBody,
+  DigestPalette as P,
+} from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 
 const TOPICS = [
@@ -92,13 +90,8 @@ export default function ContentInterestsScreen() {
     });
 
   return (
-    <ScreenShell title="Content Interests">
-      <Text style={s.intro}>
-        Tune what surfaces in your feed.{" "}
-        <Text style={s.introEm}>{topics.size} topics</Text> selected.
-      </Text>
-
-      <Kicker>Topics</Kicker>
+    <ScreenShell title="Interests">
+      <Kicker>{`${topics.size} topics`}</Kicker>
       <View style={s.chips}>
         {TOPICS.map((x) => (
           <Pill
@@ -111,42 +104,47 @@ export default function ContentInterestsScreen() {
         ))}
       </View>
 
-      <Kicker>Content types</Kicker>
-      <Card flush>
-        {CATS.map((c, i) => (
-          <View key={c.id} style={[s.catRow, i < CATS.length - 1 && s.divider]}>
-            <Badge type={c.id} />
-            <Text style={s.catLabel}>{c.label}</Text>
-            <Toggle on={cats.has(c.id)} onChange={() => toggleCat(c.id)} />
-          </View>
-        ))}
-      </Card>
+      <Kicker>Types</Kicker>
+      {CATS.map((c, i) => (
+        <View key={c.id} style={[s.catRow, i < CATS.length - 1 && s.divider]}>
+          <Text style={s.catKicker}>{contentType[c.id].label}</Text>
+          <Text style={s.catLabel}>{c.label}</Text>
+          <Toggle on={cats.has(c.id)} onChange={() => toggleCat(c.id)} />
+        </View>
+      ))}
     </ScreenShell>
   );
 }
 
 const s = StyleSheet.create({
-  intro: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 22,
-    lineHeight: 21,
+  chips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9,
+    marginBottom: 32,
+    marginTop: 4,
   },
-  introEm: { color: colors.white, fontFamily: fontBody.semibold },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginBottom: 28 },
   catRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  divider: { borderBottomWidth: 1, borderBottomColor: hair[1] },
+  divider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
+  },
+  catKicker: {
+    fontFamily: fontBody.bold,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: P.spark,
+  },
   catLabel: {
     flex: 1,
     fontFamily: fontBody.semibold,
-    fontSize: 14.5,
-    color: colors.white,
+    fontSize: 15,
+    color: P.inkOnNight,
   },
 });
