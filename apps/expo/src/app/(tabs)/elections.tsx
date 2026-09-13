@@ -6,17 +6,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 
 import type { Contest } from "@acme/api";
 
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
-import { EMPTY_CIVIC } from "~/components/digest/staticAssets";
 import { EmptyBallotMark, PinMark } from "~/components/digest/CraftMarks";
+import { EMPTY_CIVIC } from "~/components/digest/staticAssets";
 import { ProfileMarkButton } from "~/components/DigestProfileMark";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
@@ -27,12 +27,12 @@ import { Icon, Kicker, TabScreen } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import {
-  fontBody,
-  fontDisplay,
   DigestHair,
   DigestPalette,
   DigestRadii,
   DigestSpace,
+  fontBody,
+  fontDisplay,
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { monthDay } from "~/utils/dates";
@@ -127,7 +127,10 @@ function MeasureCard({
           {m.referendumProStatement ? (
             <View style={s.stanceRow}>
               <View
-                style={[s.stanceDot, { backgroundColor: DigestPalette.badgeTeal }]}
+                style={[
+                  s.stanceDot,
+                  { backgroundColor: DigestPalette.badgeTeal },
+                ]}
               />
               <View style={{ flex: 1 }}>
                 <Text style={s.stanceLabel}>A YES vote means</Text>
@@ -211,6 +214,7 @@ export default function ElectionsScreen() {
   const electionsQuery = useQuery({
     ...trpc.civic.getElections.queryOptions(),
     enabled: !hasAddress,
+    retry: false,
   });
   const upcomingCaliforniaElection = pickUpcomingCaliforniaElection(
     electionsQuery.data ?? [],
@@ -227,11 +231,11 @@ export default function ElectionsScreen() {
   const unsupportedState =
     hasAddress &&
     !!voterInfoQuery.data &&
-    !isCaliforniaState(voterInfoQuery.data.normalizedInput?.state);
+    !isCaliforniaState(voterInfoQuery.data.normalizedInput.state);
 
   const hasVerifiedCaliforniaAddress =
     !!voterInfoQuery.data &&
-    isCaliforniaState(voterInfoQuery.data.normalizedInput?.state);
+    isCaliforniaState(voterInfoQuery.data.normalizedInput.state);
 
   // The address-specific election the ballot belongs to.
   const selected = unsupportedState ? undefined : voterInfoQuery.data?.election;
@@ -474,10 +478,15 @@ export default function ElectionsScreen() {
           <View style={{ gap: 12 }}>
             <Kicker>Statewide propositions</Kicker>
             {statewideMeasures.length === 0 ? (
-              <Text style={s.empty}>No statewide propositions on this ballot.</Text>
+              <Text style={s.empty}>
+                No statewide propositions on this ballot.
+              </Text>
             ) : (
               statewideMeasures.map((m, i) => (
-                <View key={`sw-${measures.indexOf(m)}`} style={i > 0 ? s.rowHair : undefined}>
+                <View
+                  key={`sw-${measures.indexOf(m)}`}
+                  style={i > 0 ? s.rowHair : undefined}
+                >
                   <MeasureCard
                     measure={m}
                     expanded={expandedMeasures.has(measures.indexOf(m))}
@@ -501,7 +510,10 @@ export default function ElectionsScreen() {
               <Text style={s.empty}>No local measures on this ballot.</Text>
             ) : (
               localMeasures.map((m, i) => (
-                <View key={`lo-${measures.indexOf(m)}`} style={i > 0 ? s.rowHair : undefined}>
+                <View
+                  key={`lo-${measures.indexOf(m)}`}
+                  style={i > 0 ? s.rowHair : undefined}
+                >
                   <MeasureCard
                     measure={m}
                     expanded={expandedMeasures.has(measures.indexOf(m))}

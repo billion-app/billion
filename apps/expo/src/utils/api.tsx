@@ -7,6 +7,7 @@ import type { AppRouter } from "@acme/api";
 
 import { authClient } from "./auth";
 import { getBaseUrl } from "./base-url";
+import { createTrpcConsole } from "./trpc-logging";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +27,7 @@ export const trpcClient = createTRPCClient<AppRouter>({
         process.env.NODE_ENV === "development" ||
         (opts.direction === "down" && opts.result instanceof Error),
       colorMode: "ansi",
+      console: createTrpcConsole(console),
     }),
     httpBatchLink({
       transformer: superjson,

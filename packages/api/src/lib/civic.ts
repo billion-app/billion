@@ -24,6 +24,7 @@ import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
 import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
+import { civicProviderErrorMessage } from "./civic-provider-error";
 import { crossValidateMeasure } from "./measure-crossvalidate";
 import { normalizeMeasureTitle } from "./measure-sources/ballotpedia";
 
@@ -331,7 +332,7 @@ async function fetchCivicApi<T>(
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(
-      `Google Civic API error: ${response.status} ${response.statusText} - ${JSON.stringify(error)}`,
+      civicProviderErrorMessage(response.status, response.statusText, error),
     );
   }
 

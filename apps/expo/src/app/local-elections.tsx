@@ -26,6 +26,7 @@ export default function LocalElectionsScreen() {
   const electionsQuery = useQuery({
     ...trpc.civic.getElections.queryOptions(),
     enabled: !address,
+    retry: false,
   });
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
