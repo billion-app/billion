@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <!-- California skyline: block, Transamerica, tower -->
+  <path d="M8 52H56" stroke="#C4A35A" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M10 52V36H14V28H20V52Z" stroke="#C4A35A" stroke-width="1.65" stroke-linejoin="round"/>
+  <path d="M32 11L37 31L41 31L42.5 52L23.5 52L25 31L29 31Z" stroke="#C4A35A" stroke-width="1.65" stroke-linejoin="round"/>
+  <path d="M46 52L47 18H52L53 52Z" stroke="#C4A35A" stroke-width="1.65" stroke-linejoin="round"/>
+  <path d="M49.5 18V12" stroke="#C4A35A" stroke-width="1.65" stroke-linecap="round"/>
+</svg>

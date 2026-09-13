@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <!-- Wind turbine: mast + three blades -->
+  <path d="M32 28V52M22 52H42" stroke="#C4A35A" stroke-width="1.7" stroke-linecap="round"/>
+  <circle cx="32" cy="26" r="2.6" fill="#C4A35A"/>
+  <path d="M32 26L32 9M32 26L47 34M32 26L17 34" stroke="#C4A35A" stroke-width="2.2" stroke-linecap="round"/>
+</svg>
