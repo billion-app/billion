@@ -6,23 +6,45 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { Contest } from "@acme/api";
 
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
+import { EmptyBallotMark, PinMark } from "~/components/digest/CraftMarks";
+import { EMPTY_CIVIC } from "~/components/digest/staticAssets";
+import { ProfileMarkButton } from "~/components/DigestProfileMark";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
 import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
 import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
-import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
+import { Icon, Kicker, TabScreen } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  DigestHair,
+  DigestPalette,
+  DigestRadii,
+  DigestSpace,
+  fontBody,
+  fontDisplay,
+} from "~/styles";
 import { trpc } from "~/utils/api";
-import { groupContestsByLevel, measureIsStatewide } from "~/utils/elections";
+import { monthDay } from "~/utils/dates";
+import {
+  contestListTitle,
+  earliestEarlyVoteStart,
+  groupContestsByLevel,
+  isCaliforniaState,
+  measureIsStatewide,
+  pickUpcomingCaliforniaElection,
+  pollingPlaceSubtitle,
+} from "~/utils/elections";
 
 type BallotTab = "candidates" | "measures";
 
@@ -56,7 +78,7 @@ function topSourceLabel(m: Contest): string | null {
   return src.official ? `Official · ${src.name}` : src.name;
 }
 
-/** Expandable card for a single ballot measure (statewide or local). */
+/** Expandable row for a single ballot measure (statewide or local). */
 function MeasureCard({
   measure: m,
   expanded,
@@ -69,7 +91,7 @@ function MeasureCard({
   onReadMore: () => void;
 }) {
   return (
-    <Card style={{ padding: 18 }}>
+    <View style={s.measureRow}>
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={onToggle}
@@ -78,7 +100,11 @@ function MeasureCard({
         <Text style={[s.measureTitle, { marginBottom: 0, flex: 1 }]}>
           {m.referendumTitle}
         </Text>
-        <Icon name={expanded ? "chevD" : "chevR"} size={16} color="#5B6172" />
+        <Icon
+          name={expanded ? "chevD" : "chevR"}
+          size={16}
+          color={DigestPalette.quiet}
+        />
       </TouchableOpacity>
       {expanded && (
         <View style={s.measureBody}>
@@ -88,10 +114,7 @@ function MeasureCard({
             </Text>
           ) : null}
           {m.summaryIsAiGenerated && (
-            <View style={s.aiChip}>
-              <Icon name="sparkle" size={11} color={colors.yellow[500]} />
-              <Text style={s.aiChipText}>AI-generated summary</Text>
-            </View>
+            <Text style={s.aiChipText}>Billion AI</Text>
           )}
           {m.fiscalImpact ? (
             <View style={s.fiscalRow}>
@@ -104,7 +127,10 @@ function MeasureCard({
           {m.referendumProStatement ? (
             <View style={s.stanceRow}>
               <View
-                style={[s.stanceDot, { backgroundColor: colors.green[500] }]}
+                style={[
+                  s.stanceDot,
+                  { backgroundColor: DigestPalette.badgeTeal },
+                ]}
               />
               <View style={{ flex: 1 }}>
                 <Text style={s.stanceLabel}>A YES vote means</Text>
@@ -115,7 +141,7 @@ function MeasureCard({
           {m.referendumConStatement ? (
             <View style={s.stanceRow}>
               <View
-                style={[s.stanceDot, { backgroundColor: colors.red[500] }]}
+                style={[s.stanceDot, { backgroundColor: DigestPalette.spark }]}
               />
               <View style={{ flex: 1 }}>
                 <Text style={s.stanceLabel}>A NO vote means</Text>
@@ -128,31 +154,22 @@ function MeasureCard({
             activeOpacity={0.8}
             onPress={onReadMore}
           >
-            <Icon name="doc" size={15} color={colors.bill} />
             <Text style={s.readMoreText}>Read full measure</Text>
           </TouchableOpacity>
           {topSourceLabel(m) ? (
-            <View style={s.sourceChip}>
-              <Icon
-                name={
-                  m.sources?.some((src) => src.official) ? "shield" : "info"
-                }
-                size={11}
-                color={colors.textSecondary}
-              />
-              <Text style={s.sourceChipText} numberOfLines={1}>
-                {topSourceLabel(m)}
-              </Text>
-            </View>
+            <Text style={s.sourceChipText} numberOfLines={1}>
+              {topSourceLabel(m)}
+            </Text>
           ) : null}
         </View>
       )}
-    </Card>
+    </View>
   );
 }
 
 export default function ElectionsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { address: storedAddress, setAddress } = useUserAddress();
   const [editing, setEditing] = useState(false);
   const [expandedMeasures, setExpandedMeasures] = useState<Set<number>>(
@@ -192,23 +209,32 @@ export default function ElectionsScreen() {
 
   const hasAddress = !!storedAddress;
 
-  // Let Civic resolve the election for THIS address — getElections returns a
-  // nationwide list, so picking the soonest from it surfaces the wrong
-  // (e.g. out-of-state) election and breaks the ballot lookup.
+  // Nationwide list is only a teaser before an address is set. Ballot contests
+  // always come from getVoterInfo so Civic can resolve THIS address.
+  const electionsQuery = useQuery({
+    ...trpc.civic.getElections.queryOptions(),
+    enabled: !hasAddress,
+  });
+  const upcomingCaliforniaElection = pickUpcomingCaliforniaElection(
+    electionsQuery.data ?? [],
+  );
+
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: storedAddress ?? "" }),
     enabled: hasAddress,
     retry: 1,
   });
 
-  // We only have ballot/results data sourced for California right now.
+  // Ballot/results coverage is California-only. Civic usually sends "CA";
+  // accept the full name so production voterinfo still gates correctly.
   const unsupportedState =
     hasAddress &&
     !!voterInfoQuery.data &&
-    voterInfoQuery.data.normalizedInput.state !== "CA";
+    !isCaliforniaState(voterInfoQuery.data.normalizedInput.state);
 
   const hasVerifiedCaliforniaAddress =
-    !!voterInfoQuery.data && voterInfoQuery.data.normalizedInput.state === "CA";
+    !!voterInfoQuery.data &&
+    isCaliforniaState(voterInfoQuery.data.normalizedInput.state);
 
   // The address-specific election the ballot belongs to.
   const selected = unsupportedState ? undefined : voterInfoQuery.data?.election;
@@ -226,12 +252,17 @@ export default function ElectionsScreen() {
 
   return (
     <TabScreen
-      title="Your Ballot"
-      contentStyle={{ gap: 24 }}
+      title="Ballot"
+      action={<ProfileMarkButton menuTop={insets.top + 52} />}
+      contentStyle={{
+        gap: 8,
+        paddingBottom: 100 + insets.bottom,
+      }}
       headerExtra={
         editing || !storedAddress ? (
           <AddressAutocomplete
             initialValue={storedAddress ?? ""}
+            hint={null}
             onSubmit={(addr) => {
               void setAddress(addr);
               setEditing(false);
@@ -241,50 +272,74 @@ export default function ElectionsScreen() {
             }}
           />
         ) : (
-          <View style={s.addrCard}>
-            <Icon name="pin" size={19} color={colors.bill} />
-            <View style={s.addrBody}>
-              <Text style={s.addrKicker}>REGISTERED ADDRESS</Text>
-              <Text style={s.addrText} numberOfLines={1}>
-                {storedAddress}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => setEditing(true)}>
-              <Text style={s.addrEdit}>Edit</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={s.addrRow}
+            onPress={() => setEditing(true)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Edit registered address"
+          >
+            <PinMark size={14} color={DigestPalette.spark} />
+            <Text style={s.addrText} numberOfLines={1}>
+              {storedAddress}
+            </Text>
+            <Text style={s.addrEdit}>Edit</Text>
+          </TouchableOpacity>
         )
       }
     >
       {!hasAddress && (
-        <View style={s.section}>
-          <Card>
-            <Text style={s.empty}>
-              Enter your registered address above to load the election and
-              ballot for where you vote.
-            </Text>
-          </Card>
+        <View style={s.emptyStack}>
+          <View style={s.emptyHero}>
+            <Image
+              source={EMPTY_CIVIC}
+              style={s.emptyHeroImage}
+              contentFit="cover"
+              transition={200}
+              accessibilityIgnoresInvertColors
+            />
+            <LinearGradient
+              colors={["transparent", DigestPalette.canvas]}
+              locations={[0.35, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={s.emptyOverlay}>
+              <Text style={s.emptyEyebrow}>Your ballot</Text>
+              <Text style={s.emptyLead}>Enter a registered address.</Text>
+            </View>
+          </View>
+
+          {upcomingCaliforniaElection ? (
+            <View style={s.emptyDates}>
+              <Text style={s.emptyDatesEyebrow}>
+                {upcomingCaliforniaElection.name}
+              </Text>
+              <View style={s.emptyDateRow}>
+                <Text style={s.emptyDateLabel}>Election Day</Text>
+                <Text style={s.emptyDateValue}>
+                  {monthDay(upcomingCaliforniaElection.electionDay)}
+                </Text>
+              </View>
+            </View>
+          ) : null}
         </View>
       )}
 
       {hasAddress && voterInfoQuery.isError && (
         <View style={s.section}>
-          <Card>
-            <Text style={s.empty}>
-              We couldn't look up your ballot. Check your address and try again.
-            </Text>
-          </Card>
+          <EmptyBallotMark width={72} />
+          <Text style={s.empty}>
+            Couldn’t look up this ballot. Check the address and try again.
+          </Text>
         </View>
       )}
 
       {unsupportedState && (
         <View style={s.section}>
-          <Card>
-            <Text style={s.empty}>
-              We only cover California elections right now. Support for your
-              state is coming soon.
-            </Text>
-          </Card>
+          <EmptyBallotMark width={72} />
+          <Text style={s.empty}>
+            California ballots only, for now. Your state is coming.
+          </Text>
         </View>
       )}
 
@@ -292,7 +347,14 @@ export default function ElectionsScreen() {
       <LocalDecisionsPreview address={storedAddress} />
 
       {/* election hero — what election is happening, what it means */}
-      {selected && <ElectionHero election={selected} />}
+      {selected && (
+        <ElectionHero
+          election={selected}
+          earlyVoteStart={earliestEarlyVoteStart(
+            voterInfoQuery.data?.earlyVoteSites,
+          )}
+        />
+      )}
 
       {/* live results (CA SOS feed): statewide + the voter's district races,
           scoped from their ballot. Self-hides when off-season. Only
@@ -312,37 +374,47 @@ export default function ElectionsScreen() {
 
       {voterInfoQuery.isLoading && (
         <View style={s.section}>
-          <Card style={s.lookupCard}>
-            <ActivityIndicator color={colors.bill} />
-            <View style={s.lookupCopy}>
-              <Text style={s.lookupTitle}>Looking up your ballot</Text>
-              <Text style={s.lookupSub}>
-                Checking your election and elected officials…
-              </Text>
-            </View>
-          </Card>
+          <View style={s.lookupRow}>
+            <ActivityIndicator color={DigestPalette.spark} />
+            <Text style={s.lookupTitle}>Looking up your ballot</Text>
+          </View>
         </View>
       )}
 
-      {/* ballot section tabs */}
       {contests.length > 0 && (
-        <View style={s.section}>
-          <Segmented<BallotTab>
-            value={tab}
-            onChange={setTab}
-            options={[
+        <View style={s.filterRow}>
+          {(
+            [
               {
-                id: "candidates",
-                label: `Candidates ${candidateContests.length}`,
-                icon: "vote",
+                id: "candidates" as const,
+                label: "Candidates",
+                count: candidateContests.length,
               },
               {
-                id: "measures",
-                label: `Measures ${measures.length}`,
-                icon: "scale",
+                id: "measures" as const,
+                label: "Measures",
+                count: measures.length,
               },
-            ]}
-          />
+            ] as const
+          ).map((f) => {
+            const active = tab === f.id;
+            return (
+              <TouchableOpacity
+                key={f.id}
+                onPress={() => setTab(f.id)}
+                activeOpacity={0.8}
+                style={s.filterTab}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[s.filterLabel, active && s.filterLabelOn]}>
+                  {f.label}
+                  {f.count ? `  ${f.count}` : ""}
+                </Text>
+                {active ? <View style={s.filterRule} /> : null}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
@@ -350,61 +422,50 @@ export default function ElectionsScreen() {
       {contests.length > 0 && tab === "candidates" && (
         <View style={[s.section, { gap: 20 }]}>
           {candidateGroups.length === 0 && (
-            <Card>
-              <Text style={s.empty}>No candidate contests on this ballot.</Text>
-            </Card>
+            <Text style={s.empty}>No candidate contests on this ballot.</Text>
           )}
           {candidateGroups.map((group) => (
-            <View key={group.key} style={{ gap: 12 }}>
+            <View key={group.key}>
               <Kicker>{group.label}</Kicker>
-              <View style={{ gap: 14 }}>
-                {group.contests.map((c: Contest, i: number) => (
-                  <TouchableOpacity
-                    key={`${group.key}-${i}`}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      posthog.capture("contest_detail_opened", {
-                        office: c.office ?? null,
-                        district: c.district?.name ?? null,
-                        candidate_count: c.candidates?.length ?? 0,
-                        government_level: group.label,
-                      });
-                      router.push({
-                        pathname: "/contest-detail",
-                        params: {
-                          office: c.office ?? "",
-                          roles: JSON.stringify(c.roles ?? []),
-                          levels: JSON.stringify(c.level ?? []),
-                          candidates: JSON.stringify(c.candidates ?? []),
-                          districtName: c.district?.name ?? "",
-                          roleDescription: c.roleDescription ?? "",
-                        },
-                      });
-                    }}
-                  >
-                    <Card
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <View style={{ flex: 1, marginRight: 10 }}>
-                        <Text style={s.contestOffice} numberOfLines={2}>
-                          {c.office}
-                        </Text>
-                        {c.candidates && c.candidates.length > 0 && (
-                          <Text style={s.contestMeta}>
-                            {c.candidates.length} candidate
-                            {c.candidates.length !== 1 ? "s" : ""}
-                          </Text>
-                        )}
-                      </View>
-                      <Icon name="chevR" size={16} color="#5B6172" />
-                    </Card>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              {group.contests.map((c: Contest, i: number) => (
+                <TouchableOpacity
+                  key={`${group.key}-${i}`}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    posthog.capture("contest_detail_opened", {
+                      office: c.office ?? null,
+                      district: c.district?.name ?? null,
+                      candidate_count: c.candidates?.length ?? 0,
+                      government_level: group.label,
+                    });
+                    router.push({
+                      pathname: "/contest-detail",
+                      params: {
+                        office: c.office ?? "",
+                        roles: JSON.stringify(c.roles ?? []),
+                        levels: JSON.stringify(c.level ?? []),
+                        candidates: JSON.stringify(c.candidates ?? []),
+                        districtName: c.district?.name ?? "",
+                        roleDescription: c.roleDescription ?? "",
+                      },
+                    });
+                  }}
+                  style={[s.contestRow, i > 0 && s.rowHair]}
+                >
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={s.contestOffice} numberOfLines={2}>
+                      {contestListTitle(c)}
+                    </Text>
+                    {c.candidates && c.candidates.length > 0 && (
+                      <Text style={s.contestMeta}>
+                        {c.candidates.length} candidate
+                        {c.candidates.length !== 1 ? "s" : ""}
+                      </Text>
+                    )}
+                  </View>
+                  <Icon name="chevR" size={16} color={DigestPalette.quiet} />
+                </TouchableOpacity>
+              ))}
             </View>
           ))}
         </View>
@@ -416,16 +477,16 @@ export default function ElectionsScreen() {
           <View style={{ gap: 12 }}>
             <Kicker>Statewide propositions</Kicker>
             {statewideMeasures.length === 0 ? (
-              <Card>
-                <Text style={s.empty}>
-                  No statewide propositions on this ballot.
-                </Text>
-              </Card>
+              <Text style={s.empty}>
+                No statewide propositions on this ballot.
+              </Text>
             ) : (
-              <View style={{ gap: 14 }}>
-                {statewideMeasures.map((m) => (
+              statewideMeasures.map((m, i) => (
+                <View
+                  key={`sw-${measures.indexOf(m)}`}
+                  style={i > 0 ? s.rowHair : undefined}
+                >
                   <MeasureCard
-                    key={`sw-${measures.indexOf(m)}`}
                     measure={m}
                     expanded={expandedMeasures.has(measures.indexOf(m))}
                     onToggle={() => toggleMeasure(measures.indexOf(m), m)}
@@ -437,22 +498,22 @@ export default function ElectionsScreen() {
                       router.push(measureRoute(m));
                     }}
                   />
-                ))}
-              </View>
+                </View>
+              ))
             )}
           </View>
 
           <View style={{ gap: 12 }}>
             <Kicker>Local measures</Kicker>
             {localMeasures.length === 0 ? (
-              <Card>
-                <Text style={s.empty}>No local measures on this ballot.</Text>
-              </Card>
+              <Text style={s.empty}>No local measures on this ballot.</Text>
             ) : (
-              <View style={{ gap: 14 }}>
-                {localMeasures.map((m) => (
+              localMeasures.map((m, i) => (
+                <View
+                  key={`lo-${measures.indexOf(m)}`}
+                  style={i > 0 ? s.rowHair : undefined}
+                >
                   <MeasureCard
-                    key={`lo-${measures.indexOf(m)}`}
                     measure={m}
                     expanded={expandedMeasures.has(measures.indexOf(m))}
                     onToggle={() => toggleMeasure(measures.indexOf(m), m)}
@@ -464,8 +525,8 @@ export default function ElectionsScreen() {
                       router.push(measureRoute(m));
                     }}
                   />
-                ))}
-              </View>
+                </View>
+              ))
             )}
           </View>
         </View>
@@ -477,31 +538,36 @@ export default function ElectionsScreen() {
         !voterInfoQuery.isLoading &&
         !voterInfoQuery.isError && (
           <View style={s.section}>
-            <Card>
-              <Text style={s.empty}>
-                No ballot information for this address yet. Tap Edit above to
-                try a different registered address.
-              </Text>
-            </Card>
+            <EmptyBallotMark width={72} />
+            <Text style={s.empty}>
+              No ballot for this address yet. Edit above to try another.
+            </Text>
           </View>
         )}
 
-      {/* polling place exit */}
+      {/* polling place exit — locations come from getVoterInfo when present */}
       <View style={s.section}>
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => router.push("/local-elections")}
+          style={s.pollRow}
+          accessibilityRole="button"
+          accessibilityLabel="Find your polling place"
         >
-          <Card style={s.pollRow}>
-            <View style={s.pollIcon}>
-              <Icon name="pin" size={22} color={colors.green[500]} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.pollTitle}>Find your polling place</Text>
-              <Text style={s.pollSub}>Verified on vote.gov</Text>
-            </View>
-            <Icon name="external" size={18} color={colors.textSecondary} />
-          </Card>
+          <PinMark size={18} color={DigestPalette.spark} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.pollTitle}>Polling place</Text>
+            <Text style={s.pollSub}>
+              {pollingPlaceSubtitle(
+                voterInfoQuery.data?.pollingLocations,
+                voterInfoQuery.data?.mailOnly,
+              ) ??
+                (hasAddress
+                  ? "Maps, hours, and drop boxes"
+                  : "Look up after you add an address")}
+            </Text>
+          </View>
+          <Icon name="chevR" size={16} color={DigestPalette.quiet} />
         </TouchableOpacity>
       </View>
     </TabScreen>
@@ -509,59 +575,88 @@ export default function ElectionsScreen() {
 }
 
 const s = StyleSheet.create({
-  addrCard: {
+  addrRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 11,
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginTop: 12,
-  },
-  addrBody: { flex: 1, minWidth: 0 },
-  addrKicker: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 11,
-    color: colors.textSecondary,
-    letterSpacing: 0.4,
+    gap: 8,
+    marginTop: 10,
+    paddingVertical: 4,
   },
   addrText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13.5,
-    color: colors.white,
-    marginTop: 1,
+    flex: 1,
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    color: DigestPalette.inkOnNight,
   },
-  addrEdit: { fontFamily: fontBody.semibold, fontSize: 13, color: colors.bill },
-  section: { paddingHorizontal: 20 },
-  lookupCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 13,
-  },
-  lookupCopy: { flex: 1, gap: 2 },
-  lookupTitle: {
+  addrEdit: {
     fontFamily: fontBody.semibold,
     fontSize: 14,
-    color: colors.white,
+    color: DigestPalette.spark,
   },
-  lookupSub: {
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    color: colors.textSecondary,
+  section: { paddingHorizontal: DigestSpace.screenPadX },
+  lookupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 16,
+  },
+  lookupTitle: {
+    fontFamily: fontBody.medium,
+    fontSize: 15,
+    color: DigestPalette.quiet,
+  },
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: DigestSpace.screenPadX,
+    gap: 20,
+    paddingTop: 8,
+    paddingBottom: 4,
+    alignItems: "flex-end",
+  },
+  filterTab: {
+    paddingBottom: 8,
+  },
+  filterLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    color: DigestPalette.quiet,
+  },
+  filterLabelOn: {
+    color: DigestPalette.inkOnNight,
+  },
+  filterRule: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2,
+    backgroundColor: DigestPalette.spark,
+    borderRadius: 1,
+  },
+  contestRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  rowHair: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.sectionRule,
   },
   contestOffice: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 16,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    color: DigestPalette.inkOnNight,
   },
   contestMeta: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 3,
+    fontFamily: fontBody.medium,
+    fontSize: 13,
+    color: DigestPalette.quiet,
+    marginTop: 4,
+  },
+  measureRow: {
+    paddingVertical: 16,
   },
   measureHeader: {
     flexDirection: "row",
@@ -569,108 +664,158 @@ const s = StyleSheet.create({
     gap: 10,
   },
   measureTitle: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 17,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    color: DigestPalette.inkOnNight,
     marginBottom: 12,
   },
   measureBody: { marginTop: 14, gap: 12 },
   measureSub: {
     fontFamily: fontBody.regular,
-    fontSize: 13.5,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 14.5,
+    color: DigestPalette.quiet,
+    lineHeight: 21,
   },
   stanceRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   stanceDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
   stanceLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 12.5,
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
     marginBottom: 3,
   },
   stanceText: {
     fontFamily: fontBody.regular,
-    fontSize: 13.5,
-    color: "rgba(255,255,255,0.8)",
+    fontSize: 14,
+    color: DigestPalette.quiet,
     lineHeight: 20,
   },
   readMoreBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
     alignSelf: "flex-start",
-    backgroundColor: planes.surface,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginTop: 4,
+    paddingVertical: 8,
   },
   readMoreText: {
     fontFamily: fontBody.semibold,
-    fontSize: 13.5,
-    color: colors.bill,
-  },
-  aiChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    alignSelf: "flex-start",
+    fontSize: 15,
+    color: DigestPalette.spark,
   },
   aiChipText: {
     fontFamily: fontBody.medium,
-    fontSize: 11.5,
-    color: colors.yellow[500],
+    fontSize: 12,
+    color: DigestPalette.spark,
   },
   fiscalRow: { gap: 3 },
   fiscalLabel: {
     fontFamily: fontBody.semibold,
-    fontSize: 11.5,
-    color: colors.textSecondary,
+    fontSize: 11,
+    color: DigestPalette.spark,
     textTransform: "uppercase",
-    letterSpacing: 0.3,
+    letterSpacing: 1.4,
   },
   fiscalValue: {
     fontFamily: fontBody.regular,
-    fontSize: 13,
-    color: "rgba(255,255,255,0.8)",
-    lineHeight: 19,
-  },
-  sourceChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-    marginTop: 2,
+    fontSize: 14,
+    color: DigestPalette.quiet,
+    lineHeight: 20,
   },
   sourceChipText: {
     fontFamily: fontBody.medium,
-    fontSize: 11.5,
-    color: colors.textSecondary,
+    fontSize: 12,
+    color: DigestPalette.quiet,
   },
   empty: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: "center",
+    fontFamily: fontBody.regular,
+    fontSize: 15,
+    color: DigestPalette.quiet,
+    lineHeight: 22,
+    marginTop: 10,
   },
-  pollRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  pollIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: planes.surface,
+  emptyStack: {
+    paddingHorizontal: DigestSpace.screenPadX,
+    gap: 8,
+  },
+  emptyHero: {
+    height: 240,
+    borderRadius: DigestRadii.card,
+    overflow: "hidden",
+    backgroundColor: DigestPalette.stone,
+  },
+  emptyHeroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  emptyOverlay: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 16,
+    gap: 6,
+  },
+  emptyEyebrow: {
+    fontFamily: fontBody.bold,
+    fontSize: 11,
+    letterSpacing: 1.8,
+    color: DigestPalette.spark,
+    textTransform: "uppercase",
+  },
+  emptyLead: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: -0.6,
+    color: DigestPalette.inkOnNight,
+  },
+  emptyDates: {
+    paddingTop: 8,
+  },
+  emptyDatesEyebrow: {
+    fontFamily: fontBody.bold,
+    fontSize: 11,
+    letterSpacing: 1.8,
+    color: DigestPalette.spark,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  emptyDateRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 12,
+  },
+  emptyDateLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    color: DigestPalette.inkOnNight,
+  },
+  emptyDateValue: {
+    flex: 1,
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 18,
+    color: DigestPalette.quiet,
+    textAlign: "right",
+  },
+  pollRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 14,
+    paddingVertical: 18,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.sectionRule,
+    marginTop: 12,
   },
   pollTitle: {
-    fontFamily: fontBody.semibold,
-    fontSize: 14.5,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 18,
+    letterSpacing: -0.3,
+    color: DigestPalette.inkOnNight,
   },
   pollSub: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 12.5,
-    color: colors.textSecondary,
+    fontFamily: fontBody.medium,
+    fontSize: 13,
+    color: DigestPalette.quiet,
+    marginTop: 2,
   },
 });

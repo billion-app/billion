@@ -1,13 +1,13 @@
-import type { Contest } from "@acme/api";
+import type { Contest, Election, PollingLocation } from "@acme/api";
+
+import { daysUntil } from "~/utils/dates";
 
 /**
- * Election classification + ballot-organization helpers.
- *
- * Google Civic's `Election` has no explicit type field, so we infer
- * primary/general/special/recall from its `name` (e.g. "California Statewide
- * Primary Election"). The inferred type drives the plain-language explainer in
- * the election hero.
+ * Ballot helpers: Civic election type from `name`, contest grouping, CA filter.
  */
+
+/** Civic always includes a dummy "VIP Test Election" with this id. */
+const CIVIC_TEST_ELECTION_ID = "2000";
 
 export type ElectionType =
   | "primary"
@@ -142,4 +142,86 @@ export function measureIsStatewide(m: Contest): boolean {
   // ACA / SCA — statewide legislative constitutional amendments.
   if (/\b(aca|sca)\b/.test(t)) return true;
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// Civic voter-info / elections list — only fields the backend actually returns
+// ---------------------------------------------------------------------------
+
+/**
+ * Google Civic `normalizedInput.state` is usually the 2-letter code. Some
+ * mocks and formatted addresses use the full name. Match both so the CA-only
+ * product gate still works when this UI is pointed at the production API.
+ */
+export function isCaliforniaState(state: string | null | undefined): boolean {
+  if (!state) return false;
+  const s = state.trim().toLowerCase();
+  return s === "ca" || s === "california";
+}
+
+/** Contest list title: Civic may omit `office` on some referendum-adjacent rows. */
+export function contestListTitle(c: Contest): string {
+  const office = c.office?.trim();
+  if (office) return office;
+  const ballot = c.ballotTitle?.trim();
+  if (ballot) return ballot;
+  return "Contest";
+}
+
+function isCivicTestElection(e: Election): boolean {
+  return e.id === CIVIC_TEST_ELECTION_ID;
+}
+
+/** California or nationwide (presidential) elections from `civic.getElections`. */
+export function isCaliforniaRelevantElection(e: Election): boolean {
+  if (isCivicTestElection(e)) return false;
+  const ocd = e.ocdDivisionId.toLowerCase();
+  if (/\/state:ca(?:\/|$)/.test(ocd)) return true;
+  if (/california/i.test(e.name)) return true;
+  return ocd === "ocd-division/country:us";
+}
+
+/**
+ * Next upcoming CA-relevant election from the nationwide Civic list.
+ * Used only when there is no address yet — once `getVoterInfo` resolves, that
+ * election wins. Never pick the soonest election in another state.
+ */
+export function pickUpcomingCaliforniaElection(
+  elections: readonly Election[],
+): Election | undefined {
+  return [...elections]
+    .filter(isCaliforniaRelevantElection)
+    .filter((e) => daysUntil(e.electionDay) >= 0)
+    .sort((a, b) => a.electionDay.localeCompare(b.electionDay))[0];
+}
+
+/** Earliest Civic early-vote startDate, if the voterinfo payload included any. */
+export function earliestEarlyVoteStart(
+  sites: readonly PollingLocation[] | undefined,
+): string | undefined {
+  const dates = (sites ?? [])
+    .map((s) => s.startDate)
+    .filter((d): d is string => !!d);
+  if (dates.length === 0) return undefined;
+  return [...dates].sort()[0];
+}
+
+/** One-line polling subtitle from Civic locations — never a hardcoded site. */
+export function pollingPlaceSubtitle(
+  locations: readonly PollingLocation[] | undefined,
+  mailOnly?: boolean,
+): string | undefined {
+  const loc = locations?.[0];
+  if (loc) {
+    const name = loc.name ?? loc.address.locationName;
+    const city = loc.address.city;
+    if (name && city) return `${name} · ${city}`;
+    if (name) return name;
+    const line = loc.address.line1;
+    if (line && city) return `${line} · ${city}`;
+    if (line) return line;
+    if (city) return city;
+  }
+  if (mailOnly) return "Mail ballot";
+  return undefined;
 }
