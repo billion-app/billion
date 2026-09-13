@@ -17,13 +17,11 @@ import { Image } from "expo-image";
 import type { IconName } from "./Icon";
 import type { ContentTypeKey } from "~/styles";
 import {
-  colors,
   contentType,
+  DigestHair,
+  DigestPalette,
   fontBody,
   fontSize,
-  hair,
-  planes,
-  useTheme,
 } from "~/styles";
 import { Icon } from "./Icon";
 
@@ -54,7 +52,7 @@ export function Spine({ type }: { type: ContentTypeKey }) {
 export function Avatar({
   name = "JA",
   size = 44,
-  color = colors.bill,
+  color = DigestPalette.spark,
   imageUri,
 }: {
   name?: string;
@@ -121,8 +119,8 @@ export function Toggle({
       style={[
         s.toggle,
         {
-          backgroundColor: on ? colors.green[500] : planes.surface,
-          borderColor: on ? "transparent" : hair[2],
+          backgroundColor: on ? DigestPalette.spark : DigestPalette.stone,
+          borderColor: on ? "transparent" : DigestHair.cardBorder,
         },
       ]}
     >
@@ -155,7 +153,7 @@ export function PrimaryButton({
       activeOpacity={0.85}
     >
       <Text style={s.primaryBtnText}>{label}</Text>
-      {icon && <Icon name={icon} size={18} color={planes.ink} />}
+      {icon && <Icon name={icon} size={18} color={DigestPalette.ink} />}
     </TouchableOpacity>
   );
 }
@@ -194,16 +192,18 @@ export function Pill({
   onPress?: () => void;
   icon?: IconName;
 }) {
-  const { theme } = useTheme();
   return (
     <TouchableOpacity
       style={[
         s.pill,
         active
-          ? { backgroundColor: colors.white, borderColor: colors.white }
+          ? {
+              backgroundColor: DigestPalette.paper,
+              borderColor: DigestPalette.paper,
+            }
           : {
               backgroundColor: "transparent",
-              borderColor: theme.border,
+              borderColor: DigestHair.sectionRule,
             },
       ]}
       onPress={onPress}
@@ -213,14 +213,15 @@ export function Pill({
         <Icon
           name={icon}
           size={14}
-          color={active ? planes.ink : theme.textSecondary}
+          color={active ? DigestPalette.ink : DigestPalette.quiet}
         />
       )}
       <Text
         style={[
           s.pillText,
-          { color: active ? planes.ink : theme.textSecondary },
+          { color: active ? DigestPalette.ink : DigestPalette.quiet },
         ]}
+        numberOfLines={1}
       >
         {label}
       </Text>
@@ -256,7 +257,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   badgeText: {
-    color: colors.white,
+    color: DigestPalette.inkOnNight,
     fontFamily: fontBody.bold,
     fontSize: 11,
     letterSpacing: 0.9,
@@ -270,9 +271,9 @@ const s = StyleSheet.create({
     borderRadius: 3,
   },
   avatar: {
-    backgroundColor: planes.surface,
-    borderWidth: 1,
-    borderColor: hair[2],
+    backgroundColor: DigestPalette.stone,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -289,10 +290,10 @@ const s = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.white,
-    shadowColor: colors.black,
+    backgroundColor: DigestPalette.paper,
+    shadowColor: DigestPalette.night,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 3,
     elevation: 2,
   },
@@ -300,7 +301,7 @@ const s = StyleSheet.create({
     height: 52,
     width: "100%",
     borderRadius: 9999,
-    backgroundColor: colors.white,
+    backgroundColor: DigestPalette.spark,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -309,7 +310,7 @@ const s = StyleSheet.create({
   primaryBtnText: {
     fontFamily: fontBody.semibold,
     fontSize: fontSize.base,
-    color: planes.ink,
+    color: DigestPalette.ink,
   },
   ghostBtn: {
     height: 44,
@@ -322,20 +323,24 @@ const s = StyleSheet.create({
     fontSize: fontSize.base,
   },
   pill: {
-    height: 38,
-    paddingHorizontal: 18,
+    // flexShrink: 0 — never compress "Briefings" into "Brief…" (CRAFT P2).
+    flexShrink: 0,
+    alignSelf: "flex-start",
+    height: 36,
+    paddingHorizontal: 12,
     borderRadius: 9999,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 6,
   },
   pillText: {
+    flexShrink: 0,
     fontFamily: fontBody.semibold,
     fontSize: fontSize.sm,
   },
   ph: {
-    backgroundColor: planes.surface,
+    backgroundColor: DigestPalette.stone,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -344,9 +349,9 @@ const s = StyleSheet.create({
     fontFamily: "AlbertSans-Medium",
     fontSize: 11,
     letterSpacing: 0.6,
-    color: colors.textSecondary,
-    borderWidth: 1,
-    borderColor: hair[3],
+    color: DigestPalette.quiet,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.sectionRule,
     borderStyle: "dashed",
     paddingHorizontal: 9,
     paddingVertical: 4,

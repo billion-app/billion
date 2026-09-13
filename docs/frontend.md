@@ -9,11 +9,14 @@ Expo Router maps files in `apps/expo/src/app/` to routes. Start with the route, 
 | Area                                                | Entry point                                                                                                            |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Providers, fonts, and app initialization            | [Root layout](../apps/expo/src/app/_layout.tsx)                                                                        |
-| Browse, filters, and search                         | [Browse route](<../apps/expo/src/app/(tabs)/index.tsx>)                                                                |
+| Feed brief — today’s local news                     | [DigestHome](../apps/expo/src/components/DigestHome.tsx), mounted from the [Feed tab](<../apps/expo/src/app/(tabs)/index.tsx>) |
+| Browse, filters, and search                         | [Browse catalog](<../apps/expo/src/app/(tabs)/index.tsx>) (`BrowseCatalog`) on the Browse tab (`feed` route)            |
 | Address-based ballot lookup                         | [Elections route](<../apps/expo/src/app/(tabs)/elections.tsx>)                                                         |
 | Original content, explanation, brief, and citations | [Article detail](../apps/expo/src/app/article-detail.tsx)                                                              |
 | Candidate race and ballot measure details           | [Contest detail](../apps/expo/src/app/contest-detail.tsx), [measure detail](../apps/expo/src/app/measure-detail.tsx)   |
 | Tab registration and visibility                     | [Tab layout](<../apps/expo/src/app/(tabs)/_layout.tsx>) and [custom TabBar](../apps/expo/src/components/ui/TabBar.tsx) |
+
+The Feed tab is a short brief. [DigestHome](../apps/expo/src/components/DigestHome.tsx) shows featured local bills plus the federal cover — at most seven items — under “Today’s local news”. It does not invent a daily ranking, a moved-count, or a read-time. Following a bill, case, or order reuses the device-local saved set; the article page draws a four-stop legislative path from the projected status label and does not invent chamber passage.
 
 Browse, Elections, and Feedback are visible tabs. Settings is available in development and hidden in production. Feed remains a route but is hidden, and its API returns an empty page for older clients. A navigation change must account for both the router's options and the custom tab renderer. Check production behavior when changing `__DEV__` conditions.
 
