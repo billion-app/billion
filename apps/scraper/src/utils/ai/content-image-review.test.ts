@@ -239,7 +239,17 @@ test("image review prefers the configured local model without hidden reasoning",
       });
       return new Response(
         JSON.stringify({
-          choices: [{ message: { content: JSON.stringify(acceptedReview()) } }],
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  decision: "accept",
+                  description:
+                    "A restrained editorial scene remains clear in both crops.",
+                }),
+              },
+            },
+          ],
         }),
         { status: 200 },
       );
@@ -250,6 +260,7 @@ test("image review prefers the configured local model without hidden reasoning",
   assert.equal(requests[0]?.url, "http://local.test/v1/chat/completions");
   assert.equal(requests[0]?.body.model, "local-vision");
   assert.equal(requests[0]?.body.reasoning_effort, "none");
+  assert.deepEqual(response.rejectionReasons, []);
   assert.equal(response.reviewModelVersion, "local:local-vision");
 });
 
@@ -341,5 +352,33 @@ test("contradictory accept payloads fail schema validation", async () => {
         ),
     }),
     /schema validation/,
+  );
+});
+
+test("rejections without an explicit reason fail schema validation", async () => {
+  const generated = await image();
+  await assert.rejects(
+    reviewContentImage(generated, source, {
+      apiKey: "test-key",
+      local: null,
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    decision: "reject",
+                    description:
+                      "The subject is not suitable for the source material.",
+                  }),
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    }),
+    /at least one explicit reason/,
   );
 });

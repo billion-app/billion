@@ -34,7 +34,10 @@ const ContentImageReviewSchema = z
   .object({
     decision: z.enum(["accept", "reject"]),
     description: z.string().trim().min(12).max(600),
-    rejectionReasons: z.array(z.enum(CONTENT_IMAGE_REVIEW_REASONS)).max(6),
+    rejectionReasons: z
+      .array(z.enum(CONTENT_IMAGE_REVIEW_REASONS))
+      .max(6)
+      .default([]),
     feedback: z.string().trim().max(600).optional(),
   })
   .superRefine((review, context) => {
