@@ -1,8 +1,13 @@
-/** Segmented — pill segmented control (e.g. Plain explainer / Original text). */
+/** Segmented — Digest night control (The brief / Original text). */
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import type { IconName } from "./Icon";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  DigestHair,
+  DigestRadii,
+  fontBody,
+  DigestPalette as P,
+} from "~/styles";
 import { Icon } from "./Icon";
 
 export interface SegmentOption<T extends string> {
@@ -24,16 +29,13 @@ export function Segmented<T extends string>({
     <View style={s.wrap}>
       {options.map((o) => {
         const active = value === o.id;
-        const fg = active ? planes.ink : "rgba(255,255,255,0.62)";
+        const fg = active ? P.spark : P.quiet;
         return (
           <TouchableOpacity
             key={o.id}
             onPress={() => onChange(o.id)}
             activeOpacity={0.8}
-            style={[
-              s.seg,
-              { backgroundColor: active ? colors.white : "transparent" },
-            ]}
+            style={[s.seg, active ? s.segActive : undefined]}
           >
             {o.icon && <Icon name={o.icon} size={15} color={fg} />}
             <Text style={[s.segText, { color: fg }]}>{o.label}</Text>
@@ -47,21 +49,24 @@ export function Segmented<T extends string>({
 const s = StyleSheet.create({
   wrap: {
     flexDirection: "row",
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
+    backgroundColor: P.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.menu,
     padding: 4,
     gap: 4,
   },
   seg: {
     flex: 1,
     height: 38,
-    borderRadius: 9,
+    borderRadius: DigestRadii.menuRow,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+  },
+  segActive: {
+    backgroundColor: DigestHair.tabActivePill,
   },
   segText: { fontFamily: fontBody.semibold, fontSize: 13.5 },
 });

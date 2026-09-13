@@ -12,7 +12,13 @@ import {
   View,
 } from "react-native";
 
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  DigestHair,
+  DigestRadii,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+} from "~/styles";
 import { Icon } from "./Icon";
 
 export interface LensSource {
@@ -88,30 +94,28 @@ export function LensStrip({
     >
       <View style={s.stripHead}>
         <View style={s.stripHeadLeft}>
-          <Icon name="scale" size={16} color={colors.white} />
+          <Icon name="scale" size={16} color={P.inkOnNight} />
           <Text style={s.stripLabel} numberOfLines={1}>
             {label}
           </Text>
         </View>
-        {onExpand && (
-          <Icon name="chevR" size={15} color={colors.textSecondary} />
-        )}
+        {onExpand && <Icon name="chevR" size={15} color={P.quiet} />}
       </View>
       <View style={s.track}>
-        <View style={[s.node, { left: "8%", backgroundColor: "#9aa0b3" }]} />
+        <View style={[s.node, { left: "8%", backgroundColor: P.quiet }]} />
         <View
           style={[
             s.node,
             {
               left: `${weight}%`,
-              backgroundColor: colors.white,
+              backgroundColor: P.spark,
               width: 13,
               height: 13,
               marginLeft: -6.5,
             },
           ]}
         />
-        <View style={[s.node, { left: "92%", backgroundColor: "#9aa0b3" }]} />
+        <View style={[s.node, { left: "92%", backgroundColor: P.quiet }]} />
       </View>
       <View style={s.poles}>
         <Text style={s.pole}>PROGRESSIVE</Text>
@@ -130,7 +134,7 @@ export function LensPanel({ data }: { data: LensData }) {
     <View style={s.panel}>
       <View style={s.panelHead}>
         <View style={s.panelIcon}>
-          <Icon name="scale" size={18} color={colors.white} />
+          <Icon name="scale" size={18} color={P.spark} />
         </View>
         <View>
           <Text style={s.panelTitle}>Dual-Lens</Text>
@@ -139,7 +143,7 @@ export function LensPanel({ data }: { data: LensData }) {
       </View>
       <View style={s.cols}>
         {(["left", "right"] as const).map((k, i) => {
-          const lensAccent = i === 0 ? "#6DD6C7" : "#F2B56B";
+          const lensAccent = i === 0 ? P.badgeTeal : P.spark;
           const label = i === 0 ? labels[0] : labels[1];
           return (
             <View
@@ -232,7 +236,7 @@ export function LensPanel({ data }: { data: LensData }) {
         <SourcesAccordion sources={sources} />
       ) : (
         <View style={s.footer}>
-          <Icon name="info" size={14} color={colors.textSecondary} />
+          <Icon name="info" size={14} color={P.quiet} />
           <Text style={s.footerText}>
             Framing summarized from the official source text.
           </Text>
@@ -260,7 +264,7 @@ function SourcesAccordion({ sources }: { sources: LensSource[] }) {
         <Text style={s.sourcesCount}>{sources.length}</Text>
         <View style={s.sourcesSpacer} />
         <View style={open ? s.chevFlip : undefined}>
-          <Icon name="chevD" size={15} color={colors.textSecondary} />
+          <Icon name="chevD" size={15} color={P.quiet} />
         </View>
       </TouchableOpacity>
       {open &&
@@ -275,7 +279,7 @@ function SourcesAccordion({ sources }: { sources: LensSource[] }) {
             <Text style={s.sourceTitle} numberOfLines={1}>
               {src.title}
             </Text>
-            <Icon name="chevR" size={13} color={colors.textSecondary} />
+            <Icon name="chevR" size={13} color={P.quiet} />
           </TouchableOpacity>
         ))}
     </View>
@@ -284,10 +288,10 @@ function SourcesAccordion({ sources }: { sources: LensSource[] }) {
 
 const s = StyleSheet.create({
   stripWrap: {
-    backgroundColor: planes.surface,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
+    backgroundColor: P.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.menu,
     padding: 14,
   },
   stripHead: {
@@ -305,13 +309,13 @@ const s = StyleSheet.create({
   stripLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 12.5,
-    color: colors.white,
+    color: P.inkOnNight,
     flexShrink: 1,
   },
   track: {
     height: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(138,143,160,0.28)",
+    backgroundColor: DigestHair.sectionRule,
     justifyContent: "center",
   },
   node: {
@@ -321,7 +325,7 @@ const s = StyleSheet.create({
     borderRadius: 999,
     marginLeft: -5.5,
     borderWidth: 2,
-    borderColor: planes.navy,
+    borderColor: P.canvas,
   },
   poles: {
     flexDirection: "row",
@@ -329,17 +333,17 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   pole: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 9.5,
     letterSpacing: 0.4,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   panel: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[1],
-    borderRadius: 16,
-    padding: 18,
+    backgroundColor: P.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.menu,
+    padding: 16,
   },
   panelHead: {
     flexDirection: "row",
@@ -350,40 +354,42 @@ const s = StyleSheet.create({
   panelIcon: {
     width: 32,
     height: 32,
-    borderRadius: 9,
-    backgroundColor: planes.surface,
+    borderRadius: DigestRadii.menuRow,
+    backgroundColor: DigestHair.tabActivePill,
     alignItems: "center",
     justifyContent: "center",
   },
   panelTitle: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 17,
-    color: colors.white,
+    letterSpacing: -0.3,
+    color: P.inkOnNight,
   },
   panelSub: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   cols: { gap: 10 },
   col: {
-    borderLeftWidth: 3,
-    borderRadius: 12,
+    borderLeftWidth: 2,
+    borderRadius: DigestRadii.menuRow,
     padding: 14,
-    borderWidth: 1,
-    borderColor: hair[1],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
   },
   colKicker: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.bold,
     fontSize: 10,
-    letterSpacing: 1,
-    color: colors.textSecondary,
+    letterSpacing: 1.2,
+    color: P.quiet,
     marginBottom: 8,
   },
   colStance: {
-    fontFamily: "InriaSerif-Bold",
+    fontFamily: fontDisplay.bold,
     fontSize: 14.5,
-    color: colors.white,
+    letterSpacing: -0.2,
+    color: P.inkOnNight,
     marginBottom: 10,
   },
   points: { gap: 12 },
@@ -397,19 +403,19 @@ const s = StyleSheet.create({
   },
   pointText: {
     flex: 1,
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 13,
-    color: "rgba(255,255,255,0.82)",
+    color: "rgba(247,244,238,0.82)",
     lineHeight: 18,
   },
   cite: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 10.5,
-    color: colors.civicBlue,
+    color: P.spark,
   },
   legacyCite: {
     marginLeft: 13,
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 9.5,
     letterSpacing: 0.5,
   },
@@ -418,52 +424,52 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    borderWidth: 1,
-    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: DigestRadii.menuRow,
     padding: 10,
   },
   exampleCopy: { flex: 1, gap: 3 },
   exampleLabel: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.bold,
     fontSize: 9,
     letterSpacing: 0.8,
   },
   exampleText: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 11.5,
     lineHeight: 16,
-    color: "rgba(255,255,255,0.76)",
+    color: "rgba(247,244,238,0.76)",
   },
   relevance: {
     marginTop: 6,
     paddingTop: 7,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.14)",
+    borderTopColor: DigestHair.sectionRule,
     gap: 3,
   },
   relevanceLabel: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.bold,
     fontSize: 8.5,
     letterSpacing: 0.7,
   },
   relevanceText: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 11.5,
     lineHeight: 16,
-    color: "rgba(255,255,255,0.86)",
+    color: "rgba(247,244,238,0.86)",
   },
   footer: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 14 },
   footerText: {
     flex: 1,
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   sources: {
     marginTop: 16,
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: hair[1],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.cardBorder,
     gap: 6,
   },
   sourcesHeader: {
@@ -473,15 +479,15 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   sourcesLabel: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.bold,
     fontSize: 10,
-    letterSpacing: 1,
-    color: colors.textSecondary,
+    letterSpacing: 1.2,
+    color: P.quiet,
   },
   sourcesCount: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 10,
-    color: colors.civicBlue,
+    color: P.spark,
   },
   sourcesSpacer: { flex: 1 },
   chevFlip: { transform: [{ rotate: "180deg" }] },
@@ -492,15 +498,15 @@ const s = StyleSheet.create({
     paddingVertical: 3,
   },
   sourceNum: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 11,
-    color: colors.civicBlue,
+    color: P.spark,
     minWidth: 14,
   },
   sourceTitle: {
     flex: 1,
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 12,
-    color: "rgba(255,255,255,0.72)",
+    color: "rgba(247,244,238,0.72)",
   },
 });
