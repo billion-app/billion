@@ -8,6 +8,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { SectionFlourish, SponsorCrest } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import {
   Avatar,
@@ -17,9 +18,23 @@ import {
   NavHeader,
   PrimaryButton,
 } from "~/components/ui";
-import { colors, fontBody, fontDisplay, planes } from "~/styles";
+import {
+  DigestHair,
+  DigestRadii,
+  DigestSpace,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import { formatDate } from "~/utils/dates";
+
+const cardChrome = {
+  backgroundColor: P.card,
+  borderRadius: DigestRadii.card,
+  borderWidth: StyleSheet.hairlineWidth,
+  borderColor: DigestHair.cardBorder,
+} as const;
 
 export default function BillSponsorProfileScreen() {
   const router = useRouter();
@@ -35,7 +50,7 @@ export default function BillSponsorProfileScreen() {
   if (query.isLoading) {
     return (
       <View style={s.fullCenter}>
-        <ActivityIndicator size="large" color={colors.bill} />
+        <ActivityIndicator size="large" color={P.spark} />
         <Text style={s.loadingText}>Loading sponsor profile…</Text>
       </View>
     );
@@ -44,7 +59,11 @@ export default function BillSponsorProfileScreen() {
   if (query.isError || !query.data) {
     return (
       <View style={s.screen}>
-        <NavHeader title="Bill sponsor" onBack={() => router.back()} />
+        <NavHeader
+          title="Bill sponsor"
+          tone="dark"
+          onBack={() => router.back()}
+        />
         <View style={s.fullCenter}>
           <Text style={s.errorTitle}>Sponsor profile unavailable</Text>
           <Text style={s.errorText}>
@@ -66,33 +85,47 @@ export default function BillSponsorProfileScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Bill sponsor" onBack={() => router.back()} />
+      <NavHeader
+        title="Bill sponsor"
+        tone="dark"
+        onBack={() => router.back()}
+      />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        <Card style={s.hero}>
-          <Avatar
-            name={sponsor.initials}
-            imageUri={sponsor.imageUrl}
-            size={88}
-          />
-          <Text style={s.eyebrow}>
-            {isStateSponsor ? "Primary author" : "Primary sponsor"}
-          </Text>
-          <Text style={s.name}>{sponsor.name}</Text>
-          <Text style={s.role}>{sponsor.role}</Text>
-          {sponsor.party || location ? (
-            <Text style={s.meta}>
-              {[sponsor.party, location].filter(Boolean).join(" · ")}
-            </Text>
-          ) : null}
+        <View style={s.heroMark}>
+          <SponsorCrest size={36} />
+        </View>
+        <Card style={[s.hero, cardChrome]}>
+          <View style={s.heroRow}>
+            <Avatar
+              name={sponsor.initials}
+              imageUri={sponsor.imageUrl}
+              size={72}
+            />
+            <View style={s.heroCopy}>
+              <Text style={s.eyebrow}>
+                {isStateSponsor ? "Primary author" : "Primary sponsor"}
+              </Text>
+              <Text style={s.name}>{sponsor.name}</Text>
+              <Text style={s.role}>{sponsor.role}</Text>
+              {sponsor.party || location ? (
+                <Text style={s.meta}>
+                  {[sponsor.party, location].filter(Boolean).join(" · ")}
+                </Text>
+              ) : null}
+            </View>
+          </View>
         </Card>
 
         <View style={s.section}>
-          <Kicker>About this role</Kicker>
-          <Card>
+          <Kicker style={s.kicker}>About this role</Kicker>
+          <View style={s.flourishWrap}>
+            <SectionFlourish width={96} />
+          </View>
+          <Card style={[cardChrome, s.aboutCard]}>
             <Text style={s.body}>
               {isStateSponsor
                 ? "The primary author is the state legislator who formally introduced the bill. Authors guide legislation through the state Legislature while other members may join as coauthors."
@@ -101,8 +134,10 @@ export default function BillSponsorProfileScreen() {
           </Card>
         </View>
 
-        <View style={s.section}>
-          <Kicker>{`Sponsored legislation · ${sponsoredBills.length}`}</Kicker>
+        <View style={s.sectionWide}>
+          <Kicker
+            style={s.kicker}
+          >{`Sponsored legislation · ${sponsoredBills.length}`}</Kicker>
           <View style={s.billList}>
             {sponsoredBills.map((bill) => (
               <ContentCard
@@ -145,68 +180,92 @@ export default function BillSponsorProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: planes.navy },
+  screen: { flex: 1, backgroundColor: P.canvas },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingBottom: 40 },
+  content: {
+    paddingHorizontal: DigestSpace.coverPadX,
+    paddingTop: 8,
+    paddingBottom: 48,
+  },
   fullCenter: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    backgroundColor: planes.navy,
+    backgroundColor: P.canvas,
   },
   loadingText: {
     marginTop: 14,
     fontFamily: fontBody.regular,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   errorTitle: {
     fontFamily: fontDisplay.bold,
     fontSize: 22,
-    color: colors.white,
+    color: P.inkOnNight,
   },
   errorText: {
     marginTop: 8,
     textAlign: "center",
     fontFamily: fontBody.regular,
-    color: colors.textSecondary,
+    color: P.quiet,
   },
-  hero: { alignItems: "center", paddingVertical: 24 },
-  eyebrow: {
-    marginTop: 14,
-    fontFamily: fontBody.semibold,
-    fontSize: 11,
-    letterSpacing: 0.7,
+  heroMark: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  hero: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  heroCopy: { flex: 1, gap: 4 },
+  kicker: {
+    color: P.spark,
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
-    color: colors.bill,
+    marginBottom: 4,
+  },
+  flourishWrap: { marginBottom: 12, alignItems: "flex-start" },
+  eyebrow: {
+    fontFamily: fontBody.bold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: P.spark,
   },
   name: {
-    marginTop: 5,
-    textAlign: "center",
     fontFamily: fontDisplay.bold,
-    fontSize: 28,
-    lineHeight: 34,
-    color: colors.white,
+    fontSize: 24,
+    lineHeight: 28,
+    letterSpacing: -0.45,
+    color: P.inkOnNight,
   },
   role: {
-    marginTop: 5,
     fontFamily: fontBody.semibold,
     fontSize: 14,
-    color: colors.white,
+    color: P.inkOnNight,
   },
   meta: {
-    marginTop: 3,
     fontFamily: fontBody.regular,
-    fontSize: 13,
-    color: colors.textSecondary,
+    fontSize: 12.5,
+    color: P.quiet,
   },
-  section: { marginTop: 24 },
+  section: { marginTop: 28 },
+  sectionWide: { marginTop: 32 },
+  aboutCard: { paddingVertical: 4 },
   body: {
     fontFamily: fontBody.regular,
     fontSize: 15,
     lineHeight: 22,
-    color: "rgba(255,255,255,0.86)",
+    color: P.inkOnNight,
   },
-  billList: { gap: 12 },
+  billList: { gap: 12, marginTop: 8 },
   sourceButton: { marginTop: 24, width: "100%" },
 });
