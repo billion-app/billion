@@ -235,7 +235,7 @@ by the scrape path and the retroactive scripts.
 
 ## AI pipeline
 
-Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text uses an OpenAI-compatible local endpoint (`LOCAL_LLM_BASE_URL`, such as Ollama) first, then **OpenRouter**, with direct DeepSeek retained as a text fallback. Two workloads stay API-first regardless: bill briefs (`getStructuredLlm()`), because local servers advertise structured output but cannot compile the brief's JSON grammar, and the dual lens (`getSearchModel()`), which needs a provider-native web-search tool. PDF vision fallback uses **Gemini `gemini-2.5-flash`**. Images use the local FLUX server (`LOCAL_FLUX_BASE_URL`) first, then hosted **Black Forest Labs FLUX.2 Klein 9B**. Provider usage and hosted-image costs are tracked per run.
+Provider config lives in `apps/scraper/src/utils/ai/provider.ts`: text uses an OpenAI-compatible local endpoint (`LOCAL_LLM_BASE_URL`, such as Ollama) first, then **OpenRouter**, with direct DeepSeek retained as a text fallback. Two workloads stay API-first regardless: bill briefs (`getStructuredLlm()`), because local servers advertise structured output but cannot compile the brief's JSON grammar, and the dual lens (`getSearchModel()`), which needs a provider-native web-search tool. PDF vision fallback uses **Gemini `gemini-2.5-flash`**. The shared image helper tries local FLUX before hosted **Black Forest Labs FLUX.2 Klein 9B**, but the scheduled header-art job calls the local-only helper and never falls back to paid generation. Provider usage and hosted-image costs are tracked per run.
 
 Each new/changed item runs through:
 
@@ -269,6 +269,12 @@ the same source hash and style version on later runs, so a recurring job cannot
 spend forever on one unsuitable image.
 Network errors, malformed responses, and storage failures remain failed work;
 they publish no new image and let the supervisor retry with its normal backoff.
+
+`--skip-review` is an explicit outage mode. It publishes the first local FLUX
+candidate without calling DeepSeek, writes no review row, and removes any review
+that described the previous image. Production currently uses this mode because
+the direct DeepSeek review account is unavailable. Remove the flag from the
+supervisor jobs to restore the fail-closed review gate.
 
 Rows already in `content_image` predate this gate and are not retroactively
 reviewed. The existing style version remains in place so enabling the review
@@ -310,8 +316,9 @@ loud instead of mid-run. The contract has four tiers:
 - **`requiredAny`** — at least one of a group must be set. The text-AI group is
   `[OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, DEEPSEEK_API_KEY]`: the local
   endpoint is preferred, OpenRouter is the fallback, and DeepSeek is the direct
-  text fallback. The `content-images` job also requires `DEEPSEEK_API_KEY` for
-  its image review gate. The civic scrapers omit this group entirely (no AI).
+  text fallback. The `content-images` job requires `DEEPSEEK_API_KEY` when its
+  review gate is enabled; `--skip-review` bypasses that provider. The civic
+  scrapers omit this group entirely (no AI).
 - **`recommended`** — warn but proceed (e.g. `COURTLISTENER_API_KEY` for scotus).
 - **`optional`** — image/stock/model overrides and the per-scraper item caps.
 

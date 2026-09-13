@@ -98,6 +98,13 @@ export type ReviewedImageResult =
       reviewAttempts: number;
     };
 
+export type ContentImageResult =
+  | ReviewedImageResult
+  | {
+      status: "unreviewed";
+      generated: GeneratedContentImage;
+    };
+
 export class ContentImageReviewError extends Error {
   constructor(message: string) {
     super(message);
@@ -321,4 +328,33 @@ export async function generateReviewedContentImage(args: {
     error: new Error("Image review loop exhausted unexpectedly"),
     reviewAttempts,
   };
+}
+
+/**
+ * Generate header art with an explicit operational escape hatch for review
+ * outages. The unreviewed result is a separate state so callers cannot record
+ * it as an accepted review by accident.
+ */
+export async function generateContentImage(args: {
+  source: ContentImageReviewSource;
+  generate: ImageGenerator;
+  review?: ImageReviewAttempt;
+  maxRegenerations?: number;
+  skipReview?: boolean;
+}): Promise<ContentImageResult> {
+  if (!args.skipReview) return generateReviewedContentImage(args);
+
+  try {
+    const generated = await args.generate();
+    if (!generated) {
+      return {
+        status: "error",
+        error: new Error("Image generator returned no image"),
+        reviewAttempts: 0,
+      };
+    }
+    return { status: "unreviewed", generated };
+  } catch (error) {
+    return { status: "error", error, reviewAttempts: 0 };
+  }
 }

@@ -16,7 +16,7 @@ import {
 import type { ContentImageReview } from "./utils/ai/content-image-review.js";
 import {
   CONTENT_IMAGE_REVIEW_VERSION,
-  generateReviewedContentImage,
+  generateContentImage,
   missingSourceDescriptionReview,
   reviewContentImage,
 } from "./utils/ai/content-image-review.js";
@@ -231,7 +231,10 @@ async function persistRejectedReview(
     });
 }
 
-async function generate(item: Candidate): Promise<"accepted" | "rejected"> {
+async function generate(
+  item: Candidate,
+  skipReview: boolean,
+): Promise<"accepted" | "rejected"> {
   const description = item.description.trim();
   const missingDescriptionReview = missingSourceDescriptionReview(item);
   if (missingDescriptionReview) {
@@ -239,8 +242,9 @@ async function generate(item: Candidate): Promise<"accepted" | "rejected"> {
     return "rejected";
   }
 
-  const result = await generateReviewedContentImage({
+  const result = await generateContentImage({
     source: { title: item.title, description },
+    skipReview,
     generate: async (feedback) => {
       const prompt = await planRenderedContentImagePrompt(
         item,
@@ -281,12 +285,10 @@ async function generate(item: Candidate): Promise<"accepted" | "rejected"> {
     height: 768,
     updatedAt: new Date(),
   };
-  const reviewValuesToWrite = reviewValues(
-    item,
-    result.review,
-    "accepted",
-    result.reviewAttempts,
-  );
+  const reviewValuesToWrite =
+    result.status === "accepted"
+      ? reviewValues(item, result.review, "accepted", result.reviewAttempts)
+      : null;
   await db.transaction(async (tx) => {
     await tx
       .insert(ContentImage)
@@ -295,16 +297,29 @@ async function generate(item: Candidate): Promise<"accepted" | "rejected"> {
         target: [ContentImage.contentType, ContentImage.contentId],
         set: imageValues,
       });
-    await tx
-      .insert(ContentImageReviewRow)
-      .values(reviewValuesToWrite)
-      .onConflictDoUpdate({
-        target: [
-          ContentImageReviewRow.contentType,
-          ContentImageReviewRow.contentId,
-        ],
-        set: reviewValuesToWrite,
-      });
+    if (reviewValuesToWrite) {
+      await tx
+        .insert(ContentImageReviewRow)
+        .values(reviewValuesToWrite)
+        .onConflictDoUpdate({
+          target: [
+            ContentImageReviewRow.contentType,
+            ContentImageReviewRow.contentId,
+          ],
+          set: reviewValuesToWrite,
+        });
+    } else {
+      // A prior review belongs to a prior image. Remove it rather than making
+      // the newly published bypass image look reviewed.
+      await tx
+        .delete(ContentImageReviewRow)
+        .where(
+          and(
+            eq(ContentImageReviewRow.contentType, item.type),
+            eq(ContentImageReviewRow.contentId, item.id),
+          ),
+        );
+    }
   });
   return "accepted";
 }
@@ -322,6 +337,12 @@ const argv = await yargs(hideBin(process.argv))
   })
   .option("concurrency", { type: "number", default: 1 })
   .option("dry-run", { type: "boolean", default: false })
+  .option("skip-review", {
+    type: "boolean",
+    default: false,
+    describe:
+      "Publish generated images without the DeepSeek suitability review",
+  })
   .option("drain", {
     type: "boolean",
     default: false,
@@ -356,9 +377,15 @@ await runImageBatches(async () => {
     process.exit(0);
   }
 
-  // Validate the direct vision key before FLUX spends time generating an image.
-  // The default text model cannot inspect image content, so this is a hard gate.
-  getDeepSeekVisionApiKey();
+  if (argv.skipReview) {
+    logger.warn(
+      "Image review is disabled; generated images will be published without a suitability check",
+    );
+  } else {
+    // Validate the direct vision key before FLUX spends time generating an image.
+    // The default text model cannot inspect image content, so this is a hard gate.
+    getDeepSeekVisionApiKey();
+  }
 
   let completed = 0;
   let accepted = 0;
@@ -369,7 +396,7 @@ await runImageBatches(async () => {
     candidates.map((item) =>
       limit(async () => {
         try {
-          const outcome = await generate(item);
+          const outcome = await generate(item, argv.skipReview);
           completed += 1;
           if (outcome === "rejected") {
             rejected += 1;

@@ -5,6 +5,7 @@ import sharp from "sharp";
 import type { GeneratedImage } from "./image-generation.js";
 import {
   contentImageReviewPrompt,
+  generateContentImage,
   generateReviewedContentImage,
   missingSourceDescriptionReview,
   reviewContentImage,
@@ -112,6 +113,26 @@ test("review errors never become an accepted result", async () => {
 
   assert.equal(result.status, "error");
   assert.equal(result.reviewAttempts, 0);
+});
+
+test("review can be explicitly bypassed without calling the reviewer", async () => {
+  const generated = await image();
+  let reviewCalls = 0;
+  const result = await generateContentImage({
+    source,
+    skipReview: true,
+    generate: async () => ({ image: generated, prompt: "prompt" }),
+    review: async () => {
+      reviewCalls += 1;
+      throw new Error("review must not run");
+    },
+  });
+
+  assert.equal(result.status, "unreviewed");
+  assert.equal(reviewCalls, 0);
+  if (result.status === "unreviewed") {
+    assert.equal(result.generated.prompt, "prompt");
+  }
 });
 
 test("a missing source description is rejected before generation", () => {

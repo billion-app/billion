@@ -61,6 +61,17 @@ void test("bill interest scoring runs before source refreshes", () => {
   assert.equal(job.priority, 0);
 });
 
+void test("image jobs explicitly bypass unavailable external review", () => {
+  for (const id of ["content-images-daily", "backfill-content-images"]) {
+    const job = findJob(id);
+    assert.ok(job, `${id} is missing`);
+    assert.ok(
+      job.args.includes("--skip-review"),
+      `${id} still requires review`,
+    );
+  }
+});
+
 void test("executive actions refresh daily", () => {
   const whiteHouseJob = findJob("whitehouse-daily");
   assert.ok(whiteHouseJob, "daily White House job is missing");
