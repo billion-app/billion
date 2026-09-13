@@ -56,7 +56,7 @@ export function SearchInput({
   return (
     <View style={[l.searchWrap, style]}>
       <View style={l.searchIcon}>
-        <SearchMark size={20} color={DigestPalette.spark} />
+        <SearchMark size={20} color={DigestPalette.quiet} />
       </View>
       <TextInput
         style={l.search}

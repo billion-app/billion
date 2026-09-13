@@ -43,18 +43,8 @@ export function JurisdictionScopeRow({
       accessibilityLabel={`Jurisdiction: ${item.body}. Change jurisdiction`}
       testID="jurisdiction-scope"
     >
-      <View style={s.scopeIcon}>
-        <Icon name={item.icon} size={22} color={DigestPalette.spark} />
-      </View>
-      <View style={s.scopeCopy}>
-        <Kicker style={s.scopeKicker}>Jurisdiction</Kicker>
-        <Text style={s.scopeBody}>{item.body}</Text>
-        <Text style={s.scopeSession}>{item.session}</Text>
-      </View>
-      <View style={s.change}>
-        <Text style={s.changeText}>Change</Text>
-        <Icon name="chevR" size={17} color={DigestPalette.spark} />
-      </View>
+      <Text style={s.scopeBody}>{item.name}</Text>
+      <Icon name="chevD" size={12} color={DigestPalette.quiet} />
     </TouchableOpacity>
   );
 }
@@ -93,10 +83,7 @@ export function JurisdictionPicker({
           <View style={s.handle} />
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={s.title}>Jurisdiction</Text>
-            <Text style={s.intro}>
-              Choose whose government you’re browsing. Search, filters and
-              results all follow.
-            </Text>
+            <Text style={s.intro}>Search and results follow this government.</Text>
 
             {!address ? (
               <TouchableOpacity style={s.addressOffer} onPress={onSetAddress}>
@@ -182,49 +169,19 @@ function JurisdictionOption({
 
 const s = StyleSheet.create({
   scope: {
-    minHeight: 80,
-    backgroundColor: DigestPalette.card,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
-    borderRadius: DigestRadii.card,
-    padding: 14,
-    marginBottom: 16,
+    alignSelf: "flex-start",
+    minHeight: 28,
+    marginBottom: 2,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-  },
-  scopeIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: DigestRadii.menu,
-    backgroundColor: DigestHair.tabActivePill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  scopeCopy: { flex: 1, minWidth: 0 },
-  scopeKicker: {
-    marginBottom: 3,
-    color: DigestPalette.spark,
-    fontFamily: fontBody.bold,
-    letterSpacing: 2.1,
+    gap: 4,
   },
   scopeBody: {
-    fontFamily: fontBody.semibold,
-    fontSize: 16,
-    lineHeight: 21,
-    color: DigestPalette.inkOnNight,
-  },
-  scopeSession: {
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: DigestPalette.quiet,
-    marginTop: 2,
-  },
-  change: { flexDirection: "row", alignItems: "center", gap: 2 },
-  changeText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13.5,
+    fontFamily: fontBody.bold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
     color: DigestPalette.spark,
   },
   modal: { flex: 1, justifyContent: "flex-end" },
