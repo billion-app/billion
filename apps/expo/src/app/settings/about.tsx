@@ -1,11 +1,10 @@
-import { Linking, StyleSheet, TouchableOpacity, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { Linking, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
-import { Card, Icon, ScreenShell } from "~/components/ui";
-import { colors, fontBody, fontDisplay, hair, planes } from "~/styles";
+import { ScreenShell, SettingsRow } from "~/components/ui";
+import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
 import { getAppVersionLabel } from "~/utils/app-version";
 
 export default function AboutScreen() {
@@ -14,7 +13,7 @@ export default function AboutScreen() {
   const rows: { icon: IconName; label: string; onPress: () => void }[] = [
     {
       icon: "globe",
-      label: "Visit billion-news.app",
+      label: "billion-news.app",
       onPress: () => void Linking.openURL("https://billion-news.app"),
     },
     {
@@ -24,12 +23,12 @@ export default function AboutScreen() {
     },
     {
       icon: "shield",
-      label: "Privacy policy",
+      label: "Privacy",
       onPress: () => router.push("/settings/privacy"),
     },
     {
       icon: "doc",
-      label: "Terms of service",
+      label: "Terms",
       onPress: () => router.push("/settings/terms"),
     },
   ];
@@ -37,114 +36,72 @@ export default function AboutScreen() {
   return (
     <ScreenShell title="About">
       <View style={s.hero}>
-        <LinearGradient colors={[planes.slate, planes.navy]} style={s.logo}>
-          <Text style={s.logoText}>B</Text>
-        </LinearGradient>
         <Text style={s.name}>Billion</Text>
         <Text style={s.version}>{getAppVersionLabel()}</Text>
-        <View style={s.upToDate}>
-          <Icon name="check" size={14} color={colors.green[500]} />
-          <Text style={s.upToDateText}>You&apos;re up to date</Text>
-        </View>
+        <Text style={s.upToDate}>Up to date</Text>
       </View>
 
       <Text style={s.blurb}>
-        Turning the public record into something{" "}
-        <Text style={s.blurbEm}>worth reading</Text> — so being an informed
-        citizen doesn&apos;t feel like homework.
+        The public record, <Text style={s.blurbEm}>worth reading</Text>.
       </Text>
 
-      <Card flush style={{ marginBottom: 22 }}>
-        {rows.map((r, i) => (
-          <TouchableOpacity
-            key={r.label}
-            style={[s.row, i < rows.length - 1 && s.divider]}
-            onPress={r.onPress}
-            activeOpacity={0.7}
-          >
-            <Icon name={r.icon} size={18} color={colors.white} />
-            <Text style={s.rowLabel}>{r.label}</Text>
-            <Icon name="external" size={16} color="#5B6172" />
-          </TouchableOpacity>
-        ))}
-      </Card>
+      {rows.map((r, i) => (
+        <SettingsRow
+          key={r.label}
+          icon={r.icon}
+          label={r.label}
+          last={i === rows.length - 1}
+          onPress={r.onPress}
+        />
+      ))}
 
-      <Text style={s.footer}>
-        Built for the public record · © 2026 Bryan Hu
-      </Text>
+      <Text style={s.footer}>© 2026 Bryan Hu</Text>
     </ScreenShell>
   );
 }
 
 const s = StyleSheet.create({
-  hero: { alignItems: "center", paddingTop: 12, paddingBottom: 26 },
-  logo: {
-    width: 76,
-    height: 76,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: hair[2],
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
+  hero: { alignItems: "center", paddingTop: 28, paddingBottom: 20 },
+  name: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -1,
+    color: P.inkOnNight,
   },
-  logoText: { fontFamily: fontDisplay.bold, fontSize: 40, color: colors.white },
-  name: { fontFamily: "IBMPlexSerif-Bold", fontSize: 26, color: colors.white },
   version: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
+    color: P.quiet,
+    marginTop: 8,
   },
   upToDate: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    marginTop: 12,
-    backgroundColor: "rgba(16,185,129,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(16,185,129,0.3)",
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 13,
-  },
-  upToDateText: {
     fontFamily: fontBody.semibold,
-    fontSize: 12.5,
-    color: colors.green[500],
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: P.spark,
+    marginTop: 14,
   },
   blurb: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 15,
-    lineHeight: 23,
-    color: "rgba(255,255,255,0.78)",
+    fontFamily: fontBody.regular,
+    fontSize: 16,
+    lineHeight: 24,
+    color: P.quiet,
     textAlign: "center",
-    marginBottom: 26,
-    paddingHorizontal: 6,
+    marginBottom: 32,
+    paddingHorizontal: 12,
   },
   blurbEm: {
     fontFamily: fontDisplay.italic,
     fontStyle: "italic",
-    color: colors.white,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-  },
-  divider: { borderBottomWidth: 1, borderBottomColor: hair[1] },
-  rowLabel: {
-    flex: 1,
-    fontFamily: fontBody.semibold,
-    fontSize: 14.5,
-    color: colors.white,
+    color: P.inkOnNight,
   },
   footer: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: P.quiet,
     textAlign: "center",
+    marginTop: 36,
   },
 });

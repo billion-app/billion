@@ -3,8 +3,8 @@ import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
-import { Card, GhostButton, Icon, Kicker, ScreenShell } from "~/components/ui";
-import { colors, fontBody, hair, planes } from "~/styles";
+import { GhostButton, Icon, Kicker, ScreenShell } from "~/components/ui";
+import { DigestHair, fontBody, DigestPalette as P } from "~/styles";
 
 interface Row {
   icon: IconName;
@@ -13,11 +13,8 @@ interface Row {
 }
 
 const NOTICE =
-  "Billion works without an account. You can read summaries and check your ballot without signing in — we never ask for your name or email to use the app.";
+  "Billion works without an account. We never ask for your name or email to use the app.";
 
-// What the installed build actually collects. Kept in sync with the Privacy
-// Policy (settings/terms) and the App Store privacy answers; see
-// docs/legal/data-inventory.md.
 const COLLECT: Row[] = [
   {
     icon: "layers",
@@ -56,11 +53,11 @@ const CONTROLS: Row[] = [
 
 function RowList({ rows }: { rows: Row[] }) {
   return (
-    <Card flush>
+    <View>
       {rows.map((r, i) => (
         <View key={r.label} style={[s.row, i < rows.length - 1 && s.divider]}>
           <View style={s.tile}>
-            <Icon name={r.icon} size={18} color={colors.white} />
+            <Icon name={r.icon} size={18} color={P.spark} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.label}>{r.label}</Text>
@@ -68,7 +65,7 @@ function RowList({ rows }: { rows: Row[] }) {
           </View>
         </View>
       ))}
-    </Card>
+    </View>
   );
 }
 
@@ -78,23 +75,24 @@ export default function PrivacyScreen() {
   return (
     <ScreenShell title="Privacy">
       <View style={s.notice}>
-        <Icon name="lock" size={20} color={colors.green[500]} />
+        <Icon name="lock" size={18} color={P.spark} />
         <Text style={s.noticeText}>{NOTICE}</Text>
       </View>
 
-      <Kicker style={{ paddingLeft: 4 }}>What we collect</Kicker>
-      <View style={{ marginTop: 8, marginBottom: 22 }}>
+      <Kicker>What we collect</Kicker>
+      <View style={{ marginTop: 4, marginBottom: 24 }}>
         <RowList rows={COLLECT} />
       </View>
 
-      <Kicker style={{ paddingLeft: 4 }}>Your controls</Kicker>
-      <View style={{ marginTop: 8 }}>
+      <Kicker>Your controls</Kicker>
+      <View style={{ marginTop: 4 }}>
         <RowList rows={CONTROLS} />
       </View>
 
       <GhostButton
         label="Read full Privacy Policy"
         onPress={() => router.push("/settings/terms")}
+        color={P.spark}
         style={{ marginTop: 20, alignSelf: "flex-start" }}
       />
     </ScreenShell>
@@ -104,43 +102,46 @@ export default function PrivacyScreen() {
 const s = StyleSheet.create({
   notice: {
     flexDirection: "row",
-    gap: 11,
-    backgroundColor: planes.surface,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 22,
+    alignItems: "flex-start",
+    gap: 12,
+    paddingVertical: 4,
+    marginBottom: 28,
   },
   noticeText: {
     flex: 1,
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 13.5,
-    color: "rgba(255,255,255,0.78)",
-    lineHeight: 20,
+    fontFamily: fontBody.regular,
+    fontSize: 15,
+    color: P.quiet,
+    lineHeight: 22,
   },
   row: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 14,
-    paddingVertical: 15,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  divider: { borderBottomWidth: 1, borderBottomColor: hair[1] },
+  divider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
+  },
   tile: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: planes.surface,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: DigestHair.tabActivePill,
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { fontFamily: fontBody.semibold, fontSize: 14.5, color: colors.white },
+  label: {
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+    color: P.inkOnNight,
+  },
   sub: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 1,
-    lineHeight: 17,
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    color: P.quiet,
+    marginTop: 3,
+    lineHeight: 18,
   },
 });

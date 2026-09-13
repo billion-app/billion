@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { useRouter } from "expo-router";
 
 import { Text } from "~/components/Themed";
-import { Card, Icon, ScreenShell, SearchInput } from "~/components/ui";
-import { colors, fontBody } from "~/styles";
+import { Icon, ScreenShell, SearchInput } from "~/components/ui";
+import {
+  DigestHair,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+} from "~/styles";
 
 const FAQS = [
   {
@@ -25,81 +31,87 @@ const FAQS = [
 ];
 
 export default function HelpScreen() {
+  const router = useRouter();
   const [open, setOpen] = useState<number>(0);
 
   return (
-    <ScreenShell title="Help & FAQ">
-      <SearchInput
-        placeholder="Search help articles…"
-        style={{ marginBottom: 22 }}
-      />
+    <ScreenShell title="Help">
+      <SearchInput placeholder="Search help…" style={{ marginBottom: 20 }} />
 
-      <View style={{ gap: 10 }}>
-        {FAQS.map((f, i) => (
+      {FAQS.map((f, i) => {
+        const expanded = open === i;
+        return (
           <TouchableOpacity
-            key={i}
+            key={f.q}
             activeOpacity={0.8}
-            onPress={() => setOpen(open === i ? -1 : i)}
+            onPress={() => setOpen(expanded ? -1 : i)}
+            style={[s.faq, i < FAQS.length - 1 && s.faqDivider]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
           >
-            <Card style={s.faqCard}>
-              <View style={s.cardHead}>
-                <Text style={s.q}>{f.q}</Text>
-                <Icon
-                  name="chevD"
-                  size={18}
-                  color={colors.textSecondary}
-                  style={open === i ? s.chevOpen : undefined}
-                />
-              </View>
-              {open === i && <Text style={s.a}>{f.a}</Text>}
-            </Card>
+            <View style={s.cardHead}>
+              <Text style={s.q}>{f.q}</Text>
+              <Icon
+                name="chevD"
+                size={16}
+                color={P.quiet}
+                style={expanded ? s.chevOpen : undefined}
+              />
+            </View>
+            {expanded ? <Text style={s.a}>{f.a}</Text> : null}
           </TouchableOpacity>
-        ))}
-      </View>
+        );
+      })}
 
-      <Card style={s.contactRow}>
-        <Icon name="message" size={22} color={colors.bill} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.contactTitle}>Still stuck?</Text>
-          <Text style={s.contactSub}>Reach our team directly</Text>
-        </View>
-        <Icon name="chevR" size={18} color="#5B6172" />
-      </Card>
+      <TouchableOpacity
+        style={s.contactRow}
+        activeOpacity={0.8}
+        onPress={() => router.push("/settings/feedback")}
+        accessibilityRole="button"
+        accessibilityLabel="Send feedback"
+      >
+        <Icon name="message" size={18} color={P.spark} />
+        <Text style={s.contactTitle}>Still stuck?</Text>
+        <Icon name="chevR" size={15} color={P.quiet} />
+      </TouchableOpacity>
     </ScreenShell>
   );
 }
 
 const s = StyleSheet.create({
-  faqCard: { paddingVertical: 16, paddingHorizontal: 18 },
+  faq: { paddingVertical: 18 },
+  faqDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
+  },
   cardHead: { flexDirection: "row", alignItems: "center", gap: 12 },
   q: {
     flex: 1,
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 15.5,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+    color: P.inkOnNight,
   },
   chevOpen: { transform: [{ rotate: "180deg" }] },
   a: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.72)",
-    marginTop: 12,
+    fontFamily: fontBody.regular,
+    fontSize: 14.5,
+    color: P.quiet,
+    marginTop: 10,
     lineHeight: 22,
   },
   contactRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 13,
-    marginTop: 18,
+    gap: 12,
+    marginTop: 28,
+    paddingVertical: 8,
   },
   contactTitle: {
+    flex: 1,
     fontFamily: fontBody.semibold,
-    fontSize: 14.5,
-    color: colors.white,
-  },
-  contactSub: {
-    fontFamily: "AlbertSans-Medium",
-    fontSize: 12.5,
-    color: colors.textSecondary,
+    fontSize: 16,
+    color: P.inkOnNight,
   },
 });

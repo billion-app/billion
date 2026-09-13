@@ -12,15 +12,15 @@ import { useMutation } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
-import {
-  GhostButton,
-  Icon,
-  Kicker,
-  PrimaryButton,
-  ScreenShell,
-} from "~/components/ui";
+import { GhostButton, Icon, Kicker, ScreenShell } from "~/components/ui";
 import { posthog } from "~/config/posthog";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  DigestHair,
+  DigestRadii,
+  DigestType,
+  fontBody,
+  DigestPalette as P,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
 import { buildFeedbackFormUrl } from "~/utils/feedback-form";
@@ -114,12 +114,7 @@ export default function FeedbackScreen() {
 
   return (
     <ScreenShell title="Send Feedback">
-      <Text style={s.title}>What&apos;s on your mind?</Text>
-      <Text style={s.intro}>
-        We read every note — it shapes what we build next.
-      </Text>
-
-      <Kicker>Category</Kicker>
+      <Kicker style={s.kicker}>Category</Kicker>
       <View style={{ gap: 10, marginBottom: 24 }}>
         {CATS.map((c) => {
           const active = cat === c.id;
@@ -128,23 +123,17 @@ export default function FeedbackScreen() {
               key={c.id}
               activeOpacity={0.8}
               onPress={() => setCat(c.id)}
-              style={[
-                s.catRow,
-                {
-                  backgroundColor: active ? planes.surface : planes.slate,
-                  borderColor: active ? hair[3] : hair[1],
-                },
-              ]}
+              style={[s.catRow, active ? s.catRowOn : s.catRowOff]}
             >
               <Icon
                 name={c.icon}
                 size={19}
-                color={active ? colors.white : colors.textSecondary}
+                color={active ? P.spark : P.quiet}
               />
               <Text
                 style={[
                   s.catLabel,
-                  { color: active ? colors.white : "rgba(255,255,255,0.7)" },
+                  { color: active ? P.inkOnNight : "rgba(247,244,238,0.7)" },
                 ]}
               >
                 {c.label}
@@ -152,7 +141,7 @@ export default function FeedbackScreen() {
               <View
                 style={[
                   s.radio,
-                  { borderColor: active ? colors.white : hair[3] },
+                  { borderColor: active ? P.spark : DigestHair.sectionRule },
                 ]}
               >
                 {active && <View style={s.radioDot} />}
@@ -162,13 +151,13 @@ export default function FeedbackScreen() {
         })}
       </View>
 
-      <Kicker>Details</Kicker>
+      <Kicker style={s.kicker}>Details</Kicker>
       <TextInput
         style={s.textarea}
         value={text}
         onChangeText={setText}
         placeholder="Tell us what happened or what you'd love to see…"
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor={P.quiet}
         multiline
         textAlignVertical="top"
       />
@@ -176,11 +165,16 @@ export default function FeedbackScreen() {
         App version {getAppVersion()} attached automatically.
       </Text>
 
-      <PrimaryButton
-        label={submitMutation.isPending ? "Sending…" : "Submit feedback"}
+      <TouchableOpacity
+        style={[s.cta, { opacity: canSubmit ? 1 : 0.55 }]}
         onPress={submit}
-        style={{ opacity: canSubmit ? 1 : 0.55 }}
-      />
+        activeOpacity={0.85}
+        disabled={!canSubmit}
+      >
+        <Text style={s.ctaLabel}>
+          {submitMutation.isPending ? "Sending…" : "Submit feedback"}
+        </Text>
+      </TouchableOpacity>
 
       {formKind && (
         <>
@@ -192,6 +186,7 @@ export default function FeedbackScreen() {
                 : "Use guided feature request form"
             }
             onPress={() => void openGuidedForm()}
+            color={P.quiet}
             style={{ alignSelf: "center" }}
           />
         </>
@@ -201,17 +196,9 @@ export default function FeedbackScreen() {
 }
 
 const s = StyleSheet.create({
-  title: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 19,
-    color: colors.white,
-    marginBottom: 6,
-  },
-  intro: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 22,
+  kicker: {
+    ...DigestType.sectionEyebrow,
+    marginBottom: 12,
   },
   catRow: {
     flexDirection: "row",
@@ -219,8 +206,16 @@ const s = StyleSheet.create({
     gap: 14,
     paddingVertical: 13,
     paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: DigestRadii.menu,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  catRowOn: {
+    backgroundColor: DigestHair.tabActivePill,
+    borderColor: DigestHair.menuBorder,
+  },
+  catRowOff: {
+    backgroundColor: P.stone,
+    borderColor: DigestHair.cardBorder,
   },
   catLabel: { flex: 1, fontFamily: fontBody.semibold, fontSize: 15 },
   radio: {
@@ -235,31 +230,44 @@ const s = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: colors.white,
+    backgroundColor: P.spark,
   },
   textarea: {
     minHeight: 130,
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
+    backgroundColor: P.stone,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: DigestRadii.menu,
     padding: 14,
-    color: colors.white,
-    fontFamily: "AlbertSans-Regular",
+    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
     fontSize: 15,
     lineHeight: 22,
   },
   attached: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: P.quiet,
     marginVertical: 10,
     marginBottom: 20,
   },
+  cta: {
+    height: 52,
+    width: "100%",
+    borderRadius: 9999,
+    backgroundColor: P.spark,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    color: P.ink,
+  },
   orDivider: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: P.quiet,
     textAlign: "center",
     marginVertical: 14,
   },
