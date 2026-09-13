@@ -28,7 +28,7 @@ import {
   JurisdictionScopeRow,
 } from "~/components/JurisdictionPicker";
 import { Text } from "~/components/Themed";
-import { ContentCard, Icon, SearchInput } from "~/components/ui";
+import { ContentCard, Icon, Pill, Pills, SearchInput } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useDebounced } from "~/hooks/useDebounce";
@@ -310,25 +310,17 @@ export function BrowseCatalog() {
               />
             </View>
 
-            <View style={s.filterRow}>
-              {FILTERS.map((f) => {
-                const active = filter === f.id;
-                return (
-                  <TouchableOpacity
+            <View style={s.filterWrap}>
+              <Pills layout="scroll">
+                {FILTERS.map((f) => (
+                  <Pill
                     key={f.id}
+                    label={f.label}
+                    active={filter === f.id}
                     onPress={() => handleFilterChange(f.id)}
-                    activeOpacity={0.8}
-                    style={s.filterTab}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                  >
-                    <Text style={[s.filterLabel, active && s.filterLabelOn]}>
-                      {f.label}
-                    </Text>
-                    {active ? <View style={s.filterRule} /> : null}
-                  </TouchableOpacity>
-                );
-              })}
+                  />
+                ))}
+              </Pills>
             </View>
 
             {upcomingElection && (
@@ -531,34 +523,9 @@ const s = StyleSheet.create({
     lineHeight: 46,
     letterSpacing: -1.1,
   },
-  filterRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: DigestSpace.screenPadX,
-    gap: 20,
+  filterWrap: {
     paddingTop: 10,
-    paddingBottom: 8,
-    alignItems: "flex-end",
-  },
-  filterTab: {
-    paddingBottom: 8,
-  },
-  filterLabel: {
-    fontFamily: fontBody.semibold,
-    fontSize: 16,
-    color: DigestPalette.quiet,
-  },
-  filterLabelOn: {
-    color: DigestPalette.inkOnNight,
-  },
-  filterRule: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 2,
-    backgroundColor: DigestPalette.spark,
-    borderRadius: 1,
+    paddingBottom: 4,
   },
   rowRule: {
     height: StyleSheet.hairlineWidth,
