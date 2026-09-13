@@ -10,8 +10,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { ElectedOfficial } from "@acme/api";
 
 import { Text } from "~/components/Themed";
-import { Card, Icon } from "~/components/ui";
-import { colors, fontBody } from "~/styles";
+import { Icon } from "~/components/ui";
+import {
+  DigestHair,
+  DigestPalette,
+  DigestSpace,
+  fontBody,
+  fontDisplay,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 
 interface RepsSectionProps {
@@ -25,12 +31,12 @@ function openUrl(url: string) {
 
 function RepCard({ rep }: { rep: ElectedOfficial }) {
   return (
-    <Card style={styles.repCard}>
+    <View style={styles.repCard}>
       {rep.image ? (
         <Image source={{ uri: rep.image }} style={styles.photo} />
       ) : (
         <View style={styles.photoPlaceholder}>
-          <Icon name="user" size={20} color={colors.textSecondary} />
+          <Icon name="user" size={18} color={DigestPalette.quiet} />
         </View>
       )}
       <View style={styles.repBody}>
@@ -77,7 +83,7 @@ function RepCard({ rep }: { rep: ElectedOfficial }) {
           </View>
         )}
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -91,17 +97,19 @@ export function RepsSection({ address, enabled = true }: RepsSectionProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Your Elected Officials</Text>
+      <Text style={styles.kicker}>Representatives</Text>
       {query.isLoading ? (
-        <ActivityIndicator color={colors.bill} style={styles.loader} />
+        <ActivityIndicator color={DigestPalette.spark} style={styles.loader} />
       ) : query.isError ? (
-        <Card>
-          <Text style={styles.empty}>
-            We couldn&apos;t load elected officials for this address right now.
-          </Text>
-        </Card>
+        <Text style={styles.empty}>
+          Couldn&apos;t load officials for this address.
+        </Text>
       ) : (
-        query.data?.officials.map((rep) => <RepCard key={rep.id} rep={rep} />)
+        query.data?.officials.map((rep, i) => (
+          <View key={rep.id} style={i > 0 ? styles.rowHair : undefined}>
+            <RepCard rep={rep} />
+          </View>
+        ))
       )}
       {query.data ? (
         <Text
@@ -118,55 +126,71 @@ export function RepsSection({ address, enabled = true }: RepsSectionProps) {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-    gap: 12,
+    paddingHorizontal: DigestSpace.screenPadX,
+    marginBottom: 16,
   },
-  sectionTitle: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 18,
-    color: colors.white,
+  kicker: {
+    fontFamily: fontBody.bold,
+    fontSize: 11,
+    letterSpacing: 1.8,
+    color: DigestPalette.spark,
+    textTransform: "uppercase",
+    marginBottom: 8,
   },
   loader: { marginVertical: 12 },
   empty: {
     fontFamily: fontBody.regular,
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 15,
+    color: DigestPalette.quiet,
+    lineHeight: 22,
   },
-  repCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  rowHair: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.sectionRule,
+  },
+  repCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 16,
+  },
   photo: { width: 48, height: 48, borderRadius: 24 },
   photoPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: DigestPalette.stone,
     alignItems: "center",
     justifyContent: "center",
   },
   repBody: { flex: 1, gap: 2 },
   office: {
-    fontFamily: fontBody.medium,
-    fontSize: 11.5,
-    color: colors.textSecondary,
+    fontFamily: fontBody.bold,
+    fontSize: 11,
+    color: DigestPalette.spark,
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 1.4,
   },
-  name: { fontFamily: fontBody.semibold, fontSize: 15, color: colors.white },
+  name: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 18,
+    letterSpacing: -0.3,
+    color: DigestPalette.inkOnNight,
+  },
   party: {
     fontFamily: fontBody.regular,
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
   },
   actions: { flexDirection: "row", gap: 16, marginTop: 6 },
   action: {
     fontFamily: fontBody.semibold,
     fontSize: 12.5,
-    color: colors.bill,
+    color: DigestPalette.spark,
   },
   source: {
     fontFamily: fontBody.regular,
-    color: colors.textSecondary,
+    color: DigestPalette.quiet,
     fontSize: 11.5,
     textDecorationLine: "underline",
   },
