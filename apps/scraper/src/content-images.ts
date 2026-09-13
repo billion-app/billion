@@ -26,7 +26,10 @@ import {
   versionContentImageHash,
 } from "./utils/ai/content-image-visual.js";
 import { generateLocalPhoto } from "./utils/ai/image-generation.js";
-import { getDeepSeekVisionApiKey } from "./utils/ai/provider.js";
+import {
+  getDeepSeekVisionApiKey,
+  getLocalLlmConfig,
+} from "./utils/ai/provider.js";
 import { runImageBatches } from "./utils/image-batches.js";
 import { createLogger } from "./utils/log.js";
 import { uploadContentImage } from "./utils/storage/content-images.js";
@@ -207,7 +210,7 @@ function reviewValues(
     description: review.description,
     rejectionReasons: review.rejectionReasons,
     feedback: review.feedback ?? null,
-    modelVersion: CONTENT_IMAGE_REVIEW_VERSION,
+    modelVersion: review.reviewModelVersion ?? CONTENT_IMAGE_REVIEW_VERSION,
     attempts,
     updatedAt: now,
   };
@@ -382,9 +385,9 @@ await runImageBatches(async () => {
       "Image review is disabled; generated images will be published without a suitability check",
     );
   } else {
-    // Validate the direct vision key before FLUX spends time generating an image.
-    // The default text model cannot inspect image content, so this is a hard gate.
-    getDeepSeekVisionApiKey();
+    // Validate that either the preferred local model or the hosted fallback is
+    // configured before FLUX spends time generating an image.
+    if (!getLocalLlmConfig()) getDeepSeekVisionApiKey();
   }
 
   let completed = 0;

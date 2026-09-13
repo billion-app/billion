@@ -61,13 +61,13 @@ void test("bill interest scoring runs before source refreshes", () => {
   assert.equal(job.priority, 0);
 });
 
-void test("image jobs explicitly bypass unavailable external review", () => {
+void test("image jobs keep suitability review enabled", () => {
   for (const id of ["content-images-daily", "backfill-content-images"]) {
     const job = findJob(id);
     assert.ok(job, `${id} is missing`);
     assert.ok(
-      job.args.includes("--skip-review"),
-      `${id} still requires review`,
+      !job.args.includes("--skip-review"),
+      `${id} bypasses image review`,
     );
   }
 });

@@ -153,6 +153,7 @@ test("the direct DeepSeek review sends the wide and square app crops", async () 
   let requestBody: unknown;
   const response = await reviewContentImage(generated, source, {
     apiKey: "test-key",
+    local: null,
     fetch: async (_url, init) => {
       requestBody = JSON.parse(String(init?.body));
       return new Response(
@@ -171,7 +172,9 @@ test("the direct DeepSeek review sends the wide and square app crops", async () 
     },
   });
 
-  assert.deepEqual(response, acceptedReview());
+  const { reviewModelVersion, ...review } = response;
+  assert.deepEqual(review, acceptedReview());
+  assert.equal(reviewModelVersion, "deepseek:deepseek-v4-flash-vision-exp");
   const content = (
     requestBody as {
       model: string;
@@ -213,11 +216,76 @@ test("the direct DeepSeek review sends the wide and square app crops", async () 
   assert.match(contentImageReviewPrompt(source), /square centered crop/);
 });
 
+test("image review prefers the configured local model", async () => {
+  const generated = await image();
+  const requests: Array<{ url: string; body: { model?: string } }> = [];
+  const response = await reviewContentImage(generated, source, {
+    apiKey: "deepseek-test-key",
+    local: {
+      baseURL: "http://local.test/v1",
+      model: "local-vision",
+      apiKey: "local-test-key",
+    },
+    fetch: async (url, init) => {
+      requests.push({
+        url: String(url),
+        body: JSON.parse(String(init?.body)) as { model?: string },
+      });
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify(acceptedReview()) } }],
+        }),
+        { status: 200 },
+      );
+    },
+  });
+
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0]?.url, "http://local.test/v1/chat/completions");
+  assert.equal(requests[0]?.body.model, "local-vision");
+  assert.equal(response.reviewModelVersion, "local:local-vision");
+});
+
+test("image review falls back to DeepSeek when the local model fails", async () => {
+  const generated = await image();
+  const requests: string[] = [];
+  const response = await reviewContentImage(generated, source, {
+    apiKey: "deepseek-test-key",
+    local: {
+      baseURL: "http://local.test/v1",
+      model: "local-vision",
+      apiKey: "local-test-key",
+    },
+    fetch: async (url) => {
+      requests.push(String(url));
+      if (String(url).startsWith("http://local.test")) {
+        return new Response("local unavailable", { status: 503 });
+      }
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify(acceptedReview()) } }],
+        }),
+        { status: 200 },
+      );
+    },
+  });
+
+  assert.deepEqual(requests, [
+    "http://local.test/v1/chat/completions",
+    "https://api.deepseek.com/chat/completions",
+  ]);
+  assert.equal(
+    response.reviewModelVersion,
+    "deepseek:deepseek-v4-flash-vision-exp",
+  );
+});
+
 test("malformed DeepSeek review JSON fails closed", async () => {
   const generated = await image();
   await assert.rejects(
     reviewContentImage(generated, source, {
       apiKey: "test-key",
+      local: null,
       fetch: async () =>
         new Response(
           JSON.stringify({
@@ -235,6 +303,7 @@ test("invalid DeepSeek HTTP responses fail closed", async () => {
   await assert.rejects(
     reviewContentImage(generated, source, {
       apiKey: "test-key",
+      local: null,
       fetch: async () => new Response("upstream unavailable", { status: 503 }),
     }),
     /failed \(503\)/,
@@ -246,6 +315,7 @@ test("contradictory accept payloads fail schema validation", async () => {
   await assert.rejects(
     reviewContentImage(generated, source, {
       apiKey: "test-key",
+      local: null,
       fetch: async () =>
         new Response(
           JSON.stringify({

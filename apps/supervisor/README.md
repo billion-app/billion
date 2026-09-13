@@ -47,13 +47,12 @@ imports should be followed by `pnpm --filter @acme/scraper content-images --drai
 Without `--drain`, the CLI processes one batch. Image generation runs serially
 with ingestion and may wait behind higher-priority scheduled jobs.
 
-Both production image jobs currently pass `--skip-review`: local FLUX output is
-published without calling DeepSeek because the direct review account is
-unavailable. No `content_image_review` row is written for a bypassed image, and
-any review attached to the previous image is removed. Remove the flag to restore
-the fail-closed suitability gate. With review enabled, DeepSeek inspects the wide
-article-header and square browse-card crops, allows one feedback-guided
+Both production image jobs review local FLUX output with the configured local
+multimodal model first, then fall back to DeepSeek. The reviewer inspects the
+wide article-header and square browse-card crops, allows one feedback-guided
 regeneration, and records an exhausted rejection so later drains skip it.
+`--skip-review` remains available as an explicit manual outage mode, but the
+scheduled and backfill jobs do not use it.
 
 | id                             | schedule          | notes                                                                            |
 | ------------------------------ | ----------------- | -------------------------------------------------------------------------------- |

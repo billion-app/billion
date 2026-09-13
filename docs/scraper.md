@@ -253,12 +253,13 @@ The retired video feed no longer generates marketing cards or stores a `video` r
 ### Header-art suitability review
 
 `content-images.ts` generates a candidate with FLUX and sends centered crops to
-DeepSeek `deepseek-v4-flash-vision-exp` before it uploads anything. The review
-sees the wide 2:1 crop used by the article header and the square crop used by
-browse cards. It compares both crops with the source description and checks that
-the subject remains recognizable, the framing stays neutral and professional,
-and the pixels contain no invented consequences, caricature, readable text,
-logos, watermarks, or generation defects.
+the configured local multimodal model before it uploads anything. If the local
+review fails, it falls back to DeepSeek `deepseek-v4-flash-vision-exp`. Both
+providers see the wide 2:1 crop used by the article header and the square crop
+used by browse cards. They compare both crops with the source description and
+check that the subject remains recognizable, the framing stays neutral and
+professional, and the pixels contain no invented consequences, caricature,
+readable text, logos, watermarks, or generation defects.
 
 The review response is validated against a fixed decision and reason schema. A
 rejection gives the visual planner one chance to regenerate with corrective
@@ -270,11 +271,10 @@ spend forever on one unsuitable image.
 Network errors, malformed responses, and storage failures remain failed work;
 they publish no new image and let the supervisor retry with its normal backoff.
 
-`--skip-review` is an explicit outage mode. It publishes the first local FLUX
-candidate without calling DeepSeek, writes no review row, and removes any review
-that described the previous image. Production currently uses this mode because
-the direct DeepSeek review account is unavailable. Remove the flag from the
-supervisor jobs to restore the fail-closed review gate.
+`--skip-review` is an explicit manual outage mode. It publishes the first local
+FLUX candidate without calling either reviewer, writes no review row, and
+removes any review that described the previous image. Production jobs keep
+review enabled.
 
 Rows already in `content_image` predate this gate and are not retroactively
 reviewed. The existing style version remains in place so enabling the review
@@ -316,9 +316,10 @@ loud instead of mid-run. The contract has four tiers:
 - **`requiredAny`** — at least one of a group must be set. The text-AI group is
   `[OPENROUTER_API_KEY, LOCAL_LLM_BASE_URL, DEEPSEEK_API_KEY]`: the local
   endpoint is preferred, OpenRouter is the fallback, and DeepSeek is the direct
-  text fallback. The `content-images` job requires `DEEPSEEK_API_KEY` when its
-  review gate is enabled; `--skip-review` bypasses that provider. The civic
-  scrapers omit this group entirely (no AI).
+  text fallback. The `content-images` review uses the same local endpoint first
+  and requires `DEEPSEEK_API_KEY` only when no local endpoint is configured.
+  `--skip-review` bypasses both providers. The civic scrapers omit this group
+  entirely (no AI).
 - **`recommended`** — warn but proceed (e.g. `COURTLISTENER_API_KEY` for scotus).
 - **`optional`** — image/stock/model overrides and the per-scraper item caps.
 

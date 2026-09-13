@@ -45,6 +45,22 @@ function getLocalModel(): string {
   return process.env.LOCAL_LLM_MODEL?.trim() || DEFAULT_LOCAL_MODEL;
 }
 
+export interface LocalLlmConfig {
+  baseURL: string;
+  model: string;
+  apiKey: string;
+}
+
+export function getLocalLlmConfig(): LocalLlmConfig | null {
+  const baseURL = getLocalBaseUrl();
+  if (!baseURL) return null;
+  return {
+    baseURL,
+    model: getLocalModel(),
+    apiKey: process.env.LOCAL_LLM_API_KEY?.trim() || "ollama",
+  };
+}
+
 function getLocalProvider(baseURL: string) {
   localProvider ??= createOpenAICompatible({
     name: "local",
@@ -224,11 +240,6 @@ function getDeepSeekApiKey(): string {
   return apiKey;
 }
 
-/**
- * The image review path deliberately uses the direct DeepSeek API. The
- * OpenAI-compatible text providers above are not guaranteed to preserve image
- * content parts, while this model's native endpoint accepts them explicitly.
- */
 export function getDeepSeekVisionApiKey(): string {
   const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
   if (!apiKey) {

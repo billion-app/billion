@@ -2,10 +2,18 @@ import sharp from "sharp";
 import { z } from "zod";
 
 import type { GeneratedImage } from "./image-generation.js";
+import type { LocalLlmConfig } from "./provider.js";
 import { trackDeepSeekVisionUsage } from "../costs.js";
-import { DEEPSEEK_VISION_MODEL, getDeepSeekVisionApiKey } from "./provider.js";
+import { createLogger } from "../log.js";
+import {
+  DEEPSEEK_VISION_MODEL,
+  getDeepSeekVisionApiKey,
+  getLocalLlmConfig,
+} from "./provider.js";
 
-export const CONTENT_IMAGE_REVIEW_VERSION = `${DEEPSEEK_VISION_MODEL}-v1`;
+const logger = createLogger("content-image-review");
+
+export const CONTENT_IMAGE_REVIEW_VERSION = "content-image-review-v2";
 export const MAX_IMAGE_REGENERATIONS = 1;
 
 export const CONTENT_IMAGE_REVIEW_REASONS = [
@@ -46,7 +54,9 @@ const ContentImageReviewSchema = z
     }
   });
 
-export type ContentImageReview = z.infer<typeof ContentImageReviewSchema>;
+export type ContentImageReview = z.infer<typeof ContentImageReviewSchema> & {
+  reviewModelVersion?: string;
+};
 
 export interface ContentImageReviewSource {
   title: string;
@@ -159,40 +169,44 @@ async function reviewImageDataUrls(image: GeneratedImage): Promise<string[]> {
     );
   } catch (error) {
     throw new ContentImageReviewError(
-      `Could not prepare generated image crops for DeepSeek review: ${error instanceof Error ? error.message : String(error)}`,
+      `Could not prepare generated image crops for review: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
 
-interface DeepSeekResponse {
+interface ChatCompletionResponse {
   choices?: Array<{ message?: { content?: string | null } }>;
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
 type FetchLike = typeof fetch;
 
-/**
- * Review one image with DeepSeek's native multimodal endpoint. The parser is
- * intentionally strict: a network response or malformed model output is a
- * transient review error, never an implicit approval.
- */
-export async function reviewContentImage(
-  image: GeneratedImage,
+interface ReviewProvider {
+  label: string;
+  endpoint: string;
+  model: string;
+  apiKey: string;
+  modelVersion: string;
+  timeoutMs: number;
+  trackUsage: boolean;
+  body?: Record<string, unknown>;
+}
+
+async function reviewWithProvider(
+  provider: ReviewProvider,
+  imageDataUrls: string[],
   source: ContentImageReviewSource,
-  options: { fetch?: FetchLike; apiKey?: string } = {},
+  request: FetchLike,
 ): Promise<ContentImageReview> {
-  const apiKey = options.apiKey ?? getDeepSeekVisionApiKey();
-  const request = options.fetch ?? fetch;
-  const imageDataUrls = await reviewImageDataUrls(image);
-  const response = await request("https://api.deepseek.com/chat/completions", {
+  const response = await request(provider.endpoint, {
     method: "POST",
     headers: {
       Accept: "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${provider.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: DEEPSEEK_VISION_MODEL,
+      model: provider.model,
       messages: [
         {
           role: "user",
@@ -206,36 +220,38 @@ export async function reviewContentImage(
         },
       ],
       response_format: { type: "json_object" },
-      thinking: { type: "disabled" },
       max_tokens: 500,
+      ...provider.body,
     }),
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(provider.timeoutMs),
   });
 
   const rawBody = await response.text();
   if (!response.ok) {
     throw new ContentImageReviewError(
-      `DeepSeek vision review failed (${response.status}): ${rawBody.slice(0, 500)}`,
+      `${provider.label} review failed (${response.status}): ${rawBody.slice(0, 500)}`,
     );
   }
 
-  let parsedResponse: DeepSeekResponse;
+  let parsedResponse: ChatCompletionResponse;
   try {
-    parsedResponse = JSON.parse(rawBody) as DeepSeekResponse;
+    parsedResponse = JSON.parse(rawBody) as ChatCompletionResponse;
   } catch {
     throw new ContentImageReviewError(
-      "DeepSeek vision review returned invalid JSON",
+      `${provider.label} review returned invalid JSON`,
     );
   }
-  trackDeepSeekVisionUsage(
-    parsedResponse.usage?.prompt_tokens,
-    parsedResponse.usage?.completion_tokens,
-  );
+  if (provider.trackUsage) {
+    trackDeepSeekVisionUsage(
+      parsedResponse.usage?.prompt_tokens,
+      parsedResponse.usage?.completion_tokens,
+    );
+  }
 
   const content = parsedResponse.choices?.[0]?.message?.content;
   if (!content) {
     throw new ContentImageReviewError(
-      "DeepSeek vision review returned no message content",
+      `${provider.label} review returned no message content`,
     );
   }
   let modelReview: unknown;
@@ -243,17 +259,85 @@ export async function reviewContentImage(
     modelReview = JSON.parse(content);
   } catch {
     throw new ContentImageReviewError(
-      "DeepSeek vision review returned malformed review JSON",
+      `${provider.label} review returned malformed review JSON`,
     );
   }
 
   const result = ContentImageReviewSchema.safeParse(modelReview);
   if (!result.success) {
     throw new ContentImageReviewError(
-      `DeepSeek vision review failed schema validation: ${result.error.message}`,
+      `${provider.label} review failed schema validation: ${result.error.message}`,
     );
   }
-  return result.data;
+  return { ...result.data, reviewModelVersion: provider.modelVersion };
+}
+
+/**
+ * Review one image through the local multimodal model first, then fall back to
+ * DeepSeek. Every provider uses the same strict schema: a transport failure or
+ * malformed model output is never an implicit approval.
+ */
+export async function reviewContentImage(
+  image: GeneratedImage,
+  source: ContentImageReviewSource,
+  options: {
+    fetch?: FetchLike;
+    apiKey?: string;
+    local?: LocalLlmConfig | null;
+  } = {},
+): Promise<ContentImageReview> {
+  const request = options.fetch ?? fetch;
+  const imageDataUrls = await reviewImageDataUrls(image);
+  const local =
+    options.local === undefined ? getLocalLlmConfig() : options.local;
+  let localError: unknown;
+  if (local) {
+    try {
+      return await reviewWithProvider(
+        {
+          label: "Local image",
+          endpoint: `${local.baseURL}/chat/completions`,
+          model: local.model,
+          apiKey: local.apiKey,
+          modelVersion: `local:${local.model}`,
+          timeoutMs: 120_000,
+          trackUsage: false,
+          body: { think: false },
+        },
+        imageDataUrls,
+        source,
+        request,
+      );
+    } catch (error) {
+      localError = error;
+      logger.warn("Local image review failed; trying DeepSeek", error);
+    }
+  }
+
+  let apiKey: string;
+  try {
+    apiKey = options.apiKey ?? getDeepSeekVisionApiKey();
+  } catch (error) {
+    if (!localError) throw error;
+    throw new ContentImageReviewError(
+      `Local image review failed and no DeepSeek fallback is configured: ${localError instanceof Error ? localError.message : String(localError)}`,
+    );
+  }
+  return reviewWithProvider(
+    {
+      label: "DeepSeek vision",
+      endpoint: "https://api.deepseek.com/chat/completions",
+      model: DEEPSEEK_VISION_MODEL,
+      apiKey,
+      modelVersion: `deepseek:${DEEPSEEK_VISION_MODEL}`,
+      timeoutMs: 45_000,
+      trackUsage: true,
+      body: { thinking: { type: "disabled" } },
+    },
+    imageDataUrls,
+    source,
+    request,
+  );
 }
 
 /**
