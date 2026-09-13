@@ -1,10 +1,10 @@
 /**
- * The reader's saved set, kept on the device.
+ * The reader's followed set, kept on the device.
  *
- * Saving deliberately does not require an account. Bookmarking something you
- * want to come back to is not a social act and shouldn't cost a sign-up — and
- * account creation isn't built yet, so a server-backed bookmark would mean no
- * bookmarks at all.
+ * Following a bill (or a case, or an order) is how Billion knows what to
+ * watch overnight. It deliberately does not require an account — and account
+ * creation isn't built yet, so a server-backed follow would mean no follows
+ * at all. Storage is still the saved-content list; the UI now speaks follow.
  *
  * Stored as an ordered list rather than a set: the order is save order, which
  * is what the saved list renders by. Newest first.

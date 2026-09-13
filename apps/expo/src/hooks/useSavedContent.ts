@@ -34,11 +34,11 @@ export const savedIdsQueryKey = ["saved-content-ids"] as const;
 let pendingSavedWrites = 0;
 
 /**
- * The reader's saved set, and the one way to change it.
+ * The reader's followed set, and the one way to change it.
  *
- * Backed by device storage, not an account: bookmarking something to come back
- * to shouldn't cost a sign-up, and sign-up isn't built yet, so a server-backed
- * bookmark would mean no bookmarks at all.
+ * Backed by device storage, not an account: following a bill to see what
+ * happens next shouldn't cost a sign-up, and sign-up isn't built yet, so a
+ * server-backed follow would mean no follows at all.
  *
  * Held through React Query so the set is one cache entry shared by every
  * screen — a bill saved on the article page is already filled in when the
