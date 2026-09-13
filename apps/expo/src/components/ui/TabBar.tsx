@@ -16,11 +16,19 @@ import {
   DigestTabBar,
   DigestType,
 } from "~/styles";
+import { Icon, type IconName } from "./Icon";
 import {
   getTabBarItemDisplay,
   isTabRouteHidden,
 } from "./tab-bar-visibility";
-import { TAB_ROUTE_ICON, TabChromeIcon } from "./TabChromeIcons";
+
+const TAB_ICONS: Record<string, IconName> = {
+  index: "home",
+  feed: "search",
+  elections: "vote",
+  feedback: "message",
+  settings: "settings",
+};
 
 type TabBarProps = Parameters<
   NonNullable<ComponentProps<typeof Tabs>["tabBar"]>
@@ -36,7 +44,7 @@ function TabButton({
   label: string;
   focused: boolean;
   color: string;
-  iconName: NonNullable<(typeof TAB_ROUTE_ICON)[string]>;
+  iconName: IconName;
   onPress: () => void;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
@@ -95,12 +103,7 @@ function TabButton({
       accessibilityLabel={label}
     >
       <Animated.View style={[s.iconCol, { transform: [{ scale }] }]}>
-        <TabChromeIcon
-          name={iconName}
-          size={DigestTabBar.iconSize}
-          color={color}
-          strokeWidth={focused ? 1.75 : 1.55}
-        />
+        <Icon name={iconName} size={DigestTabBar.iconSize} color={color} />
         <Animated.View
           style={[
             s.activeMark,
@@ -167,7 +170,7 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
             }
           };
           const color = focused ? DigestTabBar.active : DigestTabBar.inactive;
-          const iconName = TAB_ROUTE_ICON[route.name] ?? "home";
+          const iconName = TAB_ICONS[route.name] ?? "home";
           return (
             <TabButton
               key={route.key}
