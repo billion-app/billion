@@ -2,7 +2,7 @@
 
 All styling in the Expo app is consolidated into a single location: `apps/expo/src/styles.ts` (although more work is on the way to further consolidate it into the ui package?)
 
-**Import everything from `~/styles`** — no need to import from `@acme/ui/theme-tokens` directly.
+**Import everything from `~/styles`** — no need to import from `@acme/ui/theme-tokens` directly. Do **not** add a parallel palette file or `~/theme` package; Digest surfaces (`DigestPalette`, `DigestRadii`, `digest`, etc.) live in `styles.ts` next to `planes` / `hair`.
 
 ## What's Available
 
@@ -21,6 +21,8 @@ import {
   createSearchStyles, // createSearchStyles(theme) → search input styles
   createTabContainerStyles, // createTabContainerStyles(theme) → tab bar styles
   darkTheme, // Dark mode semantic colors
+  DigestPalette, // Digest night/paper/spark roles (aliases of planes + digest)
+  digest, // Digest accents (spark, quiet, badges)
   fontSize, // Font sizes (fontSize.base, fontSize.xl, etc.)
   fontWeight, // Font weights (fontWeight.bold, fontWeight.medium, etc.)
   // Helper functions
@@ -30,6 +32,7 @@ import {
   // Pre-built StyleSheet objects
   layout, // container, fullCenter, row, center, etc.
   lightTheme, // Light mode semantic colors
+  planes, // navy / slate / surface / paper planes
   radius, // Border radius scale in rem
   rd, // rd("lg") → radius.lg * 16 → 12px
   settings, // section, sectionTitle, item, itemTitle, etc.
