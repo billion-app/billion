@@ -1,6 +1,6 @@
-import { Redirect } from "expo-router";
+import { BrowseCatalog } from "./index";
 
-/** The former video feed is disabled; old deep links return to Browse. */
-export default function FeedRedirect() {
-  return <Redirect href="/" />;
+/** Browse the full government archive and search across it. */
+export default function BrowseScreen() {
+  return <BrowseCatalog />;
 }

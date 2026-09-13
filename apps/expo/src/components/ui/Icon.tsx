@@ -57,7 +57,13 @@ type IconName =
   | "mic"
   | "image"
   | "instagram"
-  | "link";
+  | "link"
+  | "cpu"
+  | "trendingUp"
+  | "zap"
+  | "activity"
+  | "apple"
+  | "google";
 
 type Family = "ion" | "feather" | "fa";
 
@@ -112,6 +118,12 @@ const MAP: Record<IconName, { family: Family; name: string }> = {
   image: { family: "feather", name: "image" },
   instagram: { family: "fa", name: "instagram" },
   link: { family: "feather", name: "link" },
+  cpu: { family: "feather", name: "cpu" },
+  trendingUp: { family: "feather", name: "trending-up" },
+  zap: { family: "feather", name: "zap" },
+  activity: { family: "feather", name: "activity" },
+  apple: { family: "fa", name: "apple" },
+  google: { family: "fa", name: "google" },
 };
 
 export interface IconProps {

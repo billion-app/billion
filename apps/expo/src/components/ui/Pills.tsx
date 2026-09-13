@@ -1,19 +1,82 @@
 /** Pills — horizontally scrolling row of filter chips (full-bleed edges). */
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { Children } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 
-export function Pills({ children }: { children: ReactNode }) {
+import { DigestSpace } from "~/styles";
+
+const CHIP_GAP = 8;
+
+/**
+ * Chip row. Default `layout="scroll"` keeps All / Bills / Executive / Courts /
+ * Briefings on one line (last chip may peek). Optional `layout="wrap"` is for
+ * screens that need a wrapping chip cloud.
+ */
+export function Pills({
+  children,
+  layout = "scroll",
+}: {
+  children: ReactNode;
+  layout?: "wrap" | "scroll";
+}) {
+  const items = Children.toArray(children);
+
+  if (layout === "scroll") {
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        directionalLockEnabled
+        style={s.scroll}
+        contentContainerStyle={s.scrollRow}
+      >
+        {items.map((child, index) => (
+          <View
+            key={index}
+            style={index < items.length - 1 ? s.chipScrollGap : s.chipWrap}
+          >
+            {child}
+          </View>
+        ))}
+      </ScrollView>
+    );
+  }
+
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={s.row}
-    >
-      {children}
-    </ScrollView>
+    <View style={s.wrapRow}>
+      {items.map((child, index) => (
+        <View key={index} style={s.chipWrap}>
+          {child}
+        </View>
+      ))}
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  row: { paddingHorizontal: 20, gap: 8, paddingBottom: 4 },
+  wrapRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    paddingHorizontal: DigestSpace.screenPadX,
+    gap: CHIP_GAP,
+    paddingBottom: 4,
+  },
+  scroll: {
+    flexGrow: 0,
+  },
+  scrollRow: {
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    alignItems: "center",
+    paddingHorizontal: DigestSpace.screenPadX,
+    paddingBottom: 4,
+  },
+  chipWrap: {
+    flexShrink: 0,
+  },
+  chipScrollGap: {
+    flexShrink: 0,
+    marginRight: CHIP_GAP,
+  },
 });
