@@ -5,38 +5,43 @@ import {
   Alert,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import type { ContentItem } from "~/utils/content";
 import type { FeaturedBillItem } from "~/utils/featured-bills";
-import { ElectionBanner } from "~/components/ElectionBanner";
-import { FeaturedBills } from "~/components/FeaturedBills";
+import { EmptySearchMark } from "~/components/digest/CraftMarks";
 import { DigestHome } from "~/components/DigestHome";
 import { ProfileMarkButton } from "~/components/DigestProfileMark";
+import { ElectionBanner } from "~/components/ElectionBanner";
+import { FeaturedBills } from "~/components/FeaturedBills";
 import {
   JurisdictionPicker,
   JurisdictionScopeRow,
 } from "~/components/JurisdictionPicker";
 import { Text } from "~/components/Themed";
-import { ContentCard, Icon, Pill, Pills, SearchInput } from "~/components/ui";
+import { ContentCard, Icon, SearchInput } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useDebounced } from "~/hooks/useDebounce";
 import { isSaveable, useSavedContent } from "~/hooks/useSavedContent";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import {
-  fontBody,
-  fontDisplay,
   DigestHair,
   DigestPalette,
   DigestRadii,
   DigestSpace,
+  fontBody,
+  fontDisplay,
 } from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
@@ -270,56 +275,68 @@ export function BrowseCatalog() {
         ListHeaderComponent={
           <>
             <View style={s.headerPad}>
+              <JurisdictionScopeRow
+                jurisdiction={jurisdiction}
+                onPress={() => setJurisdictionPickerOpen(true)}
+              />
               <View style={s.headerRow}>
                 {/* Takes the row's remaining width rather than sizing to its
                     own measurement: the display serif loads asynchronously,
                     and a box measured against the fallback font clips the
                     last glyph once the real face swaps in. */}
                 <Text style={[s.display, s.headerTitle]}>Browse</Text>
-                {/* The saved list otherwise lives only under Settings, which
-                    is hidden outside development — content nobody can get
-                    back to is not saved in any useful sense. */}
                 <TouchableOpacity
                   style={s.savedBtn}
                   onPress={openSaved}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Open saved articles"
+                  accessibilityLabel="Open what you follow"
                   testID="browse-saved"
                 >
-                  <Icon name="bookmark" size={16} color={DigestPalette.inkOnNight} />
-                  <Text style={s.savedBtnText}>Saved</Text>
+                  <Icon
+                    name="bookmark"
+                    size={22}
+                    color={DigestPalette.inkOnNight}
+                  />
                 </TouchableOpacity>
                 <ProfileMarkButton menuTop={insets.top + 52} />
               </View>
-              <Text style={s.subtitle}>
-                What {jurisdictionInfo.subtitlePlace} is{" "}
-                <Text style={s.subtitleEm}>actually</Text> doing.
-              </Text>
-              <JurisdictionScopeRow
-                jurisdiction={jurisdiction}
-                onPress={() => setJurisdictionPickerOpen(true)}
-              />
               <SearchInput
-                placeholder="Search bills, cases, orders…"
+                placeholder="Search"
                 value={query}
                 onChangeText={handleSearch}
                 clearButtonMode="while-editing"
                 returnKeyType="search"
-                style={{ marginBottom: 12 }}
+                style={{ marginTop: 18, marginBottom: 8 }}
               />
             </View>
 
-            <Pills>
-              {FILTERS.map((f) => (
-                <Pill
-                  key={f.id}
-                  label={f.label}
-                  active={filter === f.id}
-                  onPress={() => handleFilterChange(f.id)}
-                />
-              ))}
-            </Pills>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              directionalLockEnabled
+              style={s.filterScroll}
+              contentContainerStyle={s.filterRow}
+            >
+              {FILTERS.map((f) => {
+                const active = filter === f.id;
+                return (
+                  <TouchableOpacity
+                    key={f.id}
+                    onPress={() => handleFilterChange(f.id)}
+                    activeOpacity={0.8}
+                    style={s.filterTab}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text style={[s.filterLabel, active && s.filterLabelOn]}>
+                      {f.label}
+                    </Text>
+                    {active ? <View style={s.filterRule} /> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
             {upcomingElection && (
               <ElectionBanner
@@ -348,18 +365,13 @@ export function BrowseCatalog() {
               <View style={s.resultsCountWrap}>
                 <Text style={s.resultsCount}>
                   {items.length} {isState ? "bill" : "result"}
-                  {items.length === 1 ? "" : "s"} ·{" "}
-                  {isSearching
-                    ? "sorted by relevance"
-                    : isState
-                      ? "sorted by latest action"
-                      : "sorted by recent"}
+                  {items.length === 1 ? "" : "s"}
                 </Text>
               </View>
             )}
           </>
         }
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ItemSeparatorComponent={() => <View style={s.rowRule} />}
         renderItem={({ item }) => (
           <View style={s.cardWrap}>
             <ContentCard
@@ -395,7 +407,7 @@ export function BrowseCatalog() {
                   onPress={() => void setJurisdiction(otherJurisdiction)}
                 >
                   <Text style={s.switchText}>Switch</Text>
-                  <Icon name="chevR" size={15} color={DigestPalette.spark} />
+                  <Icon name="chevR" size={15} color={DigestPalette.quiet} />
                 </TouchableOpacity>
               </View>
               {(otherSearchQuery.data ?? []).map((item) => (
@@ -456,19 +468,20 @@ export function BrowseCatalog() {
             </View>
           ) : (
             <View style={s.center}>
+              <EmptySearchMark width={88} />
               <Text style={s.emptyTitle}>
                 {isState && filter === "court_case"
                   ? `No ${jurisdictionInfo.name} court cases yet`
                   : isState
                     ? `No ${jurisdictionInfo.name} ${filter === "all" ? "bills" : "records"} found`
                     : isSearching
-                      ? `No federal match for “${query.trim()}”`
+                      ? `No match for “${query.trim()}”`
                       : "Nothing found"}
               </Text>
               <Text style={s.emptySub}>
                 {isState
-                  ? `Billion covers ${jurisdictionInfo.name}’s Legislature today. State courts and executive orders aren’t ingested yet.`
-                  : "Try a different search or filter."}
+                  ? `${jurisdictionInfo.name} legislature only — courts and orders aren’t in yet.`
+                  : "Try a different search."}
               </Text>
               {isState && filter !== "bill" && filter !== "all" ? (
                 <TouchableOpacity
@@ -513,39 +526,52 @@ const s = StyleSheet.create({
   },
   headerTitle: { flex: 1 },
   savedBtn: {
-    flexDirection: "row",
+    width: 40,
+    height: 40,
     alignItems: "center",
-    gap: 7,
-    backgroundColor: DigestPalette.card,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
-    borderRadius: 18,
-    paddingVertical: 8,
-    paddingHorizontal: 13,
-  },
-  savedBtnText: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13,
-    color: DigestPalette.inkOnNight,
+    justifyContent: "center",
   },
   display: {
     fontFamily: fontDisplay.bold,
-    fontSize: 36,
+    fontSize: 42,
     color: DigestPalette.inkOnNight,
-    lineHeight: 40,
-    letterSpacing: -0.7,
+    lineHeight: 46,
+    letterSpacing: -1.1,
   },
-  subtitle: {
-    fontFamily: fontBody.regular,
-    fontSize: 14.5,
+  filterScroll: { flexGrow: 0 },
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    paddingHorizontal: DigestSpace.screenPadX,
+    gap: 16,
+    paddingTop: 10,
+    paddingBottom: 8,
+    alignItems: "flex-end",
+  },
+  filterTab: {
+    paddingBottom: 8,
+  },
+  filterLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
     color: DigestPalette.quiet,
-    marginTop: 4,
-    marginBottom: 16,
   },
-  subtitleEm: {
-    fontFamily: fontDisplay.italic,
-    fontStyle: "italic",
+  filterLabelOn: {
     color: DigestPalette.inkOnNight,
+  },
+  filterRule: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2,
+    backgroundColor: DigestPalette.inkOnNight,
+    borderRadius: 1,
+  },
+  rowRule: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: DigestHair.sectionRule,
+    marginHorizontal: DigestSpace.screenPadX,
   },
   cardWrap: { paddingHorizontal: DigestSpace.screenPadX },
   resultsCountWrap: {
@@ -570,7 +596,7 @@ const s = StyleSheet.create({
   errorText: {
     fontFamily: fontBody.medium,
     fontSize: 16,
-    color: DigestPalette.spark,
+    color: DigestPalette.inkOnNight,
   },
   emptyTitle: {
     fontFamily: fontDisplay.bold,
@@ -616,7 +642,7 @@ const s = StyleSheet.create({
   switchText: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: DigestPalette.spark,
+    color: DigestPalette.inkOnNight,
   },
   otherCard: { marginTop: 12 },
 });
