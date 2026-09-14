@@ -1,8 +1,8 @@
 /**
  * Profile mark — the account affordance in the top right.
  *
- * Feedback and Settings used to be tab bar destinations. They now live behind
- * this mark, which keeps the bottom bar to the three reading destinations.
+ * Feedback and Settings live behind this mark, which keeps the bottom bar
+ * to the three reading destinations.
  */
 import type { Href } from "expo-router";
 import { useState } from "react";

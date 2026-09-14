@@ -26,7 +26,7 @@ const FAQS = [
   },
   {
     q: "How do I change my district?",
-    a: "Update your address under Elections, or in Edit Profile. We re-pull your ballot automatically.",
+    a: "Update your address under Elections. We re-pull your ballot automatically.",
   },
 ];
 

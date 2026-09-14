@@ -36,6 +36,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { monthDay } from "~/utils/dates";
+import { ELECTIONS_LIVE } from "~/utils/elections-live";
 import {
   contestListTitle,
   earliestEarlyVoteStart,
@@ -168,6 +169,39 @@ function MeasureCard({
 }
 
 export default function ElectionsScreen() {
+  if (!ELECTIONS_LIVE) return <ElectionsComingSoon />;
+  return <ElectionsLive />;
+}
+
+function ElectionsComingSoon() {
+  const insets = useSafeAreaInsets();
+  return (
+    <TabScreen
+      title="Elections"
+      action={<ProfileMarkButton menuTop={insets.top + 52} />}
+      contentStyle={{
+        flexGrow: 1,
+        justifyContent: "center",
+        paddingHorizontal: DigestSpace.screenPadX,
+      }}
+    >
+      <View
+        style={s.comingSoon}
+        accessibilityRole="text"
+        accessibilityLabel="Elections page coming soon"
+      >
+        <EmptyBallotMark width={96} />
+        <Text style={s.comingSoonTitle}>Elections page coming soon</Text>
+        <Text style={s.comingSoonDek}>
+          Voter tools are still in progress. This tab will open the ballot when
+          they are ready.
+        </Text>
+      </View>
+    </TabScreen>
+  );
+}
+
+function ElectionsLive() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { address: storedAddress, setAddress } = useUserAddress();
@@ -279,7 +313,7 @@ export default function ElectionsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Edit registered address"
           >
-            <PinMark size={14} color={DigestPalette.spark} />
+            <PinMark size={14} color={DigestPalette.quiet} />
             <Text style={s.addrText} numberOfLines={1}>
               {storedAddress}
             </Text>
@@ -375,7 +409,7 @@ export default function ElectionsScreen() {
       {voterInfoQuery.isLoading && (
         <View style={s.section}>
           <View style={s.lookupRow}>
-            <ActivityIndicator color={DigestPalette.spark} />
+            <ActivityIndicator color={DigestPalette.inkOnNight} />
             <Text style={s.lookupTitle}>Looking up your ballot</Text>
           </View>
         </View>
@@ -554,7 +588,7 @@ export default function ElectionsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Find your polling place"
         >
-          <PinMark size={18} color={DigestPalette.spark} />
+          <PinMark size={18} color={DigestPalette.quiet} />
           <View style={{ flex: 1 }}>
             <Text style={s.pollTitle}>Polling place</Text>
             <Text style={s.pollSub}>
@@ -591,7 +625,7 @@ const s = StyleSheet.create({
   addrEdit: {
     fontFamily: fontBody.semibold,
     fontSize: 14,
-    color: DigestPalette.spark,
+    color: DigestPalette.inkOnNight,
   },
   section: { paddingHorizontal: DigestSpace.screenPadX },
   lookupRow: {
@@ -698,18 +732,18 @@ const s = StyleSheet.create({
   readMoreText: {
     fontFamily: fontBody.semibold,
     fontSize: 15,
-    color: DigestPalette.spark,
+    color: DigestPalette.inkOnNight,
   },
   aiChipText: {
     fontFamily: fontBody.medium,
     fontSize: 12,
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
   },
   fiscalRow: { gap: 3 },
   fiscalLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
     textTransform: "uppercase",
     letterSpacing: 1.4,
   },
@@ -756,7 +790,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.bold,
     fontSize: 11,
     letterSpacing: 1.8,
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
     textTransform: "uppercase",
   },
   emptyLead: {
@@ -773,7 +807,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.bold,
     fontSize: 11,
     letterSpacing: 1.8,
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
     textTransform: "uppercase",
     marginBottom: 8,
   },
@@ -817,5 +851,26 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: DigestPalette.quiet,
     marginTop: 2,
+  },
+  comingSoon: {
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 32,
+  },
+  comingSoonTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.4,
+    color: DigestPalette.inkOnNight,
+    textAlign: "center",
+  },
+  comingSoonDek: {
+    fontFamily: fontBody.medium,
+    fontSize: 15,
+    lineHeight: 22,
+    color: DigestPalette.quiet,
+    textAlign: "center",
+    maxWidth: 280,
   },
 });

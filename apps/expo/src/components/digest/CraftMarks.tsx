@@ -107,7 +107,7 @@ export function SponsorCrest({ size = 40 }: { size?: number }) {
         d="M24 8L28 18H38L30 24L33 34L24 28L15 34L18 24L10 18H20L24 8Z"
         stroke={SPARK}
         strokeWidth={1.2}
-        fill="rgba(196,163,90,0.12)"
+        fill="rgba(212,175,55,0.12)"
       />
     </Svg>
   );
@@ -130,13 +130,13 @@ export function MeasureBalance({ width = 40 }: { width?: number }) {
         d="M8 8L4 16H12L8 8Z"
         stroke={SPARK}
         strokeWidth={1.2}
-        fill="rgba(196,163,90,0.15)"
+        fill="rgba(212,175,55,0.15)"
       />
       <Path
         d="M32 8L28 16H36L32 8Z"
         stroke={SPARK}
         strokeWidth={1.2}
-        fill="rgba(196,163,90,0.15)"
+        fill="rgba(212,175,55,0.15)"
       />
     </Svg>
   );
@@ -217,7 +217,7 @@ export function BriefSeal({ size = 28 }: { size?: number }) {
       />
       <Path
         d="M18 10.5L19.8 16.2H25.8L21 19.7L22.8 25.5L18 22L13.2 25.5L15 19.7L10.2 16.2H16.2L18 10.5Z"
-        fill="rgba(196,163,90,0.18)"
+        fill="rgba(212,175,55,0.18)"
         stroke={SPARK}
         strokeWidth={0.9}
       />
@@ -362,7 +362,7 @@ export function SettingsCrest({ size = 40 }: { size?: number }) {
         r={5}
         stroke={SPARK}
         strokeWidth={1.2}
-        fill="rgba(196,163,90,0.12)"
+        fill="rgba(212,175,55,0.12)"
       />
       <Path
         d="M10 30C12.5 24.5 16 22 20 22C24 22 27.5 24.5 30 30"

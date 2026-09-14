@@ -105,18 +105,28 @@ export function FeaturedBills({
   items,
   loading,
   onOpen,
+  onLockParent,
 }: {
   items: readonly FeaturedBillItem[];
   loading: boolean;
   onOpen: (item: FeaturedBillItem, index: number) => void;
+  /** Freeze the enclosing vertical list while a card is being swiped. */
+  onLockParent?: (locked: boolean) => void;
 }) {
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = Math.max(280, Math.min(screenWidth * 0.84, 380));
+  const lock = (held: boolean) => onLockParent?.(held);
 
   if (!loading && items.length === 0) return null;
 
   return (
-    <View style={s.section} testID="featured-bills">
+    <View
+      style={s.section}
+      testID="featured-bills"
+      onTouchStart={() => lock(true)}
+      onTouchEnd={() => lock(false)}
+      onTouchCancel={() => lock(false)}
+    >
       {loading ? (
         <FeaturedBillsSkeleton width={cardWidth} />
       ) : (
@@ -129,6 +139,12 @@ export function FeaturedBills({
           decelerationRate="fast"
           disableIntervalMomentum
           directionalLockEnabled
+          nestedScrollEnabled
+          alwaysBounceVertical={false}
+          alwaysBounceHorizontal
+          overScrollMode="never"
+          onScrollEndDrag={() => lock(false)}
+          onMomentumScrollEnd={() => lock(false)}
         >
           {items.map((item, index) => (
             <FeaturedBillCard

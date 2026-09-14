@@ -32,7 +32,7 @@ export function SettingsRow({
       accessibilityLabel={sub ? `${label}. ${sub}` : label}
     >
       <View style={s.mark}>
-        <Icon name={icon} size={18} color={danger ? P.quiet : P.spark} />
+        <Icon name={icon} size={18} color={danger ? P.quiet : P.inkOnNight} />
       </View>
       <View style={s.body}>
         <Text style={[s.label, { color: fg }]}>{label}</Text>
@@ -59,7 +59,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: DigestHair.tabActivePill,
+    backgroundColor: P.stone,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -1,6 +1,6 @@
 /**
- * Follow is the existing device-local saved set, spoken as a watch rather
- * than a bookmark. Storage keys and analytics names stay as they are.
+ * Save is the existing device-local saved set. Storage keys and analytics
+ * names stay as they are.
  */
 
 export function followNoun(type: string | undefined): string {
@@ -20,12 +20,14 @@ export function followNoun(type: string | undefined): string {
 
 export function followAccessibilityLabel(
   type: string | undefined,
-  following: boolean,
+  saved: boolean,
   title?: string,
 ): string {
   const noun = followNoun(type);
   if (title) {
-    return following ? `Stop following ${title}` : `Follow ${title}`;
+    return saved ? `Remove ${title} from saved` : `Save ${title} for later`;
   }
-  return following ? `Stop following this ${noun}` : `Follow this ${noun}`;
+  return saved
+    ? `Remove this ${noun} from saved`
+    : `Save this ${noun} for later`;
 }

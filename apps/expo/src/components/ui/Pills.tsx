@@ -27,6 +27,8 @@ export function Pills({
         horizontal
         showsHorizontalScrollIndicator={false}
         directionalLockEnabled
+        alwaysBounceVertical={false}
+        overScrollMode="never"
         style={s.scroll}
         contentContainerStyle={s.scrollRow}
       >

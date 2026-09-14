@@ -44,16 +44,14 @@ import * as WebBrowser from "expo-web-browser";
 import Markdown from "@ronradtke/react-native-markdown-display";
 
 import type { IconName } from "./Icon";
-import { DeltaMark } from "~/components/digest/CraftMarks";
 import {
+  colors,
   darkTheme,
-  DigestHair,
-  DigestRadii,
   fontBody,
-  fontDisplay,
   fontEditorial,
   getMarkdownStyles,
-  DigestPalette as P,
+  hair,
+  planes,
 } from "~/styles";
 import { Icon } from "./Icon";
 
@@ -205,12 +203,20 @@ function Hook({
 
   return (
     <View
-      style={s.summaryCard}
+      style={[s.summaryCard, { borderLeftColor: accent }]}
       testID="brief-summary"
-      accessibilityLabel={
-        legalStatus === "enacted" ? "Enacted law" : "Proposed legislation"
-      }
     >
+      <View style={s.summaryHead}>
+        <View style={[s.summaryIcon, { backgroundColor: `${accent}28` }]}>
+          <Icon name="sparkle" size={16} color={accent} />
+        </View>
+        <Text style={s.summaryTitle}>The short version</Text>
+        <View style={[s.summaryStatus, { borderColor: `${accent}66` }]}>
+          <Text style={[s.summaryStatusText, { color: accent }]}>
+            {legalStatus === "enacted" ? "LAW" : "PROPOSAL"}
+          </Text>
+        </View>
+      </View>
       <EmphasizedText style={s.summaryText} testID="brief-summary-text">
         {shortText}
       </EmphasizedText>
@@ -226,12 +232,16 @@ function Hook({
           }
         >
           <Text style={[s.summaryToggleText, { color: accent }]}>
-            {expanded ? "Less" : "More"}
+            {expanded ? "Hide extended version" : "Read extended version"}
           </Text>
+          <View style={expanded ? s.chevFlip : undefined}>
+            <Icon name="chevD" size={14} color={accent} />
+          </View>
         </TouchableOpacity>
       ) : null}
       {expanded ? (
         <View style={s.extendedSummary} testID="brief-hook">
+          <Text style={s.extendedSummaryLabel}>EXTENDED VERSION</Text>
           <EmphasizedText style={s.extendedSummaryText}>{text}</EmphasizedText>
         </View>
       ) : null}
@@ -335,7 +345,7 @@ function WhyNotBefore({
                     {source.publisher}
                   </Text>
                 </View>
-                <Icon name="external" size={13} color={P.quiet} />
+                <Icon name="external" size={13} color={colors.textSecondary} />
               </TouchableOpacity>
             ))}
           </View>
@@ -370,12 +380,12 @@ function QuoteDisclosure({
           open ? "Hide the source text" : "Show the source text"
         }
       >
-        <Icon name="quote" size={11} color={P.quiet} />
+        <Icon name="quote" size={11} color={colors.textSecondary} />
         <Text style={s.quoteToggleText}>
           {quote.locator ? `In the text · ${quote.locator}` : "In the text"}
         </Text>
         <View style={open ? s.chevFlip : undefined}>
-          <Icon name="chevD" size={13} color={P.quiet} />
+          <Icon name="chevD" size={13} color={colors.textSecondary} />
         </View>
       </TouchableOpacity>
       {open && (
@@ -392,7 +402,7 @@ function QuoteDisclosure({
           accessibilityLabel={`View source${quote.locator ? ` at ${quote.locator}` : ""}`}
         >
           <Text style={s.viewSourceText}>View source</Text>
-          <Icon name="arrowRight" size={13} color={P.ink} />
+          <Icon name="arrowRight" size={13} color={colors.white} />
         </TouchableOpacity>
       ) : null}
     </View>
@@ -425,6 +435,10 @@ function Changes({
         decelerationRate="fast"
         disableIntervalMomentum
         nestedScrollEnabled
+        directionalLockEnabled
+        alwaysBounceVertical={false}
+        alwaysBounceHorizontal
+        overScrollMode="never"
         onMomentumScrollEnd={(event) => {
           const next = Math.round(
             event.nativeEvent.contentOffset.x / snapInterval,
@@ -463,7 +477,10 @@ function Changes({
                 <EmphasizedText style={s.deltaText}>{c.before}</EmphasizedText>
               </View>
               <View style={s.deltaTransition}>
-                <DeltaMark height={22} />
+                <View
+                  style={[s.deltaTransitionLine, { backgroundColor: accent }]}
+                />
+                <Icon name="arrowDown" size={13} color={accent} />
                 <Text style={[s.deltaTransitionText, { color: accent }]}>
                   THE PROPOSAL CHANGES THIS
                 </Text>
@@ -620,7 +637,7 @@ function Unknowns({
   return (
     <View style={s.unknownCard} testID="brief-unknowns">
       <View style={s.unknownHead}>
-        <Icon name="help" size={15} color={P.quiet} />
+        <Icon name="help" size={15} color={colors.textSecondary} />
         <Text style={s.unknownTitle}>What the text doesn&apos;t settle</Text>
       </View>
       <View style={s.unknownList}>
@@ -663,14 +680,11 @@ function Terms({
             key={i}
             style={[
               s.termRow,
-              { borderLeftColor: i % 2 === 0 ? accent : P.badgeIndigo },
+              { borderLeftColor: i % 2 === 0 ? accent : "#8B7CFF" },
             ]}
           >
             <Text
-              style={[
-                s.termName,
-                { color: i % 2 === 0 ? accent : P.badgeIndigo },
-              ]}
+              style={[s.termName, { color: i % 2 === 0 ? accent : "#A99EFF" }]}
             >
               {t.term}
             </Text>
@@ -693,16 +707,7 @@ function FurtherReading({
   accent: string;
 }) {
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
-  const markdownStyles = getMarkdownStyles({
-    ...darkTheme,
-    background: P.canvas,
-    foreground: P.inkOnNight,
-    card: P.card,
-    cardForeground: P.inkOnNight,
-    muted: P.card,
-    mutedForeground: P.quiet,
-    accent: P.spark,
-  });
+  const markdownStyles = getMarkdownStyles(darkTheme);
   if (!deepDive && reading.length === 0) return null;
 
   const openExternal = (url: string) => {
@@ -751,7 +756,7 @@ function FurtherReading({
             accessibilityLabel={`Read ${item.title} from ${item.publisher}`}
           >
             <View style={s.readingIcon}>
-              <Icon name="external" size={15} color={P.quiet} />
+              <Icon name="external" size={15} color={colors.textSecondary} />
             </View>
             <View style={s.readingCopy}>
               <Text style={s.readingPublisher}>{item.publisher}</Text>
@@ -770,7 +775,7 @@ function FurtherReading({
                 {item.whyRead}
               </EmphasizedText>
             </View>
-            <Icon name="chevR" size={16} color={P.quiet} />
+            <Icon name="chevR" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         ))}
       </View>
@@ -796,7 +801,7 @@ function FurtherReading({
                 accessibilityRole="button"
                 accessibilityLabel="Close explainer"
               >
-                <Icon name="close" size={20} color={P.inkOnNight} />
+                <Icon name="close" size={20} color={colors.white} />
               </TouchableOpacity>
             </View>
             <ScrollView
@@ -822,7 +827,11 @@ function FurtherReading({
                         <Text style={s.readingPublisher}>{item.publisher}</Text>
                         <Text style={s.modalSourceTitle}>{item.title}</Text>
                       </View>
-                      <Icon name="external" size={15} color={P.quiet} />
+                      <Icon
+                        name="external"
+                        size={15}
+                        color={colors.textSecondary}
+                      />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -843,7 +852,7 @@ function BlockTitle({ children }: { children: string }) {
 /* ---------- BillBrief ---------- */
 export function BillBrief({
   data,
-  accent = P.spark,
+  accent = colors.civicBlue,
   dualLens,
   onViewSource,
 }: {
@@ -868,23 +877,15 @@ export function BillBrief({
       ) : null}
       <Terms terms={data.terms} accent={accent} />
 
-      {data.changes.length > 0 ? (
-        <>
-          <BlockTitle>What would change</BlockTitle>
-          <Changes
-            changes={data.changes}
-            accent={accent}
-            onViewSource={onViewSource}
-          />
-        </>
-      ) : null}
+      <BlockTitle>What would change</BlockTitle>
+      <Changes
+        changes={data.changes}
+        accent={accent}
+        onViewSource={onViewSource}
+      />
 
-      {data.affected.length > 0 ? (
-        <>
-          <BlockTitle>Who it lands on</BlockTitle>
-          <Affected affected={data.affected} />
-        </>
-      ) : null}
+      <BlockTitle>Who it lands on</BlockTitle>
+      <Affected affected={data.affected} />
 
       <Unknowns unknowns={data.unknowns} accent={accent} />
 
@@ -910,11 +911,17 @@ export function BillBrief({
 }
 
 const s = StyleSheet.create({
-  root: { gap: 16 },
+  root: { gap: 18 },
 
   /* summary */
   summaryCard: {
-    gap: 8,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderLeftWidth: 3,
+    borderRadius: 14,
+    padding: 16,
+    gap: 13,
   },
   summaryHead: { flexDirection: "row", alignItems: "center", gap: 9 },
   summaryIcon: {
@@ -926,10 +933,9 @@ const s = StyleSheet.create({
   },
   summaryTitle: {
     flex: 1,
-    fontFamily: fontDisplay.bold,
+    fontFamily: fontEditorial.bold,
     fontSize: 17,
-    letterSpacing: -0.25,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   summaryStatus: {
     borderWidth: 1,
@@ -943,11 +949,10 @@ const s = StyleSheet.create({
     letterSpacing: 0.8,
   },
   summaryText: {
-    fontFamily: fontDisplay.regular,
-    fontSize: 18,
-    lineHeight: 26,
-    letterSpacing: -0.2,
-    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.white,
   },
   summaryToggle: {
     minHeight: 32,
@@ -962,7 +967,7 @@ const s = StyleSheet.create({
   },
   extendedSummary: {
     borderTopWidth: 1,
-    borderTopColor: DigestHair.cardBorder,
+    borderTopColor: hair[1],
     paddingTop: 13,
     gap: 7,
   },
@@ -970,22 +975,20 @@ const s = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: 9,
     letterSpacing: 0.9,
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   extendedSummaryText: {
     fontFamily: fontBody.regular,
     fontSize: 14,
     lineHeight: 21,
-    color: "rgba(247,244,238,0.78)",
+    color: "rgba(255,255,255,0.78)",
   },
 
   /* block heading */
   blockTitle: {
-    fontFamily: fontBody.bold,
-    fontSize: 10.5,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    color: P.spark,
+    fontFamily: fontEditorial.bold,
+    fontSize: 18,
+    color: colors.white,
     marginBottom: -6,
   },
 
@@ -997,9 +1000,9 @@ const s = StyleSheet.create({
     paddingRight: 28,
   },
   changeCard: {
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
     borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
+    borderColor: hair[1],
     borderRadius: 14,
     padding: 15,
     gap: 11,
@@ -1015,14 +1018,14 @@ const s = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 999,
-    backgroundColor: DigestHair.coverBorder,
+    backgroundColor: hair[2],
   },
   changePagerDotActive: { width: 18 },
   changePagerText: {
     marginLeft: 4,
     fontFamily: fontBody.medium,
     fontSize: 10.5,
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   changeHead: { flexDirection: "row", alignItems: "center" },
   kindChip: {
@@ -1040,17 +1043,17 @@ const s = StyleSheet.create({
     marginLeft: "auto",
     fontFamily: fontBody.medium,
     fontSize: 10.5,
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   changeTitle: {
     fontFamily: fontBody.semibold,
     fontSize: 16,
     lineHeight: 22,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   deltaStack: { gap: 8 },
   deltaBefore: {
-    backgroundColor: P.canvas,
+    backgroundColor: planes.surface,
     borderRadius: 10,
     padding: 12,
     gap: 5,
@@ -1065,23 +1068,23 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 9,
     letterSpacing: 0.9,
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   deltaText: {
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 19,
-    color: "rgba(247,244,238,0.66)",
+    color: "rgba(255,255,255,0.66)",
   },
   // The "after" column carries the actual change, so it reads at full strength
   // while "now" recedes. This is emphasis, not endorsement.
-  deltaTextAfter: { color: "rgba(247,244,238,0.92)" },
+  deltaTextAfter: { color: "rgba(255,255,255,0.92)" },
   deltaTransition: {
-    minHeight: 22,
+    height: 18,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 4,
+    gap: 5,
+    paddingHorizontal: 8,
   },
   deltaTransitionLine: { width: 2, height: 18, borderRadius: 2 },
   deltaTransitionText: {
@@ -1091,7 +1094,7 @@ const s = StyleSheet.create({
   },
   inlineStrong: {
     fontFamily: fontBody.semibold,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   inlineStrongEditorial: {
     fontFamily: fontEditorial.bold,
@@ -1100,14 +1103,14 @@ const s = StyleSheet.create({
   changeVisual: {
     height: 142,
     borderRadius: 11,
-    backgroundColor: P.canvas,
+    backgroundColor: planes.ink,
   },
 
   /* cited historical context */
   contextCard: {
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
     borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
+    borderColor: hair[1],
     borderRadius: 14,
     padding: 14,
   },
@@ -1128,25 +1131,25 @@ const s = StyleSheet.create({
     fontFamily: fontEditorial.bold,
     fontSize: 16,
     lineHeight: 21,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   contextSummary: {
     fontFamily: fontBody.regular,
     fontSize: 12.5,
     lineHeight: 18,
-    color: "rgba(247,244,238,0.72)",
+    color: "rgba(255,255,255,0.72)",
   },
   contextDetails: {
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: DigestHair.cardBorder,
+    borderTopColor: hair[1],
     gap: 12,
   },
   contextPoint: {
     flexDirection: "row",
     gap: 10,
-    backgroundColor: P.canvas,
+    backgroundColor: planes.surface,
     borderRadius: 10,
     padding: 11,
   },
@@ -1161,7 +1164,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 19,
-    color: "rgba(247,244,238,0.82)",
+    color: "rgba(255,255,255,0.82)",
   },
   contextCitations: { flexDirection: "row", gap: 5 },
   contextCitation: {
@@ -1174,7 +1177,7 @@ const s = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   contextSource: {
     flexDirection: "row",
@@ -1190,18 +1193,18 @@ const s = StyleSheet.create({
   contextSourceTitle: {
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   contextSourcePublisher: {
     fontFamily: fontBody.regular,
     fontSize: 10.5,
-    color: P.quiet,
+    color: colors.textSecondary,
   },
 
   /* quote disclosure */
   quoteWrap: {
     borderTopWidth: 1,
-    borderTopColor: DigestHair.cardBorder,
+    borderTopColor: hair[1],
     paddingTop: 10,
     gap: 9,
   },
@@ -1210,18 +1213,18 @@ const s = StyleSheet.create({
     flex: 1,
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   quoteBody: {
-    backgroundColor: P.paper,
-    borderRadius: DigestRadii.menuRow,
+    backgroundColor: planes.ink,
+    borderRadius: 10,
     padding: 12,
   },
   quoteText: {
     fontFamily: fontEditorial.italic,
     fontSize: 13.5,
     lineHeight: 20,
-    color: P.ink,
+    color: "rgba(255,255,255,0.8)",
   },
   viewSourceButton: {
     alignSelf: "flex-start",
@@ -1235,7 +1238,7 @@ const s = StyleSheet.create({
   viewSourceText: {
     fontFamily: fontBody.semibold,
     fontSize: 11.5,
-    color: P.ink,
+    color: colors.white,
   },
 
   /* affected */
@@ -1243,9 +1246,9 @@ const s = StyleSheet.create({
   affectedRow: {
     width: "100%",
     minWidth: 0,
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
     borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
+    borderColor: hair[1],
     borderRadius: 14,
     padding: 14,
     alignItems: "stretch",
@@ -1275,14 +1278,14 @@ const s = StyleSheet.create({
     flexShrink: 1,
     fontFamily: fontBody.bold,
     fontSize: 14.5,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   affectedDirection: {
     fontFamily: fontBody.medium,
     fontSize: 10,
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   directionChip: {
     flexShrink: 0,
@@ -1298,13 +1301,13 @@ const s = StyleSheet.create({
     fontFamily: fontEditorial.regular,
     fontSize: 15.5,
     lineHeight: 21,
-    color: "rgba(247,244,238,0.72)",
+    color: "rgba(255,255,255,0.72)",
   },
   affectedEffect: {
     fontFamily: fontBody.regular,
     fontSize: 13.5,
     lineHeight: 20,
-    color: "rgba(247,244,238,0.78)",
+    color: "rgba(255,255,255,0.78)",
   },
   affectedMore: {
     alignSelf: "flex-start",
@@ -1321,14 +1324,14 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 12.5,
     lineHeight: 18,
-    color: "rgba(247,244,238,0.68)",
+    color: "rgba(255,255,255,0.68)",
   },
 
   /* unknowns */
   unknownCard: {
-    backgroundColor: P.canvas,
+    backgroundColor: planes.surface,
     borderWidth: 1,
-    borderColor: DigestHair.coverBorder,
+    borderColor: hair[2],
     borderRadius: 14,
     padding: 15,
     gap: 10,
@@ -1337,13 +1340,13 @@ const s = StyleSheet.create({
   unknownTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: 15,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   unknownList: { gap: 8 },
   unknownRow: {
     flexDirection: "row",
     gap: 10,
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
     borderRadius: 10,
     padding: 11,
   },
@@ -1358,7 +1361,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 13.5,
     lineHeight: 20,
-    color: "rgba(247,244,238,0.78)",
+    color: "rgba(255,255,255,0.78)",
   },
 
   /* disclosures */
@@ -1366,9 +1369,9 @@ const s = StyleSheet.create({
 
   /* terms */
   termSection: {
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
     borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
+    borderColor: hair[1],
     borderRadius: 14,
     padding: 14,
     gap: 12,
@@ -1385,17 +1388,17 @@ const s = StyleSheet.create({
   termTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: 16,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   termSubtitle: {
     fontFamily: fontBody.regular,
     fontSize: 11.5,
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   termList: { gap: 8 },
   termRow: {
     borderLeftWidth: 3,
-    backgroundColor: P.canvas,
+    backgroundColor: planes.surface,
     borderRadius: 9,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1404,13 +1407,13 @@ const s = StyleSheet.create({
   termName: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   termPlain: {
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 19,
-    color: "rgba(247,244,238,0.74)",
+    color: "rgba(255,255,255,0.74)",
   },
 
   /* further reading */
@@ -1422,9 +1425,9 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 11,
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
     borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
+    borderColor: hair[1],
     borderLeftWidth: 3,
     borderRadius: 14,
     padding: 14,
@@ -1436,9 +1439,9 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 11,
-    backgroundColor: P.canvas,
+    backgroundColor: planes.surface,
     borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
+    borderColor: hair[1],
     borderRadius: 14,
     padding: 14,
     overflow: "hidden",
@@ -1447,7 +1450,7 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 9,
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1456,34 +1459,34 @@ const s = StyleSheet.create({
     fontFamily: fontBody.bold,
     fontSize: 10,
     letterSpacing: 0.7,
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   deepDiveTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: 18,
     lineHeight: 22,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   readingTitle: {
     flexShrink: 1,
     fontFamily: fontBody.semibold,
     fontSize: 14.5,
     lineHeight: 19,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   readingWhy: {
     flexShrink: 1,
     fontFamily: fontBody.regular,
     fontSize: 12.5,
     lineHeight: 18,
-    color: "rgba(247,244,238,0.68)",
+    color: "rgba(255,255,255,0.68)",
   },
   readingAction: {
     marginTop: 4,
     fontFamily: fontBody.semibold,
     fontSize: 12,
   },
-  deepDiveModal: { flex: 1, backgroundColor: P.canvas },
+  deepDiveModal: { flex: 1, backgroundColor: planes.navy },
   modalHead: {
     flexDirection: "row",
     alignItems: "center",
@@ -1492,7 +1495,7 @@ const s = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: DigestHair.cardBorder,
+    borderBottomColor: hair[1],
   },
   modalKicker: {
     fontFamily: fontBody.bold,
@@ -1503,13 +1506,13 @@ const s = StyleSheet.create({
     marginTop: 2,
     fontFamily: fontBody.medium,
     fontSize: 12,
-    color: P.quiet,
+    color: colors.textSecondary,
   },
   modalClose: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1522,14 +1525,14 @@ const s = StyleSheet.create({
     fontFamily: fontEditorial.bold,
     fontSize: 31,
     lineHeight: 36,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   modalDek: {
     marginTop: 12,
     fontFamily: fontBody.regular,
     fontSize: 16,
     lineHeight: 24,
-    color: "rgba(247,244,238,0.7)",
+    color: "rgba(255,255,255,0.7)",
   },
   modalRule: {
     width: 44,
@@ -1542,13 +1545,13 @@ const s = StyleSheet.create({
     marginTop: 24,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: DigestHair.cardBorder,
+    borderTopColor: hair[1],
     gap: 10,
   },
   modalSourcesTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: 19,
-    color: P.inkOnNight,
+    color: colors.white,
   },
   modalSourceRow: {
     flexDirection: "row",
@@ -1560,6 +1563,6 @@ const s = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: 14,
     lineHeight: 19,
-    color: P.inkOnNight,
+    color: colors.white,
   },
 });

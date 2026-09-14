@@ -79,7 +79,7 @@ export function changeConnection(
   item: ChangeItem,
   ctx: Pick<ChangeContext, "savedIds" | "vectors" | "place">,
 ): string | undefined {
-  if (ctx.savedIds.has(item.id)) return "You follow this";
+  if (ctx.savedIds.has(item.id)) return "You saved this";
   if (item.type === "bill" && item.jurisdiction === "federal") {
     if (ctx.vectors.includes("congress")) return "You watch Congress";
   }
@@ -177,7 +177,7 @@ export function movedSummaryLines(
   }
   if (followed > 0 && followed < items.length) {
     lines.push(
-      followed === 1 ? "1 you follow moved" : `${followed} you follow moved`,
+      followed === 1 ? "1 you saved moved" : `${followed} you saved moved`,
     );
   }
   return lines;

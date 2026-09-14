@@ -1,18 +1,14 @@
 import type {
-  LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from "react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  LayoutAnimation,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  UIManager,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -24,7 +20,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { RouterOutputs } from "~/utils/api";
 import type { StateJurisdiction } from "~/utils/jurisdiction";
 import type { ChangeItem } from "~/utils/what-changed";
-import { BillProgressRail } from "~/components/digest/BillProgressRail";
 import { CAPITOL_LINE } from "~/components/digest/staticAssets";
 import { DigestGreetingBar } from "~/components/DigestGreetingBar";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
@@ -40,19 +35,7 @@ import {
   jurisdictionFromAddress,
   JURISDICTIONS,
 } from "~/utils/jurisdiction";
-import { relativeActivity } from "~/utils/relative-activity";
-import {
-  BRIEF_MAX,
-  changeConnection,
-  toChangeLine,
-} from "~/utils/what-changed";
-
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { BRIEF_MAX, changeConnection } from "~/utils/what-changed";
 
 const CANVAS = P.night;
 const CARD = P.card;
@@ -64,6 +47,7 @@ const PAPER = P.paper;
 
 /** Local rail snap: card width + rail gap (keep in sync with styles). */
 const RAIL_CARD_WIDTH = 334;
+const RAIL_CARD_HEIGHT = 350;
 const RAIL_GAP = 12;
 const RAIL_INSET = 16;
 const RAIL_SNAP = RAIL_CARD_WIDTH + RAIL_GAP;
@@ -234,38 +218,9 @@ export function DigestHome() {
 
   const { width: windowWidth } = useWindowDimensions();
 
-  // Dynamic rail height = active card only (short deks must not leave dead navy
-  // above pagination dots — ScrollView otherwise sizes to tallest sibling).
-  // Height only settles after momentum ends so mid-swipe layout jumps don't
-  // fight the pan gesture.
   const [railIndex, setRailIndex] = useState(0);
-  const [railHeight, setRailHeight] = useState<number | undefined>(undefined);
-  const railHeightsRef = useRef<Record<number, number>>({});
   const railIndexRef = useRef(0);
-
-  const applyRailHeight = useCallback((index: number, animate: boolean) => {
-    const h = railHeightsRef.current[index];
-    if (h == null) return;
-    setRailHeight((prev) => {
-      if (prev === h) return prev;
-      if (animate && prev != null) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      }
-      return h;
-    });
-  }, []);
-
-  const onRailCardLayout = useCallback(
-    (index: number, e: LayoutChangeEvent) => {
-      const h = e.nativeEvent.layout.height;
-      if (!h) return;
-      const prev = railHeightsRef.current[index];
-      if (prev === h) return;
-      railHeightsRef.current[index] = h;
-      if (index === railIndexRef.current) applyRailHeight(index, false);
-    },
-    [applyRailHeight],
-  );
+  const [railHeld, setRailHeld] = useState(false);
 
   const indexFromOffset = useCallback(
     (offsetX: number) => {
@@ -278,7 +233,6 @@ export function DigestHome() {
     [localCards.length],
   );
 
-  // Dots track the finger; height waits until the snap settles.
   const onRailScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const next = indexFromOffset(e.nativeEvent.contentOffset.x);
@@ -287,26 +241,6 @@ export function DigestHome() {
       setRailIndex(next);
     },
     [indexFromOffset],
-  );
-
-  const onRailSettle = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const next = indexFromOffset(e.nativeEvent.contentOffset.x);
-      railIndexRef.current = next;
-      setRailIndex(next);
-      applyRailHeight(next, true);
-    },
-    [applyRailHeight, indexFromOffset],
-  );
-
-  // Only settle height when the drag ends without a fling; otherwise wait for
-  // momentum so we don't animate to an intermediate card mid-swipe.
-  const onRailScrollEndDrag = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const vx = e.nativeEvent.velocity?.x ?? 0;
-      if (Math.abs(vx) < 0.05) onRailSettle(e);
-    },
-    [onRailSettle],
   );
 
   // Explicit offsets beat snapToInterval when content has leading inset —
@@ -328,7 +262,9 @@ export function DigestHome() {
       <DigestGreetingBar />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        bounces
+        bounces={!railHeld}
+        directionalLockEnabled
+        scrollEnabled={!railHeld}
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
       >
         <View style={s.sectionHead}>
@@ -357,13 +293,19 @@ export function DigestHome() {
           </View>
         ) : (
           <>
-            {/* Fixed-height H-scroll (active card) + dots in normal flow.
-                Avoid absolute positioning — it steals/fights nested pans. */}
-            <View>
+            {/* Featured rail: one card size, snap, dots. */}
+            <View
+              onTouchStart={() => setRailHeld(true)}
+              onTouchEnd={() => setRailHeld(false)}
+              onTouchCancel={() => setRailHeld(false)}
+            >
               <ScrollView
                 horizontal
                 nestedScrollEnabled
                 directionalLockEnabled
+                alwaysBounceVertical={false}
+                alwaysBounceHorizontal
+                overScrollMode="never"
                 showsHorizontalScrollIndicator={false}
                 decelerationRate="fast"
                 snapToOffsets={railSnapOffsets}
@@ -373,25 +315,21 @@ export function DigestHome() {
                   s.rail,
                   { paddingRight: railTrailingPad },
                 ]}
-                style={[s.railScroll, { height: railHeight ?? 360 }]}
+                style={[s.railScroll, { height: RAIL_CARD_HEIGHT }]}
                 onScroll={onRailScroll}
-                onMomentumScrollEnd={onRailSettle}
-                onScrollEndDrag={onRailScrollEndDrag}
                 scrollEventThrottle={16}
+                onScrollEndDrag={() => setRailHeld(false)}
+                onMomentumScrollEnd={() => setRailHeld(false)}
               >
                 {localCards.map((card, index) => {
                   const img = contentImageSource(
                     card.imageUri ?? card.thumbnailUrl,
                   );
                   const isLast = index === localCards.length - 1;
-                  const change = asChangeItem(card);
-                  const line = toChangeLine(change, changeContext);
-                  const activity = relativeActivity(change.activityAt);
                   return (
                     <Pressable
                       key={card.id}
                       style={[s.card, !isLast ? s.cardGap : null]}
-                      onLayout={(e) => onRailCardLayout(index, e)}
                       onPress={() => openArticle(card.id)}
                       accessibilityRole="button"
                       accessibilityLabel={`${cardKicker(card)}. ${card.title}`}
@@ -419,25 +357,16 @@ export function DigestHome() {
                         </View>
                       </View>
                       <View style={s.cardBody}>
-                        <Text style={s.kicker}>{cardKicker(card)}</Text>
-                        <Text style={s.cardTitle}>{card.title}</Text>
+                        <Text style={s.kicker} numberOfLines={1}>
+                          {cardKicker(card)}
+                        </Text>
+                        <Text style={s.cardTitle} numberOfLines={2}>
+                          {card.title}
+                        </Text>
                         {cardDek(card) ? (
-                          <Text style={s.dek} numberOfLines={3}>
+                          <Text style={s.dek} numberOfLines={2}>
                             {cardDek(card)}
                           </Text>
-                        ) : null}
-                        {line.connection ? (
-                          <Text style={s.connection}>{line.connection}</Text>
-                        ) : null}
-                        {card.type === "bill" && card.billStatus ? (
-                          <BillProgressRail
-                            compact
-                            status={card.billStatus}
-                            jurisdiction={card.jurisdiction}
-                            updatedLabel={
-                              activity === "today" ? "Updated today" : undefined
-                            }
-                          />
                         ) : null}
                       </View>
                     </Pressable>
@@ -587,14 +516,14 @@ const s = StyleSheet.create({
     paddingBottom: 0,
     alignItems: "flex-start",
   },
-  // Explicit height on the H-scroll — do NOT stretch to tallest sibling.
   railScroll: {
     flexGrow: 0,
   },
   card: {
     width: RAIL_CARD_WIDTH,
+    height: RAIL_CARD_HEIGHT,
     backgroundColor: CARD,
-    borderRadius: 24,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: "rgba(247,244,238,0.08)",
     overflow: "hidden",
@@ -631,6 +560,7 @@ const s = StyleSheet.create({
     backgroundColor: PAPER,
     paddingHorizontal: 10,
     paddingVertical: 7,
+    borderRadius: 8,
   },
   srcText: {
     fontFamily: fontBody.bold,
@@ -639,9 +569,10 @@ const s = StyleSheet.create({
     color: P.ink,
   },
   cardBody: {
+    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 8,
+    paddingBottom: 16,
   },
   kicker: {
     fontFamily: fontBody.bold,
@@ -662,13 +593,6 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 13.5,
     lineHeight: 19,
-    color: MUTED,
-  },
-  connection: {
-    marginTop: 8,
-    fontFamily: fontBody.medium,
-    fontSize: 12,
-    letterSpacing: 0.2,
     color: MUTED,
   },
   dots: {
@@ -693,7 +617,7 @@ const s = StyleSheet.create({
   },
   alsoCard: {
     backgroundColor: CARD,
-    borderRadius: 24,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: "rgba(247,244,238,0.10)",
     overflow: "hidden",

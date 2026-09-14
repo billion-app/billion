@@ -1,36 +1,19 @@
 import type { Href } from "expo-router";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
 
 import type { IconName } from "~/components/ui";
 import { SettingsCrest } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
-import { Avatar, Icon, Kicker, SettingsRow, TabScreen } from "~/components/ui";
-import { posthog } from "~/config/posthog";
+import { Kicker, SettingsRow, TabScreen } from "~/components/ui";
 import {
   DigestSpace,
   fontBody,
   fontDisplay,
   DigestPalette as P,
 } from "~/styles";
-import { trpc } from "~/utils/api";
 import { getAppVersion } from "~/utils/app-version";
-import { authClient } from "~/utils/auth";
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-function formatMemberSince(date: Date): string {
-  return `Member since ${date.getFullYear()}`;
-}
 
 interface Item {
   icon: IconName;
@@ -39,40 +22,15 @@ interface Item {
   route: Href;
 }
 
-function buildGroups(
-  email: string,
-  topicCount: number,
-): { title: string; items: Item[] }[] {
+function buildGroups(): { title: string; items: Item[] }[] {
   return [
-    {
-      title: "Account",
-      items: [
-        {
-          icon: "user",
-          label: "Edit Profile",
-          sub: email || undefined,
-          route: "/settings/edit-profile",
-        },
-        {
-          icon: "sliders",
-          label: "Content Interests",
-          sub: topicCount > 0 ? `${topicCount} topics` : undefined,
-          route: "/settings/content-interests",
-        },
-      ],
-    },
     {
       title: "Library",
       items: [
         {
           icon: "bookmark",
-          label: "Following",
+          label: "Saved",
           route: "/settings/saved-articles",
-        },
-        {
-          icon: "block",
-          label: "Blocked",
-          route: "/settings/blocked-content",
         },
       ],
     },
@@ -109,47 +67,24 @@ function buildGroups(
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const sessionQuery = useQuery(trpc.auth.getSession.queryOptions());
-  const prefsQuery = useQuery({
-    ...trpc.user.getPreferences.queryOptions(),
-    enabled: !!sessionQuery.data?.user,
-  });
-
-  const sessionUser = sessionQuery.data?.user;
-  const profileName = sessionUser?.name ?? "Guest";
-  const profileInitials = getInitials(profileName);
-  const profileMeta = sessionUser?.createdAt
-    ? formatMemberSince(new Date(sessionUser.createdAt))
-    : "";
-  const profileEmail = sessionUser?.email ?? "";
-  const topicCount = prefsQuery.data?.topics.length ?? 0;
 
   return (
     <TabScreen title="Settings" contentStyle={{ gap: 8 }}>
       <View style={s.section}>
-        <TouchableOpacity
+        <View
           style={s.identity}
-          activeOpacity={0.85}
-          onPress={() => router.push("/settings/edit-profile")}
-          accessibilityRole="button"
-          accessibilityLabel={`${profileName}. Edit profile`}
+          accessibilityRole="text"
+          accessibilityLabel="Guest account. No account features yet"
         >
-          {sessionUser ? (
-            <Avatar name={profileInitials} size={56} color={P.spark} />
-          ) : (
-            <SettingsCrest size={56} />
-          )}
+          <SettingsCrest size={56} />
           <View style={{ flex: 1 }}>
-            <Text style={s.profileName}>{profileName}</Text>
-            {profileMeta ? (
-              <Text style={s.profileMeta}>{profileMeta}</Text>
-            ) : null}
+            <Text style={s.profileName}>Guest</Text>
+            <Text style={s.profileMeta}>No account features yet</Text>
           </View>
-          <Icon name="chevR" size={16} color={P.quiet} />
-        </TouchableOpacity>
+        </View>
       </View>
 
-      {buildGroups(profileEmail, topicCount).map((g) => (
+      {buildGroups().map((g) => (
         <View key={g.title} style={s.section}>
           <Kicker style={s.sectionKicker}>{g.title}</Kicker>
           {g.items.map((it, i) => (
@@ -165,18 +100,6 @@ export default function SettingsScreen() {
         </View>
       ))}
 
-      <TouchableOpacity
-        style={s.signOut}
-        onPress={() => {
-          posthog.capture("user_signed_out");
-          posthog.reset();
-          void authClient.signOut();
-        }}
-        accessibilityRole="button"
-        accessibilityLabel="Sign out"
-      >
-        <Text style={s.signOutText}>Sign out</Text>
-      </TouchableOpacity>
       <View style={{ height: 48 + insets.bottom }} />
     </TabScreen>
   );
@@ -185,7 +108,7 @@ export default function SettingsScreen() {
 const s = StyleSheet.create({
   section: { paddingHorizontal: DigestSpace.screenPadX },
   sectionKicker: {
-    color: P.spark,
+    color: P.quiet,
     paddingLeft: 4,
     marginTop: 18,
     marginBottom: 4,
@@ -209,16 +132,5 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: P.quiet,
     marginTop: 4,
-  },
-  signOut: {
-    alignSelf: "center",
-    marginTop: 28,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  signOutText: {
-    fontFamily: fontBody.medium,
-    fontSize: 15,
-    color: P.quiet,
   },
 });

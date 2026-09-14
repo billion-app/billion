@@ -29,7 +29,7 @@ export function Segmented<T extends string>({
     <View style={s.wrap}>
       {options.map((o) => {
         const active = value === o.id;
-        const fg = active ? P.spark : P.quiet;
+        const fg = active ? P.inkOnNight : P.quiet;
         return (
           <TouchableOpacity
             key={o.id}

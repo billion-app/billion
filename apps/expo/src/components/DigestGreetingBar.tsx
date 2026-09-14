@@ -21,11 +21,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Path } from "react-native-svg";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { B_PATHS } from "~/components/BillionMarkPaths";
+import {
+  GoldBillionMark,
+  GoldFoilScript,
+} from "~/components/GoldBillionMark";
 import {
   PROFILE_MARK_SIZE,
   ProfileFace,
@@ -140,24 +142,6 @@ function greetFreeze(): Freeze {
 }
 
 const springDown = { damping: 18, stiffness: 120, mass: 0.9 };
-
-const AnimatedText = Animated.createAnimatedComponent(Text);
-
-function BillionMark({ size, color }: { size: number; color: string }) {
-  return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      {B_PATHS.map((d, i) => (
-        <Path key={i} d={d} fill={color} />
-      ))}
-    </Svg>
-  );
-}
 
 /** Best-effort city/locality from a Google Places formatted address. */
 function localityFromAddress(
@@ -318,13 +302,17 @@ export function DigestGreetingBar() {
     async function decide() {
       let play: boolean;
       try {
-        const pending = await AsyncStorage.getItem(GREET_AFTER_ONBOARDING);
-        if (pending) {
+        if (process.env.EXPO_PUBLIC_FORCE_GREET === "1") {
           play = true;
-          await AsyncStorage.removeItem(GREET_AFTER_ONBOARDING);
         } else {
-          const seen = await AsyncStorage.getItem(storageKey(period, now));
-          play = seen == null;
+          const pending = await AsyncStorage.getItem(GREET_AFTER_ONBOARDING);
+          if (pending) {
+            play = true;
+            await AsyncStorage.removeItem(GREET_AFTER_ONBOARDING);
+          } else {
+            const seen = await AsyncStorage.getItem(storageKey(period, now));
+            play = seen == null;
+          }
         }
       } catch {
         play = true;
@@ -664,7 +652,7 @@ export function DigestGreetingBar() {
                 ]}
                 pointerEvents="none"
               >
-                <AnimatedText style={styles.greeting}>{typed}</AnimatedText>
+                <GoldFoilScript text={typed} width={screenW} />
               </Animated.View>
             ) : null}
 
@@ -723,7 +711,7 @@ export function DigestGreetingBar() {
                 }}
               >
                 <Animated.View style={[styles.markWrap, markStyle]}>
-                  <BillionMark size={MARK_SIZE} color={ELECTRIC} />
+                  <GoldBillionMark size={MARK_SIZE} />
                 </Animated.View>
                 <Animated.View style={[styles.wordRow, wordStyle]}>
                   <Text style={styles.brand}>Billion</Text>
@@ -819,17 +807,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  greeting: {
-    fontFamily: Platform.select({
-      ios: "Snell Roundhand",
-      default: "GreatVibes-Regular",
-    }),
-    fontSize: 42,
-    color: ELECTRIC,
-    letterSpacing: 0.2,
-    fontWeight: Platform.OS === "ios" ? "400" : undefined,
-    textAlign: "center",
-  },
   lockup: {
     flexDirection: "row",
     alignItems: "center",
@@ -923,7 +900,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   menuRowOn: {
-    backgroundColor: "rgba(196,163,90,0.14)",
+    backgroundColor: "rgba(212,175,55,0.14)",
   },
   menuRowText: {
     fontFamily: fontBody.semibold,

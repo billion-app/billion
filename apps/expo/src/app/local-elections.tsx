@@ -2,19 +2,22 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { EmptyBallotMark } from "~/components/digest/CraftMarks";
 import { KeyDatesSection } from "~/components/KeyDatesSection";
 import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
 import { MyBallotSection } from "~/components/MyBallotSection";
 import { PollingPlacesSection } from "~/components/PollingPlacesSection";
 import { RepsSection } from "~/components/RepsSection";
+import { Text } from "~/components/Themed";
 import { NavHeader } from "~/components/ui";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { DigestPalette } from "~/styles";
+import { DigestPalette, fontBody, fontDisplay } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
   earliestEarlyVoteStart,
   pickUpcomingCaliforniaElection,
 } from "~/utils/elections";
+import { ELECTIONS_LIVE } from "~/utils/elections-live";
 
 /**
  * Civic logistics: polling locations, dates, reps, local decisions.
@@ -25,11 +28,11 @@ export default function LocalElectionsScreen() {
 
   const electionsQuery = useQuery({
     ...trpc.civic.getElections.queryOptions(),
-    enabled: !address,
+    enabled: ELECTIONS_LIVE && !address,
   });
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
-    enabled: !!address,
+    enabled: ELECTIONS_LIVE && !!address,
   });
 
   // Address-resolved election wins. Without an address, only a CA-relevant
@@ -37,6 +40,26 @@ export default function LocalElectionsScreen() {
   const calendarElection = address
     ? voterInfoQuery.data?.election
     : pickUpcomingCaliforniaElection(electionsQuery.data ?? []);
+
+  if (!ELECTIONS_LIVE) {
+    return (
+      <View style={styles.container}>
+        <NavHeader title="Elections" onBack={() => router.back()} />
+        <View
+          style={styles.comingSoon}
+          accessibilityRole="text"
+          accessibilityLabel="Elections page coming soon"
+        >
+          <EmptyBallotMark width={96} />
+          <Text style={styles.comingSoonTitle}>Elections page coming soon</Text>
+          <Text style={styles.comingSoonDek}>
+            Voter tools are still in progress. This tab will open the ballot
+            when they are ready.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -90,5 +113,29 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  comingSoon: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 32,
+    paddingBottom: 80,
+  },
+  comingSoonTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.4,
+    color: DigestPalette.inkOnNight,
+    textAlign: "center",
+  },
+  comingSoonDek: {
+    fontFamily: fontBody.medium,
+    fontSize: 15,
+    lineHeight: 22,
+    color: DigestPalette.quiet,
+    textAlign: "center",
+    maxWidth: 280,
   },
 });

@@ -16,7 +16,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 
-import { B_PATHS } from "~/components/BillionMarkPaths";
+import { GoldBillionMark } from "~/components/GoldBillionMark";
 import { colors } from "~/styles";
 
 export interface UpdateReadyMarkProps {
@@ -206,11 +206,7 @@ export function UpdateReadyMark({
         style={[StyleSheet.absoluteFill, styles.center, bLayerStyle]}
         pointerEvents="none"
       >
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          {B_PATHS.map((d, i) => (
-            <Path key={i} d={d} fill={color} />
-          ))}
-        </Svg>
+        <GoldBillionMark size={size} />
       </Animated.View>
 
       <Animated.View

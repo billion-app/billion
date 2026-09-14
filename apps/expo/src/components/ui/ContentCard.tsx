@@ -87,7 +87,7 @@ export function ContentCard({
             <Icon
               name={saved ? "bookmarkFill" : "bookmark"}
               size={18}
-              color={saved ? DigestPalette.spark : DigestPalette.quiet}
+              color={saved ? DigestPalette.inkOnNight : DigestPalette.quiet}
             />
           </TouchableOpacity>
         ) : null}
@@ -107,18 +107,7 @@ export function ContentCard({
             </Text>
           ) : null}
           {status ? (
-            <Text
-              style={[
-                s.status,
-                {
-                  color:
-                    item.statusTone === "warning"
-                      ? DigestPalette.spark
-                      : DigestPalette.quiet,
-                },
-              ]}
-              numberOfLines={1}
-            >
+            <Text style={s.status} numberOfLines={1}>
               {status}
             </Text>
           ) : null}
@@ -177,14 +166,14 @@ const s = StyleSheet.create({
     fontFamily: fontBody.bold,
     fontSize: 9,
     letterSpacing: 0.8,
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
   },
   kicker: {
     fontFamily: fontBody.bold,
     fontSize: 11,
     letterSpacing: 1.6,
     textTransform: "uppercase",
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
   },
   jurisdictionChipText: {
     fontFamily: fontBody.bold,
@@ -212,5 +201,6 @@ const s = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     marginTop: 8,
+    color: DigestPalette.quiet,
   },
 });

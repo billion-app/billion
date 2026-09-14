@@ -45,6 +45,7 @@ import {
 import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
+import { ELECTIONS_LIVE } from "~/utils/elections-live";
 import { withoutFeaturedBills } from "~/utils/featured-bills";
 import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 
@@ -76,6 +77,7 @@ export function BrowseCatalog() {
   const [query, setQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [jurisdictionPickerOpen, setJurisdictionPickerOpen] = useState(false);
+  const [railHeld, setRailHeld] = useState(false);
   const refreshInFlight = useRef(false);
   const { jurisdiction, setJurisdiction } = useContentJurisdiction();
   const jurisdictionInfo = JURISDICTIONS[jurisdiction];
@@ -105,19 +107,12 @@ export function BrowseCatalog() {
     }
   };
 
-  // Derive the banner from the user's actual location, not the nationwide
-  // election list (which surfaced out-of-state elections like "North Dakota
-  // Primary"). Use the address they set on the Elections tab — getVoterInfo
-  // returns the election relevant to that address. Banner stays hidden until
-  // an address is set. Skip this nonessential background lookup in local
-  // development: Civic credentials are commonly absent/disabled there, and a
-  // failed banner request otherwise floods the Expo error overlay even after
-  // navigating away from this tab. The Elections screen still performs its
-  // own lookup when that flow is being developed.
+  // Civic ballot lookup is parked with the Elections tab. Do not background-
+  // fetch voter info for the Browse banner until voter tools are live.
   const { address } = useUserAddress();
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
-    enabled: !!address && !__DEV__,
+    enabled: ELECTIONS_LIVE && !!address,
   });
   const election = voterInfoQuery.data?.election;
   const upcomingElection =
@@ -264,6 +259,8 @@ export function BrowseCatalog() {
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        directionalLockEnabled
+        scrollEnabled={!railHeld}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -289,7 +286,7 @@ export function BrowseCatalog() {
                   onPress={openSaved}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Open what you follow"
+                  accessibilityLabel="Open saved articles"
                   testID="browse-saved"
                 >
                   <Icon
@@ -310,7 +307,12 @@ export function BrowseCatalog() {
               />
             </View>
 
-            <View style={s.filterWrap}>
+            <View
+              style={s.filterWrap}
+              onTouchStart={() => setRailHeld(true)}
+              onTouchEnd={() => setRailHeld(false)}
+              onTouchCancel={() => setRailHeld(false)}
+            >
               <Pills layout="scroll">
                 {FILTERS.map((f) => (
                   <Pill
@@ -335,6 +337,7 @@ export function BrowseCatalog() {
               <FeaturedBills
                 items={featuredBills}
                 loading={featuredQuery.isLoading}
+                onLockParent={setRailHeld}
                 onOpen={(item, index) => {
                   posthog.capture("featured_bill_opened", {
                     bill_id: item.id,
@@ -392,7 +395,7 @@ export function BrowseCatalog() {
                   onPress={() => void setJurisdiction(otherJurisdiction)}
                 >
                   <Text style={s.switchText}>Switch</Text>
-                  <Icon name="chevR" size={15} color={DigestPalette.spark} />
+                  <Icon name="chevR" size={15} color={DigestPalette.inkOnNight} />
                 </TouchableOpacity>
               </View>
               {(otherSearchQuery.data ?? []).map((item) => (
@@ -555,7 +558,7 @@ const s = StyleSheet.create({
   errorText: {
     fontFamily: fontBody.medium,
     fontSize: 16,
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
   },
   emptyTitle: {
     fontFamily: fontDisplay.bold,
@@ -601,7 +604,7 @@ const s = StyleSheet.create({
   switchText: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: DigestPalette.spark,
+    color: DigestPalette.inkOnNight,
   },
   otherCard: { marginTop: 12 },
 });

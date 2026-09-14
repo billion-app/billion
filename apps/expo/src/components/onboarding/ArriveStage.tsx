@@ -14,10 +14,9 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import Svg, { Path } from "react-native-svg";
 import { BlurView } from "expo-blur";
 
-import { B_PATHS } from "~/components/BillionMarkPaths";
+import { GoldBillionMark } from "~/components/GoldBillionMark";
 import {
   DigestRadii,
   fontBody,
@@ -29,7 +28,7 @@ const SLIDE = Easing.bezier(0.22, 1, 0.36, 1);
 const SPRING = { dampingRatio: 0.78, duration: 520 } as const;
 
 const INSTANT = [
-  { time: "now", title: "A bill you follow moved.", body: "See what changed." },
+  { time: "now", title: "A bill you saved moved.", body: "See what changed." },
   {
     time: "now",
     title: "Something changed in California.",
@@ -67,11 +66,7 @@ export function ArriveStage({
         {idle ? (
           <View style={s.ghost} accessibilityElementsHidden>
             <View style={s.mark}>
-              <Svg width={14} height={14} viewBox="0 0 24 24">
-                {B_PATHS.map((d) => (
-                  <Path key={d.slice(0, 10)} d={d} fill={P.quiet} />
-                ))}
-              </Svg>
+              <GoldBillionMark size={14} />
             </View>
             <View style={s.copy}>
               <View style={s.top}>
@@ -106,7 +101,7 @@ export function ArriveStage({
 
       <Choice
         title="When it moves"
-        hint="Only for things you follow"
+        hint="Only for things you saved"
         selected={instant}
         onPress={onInstant}
       />
@@ -193,11 +188,7 @@ function Banner({
     <Animated.View style={[s.bannerWrap, { zIndex: 4 - stack }, style]}>
       <BlurView intensity={36} tint="dark" style={s.banner}>
         <View style={s.mark}>
-          <Svg width={14} height={14} viewBox="0 0 24 24">
-            {B_PATHS.map((d) => (
-              <Path key={d.slice(0, 10)} d={d} fill={P.inkOnNight} />
-            ))}
-          </Svg>
+          <GoldBillionMark size={14} />
         </View>
         <View style={s.copy}>
           <View style={s.top}>

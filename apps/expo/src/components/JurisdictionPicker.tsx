@@ -89,14 +89,14 @@ export function JurisdictionPicker({
 
             {!address ? (
               <TouchableOpacity style={s.addressOffer} onPress={onSetAddress}>
-                <Icon name="pin" size={17} color={DigestPalette.spark} />
+                <Icon name="pin" size={17} color={DigestPalette.quiet} />
                 <View style={s.addressCopy}>
                   <Text style={s.addressTitle}>Set my address</Text>
                   <Text style={s.addressSub}>
                     We’ll mark your state when it’s covered.
                   </Text>
                 </View>
-                <Icon name="chevR" size={16} color={DigestPalette.spark} />
+                <Icon name="chevR" size={16} color={DigestPalette.quiet} />
               </TouchableOpacity>
             ) : null}
 
@@ -163,7 +163,7 @@ function JurisdictionOption({
         <Text style={s.optionDescription}>{item.description}</Text>
       </View>
       {selected ? (
-        <Icon name="check" size={22} color={DigestPalette.spark} />
+        <Icon name="check" size={22} color={DigestPalette.inkOnNight} />
       ) : null}
     </TouchableOpacity>
   );
@@ -184,7 +184,7 @@ const s = StyleSheet.create({
     lineHeight: 14,
     letterSpacing: 1.8,
     textTransform: "uppercase",
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
   },
   modal: { flex: 1, justifyContent: "flex-end" },
   scrim: {
@@ -256,7 +256,7 @@ const s = StyleSheet.create({
   groupLabel: {
     marginTop: 4,
     marginBottom: 10,
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
     fontFamily: fontBody.bold,
     letterSpacing: 2.1,
   },
@@ -273,8 +273,8 @@ const s = StyleSheet.create({
     marginBottom: 22,
   },
   optionSelected: {
-    borderColor: DigestPalette.spark,
-    backgroundColor: DigestHair.menuRowOn,
+    borderColor: DigestPalette.paper,
+    backgroundColor: "rgba(247,244,238,0.08)",
   },
   codeTile: {
     width: 42,
@@ -287,15 +287,15 @@ const s = StyleSheet.create({
     borderColor: DigestHair.cardBorder,
   },
   codeTileSelected: {
-    borderColor: DigestPalette.spark,
-    backgroundColor: DigestHair.tabActivePill,
+    borderColor: DigestPalette.paper,
+    backgroundColor: DigestPalette.paper,
   },
   code: {
     fontFamily: fontDisplay.regular,
     fontSize: 17,
     color: DigestPalette.quiet,
   },
-  codeSelected: { color: DigestPalette.spark },
+  codeSelected: { color: DigestPalette.ink },
   optionCopy: { flex: 1, minWidth: 0 },
   optionTitle: {
     fontFamily: fontBody.semibold,

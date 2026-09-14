@@ -11,13 +11,13 @@ void test("follow nouns stay specific to the record kind", () => {
   assert.equal(followNoun("exec"), "order");
 });
 
-void test("the control speaks follow, not save-for-later", () => {
+void test("the control speaks save, not follow", () => {
   assert.equal(
     followAccessibilityLabel("bill", false, "Voter ID Act"),
-    "Follow Voter ID Act",
+    "Save Voter ID Act for later",
   );
   assert.equal(
     followAccessibilityLabel("bill", true),
-    "Stop following this bill",
+    "Remove this bill from saved",
   );
 });

@@ -54,7 +54,7 @@ void test("followed records speak as a watch, not a topic guess", () => {
       savedIds: new Set(["a"]),
       vectors: ["congress"],
     }),
-    "You follow this",
+    "You saved this",
   );
 });
 
@@ -128,7 +128,7 @@ void test("summary counts types and only mentions follows when mixed", () => {
       ],
       { savedIds: new Set(["a"]) },
     ),
-    ["2 bills moved", "1 court ruling", "1 you follow moved"],
+    ["2 bills moved", "1 court ruling", "1 you saved moved"],
   );
 });
 

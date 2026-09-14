@@ -15,7 +15,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 
-import { B_PATHS } from "~/components/BillionMarkPaths";
+import { GoldBillionMark } from "~/components/GoldBillionMark";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
 import { CAPITOL_HERO, CAPITOL_VIEW } from "./capitol3d";
 
@@ -167,11 +167,7 @@ export function WelcomeStage({
           logo,
         ]}
       >
-        <Svg width={MARK} height={MARK} viewBox="0 0 24 24">
-          {B_PATHS.map((d, i) => (
-            <Path key={i} d={d} fill={P.spark} />
-          ))}
-        </Svg>
+        <GoldBillionMark size={MARK} />
       </Animated.View>
 
       <Animated.View style={[s.copy, { paddingBottom: bottom }, copy]}>

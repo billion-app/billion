@@ -65,6 +65,7 @@ export function AddressAutocomplete({
       sessionToken,
     }),
     enabled: open && debouncedQuery.trim().length >= 3,
+    retry: false,
   });
 
   // Closes the billing session and returns the full formatted address (with

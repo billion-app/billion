@@ -285,8 +285,8 @@ export function OnboardingFlow() {
             <Text style={s.headline}>Follow three.</Text>
             <Text style={s.dek}>
               {sectors.length >= MIN_SECTORS
-                ? "That’s enough to watch."
-                : `Mark ${MIN_SECTORS}.`}
+                ? "That’s enough to watch. You can always change this later in settings."
+                : `Mark ${MIN_SECTORS}. You can always change this later in settings.`}
             </Text>
             <View style={s.grid3}>
               {TOPICS.map((item) => (

@@ -52,7 +52,7 @@ export function Spine({ type }: { type: ContentTypeKey }) {
 export function Avatar({
   name = "JA",
   size = 44,
-  color = DigestPalette.spark,
+  color = DigestPalette.inkOnNight,
   imageUri,
 }: {
   name?: string;

@@ -40,6 +40,10 @@ function SwipeableSavedCard({
     <Swipeable
       ref={swipeableRef}
       overshootRight={false}
+      overshootLeft={false}
+      friction={2}
+      activeOffsetX={[-15, 15]}
+      failOffsetY={[-12, 12]}
       renderRightActions={() => (
         <TouchableOpacity
           style={s.unsaveAction}
@@ -49,7 +53,7 @@ function SwipeableSavedCard({
             onUnsave();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Stop following"
+          accessibilityLabel="Remove from saved"
         >
           <Text style={s.unsaveText}>Remove</Text>
         </TouchableOpacity>
@@ -77,14 +81,14 @@ export default function SavedArticlesScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Following" onBack={() => router.back()} />
+      <NavHeader title="Saved" onBack={() => router.back()} />
       {isLoading && savedIds.length > 0 ? (
         <ActivityIndicator color={P.inkOnNight} style={{ marginTop: 40 }} />
       ) : error && savedIds.length > 0 ? (
         <View style={s.empty}>
           <Text style={s.emptyTitle}>Didn’t load</Text>
           <Text style={s.emptySub}>
-            Followed records are still on this device.
+            Saved records are still on this device.
           </Text>
           <TouchableOpacity
             style={s.retry}
@@ -102,7 +106,9 @@ export default function SavedArticlesScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             list.length > 0 ? (
-              <Text style={s.intro}>{list.length} followed</Text>
+              <Text style={s.intro}>
+                {list.length} saved
+              </Text>
             ) : null
           }
           ItemSeparatorComponent={() => (
@@ -129,9 +135,10 @@ export default function SavedArticlesScreen() {
           ListEmptyComponent={
             <View style={s.empty}>
               <EmptySearchMark width={88} />
-              <Text style={s.emptyTitle}>Nothing followed yet</Text>
+              <Text style={s.emptyTitle}>Nothing saved yet</Text>
               <Text style={s.emptySub}>
-                Follow a bill, a case, or an order to see it move.
+                Tap the bookmark on a bill, a case, or an order to come back
+                to it.
               </Text>
             </View>
           }

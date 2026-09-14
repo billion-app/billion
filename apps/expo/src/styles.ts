@@ -55,10 +55,10 @@ export const hair = {
  * Keep these here — do not invent a parallel palette file or `~/theme` package.
  */
 export const digest = {
-  /** Gold — kickers, active tab, carousel dots */
-  spark: "#C4A35A",
+  /** Gold — selected tab and active carousel dots only, not secondary copy */
+  spark: "#D4AF37",
   /** Alias of spark */
-  copper: "#C4A35A",
+  copper: "#D4AF37",
   /** Primary text on night surfaces */
   inkOnNight: "#F7F4EE",
   /** Primary text on paper surfaces */
@@ -153,8 +153,8 @@ export const DigestHair = {
   coverBorder: "rgba(247,244,238,0.10)",
   coverRule: "rgba(247,244,238,0.14)",
   menuBorder: "rgba(247,244,238,0.12)",
-  menuRowOn: "rgba(196,163,90,0.14)",
-  tabActivePill: "rgba(196,163,90,0.16)",
+  menuRowOn: "rgba(212,175,55,0.14)",
+  tabActivePill: "rgba(212,175,55,0.16)",
   menuScrim: "rgba(0,0,0,0.42)",
   inkFaint: "rgba(22,19,26,0.05)",
   inkHair: "rgba(22,19,26,0.10)",
@@ -271,7 +271,7 @@ export const DigestType = {
     fontSize: 10,
     lineHeight: 14,
     letterSpacing: 2.1,
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
   },
   sectionTitle: {
     fontFamily: fontDisplay.bold,
@@ -311,7 +311,7 @@ export const DigestType = {
     fontFamily: fontBody.bold,
     fontSize: 10.5,
     letterSpacing: 1.4,
-    color: DigestPalette.spark,
+    color: DigestPalette.quiet,
   },
   coverHeadline: {
     fontFamily: fontDisplay.bold,
