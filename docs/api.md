@@ -33,6 +33,8 @@ The root router is the authoritative list. This table describes responsibility r
 | `post`       | Legacy sample-post CRUD inherited from the template                                     |
 | `video`      | Compatibility endpoint returning an empty feed page                                     |
 
+The protected `user.getPreferences` procedure returns the caller's `user_preference` row, or default topic and content-type arrays when no row exists. `user.setPreferences` replaces both arrays in one upsert. Expo onboarding calls it only when an authenticated session exists. Account-free onboarding preferences stay on the device and do not pass through tRPC.
+
 For Browse and article detail, start in [content.ts](../packages/api/src/router/content.ts). `getByType` reads paginated stored content, `search` searches the corpus, and `getById` assembles the detail response with available derived content. The [architecture tour](architecture.md#follow-a-bill-to-the-screen) traces these back to ingestion.
 
 ## Civic lookups and caching

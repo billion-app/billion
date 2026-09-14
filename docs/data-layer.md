@@ -31,6 +31,8 @@ Local government uses the `local_*` tables. A `local_decision` represents a matt
 
 Better Auth owns `user`, `session`, `account`, and `verification`. Application tables store preferences, settings, blocked content, and saved articles. `post` remains a legacy example from the original template.
 
+`user_preference` has at most one row per authenticated user. Its `topics` and `content_types` columns are JSONB string arrays. The protected `user.getPreferences` and `user.setPreferences` procedures derive the owner from the session and read or upsert that row. These server preferences are separate from Expo's account-free onboarding record in AsyncStorage. Finishing onboarding copies topics and content types to PostgreSQL only when a session already exists; it does not synchronize the rest of the device record, including alert choices.
+
 `saved_article` and the derived content tables identify their source through a `content_type` and `content_id` pair. Those polymorphic references do not enforce a foreign key to every possible source table. Deletion and retention code must account for related rows explicitly. By contrast, `brief_change_image.content_brief_id` has a foreign key with cascade deletion.
 
 ```mermaid

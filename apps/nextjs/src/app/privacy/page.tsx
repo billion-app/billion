@@ -6,12 +6,12 @@ export const metadata: Metadata = {
   title: "Privacy Policy — Billion",
 };
 
-const LAST_UPDATED = "August 31, 2026";
+const LAST_UPDATED = "September 14, 2026";
 
 const SECTIONS = [
   {
     title: "1. Information We Collect",
-    body: "Billion does not require an account, and the app does not ask for your name or email address to read summaries or view your ballot. What we collect depends on how you use Billion. On our website, if you join the waitlist we collect the email address you submit. In the app, if you enter a registered address to load your local ballot and representatives, address text is sent to our servers for autocomplete and lookup, as described in Section 4. If you send feedback, we may receive your message, the category you choose, basic technical details such as app version and build, platform, and operating-system version, and—when you contact us by email—your email address and standard email headers. When you use the app or website, our analytics automatically collect usage events (such as screens viewed, articles opened, and searches you run), handled error diagnostics, and technical details such as device model, operating system and version, app version, language, and time zone. These events are associated with a randomly generated, persistent installation identifier. We do not collect your precise device location, and we do not use advertising identifiers.",
+    body: "Billion does not require an account, and the app does not ask for your name or email address to read summaries or view your ballot. During onboarding, the app asks which governments and topics you want to follow and whether you prefer instant or evening alerts. It stores those answers on your device. If an authenticated session already exists, the app also stores topic and content-type selections with that account. On our website, if you join the waitlist we collect the email address you submit. In the app, if you enter a registered address to load your local ballot and representatives, address text is sent to our servers for autocomplete and lookup, as described in Section 4. If you send feedback, we may receive your message, the category you choose, basic technical details such as app version and build, platform, and operating-system version, and when you contact us by email, your email address and standard email headers. When you use the app or website, our analytics automatically collect usage events such as screens viewed, articles opened, searches you run, and onboarding selections, plus handled error diagnostics and technical details such as device model, operating system and version, app version, language, and time zone. These events are associated with a randomly generated, persistent installation identifier. We do not collect your precise device location, and we do not use advertising identifiers.",
   },
   {
     title: "2. Waitlist and Landing Page",
@@ -19,7 +19,7 @@ const SECTIONS = [
   },
   {
     title: "3. How We Use Your Information",
-    body: "We use the information we collect to operate, maintain, and improve Billion; to look up the ballot and representatives for an address you enter; to respond to your feedback; to send waitlist and service-related communications; to keep our services secure; and to comply with legal obligations. We do not sell your personal information, and we do not use it to serve you advertising.",
+    body: "We use the information we collect to operate, maintain, and improve Billion; remember your setup choices and show relevant connection labels; understand how readers use onboarding; look up the ballot and representatives for an address you enter; respond to your feedback; send waitlist and service-related communications; keep our services secure; and comply with legal obligations. We do not sell your personal information, and we do not use it to serve you advertising.",
   },
   {
     title: "4. Address and Location",
@@ -27,7 +27,7 @@ const SECTIONS = [
   },
   {
     title: "5. Analytics and Diagnostics",
-    body: "We use PostHog to understand how Billion is used and to diagnose handled application errors. The app does not automatically send crash reports or performance measurements such as hang rate or energy use. App analytics are associated with a randomly generated, persistent installation identifier, which links events from the same app installation or device but is not your name, email address, or an advertising identifier. Because searches and usage events are associated with that identifier, Apple's App Privacy label describes Search History, Device ID, Usage Data, and related diagnostics as \"Data Linked to You.\" PostHog may infer an approximate, city-level location from the request IP address. We do not use this information to track you across other companies' apps or websites. Analytics data is processed by PostHog in the United States.",
+    body: "We use PostHog to understand how Billion is used and to diagnose handled application errors. When onboarding finishes, the analytics event includes the government categories and topics you selected and your instant or evening alert choices. The app does not automatically send crash reports or performance measurements such as hang rate or energy use. App analytics are associated with a randomly generated, persistent installation identifier, which links events from the same app installation or device but is not your name, email address, or an advertising identifier. Because searches and usage events are associated with that identifier, Apple's App Privacy label describes Search History, Device ID, Usage Data, and related diagnostics as \"Data Linked to You.\" PostHog may infer an approximate, city-level location from the request IP address. We do not use this information to track you across other companies' apps or websites. Analytics data is processed by PostHog in the United States.",
   },
   {
     title: "6. Data Sharing",
@@ -35,11 +35,11 @@ const SECTIONS = [
   },
   {
     title: "7. Data Retention",
-    body: "Because Billion has no app user accounts, we do not build an account-based profile about app users. Waitlist email addresses are retained until you unsubscribe or ask us to delete them. Feedback is retained in Google Forms or email so that we can act on it. Your selected registered address remains on your device until you change it, clear it, or uninstall the app; server lookup caches use a hashed address key, may contain normalized address components, and expire automatically within about thirty days. Analytics and handled-error diagnostic data are retained by our analytics provider according to its retention settings.",
+    body: "Billion does not currently offer a usable account sign-in flow in the app. Your onboarding choices remain on your device until you uninstall the app or the app resets its versioned onboarding record. If an authenticated session already exists, topic and content-type selections may also remain in the account's server record. Waitlist email addresses are retained until you unsubscribe or ask us to delete them. Feedback is retained in Google Forms or email so that we can act on it. Your selected registered address remains on your device until you change it, clear it, or uninstall the app; server lookup caches use a hashed address key, may contain normalized address components, and expire automatically within about thirty days. Analytics and handled-error diagnostic data are retained by our analytics provider according to its retention settings.",
   },
   {
     title: "8. Your Choices",
-    body: "You can control your information in several ways. You can edit or clear your saved address in the app at any time, and uninstalling the app removes it from your device. Uninstalling the app also stops any further analytics collection from it. You can unsubscribe from waitlist emails at any time. You may also email thatxliner@gmail.com to request access to, or deletion of, the information we hold about you — such as your waitlist email address or feedback you have sent — and we will honor applicable requests.",
+    body: "You can control your information in several ways. You can edit or clear your saved address in the app at any time. Uninstalling the app removes its local onboarding choices and saved address from your device and stops further analytics collection from that installation. You can unsubscribe from waitlist emails at any time. You may also email thatxliner@gmail.com to request access to, or deletion of, information we hold about you, such as your waitlist email address, feedback you sent, or preferences attached to an authenticated account, and we will honor applicable requests.",
   },
   {
     title: "9. Security",
