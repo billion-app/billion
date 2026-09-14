@@ -45,7 +45,7 @@ import {
 import { queryClient, trpc, trpcClient } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
-import { ELECTIONS_LIVE } from "~/utils/elections-live";
+import { electionsAreLive } from "~/utils/elections-live";
 import { withoutFeaturedBills } from "~/utils/featured-bills";
 import {
   isStateJurisdiction,
@@ -116,7 +116,7 @@ export function BrowseCatalog() {
   const { address, setAddress, clearAddress } = useUserAddress();
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
-    enabled: ELECTIONS_LIVE && !!address,
+    enabled: electionsAreLive() && !!address,
   });
   const election = voterInfoQuery.data?.election;
   const upcomingElection =
@@ -399,7 +399,11 @@ export function BrowseCatalog() {
                   onPress={() => void setJurisdiction(otherJurisdiction)}
                 >
                   <Text style={s.switchText}>Switch</Text>
-                  <Icon name="chevR" size={15} color={DigestPalette.inkOnNight} />
+                  <Icon
+                    name="chevR"
+                    size={15}
+                    color={DigestPalette.inkOnNight}
+                  />
                 </TouchableOpacity>
               </View>
               {(otherSearchQuery.data ?? []).map((item) => (

@@ -36,7 +36,6 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { monthDay } from "~/utils/dates";
-import { ELECTIONS_LIVE } from "~/utils/elections-live";
 import {
   contestListTitle,
   earliestEarlyVoteStart,
@@ -46,6 +45,7 @@ import {
   pickUpcomingCaliforniaElection,
   pollingPlaceSubtitle,
 } from "~/utils/elections";
+import { electionsAreLive } from "~/utils/elections-live";
 
 type BallotTab = "candidates" | "measures";
 
@@ -169,7 +169,7 @@ function MeasureCard({
 }
 
 export default function ElectionsScreen() {
-  if (!ELECTIONS_LIVE) return <ElectionsComingSoon />;
+  if (!electionsAreLive()) return <ElectionsComingSoon />;
   return <ElectionsLive />;
 }
 

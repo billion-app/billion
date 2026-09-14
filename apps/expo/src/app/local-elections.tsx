@@ -17,7 +17,7 @@ import {
   earliestEarlyVoteStart,
   pickUpcomingCaliforniaElection,
 } from "~/utils/elections";
-import { ELECTIONS_LIVE } from "~/utils/elections-live";
+import { electionsAreLive } from "~/utils/elections-live";
 
 /**
  * Civic logistics: polling locations, dates, reps, local decisions.
@@ -28,11 +28,11 @@ export default function LocalElectionsScreen() {
 
   const electionsQuery = useQuery({
     ...trpc.civic.getElections.queryOptions(),
-    enabled: ELECTIONS_LIVE && !address,
+    enabled: electionsAreLive() && !address,
   });
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
-    enabled: ELECTIONS_LIVE && !!address,
+    enabled: electionsAreLive() && !!address,
   });
 
   // Address-resolved election wins. Without an address, only a CA-relevant
@@ -41,7 +41,7 @@ export default function LocalElectionsScreen() {
     ? voterInfoQuery.data?.election
     : pickUpcomingCaliforniaElection(electionsQuery.data ?? []);
 
-  if (!ELECTIONS_LIVE) {
+  if (!electionsAreLive()) {
     return (
       <View style={styles.container}>
         <NavHeader title="Elections" onBack={() => router.back()} />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Modal,
   Pressable,
@@ -73,20 +73,27 @@ export function JurisdictionPicker({
   const homeJurisdiction = jurisdictionFromAddress(address);
   const [editingAddress, setEditingAddress] = useState(false);
 
-  useEffect(() => {
-    if (!visible) setEditingAddress(false);
-  }, [visible]);
+  const close = () => {
+    setEditingAddress(false);
+    onClose();
+  };
+
+  const select = (jurisdiction: ContentJurisdiction) => {
+    setEditingAddress(false);
+    onSelect(jurisdiction);
+  };
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={close}
     >
       <View style={s.modal}>
         <Pressable
           style={s.scrim}
-          onPress={onClose}
+          onPress={close}
           accessibilityLabel="Close jurisdiction picker"
         />
         <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
@@ -139,7 +146,7 @@ export function JurisdictionPicker({
             <JurisdictionOption
               jurisdiction="federal"
               selected={selected === "federal"}
-              onPress={() => onSelect("federal")}
+              onPress={() => select("federal")}
             />
 
             <Kicker style={s.groupLabel}>States</Kicker>
@@ -149,7 +156,7 @@ export function JurisdictionPicker({
                 jurisdiction={jurisdiction}
                 selected={selected === jurisdiction}
                 isHome={homeJurisdiction === jurisdiction}
-                onPress={() => onSelect(jurisdiction)}
+                onPress={() => select(jurisdiction)}
               />
             ))}
 

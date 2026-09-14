@@ -3,4 +3,6 @@
  * placeholder until voter tools are ready to ship — this environment's
  * provider keys do not serve a working ballot.
  */
-export const ELECTIONS_LIVE = false;
+export function electionsAreLive(): boolean {
+  return false;
+}
