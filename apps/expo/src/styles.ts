@@ -55,8 +55,10 @@ export const hair = {
  * Keep these here — do not invent a parallel palette file or `~/theme` package.
  */
 export const digest = {
-  /** Gold — selected tab and active carousel dots only, not secondary copy */
+  /** Gold — selected tab, active dots, and section eyebrows only */
   spark: "#D4AF37",
+  /** Filled primary actions (buttons, selected segments) — not gold */
+  primary: "#4A7CFF",
   /** Alias of spark */
   copper: "#D4AF37",
   /** Primary text on night surfaces */
@@ -87,6 +89,7 @@ export const DigestPalette = {
   inkOnNight: digest.inkOnNight,
   spark: digest.spark,
   copper: digest.copper,
+  primary: digest.primary,
   quiet: digest.quiet,
   border: digest.border,
   badgeBlue: digest.badgeBlue,
@@ -105,6 +108,7 @@ export const DigestColor = {
   textOnNight: DigestPalette.inkOnNight,
   textOnPaper: DigestPalette.ink,
   accent: DigestPalette.spark,
+  primary: DigestPalette.primary,
   copper: DigestPalette.copper,
   muted: DigestPalette.quiet,
   border: DigestPalette.border,
@@ -154,7 +158,7 @@ export const DigestHair = {
   coverRule: "rgba(247,244,238,0.14)",
   menuBorder: "rgba(247,244,238,0.12)",
   menuRowOn: "rgba(212,175,55,0.14)",
-  tabActivePill: "rgba(212,175,55,0.16)",
+  tabActivePill: "rgba(74,124,255,0.20)",
   menuScrim: "rgba(0,0,0,0.42)",
   inkFaint: "rgba(22,19,26,0.05)",
   inkHair: "rgba(22,19,26,0.10)",

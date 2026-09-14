@@ -22,6 +22,7 @@ import type { StateJurisdiction } from "~/utils/jurisdiction";
 import type { ChangeItem } from "~/utils/what-changed";
 import { CAPITOL_LINE } from "~/components/digest/staticAssets";
 import { DigestGreetingBar } from "~/components/DigestGreetingBar";
+import { GoldFoilText } from "~/components/GoldBillionMark";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useLastVisit } from "~/hooks/useLastVisit";
 import { useOnboarding } from "~/hooks/useOnboarding";
@@ -268,7 +269,7 @@ export function DigestHome() {
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
       >
         <View style={s.sectionHead}>
-          <Text style={s.sectionEyebrow}>THE DAILY BRIEF</Text>
+          <GoldFoilText text="THE DAILY BRIEF" style={s.sectionEyebrow} />
           <Text style={s.sectionTitle}>Today’s local news</Text>
           <View style={s.sectionRule} />
         </View>
@@ -418,7 +419,7 @@ export function DigestHome() {
               accessibilityLabel={`${coverMeta(coverItem)}. ${coverItem.title}`}
             >
               <View style={s.cover}>
-                <Text style={s.coverKicker}>COVER · CONGRESS</Text>
+                <GoldFoilText text="COVER · CONGRESS" style={s.coverKicker} />
                 <View style={s.coverRule} />
                 <View style={s.coverGrid}>
                   <View style={s.coverCopy}>
@@ -474,7 +475,7 @@ const s = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
     letterSpacing: 2.1,
-    color: MUTED,
+    color: SPARK,
     marginBottom: 8,
   },
   sectionHeadAlso: {
@@ -633,7 +634,7 @@ const s = StyleSheet.create({
     fontSize: 10.5,
     letterSpacing: 1.4,
     /* Gold is reserved for selected state (active tab, active dot). */
-    color: MUTED,
+    color: SPARK,
     marginBottom: 12,
   },
   coverRule: {

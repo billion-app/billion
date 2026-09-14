@@ -17,6 +17,7 @@ import { Text } from "~/components/Themed";
 import { GhostButton, Icon, Kicker } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import {
+  colors,
   DigestHair,
   DigestRadii,
   DigestSpace,
@@ -38,6 +39,12 @@ const CATS: { id: FeedbackCategory; label: string; icon: IconName }[] = [
   { id: "idea", label: "Feature idea", icon: "sparkle" },
   { id: "content", label: "Content issue", icon: "doc" },
 ];
+
+const CAT_COLOR: Record<FeedbackCategory, string> = {
+  bug: colors.red[400],
+  idea: colors.civicBlue,
+  content: colors.teal,
+};
 
 /** Build a mailto URL to the point of contact, pre-filling whatever we know. */
 function buildMailto(category: FeedbackCategory, message: string): string {
@@ -167,17 +174,23 @@ export default function FeedbackScreen() {
           <View style={{ gap: 8, marginBottom: 14 }}>
             {CATS.map((c) => {
               const active = cat === c.id;
+              const tone = CAT_COLOR[c.id];
               return (
                 <TouchableOpacity
                   key={c.id}
                   activeOpacity={0.8}
                   onPress={() => setCat(c.id)}
-                  style={[s.catRow, active ? s.catRowOn : s.catRowOff]}
+                  style={[
+                    s.catRow,
+                    active
+                      ? { backgroundColor: `${tone}33`, borderColor: `${tone}66` }
+                      : s.catRowOff,
+                  ]}
                 >
                   <Icon
                     name={c.icon}
                     size={19}
-                    color={active ? P.spark : P.quiet}
+                    color={active ? tone : P.quiet}
                   />
                   <Text
                     style={[
@@ -193,11 +206,13 @@ export default function FeedbackScreen() {
                     style={[
                       s.radio,
                       {
-                        borderColor: active ? P.spark : DigestHair.sectionRule,
+                        borderColor: active ? tone : DigestHair.sectionRule,
                       },
                     ]}
                   >
-                    {active && <View style={s.radioDot} />}
+                    {active && (
+                      <View style={[s.radioDot, { backgroundColor: tone }]} />
+                    )}
                   </View>
                 </TouchableOpacity>
               );
@@ -219,7 +234,10 @@ export default function FeedbackScreen() {
           </Text>
 
           <TouchableOpacity
-            style={[s.cta, { opacity: canSubmit ? 1 : 0.55 }]}
+            style={[
+              s.cta,
+              { backgroundColor: CAT_COLOR[cat], opacity: canSubmit ? 1 : 0.55 },
+            ]}
             onPress={submit}
             activeOpacity={0.85}
             disabled={!canSubmit}
@@ -312,10 +330,6 @@ const s = StyleSheet.create({
     borderRadius: DigestRadii.menu,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  catRowOn: {
-    backgroundColor: DigestHair.tabActivePill,
-    borderColor: DigestHair.menuBorder,
-  },
   catRowOff: {
     backgroundColor: P.stone,
     borderColor: DigestHair.cardBorder,
@@ -358,14 +372,13 @@ const s = StyleSheet.create({
     height: 52,
     width: "100%",
     borderRadius: 9999,
-    backgroundColor: P.spark,
     alignItems: "center",
     justifyContent: "center",
   },
   ctaLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 16,
-    color: P.ink,
+    color: P.inkOnNight,
   },
   orDivider: {
     fontFamily: fontBody.medium,

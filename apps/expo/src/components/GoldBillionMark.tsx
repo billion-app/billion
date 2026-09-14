@@ -10,7 +10,8 @@
  *
  * No Skia / expo-gl — stays inside the current native fingerprint.
  */
-import { useId } from "react";
+import { useId, useState } from "react";
+import type { StyleProp, TextStyle } from "react-native";
 import { Platform, Text, View } from "react-native";
 import Animated, {
   SensorType,
@@ -337,6 +338,119 @@ export function GoldFoilScript({
           {text}
         </Animated.Text>
       </Animated.View>
+    </View>
+  );
+}
+
+/**
+ * Tracked uppercase eyebrows with the same traveling foil as the B / greeting.
+ * Hug-content; reduced motion falls back to flat spark.
+ */
+export function GoldFoilText({
+  text,
+  style,
+  numberOfLines = 1,
+}: {
+  text: string;
+  style?: StyleProp<TextStyle>;
+  numberOfLines?: number;
+}) {
+  const reduce = useReducedMotion();
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const foil = useFoilSheets(Math.max(box.w, 1), Math.max(box.h, 1), !reduce);
+  const hotW = Math.max(24, Math.round(Math.max(box.w, 72) * 0.36));
+  const specW = Math.max(14, Math.round(Math.max(box.w, 72) * 0.16));
+
+  if (!text) return null;
+
+  if (reduce) {
+    return (
+      <Text style={style} numberOfLines={numberOfLines}>
+        {text}
+      </Text>
+    );
+  }
+
+  return (
+    <View
+      style={{ alignSelf: "flex-start", overflow: "hidden" }}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        if (
+          Math.abs(width - box.w) < 0.5 &&
+          Math.abs(height - box.h) < 0.5
+        ) {
+          return;
+        }
+        setBox({ w: width, h: height });
+      }}
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={text}
+    >
+      <Text
+        style={style}
+        numberOfLines={numberOfLines}
+        importantForAccessibility="no-hide-descendants"
+      >
+        {text}
+      </Text>
+      {box.w > 0 ? (
+        <>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
+                position: "absolute",
+                top: 0,
+                bottom: 0,
+                left: 0,
+                width: hotW,
+                overflow: "hidden",
+                justifyContent: "center",
+              },
+              foil.hotClip,
+            ]}
+          >
+            <Animated.Text
+              style={[
+                style,
+                { width: box.w, color: "#FFE9A8" },
+                foil.hotFill,
+              ]}
+              numberOfLines={numberOfLines}
+            >
+              {text}
+            </Animated.Text>
+          </Animated.View>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
+                position: "absolute",
+                top: 0,
+                bottom: 0,
+                left: 0,
+                width: specW,
+                overflow: "hidden",
+                justifyContent: "center",
+              },
+              foil.shineClip,
+            ]}
+          >
+            <Animated.Text
+              style={[
+                style,
+                { width: box.w, color: "rgba(255,255,255,0.58)" },
+                foil.shineFill,
+              ]}
+              numberOfLines={numberOfLines}
+            >
+              {text}
+            </Animated.Text>
+          </Animated.View>
+        </>
+      ) : null}
     </View>
   );
 }

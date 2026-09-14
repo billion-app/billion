@@ -153,7 +153,7 @@ export function PrimaryButton({
       activeOpacity={0.85}
     >
       <Text style={s.primaryBtnText}>{label}</Text>
-      {icon && <Icon name={icon} size={18} color={DigestPalette.ink} />}
+      {icon && <Icon name={icon} size={18} color={DigestPalette.inkOnNight} />}
     </TouchableOpacity>
   );
 }
@@ -301,7 +301,7 @@ const s = StyleSheet.create({
     height: 52,
     width: "100%",
     borderRadius: 9999,
-    backgroundColor: DigestPalette.spark,
+    backgroundColor: DigestPalette.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -310,7 +310,7 @@ const s = StyleSheet.create({
   primaryBtnText: {
     fontFamily: fontBody.semibold,
     fontSize: fontSize.base,
-    color: DigestPalette.ink,
+    color: DigestPalette.inkOnNight,
   },
   ghostBtn: {
     height: 44,

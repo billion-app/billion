@@ -52,6 +52,7 @@ export function ContentCard({
   const [imageFailed, setImageFailed] = useState(false);
   const relativeActivity = useRelativeActivity(item.activityAt);
   const status = [item.status, relativeActivity].filter(Boolean).join(" · ");
+  const showThumb = !!imageSource && !imageFailed;
   return (
     <TouchableOpacity
       style={s.card}
@@ -112,8 +113,8 @@ export function ContentCard({
             </Text>
           ) : null}
         </View>
-        <View style={s.thumbnail} testID="content-card-thumbnail">
-          {imageSource && !imageFailed ? (
+        {showThumb ? (
+          <View style={s.thumbnail} testID="content-card-thumbnail">
             <Image
               source={imageSource}
               style={StyleSheet.absoluteFill}
@@ -121,12 +122,8 @@ export function ContentCard({
               transition={200}
               onError={() => setImageFailed(true)}
             />
-          ) : (
-            <View style={s.thumbnailFallback}>
-              <Text style={s.thumbnailFallbackText}>{t.label}</Text>
-            </View>
-          )}
-        </View>
+          </View>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -155,18 +152,6 @@ const s = StyleSheet.create({
     borderRadius: DigestRadii.coverArt,
     overflow: "hidden",
     backgroundColor: DigestPalette.stone,
-  },
-  thumbnailFallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: DigestPalette.canvas,
-  },
-  thumbnailFallbackText: {
-    fontFamily: fontBody.bold,
-    fontSize: 9,
-    letterSpacing: 0.8,
-    color: DigestPalette.quiet,
   },
   kicker: {
     fontFamily: fontBody.bold,

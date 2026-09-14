@@ -66,8 +66,13 @@ function FeaturedBillCard({
           </View>
         )}
         <LinearGradient
-          colors={["transparent", DigestPalette.canvas]}
-          locations={[0.35, 1]}
+          colors={[
+            "transparent",
+            "rgba(14,21,48,0.2)",
+            "rgba(14,21,48,0.78)",
+            DigestPalette.canvas,
+          ]}
+          locations={[0.12, 0.4, 0.7, 1]}
           style={StyleSheet.absoluteFill}
         />
         <View style={s.overlay}>
@@ -207,7 +212,7 @@ const s = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.6,
     textTransform: "uppercase",
-    color: DigestPalette.quiet,
+    color: "rgba(247,244,238,0.88)",
     marginBottom: 6,
   },
   title: {
@@ -216,6 +221,9 @@ const s = StyleSheet.create({
     lineHeight: 32,
     letterSpacing: -0.6,
     color: DigestPalette.inkOnNight,
+    textShadowColor: "rgba(14,21,48,0.85)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 10,
   },
   skeletonPlane: { backgroundColor: "rgba(247,244,238,0.08)" },
 });

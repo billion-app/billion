@@ -3,7 +3,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import type { IconName } from "./Icon";
 import {
-  DigestHair,
   DigestRadii,
   fontBody,
   DigestPalette as P,
@@ -66,7 +65,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   segActive: {
-    backgroundColor: DigestHair.tabActivePill,
+    backgroundColor: P.primary,
   },
   segText: { fontFamily: fontBody.semibold, fontSize: 13.5 },
 });

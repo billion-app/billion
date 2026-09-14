@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ContentJurisdiction } from "~/utils/jurisdiction";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
+import { GoldFoilText } from "~/components/GoldBillionMark";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker } from "~/components/ui";
 import {
@@ -45,7 +46,7 @@ export function JurisdictionScopeRow({
       accessibilityLabel={`Jurisdiction: ${item.body}. Change jurisdiction`}
       testID="jurisdiction-scope"
     >
-      <Text style={s.scopeBody}>{item.name}</Text>
+      <GoldFoilText text={item.name} style={s.scopeBody} />
       <Icon name="chevD" size={12} color={DigestPalette.quiet} />
     </TouchableOpacity>
   );
@@ -218,7 +219,7 @@ const s = StyleSheet.create({
     lineHeight: 14,
     letterSpacing: 1.8,
     textTransform: "uppercase",
-    color: DigestPalette.quiet,
+    color: DigestPalette.spark,
   },
   modal: { flex: 1, justifyContent: "flex-end" },
   scrim: {

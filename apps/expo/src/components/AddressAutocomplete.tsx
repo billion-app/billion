@@ -262,7 +262,7 @@ const s = StyleSheet.create({
     fontSize: 17,
   },
   btn: {
-    backgroundColor: DigestPalette.spark,
+    backgroundColor: DigestPalette.primary,
     borderRadius: 9999,
     height: 56,
     paddingHorizontal: 18,
@@ -272,7 +272,7 @@ const s = StyleSheet.create({
   btnText: {
     fontFamily: fontBody.semibold,
     fontSize: 15,
-    color: DigestPalette.ink,
+    color: DigestPalette.inkOnNight,
   },
   dropdown: {
     marginTop: 10,
