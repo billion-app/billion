@@ -29,6 +29,9 @@ interface AddressAutocompleteProps {
    * Omit for the default one-liner.
    */
   hint?: string | null;
+  autoFocus?: boolean;
+  /** Menu/sheet field: type and pick. No Look Up chrome. */
+  inline?: boolean;
 }
 
 /**
@@ -50,6 +53,8 @@ export function AddressAutocomplete({
   initialValue = "",
   onSubmit,
   hint = DEFAULT_HINT,
+  autoFocus = true,
+  inline = false,
 }: AddressAutocompleteProps) {
   const [input, setInput] = useState(initialValue);
   // Closed right after a pick so the dropdown doesn't reopen on the
@@ -101,6 +106,77 @@ export function AddressAutocomplete({
     }
   };
 
+  const pending = (
+    <View style={inline ? s.dropdownInline : s.dropdown}>
+      <View style={inline ? s.suggestionInline : s.suggestion}>
+        <ActivityIndicator size="small" color={DigestPalette.spark} />
+        {inline ? null : (
+          <Text style={s.suggestionText}>Confirming address…</Text>
+        )}
+      </View>
+    </View>
+  );
+
+  const suggestionList = (
+    <View style={inline ? s.dropdownInline : s.dropdown}>
+      {suggestions.map((sug, i) => (
+        <TouchableOpacity
+          key={sug.placeId}
+          style={[
+            inline ? s.suggestionInline : s.suggestion,
+            i > 0 && (inline ? s.suggestionBorderInline : s.suggestionBorder),
+          ]}
+          activeOpacity={0.7}
+          onPress={() => void pick(sug)}
+        >
+          {inline ? null : (
+            <PinMark size={14} color={DigestPalette.quiet} />
+          )}
+          <Text
+            style={inline ? s.suggestionTextInline : s.suggestionText}
+            numberOfLines={1}
+          >
+            {sug.description}
+          </Text>
+        </TouchableOpacity>
+      ))}
+      {suggestions.length === 0 && suggestionsQuery.isFetching && (
+        <View style={inline ? s.suggestionInline : s.suggestion}>
+          <ActivityIndicator size="small" color={DigestPalette.quiet} />
+          {inline ? null : (
+            <Text style={s.suggestionText}>Searching…</Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
+
+  if (inline) {
+    return (
+      <View>
+        <TextInput
+          style={s.inputInline}
+          placeholder="Address"
+          placeholderTextColor={DigestPalette.quiet}
+          value={input}
+          onChangeText={(t) => {
+            setOpen(true);
+            setInput(t);
+          }}
+          autoComplete="street-address"
+          textContentType="fullStreetAddress"
+          autoFocus={autoFocus}
+          returnKeyType="done"
+          onSubmitEditing={() => {
+            const next = input.trim();
+            if (next) commit(next);
+          }}
+        />
+        {detailsMutation.isPending ? pending : showDropdown ? suggestionList : null}
+      </View>
+    );
+  }
+
   return (
     <View style={s.wrap}>
       {hint ? <Text style={s.hint}>{hint}</Text> : null}
@@ -120,7 +196,7 @@ export function AddressAutocomplete({
             }}
             autoComplete="street-address"
             textContentType="fullStreetAddress"
-            autoFocus
+            autoFocus={autoFocus}
           />
         </View>
         <TouchableOpacity
@@ -132,38 +208,8 @@ export function AddressAutocomplete({
         </TouchableOpacity>
       </View>
 
-      {detailsMutation.isPending && (
-        <View style={s.dropdown}>
-          <View style={s.suggestion}>
-            <ActivityIndicator size="small" color={DigestPalette.spark} />
-            <Text style={s.suggestionText}>Confirming address…</Text>
-          </View>
-        </View>
-      )}
-
-      {showDropdown && (
-        <View style={s.dropdown}>
-          {suggestions.map((sug, i) => (
-            <TouchableOpacity
-              key={sug.placeId}
-              style={[s.suggestion, i > 0 && s.suggestionBorder]}
-              activeOpacity={0.7}
-              onPress={() => void pick(sug)}
-            >
-              <PinMark size={14} color={DigestPalette.quiet} />
-              <Text style={s.suggestionText} numberOfLines={1}>
-                {sug.description}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {suggestions.length === 0 && suggestionsQuery.isFetching && (
-            <View style={s.suggestion}>
-              <ActivityIndicator size="small" color={DigestPalette.quiet} />
-              <Text style={s.suggestionText}>Searching…</Text>
-            </View>
-          )}
-        </View>
-      )}
+      {detailsMutation.isPending && pending}
+      {showDropdown && suggestionList}
     </View>
   );
 }
@@ -171,6 +217,29 @@ export function AddressAutocomplete({
 const s = StyleSheet.create({
   wrap: {
     marginTop: 12,
+  },
+  inputInline: {
+    height: 40,
+    paddingHorizontal: 10,
+    color: DigestPalette.inkOnNight,
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+  },
+  dropdownInline: {
+    marginTop: 2,
+  },
+  suggestionInline: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  suggestionBorderInline: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.cardBorder,
+  },
+  suggestionTextInline: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    color: DigestPalette.quiet,
   },
   hint: {
     fontFamily: fontBody.regular,

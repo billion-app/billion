@@ -47,7 +47,11 @@ import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
 import { ELECTIONS_LIVE } from "~/utils/elections-live";
 import { withoutFeaturedBills } from "~/utils/featured-bills";
-import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
+import {
+  isStateJurisdiction,
+  jurisdictionFromAddress,
+  JURISDICTIONS,
+} from "~/utils/jurisdiction";
 
 // Below this length a query is treated as "not searching yet" to avoid
 // hammering the server-side full-text search on the first keystroke.
@@ -109,7 +113,7 @@ export function BrowseCatalog() {
 
   // Civic ballot lookup is parked with the Elections tab. Do not background-
   // fetch voter info for the Browse banner until voter tools are live.
-  const { address } = useUserAddress();
+  const { address, setAddress, clearAddress } = useUserAddress();
   const voterInfoQuery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
     enabled: ELECTIONS_LIVE && !!address,
@@ -490,9 +494,13 @@ export function BrowseCatalog() {
         selected={jurisdiction}
         address={address}
         onClose={() => setJurisdictionPickerOpen(false)}
-        onSetAddress={() => {
-          setJurisdictionPickerOpen(false);
-          router.push("/elections" as Href);
+        onSaveAddress={(next) => {
+          void setAddress(next);
+          const home = jurisdictionFromAddress(next);
+          if (home) void setJurisdiction(home);
+        }}
+        onClearAddress={() => {
+          void clearAddress();
         }}
         onSelect={(next) => {
           void setJurisdiction(next);

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -9,6 +10,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ContentJurisdiction } from "~/utils/jurisdiction";
+import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker } from "~/components/ui";
 import {
@@ -55,17 +57,24 @@ export function JurisdictionPicker({
   address,
   onSelect,
   onClose,
-  onSetAddress,
+  onSaveAddress,
+  onClearAddress,
 }: {
   visible: boolean;
   selected: ContentJurisdiction;
   address: string | null;
   onSelect: (jurisdiction: ContentJurisdiction) => void;
   onClose: () => void;
-  onSetAddress: () => void;
+  onSaveAddress: (address: string) => void;
+  onClearAddress?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const homeJurisdiction = jurisdictionFromAddress(address);
+  const [editingAddress, setEditingAddress] = useState(false);
+
+  useEffect(() => {
+    if (!visible) setEditingAddress(false);
+  }, [visible]);
   return (
     <Modal
       visible={visible}
@@ -87,18 +96,43 @@ export function JurisdictionPicker({
               Search and results follow this government.
             </Text>
 
-            {!address ? (
-              <TouchableOpacity style={s.addressOffer} onPress={onSetAddress}>
-                <Icon name="pin" size={17} color={DigestPalette.quiet} />
-                <View style={s.addressCopy}>
-                  <Text style={s.addressTitle}>Set my address</Text>
-                  <Text style={s.addressSub}>
-                    We’ll mark your state when it’s covered.
-                  </Text>
-                </View>
-                <Icon name="chevR" size={16} color={DigestPalette.quiet} />
+            {editingAddress ? (
+              <View style={s.addressBlock}>
+                <AddressAutocomplete
+                  key={address ?? "none"}
+                  initialValue={address ?? ""}
+                  hint={null}
+                  autoFocus
+                  inline
+                  onSubmit={(next) => {
+                    onSaveAddress(next);
+                    setEditingAddress(false);
+                  }}
+                />
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={s.addressRow}
+                onPress={() => setEditingAddress(true)}
+                activeOpacity={0.82}
+                accessibilityRole="button"
+                accessibilityLabel={address ? "Change address" : "Set address"}
+              >
+                <Text style={s.addressLine} numberOfLines={1}>
+                  {address ?? "Set address"}
+                </Text>
+                {address && onClearAddress ? (
+                  <TouchableOpacity
+                    onPress={onClearAddress}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear saved address"
+                  >
+                    <Text style={s.addressClear}>✕</Text>
+                  </TouchableOpacity>
+                ) : null}
               </TouchableOpacity>
-            ) : null}
+            )}
 
             <Kicker style={s.groupLabel}>Federal</Kicker>
             <JurisdictionOption
@@ -229,29 +263,27 @@ const s = StyleSheet.create({
     marginTop: 6,
     marginBottom: 22,
   },
-  addressOffer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 13,
-    borderRadius: DigestRadii.menu,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
-    backgroundColor: DigestPalette.card,
+  addressBlock: {
     marginBottom: 20,
   },
-  addressCopy: { flex: 1 },
-  addressTitle: {
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 40,
+    marginBottom: 20,
+    gap: 12,
+  },
+  addressLine: {
+    flex: 1,
     fontFamily: fontBody.semibold,
-    fontSize: 13.5,
+    fontSize: 15,
     color: DigestPalette.inkOnNight,
   },
-  addressSub: {
+  addressClear: {
     fontFamily: fontBody.regular,
-    fontSize: 11.5,
+    fontSize: 13,
     color: DigestPalette.quiet,
-    marginTop: 2,
   },
   groupLabel: {
     marginTop: 4,

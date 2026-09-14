@@ -1,8 +1,8 @@
-import type { Href } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppState,
   Dimensions,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -21,9 +21,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import {
   GoldBillionMark,
   GoldFoilScript,
@@ -34,8 +34,15 @@ import {
   ProfileMenu,
   useProfileIdentity,
 } from "~/components/DigestProfileMark";
+import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { fontBody, DigestPalette as P } from "~/styles";
+import type { ContentJurisdiction } from "~/utils/jurisdiction";
+import {
+  JURISDICTIONS,
+  SUPPORTED_STATE_JURISDICTIONS,
+  jurisdictionFromAddress,
+} from "~/utils/jurisdiction";
 
 const CANVAS = P.night;
 const NAVY = P.night;
@@ -83,7 +90,9 @@ const AVATAR_SETTLED = PROFILE_MARK_SIZE;
 /**
  * GAP: no city-list / district procedure. Hardcoded East Bay city names
  * were removed — they are not real jurisdictions. Location chrome uses the
- * saved Places address via useUserAddress (set on Elections).
+ * saved Places address via useUserAddress and Browse coverage via
+ * useContentJurisdiction. Both are set from this lockup menu (and Browse)
+ * while Elections is parked.
  */
 const SLIDE_EASE = Easing.inOut(Easing.cubic);
 
@@ -175,6 +184,7 @@ export function DigestGreetingBar() {
   const [settledUI, setSettledUI] = useState(false);
   const [showGreeting, setShowGreeting] = useState(true);
   const [locationOpen, setLocationOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const {
     name: profileName,
@@ -185,10 +195,16 @@ export function DigestGreetingBar() {
   const greeting = firstName
     ? `${PERIOD_LABEL[period]}, ${firstName}`
     : PERIOD_LABEL[period];
-  const router = useRouter();
-  const { address, isLoading: addressLoading } = useUserAddress();
+  const { address, setAddress, clearAddress, isLoading: addressLoading } =
+    useUserAddress();
+  const { jurisdiction, setJurisdiction } = useContentJurisdiction();
   const location =
-    localityFromAddress(address) ?? (addressLoading ? "…" : "Set your address");
+    localityFromAddress(address) ??
+    (addressLoading ? "…" : JURISDICTIONS[jurisdiction].name);
+  const coverageOptions: ContentJurisdiction[] = [
+    "federal",
+    ...SUPPORTED_STATE_JURISDICTIONS,
+  ];
   const runIdRef = useRef(0);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const coordsFrozenRef = useRef(false);
@@ -737,12 +753,22 @@ export function DigestGreetingBar() {
         visible={locationOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setLocationOpen(false)}
+        onRequestClose={() => {
+          setEditingAddress(false);
+          setLocationOpen(false);
+        }}
       >
-        <View style={styles.menuRoot} pointerEvents="box-none">
+        <KeyboardAvoidingView
+          style={styles.menuRoot}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          pointerEvents="box-none"
+        >
           <Pressable
             style={styles.menuScrim}
-            onPress={() => setLocationOpen(false)}
+            onPress={() => {
+              setEditingAddress(false);
+              setLocationOpen(false);
+            }}
             accessibilityLabel="Close location menu"
           />
           <View
@@ -750,29 +776,82 @@ export function DigestGreetingBar() {
             accessibilityRole="menu"
           >
             <Text style={styles.menuTitle}>Location</Text>
-            <View style={[styles.menuRow, styles.menuRowOn]}>
-              <Text style={[styles.menuRowText, styles.menuRowTextOn]}>
-                {address ? location : "No address saved"}
-              </Text>
-              {address ? <Text style={styles.menuCheck}>✓</Text> : null}
-            </View>
-            <Pressable
-              style={styles.menuRow}
-              onPress={() => {
-                setLocationOpen(false);
-                router.push("/elections" as Href);
-              }}
-              accessibilityRole="menuitem"
-              accessibilityLabel="Set address on Elections"
-            >
-              <Text style={styles.menuRowText}>
-                {address ? "Change address…" : "Set address on Elections…"}
-              </Text>
-            </Pressable>
-            {/* GAP: Places autocomplete lives on Elections; greeting does not
-                invent a city/district picker. */}
+            {coverageOptions.map((id) => {
+              const on = jurisdiction === id;
+              return (
+                <Pressable
+                  key={id}
+                  style={[styles.menuRow, on && styles.menuRowOn]}
+                  onPress={() => {
+                    void setJurisdiction(id);
+                    setEditingAddress(false);
+                    setLocationOpen(false);
+                  }}
+                  accessibilityRole="menuitem"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={JURISDICTIONS[id].name}
+                >
+                  <Text
+                    style={[styles.menuRowText, on && styles.menuRowTextOn]}
+                  >
+                    {JURISDICTIONS[id].name}
+                  </Text>
+                  {on ? <Text style={styles.menuCheck}>✓</Text> : null}
+                </Pressable>
+              );
+            })}
+            <View style={styles.menuRule} />
+            {editingAddress ? (
+              <AddressAutocomplete
+                key={address ?? "none"}
+                initialValue={address ?? ""}
+                hint={null}
+                autoFocus
+                inline
+                onSubmit={(next) => {
+                  void setAddress(next);
+                  const home = jurisdictionFromAddress(next);
+                  if (home) void setJurisdiction(home);
+                  setEditingAddress(false);
+                  setLocationOpen(false);
+                }}
+              />
+            ) : (
+              <Pressable
+                style={styles.menuRow}
+                onPress={() => setEditingAddress(true)}
+                accessibilityRole="menuitem"
+                accessibilityLabel={
+                  address ? "Change address" : "Set address"
+                }
+              >
+                <Text
+                  style={[
+                    styles.menuRowText,
+                    address ? styles.menuRowMuted : null,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {address
+                    ? (localityFromAddress(address) ?? address)
+                    : "Set address"}
+                </Text>
+                {address ? (
+                  <Pressable
+                    onPress={() => {
+                      void clearAddress();
+                    }}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear saved address"
+                  >
+                    <Text style={styles.menuClear}>✕</Text>
+                  </Pressable>
+                ) : null}
+              </Pressable>
+            )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <ProfileMenu
@@ -869,6 +948,7 @@ const styles = StyleSheet.create({
   menuCard: {
     position: "absolute",
     minWidth: 220,
+    maxWidth: 280,
     backgroundColor: CARD_MENU,
     borderRadius: 14,
     borderWidth: 1,
@@ -891,6 +971,18 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingTop: 2,
   },
+  menuRule: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(247,244,238,0.12)",
+    marginVertical: 6,
+    marginHorizontal: 10,
+  },
+  menuClear: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    color: MUTED,
+    paddingLeft: 10,
+  },
   menuRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -906,6 +998,11 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: 15,
     color: INK,
+    flexShrink: 1,
+  },
+  menuRowMuted: {
+    fontFamily: fontBody.regular,
+    color: MUTED,
   },
   menuRowTextOn: {
     color: ELECTRIC,
@@ -914,5 +1011,6 @@ const styles = StyleSheet.create({
     fontFamily: fontBody.bold,
     fontSize: 14,
     color: ELECTRIC,
+    marginLeft: 12,
   },
 });

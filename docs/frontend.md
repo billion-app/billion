@@ -11,14 +11,15 @@ Expo Router maps files in `apps/expo/src/app/` to routes. Start with the route, 
 | Providers, fonts, and app initialization            | [Root layout](../apps/expo/src/app/_layout.tsx)                                                                        |
 | Feed brief — today’s local news                     | [DigestHome](../apps/expo/src/components/DigestHome.tsx), mounted from the [Feed tab](<../apps/expo/src/app/(tabs)/index.tsx>) |
 | Browse, filters, and search                         | [Browse catalog](<../apps/expo/src/app/(tabs)/index.tsx>) (`BrowseCatalog`) on the Browse tab (`feed` route)            |
-| Address-based ballot lookup                         | [Elections route](<../apps/expo/src/app/(tabs)/elections.tsx>)                                                         |
+| Home address and coverage                           | Feed lockup menu in [DigestGreetingBar](../apps/expo/src/components/DigestGreetingBar.tsx); Browse [JurisdictionPicker](../apps/expo/src/components/JurisdictionPicker.tsx) |
+| Address-based ballot lookup                         | [Elections route](<../apps/expo/src/app/(tabs)/elections.tsx>) — parked until `ELECTIONS_LIVE`                         |
 | Original content, explanation, brief, and citations | [Article detail](../apps/expo/src/app/article-detail.tsx)                                                              |
 | Candidate race and ballot measure details           | [Contest detail](../apps/expo/src/app/contest-detail.tsx), [measure detail](../apps/expo/src/app/measure-detail.tsx)   |
 | Tab registration and visibility                     | [Tab layout](<../apps/expo/src/app/(tabs)/_layout.tsx>) and [custom TabBar](../apps/expo/src/components/ui/TabBar.tsx) |
 
 The Feed tab is a short brief. [DigestHome](../apps/expo/src/components/DigestHome.tsx) shows featured local bills plus the federal cover — at most seven items — under “Today’s local news”. It does not invent a daily ranking, a moved-count, or a read-time. Saving a bill, case, or order reuses the device-local saved set; the article page draws a four-stop legislative path from the projected status label and does not invent chamber passage.
 
-Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab is a coming-soon placeholder and does not call Civic or Places until voter tools ship (`ELECTIONS_LIVE`). Check both Expo Router options and the custom `TabBar` when changing visibility.
+Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab is a coming-soon placeholder and does not call Civic or Places until voter tools ship (`ELECTIONS_LIVE`). While it is parked, set a home address (Places autocomplete) and coverage (federal, California, North Carolina, Texas) from the Feed lockup dropdown or the Browse jurisdiction sheet — not from Elections. Check both Expo Router options and the custom `TabBar` when changing visibility.
 
 The historical notes in `src/new_pages_implementation/` describe earlier page plans. Read the actual route before using one as an implementation reference.
 
