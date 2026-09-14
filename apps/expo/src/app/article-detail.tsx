@@ -377,6 +377,7 @@ export default function ArticleDetailScreen() {
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
+        directionalLockEnabled
       >
         {headerImageSource && headerImageKey !== failedHeaderImageKey ? (
           <View style={s.headerArt}>

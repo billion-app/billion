@@ -11,10 +11,17 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { ContentItem } from "~/utils/content";
+import { EmptySearchMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
-import { ContentCard, Icon, NavHeader } from "~/components/ui";
+import { ContentCard, NavHeader } from "~/components/ui";
 import { useSavedContent } from "~/hooks/useSavedContent";
-import { colors, hair, planes } from "~/styles";
+import {
+  DigestHair,
+  DigestSpace,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import { toCardItem } from "~/utils/content";
 
@@ -33,6 +40,10 @@ function SwipeableSavedCard({
     <Swipeable
       ref={swipeableRef}
       overshootRight={false}
+      overshootLeft={false}
+      friction={2}
+      activeOffsetX={[-15, 15]}
+      failOffsetY={[-12, 12]}
       renderRightActions={() => (
         <TouchableOpacity
           style={s.unsaveAction}
@@ -44,7 +55,7 @@ function SwipeableSavedCard({
           accessibilityRole="button"
           accessibilityLabel="Remove from saved"
         >
-          <Icon name="bookmarkFill" size={20} color={colors.white} />
+          <Text style={s.unsaveText}>Remove</Text>
         </TouchableOpacity>
       )}
     >
@@ -61,9 +72,6 @@ export default function SavedArticlesScreen() {
   const router = useRouter();
   const { savedIds, toggleSave } = useSavedContent();
 
-  // The saved set lives on the device, so the screen arrives holding ids and
-  // has to turn them into something renderable. Order is save order, newest
-  // first, and the server returns them in the order it was asked for.
   const { data, isLoading, error, refetch } = useQuery({
     ...trpc.content.byIds.queryOptions({ ids: savedIds }),
     enabled: savedIds.length > 0,
@@ -75,13 +83,12 @@ export default function SavedArticlesScreen() {
     <View style={s.screen}>
       <NavHeader title="Saved" onBack={() => router.back()} />
       {isLoading && savedIds.length > 0 ? (
-        <ActivityIndicator color={colors.white} style={{ marginTop: 40 }} />
+        <ActivityIndicator color={P.inkOnNight} style={{ marginTop: 40 }} />
       ) : error && savedIds.length > 0 ? (
         <View style={s.empty}>
-          <Text style={s.emptyTitle}>Saved items didn't load</Text>
+          <Text style={s.emptyTitle}>Didn’t load</Text>
           <Text style={s.emptySub}>
-            Your bookmarks are still on this device. Try loading their details
-            again.
+            Saved records are still on this device.
           </Text>
           <TouchableOpacity
             style={s.retry}
@@ -99,10 +106,19 @@ export default function SavedArticlesScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             list.length > 0 ? (
-              <Text style={s.intro}>{list.length} saved to read later.</Text>
+              <Text style={s.intro}>
+                {list.length} saved
+              </Text>
             ) : null
           }
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={() => (
+            <View
+              style={{
+                height: StyleSheet.hairlineWidth,
+                backgroundColor: DigestHair.sectionRule,
+              }}
+            />
+          )}
           renderItem={({ item }) => (
             <SwipeableSavedCard
               item={item}
@@ -118,11 +134,11 @@ export default function SavedArticlesScreen() {
           )}
           ListEmptyComponent={
             <View style={s.empty}>
-              <Icon name="bookmark" size={26} color={colors.textSecondary} />
+              <EmptySearchMark width={88} />
               <Text style={s.emptyTitle}>Nothing saved yet</Text>
               <Text style={s.emptySub}>
-                Tap the bookmark on anything you want to come back to. Saved
-                items stay on this device — no account needed.
+                Tap the bookmark on a bill, a case, or an order to come back
+                to it.
               </Text>
             </View>
           }
@@ -133,55 +149,66 @@ export default function SavedArticlesScreen() {
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: planes.navy },
-  content: { paddingHorizontal: 20, paddingBottom: 48, flexGrow: 1 },
+  screen: { flex: 1, backgroundColor: P.canvas },
+  content: {
+    paddingHorizontal: DigestSpace.screenPadX,
+    paddingBottom: 48,
+    flexGrow: 1,
+  },
   intro: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 18,
+    fontFamily: fontBody.semibold,
+    fontSize: 11,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: P.quiet,
+    marginBottom: 16,
   },
   empty: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 24,
     paddingTop: 80,
   },
   emptyTitle: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 19,
-    color: colors.white,
+    fontFamily: fontDisplay.bold,
+    fontSize: 20,
+    color: P.inkOnNight,
   },
   emptySub: {
-    fontFamily: "AlbertSans-Regular",
+    fontFamily: fontBody.regular,
     fontSize: 14,
     lineHeight: 20,
     textAlign: "center",
-    color: colors.textSecondary,
+    color: P.quiet,
   },
   retry: {
     marginTop: 8,
-    borderWidth: 1,
-    borderColor: hair[2],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
     borderRadius: 999,
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
   retryText: {
-    fontFamily: "AlbertSans-SemiBold",
+    fontFamily: fontBody.semibold,
     fontSize: 14,
-    color: colors.white,
+    color: P.inkOnNight,
   },
   unsaveAction: {
     justifyContent: "center",
     alignItems: "center",
-    width: 72,
+    width: 80,
     marginLeft: 12,
     borderRadius: 16,
-    backgroundColor: colors.red[500],
-    borderWidth: 1,
-    borderColor: hair[1],
+    backgroundColor: P.stone,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+  },
+  unsaveText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    color: P.inkOnNight,
   },
 });

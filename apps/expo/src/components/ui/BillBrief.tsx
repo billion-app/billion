@@ -435,6 +435,10 @@ function Changes({
         decelerationRate="fast"
         disableIntervalMomentum
         nestedScrollEnabled
+        directionalLockEnabled
+        alwaysBounceVertical={false}
+        alwaysBounceHorizontal
+        overScrollMode="never"
         onMomentumScrollEnd={(event) => {
           const next = Math.round(
             event.nativeEvent.contentOffset.x / snapInterval,

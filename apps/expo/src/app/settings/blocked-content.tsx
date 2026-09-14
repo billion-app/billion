@@ -7,8 +7,8 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
-import { Card, Icon, ScreenShell } from "~/components/ui";
-import { colors, fontBody, hair, planes } from "~/styles";
+import { Icon, ScreenShell } from "~/components/ui";
+import { DigestHair, fontBody, DigestPalette as P } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 
 export default function BlockedContentScreen() {
@@ -25,27 +25,23 @@ export default function BlockedContentScreen() {
   });
 
   return (
-    <ScreenShell title="Blocked Content">
-      <Text style={s.intro}>
-        Hidden from your feed and search. Unblock anything — we&apos;ll keep it
-        out until you change your mind.
-      </Text>
-
+    <ScreenShell title="Blocked">
       {blockedQuery.isLoading ? (
-        <ActivityIndicator color={colors.white} style={{ marginTop: 24 }} />
+        <ActivityIndicator color={P.inkOnNight} style={{ marginTop: 24 }} />
       ) : items.length === 0 ? (
-        <Card>
-          <Text style={s.emptyText}>No blocked content yet.</Text>
-        </Card>
+        <Text style={s.emptyText}>Nothing blocked.</Text>
       ) : (
-        <View style={{ gap: 10 }}>
-          {items.map((it) => (
-            <Card key={it.id} style={s.blockedCard}>
+        <View>
+          {items.map((it, i) => (
+            <View
+              key={it.id}
+              style={[s.blockedRow, i < items.length - 1 && s.divider]}
+            >
               <View style={s.tile}>
                 <Icon
                   name={it.type === "source" ? "globe" : "filter"}
                   size={18}
-                  color={colors.textSecondary}
+                  color={P.spark}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -57,11 +53,11 @@ export default function BlockedContentScreen() {
               <TouchableOpacity
                 onPress={() => removeMutation.mutate({ id: it.id })}
                 activeOpacity={0.8}
-                style={[s.pill, { borderColor: hair[2] }]}
+                style={s.pill}
               >
                 <Text style={s.pillText}>Unblock</Text>
               </TouchableOpacity>
-            </Card>
+            </View>
           ))}
         </View>
       )}
@@ -70,50 +66,53 @@ export default function BlockedContentScreen() {
 }
 
 const s = StyleSheet.create({
-  intro: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 20,
-    lineHeight: 21,
-  },
-  blockedCard: {
+  blockedRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 13,
-    paddingVertical: 14,
+    gap: 14,
+    paddingVertical: 16,
+  },
+  divider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
   },
   tile: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: planes.surface,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: DigestHair.tabActivePill,
     alignItems: "center",
     justifyContent: "center",
   },
-  name: { fontFamily: fontBody.semibold, fontSize: 15, color: colors.white },
+  name: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    color: P.inkOnNight,
+  },
   type: {
-    fontFamily: "AlbertSans-Medium",
+    fontFamily: fontBody.medium,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: P.quiet,
+    marginTop: 2,
   },
   pill: {
-    height: 38,
-    paddingHorizontal: 16,
+    height: 36,
+    paddingHorizontal: 14,
     borderRadius: 9999,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
     alignItems: "center",
     justifyContent: "center",
   },
   pillText: {
     fontFamily: fontBody.semibold,
     fontSize: 13,
-    color: "rgba(255,255,255,0.85)",
+    color: P.inkOnNight,
   },
   emptyText: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: "center",
+    fontFamily: fontBody.regular,
+    fontSize: 15,
+    color: P.quiet,
+    marginTop: 12,
   },
 });

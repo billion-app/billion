@@ -1,12 +1,5 @@
 /**
- * AddressAutocomplete — address input with a live suggestion dropdown.
- *
- * Debounces the typed query, fetches US-address predictions from
- * places.autocomplete, and lets the user tap a suggestion to commit it. Picking
- * a suggestion resolves its full formatted address via places.details (which
- * also closes the Places billing session — see the session-token note below),
- * then calls onSubmit with that address to feed Civic's getVoterInfo. Replaces
- * the bare text field so users can't submit malformed addresses.
+ * Address field with Places autocomplete, then Civic lookup.
  */
 import { useState } from "react";
 import {
@@ -19,10 +12,10 @@ import {
 } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { PinMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
-import { Icon } from "~/components/ui";
 import { useDebounced } from "~/hooks/useDebounce";
-import { colors, fontBody, hair, planes } from "~/styles";
+import { DigestHair, DigestPalette, fontBody } from "~/styles";
 import { trpc } from "~/utils/api";
 
 interface AddressAutocompleteProps {
@@ -30,6 +23,15 @@ interface AddressAutocompleteProps {
   initialValue?: string;
   /** Commit a final address (suggestion tap or Look Up press). */
   onSubmit: (address: string) => void;
+  /**
+   * Optional field hint. Pass `null` to hide — Elections empty state carries
+   * the editorial lead elsewhere so we don't repeat "enter your address".
+   * Omit for the default one-liner.
+   */
+  hint?: string | null;
+  autoFocus?: boolean;
+  /** Menu/sheet field: type and pick. No Look Up chrome. */
+  inline?: boolean;
 }
 
 /**
@@ -45,9 +47,14 @@ function uuidv4(): string {
   });
 }
 
+const DEFAULT_HINT = "Enter your address to see what's on your ballot.";
+
 export function AddressAutocomplete({
   initialValue = "",
   onSubmit,
+  hint = DEFAULT_HINT,
+  autoFocus = true,
+  inline = false,
 }: AddressAutocompleteProps) {
   const [input, setInput] = useState(initialValue);
   // Closed right after a pick so the dropdown doesn't reopen on the
@@ -63,6 +70,7 @@ export function AddressAutocomplete({
       sessionToken,
     }),
     enabled: open && debouncedQuery.trim().length >= 3,
+    retry: false,
   });
 
   // Closes the billing session and returns the full formatted address (with
@@ -98,16 +106,58 @@ export function AddressAutocomplete({
     }
   };
 
-  return (
-    <View style={s.wrap}>
-      <Text style={s.hint}>
-        Enter your address to see what&apos;s on your ballot.
-      </Text>
-      <View style={s.row}>
+  const pending = (
+    <View style={inline ? s.dropdownInline : s.dropdown}>
+      <View style={inline ? s.suggestionInline : s.suggestion}>
+        <ActivityIndicator size="small" color={DigestPalette.spark} />
+        {inline ? null : (
+          <Text style={s.suggestionText}>Confirming address…</Text>
+        )}
+      </View>
+    </View>
+  );
+
+  const suggestionList = (
+    <View style={inline ? s.dropdownInline : s.dropdown}>
+      {suggestions.map((sug, i) => (
+        <TouchableOpacity
+          key={sug.placeId}
+          style={[
+            inline ? s.suggestionInline : s.suggestion,
+            i > 0 && (inline ? s.suggestionBorderInline : s.suggestionBorder),
+          ]}
+          activeOpacity={0.7}
+          onPress={() => void pick(sug)}
+        >
+          {inline ? null : (
+            <PinMark size={14} color={DigestPalette.quiet} />
+          )}
+          <Text
+            style={inline ? s.suggestionTextInline : s.suggestionText}
+            numberOfLines={1}
+          >
+            {sug.description}
+          </Text>
+        </TouchableOpacity>
+      ))}
+      {suggestions.length === 0 && suggestionsQuery.isFetching && (
+        <View style={inline ? s.suggestionInline : s.suggestion}>
+          <ActivityIndicator size="small" color={DigestPalette.quiet} />
+          {inline ? null : (
+            <Text style={s.suggestionText}>Searching…</Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
+
+  if (inline) {
+    return (
+      <View>
         <TextInput
-          style={s.input}
-          placeholder="Your registered address"
-          placeholderTextColor={colors.textSecondary}
+          style={s.inputInline}
+          placeholder="Address"
+          placeholderTextColor={DigestPalette.quiet}
           value={input}
           onChangeText={(t) => {
             setOpen(true);
@@ -115,8 +165,40 @@ export function AddressAutocomplete({
           }}
           autoComplete="street-address"
           textContentType="fullStreetAddress"
-          autoFocus
+          autoFocus={autoFocus}
+          returnKeyType="done"
+          onSubmitEditing={() => {
+            const next = input.trim();
+            if (next) commit(next);
+          }}
         />
+        {detailsMutation.isPending ? pending : showDropdown ? suggestionList : null}
+      </View>
+    );
+  }
+
+  return (
+    <View style={s.wrap}>
+      {hint ? <Text style={s.hint}>{hint}</Text> : null}
+      <View style={s.row}>
+        <View style={s.field}>
+          <View style={s.pin}>
+            <PinMark size={18} color={DigestPalette.spark} />
+          </View>
+          <TextInput
+            style={s.input}
+            placeholder="Registered address"
+            placeholderTextColor={DigestHair.inkMuted}
+            value={input}
+            onChangeText={(t) => {
+              setOpen(true);
+              setInput(t);
+            }}
+            autoComplete="street-address"
+            textContentType="fullStreetAddress"
+            autoFocus={autoFocus}
+          />
+        </View>
         <TouchableOpacity
           style={[s.btn, !input.trim() && s.btnOff]}
           disabled={!input.trim() || detailsMutation.isPending}
@@ -126,99 +208,95 @@ export function AddressAutocomplete({
         </TouchableOpacity>
       </View>
 
-      {detailsMutation.isPending && (
-        <View style={s.dropdown}>
-          <View style={s.suggestion}>
-            <ActivityIndicator size="small" color={colors.textSecondary} />
-            <Text style={s.suggestionText}>Confirming address…</Text>
-          </View>
-        </View>
-      )}
-
-      {showDropdown && (
-        <View style={s.dropdown}>
-          {suggestions.map((sug, i) => (
-            <TouchableOpacity
-              key={sug.placeId}
-              style={[s.suggestion, i > 0 && s.suggestionBorder]}
-              activeOpacity={0.7}
-              onPress={() => void pick(sug)}
-            >
-              <Icon name="pin" size={14} color={colors.textSecondary} />
-              <Text style={s.suggestionText} numberOfLines={1}>
-                {sug.description}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {suggestions.length === 0 && suggestionsQuery.isFetching && (
-            <View style={s.suggestion}>
-              <ActivityIndicator size="small" color={colors.textSecondary} />
-              <Text style={s.suggestionText}>Searching…</Text>
-            </View>
-          )}
-        </View>
-      )}
+      {detailsMutation.isPending && pending}
+      {showDropdown && suggestionList}
     </View>
   );
 }
 
 const s = StyleSheet.create({
   wrap: {
-    backgroundColor: planes.slate,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
-    padding: 16,
     marginTop: 12,
   },
-  hint: {
-    fontFamily: "AlbertSans-Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  row: { flexDirection: "row", gap: 10 },
-  input: {
-    flex: 1,
-    height: 48,
-    backgroundColor: planes.navy,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    color: colors.white,
-    fontFamily: "AlbertSans-Regular",
+  inputInline: {
+    height: 40,
+    paddingHorizontal: 10,
+    color: DigestPalette.inkOnNight,
+    fontFamily: fontBody.semibold,
     fontSize: 15,
   },
+  dropdownInline: {
+    marginTop: 2,
+  },
+  suggestionInline: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  suggestionBorderInline: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.cardBorder,
+  },
+  suggestionTextInline: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    color: DigestPalette.quiet,
+  },
+  hint: {
+    fontFamily: fontBody.regular,
+    fontSize: 13.5,
+    color: DigestPalette.quiet,
+    marginBottom: 12,
+    lineHeight: 19,
+  },
+  row: { flexDirection: "row", gap: 10, alignItems: "center" },
+  field: { flex: 1, position: "relative" },
+  pin: { position: "absolute", left: 18, top: 19, zIndex: 1 },
+  input: {
+    height: 56,
+    backgroundColor: DigestPalette.paper,
+    borderRadius: 28,
+    paddingLeft: 46,
+    paddingRight: 16,
+    color: DigestPalette.ink,
+    fontFamily: fontBody.medium,
+    fontSize: 17,
+  },
   btn: {
-    backgroundColor: colors.white,
+    backgroundColor: DigestPalette.primary,
     borderRadius: 9999,
+    height: 56,
     paddingHorizontal: 18,
     justifyContent: "center",
   },
   btnOff: { opacity: 0.5 },
-  btnText: { fontFamily: fontBody.semibold, fontSize: 14, color: planes.ink },
+  btnText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+    color: DigestPalette.inkOnNight,
+  },
   dropdown: {
     marginTop: 10,
-    backgroundColor: planes.navy,
-    borderWidth: 1,
-    borderColor: hair[2],
-    borderRadius: 12,
+    backgroundColor: DigestPalette.stone,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.menuBorder,
+    borderRadius: 18,
     overflow: "hidden",
   },
   suggestion: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  suggestionBorder: { borderTopWidth: 1, borderTopColor: hair[1] },
+  suggestionBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.cardBorder,
+  },
   suggestionText: {
     fontFamily: fontBody.medium,
-    fontSize: 13.5,
-    color: colors.white,
+    fontSize: 14,
+    color: DigestPalette.inkOnNight,
     flex: 1,
   },
 });

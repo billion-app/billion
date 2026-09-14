@@ -1,9 +1,12 @@
-/** ScreenShell — NavHeader + scrolling padded body for settings sub-screens. */
+/**
+ * ScreenShell — NavHeader + scrolling padded body for settings sub-screens.
+ * Night canvas, Digest pad rhythm, no empty wells.
+ */
 import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { planes } from "~/styles";
+import { DigestSpace, DigestPalette as P } from "~/styles";
 import { NavHeader } from "./NavHeader";
 
 export function ScreenShell({
@@ -32,7 +35,11 @@ export function ScreenShell({
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: planes.navy },
+  screen: { flex: 1, backgroundColor: P.canvas },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingBottom: 48 },
+  content: {
+    paddingHorizontal: DigestSpace.screenPadX,
+    paddingTop: 16,
+    paddingBottom: 48,
+  },
 });

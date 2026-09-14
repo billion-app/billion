@@ -41,7 +41,7 @@ The [civic integration](../packages/api/src/lib/civic.ts) calls Google Civic and
 
 Civic and Places provide mock responses when keys are absent, which helps local UI development. A populated mock ballot is not evidence that real provider access works. See [provider setup](civic-data-sources.md) and [the integration reference](data-sources-api.md) when testing live data.
 
-[Places](../packages/api/src/lib/places.ts) resolves predictions to a full address. Keep the session token stable across one address entry, including the closing details request, so the provider can group them into one session.
+[Places](../packages/api/src/lib/places.ts) resolves predictions to a full address. Keep the session token stable across one address entry, including the closing details request, so the provider can group them into one session. When the provider refuses a request, autocomplete returns an empty list instead of an error so the user can still type a full address and look it up.
 
 Local decisions have a separate durable ingestion path. New consumers should use the normalized decision API described in [Local government and Legistar](local-government-legistar.md). The old source-format queries remain during the UI transition.
 
