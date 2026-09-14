@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import type { IconName } from "./Icon";
 import {
+  DigestHair,
   DigestRadii,
   fontBody,
   DigestPalette as P,
