@@ -50,6 +50,7 @@ These documents explain intent or record plans. Use the implementation guides an
 - [Brand manifesto](../BRANDING.md) and [positioning](positioning-nonpartisan-vs-partisan.md)
 - [Government information structure](government-information-structure.md), background on the civic domain and coverage goals
 - [Website product brief](../apps/nextjs/PRODUCT.md) and [website design](../apps/nextjs/DESIGN.md)
+- [Midterms 2026 launch decision and verification checklist](midterms-2026-launch-decision.md)
 - [Outreach deliverables](outreach-deliverables.md)
 - [Historical Expo page implementation notes](../apps/expo/src/new_pages_implementation/README.md)
 
