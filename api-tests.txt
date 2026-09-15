@@ -1,0 +1,304 @@
+
+> @acme/api@ test /Users/me/.codex/worktrees/22e0/billion/packages/api
+> tsx --test src/**/*.test.ts
+
+TAP version 13
+# Subtest: paginates list endpoints with explicit top and skip
+ok 1 - paginates list endpoints with explicit top and skip
+  ---
+  duration_ms: 18.344083
+  type: 'test'
+  ...
+# Subtest: escapes apostrophes in OData filters
+ok 2 - escapes apostrophes in OData filters
+  ---
+  duration_ms: 0.361208
+  type: 'test'
+  ...
+# Subtest: requests complete agenda-item evidence fields
+ok 3 - requests complete agenda-item evidence fields
+  ---
+  duration_ms: 0.282625
+  type: 'test'
+  ...
+# Subtest: combines internal Congress actions that represent one visible event
+ok 4 - combines internal Congress actions that represent one visible event
+  ---
+  duration_ms: 1.013042
+  type: 'test'
+  ...
+# Subtest: keeps matching action text when it occurs on different dates
+ok 5 - keeps matching action text when it occurs on different dates
+  ---
+  duration_ms: 0.112042
+  type: 'test'
+  ...
+# Subtest: state Senate simple resolutions use their chamber when adoption is unqualified
+ok 6 - state Senate simple resolutions use their chamber when adoption is unqualified
+  ---
+  duration_ms: 2.639042
+  type: 'test'
+  ...
+# Subtest: state House simple resolutions use their chamber when adoption is unqualified
+ok 7 - state House simple resolutions use their chamber when adoption is unqualified
+  ---
+  duration_ms: 0.301583
+  type: 'test'
+  ...
+# Subtest: a state simple resolution with only a latest Passed action is adopted in its named chamber
+ok 8 - a state simple resolution with only a latest Passed action is adopted in its named chamber
+  ---
+  duration_ms: 0.185625
+  type: 'test'
+  ...
+# Subtest: committee adoption language does not count as a concurrent-chamber vote
+ok 9 - committee adoption language does not count as a concurrent-chamber vote
+  ---
+  duration_ms: 0.107958
+  type: 'test'
+  ...
+# Subtest: both explicit state concurrent chamber actions become adopted_both
+ok 10 - both explicit state concurrent chamber actions become adopted_both
+  ---
+  duration_ms: 0.153667
+  type: 'test'
+  ...
+# Subtest: joint resolutions retain chamber-passage semantics
+ok 11 - joint resolutions retain chamber-passage semantics
+  ---
+  duration_ms: 0.143291
+  type: 'test'
+  ...
+# Subtest: amendment-only adoption does not complete a simple resolution
+ok 12 - amendment-only adoption does not complete a simple resolution
+  ---
+  duration_ms: 0.326791
+  type: 'test'
+  ...
+# Subtest: an amendment passed by a chamber does not count as measure passage
+ok 13 - an amendment passed by a chamber does not count as measure passage
+  ---
+  duration_ms: 0.241292
+  type: 'test'
+  ...
+# Subtest: a motion agreed to by a chamber does not count as resolution adoption
+ok 14 - a motion agreed to by a chamber does not count as resolution adoption
+  ---
+  duration_ms: 0.235292
+  type: 'test'
+  ...
+# Subtest: ordinary state bills are not mistaken for resolutions
+ok 15 - ordinary state bills are not mistaken for resolutions
+  ---
+  duration_ms: 0.398667
+  type: 'test'
+  ...
+# Subtest: federal H.R. bills are not mistaken for state simple resolutions
+ok 16 - federal H.R. bills are not mistaken for state simple resolutions
+  ---
+  duration_ms: 0.060959
+  type: 'test'
+  ...
+# Subtest: parses scraper sponsor labels
+ok 17 - parses scraper sponsor labels
+  ---
+  duration_ms: 0.881791
+  type: 'test'
+  ...
+# Subtest: parses seeded labels with titles and districts
+ok 18 - parses seeded labels with titles and districts
+  ---
+  duration_ms: 0.13225
+  type: 'test'
+  ...
+# Subtest: keeps a useful name when metadata is unavailable
+ok 19 - keeps a useful name when metadata is unavailable
+  ---
+  duration_ms: 0.392791
+  type: 'test'
+  ...
+# Subtest: maps bill chamber to the sponsor's role
+ok 20 - maps bill chamber to the sponsor's role
+  ---
+  duration_ms: 0.540667
+  type: 'test'
+  ...
+# Subtest: parses a state-legislator district without treating it as a state
+ok 21 - parses a state-legislator district without treating it as a state
+  ---
+  duration_ms: 0.4085
+  type: 'test'
+  ...
+# Subtest: projects a House passage when the latest action is reconsideration
+ok 22 - projects a House passage when the latest action is reconsideration
+  ---
+  duration_ms: 2.80625
+  type: 'test'
+  ...
+# Subtest: does not treat a rule for another resolution as passage
+ok 23 - does not treat a rule for another resolution as passage
+  ---
+  duration_ms: 0.39375
+  type: 'test'
+  ...
+# Subtest: falls back to a meaningful proposal label when no action exists
+ok 24 - falls back to a meaningful proposal label when no action exists
+  ---
+  duration_ms: 0.165375
+  type: 'test'
+  ...
+# {"requests":100,"failing":false,"upstream":1,"errors":0,"p95Ms":22.800374999999974}
+# Subtest: bounded cold burst, provider failure=false
+ok 25 - bounded cold burst, provider failure=false
+  ---
+  duration_ms: 24.797625
+  type: 'test'
+  ...
+# {"requests":100,"failing":true,"upstream":1,"errors":100,"p95Ms":21.356042000000002}
+# Subtest: bounded cold burst, provider failure=true
+ok 26 - bounded cold burst, provider failure=true
+  ---
+  duration_ms: 22.53125
+  type: 'test'
+  ...
+# Subtest: timeout retains admission until work settles; overload never starts work
+ok 27 - timeout retains admission until work settles; overload never starts work
+  ---
+  duration_ms: 20.533667
+  type: 'test'
+  ...
+# Subtest: distinct election/address keys remain isolated and sync throws release admission
+ok 28 - distinct election/address keys remain isolated and sync throws release admission
+  ---
+  duration_ms: 0.728459
+  type: 'test'
+  ...
+# Subtest: enriched reads can use a longer deadline in the same admission pool
+ok 29 - enriched reads can use a longer deadline in the same admission pool
+  ---
+  duration_ms: 11.514583
+  type: 'test'
+  ...
+# Subtest: base and enriched caches stay independent and retain other elections
+ok 30 - base and enriched caches stay independent and retain other elections
+  ---
+  duration_ms: 2.541
+  type: 'test'
+  ...
+# Subtest: unknown election retries once, failure writes no cache or enrichment
+ok 31 - unknown election retries once, failure writes no cache or enrichment
+  ---
+  duration_ms: 0.397583
+  type: 'test'
+  ...
+# Subtest: successful fallback preserves returned election and caches only its identity
+ok 32 - successful fallback preserves returned election and caches only its identity
+  ---
+  duration_ms: 0.985708
+  type: 'test'
+  ...
+# Subtest: parses an Open States bill identity
+ok 33 - parses an Open States bill identity
+  ---
+  duration_ms: 0.907375
+  type: 'test'
+  ...
+# Subtest: distinguishes supported state and federal bills
+ok 34 - distinguishes supported state and federal bills
+  ---
+  duration_ms: 0.144666
+  type: 'test'
+  ...
+# Subtest: uses a jurisdiction-correct official source label
+ok 35 - uses a jurisdiction-correct official source label
+  ---
+  duration_ms: 0.069083
+  type: 'test'
+  ...
+# Subtest: provides codes and friendly current-session labels
+ok 36 - provides codes and friendly current-session labels
+  ---
+  duration_ms: 0.064916
+  type: 'test'
+  ...
+# Subtest: parseCsv handles quoted commas and escaped quotes
+ok 37 - parseCsv handles quoted commas and escaped quotes
+  ---
+  duration_ms: 1.442833
+  type: 'test'
+  ...
+# Subtest: production never enables mock address predictions
+ok 38 - production never enables mock address predictions
+  ---
+  duration_ms: 0.1195
+  type: 'test'
+  ...
+# Subtest: extractDistricts reads federal and state OCD division IDs
+ok 39 - extractDistricts reads federal and state OCD division IDs
+  ---
+  duration_ms: 0.357834
+  type: 'test'
+  ...
+# Subtest: extractDistricts follows D.C. aliases and normalizes at-large seats
+ok 40 - extractDistricts follows D.C. aliases and normalizes at-large seats
+  ---
+  duration_ms: 0.169709
+  type: 'test'
+  ...
+# Subtest: selectOfficials returns the address-scoped federal and state delegation
+ok 41 - selectOfficials returns the address-scoped federal and state delegation
+  ---
+  duration_ms: 0.219709
+  type: 'test'
+  ...
+# Subtest: selectFederalOfficialByName matches chamber and first/last name
+ok 42 - selectFederalOfficialByName matches chamber and first/last name
+  ---
+  duration_ms: 0.276
+  type: 'test'
+  ...
+# Subtest: selectFederalOfficialByName does not borrow a namesake's headshot
+ok 43 - selectFederalOfficialByName does not borrow a namesake's headshot
+  ---
+  duration_ms: 0.146291
+  type: 'test'
+  ...
+# Subtest: selectFederalOfficialByName matches senators by full state name
+ok 44 - selectFederalOfficialByName matches senators by full state name
+  ---
+  duration_ms: 0.142041
+  type: 'test'
+  ...
+# Subtest: weights public interest above controversy and attention
+ok 45 - weights public interest above controversy and attention
+  ---
+  duration_ms: 1.136
+  type: 'test'
+  ...
+# Subtest: keeps recent substantive bills and exceptional older bills
+ok 46 - keeps recent substantive bills and exceptional older bills
+  ---
+  duration_ms: 1.536917
+  type: 'test'
+  ...
+# Subtest: breaks equal scores deterministically
+ok 47 - breaks equal scores deterministically
+  ---
+  duration_ms: 0.106959
+  type: 'test'
+  ...
+# Subtest: API bill cards project lifecycle status from the full action record
+ok 48 - API bill cards project lifecycle status from the full action record
+  ---
+  duration_ms: 2.59375
+  type: 'test'
+  ...
+1..48
+# tests 48
+# suites 0
+# pass 48
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1402.274833
