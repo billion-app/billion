@@ -77,19 +77,13 @@ function Disclosure({
   );
 }
 
-function LocationRow({
-  location,
-  accent,
-}: {
-  location: PollingLocation;
-  accent: string;
-}) {
+function LocationRow({ location }: { location: PollingLocation }) {
   const { theme } = useTheme();
   const item = describeVotingLocation(location);
   const hours = location.pollingHours?.trim();
   const facts = [styles.body, { color: theme.foreground }];
   return (
-    <View style={[styles.location, { borderLeftColor: accent }]}>
+    <View style={styles.location}>
       <Text style={[styles.name, { color: theme.foreground }]}>
         {item.name}
       </Text>
@@ -245,7 +239,7 @@ function LocationGroup({
       {expanded ? (
         <View style={styles.groupBody}>
           {group.locations.map((location, index) => (
-            <LocationRow key={index} location={location} accent={accent} />
+            <LocationRow key={index} location={location} />
           ))}
         </View>
       ) : null}
@@ -566,10 +560,6 @@ const styles = StyleSheet.create({
   resourceHeader: { flexDirection: "row", alignItems: "center", gap: sp[3] },
   officeLinks: { gap: sp[2] },
   location: {
-    borderLeftWidth: 3,
-    backgroundColor: planes.surface,
-    borderRadius: 10,
-    padding: 14,
     gap: 14,
   },
   control: {
