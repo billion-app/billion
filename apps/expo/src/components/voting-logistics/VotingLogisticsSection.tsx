@@ -14,7 +14,7 @@ import type { PollingLocation } from "@acme/api";
 
 import type { VotingLogisticsData } from "~/utils/voting-logistics";
 import { Icon } from "~/components/ui/Icon";
-import { fontBody, fontDisplay, planes, rd, sp, useTheme } from "~/styles";
+import { fontBody, fontDisplay, rd, sp, useTheme } from "~/styles";
 import {
   describeVotingLocation,
   votingInformationLinks,
@@ -92,7 +92,11 @@ function Disclosure({
           />
         </View>
       </Pressable>
-      {expanded ? <View style={styles.details}>{children}</View> : null}
+      {expanded ? (
+        <View style={[styles.details, { backgroundColor: theme.card }]}>
+          {children}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -334,7 +338,6 @@ const styles = StyleSheet.create({
     padding: sp[4],
     marginBottom: sp[3],
     borderRadius: rd.lg,
-    backgroundColor: planes.slate,
   },
   noteSection: { gap: sp[2], marginBottom: sp[3] },
   reading: { fontFamily: fontBody.regular, fontSize: 16, lineHeight: 25 },

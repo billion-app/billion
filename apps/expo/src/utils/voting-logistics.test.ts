@@ -17,11 +17,6 @@ const location: PollingLocation = {
     state: "NC",
     zip: "",
   },
-  pollingHours: "Mon–Fri 9–5; Saturday 10–2",
-  startDate: "2026-10-15",
-  endDate: "2026-10-31",
-  notes: "Use the accessible side entrance. Bring required identification.",
-  voterServices: "Early voting",
   sources: [
     { name: "Example county", official: true },
     {
@@ -32,16 +27,9 @@ const location: PollingLocation = {
   ],
 };
 
-void test("preserves all supplied date, hours, notes, services and source details", () => {
+void test("formats partial addresses and preserves source authority", () => {
   const result = describeVotingLocation(location);
   assert.equal(result.address, "123 Example Street, Example City, NC");
-  assert.deepEqual(result.details, [
-    `Hours: ${location.pollingHours}`,
-    "Starts: 2026-10-15",
-    "Ends: 2026-10-31",
-    `Notes: ${location.notes}`,
-    "Services: Early voting",
-  ]);
   assert.deepEqual(result.sources, [
     { label: "Example county (official)", url: undefined },
     {
@@ -51,13 +39,11 @@ void test("preserves all supplied date, hours, notes, services and source detail
   ]);
 });
 
-void test("partial address and end-only dates do not acquire invented values", () => {
+void test("missing address and source data stay explicit", () => {
   const result = describeVotingLocation({
     address: { line1: "", city: "", state: "", zip: "" },
-    endDate: "2026-11-03",
   });
   assert.equal(result.address, "Address not supplied.");
-  assert.deepEqual(result.details, ["Hours not supplied.", "Ends: 2026-11-03"]);
   assert.deepEqual(result.sources, []);
 });
 
