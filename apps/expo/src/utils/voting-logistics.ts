@@ -35,17 +35,6 @@ export function describeVotingLocation(location: PollingLocation) {
     name:
       clean(location.name) ?? clean(address.locationName) ?? "Voting location",
     address: addressText || "Address not supplied.",
-    details: [
-      clean(location.pollingHours)
-        ? `Hours: ${location.pollingHours}`
-        : "Hours not supplied.",
-      clean(location.startDate) ? `Starts: ${location.startDate}` : undefined,
-      clean(location.endDate) ? `Ends: ${location.endDate}` : undefined,
-      clean(location.notes) ? `Notes: ${location.notes}` : undefined,
-      clean(location.voterServices)
-        ? `Services: ${location.voterServices}`
-        : undefined,
-    ].filter((value): value is string => Boolean(value)),
     sources: (location.sources ?? []).map((source) => ({
       label: `${clean(source.name) ?? "Unnamed source"}${source.official === true ? " (official)" : " (official status not confirmed)"}`,
       url: votingWebUrl(source.url),
