@@ -28,7 +28,11 @@
     },
     "test": {
       "dependsOn": ["^topo", "^build"],
-      "env": ["NOTIFICATIONS_TEST_DATABASE_URL"]
+      "env": [
+        "NOTIFICATIONS_TEST_DATABASE_URL",
+        "SCOTUS_TEST_POSTGRES_URL",
+        "COURT_BRIEF_TEST_ARTIFACT_DIR"
+      ]
     },
     "clean": {
       "cache": false

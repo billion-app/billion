@@ -68,11 +68,66 @@ Until that configuration is deployed, production does not run the new source.
 When a refreshed docket already exists under the old CourtListener court-URL
 alias, its source fields and court name are updated on the original ID rather
 than creating a second card. Changed court text invalidates its old generated
-summary, article, and perspectives, so a budget-limited refresh cannot permanently reuse an
+summary, article, and perspectives, and makes a cached court brief stale, so a budget-limited refresh cannot permanently reuse an
 explanation of the previous decision. Other historical records are not bulk rewritten. Files under
 [scrapers/disabled](src/scrapers/disabled/README.md) remain inactive.
 
 Each source declares its environment contract in an adjacent `*.config.ts`. Use those contracts and [the environment guide](../../docs/launch.md#scraper-and-scheduled-data-jobs) for required provider keys and current defaults.
+
+### Court brief rollout and verification
+
+New SCOTUS enrichment generates a validated court brief and reuses its takeaway
+for the card summary. It does not generate a redundant Markdown explanation.
+The normal run's generation slots cover missing, stale, and invalid briefs too.
+Legacy Markdown records remain readable until refreshed. Source text, URLs,
+separate opinion documents, and case UUIDs remain intact.
+
+Historical generation is opt-in. First inspect the database host with the
+environment doctor. Inventory is read-only unless `--apply` is supplied:
+
+```bash
+pnpm --filter @acme/scraper run reprocess-content --type court_case --limit 1
+pnpm --filter @acme/scraper run reprocess-content --type court_case --id UUID --limit 1 --concurrency 1 --apply
+```
+
+Court writes require an explicit positive limit, including `--type all`. This is
+an item cap, not a dollar quota; each selected item may also generate optional
+lenses or artwork. Production writes additionally require the tool's `--yes`
+acknowledgement. Verify the active provider and credit before opting into paid
+generation. The deterministic tests below do not prove paid provider availability.
+
+Use a migrated local fixture database for the complete deterministic chain.
+Both database tests refuse remote hosts and remove only their own UUIDs. The
+new test uses the real generator with an AI SDK test model, exercises ordinary
+upsert/cache behavior and real tRPC detail, and writes optional response artifacts.
+The Expo test renders the actual court component through React Native Web:
+
+```bash
+mkdir -p /tmp/billion-court-brief-check
+SCOTUS_TEST_POSTGRES_URL=postgresql://LOCAL_USER@127.0.0.1:5432/LOCAL_FIXTURE_DB COURT_BRIEF_TEST_ARTIFACT_DIR=/tmp/billion-court-brief-check pnpm --filter @acme/scraper exec tsx --test src/scrapers/court-brief-db.test.ts src/scrapers/scotus-db.test.ts
+COURT_BRIEF_TEST_ARTIFACT_DIR=/tmp/billion-court-brief-check pnpm --filter @acme/expo exec tsx --test src/components/ui/CourtBrief.test.ts
+pnpm --filter @acme/scraper exec tsx --test src/utils/ai/court-brief.test.ts
+```
+
+These cover `26A305` with full official PDF text, synthetic merits and separate
+concurrence/dissent documents, sparse evidence, invalid citations/quotes,
+source/version invalidation, missing briefs, cache reuse without budget, and
+retry behavior. `court-brief.html` is the rendered artifact; the JSON files are
+actual tRPC results for valid, missing, invalid, and stale cases.
+
+To check the full article route in a browser, start Expo with fixture transport
+instead of a live API, then run the script in another terminal. It delivers the
+real response artifacts above through local tRPC transport and checks all four
+states plus the original-text tab. It saves a screenshot and closes its browser:
+
+```bash
+EXPO_PUBLIC_API_URL=http://127.0.0.1:4013 pnpm --filter @acme/expo exec expo start --web --port 8091
+COURT_BRIEF_TEST_ARTIFACT_DIR=/tmp/billion-court-brief-check node scripts/verify-court-brief-web.mjs
+```
+
+The browser script uses `pnpm dlx agent-browser` and binds its fixture server to
+`127.0.0.1:4013`. Stop Expo when finished. The database fixture refuses to replace
+an existing `26A305` record, so use an empty local fixture database.
 
 The court identity/source-refresh database regression is opt-in. Set
 `SCOTUS_TEST_POSTGRES_URL` to a migrated local database, then run:

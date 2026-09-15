@@ -10,8 +10,10 @@ import {
   CourtCase,
   GovernmentContent,
 } from "@acme/db/schema";
+import { parseCourtBriefRecord } from "@acme/validators";
 
 import type { ReprocessMode } from "./utils/reprocessing-policy.js";
+import type { CourtCaseData } from "./utils/types.js";
 import { databaseTarget, databaseTargetMessage } from "./env.js";
 import { generateImageSearchKeywords } from "./utils/ai/image-keywords.js";
 import {
@@ -20,7 +22,11 @@ import {
 } from "./utils/ai/text-generation.js";
 import { getThumbnailImage } from "./utils/api/google-images.js";
 import { getCostSummary, resetCosts } from "./utils/costs.js";
-import { upsertBillBrief, upsertContentLens } from "./utils/db/operations.js";
+import {
+  upsertBillBrief,
+  upsertContentLens,
+  upsertCourtBrief,
+} from "./utils/db/operations.js";
 import { createContentHash } from "./utils/hash.js";
 import {
   createLogger,
@@ -30,7 +36,7 @@ import {
 } from "./utils/log.js";
 import {
   isUsableAIArticle,
-  isUsableSourceText,
+  isUsableExplanationSource,
   needsReprocessing,
   requiresBrief,
 } from "./utils/reprocessing-policy.js";
@@ -42,6 +48,7 @@ const CONTENT_TYPES = ["bill", "government_content", "court_case"] as const;
 type ContentType = (typeof CONTENT_TYPES)[number];
 
 interface ContentItem {
+  courtData?: CourtCaseData;
   id: string;
   type: ContentType;
   title: string;
@@ -159,20 +166,35 @@ async function loadContentItems(
       thumbnailUrl: CourtCase.thumbnailUrl,
       url: CourtCase.url,
       contentHash: CourtCase.contentHash,
+      court: CourtCase.court,
+      caseNumber: CourtCase.caseNumber,
+      filedDate: CourtCase.filedDate,
+      status: CourtCase.status,
+      brief: ContentBrief.brief,
+      briefHash: ContentBrief.contentHash,
     })
     .from(CourtCase)
+    .leftJoin(
+      ContentBrief,
+      and(
+        eq(ContentBrief.contentType, "court_case"),
+        eq(ContentBrief.contentId, CourtCase.id),
+      ),
+    )
     .orderBy(asc(CourtCase.id));
   const rows = afterId
     ? await query.where(gt(CourtCase.id, afterId))
     : await query;
-  return rows.map((row) => ({
+  return rows.map(({ brief, briefHash, ...row }) => ({
     ...row,
     type,
     articleType: "court case",
-    hasBrief: false,
+    hasBrief:
+      briefHash === row.contentHash &&
+      Boolean(parseCourtBriefRecord(brief, row.contentHash)),
+    courtData: row,
     billNumber: null,
     officialSummary: null,
-    status: null,
     actions: null,
   }));
 }
@@ -221,10 +243,10 @@ async function processItem(
 ): Promise<ProcessResult> {
   let fullText = item.fullText;
   let contentHash = item.contentHash;
-  if (!isUsableSourceText(fullText)) {
+  if (!isUsableExplanationSource(fullText, item.type)) {
     logger.start(`${item.type}:${item.id} re-fetching missing source text`);
     const refreshed = await refreshSourceText(item);
-    if (!isUsableSourceText(refreshed)) {
+    if (!isUsableExplanationSource(refreshed, item.type)) {
       return {
         id: item.id,
         type: item.type,
@@ -323,20 +345,48 @@ async function processItem(
   // why a "fill in what is missing" pass could leave a bill with art and an
   // article and still nothing the app wants to render.
   let briefPresent = item.hasBrief;
-  if (shouldGenerateBrief && item.billNumber) {
+  if (shouldGenerateBrief && (item.billNumber || item.courtData)) {
     try {
-      briefPresent = await upsertBillBrief({
-        contentId: item.id,
-        contentHash,
-        title: item.title,
-        billNumber: item.billNumber,
-        url: item.url,
-        fullText,
-        officialSummary: item.officialSummary,
-        status: item.status,
-        actions: item.actions,
-        priorArticle: effectiveArticle,
-      });
+      briefPresent = item.courtData
+        ? await upsertCourtBrief({
+            contentId: item.id,
+            contentHash,
+            data: { ...item.courtData, fullText },
+            force: mode === "replace",
+          })
+        : await upsertBillBrief({
+            contentId: item.id,
+            contentHash,
+            title: item.title,
+            billNumber: item.billNumber!,
+            url: item.url,
+            fullText,
+            officialSummary: item.officialSummary,
+            status: item.status,
+            actions: item.actions,
+            priorArticle: effectiveArticle,
+          });
+      if (briefPresent && item.courtData) {
+        const [stored] = await db
+          .select()
+          .from(ContentBrief)
+          .where(
+            and(
+              eq(ContentBrief.contentType, "court_case"),
+              eq(ContentBrief.contentId, item.id),
+            ),
+          )
+          .limit(1);
+        const courtBrief = parseCourtBriefRecord(stored?.brief, contentHash);
+        if (courtBrief)
+          await db
+            .update(CourtCase)
+            .set({
+              description: courtBrief.takeaway.text,
+              updatedAt: new Date(),
+            })
+            .where(eq(CourtCase.id, item.id));
+      }
       if (!briefPresent) errors.push("brief generation returned nothing");
     } catch (error) {
       errors.push(
@@ -366,7 +416,7 @@ async function processItem(
     }
   }
 
-  // A bill counts as complete on its brief; everything else on its article.
+  // Bills and courts count as complete on their briefs.
   const longFormIsUsable = requiresBrief(item.type)
     ? briefPresent
     : isUsableAIArticle(effectiveArticle);
@@ -387,7 +437,9 @@ function printInventory(
   items: ContentItem[],
   mode: ReprocessMode,
 ) {
-  const usable = items.filter((item) => isUsableSourceText(item.fullText));
+  const usable = items.filter((item) =>
+    isUsableExplanationSource(item.fullText, item.type),
+  );
   const selected = usable.filter((item) =>
     needsReprocessing(rowState(item), mode),
   );
@@ -396,8 +448,12 @@ function printInventory(
   printKeyValue("Usable source text", usable.length);
   printKeyValue("Missing/invalid source text", items.length - usable.length);
   printKeyValue(
-    "Invalid/missing article",
-    items.filter((item) => !isUsableAIArticle(item.aiGeneratedArticle)).length,
+    requiresBrief(type) ? "Missing/stale brief" : "Invalid/missing article",
+    items.filter((item) =>
+      requiresBrief(type)
+        ? !item.hasBrief
+        : !isUsableAIArticle(item.aiGeneratedArticle),
+    ).length,
   );
   printKeyValue(`Selected (${mode})`, selected.length);
   printFooter();
@@ -478,6 +534,14 @@ const argv = await yargs(hideBin(process.argv))
   .parse();
 
 async function main(): Promise<void> {
+  if (
+    argv.apply &&
+    argv.type !== "bill" &&
+    argv.type !== "government_content" &&
+    !argv.limit
+  ) {
+    throw new Error("Court brief generation requires an explicit --limit");
+  }
   const databaseUrl = process.env.POSTGRES_URL;
   if (!databaseUrl) throw new Error("POSTGRES_URL is required");
 

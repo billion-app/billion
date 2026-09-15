@@ -168,13 +168,46 @@ Two brand constraints shape it:
 Content without a brief keeps rendering the markdown article, so this is
 additive rather than a cutover.
 
-## Scope
+## Court briefs
 
-Bills only, for now. The schema is written around legislative mechanics —
-before/after provisions, sponsor-vs-text framing, "would" vs "does" — and
-executive actions and court cases each need their own design pass. The
-`content_brief` table already carries a `contentType`, so adding one is a
-generator and a schema, not a migration.
+Courts use a separate [court schema](../packages/validators/src/court-brief.ts),
+not legislative before/after fields. It records the takeaway, specific relief,
+procedural posture, questions, attributed reasoning and opinions, effects, and
+explicit unknowns. An emergency stay denial is interim relief, not a final
+resolution of every merits question. Only source-labelled merits opinions can
+carry a `holding`; arguments, allegations, and possible effects have distinct labels.
+Opinion counts never become inferred vote counts. Unsupported sections may be empty.
+
+[The court generator](../apps/scraper/src/utils/ai/court-brief.ts) makes a bounded,
+source-only structured call with one retry. It shares a 32k-character context
+across documents, including the beginning and end of long documents, and warns
+the writer when material is omitted. Every factual point cites document IDs;
+quotes are checked against the full text of the attributed document and removed
+when unverifiable. Separately published PDFs retain their own URLs and hashes.
+Court reasoning and authored opinions explain the record; broader researched
+debate remains in `ContentLens`.
+
+The ordinary court path caches the validated record in `content_brief` against
+the source hash and court schema/generator versions. The source hash includes
+text, title, status, URL, court, docket, and publication date. Source changes,
+invalid output, or old versions require another generation slot; failures stay
+retryable. Court card descriptions reuse the brief takeaway, so there is no
+separate summary or redundant Markdown generation. The required brief runs before
+optional image and lens enrichment. Changed sources still preserve the original
+case UUID and invalidate old generated summaries/articles.
+
+`content.getById` exposes `courtBrief` separately from bill `brief`. A court
+brief or lens with a mismatched source hash is omitted. Invalid or unsupported
+court brief versions are omitted as well. [CourtBrief](../apps/expo/src/components/ui/CourtBrief.tsx)
+renders scannable sections, opinion attribution, unknowns, and accessible links
+to full official documents. Original source text remains independent. Existing
+Markdown-only records retain the explainer fallback, and courts do not show
+legislative stages. Executive actions continue using Markdown explainers.
+
+Coverage starts with the existing SCOTUS adapter. Trial ingestion and timelines
+remain future work in #325. There is no automatic historical backfill; bounded
+opt-in commands and deterministic verification are in the
+[scraper guide](../apps/scraper/README.md#court-brief-rollout-and-verification).
 
 ## Running it
 
