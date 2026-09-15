@@ -5,8 +5,8 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,6 +20,7 @@ import {
   BallotSources,
   BallotStatusNotice,
 } from "~/components/ballot-evidence/BallotEvidence";
+import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
 import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
@@ -133,6 +134,7 @@ function ContestCard({ contest }: { contest: Contest }) {
 
 export function BallotLookupView(props: BallotLookupViewProps) {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState(props.address);
   const [editing, setEditing] = useState(!props.address);
@@ -176,6 +178,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   return (
     <View style={s.screen}>
       <NavHeader
+        key={fontScale}
         title="Your ballot"
         onBack={() =>
           router.canGoBack() ? router.back() : router.replace("/")
