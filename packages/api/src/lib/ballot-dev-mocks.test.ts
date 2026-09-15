@@ -14,6 +14,7 @@ void test("mock addresses are inert outside development and never intercept real
         assert.equal(getDevBallot("mock:error"), undefined);
       }
     }
+    assert.equal(getDevBallot("Mock:full")?.kind, "development-fixture");
     const full = getDevBallot("mock:full");
     assert.equal(full?.contests?.length, 2);
     assert.equal(full.dropOffLocations?.length, 1);

@@ -17,6 +17,7 @@ import {
   BallotStatusNotice,
   SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
+import { BallotContestCard } from "~/components/ballot/BallotContestCard";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
 import { RepsSection } from "~/components/RepsSection";
@@ -28,7 +29,6 @@ import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
-  contestListTitle,
   groupContestsByLevel,
   isCaliforniaState,
   measureIsStatewide,
@@ -458,50 +458,7 @@ function ElectionsLive({
               <Kicker>{group.label}</Kicker>
               <View style={{ gap: 14 }}>
                 {group.contests.map((c: Contest, i: number) => (
-                  <TouchableOpacity
-                    key={`${group.key}-${i}`}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      posthog.capture("contest_detail_opened", {
-                        office: c.office ?? null,
-                        district: c.district?.name ?? null,
-                        candidate_count: c.candidates?.length ?? 0,
-                        government_level: group.label,
-                      });
-                      router.push({
-                        pathname: "/contest-detail",
-                        params: {
-                          office: c.office ?? "",
-                          roles: JSON.stringify(c.roles ?? []),
-                          levels: JSON.stringify(c.level ?? []),
-                          candidates: JSON.stringify(c.candidates ?? []),
-                          districtName: c.district?.name ?? "",
-                          roleDescription: c.roleDescription ?? "",
-                        },
-                      });
-                    }}
-                  >
-                    <Card
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <View style={{ flex: 1, marginRight: 10 }}>
-                        <Text style={s.contestOffice} numberOfLines={2}>
-                          {contestListTitle(c)}
-                        </Text>
-                        {c.candidates && c.candidates.length > 0 && (
-                          <Text style={s.contestMeta}>
-                            {c.candidates.length} candidate
-                            {c.candidates.length !== 1 ? "s" : ""}
-                          </Text>
-                        )}
-                      </View>
-                      <Icon name="chevR" size={16} color="#5B6172" />
-                    </Card>
-                  </TouchableOpacity>
+                  <BallotContestCard key={`${group.key}-${i}`} contest={c} />
                 ))}
               </View>
             </View>

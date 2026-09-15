@@ -1,3 +1,4 @@
+/* eslint-disable turbo/no-undeclared-env-vars -- This test sets its own timezone and restores it; TZ is not a build input. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

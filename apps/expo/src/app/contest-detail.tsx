@@ -17,7 +17,6 @@ import Fuse from "fuse.js";
 
 import {
   BallotDetailEvidence,
-  BallotLanguages,
   BallotSources,
   ElectionOfficeLink,
 } from "~/components/ballot-evidence/BallotEvidence";
@@ -147,6 +146,7 @@ export default function ContestDetailScreen() {
     candidates: string;
     districtName: string;
     roleDescription: string;
+    citations?: string;
   }>();
 
   const candidates: CandidateParam[] = useMemo(
@@ -156,6 +156,14 @@ export default function ContestDetailScreen() {
         : [],
     [params.candidates],
   );
+  const raceCitations = useMemo(() => {
+    try {
+      const value: unknown = JSON.parse(params.citations ?? "[]");
+      return Array.isArray(value) ? (value as CandidateCitation[]) : [];
+    } catch {
+      return [];
+    }
+  }, [params.citations]);
   const description = params.roleDescription || null;
 
   // Expansion keyed by candidate identity (name + original index), not array
@@ -518,11 +526,10 @@ export default function ContestDetailScreen() {
             })}
           </View>
         </View>
-        {candidates.length === 0 ? (
-          <BallotDetailEvidence citations={[]} showOfficeLink={false} />
-        ) : (
-          <BallotLanguages items={[]} />
-        )}
+        <BallotDetailEvidence
+          citations={raceCitations}
+          showOfficeLink={candidates.length > 0}
+        />
       </ScrollView>
     </View>
   );

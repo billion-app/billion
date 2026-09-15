@@ -2,9 +2,12 @@ import type { VoterInfoResponse } from "./civic";
 
 /** Explicit synthetic addresses only; never substitutes for real provider failures. */
 export function getDevBallot(address: string): VoterInfoResponse | undefined {
-  if (process.env.NODE_ENV !== "development" || !address.startsWith("mock:"))
+  if (
+    process.env.NODE_ENV !== "development" ||
+    !address.toLowerCase().startsWith("mock:")
+  )
     return undefined;
-  const scenario = address.slice(5);
+  const scenario = address.slice(5).toLowerCase();
   if (scenario === "error")
     throw new Error("Synthetic ballot provider failure");
   if (!["full", "partial", "empty"].includes(scenario))
