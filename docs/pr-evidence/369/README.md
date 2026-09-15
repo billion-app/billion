@@ -1,10 +1,12 @@
-# PR 369 simulator screenshots
+# PR 369 native screenshots
 
-Actual running Billion development app in an iPhone 17 Pro simulator, iOS 26.5. Device: Billion PR369 evidence (40ADC928-4B74-4321-A53C-0D2F09AD26AF). Metro served the implementation worktree on localhost:8109; captured source commit e1f9b21f75bd05898ce649f94fcb2dde357ce395.
+The running Billion development app on an iPhone 17 Pro simulator, iOS 26.5. Metro served commit `09a15ffd8f8bee2f03ea69ae143c1ae97ebea087` on localhost:8119.
 
-Both screens use synthetic route-parameter fixtures. The source names, URLs, summary and original text are fixtures, not real election claims or verified coverage. These are native simulator captures, not mockups, report screenshots, or installed production-release acceptance.
+All election content, candidate names, source names and URLs are synthetic route-parameter fixtures. These captures demonstrate the native interface; they do not establish live election coverage or production-release acceptance.
 
-- measure-sources-ios.png: AI summary is separate from original measure text. Each field retains its own citation; missing verification date and unknown language availability are explicit.
-- candidate-missing-ios.png: An empty candidate result does not claim that there are no candidates or no election. The screen offers an official election-office directory and explains that language availability is unknown to Billion.
+- `measure-ios.png`: Overview, fiscal impact and original text appear in separate reading cards. The generated summary has an adjacent AI label.
+- `candidate-ios.png`: Candidate biography, summary/original controls and collapsed evidence rows.
+- `candidate-missing-ios.png`: The contest title stays visible above the unavailable-data message and election-office action.
+- `measure-large-text-ios.png`: Complete title and reading card after changing Dynamic Type to accessibility-medium and navigating without restarting.
 
-No provider generation or live data writes were used to prepare the fixtures. Screenshot assets live on a separate evidence branch so the implementation stack remains unchanged.
+Warm text-size changes and navigation were checked in both directions. Candidate expansion and source disclosure remained usable. No live provider calls or data writes supplied the fixtures.
