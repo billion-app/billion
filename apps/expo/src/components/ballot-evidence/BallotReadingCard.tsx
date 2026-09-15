@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { Card } from "~/components/ui/layout";
 import {
@@ -10,6 +10,7 @@ import {
   DigestPalette as P,
   sp,
 } from "~/styles";
+import { BallotText as Text } from "./BallotText";
 
 /** Preserve supplied prose verbatim; long text can be opened in place. */
 export function BallotReadingText({ text }: { text: string }) {
