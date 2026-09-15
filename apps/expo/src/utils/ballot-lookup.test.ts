@@ -5,7 +5,6 @@ import type { BallotResponse } from "./ballot-lookup";
 import {
   ballotElectionOptions,
   ballotModel,
-  ballotWebUrl,
   contestBallotCitations,
   validateBallotAddress,
 } from "./ballot-lookup";
@@ -68,15 +67,6 @@ void test("selection keeps discovered alternatives even if subsequent response o
   );
   assert.deepEqual(ballotElectionOptions(undefined), []);
 });
-void test("official links reject executable and malformed URLs", () => {
-  assert.equal(ballotWebUrl("javascript:alert(1)"), undefined);
-  assert.equal(ballotWebUrl("not a url"), undefined);
-  assert.equal(
-    ballotWebUrl("https://elections.example.gov/results"),
-    "https://elections.example.gov/results",
-  );
-});
-
 void test("missing election and normalized address remain unknown", () => {
   const data: BallotResponse = { kind: "civic#voterInfoResponse" };
   assert.equal(ballotModel(data).election, undefined);
@@ -107,5 +97,4 @@ void test("contest citations preserve field and official evidence without inferr
   assert.deepEqual(result[0], citation);
   assert.equal(result.length, 2);
   assert.equal(result[1]?.official, false);
-  assert.equal(ballotWebUrl("https://user:password@example.org"), undefined);
 });

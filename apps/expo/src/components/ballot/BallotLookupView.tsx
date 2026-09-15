@@ -9,8 +9,10 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+
+import type { Contest } from "@acme/api";
 
 import type { BallotResponse } from "~/utils/ballot-lookup";
 import {
@@ -19,8 +21,16 @@ import {
   BallotStatusNotice,
 } from "~/components/ballot-evidence/BallotEvidence";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { Icon } from "~/components/ui/Icon";
+import { Card } from "~/components/ui/layout";
+import { NavHeader } from "~/components/ui/NavHeader";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
-import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
+import {
+  DigestHair,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+} from "~/styles";
 import {
   ballotElectionOptions,
   ballotModel,
@@ -44,171 +54,305 @@ export interface BallotLookupViewProps {
   renderCaliforniaResults?: (data: BallotResponse) => ReactNode;
 }
 
+function Disclosure({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded(!expanded)}
+        style={s.disclosure}
+      >
+        <Text style={s.actionText}>{label}</Text>
+        <Icon
+          name={expanded ? "chevD" : "chevR"}
+          size={18}
+          color={P.inkOnNight}
+        />
+      </Pressable>
+      {expanded && <View style={s.details}>{children}</View>}
+    </View>
+  );
+}
+
+function ContestCard({ contest }: { contest: Contest }) {
+  const citations = [
+    ...contestBallotCitations(contest),
+    ...(contest.candidates ?? []).flatMap((candidate) =>
+      (candidate.citations ?? []).map((citation) => ({
+        ...citation,
+        field: `${candidate.name} · ${citation.field}`,
+      })),
+    ),
+  ];
+  return (
+    <Card style={s.card}>
+      <Text style={s.eyebrow}>
+        {contest.referendumTitle ? "Ballot measure" : "Candidate race"}
+      </Text>
+      <Text accessibilityRole="header" style={s.contestTitle}>
+        {contest.referendumTitle ?? contest.office ?? "Ballot contest"}
+      </Text>
+      {!!contest.district?.name && (
+        <Text style={s.secondary}>{contest.district.name}</Text>
+      )}
+      {!!contest.referendumSubtitle && (
+        <Text style={s.body}>{contest.referendumSubtitle}</Text>
+      )}
+      {contest.candidates?.map((candidate, index) => (
+        <View key={index} style={s.candidate}>
+          <Text style={s.candidateName}>{candidate.name}</Text>
+          {!!candidate.party && (
+            <Text style={s.secondary}>{candidate.party}</Text>
+          )}
+        </View>
+      ))}
+      {!!contest.referendumText && (
+        <Disclosure label="Read measure text">
+          <Text selectable style={s.body}>
+            {contest.referendumText}
+          </Text>
+        </Disclosure>
+      )}
+      <BallotSources
+        citations={citations}
+        contentKind="citations"
+        showRecovery={false}
+      />
+    </Card>
+  );
+}
+
 export function BallotLookupView(props: BallotLookupViewProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState(props.address);
+  const [editing, setEditing] = useState(!props.address);
   const [invalid, setInvalid] = useState(false);
+  const [choosingElection, setChoosingElection] = useState(false);
   const addressInput = useRef<TextInput>(null);
-  // Suppress cached data during every transition, including a failed/invalid lookup.
+  // Keep cached ballot content out of address editing and request transitions.
   const data =
-    props.loading || props.failed || invalid ? undefined : props.data;
+    props.loading || props.failed || invalid || editing
+      ? undefined
+      : props.data;
   const model = data ? ballotModel(data) : undefined;
   const elections = ballotElectionOptions(props.discovery, data);
   const submit = () => {
     const valid = validateBallotAddress(draft);
     setInvalid(!valid);
-    if (valid) props.onAddress(draft.trim());
+    if (valid) {
+      setEditing(false);
+      props.onAddress(draft.trim());
+    }
   };
   const officeUrl = data ? ballotOfficeUrl(data) : undefined;
   const evidence = invalid
     ? { kind: "invalid-input" as const }
     : props.failed
       ? { kind: "provider-failure" as const }
-      : !props.loading && props.settled
+      : !props.loading && !editing && props.settled
         ? {
             kind: "result" as const,
             electionKnown: !!model?.election,
             contestCount: model?.contests.length ?? 0,
           }
         : undefined;
+  const status = evidence && (
+    <BallotStatusNotice
+      evidence={evidence}
+      officialOfficeUrl={officeUrl}
+      onRetry={invalid ? () => addressInput.current?.focus() : props.onRetry}
+    />
+  );
   return (
-    <SafeAreaView style={s.screen}>
+    <View style={s.screen}>
+      <NavHeader
+        title="Your ballot"
+        onBack={() =>
+          router.canGoBack() ? router.back() : router.replace("/")
+        }
+      />
       <ScrollView
-        contentContainerStyle={s.content}
+        contentContainerStyle={[
+          s.content,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable
-          accessibilityRole="button"
-          onPress={() =>
-            router.canGoBack() ? router.back() : router.replace("/")
-          }
-          style={s.button}
-        >
-          <Text style={s.link}>Back</Text>
-        </Pressable>
-        <Text style={s.title}>Your ballot</Text>
-        <Text style={s.body}>
-          Look up the ballot information available for your voting address.
-          Coverage varies by election and location.
-        </Text>
-        <TextInput
-          ref={addressInput}
-          accessibilityLabel="Voting address"
-          placeholder="Street, city, state, ZIP"
-          placeholderTextColor={P.quiet}
-          value={draft}
-          onChangeText={setDraft}
-          onSubmitEditing={submit}
-          returnKeyType="search"
-          style={s.input}
-        />
-        <Pressable accessibilityRole="button" onPress={submit} style={s.button}>
-          <Text style={s.link}>Look up ballot</Text>
-        </Pressable>
-        {elections.length > 1 && (
-          <View style={s.section}>
-            <Text style={s.heading}>Elections for this address</Text>
-            {elections.map((e) => (
+        {editing ? (
+          <Card style={s.card}>
+            <Text accessibilityRole="header" style={s.contestTitle}>
+              Voting address
+            </Text>
+            <Text style={s.secondary}>
+              Find the contests returned for your address.
+            </Text>
+            <TextInput
+              ref={addressInput}
+              accessibilityLabel="Voting address"
+              placeholder="Street, city, state, ZIP"
+              placeholderTextColor={P.quiet}
+              value={draft}
+              onChangeText={setDraft}
+              onSubmitEditing={submit}
+              returnKeyType="search"
+              autoFocus={!!props.address}
+              style={s.input}
+            />
+            <Pressable
+              accessibilityRole="button"
+              onPress={submit}
+              style={s.primaryButton}
+            >
+              <Text style={s.primaryText}>Look up ballot</Text>
+            </Pressable>
+            {!!props.address && (
               <Pressable
-                key={e.id}
                 accessibilityRole="button"
-                accessibilityState={{ selected: model?.election?.id === e.id }}
-                onPress={() => props.onElection(e.id)}
-                style={s.button}
+                onPress={() => {
+                  setDraft(props.address);
+                  setInvalid(false);
+                  setEditing(false);
+                }}
+                style={s.outlineButton}
               >
-                <Text style={s.link}>
-                  {e.name} · {e.electionDay}
-                  {model?.election?.id === e.id ? " · Selected" : ""}
-                </Text>
+                <Text style={s.actionText}>Cancel editing</Text>
               </Pressable>
-            ))}
-          </View>
+            )}
+          </Card>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Edit voting address: ${props.address}`}
+            onPress={() => setEditing(true)}
+            style={s.addressRow}
+          >
+            <View style={s.flex}>
+              <Text style={s.eyebrow}>Voting address</Text>
+              <Text style={s.body}>{props.address}</Text>
+            </View>
+            <Text style={s.actionText}>Edit</Text>
+          </Pressable>
         )}
         {props.loading && (
-          <ActivityIndicator
-            accessibilityLabel="Looking up ballot"
-            color={P.spark}
-          />
+          <View accessibilityLiveRegion="polite" style={s.loading}>
+            <ActivityIndicator color={P.spark} />
+            <Text style={s.body}>Looking up your ballot…</Text>
+          </View>
         )}
-        {evidence && (
-          <BallotStatusNotice
-            evidence={evidence}
-            officialOfficeUrl={officeUrl}
-            onRetry={
-              invalid ? () => addressInput.current?.focus() : props.onRetry
-            }
-          />
+        {!!model?.election && (
+          <Card style={s.card}>
+            <Text style={s.eyebrow}>
+              Election · {model.election.electionDay}
+            </Text>
+            <Text accessibilityRole="header" style={s.contestTitle}>
+              {model.election.name}
+            </Text>
+            {elections.length > 1 && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Change election"
+                accessibilityState={{ expanded: choosingElection }}
+                onPress={() => setChoosingElection(!choosingElection)}
+                style={s.outlineButton}
+              >
+                <Text style={s.actionText}>Change election</Text>
+                <Icon name="chevD" size={16} color={P.inkOnNight} />
+              </Pressable>
+            )}
+          </Card>
         )}
-        {invalid && (
-          <Text accessibilityRole="alert" style={s.body}>
-            Enter an address between 5 and 300 characters.
-          </Text>
+        {!editing &&
+          elections.length > 1 &&
+          (choosingElection || !model?.election) && (
+            <Card style={s.card}>
+              <Text accessibilityRole="header" style={s.eyebrow}>
+                Elections for this address
+              </Text>
+              {elections.map((election) => (
+                <Pressable
+                  key={election.id}
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    selected: model?.election?.id === election.id,
+                  }}
+                  onPress={() => {
+                    setChoosingElection(false);
+                    props.onElection(election.id);
+                  }}
+                  style={s.electionOption}
+                >
+                  <View style={s.flex}>
+                    <Text style={s.actionText}>{election.name}</Text>
+                    <Text style={s.secondary}>{election.electionDay}</Text>
+                  </View>
+                  {model?.election?.id === election.id && (
+                    <Text style={s.secondary}>Selected</Text>
+                  )}
+                </Pressable>
+              ))}
+            </Card>
+          )}
+        {status && !model?.contests.length && (
+          <Card style={s.card}>
+            {status}
+            {invalid && (
+              <Text accessibilityRole="alert" style={s.secondary}>
+                Use 5–300 characters without control characters.
+              </Text>
+            )}
+          </Card>
         )}
         {data?.election &&
           props.requestedElectionId &&
           data.election.id !== props.requestedElectionId && (
-            <Text accessibilityRole="alert" style={s.body}>
-              The provider returned a different election. Showing{" "}
-              {data.election.name} (ID {data.election.id}), not the requested
-              election (ID {props.requestedElectionId}).
-            </Text>
+            <Card style={s.card}>
+              <Text accessibilityRole="alert" style={s.body}>
+                The provider returned a different election. Showing{" "}
+                {data.election.name} (ID {data.election.id}); requested ID{" "}
+                {props.requestedElectionId}.
+              </Text>
+            </Card>
           )}
         {model && data && (
           <>
-            <View style={s.section}>
-              <Text style={s.heading}>
-                {model.election?.name ?? "Election information"}
-              </Text>
-              {model.election?.electionDay && (
-                <Text style={s.body}>
-                  Election day: {model.election.electionDay}
+            {!!model.contests.length && (
+              <>
+                <View style={s.sectionHeading}>
+                  <Text accessibilityRole="header" style={s.sectionTitle}>
+                    On your ballot
+                  </Text>
+                  <Text style={s.secondary}>
+                    {model.contests.length}{" "}
+                    {model.contests.length === 1 ? "contest" : "contests"}{" "}
+                    returned
+                  </Text>
+                </View>
+                <Text style={s.secondary}>
+                  Confirm your complete ballot with your election office.
                 </Text>
-              )}
-              <Text style={s.body}>
-                Confirm the returned information and your complete ballot with
-                your election office.
-              </Text>
-            </View>
-            {model.contests.map((contest, index) => (
-              <View key={index} style={s.section}>
-                <Text style={s.heading}>
-                  {contest.referendumTitle ??
-                    contest.office ??
-                    "Ballot contest"}
-                </Text>
-                {!!contest.district?.name && (
-                  <Text style={s.body}>{contest.district.name}</Text>
-                )}
-                {!!contest.referendumSubtitle && (
-                  <Text style={s.body}>{contest.referendumSubtitle}</Text>
-                )}
-                {!!contest.referendumText && (
-                  <Text style={s.body}>{contest.referendumText}</Text>
-                )}
-                {contest.candidates?.map((candidate, i) => (
-                  <View key={i} style={{ gap: 8 }}>
-                    <Text style={s.body}>
-                      {candidate.name}
-                      {candidate.party ? ` · ${candidate.party}` : ""}
-                    </Text>
-                    {!!candidate.citations?.length && (
-                      <BallotSources
-                        citations={candidate.citations}
-                        contentKind="citations"
-                      />
-                    )}
-                  </View>
+                {model.contests.map((contest, index) => (
+                  <ContestCard key={index} contest={contest} />
                 ))}
-                <BallotSources
-                  citations={contestBallotCitations(contest)}
-                  contentKind="source"
-                />
-              </View>
-            ))}
-            <BallotLanguages items={[]} officialOfficeUrl={officeUrl} />
-            <Text style={s.heading}>Address-specific voting information</Text>
-            <VotingLogisticsSection status="ready" data={data} />
-            {/* Existing California results self-hide outside their results season. */}
+              </>
+            )}
+            <Card style={s.card}>
+              <Disclosure label="Voting information">
+                <VotingLogisticsSection status="ready" data={data} />
+              </Disclosure>
+            </Card>
+            <Card style={s.card}>
+              <BallotLanguages items={[]} officialOfficeUrl={officeUrl} />
+            </Card>
             {model.isCalifornia &&
               model.election &&
               (props.renderCaliforniaResults ? (
@@ -223,30 +367,120 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: P.canvas },
-  content: { padding: 24, gap: 16 },
-  section: { gap: 12, paddingVertical: 12 },
-  title: { fontFamily: fontDisplay.bold, fontSize: 32, color: P.inkOnNight },
-  heading: { fontFamily: fontDisplay.bold, fontSize: 22, color: P.inkOnNight },
+  content: { padding: 16, gap: 12 },
+  card: { gap: 10 },
+  flex: { flex: 1, gap: 4 },
+  eyebrow: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    color: P.inkOnNight,
+  },
+  contestTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 22,
+    lineHeight: 28,
+    color: P.inkOnNight,
+  },
+  sectionTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 24,
+    color: P.inkOnNight,
+  },
+  sectionHeading: { gap: 4, marginTop: 8 },
   body: {
     fontFamily: fontBody.regular,
     fontSize: 16,
     lineHeight: 24,
     color: P.inkOnNight,
   },
-  link: { fontFamily: fontBody.semibold, fontSize: 16, color: P.spark },
-  button: { minHeight: 44, justifyContent: "center" },
+  secondary: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 21,
+    color: P.inkOnNight,
+    opacity: 0.8,
+  },
+  actionText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    color: P.inkOnNight,
+    flexShrink: 1,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 60,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: 16,
+  },
+  primaryButton: {
+    minHeight: 48,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: P.spark,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryText: { fontFamily: fontBody.bold, fontSize: 16, color: P.ink },
+  outlineButton: {
+    minHeight: 44,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
   input: {
+    minHeight: 48,
+    padding: 12,
     borderWidth: 1,
     borderColor: P.quiet,
-    padding: 12,
-    borderRadius: 8,
-    color: P.inkOnNight,
+    borderRadius: 12,
+    fontFamily: fontBody.regular,
     fontSize: 16,
+    color: P.inkOnNight,
   },
+  loading: { padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  electionOption: {
+    minHeight: 48,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
+  },
+  candidate: {
+    paddingVertical: 10,
+    gap: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.cardBorder,
+  },
+  candidateName: {
+    fontFamily: fontBody.semibold,
+    fontSize: 18,
+    lineHeight: 24,
+    color: P.inkOnNight,
+  },
+  disclosure: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  details: { gap: 12, paddingTop: 8 },
 });

@@ -17,110 +17,90 @@ const special = {
   id: "fixture-special",
   name: "Fixture special election",
 };
+const ballot: BallotResponse = {
+  kind: "fixture",
+  election,
+  otherElections: [special],
+  normalizedInput: {
+    line1: "123 Example Street",
+    city: "Example",
+    state: "NC",
+    zip: "00000",
+  },
+  contests: [
+    {
+      type: "General",
+      office: "Fixture city council",
+      district: { name: "Example District 2" },
+      candidates: [
+        {
+          name: "Alex Example",
+          party: "Example party",
+          citations: [
+            {
+              field: "name",
+              sourceName: "Fixture candidate source",
+              sourceUrl: "https://example.org/candidate-source",
+              official: false,
+              tier: "unknown",
+            },
+          ],
+        },
+        { name: "Jordan Sample", party: "Independent" },
+      ],
+      sources: [
+        {
+          name: "Fixture election office",
+          official: true,
+          url: "https://example.org/contest-source",
+        },
+      ],
+    },
+    {
+      type: "Referendum",
+      referendumTitle: "Fixture park measure",
+      referendumSubtitle: "A fictional measure for layout testing.",
+      referendumText:
+        "This is synthetic measure text for reviewing the ballot layout. It is not an official proposal or voting guidance.\n\nA longer second paragraph tests whether the full source text remains readable when expanded. The text should wrap without truncation at larger accessibility sizes.",
+      referendumUrl: "https://example.org/measure",
+    },
+  ],
+  pollingLocations: [
+    {
+      name: "Fixture community center",
+      address: {
+        line1: "123 Example Street",
+        city: "Example",
+        state: "NC",
+        zip: "00000",
+      },
+      pollingHours: "7 AM to 7 PM (fixture)",
+      sources: [
+        {
+          name: "Fixture election office",
+          official: true,
+          url: "https://example.org/polling-source",
+        },
+      ],
+    },
+  ],
+  state: [
+    {
+      name: "Fixture state",
+      electionAdministrationBody: {
+        electionInfoUrl: "https://example.org/election-office",
+      },
+    },
+  ],
+};
 export const ballotFixtures = {
+  NC: ballot,
   CA: {
-    kind: "fixture",
-    election,
-    normalizedInput: {
-      line1: "Fictional address",
-      city: "Example",
-      state: "CA",
-      zip: "00000",
-    },
-    contests: [
-      {
-        type: "General",
-        office: "Fixture council",
-        sources: [
-          {
-            name: "Fixture contest source",
-            official: true,
-            url: "https://example.org/contest-source",
-          },
-        ],
-        candidates: [
-          {
-            name: "Example candidate",
-            citations: [
-              {
-                field: "name",
-                sourceName: "Fixture candidate source",
-                sourceUrl: "https://example.org/candidate-source",
-                official: false,
-                tier: "unknown",
-              },
-            ],
-          },
-        ],
-      },
-    ],
+    ...ballot,
+    normalizedInput: { ...ballot.normalizedInput, state: "CA" },
+    pollingLocations: undefined,
+    state: undefined,
   },
-  NC: {
-    kind: "fixture",
-    election,
-    otherElections: [special],
-    pollingLocations: [
-      {
-        name: "Fixture community center",
-        address: {
-          line1: "123 Example Street",
-          city: "Example",
-          state: "NC",
-          zip: "00000",
-        },
-        pollingHours: "7 AM to 7 PM (fixture)",
-        sources: [
-          {
-            name: "Fixture election office",
-            official: true,
-            url: "https://example.org/polling-source",
-          },
-        ],
-      },
-    ],
-    state: [
-      {
-        name: "Fixture state",
-        electionAdministrationBody: {
-          electionInfoUrl: "https://example.org/election-office",
-        },
-      },
-    ],
-    normalizedInput: {
-      line1: "Fictional address",
-      city: "Example",
-      state: "NC",
-      zip: "00000",
-    },
-    contests: [
-      {
-        type: "General",
-        office: "Fixture council",
-        sources: [
-          {
-            name: "Fixture contest source",
-            official: true,
-            url: "https://example.org/contest-source",
-          },
-        ],
-        candidates: [
-          {
-            name: "Example candidate",
-            citations: [
-              {
-                field: "name",
-                sourceName: "Fixture candidate source",
-                sourceUrl: "https://example.org/candidate-source",
-                official: false,
-                tier: "unknown",
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  noData: { kind: "fixture" },
   partial: {
     kind: "fixture",
     contests: [
@@ -128,6 +108,7 @@ export const ballotFixtures = {
     ],
   },
   empty: { kind: "fixture", election, contests: [] },
+  noData: { kind: "fixture" },
 } satisfies Record<string, BallotResponse>;
 
 type Scenario = keyof typeof ballotFixtures | "failed" | "loading" | "fallback";
