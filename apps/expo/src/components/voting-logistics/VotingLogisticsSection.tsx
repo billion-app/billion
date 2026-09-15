@@ -1,20 +1,23 @@
 import type { ReactNode } from "react";
+import type { TextProps } from "react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Linking,
+  Text as NativeText,
   Pressable,
   StyleSheet,
-  Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 
 import type { PollingLocation } from "@acme/api";
 
 import type { VotingLogisticsData } from "~/utils/voting-logistics";
+import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
-import { fontBody, fontDisplay, rd, sp, useTheme } from "~/styles";
+import { fontBody, rd, sp, useTheme } from "~/styles";
 import {
   describeVotingLocation,
   votingInformationLinks,
@@ -314,7 +317,7 @@ export function VotingLogisticsSection({
 
 const styles = StyleSheet.create({
   section: { padding: sp[4], gap: sp[4] },
-  title: { fontFamily: fontDisplay.bold, fontSize: 22, lineHeight: 30 },
+  title: { fontFamily: fontBody.semibold, fontSize: 20, lineHeight: 28 },
   groupTitle: { fontFamily: fontBody.semibold, fontSize: 15 },
   name: { fontFamily: fontBody.semibold, fontSize: 17 },
   body: { fontFamily: fontBody.regular, fontSize: 15, lineHeight: 22 },
