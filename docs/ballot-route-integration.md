@@ -51,7 +51,7 @@ Exercise the fixture controls:
 - Select fallback to check the election-ID mismatch notice.
 - Select statewide to check the explicit coverage limit, empty normalized address, and a candidate marked withdrawn but still on the ballot.
 - Select noAddress to check the entry form and national election-office fallback.
-- Tap "Edit address" beside the submitted address, then submit blank, over-300-character, and valid addresses. Check validation, editing focus, cancellation, and recovery.
+- Tap "Edit" beside the submitted address, then submit blank, over-300-character, and valid addresses. Check validation, editing focus, cancellation, and recovery.
 - Expand "Sources", "How to vote", and long measure text. Inspect field labels, supplied location details, narrow layouts, and large text on the target platform.
 
 The fixture replaces request behavior. To test requests, mount the exported `BallotExperience` in a temporary test entry with an intercepted transport. Assert that discovery omits election ID, selection preserves the address and exact ID, both requests disable enrichment, address changes clear selection, and invalid input makes no request. Use fictional responses and remove the test entry afterward.
