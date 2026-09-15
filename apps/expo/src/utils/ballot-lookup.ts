@@ -1,0 +1,49 @@
+import type { Election, VoterInfoResponse } from "@acme/api";
+
+/** Preserve provider fields until the shared Civic response type includes them. */
+export type BallotResponse = Omit<
+  VoterInfoResponse,
+  "election" | "normalizedInput"
+> & {
+  election?: Election;
+  normalizedInput?: Partial<VoterInfoResponse["normalizedInput"]>;
+  otherElections?: Election[];
+};
+
+export function ballotElectionOptions(
+  discovery: BallotResponse | undefined,
+  selected?: BallotResponse,
+): Election[] {
+  const options = [
+    discovery?.election,
+    ...(discovery?.otherElections ?? []),
+    selected?.election,
+    ...(selected?.otherElections ?? []),
+  ];
+  return [
+    ...new Map(options.filter((e) => !!e).map((e) => [e.id, e])).values(),
+  ];
+}
+
+export function ballotModel(response: BallotResponse) {
+  // Absence of contests is not evidence that an election has not published them.
+  const contests = response.contests ?? [];
+  const state = response.normalizedInput?.state?.trim().toLowerCase();
+  return {
+    election: response.election,
+    contests,
+    isCalifornia: state === "ca" || state === "california",
+    empty: contests.length === 0,
+  };
+}
+
+/** Only navigable web URLs from the provider may leave the ballot screen. */
+export function ballotWebUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
