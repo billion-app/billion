@@ -18,7 +18,7 @@ export const env = createEnv({
    */
   server: {
     POSTGRES_URL: envSchemas.POSTGRES_URL!,
-    DEMOCRACY_WORKS_API_KEY: envSchemas.DEMOCRACY_WORKS_API_KEY!,
+    DEMOCRACY_WORKS_API_KEY: envSchemas.DEMOCRACY_WORKS_API_KEY!.optional(),
     GOOGLE_CIVIC_API_KEY: envSchemas.GOOGLE_CIVIC_API_KEY!.optional(),
     GOOGLE_PLACES_API_KEY: envSchemas.GOOGLE_PLACES_API_KEY!.optional(),
     RESEND_API_KEY: envSchemas.RESEND_API_KEY!.optional(),

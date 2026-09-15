@@ -282,3 +282,44 @@ for (const stage of ["headers", "body"] as const) {
     assert.equal(signal?.aborted, true);
   });
 }
+
+void test("election evening remains discoverable until the conservative national cutoff", async () => {
+  for (const [instant, expected] of [
+    ["2026-11-04T00:30:00Z", "2026-11-03"],
+    ["2026-11-04T09:30:00Z", "2026-11-03"],
+    ["2026-11-04T11:59:59Z", "2026-11-03"],
+    ["2026-11-04T12:00:00Z", "2026-11-04"],
+  ] as const) {
+    const api = createDemocracyWorksClient({
+      apiKey: () => "synthetic",
+      now: () => new Date(instant),
+      fetch: (url) => {
+        assert.equal(
+          new URL(url instanceof Request ? url.url : url).searchParams.get(
+            "startDate",
+          ),
+          expected,
+        );
+        return Promise.resolve(Response.json(page([election])));
+      },
+    });
+    const elections = await api.getElections("input");
+    assert.equal(elections.length, expected === "2026-11-03" ? 1 : 0);
+  }
+});
+
+void test("discovery requires access and credential-bearing URLs are omitted", async () => {
+  await assert.rejects(
+    createDemocracyWorksClient({ apiKey: () => undefined }).getElections(
+      "input",
+    ),
+    (e) => e instanceof BallotProviderError && e.reason === "configuration",
+  );
+  const result = await client(
+    page([{ ...election, website: "https://user:secret@example.org" }]),
+  ).api.getVoterInfo("input");
+  assert.equal(
+    result.state?.[0]?.electionAdministrationBody?.electionInfoUrl,
+    undefined,
+  );
+});

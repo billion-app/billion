@@ -22,6 +22,7 @@ import {
 } from "../clients/ca-sos-results";
 import {
   BALLOT_CACHE_VERSION,
+  ballotSelectionDate,
   createDemocracyWorksClient,
 } from "../clients/democracy-works";
 import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
@@ -766,7 +767,7 @@ export async function getElections(address?: string): Promise<Election[]> {
   // Discovery is address-scoped; an unscoped list is not a voter's ballot.
   if (!address) return [];
   ballotProvider.requireAccess();
-  const params = { startDate: new Date().toISOString().slice(0, 10) };
+  const params = { startDate: ballotSelectionDate() };
   const endpoint = `${BALLOT_CACHE_VERSION}:elections`;
   return readBallot(
     JSON.stringify([endpoint, hashAddress(address), params.startDate]),
@@ -878,7 +879,9 @@ export function getVoterInfo(
   const key = JSON.stringify([
     BALLOT_CACHE_VERSION,
     hashAddress(address),
-    electionId === "" ? null : (electionId ?? null),
+    electionId === ""
+      ? ballotSelectionDate()
+      : (electionId ?? ballotSelectionDate()),
     options.includeEnrichment !== false,
   ]);
   return readBallot(

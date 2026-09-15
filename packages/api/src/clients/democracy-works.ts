@@ -102,7 +102,9 @@ function safeUrl(value: string | null | undefined): string | undefined {
   if (!value) return undefined;
   try {
     const url = new URL(value);
-    return ["https:", "http:"].includes(url.protocol)
+    return !url.username &&
+      !url.password &&
+      ["https:", "http:"].includes(url.protocol)
       ? url.toString()
       : undefined;
   } catch {
@@ -223,6 +225,14 @@ function toContests(election: ProviderElection): Contest[] | undefined {
   ];
 }
 
+// Keep election day available until it has ended even at UTC-12.
+// This conservative cutoff does not infer a timezone from an unnormalized address.
+export function ballotSelectionDate(now = new Date()): string {
+  return new Date(now.getTime() - 12 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
 export function createDemocracyWorksClient({
   apiKey = () => process.env.DEMOCRACY_WORKS_API_KEY,
   fetch: request = fetch,
@@ -247,7 +257,7 @@ export function createDemocracyWorksClient({
       /^dw:(\d{4}-\d{2}-\d{2}):[a-f0-9]{64}$/,
     )?.[1];
     if (electionId && !selectedDate) throw new BallotProviderError("selection");
-    const startDate = selectedDate ?? now().toISOString().slice(0, 10);
+    const startDate = selectedDate ?? ballotSelectionDate(now());
     const records: ProviderElection[] = [];
     let addressScope: "address" | "statewide_only" | "unknown" = "address";
     // At most two pages / eight seconds of upstream waiting per lookup.

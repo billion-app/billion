@@ -304,11 +304,11 @@ export const envRegistry = [
   define({
     key: "DEMOCRACY_WORKS_API_KEY",
     description:
-      "Democracy Works REST v2 key with elections and ballot-data access for address-based ballot lookup.",
+      "Required for ballot lookup only; the host can start without this Democracy Works REST v2 elections and ballot-data key.",
     group: "Civic data",
     secret: true,
     setupUrl: "https://developers.democracy.works/api/v2",
-    requirements: { nextjs: "required" },
+    requirements: { nextjs: "recommended" },
     schema: string,
   }),
   define({

@@ -1,8 +1,12 @@
 import type { VoterInfoResponse } from "./civic";
-import { BALLOT_CACHE_VERSION } from "../clients/democracy-works";
+import {
+  BALLOT_CACHE_VERSION,
+  ballotSelectionDate,
+} from "../clients/democracy-works";
 
 /** Transport-independent read path so cold/cache/failure behavior can be exercised offline. */
 export function createVoterInfoLoader(deps: {
+  now?: () => Date;
   getCached: (
     address: string,
     endpoint: string,
@@ -23,7 +27,9 @@ export function createVoterInfoLoader(deps: {
     options: { includeEnrichment?: boolean } = {},
   ): Promise<VoterInfoResponse> => {
     const endpoint = `${BALLOT_CACHE_VERSION}:${options.includeEnrichment === false ? "base" : "enriched"}`;
-    const cacheParams = electionId ? { electionId } : {};
+    const cacheParams = electionId
+      ? { electionId }
+      : { startDate: ballotSelectionDate(deps.now?.()) };
     const cached = await deps.getCached(address, endpoint, cacheParams);
     if (cached) return cached;
     const params: Record<string, string> = { address };

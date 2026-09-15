@@ -93,3 +93,5 @@ Synthetic tests verify the adapter's handling, not the licensed live response
 shape, endpoint entitlement, jurisdiction coverage or production capacity.
 Live acceptance requires an authorized key and comparison with official sample
 ballots for the intended release jurisdictions.
+
+Default election selection uses a conservative UTC-12 date cutoff so an election does not disappear during election evening in western US time zones. Discovery and default ballot caches and in-flight reads use the same date function; explicit election IDs remain stable across the cutoff. An election may remain listed into the following local morning. This cutoff does not establish voting hours or infer the address timezone.
