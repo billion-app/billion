@@ -290,8 +290,8 @@ const s = StyleSheet.create({
   },
   argumentTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 16,
+    lineHeight: 19,
     color: P.inkOnNight,
   },
   argumentBody: {
@@ -311,7 +311,7 @@ const s = StyleSheet.create({
   title: {
     fontFamily: fontDisplay.bold,
     fontSize: 34,
-    lineHeight: 40,
+    lineHeight: 38,
     color: P.inkOnNight,
     marginBottom: sp[2],
   },
@@ -323,7 +323,8 @@ const s = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 22,
+    fontSize: 16,
+    lineHeight: 19,
     color: P.inkOnNight,
   },
   secondary: {

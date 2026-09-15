@@ -51,7 +51,7 @@ export function SourceLink({
         <Icon
           name="external"
           size={16}
-          color={prominence === "primary" ? P.canvas : P.inkOnNight}
+          color={prominence === "primary" ? P.canvas : P.primary}
         />
       </Pressable>
       {failed && (
@@ -334,8 +334,8 @@ const s = StyleSheet.create({
   actions: { gap: sp[3], marginTop: sp[3] },
   statusTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 19,
     color: P.inkOnNight,
   },
   primary: {
@@ -397,7 +397,7 @@ const s = StyleSheet.create({
     flexShrink: 1,
     fontFamily: fontBody.medium,
     fontSize: 16,
-    color: P.inkOnNight,
+    color: P.primary,
   },
   recoveryCard: {
     backgroundColor: P.card,

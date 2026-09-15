@@ -456,14 +456,17 @@ export default function ContestDetailScreen() {
                             onPress={row.onPress}
                             activeOpacity={0.7}
                           >
-                            <Icon name={row.icon} size={16} color={P.spark} />
+                            <Icon name={row.icon} size={16} color={P.primary} />
                             <View style={{ flex: 1 }}>
                               <Text style={s.contactLabel}>{row.label}</Text>
-                              <Text style={s.contactValue} numberOfLines={1}>
+                              <Text
+                                style={[s.contactValue, { color: P.primary }]}
+                                numberOfLines={1}
+                              >
                                 {row.value}
                               </Text>
                             </View>
-                            <Icon name="external" size={13} color={P.quiet} />
+                            <Icon name="external" size={13} color={P.primary} />
                           </TouchableOpacity>
                         ))}
                       {cand.channels && cand.channels.length > 0 && (
@@ -525,7 +528,7 @@ const s = StyleSheet.create({
   office: {
     fontFamily: fontDisplay.bold,
     fontSize: 34,
-    lineHeight: 40,
+    lineHeight: 38,
     color: P.inkOnNight,
     marginBottom: 4,
     letterSpacing: -0.55,
@@ -592,8 +595,8 @@ const s = StyleSheet.create({
   },
   candName: {
     fontFamily: fontEditorial.bold,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 19,
     letterSpacing: -0.2,
     color: P.inkOnNight,
   },
@@ -615,7 +618,8 @@ const s = StyleSheet.create({
   emptyState: { ...cardChrome, gap: 12, padding: 20 },
   emptyTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 22,
+    fontSize: 16,
+    lineHeight: 19,
     color: P.inkOnNight,
   },
   candidateSection: {
@@ -626,6 +630,7 @@ const s = StyleSheet.create({
   readingLabel: {
     fontFamily: fontEditorial.bold,
     fontSize: 16,
+    lineHeight: 19,
     color: P.inkOnNight,
     marginBottom: 8,
   },
