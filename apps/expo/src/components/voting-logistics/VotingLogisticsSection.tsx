@@ -1,22 +1,29 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
 import type { PollingLocation } from "@acme/api";
 
 import type { VotingLogisticsData } from "~/utils/voting-logistics";
+import {
+  ElectionOfficeLink,
+  SourceLink as InformationLink,
+} from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
-import { fontBody, rd, sp, useTheme } from "~/styles";
+import {
+  colors,
+  fontBody,
+  fontEditorial,
+  hair,
+  planes,
+  rd,
+  sp,
+  useTheme,
+} from "~/styles";
 import {
   describeVotingLocation,
+  votingDateLabel,
   votingInformationLinks,
   votingLocationGroups,
 } from "~/utils/voting-logistics";
@@ -25,34 +32,6 @@ export interface VotingLogisticsSectionProps {
   /** Supply only the successful response for the currently selected address/election. */
   data?: VotingLogisticsData;
   status: "idle" | "loading" | "error" | "ready";
-}
-
-function InformationLink({ label, url }: { label: string; url: string }) {
-  const { theme } = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={label}
-      accessibilityHint="Opens in your browser"
-      style={({ pressed }) => [styles.control, { opacity: pressed ? 0.6 : 1 }]}
-      onPress={() => {
-        void Linking.openURL(url).catch(() =>
-          Alert.alert(
-            "Could not open link",
-            "Please try again or visit your election office's website.",
-          ),
-        );
-      }}
-    >
-      <Text style={[styles.action, { color: theme.foreground }]}>{label}</Text>
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      >
-        <Icon name="external" size={16} color={theme.textSecondary} />
-      </View>
-    </Pressable>
-  );
 }
 
 function Disclosure({
@@ -78,7 +57,7 @@ function Disclosure({
           { opacity: pressed ? 0.6 : 1 },
         ]}
       >
-        <Text style={[styles.action, { color: theme.textSecondary }]}>
+        <Text style={[styles.action, { color: theme.foreground }]}>
           {label}
         </Text>
         <View
@@ -92,11 +71,7 @@ function Disclosure({
           />
         </View>
       </Pressable>
-      {expanded ? (
-        <View style={[styles.details, { backgroundColor: theme.card }]}>
-          {children}
-        </View>
-      ) : null}
+      {expanded ? <View style={styles.details}>{children}</View> : null}
     </View>
   );
 }
@@ -105,30 +80,30 @@ function LocationRow({ location }: { location: PollingLocation }) {
   const { theme } = useTheme();
   const item = describeVotingLocation(location);
   const hours = location.pollingHours?.trim();
-  const secondary = [styles.body, { color: theme.textSecondary }];
+  const facts = [styles.body, { color: theme.foreground }];
   return (
     <View style={[styles.location, { borderColor: theme.border }]}>
       <Text style={[styles.name, { color: theme.foreground }]}>
         {item.name}
       </Text>
-      <Text selectable style={secondary}>
+      <Text selectable style={facts}>
         {item.address}
       </Text>
-      <Text selectable style={secondary}>
+      <Text selectable style={facts}>
         {hours === undefined || hours === ""
           ? "Hours not supplied"
-          : location.pollingHours}
+          : `Hours: ${location.pollingHours}`}
       </Text>
       {location.startDate?.trim() || location.endDate?.trim() ? (
-        <Text selectable style={secondary}>
+        <Text selectable style={facts}>
           {location.startDate?.trim() && location.startDate === location.endDate
-            ? `Date: ${location.startDate}`
+            ? `Date: ${votingDateLabel(location.startDate)}`
             : [
                 location.startDate?.trim()
-                  ? `From ${location.startDate}`
+                  ? `From ${votingDateLabel(location.startDate)}`
                   : undefined,
                 location.endDate?.trim()
-                  ? `Through ${location.endDate}`
+                  ? `Through ${votingDateLabel(location.endDate)}`
                   : undefined,
               ]
                 .filter(Boolean)
@@ -146,12 +121,6 @@ function LocationRow({ location }: { location: PollingLocation }) {
         {location.notes?.trim() ? (
           <View style={styles.noteSection}>
             <Text
-              accessibilityRole="header"
-              style={[styles.name, { color: theme.foreground }]}
-            >
-              Location notes
-            </Text>
-            <Text
               selectable
               style={[styles.reading, { color: theme.foreground }]}
             >
@@ -160,13 +129,13 @@ function LocationRow({ location }: { location: PollingLocation }) {
           </View>
         ) : null}
         {location.voterServices?.trim() ? (
-          <Text selectable style={secondary}>
+          <Text selectable style={facts}>
             Services: {location.voterServices}
           </Text>
         ) : null}
         <Text
           accessibilityRole="header"
-          style={[styles.groupTitle, { color: theme.foreground }]}
+          style={[styles.sourceHeading, { color: theme.foreground }]}
         >
           Sources
         </Text>
@@ -179,15 +148,76 @@ function LocationRow({ location }: { location: PollingLocation }) {
                 url={source.url}
               />
             ) : (
-              <Text key={index} style={secondary}>
+              <Text key={index} style={facts}>
                 {source.label}
               </Text>
             ),
           )
         ) : (
-          <Text style={secondary}>Source attribution not supplied.</Text>
+          <Text style={facts}>Source attribution not supplied.</Text>
         )}
       </Disclosure>
+    </View>
+  );
+}
+
+function LocationGroup({
+  group,
+}: {
+  group: ReturnType<typeof votingLocationGroups>[number];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const { theme } = useTheme();
+  return (
+    <View style={styles.surface}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${group.title}, ${group.locations.length} ${group.locations.length === 1 ? "location" : "locations"} supplied`}
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={({ pressed }) => [
+          styles.groupHeader,
+          { opacity: pressed ? 0.7 : 1 },
+        ]}
+      >
+        <View
+          style={styles.iconTile}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <Icon
+            name={group.title === "Early voting" ? "calendar" : "pin"}
+            size={20}
+            color={colors.bill}
+          />
+        </View>
+        <View style={styles.groupLabel}>
+          <Text style={[styles.groupTitle, { color: theme.foreground }]}>
+            {group.title}
+          </Text>
+          <Text style={[styles.summary, { color: theme.foreground }]}>
+            {group.locations.length}{" "}
+            {group.locations.length === 1 ? "location" : "locations"} supplied
+          </Text>
+        </View>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <Icon
+            name={expanded ? "chevD" : "chevR"}
+            size={18}
+            color={theme.foreground}
+          />
+        </View>
+      </Pressable>
+      {expanded ? (
+        <View style={styles.groupBody}>
+          {group.locations.map((location, index) => (
+            <LocationRow key={index} location={location} />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -226,7 +256,7 @@ export function VotingLogisticsSection({
               ? "Choose an address and election to see voting locations."
               : status === "loading"
                 ? "Loading locations…"
-                : "Couldn’t load voting locations. Try again or check with your election office."}
+                : "Voting locations couldn’t be loaded."}
           </Text>
         </View>
       </View>
@@ -239,47 +269,49 @@ export function VotingLogisticsSection({
   const offices = [...new Set(links.map((link) => link.office))];
   return (
     <View style={styles.section}>
-      {heading}
-      {current.mailOnly === true ? (
-        <Text style={secondary}>
-          Listed as mail-only in this lookup. Check official ballot return
-          instructions.
-        </Text>
-      ) : null}
+      {missing.length < groups.length ? heading : null}
       {groups
         .filter((group) => group.locations.length)
         .map((group) => (
-          <View key={group.title} style={styles.group}>
-            <Text
-              accessibilityRole="header"
-              style={[styles.groupTitle, { color: theme.textSecondary }]}
-            >
-              {group.title}
-            </Text>
-            {group.locations.map((location, index) => (
-              <LocationRow key={index} location={location} />
-            ))}
-          </View>
+          <LocationGroup key={group.title} group={group} />
         ))}
-      {missing.length ? (
-        <Text style={secondary}>
-          {missing.length === groups.length
-            ? "Location details weren’t supplied in this lookup."
-            : `Not supplied: ${missing.map((group) => group.title.toLowerCase()).join(", ")}.`}{" "}
-          Check with your election office for available options.
-        </Text>
-      ) : null}
-      {links.length ? (
-        <View style={[styles.official, { borderColor: theme.border }]}>
+      <View style={[styles.surface, styles.resources]}>
+        <View style={styles.resourceHeader}>
+          <View
+            style={styles.iconTile}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon name="globe" size={20} color={colors.bill} />
+          </View>
           <Text
             accessibilityRole="header"
-            style={[styles.groupTitle, { color: theme.textSecondary }]}
+            style={[
+              styles.groupTitle,
+              styles.flex,
+              { color: theme.foreground },
+            ]}
           >
-            Official information
+            Voting information links
           </Text>
-          {offices.map((office) => (
-            <View key={office}>
-              <Text style={[styles.caption, { color: theme.textSecondary }]}>
+        </View>
+        {current.mailOnly === true ? (
+          <Text style={[styles.body, { color: theme.foreground }]}>
+            This lookup lists your precinct as mail-only. Confirm how to return
+            your ballot with your election office.
+          </Text>
+        ) : null}
+        {missing.length ? (
+          <Text style={[styles.body, { color: theme.foreground }]}>
+            {missing.length === groups.length
+              ? "No voting locations were returned for this lookup."
+              : `Not supplied: ${missing.map((group) => group.title.toLowerCase()).join(", ")}.`}
+          </Text>
+        ) : null}
+        {links.length ? (
+          offices.map((office) => (
+            <View key={office} style={styles.officeLinks}>
+              <Text style={[styles.caption, { color: theme.foreground }]}>
                 {office}
               </Text>
               {links
@@ -289,19 +321,25 @@ export function VotingLogisticsSection({
                     key={link.url}
                     label={link.label}
                     url={link.url}
+                    prominence={
+                      missing.length === groups.length && link === links[0]
+                        ? "primary"
+                        : "secondary"
+                    }
                   />
                 ))}
             </View>
-          ))}
-        </View>
-      ) : (
-        <Text style={secondary}>
-          Official links weren’t supplied. Contact your state or local election
-          office.
-        </Text>
-      )}
+          ))
+        ) : (
+          <ElectionOfficeLink
+            prominence={
+              missing.length === groups.length ? "primary" : "secondary"
+            }
+          />
+        )}
+      </View>
       <Disclosure label="About this information" context="voting locations">
-        <Text style={secondary}>
+        <Text style={[styles.body, { color: theme.foreground }]}>
           Missing details don’t establish whether a voting option is available.
           Check official registration information for deadlines and
           requirements. This lookup doesn’t confirm your registration or track
@@ -313,17 +351,64 @@ export function VotingLogisticsSection({
 }
 
 const styles = StyleSheet.create({
-  section: { padding: sp[4], gap: sp[4] },
-  title: { fontFamily: fontBody.semibold, fontSize: 20, lineHeight: 28 },
-  groupTitle: { fontFamily: fontBody.semibold, fontSize: 15 },
+  section: { gap: sp[4] },
+  title: { fontFamily: fontEditorial.bold, fontSize: 22, lineHeight: 28 },
+  groupTitle: { fontFamily: fontEditorial.bold, fontSize: 18, lineHeight: 24 },
+  sourceHeading: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    opacity: 0.8,
+  },
   name: { fontFamily: fontBody.semibold, fontSize: 17 },
-  body: { fontFamily: fontBody.regular, fontSize: 15, lineHeight: 22 },
-  caption: { fontFamily: fontBody.regular, fontSize: 13, marginTop: sp[2] },
-  group: { gap: sp[2] },
+  body: { fontFamily: fontBody.regular, fontSize: 16, lineHeight: 24 },
+  caption: {
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  surface: {
+    backgroundColor: planes.slate,
+    borderColor: hair[2],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: rd.lg,
+  },
+  groupHeader: {
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: sp[4],
+    gap: sp[3],
+  },
+  groupLabel: { flex: 1, gap: sp[1] },
+  summary: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  iconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: rd.md,
+    backgroundColor: planes.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  groupBody: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: hair[2],
+    padding: sp[4],
+    gap: sp[4],
+  },
+  resources: { padding: sp[4], gap: sp[3] },
+  resourceHeader: { flexDirection: "row", alignItems: "center", gap: sp[3] },
+  officeLinks: { gap: sp[2] },
   location: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingBottom: sp[1],
-    gap: sp[1],
+    gap: sp[2],
   },
   control: {
     minHeight: 44,
@@ -334,17 +419,14 @@ const styles = StyleSheet.create({
   },
   action: { fontFamily: fontBody.medium, fontSize: 15, flex: 1 },
   details: {
+    backgroundColor: planes.ink,
     gap: sp[2],
     padding: sp[4],
     marginBottom: sp[3],
-    borderRadius: rd.lg,
+    borderRadius: rd.md,
   },
-  noteSection: { gap: sp[2], marginBottom: sp[3] },
+  noteSection: { marginBottom: sp[3] },
   reading: { fontFamily: fontBody.regular, fontSize: 16, lineHeight: 25 },
-  official: {
-    paddingTop: sp[2],
-    gap: sp[2],
-  },
   status: { flexDirection: "row", alignItems: "center", gap: sp[3] },
   flex: { flex: 1 },
 });

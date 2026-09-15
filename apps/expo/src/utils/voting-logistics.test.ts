@@ -5,6 +5,7 @@ import type { PollingLocation } from "@acme/api";
 
 import {
   describeVotingLocation,
+  votingDateLabel,
   votingInformationLinks,
   votingLocationGroups,
   votingWebUrl,
@@ -65,7 +66,7 @@ void test("missing groups stay separate, including for mail-only precincts", () 
   );
 });
 
-void test("official links include local and state offices and never registration status", () => {
+void test("supplied links include local and state sources and never registration status", () => {
   const links = votingInformationLinks({
     state: [
       {
@@ -147,14 +148,14 @@ void test("a shared office destination appears once, with a label covering its p
       url: "https://example.org/locations",
     },
     {
-      label: "Election office website",
+      label: "Voting information website",
       office: "Local office",
       url: "https://example.org/services",
     },
   ]);
 });
 
-void test("distinct official pages remain available even when labels match", () => {
+void test("distinct supplied pages remain available even when labels match", () => {
   const links = votingInformationLinks({
     state: [
       {
@@ -176,4 +177,57 @@ void test("distinct official pages remain available even when labels match", () 
     links.map((link) => link.office),
     ["County", "State"],
   );
+});
+
+void test("calendar labels preserve supplied dates and unfamiliar source text", () => {
+  assert.equal(votingDateLabel("2026-11-03"), "Nov 3, 2026");
+  assert.equal(votingDateLabel("2028-02-29"), "Feb 29, 2028");
+  for (const value of [
+    "2026-02-29",
+    "2026-13-01",
+    "2026-11-03T00:00:00Z",
+    "Check office for dates",
+  ])
+    assert.equal(votingDateLabel(value), value);
+});
+
+void test("mail-only lookup puts supplied mail instructions before the location finder", () => {
+  const links = votingInformationLinks({
+    mailOnly: true,
+    state: [
+      {
+        name: "Example state",
+        electionAdministrationBody: {
+          votingLocationFinderUrl: "https://example.org/locations",
+          absenteeVotingInfoUrl: "https://example.org/mail",
+        },
+      },
+    ],
+  });
+  assert.deepEqual(
+    links.map((link) => link.url),
+    ["https://example.org/mail", "https://example.org/locations"],
+  );
+});
+
+void test("provider lookup links retain attribution without claiming office authority", () => {
+  const links = votingInformationLinks({
+    state: [
+      {
+        name: "Example state",
+        sources: [{ name: "Democracy Works", official: false }],
+        electionAdministrationBody: {
+          electionInfoUrl: "https://example.org/lookup",
+          votingLocationFinderUrl: "https://example.org/lookup",
+        },
+      },
+    ],
+  });
+  assert.deepEqual(links, [
+    {
+      label: "Voting information website",
+      office: "Via Democracy Works",
+      url: "https://example.org/lookup",
+    },
+  ]);
 });
