@@ -35,7 +35,7 @@ export default function BallotRoute() {
             style={{
               fontFamily: fontDisplay.bold,
               fontSize: 34,
-              lineHeight: 40,
+              lineHeight: 38,
               color: P.inkOnNight,
             }}
           >

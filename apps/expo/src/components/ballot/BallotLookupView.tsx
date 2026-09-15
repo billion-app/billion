@@ -210,7 +210,10 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const addressSummary = !editing && !!props.address && (
     <View style={[s.addressRow, fontScale > 1.3 && s.stackedRow]}>
       {fontScale <= 1.3 && <Icon name="pin" size={20} color={P.primary} />}
-      <Text style={[s.secondary, s.flex]}>For {props.address}</Text>
+      <View style={s.flex}>
+        <Text style={s.addressLabel}>VOTING ADDRESS</Text>
+        <Text style={s.addressText}>{props.address}</Text>
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Edit voting address: ${props.address}`}
@@ -218,9 +221,9 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           setChoosingElection(false);
           setEditing(true);
         }}
-        style={s.textButton}
+        style={[s.textButton, s.editButton]}
       >
-        <Text style={s.linkText}>Edit address</Text>
+        <Text style={s.linkText}>Edit</Text>
       </Pressable>
     </View>
   );
@@ -532,19 +535,19 @@ const s = StyleSheet.create({
   pageTitle: {
     fontFamily: fontDisplay.bold,
     fontSize: 34,
-    lineHeight: 40,
+    lineHeight: 38,
     color: P.inkOnNight,
   },
   electionTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 18,
+    lineHeight: 22.5,
     color: P.inkOnNight,
   },
   entryTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 20,
-    lineHeight: 25,
+    fontSize: 16,
+    lineHeight: 19,
     color: P.inkOnNight,
   },
   votingEntry: {
@@ -575,16 +578,22 @@ const s = StyleSheet.create({
   stackedRow: { flexDirection: "column", alignItems: "flex-start", gap: 0 },
   textButton: {
     minHeight: 44,
+    minWidth: 44,
     paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
+  editButton: {
+    backgroundColor: P.canvas,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    justifyContent: "center",
+  },
   linkText: {
     fontFamily: fontBody.medium,
     fontSize: 14,
-    color: P.inkOnNight,
-    textDecorationLine: "underline",
+    color: P.primary,
     flexShrink: 1,
   },
   coverage: {
@@ -618,14 +627,16 @@ const s = StyleSheet.create({
   flex: { flex: 1, gap: 4 },
   eyebrow: {
     fontFamily: fontBody.semibold,
-    fontSize: 12,
-    letterSpacing: 0.6,
+    fontSize: 11,
+    lineHeight: 13,
+    letterSpacing: 1,
+    textTransform: "uppercase",
     color: P.inkOnNight,
   },
   contestTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 19,
     color: P.inkOnNight,
   },
   body: {
@@ -650,10 +661,26 @@ const s = StyleSheet.create({
   addressRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DigestHair.cardBorder,
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: P.card,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+  },
+  addressLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11,
+    lineHeight: 13,
+    letterSpacing: 1,
+    color: P.inkOnNight,
+    opacity: 0.8,
+  },
+  addressText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    lineHeight: 19,
+    color: P.inkOnNight,
   },
   primaryButton: {
     minHeight: 48,
