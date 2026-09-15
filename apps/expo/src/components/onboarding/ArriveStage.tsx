@@ -4,7 +4,7 @@
  * tap has a consequence you can see.
  */
 import { useEffect } from "react";
-import { Pressable, StyleSheet, Text, Vibration, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -172,8 +172,7 @@ function Banner({
       o.value = 0;
       y.value = withDelay(delay, withSpring(stack * 76, SPRING));
       o.value = withDelay(delay, withTiming(1, { duration: 180 }));
-      const t = setTimeout(() => Vibration.vibrate(8), delay);
-      return () => clearTimeout(t);
+      return;
     }
     y.value = withTiming(-120, { duration: 280, easing: SLIDE });
     o.value = withTiming(0, { duration: 200 });

@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   useWindowDimensions,
-  Vibration,
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -211,7 +210,6 @@ export function OnboardingFlow() {
   );
 
   const pick = <T,>(list: T[], value: T, set: (n: T[]) => void) => {
-    Vibration.vibrate(10);
     set(toggleIn(list, value));
   };
 
@@ -322,11 +320,9 @@ export function OnboardingFlow() {
               instant={instant}
               evening={evening}
               onInstant={() => {
-                Vibration.vibrate(10);
                 setInstant((v) => !v);
               }}
               onEvening={() => {
-                Vibration.vibrate(8);
                 setEvening((v) => !v);
               }}
             />
