@@ -24,6 +24,8 @@ import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
 import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
+import { createCivicReadGuard } from "./civic-read-guard";
+import { createVoterInfoLoader } from "./civic-voter-info";
 import { crossValidateMeasure } from "./measure-crossvalidate";
 import { normalizeMeasureTitle } from "./measure-sources/ballotpedia";
 
@@ -287,6 +289,7 @@ export interface ElectionOfficial {
 export interface VoterInfoResponse {
   kind: string;
   election: Election;
+  otherElections?: Election[];
   normalizedInput: Address;
   pollingLocations?: PollingLocation[];
   earlyVoteSites?: PollingLocation[];
@@ -326,7 +329,9 @@ async function fetchCivicApi<T>(
     url.searchParams.set(key, value);
   }
 
-  const response = await fetch(url.toString());
+  const response = await fetch(url.toString(), {
+    signal: AbortSignal.timeout(4_000),
+  });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -820,64 +825,37 @@ export async function getDistrictElectionResults(
  *                     returns info for the most relevant upcoming election.
  * @returns Polling locations, ballot info, and contests for the address
  */
-export async function getVoterInfo(
+const readBallot = createCivicReadGuard();
+
+export function getVoterInfo(
   address: string,
   electionId?: string,
+  options: { includeEnrichment?: boolean } = {},
 ): Promise<VoterInfoResponse> {
-  const cacheParams: Record<string, unknown> = electionId ? { electionId } : {};
-  const cached = await getCached<VoterInfoResponse>(
-    address,
-    "voterinfo",
-    cacheParams,
-  );
-  if (cached) return cached;
-
-  const enrichCtx = (resp: VoterInfoResponse): EnrichmentContext => ({
-    stateAbbrev: resp.normalizedInput.state,
-    county: deriveCounty(resp),
-    electionYear: resp.election.electionDay
-      ? new Date(resp.election.electionDay).getFullYear()
-      : new Date().getFullYear(),
-  });
-
-  const params: Record<string, string> = { address };
-
-  if (electionId) {
-    params.electionId = electionId;
-  }
-
-  try {
-    let result: VoterInfoResponse;
-    try {
-      result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
-    } catch (err) {
-      // A stale/invalid electionId yields "Election unknown" (400). Retry
-      // without it so Civic resolves the relevant upcoming election itself.
-      if (electionId && /election unknown/i.test(String(err))) {
-        console.warn(
-          "[civic] electionId rejected, retrying without it:",
-          electionId,
-        );
-        delete params.electionId;
-        result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
-      } else {
-        throw err;
-      }
-    }
-    result.contests = await enrichContests(result.contests, enrichCtx(result));
-    await setCache(
-      address,
-      "voterinfo",
-      cacheParams,
-      result,
-      CACHE_TTL.voterinfo,
-    );
-    return result;
-  } catch (error) {
-    console.error("[civic] getVoterInfo failed:", error);
-    throw error;
-  }
+  // Match the persisted cache identity without retaining addresses in the map.
+  const key = JSON.stringify([
+    hashAddress(address),
+    electionId === "" ? null : (electionId ?? null),
+    options.includeEnrichment !== false,
+  ]);
+  return readBallot(key, () => loadVoterInfo(address, electionId, options));
 }
+
+const loadVoterInfo = createVoterInfoLoader({
+  getCached,
+  setCache: (address, endpoint, params, result) =>
+    setCache(address, endpoint, params, result, CACHE_TTL.voterinfo),
+  fetch: (params) => fetchCivicApi<VoterInfoResponse>("voterinfo", params),
+  enrich: async (result) => {
+    result.contests = await enrichContests(result.contests, {
+      stateAbbrev: result.normalizedInput.state,
+      county: deriveCounty(result),
+      electionYear: result.election.electionDay
+        ? new Date(result.election.electionDay).getFullYear()
+        : new Date().getFullYear(),
+    });
+  },
+});
 
 // NOTE: Representatives lookup was removed when Google turned down the Civic
 // Representatives API (2025-04-30). A replacement "your elected officials"

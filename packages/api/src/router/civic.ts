@@ -9,6 +9,7 @@ import {
   getElections,
   getVoterInfo,
 } from "../lib/civic";
+import { CivicReadUnavailableError } from "../lib/civic-read-guard";
 import { getElectedOfficials } from "../lib/elected-officials";
 import { publicProcedure } from "../trpc";
 
@@ -104,20 +105,24 @@ export const civicRouter = {
   getVoterInfo: publicProcedure
     .input(
       z.object({
-        address: z.string().min(1, "Address is required"),
-        electionId: z.string().optional(),
+        address: z.string().trim().min(1, "Address is required").max(300),
+        electionId: z.string().max(100).optional(),
+        includeEnrichment: z.boolean().optional(),
       }),
     )
     .query(async ({ input }) => {
       try {
-        return await getVoterInfo(input.address, input.electionId);
+        return await getVoterInfo(input.address, input.electionId, {
+          includeEnrichment: input.includeEnrichment,
+        });
       } catch (error) {
         throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
+          code:
+            error instanceof CivicReadUnavailableError
+              ? "SERVICE_UNAVAILABLE"
+              : "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch voter info",
+            "Ballot information is temporarily unavailable. Please try again.",
           cause: error,
         });
       }
