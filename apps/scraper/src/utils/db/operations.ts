@@ -488,35 +488,50 @@ export async function upsertContent(
     result = row;
   } else {
     const d = input.data;
-    const [row] = await db
-      .insert(CourtCase)
-      .values({
-        ...d,
-        ...(existing?.id ? { id: existing.id } : {}),
-        contentHash: newContentHash,
-        versions: [],
-      })
-      .onConflictDoUpdate({
-        target: existing?.id
-          ? CourtCase.id
-          : [CourtCase.caseNumber, CourtCase.court],
-        set: {
-          title: d.title,
-          court: d.court,
-          filedDate: d.filedDate,
-          // Changed court text must not keep an explanation of the prior
-          // decision. Clearing it also makes a budget-deferred refresh retry.
-          description: d.description ?? (courtSourceChanged ? null : undefined),
-          aiGeneratedArticle: courtSourceChanged ? null : undefined,
-          status: d.status,
-          fullText: d.fullText,
-          url: d.url,
+    result = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(CourtCase)
+        .values({
+          ...d,
+          ...(existing?.id ? { id: existing.id } : {}),
           contentHash: newContentHash,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    result = row;
+          versions: [],
+        })
+        .onConflictDoUpdate({
+          target: existing?.id
+            ? CourtCase.id
+            : [CourtCase.caseNumber, CourtCase.court],
+          set: {
+            title: d.title,
+            court: d.court,
+            filedDate: d.filedDate,
+            // Changed court text must not keep an explanation of the prior
+            // decision. Clearing it also makes a budget-deferred refresh retry.
+            description:
+              d.description ?? (courtSourceChanged ? null : undefined),
+            aiGeneratedArticle: courtSourceChanged ? null : undefined,
+            status: d.status,
+            fullText: d.fullText,
+            url: d.url,
+            contentHash: newContentHash,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      if (row && courtSourceChanged) {
+        // The API serves lenses by ID, so source refresh and invalidation must
+        // commit together even when the generation budget is exhausted.
+        await tx
+          .delete(ContentLens)
+          .where(
+            and(
+              eq(ContentLens.contentType, "court_case"),
+              eq(ContentLens.contentId, row.id),
+            ),
+          );
+      }
+      return row;
+    });
   }
 
   logger.debug(`${label} upserted (raw)`);

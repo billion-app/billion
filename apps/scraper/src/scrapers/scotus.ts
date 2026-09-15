@@ -1,12 +1,72 @@
 import type { CourtCaseData, Scraper } from "../utils/types.js";
 import { setExpectedTotal } from "../utils/db/metrics.js";
 import { upsertContent } from "../utils/db/operations.js";
+import {
+  clearRetry,
+  dueRetries,
+  recordRetry,
+} from "../utils/db/retry-queue.js";
 import { createLogger } from "../utils/log.js";
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
 import { collectScotusCases } from "./scotus-source.js";
 import { scotusConfig } from "./scotus.config.js";
 
 const logger = createLogger("SCOTUS");
+
+export async function runScotus(
+  maxItems: number,
+  dependencies = {
+    collect: collectScotusCases,
+    write: upsertContent,
+    due: dueRetries,
+    record: recordRetry,
+    clear: clearRetry,
+  },
+): Promise<void> {
+  const key = "scotus";
+  const pending = await dependencies.due(key, maxItems);
+  const retries = pending.map(({ itemKey }) => {
+    const match = /^(\d{4})\/(.+)$/.exec(itemKey);
+    if (!match) throw new Error(`Invalid SCOTUS retry key: ${itemKey}`);
+    return { year: Number(match[1]), caseNumber: match[2]! };
+  });
+  const limiter = createNewItemLimiter();
+  await dependencies.collect(maxItems, new Date(), {
+    retries,
+    onCase: async (data, year) => {
+      await storeScotusCases([data], async () => {
+        const itemKey = `${year}/${data.caseNumber}`;
+        const outcome = await dependencies.write(
+          { type: "court_case", data },
+          { newItemLimiter: limiter },
+        );
+        if (outcome.status === "deferred") {
+          if (outcome.reason !== "run budget reached")
+            throw new Error(outcome.reason);
+          await dependencies.record(key, itemKey, outcome.reason);
+        } else {
+          await dependencies.clear(key, itemKey);
+          // A newer decision can supersede a queued decision from an older term.
+          for (const retry of retries) {
+            if (retry.caseNumber === data.caseNumber && retry.year !== year)
+              await dependencies.clear(
+                key,
+                `${retry.year}/${retry.caseNumber}`,
+              );
+          }
+        }
+        return outcome;
+      });
+    },
+    onError: async (opinion, year, error) => {
+      await dependencies.record(
+        key,
+        `${year}/${opinion.caseNumber}`,
+        error instanceof Error ? error.message : String(error),
+      );
+    },
+  });
+}
 
 export async function storeScotusCases(
   cases: CourtCaseData[],
@@ -41,7 +101,6 @@ export const scotus: Scraper = {
   scrape: async (options) => {
     const maxItems =
       options?.maxItems ?? Number(process.env.SCOTUS_MAX_ITEMS || 20);
-    const cases = await collectScotusCases(maxItems);
-    await storeScotusCases(cases);
+    await runScotus(maxItems);
   },
 };

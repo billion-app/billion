@@ -7,7 +7,7 @@ import {
   parseOpinionIndex,
   termYear,
 } from "./scotus-source.js";
-import { storeScotusCases } from "./scotus.js";
+import { runScotus, storeScotusCases } from "./scotus.js";
 
 const base = "https://www.supremecourt.gov";
 const pdf = `${base}/opinions/25pdf/26a305_4g15.pdf`;
@@ -19,6 +19,60 @@ const orders = `<table><tr><th>Date</th><th>Docket</th><th>Name</th><th>J.</th><
 const slip = `<table><tr><th>R-</th><th>Date</th><th>Docket</th><th>Name</th></tr>
 <tr><td>69</td><td>8/24/26</td><td>26A124</td><td><a href="/opinions/25pdf/26a124_hgci.pdf" title="Application for stay granted.">Trump v. California</a></td></tr></table>`;
 const empty = `<table><tr><th>Date</th><th>Docket</th><th>Name</th></tr></table>`;
+
+void test("a broken PDF does not block healthy cases, and deferred cases drain outside the recent window", async () => {
+  const queued = new Map<string, string>();
+  const written: string[] = [];
+  let defer = true;
+  let broken = false;
+  const dependencies: Parameters<typeof runScotus>[1] = {
+    due: async () =>
+      [...queued.keys()].map((itemKey) => ({ itemKey, attempts: 1 })),
+    record: async (_key, itemKey, reason) => {
+      queued.set(itemKey, reason);
+    },
+    clear: async (_key, itemKey) => {
+      queued.delete(itemKey);
+    },
+    collect: (limit, _now, hooks) =>
+      collectScotusCases(limit, new Date("2026-09-15"), {
+        ...hooks,
+        fetch: async (url) => {
+          if (url.endsWith(".pdf"))
+            return new Response("fixture", {
+              status: broken && url === pdf ? 404 : 200,
+            });
+          return new Response(
+            url.endsWith("/24")
+              ? empty
+              : url.includes("relatingtoorders")
+                ? orders
+                : slip,
+          );
+        },
+        readPdf: async () => "Complete source text. ".repeat(100),
+      }),
+    write: async (input) => {
+      assert.equal(input.type, "court_case");
+      if (input.type !== "court_case") throw new Error("Unexpected type");
+      if (defer) return { status: "deferred", reason: "run budget reached" };
+      written.push(input.data.caseNumber);
+      return { status: "written", id: input.data.caseNumber };
+    },
+  };
+  await runScotus(2, dependencies);
+  assert.equal(queued.size, 2);
+  defer = false;
+  // Only the newest case fits the fresh window; the older queued case still drains.
+  await runScotus(1, dependencies);
+  assert.deepEqual(written, ["26A305", "26A124"]);
+  assert.equal(queued.size, 0);
+  written.length = 0;
+  broken = true;
+  await assert.rejects(runScotus(2, dependencies), /SCOTUS cases failed/);
+  assert.deepEqual(written, ["26A124"]);
+  assert.match(queued.get("2025/26A305") ?? "", /404/);
+});
 
 void test("the mail-ballot ruling is reachable through the active runner", () => {
   assert.ok(scrapers.find((scraper) => scraper.id === "scotus"));

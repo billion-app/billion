@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 
 import { eq } from "@acme/db";
-import { CourtCase } from "@acme/db/schema";
+import { ContentLens, CourtCase } from "@acme/db/schema";
 
 import { createNewItemLimiter } from "../utils/new-item-limit.js";
 
@@ -33,6 +33,19 @@ void test(
         aiGeneratedArticle: "Old fixture article",
         url: "https://www.courtlistener.com/fixture/",
         contentHash: "old-hash",
+      });
+      await db.insert(ContentLens).values({
+        contentType: "court_case",
+        contentId: id,
+        contentHash: "old-hash",
+        modelVersion: "fixture",
+        lensData: {
+          left: { stance: "Old ruling supported", points: [] },
+          right: { stance: "Old ruling opposed", points: [] },
+          sources: [],
+          generatedAt: new Date().toISOString(),
+          modelVersion: "fixture",
+        },
       });
       const input = {
         type: "court_case" as const,
@@ -85,6 +98,14 @@ void test(
       assert.equal(detail.articleContent, input.data.fullText);
       assert.equal(detail.isAIGenerated, false);
       assert.equal(detail.url, input.data.url);
+      assert.equal(detail.lensData, null);
+      assert.deepEqual(
+        await db
+          .select({ id: ContentLens.id })
+          .from(ContentLens)
+          .where(eq(ContentLens.contentId, id)),
+        [],
+      );
       const results = await api.content.search({
         query: caseNumber,
         type: "court_case",
@@ -95,6 +116,7 @@ void test(
     } finally {
       // Only the UUID created by this test is removed. No user rows are touched.
       try {
+        await db.delete(ContentLens).where(eq(ContentLens.contentId, id));
         await db.delete(CourtCase).where(eq(CourtCase.id, id));
       } finally {
         await (

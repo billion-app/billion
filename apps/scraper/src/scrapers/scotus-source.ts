@@ -6,7 +6,7 @@ import { fetchWithRetry } from "../utils/fetch.js";
 
 const BASE = "https://www.supremecourt.gov";
 
-interface PublishedOpinion {
+export interface PublishedOpinion {
   caseNumber: string;
   title: string;
   filedDate: Date;
@@ -84,9 +84,16 @@ export function parseOpinionIndex(
   return opinions;
 }
 
-interface SourceDependencies {
+export interface SourceDependencies {
   fetch?: (url: string) => Promise<Response>;
   readPdf?: (bytes: Uint8Array) => Promise<string>;
+  retries?: { year: number; caseNumber: string }[];
+  onCase?: (data: CourtCaseData, year: number) => Promise<void>;
+  onError?: (
+    opinion: PublishedOpinion,
+    year: number,
+    error: unknown,
+  ) => Promise<void>;
 }
 
 /** Read-only discovery seam: returns the exact source input used by upsertContent. */
@@ -108,7 +115,11 @@ export async function collectScotusCases(
   const opinions: PublishedOpinion[] = [];
   // The previous term supplies a recent window while a new October term is
   // still empty. No archive cursor, paid generation, or database writes here.
-  for (const year of [currentTerm, currentTerm - 1]) {
+  for (const year of new Set([
+    currentTerm,
+    currentTerm - 1,
+    ...(dependencies.retries ?? []).map((retry) => retry.year),
+  ])) {
     for (const kind of ["slipopinion", "relatingtoorders"]) {
       const url = `${BASE}/opinions/${kind}/${String(year).slice(-2)}`;
       const response = await fetchSource(url);
@@ -144,33 +155,55 @@ export async function collectScotusCases(
     }
   }
   const data: CourtCaseData[] = [];
-  for (const opinion of [...cases.values()].slice(0, maxItems)) {
-    const texts: string[] = [];
-    for (const url of opinion.pdfUrls) {
-      const response = await fetchSource(url);
-      if (!response.ok)
-        throw new Error(
-          `Supreme Court PDF returned ${response.status}: ${url}`,
-        );
-      const text = (
-        await readPdf(new Uint8Array(await response.arrayBuffer()))
-      ).trim();
-      if (!text) throw new Error(`Empty Supreme Court PDF: ${url}`);
-      texts.push(
-        opinion.pdfUrls.length > 1 ? `Source: ${url}\n\n${text}` : text,
-      );
-    }
-    data.push({
-      caseNumber: opinion.caseNumber,
-      title: opinion.title,
-      court: "Supreme Court of the United States",
-      // Browse needs the published decision date, not the lawsuit's filing date.
-      filedDate: opinion.filedDate,
-      description: opinion.description,
-      status: "Published opinion or order",
-      fullText: texts.join("\n\n"),
-      url: opinion.pdfUrls[0]!,
-    });
+  const selected = [...cases.values()].slice(0, maxItems);
+  for (const retry of dependencies.retries ?? []) {
+    const opinion = cases.get(retry.caseNumber);
+    if (opinion && !selected.includes(opinion)) selected.push(opinion);
   }
+  const failures: unknown[] = [];
+  for (const opinion of selected) {
+    const year =
+      2000 +
+      Number(new URL(opinion.pdfUrls[0]!).pathname.split("/")[2]!.slice(0, 2));
+    try {
+      const texts: string[] = [];
+      for (const url of opinion.pdfUrls) {
+        const response = await fetchSource(url);
+        if (!response.ok)
+          throw new Error(
+            `Supreme Court PDF returned ${response.status}: ${url}`,
+          );
+        const text = (
+          await readPdf(new Uint8Array(await response.arrayBuffer()))
+        ).trim();
+        if (!text) throw new Error(`Empty Supreme Court PDF: ${url}`);
+        texts.push(
+          opinion.pdfUrls.length > 1 ? `Source: ${url}\n\n${text}` : text,
+        );
+      }
+      const item: CourtCaseData = {
+        caseNumber: opinion.caseNumber,
+        title: opinion.title,
+        court: "Supreme Court of the United States",
+        // Browse needs the published decision date, not the lawsuit's filing date.
+        filedDate: opinion.filedDate,
+        description: opinion.description,
+        status: "Published opinion or order",
+        fullText: texts.join("\n\n"),
+        url: opinion.pdfUrls[0]!,
+      };
+      await dependencies.onCase?.(item, year);
+      data.push(item);
+    } catch (error) {
+      if (!dependencies.onError) throw error;
+      await dependencies.onError(opinion, year, error);
+      failures.push(error);
+    }
+  }
+  if (failures.length)
+    throw new AggregateError(
+      failures,
+      "SCOTUS cases failed; successful cases were processed and failures queued",
+    );
   return data;
 }

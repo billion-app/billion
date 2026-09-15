@@ -49,22 +49,26 @@ use separate PDFs, their URLs are retained alongside their text. Browse uses the
 decision's publication date, stored in the shared `filedDate` field, rather than
 the original lawsuit's filing date. No CourtListener token is needed.
 
-To ingest only the latest published decision, after checking the selected database:
+To scan the latest published decision with one generation slot, after checking the selected database:
 
 ```bash
 SCRAPER_MAX_NEW_ITEMS_PER_RUN=1 pnpm --filter @acme/scraper run start scotus --max-items 1 --concurrency 1
 ```
 
-This command writes and may pay for one item's enrichment. The supervisor's
-`scotus-daily` job scans 20 recent decisions with five generation slots per run.
-Source/PDF failures and non-budget enrichment deferrals fail the job so the
-supervisor retries with backoff. Reaching the generation budget is expected;
-the next daily scan offers those decisions again.
+This command writes and may pay for one item's enrichment. Each run also selects
+up to `max-items` due retries, sharing the same generation budget. The supervisor's
+`scotus-daily` job scans 20 recent decisions plus up to 20 due retries with five
+generation slots per run. Deferred cases and PDF failures are stored in
+`scraper_retry`, keyed by term and docket, and remain eligible outside the recent
+window. Queued terms are fetched even after they age out of the two-term scan.
+Healthy cases are processed despite failures in other PDFs; outstanding failures
+then fail the job so the supervisor retries with backoff. Budget deferral alone
+is expected and does not fail the job.
 Until that configuration is deployed, production does not run the new source.
 When a refreshed docket already exists under the old CourtListener court-URL
 alias, its source fields and court name are updated on the original ID rather
 than creating a second card. Changed court text invalidates its old generated
-summary and article, so a budget-limited refresh cannot permanently reuse an
+summary, article, and perspectives, so a budget-limited refresh cannot permanently reuse an
 explanation of the previous decision. Other historical records are not bulk rewritten. Files under
 [scrapers/disabled](src/scrapers/disabled/README.md) remain inactive.
 
