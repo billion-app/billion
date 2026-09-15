@@ -129,8 +129,8 @@ const s = StyleSheet.create({
   },
   heading: {
     fontFamily: fontEditorial.bold,
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 19,
     color: P.inkOnNight,
   },
   body: {
@@ -143,7 +143,6 @@ const s = StyleSheet.create({
   actionText: {
     fontFamily: fontBody.semibold,
     fontSize: 16,
-    textDecorationLine: "underline",
-    color: P.inkOnNight,
+    color: P.primary,
   },
 });
