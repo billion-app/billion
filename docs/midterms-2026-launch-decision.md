@@ -4,7 +4,7 @@
 
 This is the initial evidence record for [#337](https://github.com/billion-app/billion/issues/337), under [#356](https://github.com/billion-app/billion/issues/356). It records a technical no-go recommendation, not an agreed delivery date or approval to release. The coordinator must update it with sibling artifacts before PR creation and the release owner must review it again before enabling ballots.
 
-- Decision owner: **@ThatXliner**, the current assignee for #337 and #329–#332. Release execution, production verification, and rollback responsibility remain with that owner; a named operator and backup must be recorded before release.
+- Decision owner: **@ThatXliner**, the current assignee for #337 and #329–#332. The user remains the decision owner and can perform or delegate release execution, production verification, and rollback. A backup operator is optional.
 - Reviewed September 14, 2026 (America/Los_Angeles): live issue bodies and comments for #337, #356, and #329–#332; checkout `dba8c52fac07096be6a33d3ba5e45db92630063d`.
 - Current source behavior: [electionsAreLive](../apps/expo/src/utils/elections-live.ts) returns `false`; the [Elections route](<../apps/expo/src/app/(tabs)/elections.tsx>) shows its coming-soon screen. The [router](<../apps/expo/src/app/(tabs)/_layout.tsx>) declares Elections and the [custom TabBar](../apps/expo/src/components/ui/TabBar.tsx) has its icon. Tab presence is not ballot readiness. Installed production behavior has not been inspected in this task.
 - Approved new rollout scope: **none**. Keep the existing disabled ballot behavior. No nationwide or statewide completeness claim is supported by this review.
@@ -14,13 +14,21 @@ This is the initial evidence record for [#337](https://github.com/billion-app/bi
 
 All gates must pass for an explicitly listed rollout scope. Use `pending`, `pass`, or `fail`; attach artifacts and their observation dates. Pending counts as no-go. Do not replace pending with pass from a sibling's summary alone: inspect its report, diff, or runtime evidence.
 
-| Gate                                                                    | Owner                                | September 14 status | Evidence needed to change the decision                                                                                                                                                                                                          |
-| ----------------------------------------------------------------------- | ------------------------------------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [#332 coverage](https://github.com/billion-app/billion/issues/332)      | @ThatXliner                          | Pending             | Bounded live samples across roughly 15 states and multiple jurisdiction types, dated matrix, election IDs, field availability, provider errors, official comparisons, limitations, and explicit supported scope. Repeat weekly through rollout. |
-| [#329 lookup](https://github.com/billion-app/billion/issues/329)        | @ThatXliner                          | Pending             | Integrated address-specific lookup and multiple-election selection, non-CA ballots, CA results isolation, and production mobile evidence. A dedicated route still needs an approved reachable entry point.                                      |
-| [#330 source/status](https://github.com/billion-app/billion/issues/330) | @ThatXliner                          | Pending             | Integrated citations and generated-summary labels, distinct missing/enrichment/error states, verified language links or unknown availability, and official office or retry paths.                                                               |
-| [#331 logistics](https://github.com/billion-app/billion/issues/331)     | @ThatXliner                          | Pending             | Integrated supplied polling/early-vote/drop-off details and official links, mail-only/partial/missing cases, and cited deadlines or link-out behavior.                                                                                          |
-| Release operations                                                      | @ThatXliner; operator/backup pending | Pending             | Exact candidate commit, platform artifacts and runtime IDs, production API target, device checklist below, rollback candidate and rehearsal, and recorded owner decision.                                                                       |
+| Gate                                                                    | Owner       | September 14 status | Evidence needed to change the decision                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------- | ----------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [#332 coverage](https://github.com/billion-app/billion/issues/332)      | @ThatXliner | Pending             | Bounded live samples across roughly 15 states and multiple jurisdiction types, dated matrix, election IDs, field availability, provider errors, official comparisons, limitations, and explicit supported scope. Repeat weekly through rollout. |
+| [#329 lookup](https://github.com/billion-app/billion/issues/329)        | @ThatXliner | Pending             | Integrated address-specific lookup and multiple-election selection, non-CA ballots, CA results isolation, and production mobile evidence. A dedicated route still needs an approved reachable entry point.                                      |
+| [#330 source/status](https://github.com/billion-app/billion/issues/330) | @ThatXliner | Pending             | Integrated citations and generated-summary labels, distinct missing/enrichment/error states, verified language links or unknown availability, and official office or retry paths.                                                               |
+| [#331 logistics](https://github.com/billion-app/billion/issues/331)     | @ThatXliner | Pending             | Integrated supplied polling/early-vote/drop-off details and official links, mail-only/partial/missing cases, and cited deadlines or link-out behavior.                                                                                          |
+| Release operations                                                      | @ThatXliner | Pending             | Exact candidate commit, platform artifacts and runtime IDs, production API target, device checklist below, rollback candidate and rehearsal, and recorded owner decision.                                                                       |
+
+### Inspected coverage evidence
+
+Inspected #332 commit `cd2db6b652845f5dce2127aee2bc7fb561b71de2`: the [coverage report](../tools/issue-332/evidence/2026-09-15.md) and [endpoint probe](../tools/issue-332/evidence/2026-09-15-endpoint.json). These relative links resolve when the coverage branch is included in the integration stack.
+
+The probe at `2026-09-15T00:18:48.190Z` (September 14, 17:18:48 America/Los_Angeles) returned HTTP 403 with `api_access_not_configured` from Google's `/civicinfo/v2/elections` endpoint. The report records `accessNotConfigured` from the first probe using the original checkout's configured Civic credential. This is an access-configuration blocker, not proof that the key is invalid or that the elections API has retired.
+
+No address-level voter-info sampling followed. The 15-state matrix is an **unmeasured sample plan**; official ballot comparisons and measured supported scope remain pending. The #332 tooling/report artifact exists, but the coverage release gate remains pending and the no-go stands. Restore authorized endpoint access before running bounded address samples; no repeated blocked requests, new paid service, or production writes are required by this update. Integrated route and production acceptance evidence still await coordinator review.
 
 The coverage matrix must distinguish base ballots from optional enrichment. A sample cannot establish complete statewide coverage. Empty responses must not become “no election,” “no voting method,” or “not yet published.” Publication dates and status require an official source. Do not infer personal registration or mail-ballot tracking status from Civic data.
 
@@ -34,7 +42,7 @@ The coverage matrix must distinguish base ballots from optional enrichment. A sa
 | October      | User acquisition planning requirement from coordination                                                                                                                                                                                                           | A useful, verified experience must be available in time for October acquisition. Distribution owners must agree channels, scope, and timing; no campaign, spend, outreach, or conversion commitment is established here. Narrow or postpone claims if readiness is unproven. |
 | October 20   | Proposed feature freeze                                                                                                                                                                                                                                           | Owner agreement pending. After freeze, prioritize correctness, accessibility, source/date corrections, reliability, and rollback fixes; record exceptions. Earlier served-jurisdiction dates take precedence.                                                                |
 
-Specific fallback blockers are the missing live coverage matrix and scope decision, missing integrated #329–#331 evidence, unverified production navigation and failure states, and unassigned release operator/backup with no demonstrated rollback candidate. September 28 does not resolve these by itself.
+Specific fallback blockers are the confirmed Civic API access failure, unmeasured address coverage and unresolved scope, missing integrated #329–#331 evidence, unverified production navigation and failure states, and no demonstrated rollback candidate. September 28 does not resolve these by itself.
 
 ### Jurisdiction calendar inputs
 
@@ -66,7 +74,7 @@ Copy this checklist into each dated decision update. Record reviewer, candidate 
 - [ ] Check every proposed jurisdiction's official calendar, language evidence, and office links; record the reviewer and check date. Keep unsupported claims out of acquisition copy.
 - [ ] Run applicable [Contributing checks](../CONTRIBUTING.md#check-your-change) and the production [release preflight](ios-release.md#release-preflight). Record commands, results, candidate SHA, export artifact, and platform. A successful bundle is only build evidence.
 - [ ] Record public API host and confirm production provider configuration by presence only using the [launch guide](launch.md). Confirm that the selected lookup path is read-only before live probes: legacy query handlers may write caches or trigger paid enrichment. Unapproved writes/spend block that probe, not permission to bypass the gate.
-- [ ] Name the release operator and backup; record the last known good API deployment and compatible mobile build/update IDs, runtime, and source SHA. Rehearse rollback in a non-production environment.
+- [ ] Record whether the owner or a delegate will execute release and rollback (backup optional); record the last known good API deployment and compatible mobile build/update IDs, runtime, and source SHA. Rehearse rollback in a non-production environment.
 
 ### Production mobile evidence
 
@@ -89,7 +97,7 @@ Run on the exact release candidate with production-mode navigation. Use controll
 
 ## Rollback and stop conditions
 
-Wrong-address/election ballots, cross-state results leakage, misleading deadlines or missing-data claims, broken official links, unhandled provider failures, or a production route that defeats the intended scope require stopping rollout and acquisition claims for the affected experience. The decision owner directs the named operator; no operator has been assigned or production action authorized by this document.
+Wrong-address/election ballots, cross-state results leakage, misleading deadlines or missing-data claims, broken official links, unhandled provider failures, or a production route that defeats the intended scope require stopping rollout and acquisition claims for the affected experience. The user remains responsible for the release decision and may execute rollback or delegate it. This document authorizes no production action.
 
 Restore the last verified disabled ballot experience or last known good scoped candidate. `electionsAreLive()` is compiled code, not a remote kill switch: changing it in Git does not immediately disable installed clients. Use the existing [production OTA compatibility process](ios-release.md#production-ota-updates) for compatible JavaScript; a native mismatch requires a compatible release branch or new binary. Keep the native fingerprint guard intact. If the API change caused the incident, restore the recorded compatible API deployment and verify older installed clients too.
 
@@ -99,7 +107,7 @@ After rollback, verify the installed artifact, API target, entry point/direct ro
 
 Append a dated entry after each review, retaining this initial no-go for history:
 
-- Reviewed at / reviewer / release operator / backup:
+- Reviewed at / reviewer / release operator / optional backup:
 - Candidate SHA / API deployment / mobile build and update / runtime:
 - #332 report and observation date / supported scope / exclusions:
 - #329 / #330 / #331 integrated evidence and remaining gaps:
