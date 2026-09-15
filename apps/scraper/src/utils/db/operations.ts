@@ -222,6 +222,10 @@ export async function upsertContent(
   }
 
   const existing = await checkExisting(input);
+  const courtSourceChanged =
+    input.type === "court_case" &&
+    Boolean(existing) &&
+    existing?.contentHash !== newContentHash;
 
   const hasUsableText = isUsableSourceText(fullText);
   if (!hasUsableText && fullText) {
@@ -271,14 +275,15 @@ export async function upsertContent(
   } else if (existing.contentHash !== newContentHash) {
     shouldGenerateSummary = forceAIRegeneration
       ? !sourceDescription && hasSummarySource
-      : input.type === "bill"
+      : input.type === "bill" || input.type === "court_case"
         ? !sourceDescription && hasSummarySource
         : !hasPersistedSummary && !sourceDescription && hasSummarySource;
     shouldGenerateArticle =
       generatesArticle &&
       (forceAIRegeneration
         ? hasUsableText
-        : hasUsableText && !existing.hasArticle);
+        : hasUsableText &&
+          (input.type === "court_case" || !existing.hasArticle));
     shouldGenerateImage =
       (forceAIRegeneration || !existing.hasThumbnail) && hasUsableText;
     progressKind = "changed";
@@ -487,16 +492,22 @@ export async function upsertContent(
       .insert(CourtCase)
       .values({
         ...d,
+        ...(existing?.id ? { id: existing.id } : {}),
         contentHash: newContentHash,
         versions: [],
       })
       .onConflictDoUpdate({
-        target: [CourtCase.caseNumber, CourtCase.court],
+        target: existing?.id
+          ? CourtCase.id
+          : [CourtCase.caseNumber, CourtCase.court],
         set: {
           title: d.title,
           court: d.court,
           filedDate: d.filedDate,
-          description: d.description,
+          // Changed court text must not keep an explanation of the prior
+          // decision. Clearing it also makes a budget-deferred refresh retry.
+          description: d.description ?? (courtSourceChanged ? null : undefined),
+          aiGeneratedArticle: courtSourceChanged ? null : undefined,
           status: d.status,
           fullText: d.fullText,
           url: d.url,
@@ -602,8 +613,9 @@ export async function upsertContent(
           // For an item we are storing for the first time this is the whole
           // point of storing it, so treat an empty result as a failure rather
           // than shipping a bill with nothing to read. An item already in the
-          // database keeps its old behaviour: it is no worse off than before.
-          if (!existing) {
+          // database keeps its old behaviour, except court refreshes: their
+          // stale article has been invalidated and the job must retry.
+          if (!existing || input.type === "court_case") {
             throw new IncompleteEnrichmentError(
               `AI article generation returned an empty result for ${label}`,
             );

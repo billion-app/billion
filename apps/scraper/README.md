@@ -61,10 +61,24 @@ Source/PDF failures and non-budget enrichment deferrals fail the job so the
 supervisor retries with backoff. Reaching the generation budget is expected;
 the next daily scan offers those decisions again.
 Until that configuration is deployed, production does not run the new source.
-Historical CourtListener rows are not rewritten by this change. Files under
+When a refreshed docket already exists under the old CourtListener court-URL
+alias, its source fields and court name are updated on the original ID rather
+than creating a second card. Changed court text invalidates its old generated
+summary and article, so a budget-limited refresh cannot permanently reuse an
+explanation of the previous decision. Other historical records are not bulk rewritten. Files under
 [scrapers/disabled](src/scrapers/disabled/README.md) remain inactive.
 
 Each source declares its environment contract in an adjacent `*.config.ts`. Use those contracts and [the environment guide](../../docs/launch.md#scraper-and-scheduled-data-jobs) for required provider keys and current defaults.
+
+The court identity/source-refresh database regression is opt-in. Set
+`SCOTUS_TEST_POSTGRES_URL` to a migrated local database, then run:
+
+```bash
+pnpm --filter @acme/scraper exec tsx --test src/scrapers/scotus-db.test.ts
+```
+
+It refuses remote hosts, uses zero generation slots, checks the real tRPC
+search/detail responses, and removes only its own fixture UUID afterward.
 
 ## Build for production
 
