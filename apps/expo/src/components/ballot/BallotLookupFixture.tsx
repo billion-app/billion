@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import type { BallotLookupViewProps } from "./BallotLookupView";
 import type { BallotResponse } from "~/utils/ballot-lookup";
 import { DigestPalette as P } from "~/styles";
 import { BallotLookupView } from "./BallotLookupView";
@@ -32,7 +31,27 @@ export const ballotFixtures = {
       {
         type: "General",
         office: "Fixture council",
-        candidates: [{ name: "Example candidate" }],
+        sources: [
+          {
+            name: "Fixture contest source",
+            official: true,
+            url: "https://example.org/contest-source",
+          },
+        ],
+        candidates: [
+          {
+            name: "Example candidate",
+            citations: [
+              {
+                field: "name",
+                sourceName: "Fixture candidate source",
+                sourceUrl: "https://example.org/candidate-source",
+                official: false,
+                tier: "unknown",
+              },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -40,6 +59,33 @@ export const ballotFixtures = {
     kind: "fixture",
     election,
     otherElections: [special],
+    pollingLocations: [
+      {
+        name: "Fixture community center",
+        address: {
+          line1: "123 Example Street",
+          city: "Example",
+          state: "NC",
+          zip: "00000",
+        },
+        pollingHours: "7 AM to 7 PM (fixture)",
+        sources: [
+          {
+            name: "Fixture election office",
+            official: true,
+            url: "https://example.org/polling-source",
+          },
+        ],
+      },
+    ],
+    state: [
+      {
+        name: "Fixture state",
+        electionAdministrationBody: {
+          electionInfoUrl: "https://example.org/election-office",
+        },
+      },
+    ],
     normalizedInput: {
       line1: "Fictional address",
       city: "Example",
@@ -50,10 +96,31 @@ export const ballotFixtures = {
       {
         type: "General",
         office: "Fixture council",
-        candidates: [{ name: "Example candidate" }],
+        sources: [
+          {
+            name: "Fixture contest source",
+            official: true,
+            url: "https://example.org/contest-source",
+          },
+        ],
+        candidates: [
+          {
+            name: "Example candidate",
+            citations: [
+              {
+                field: "name",
+                sourceName: "Fixture candidate source",
+                sourceUrl: "https://example.org/candidate-source",
+                official: false,
+                tier: "unknown",
+              },
+            ],
+          },
+        ],
       },
     ],
   },
+  noData: { kind: "fixture" },
   partial: {
     kind: "fixture",
     contests: [
@@ -63,19 +130,20 @@ export const ballotFixtures = {
   empty: { kind: "fixture", election, contests: [] },
 } satisfies Record<string, BallotResponse>;
 
-type Scenario = keyof typeof ballotFixtures | "failed" | "loading";
+type Scenario = keyof typeof ballotFixtures | "failed" | "loading" | "fallback";
 
-export function BallotLookupFixture(
-  slots: Pick<BallotLookupViewProps, "renderSourceStatus" | "renderLogistics">,
-) {
+export function BallotLookupFixture() {
   const [scenario, setScenario] = useState<Scenario>("NC");
+  const [pending, setPending] = useState(false);
   const [selected, setSelected] = useState<string>();
   const discovery =
-    scenario === "failed" || scenario === "loading"
+    scenario === "failed"
       ? undefined
-      : ballotFixtures[scenario];
+      : scenario === "loading" || scenario === "fallback"
+        ? ballotFixtures.NC
+        : ballotFixtures[scenario];
   const data =
-    discovery && selected === special.id
+    discovery && selected === special.id && scenario !== "fallback"
       ? {
           ...discovery,
           election: special,
@@ -85,24 +153,32 @@ export function BallotLookupFixture(
   return (
     <View style={{ flex: 1, backgroundColor: P.canvas }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", padding: 16 }}>
-        {(["CA", "NC", "partial", "empty", "failed", "loading"] as const).map(
-          (name) => (
-            <Pressable
-              key={name}
-              accessibilityRole="button"
-              onPress={() => {
-                setScenario(name);
-                setSelected(undefined);
-              }}
-              style={{ padding: 12 }}
-            >
-              <Text style={{ color: P.spark }}>{name}</Text>
-            </Pressable>
-          ),
-        )}
+        {(
+          [
+            "CA",
+            "NC",
+            "partial",
+            "empty",
+            "noData",
+            "failed",
+            "loading",
+            "fallback",
+          ] as const
+        ).map((name) => (
+          <Pressable
+            key={name}
+            accessibilityRole="button"
+            onPress={() => {
+              setScenario(name);
+              setSelected(undefined);
+            }}
+            style={{ padding: 12 }}
+          >
+            <Text style={{ color: P.spark }}>{name}</Text>
+          </Pressable>
+        ))}
       </View>
       <BallotLookupView
-        {...slots}
         key={scenario}
         address="Fictional address"
         onAddress={() => {
@@ -111,10 +187,18 @@ export function BallotLookupFixture(
         }}
         discovery={discovery}
         data={data}
-        loading={scenario === "loading"}
+        settled={scenario !== "loading"}
+        requestedElectionId={scenario === "fallback" ? special.id : selected}
+        loading={scenario === "loading" || pending}
         failed={scenario === "failed"}
         onRetry={() => setScenario("NC")}
-        onElection={setSelected}
+        onElection={(id) => {
+          setPending(true);
+          setTimeout(() => {
+            setSelected(id);
+            setPending(false);
+          }, 400);
+        }}
         renderCaliforniaResults={() => (
           <Text style={{ color: P.inkOnNight }}>
             California results slot (fixture, no network)

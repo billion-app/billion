@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,12 +13,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 import type { BallotResponse } from "~/utils/ballot-lookup";
+import {
+  BallotLanguages,
+  BallotSources,
+  BallotStatusNotice,
+} from "~/components/ballot-evidence/BallotEvidence";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
 import {
   ballotElectionOptions,
   ballotModel,
-  ballotWebUrl,
+  ballotOfficeUrl,
+  contestBallotCitations,
+  validateBallotAddress,
 } from "~/utils/ballot-lookup";
 
 export interface BallotLookupViewProps {
@@ -31,14 +38,8 @@ export interface BallotLookupViewProps {
   failed: boolean;
   onRetry: () => void;
   onElection: (id: string) => void;
-  /** #330 source/status and #331 logistics receive this exact election response. */
-  renderSourceStatus?: (
-    state: Pick<
-      BallotLookupViewProps,
-      "data" | "loading" | "failed" | "address" | "onRetry"
-    >,
-  ) => ReactNode;
-  renderLogistics?: (data: BallotResponse) => ReactNode;
+  settled: boolean;
+  requestedElectionId?: string;
   /** Optional renderer for fixture verification without contacting the CA feed. */
   renderCaliforniaResults?: (data: BallotResponse) => ReactNode;
 }
@@ -46,17 +47,30 @@ export interface BallotLookupViewProps {
 export function BallotLookupView(props: BallotLookupViewProps) {
   const router = useRouter();
   const [draft, setDraft] = useState(props.address);
-  const [linkFailed, setLinkFailed] = useState(false);
-  const model = props.data ? ballotModel(props.data) : undefined;
-  const elections = ballotElectionOptions(props.discovery, props.data);
+  const [invalid, setInvalid] = useState(false);
+  const addressInput = useRef<TextInput>(null);
+  // Suppress cached data during every transition, including a failed/invalid lookup.
+  const data =
+    props.loading || props.failed || invalid ? undefined : props.data;
+  const model = data ? ballotModel(data) : undefined;
+  const elections = ballotElectionOptions(props.discovery, data);
   const submit = () => {
-    if (draft.trim()) props.onAddress(draft.trim());
+    const valid = validateBallotAddress(draft);
+    setInvalid(!valid);
+    if (valid) props.onAddress(draft.trim());
   };
-  const open = (url: string | undefined) => {
-    if (!url) return;
-    setLinkFailed(false);
-    void Linking.openURL(url).catch(() => setLinkFailed(true));
-  };
+  const officeUrl = data ? ballotOfficeUrl(data) : undefined;
+  const evidence = invalid
+    ? { kind: "invalid-input" as const }
+    : props.failed
+      ? { kind: "provider-failure" as const }
+      : !props.loading && props.settled
+        ? {
+            kind: "result" as const,
+            electionKnown: !!model?.election,
+            contestCount: model?.contests.length ?? 0,
+          }
+        : undefined;
   return (
     <SafeAreaView style={s.screen}>
       <ScrollView
@@ -78,6 +92,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           Coverage varies by election and location.
         </Text>
         <TextInput
+          ref={addressInput}
           accessibilityLabel="Voting address"
           placeholder="Street, city, state, ZIP"
           placeholderTextColor={P.quiet}
@@ -87,13 +102,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           returnKeyType="search"
           style={s.input}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !draft.trim() }}
-          disabled={!draft.trim()}
-          onPress={submit}
-          style={s.button}
-        >
+        <Pressable accessibilityRole="button" onPress={submit} style={s.button}>
           <Text style={s.link}>Look up ballot</Text>
         </Pressable>
         {elections.length > 1 && (
@@ -121,22 +130,30 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             color={P.spark}
           />
         )}
-        {props.renderSourceStatus?.(props)}
-        {!props.renderSourceStatus && props.failed && (
-          <View style={s.section}>
-            <Text accessibilityRole="alert" style={s.body}>
-              We couldn’t retrieve this ballot. Check the address or try again.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={props.onRetry}
-              style={s.button}
-            >
-              <Text style={s.link}>Try again</Text>
-            </Pressable>
-          </View>
+        {evidence && (
+          <BallotStatusNotice
+            evidence={evidence}
+            officialOfficeUrl={officeUrl}
+            onRetry={
+              invalid ? () => addressInput.current?.focus() : props.onRetry
+            }
+          />
         )}
-        {model && props.data && (
+        {invalid && (
+          <Text accessibilityRole="alert" style={s.body}>
+            Enter an address between 5 and 300 characters.
+          </Text>
+        )}
+        {data?.election &&
+          props.requestedElectionId &&
+          data.election.id !== props.requestedElectionId && (
+            <Text accessibilityRole="alert" style={s.body}>
+              The provider returned a different election. Showing{" "}
+              {data.election.name} (ID {data.election.id}), not the requested
+              election (ID {props.requestedElectionId}).
+            </Text>
+          )}
+        {model && data && (
           <>
             <View style={s.section}>
               <Text style={s.heading}>
@@ -148,17 +165,10 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                 </Text>
               )}
               <Text style={s.body}>
-                The information below belongs to the address and election shown.
-                Confirm your ballot with your election office.
+                Confirm the returned information and your complete ballot with
+                your election office.
               </Text>
             </View>
-            {!props.renderSourceStatus && model.empty && (
-              <Text style={s.body}>
-                No contests were returned for this lookup. This does not
-                establish whether a ballot has been published or whether you are
-                eligible to vote.
-              </Text>
-            )}
             {model.contests.map((contest, index) => (
               <View key={index} style={s.section}>
                 <Text style={s.heading}>
@@ -176,28 +186,33 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   <Text style={s.body}>{contest.referendumText}</Text>
                 )}
                 {contest.candidates?.map((candidate, i) => (
-                  <Text key={i} style={s.body}>
-                    {candidate.name}
-                    {candidate.party ? ` · ${candidate.party}` : ""}
-                  </Text>
+                  <View key={i} style={{ gap: 8 }}>
+                    <Text style={s.body}>
+                      {candidate.name}
+                      {candidate.party ? ` · ${candidate.party}` : ""}
+                    </Text>
+                    {!!candidate.citations?.length && (
+                      <BallotSources
+                        citations={candidate.citations}
+                        contentKind="citations"
+                      />
+                    )}
+                  </View>
                 ))}
-                {ballotWebUrl(contest.referendumUrl) && (
-                  <Pressable
-                    accessibilityRole="link"
-                    onPress={() => open(ballotWebUrl(contest.referendumUrl))}
-                    style={s.button}
-                  >
-                    <Text style={s.link}>Measure source</Text>
-                  </Pressable>
-                )}
+                <BallotSources
+                  citations={contestBallotCitations(contest)}
+                  contentKind="source"
+                />
               </View>
             ))}
-            {props.renderLogistics?.(props.data)}
+            <BallotLanguages items={[]} officialOfficeUrl={officeUrl} />
+            <Text style={s.heading}>Address-specific voting information</Text>
+            <VotingLogisticsSection status="ready" data={data} />
             {/* Existing California results self-hide outside their results season. */}
             {model.isCalifornia &&
               model.election &&
               (props.renderCaliforniaResults ? (
-                props.renderCaliforniaResults(props.data)
+                props.renderCaliforniaResults(data)
               ) : (
                 <ElectionResultsSection
                   contests={model.contests}
@@ -205,34 +220,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   electionName={model.election.name}
                 />
               ))}
-            {props.data.state?.map((region, index) => (
-              <View key={index} style={s.section}>
-                <Text style={s.heading}>{region.name} election office</Text>
-                {[region, region.localJurisdiction].map((area, i) => {
-                  const url = ballotWebUrl(
-                    area?.electionAdministrationBody?.electionInfoUrl,
-                  );
-                  return url ? (
-                    <Pressable
-                      key={i}
-                      accessibilityRole="link"
-                      onPress={() => open(url)}
-                      style={s.button}
-                    >
-                      <Text style={s.link}>
-                        {area?.name}: official election information
-                      </Text>
-                    </Pressable>
-                  ) : null;
-                })}
-              </View>
-            ))}
           </>
-        )}
-        {linkFailed && (
-          <Text accessibilityRole="alert" style={s.body}>
-            This link could not be opened. Please try again.
-          </Text>
         )}
       </ScrollView>
     </SafeAreaView>
