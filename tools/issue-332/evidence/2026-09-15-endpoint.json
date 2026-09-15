@@ -1,0 +1,6 @@
+{
+  "checkedAt": "2026-09-15T00:18:48.190Z",
+  "endpoint": "https://www.googleapis.com/civicinfo/v2/elections",
+  "httpStatus": 403,
+  "outcome": "api_access_not_configured"
+}

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "ca-01",
+    "state": "CA",
+    "jurisdiction": "Santa Clara County",
+    "jurisdictionType": "suburban county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "tx-01",
+    "state": "TX",
+    "jurisdiction": "Harris County",
+    "jurisdictionType": "urban county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "fl-01",
+    "state": "FL",
+    "jurisdiction": "Miami-Dade County",
+    "jurisdictionType": "urban county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "ny-01",
+    "state": "NY",
+    "jurisdiction": "New York City",
+    "jurisdictionType": "city borough",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "pa-01",
+    "state": "PA",
+    "jurisdiction": "Allegheny County",
+    "jurisdictionType": "urban county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "mi-01",
+    "state": "MI",
+    "jurisdiction": "Detroit",
+    "jurisdictionType": "city",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "wi-01",
+    "state": "WI",
+    "jurisdiction": "Dane County",
+    "jurisdictionType": "county municipality",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "az-01",
+    "state": "AZ",
+    "jurisdiction": "Maricopa County",
+    "jurisdictionType": "urban county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "ga-01",
+    "state": "GA",
+    "jurisdiction": "Fulton County",
+    "jurisdictionType": "urban county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "nc-01",
+    "state": "NC",
+    "jurisdiction": "Wake County",
+    "jurisdictionType": "suburban county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "oh-01",
+    "state": "OH",
+    "jurisdiction": "Athens County",
+    "jurisdictionType": "rural county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "co-01",
+    "state": "CO",
+    "jurisdiction": "Denver",
+    "jurisdictionType": "consolidated city-county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "wa-01",
+    "state": "WA",
+    "jurisdiction": "King County",
+    "jurisdictionType": "urban county",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "me-01",
+    "state": "ME",
+    "jurisdiction": "Farmington",
+    "jurisdictionType": "rural town",
+    "address": null,
+    "electionId": null
+  },
+  {
+    "id": "ak-01",
+    "state": "AK",
+    "jurisdiction": "Bethel",
+    "jurisdictionType": "remote municipality",
+    "address": null,
+    "electionId": null
+  }
+]
