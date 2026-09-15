@@ -12,7 +12,11 @@ export function createCivicReadGuard({
 }: { timeoutMs?: number; maxActive?: number } = {}) {
   const active = new Map<string, Promise<unknown>>();
 
-  return function read<T>(key: string, work: () => Promise<T>): Promise<T> {
+  return function read<T>(
+    key: string,
+    work: () => Promise<T>,
+    deadlineMs = timeoutMs,
+  ): Promise<T> {
     const existing = active.get(key);
     if (existing) return existing as Promise<T>;
     if (active.size >= maxActive) {
@@ -26,7 +30,7 @@ export function createCivicReadGuard({
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () => reject(new CivicReadUnavailableError()),
-          timeoutMs,
+          deadlineMs,
         );
       }),
     ]);

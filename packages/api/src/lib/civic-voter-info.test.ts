@@ -79,3 +79,27 @@ void test("unknown election retries once, failure writes no cache or enrichment"
   await assert.rejects(load("a", "bad"), /Election unknown/);
   assert.equal(fetches, 2);
 });
+
+void test("successful fallback preserves returned election and caches only its identity", async () => {
+  let calls = 0;
+  let written: Record<string, unknown> | undefined;
+  const load = createVoterInfoLoader({
+    getCached: async () => null,
+    setCache: async (_, __, params) => {
+      written = params;
+    },
+    enrich: async () => {
+      assert.fail("base-only must not enrich");
+    },
+    fetch: async (params) => {
+      calls++;
+      if (calls === 1) throw new Error("Election unknown");
+      assert.equal(params.electionId, undefined);
+      return structuredClone(ballot);
+    },
+  });
+  const result = await load("a", "rejected", { includeEnrichment: false });
+  assert.equal(result.election.id, "1");
+  assert.deepEqual(written, { electionId: "1" });
+  assert.equal(calls, 2);
+});
