@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { BallotLookupView } from "~/components/ballot/BallotLookupView";
 import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
@@ -13,10 +14,12 @@ import { electionsAreLive } from "~/utils/elections-live";
 /** Dedicated route; the Elections tab remains parked pending launch review. */
 export default function BallotRoute() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   if (!electionsAreLive()) {
     return (
       <View style={{ flex: 1, backgroundColor: P.canvas }}>
         <NavHeader
+          key={fontScale}
           title="Your ballot"
           onBack={() =>
             router.canGoBack() ? router.back() : router.replace("/")
