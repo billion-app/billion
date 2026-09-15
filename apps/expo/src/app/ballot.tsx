@@ -52,7 +52,7 @@ function AddressBallot({
   onAddress: (address: string) => void;
 }) {
   const [electionId, setElectionId] = useState<string>();
-  // Requires the base-only contract from #335 before integration.
+  // Base lookup must not wait for enrichment or trigger generation.
   const request = { address, includeEnrichment: false };
   // Discovery is address-specific. Never select from the national election list.
   const discovery = useQuery({
@@ -69,9 +69,14 @@ function AddressBallot({
   return (
     <BallotLookupView
       address={address}
-      onAddress={onAddress}
+      onAddress={(next) => {
+        if (next === address) void query.refetch();
+        else onAddress(next);
+      }}
       discovery={discovery.data}
-      data={query.isError ? undefined : query.data}
+      data={query.isError || query.isFetching ? undefined : query.data}
+      settled={query.isSuccess}
+      requestedElectionId={electionId}
       loading={!!address && query.isFetching}
       failed={query.isError}
       onRetry={() => {

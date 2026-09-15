@@ -1,4 +1,4 @@
-import type { Election, VoterInfoResponse } from "@acme/api";
+import type { Contest, Election, VoterInfoResponse } from "@acme/api";
 
 /** Preserve provider fields until the shared Civic response type includes them. */
 export type BallotResponse = Omit<
@@ -42,8 +42,69 @@ export function ballotWebUrl(value: string | undefined): string | undefined {
   if (!value) return undefined;
   try {
     const url = new URL(value);
-    return ["http:", "https:"].includes(url.protocol) ? url.href : undefined;
+    return ["http:", "https:"].includes(url.protocol) &&
+      !url.username &&
+      !url.password
+      ? url.href
+      : undefined;
   } catch {
     return undefined;
+  }
+}
+
+/** Mirror the route's bounded input contract without claiming to validate residence. */
+export function validateBallotAddress(address: string): boolean {
+  const trimmed = address.trim();
+  return (
+    trimmed.length >= 5 &&
+    trimmed.length <= 300 &&
+    [...trimmed].every(
+      (character) =>
+        character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127,
+    )
+  );
+}
+
+export function contestBallotCitations(contest: Contest) {
+  const citations = [...(contest.citations ?? [])];
+  for (const source of contest.sources ?? []) {
+    if (
+      !citations.some(
+        (citation) =>
+          citation.sourceName === source.name &&
+          citation.sourceUrl === source.url,
+      )
+    ) {
+      citations.push({
+        field: "Contest",
+        sourceName: source.name,
+        sourceUrl: source.url,
+        official: source.official,
+        tier: source.tier ?? "unknown",
+      });
+    }
+  }
+  if (
+    contest.referendumUrl &&
+    !citations.some((citation) => citation.sourceUrl === contest.referendumUrl)
+  ) {
+    citations.push({
+      field: "Referendum text",
+      sourceName: "Provider-linked measure source",
+      sourceUrl: contest.referendumUrl,
+      official: false,
+      tier: "unknown",
+    });
+  }
+  return citations;
+}
+
+export function ballotOfficeUrl(response: BallotResponse) {
+  for (const region of response.state ?? []) {
+    const url =
+      ballotWebUrl(
+        region.localJurisdiction?.electionAdministrationBody?.electionInfoUrl,
+      ) ?? ballotWebUrl(region.electionAdministrationBody?.electionInfoUrl);
+    if (url) return url;
   }
 }
