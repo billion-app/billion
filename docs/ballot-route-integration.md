@@ -1,5 +1,13 @@
 # Dedicated ballot route (#329)
 
+## Ownership and scope
+
+This route answers "What’s on my ballot?": address-specific races, candidates, and measures, with source evidence and honest explanations of coverage and missing data. Arnav owns "What are the midterms?" and "How can you participate?", along with the Elections tab redesign. Keep explanatory and participation content in that workstream.
+
+#331 supplies reusable voting-logistics components. Their placement and any participation guidance need a handoff to Arnav through the coordinating task before integration, so the two surfaces do not duplicate guidance. The ballot route provides a rendering hook; it does not decide the final participation experience.
+
+## Route behavior
+
 Implemented entry point: [`/ballot`](../apps/expo/src/app/ballot.tsx). Expo Router discovers it in the root stack, so an internal `router.push("/ballot")` or the app scheme's `/ballot` deep link opens it without changing the Elections tab. The route checks `electionsAreLive()` before mounting any query hooks; while disabled, deep links show coming-soon copy. `BallotExperience` is exported for controlled test mounting. The route has a back action, including a home fallback when opened directly. Once enabled, it accepts a manually entered voting address without Places autocomplete, stores it only in component state, and does not put addresses in route parameters or analytics events.
 
 The route requests Civic voter information for that address first. The response's election and `otherElections` populate the selector. Choosing an election sends its exact ID with the same address. The discovery response stays available while another election loads; changing the address remounts the lookup and clears election selection. Errors have a retry action and suppress previous data. Missing contests mean only that none were returned, not that publication or eligibility is known.
@@ -10,7 +18,7 @@ The [lookup model](../apps/expo/src/utils/ballot-lookup.ts) retains every contes
 
 1. Stack #335 below this change. Both route queries send `includeEnrichment: false`; the old server ignores that option and still enriches. #335 owns the base-only cache/request behavior and the shared `otherElections` type. Do not deploy this route against the old contract. The local `BallotResponse` accepts missing election/address fields defensively and preserves `otherElections` while remaining compatible with the shared response.
 2. Mount #330 through `renderSourceStatus(state)`. The callback runs for idle, loading, failed, and successful states and receives `{ data, address, loading, failed, onRetry }`. Supplying it suppresses temporary failed/empty copy. Its `BallotStatusNotice` should replace the view's temporary failed/empty copy when the coordinating task wires the stack; its `BallotSources`/`BallotLanguages` should use actual response evidence, never invented freshness or language metadata.
-3. Mount #331 through `renderLogistics(data)`, returning `VotingLogisticsSection` with `data={data}` and `status="ready"`. This callback is absent during a failed lookup or while another election has no response. The component owns polling/early-vote/drop-off details, mail-only caution, and office links. Consolidate the temporary office links here with that component during integration. Do not use `KeyDatesSection`'s inferred deadlines for national ballots.
+3. Coordinate the placement of #331 with Arnav’s participation work through the coordinating task. If it belongs on this route, mount it through `renderLogistics(data)`, returning `VotingLogisticsSection` with `data={data}` and `status="ready"`. This callback is absent during a failed lookup or while another election has no response. The component owns polling/early-vote/drop-off details, mail-only caution, and office links. Consolidate the temporary office links here with that component during integration. Do not use `KeyDatesSection`'s inferred deadlines for national ballots.
 4. The Elections tab owner can add the minimal `router.push("/ballot")` entry after #332's coverage decision and #337's launch review. This change does not alter `electionsAreLive`, tab registration, the custom TabBar, or the teammate's Elections redesign.
 
 ## Verification and remaining acceptance criteria
