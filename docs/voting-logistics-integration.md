@@ -4,7 +4,9 @@ The reusable [VotingLogisticsSection](../apps/expo/src/components/voting-logisti
 
 ## Integration handoff to #329
 
-Mount the component in the dedicated ballot route, inside its scroll container:
+The national ballot route answers "What is on my ballot?" with address-specific races, candidates, measures, sources, and honest coverage or missing-data explanations. It is not a midterms explainer or a general participation view.
+
+Where the route includes supplied address-specific logistics, mount the reusable component inside its scroll container:
 
 ```tsx
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
@@ -21,6 +23,8 @@ The `state` administration bodies supply registration, absentee/mail voting, bal
 An empty location group says the lookup supplied no locations and directs the reader to their election office. It does not establish publication status or availability of a voting method. `mailOnly: true` is attributed to the supplied precinct data; it never promises automatic ballot mailing or a drop-off option. All supplied groups remain visible even when mail-only is set.
 
 ## Boundaries and dependencies
+
+Arnav owns "What are the midterms?" and "How can you participate?", including the Elections layout and #272 explanatory content. Keep that explanation and general participation guidance in his work. #331 supplies reusable presentation of returned location details and official links; it does not introduce another participation lesson. Where these logistics overlap his participation view, hand off `VotingLogisticsSection` and its existing response-field contract for reuse, and coordinate placement with Arnav through the project owner. Do not independently add the component to his Elections layout or duplicate its content in both views. This document records the handoff; it does not claim teammate coordination has occurred.
 
 Route integration is intentionally pending #329. This change does not modify the Elections tab, navigation, address autocomplete, #272 content, provider selection, ingestion, or launch flags. It has no dependency on a new service or database migration.
 
