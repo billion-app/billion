@@ -386,7 +386,7 @@ const s = StyleSheet.create({
     alignSelf: "stretch",
     justifyContent: "space-between",
     paddingHorizontal: sp[4],
-    backgroundColor: P.card,
+    backgroundColor: P.canvas,
     borderWidth: 1,
     borderColor: DigestHair.cardBorder,
     borderRadius: 10,

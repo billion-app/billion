@@ -52,10 +52,12 @@ export function BallotReadingCard({
 }) {
   return (
     <View style={inset ? s.card : s.section}>
-      <Text accessibilityRole="header" style={s.heading}>
-        {title}
-      </Text>
-      {label}
+      <View style={{ gap: sp[1] }}>
+        <Text accessibilityRole="header" style={s.heading}>
+          {title}
+        </Text>
+        {label}
+      </View>
       {text && <BallotReadingText text={text} />}
       {children}
     </View>
@@ -139,7 +141,17 @@ const s = StyleSheet.create({
     lineHeight: 26,
     color: P.inkOnNight,
   },
-  action: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
+  action: {
+    minHeight: 44,
+    justifyContent: "center",
+    alignSelf: "flex-start",
+    backgroundColor: P.canvas,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
   actionText: {
     fontFamily: fontBody.semibold,
     fontSize: 16,

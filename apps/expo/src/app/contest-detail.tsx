@@ -452,7 +452,9 @@ export default function ContestDetailScreen() {
                         contactRows.map((row) => (
                           <TouchableOpacity
                             key={row.label}
-                            style={s.contactRow}
+                            accessibilityRole="link"
+                            accessibilityLabel={`${row.label}: ${row.value}`}
+                            style={[s.contactRow, s.contactAction]}
                             onPress={row.onPress}
                             activeOpacity={0.7}
                           >
@@ -461,7 +463,6 @@ export default function ContestDetailScreen() {
                               <Text style={s.contactLabel}>{row.label}</Text>
                               <Text
                                 style={[s.contactValue, { color: P.primary }]}
-                                numberOfLines={1}
                               >
                                 {row.value}
                               </Text>
@@ -682,6 +683,14 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingVertical: 6,
+  },
+  contactAction: {
+    backgroundColor: P.canvas,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
   },
   contactLabel: {
     fontFamily: fontBody.medium,

@@ -95,7 +95,14 @@ export default function MeasureDetailScreen() {
     sourceUrl
   );
 
-  const showingOriginal = mode === "original" && !!params.referendumText;
+  const hasOverview = !!(
+    summary ||
+    params.fiscalImpact ||
+    pros.length ||
+    cons.length
+  );
+  const showingOriginal =
+    !!params.referendumText && (!hasOverview || mode === "original");
 
   const isGenerated = (field: string) =>
     citations.some(
@@ -114,7 +121,7 @@ export default function MeasureDetailScreen() {
         <Text accessibilityRole="header" style={s.title}>
           {params.referendumTitle}
         </Text>
-        {params.referendumText && (
+        {params.referendumText && hasOverview && (
           <BallotReadingMode
             value={showingOriginal ? "original" : "overview"}
             onChange={setMode}
@@ -142,6 +149,7 @@ export default function MeasureDetailScreen() {
           <>
             {summary ? (
               <BallotReadingCard
+                inset
                 title="Measure overview"
                 text={summary}
                 label={summaryIsAi ? <AiSummaryLabel /> : undefined}
