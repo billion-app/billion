@@ -33,9 +33,13 @@ export interface CrossValidateContext {
   electionYear: number;
 }
 
-/** A measure as Google Civic gives it to us — the lowest-tier source. */
+/** Provider measure fields with explicit attribution; legacy callers default to Google Civic. */
 export interface CivicMeasureInput {
   title: string;
+  source?: Pick<
+    MeasureSourceData,
+    "tier" | "sourceName" | "sourceUrl" | "official"
+  >;
   subtitle?: string;
   text?: string;
   url?: string;
@@ -87,13 +91,14 @@ async function collectVoteSmart(
   };
 }
 
-/** The Google Civic measure itself, as the lowest-trust source. */
+/** Input fields with their provider attribution and trust tier. */
 function civicAsSource(input: CivicMeasureInput): MeasureSourceData {
   return {
     tier: "google_civic",
     sourceName: "Google Civic Information API",
     sourceUrl: input.url,
     official: false,
+    ...input.source,
     matchedTitle: input.title,
     officialSummary: input.subtitle,
     fullText: input.text,
@@ -244,7 +249,12 @@ export async function crossValidateMeasure(
 
     let groundingText = civicMaterial;
     let groundingSources: { name: string; url: string }[] = input.url
-      ? [{ name: "Google Civic Information API", url: input.url }]
+      ? [
+          {
+            name: input.source?.sourceName ?? "Google Civic Information API",
+            url: input.url,
+          },
+        ]
       : [];
 
     let fetchedProsCons: { pros?: string[]; cons?: string[] } | undefined;

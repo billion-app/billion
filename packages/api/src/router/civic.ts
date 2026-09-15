@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { caSosResultsClient } from "../clients/ca-sos-results";
+import { BallotProviderError } from "../clients/democracy-works";
 import {
   getDistrictElectionResults,
   getElectionResults,
@@ -30,18 +31,22 @@ export const civicRouter = {
   /**
    * Get a list of upcoming elections
    */
-  getElections: publicProcedure.query(async () => {
-    try {
-      return await getElections();
-    } catch (error) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to fetch elections",
-        cause: error,
-      });
-    }
-  }),
+  getElections: publicProcedure
+    .input(z.object({ address: z.string().trim().min(1).max(300) }).optional())
+    .query(async ({ input }) => {
+      try {
+        return await getElections(input?.address);
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch elections",
+          cause: error,
+        });
+      }
+    }),
 
   /**
    * Get live California statewide election results (Secretary of State feed).
@@ -118,7 +123,8 @@ export const civicRouter = {
       } catch (error) {
         throw new TRPCError({
           code:
-            error instanceof CivicReadUnavailableError
+            error instanceof CivicReadUnavailableError ||
+            error instanceof BallotProviderError
               ? "SERVICE_UNAVAILABLE"
               : "INTERNAL_SERVER_ERROR",
           message:

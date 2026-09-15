@@ -31,7 +31,10 @@ const ballot: VoterInfoResponse = {
 };
 
 void test("base and enriched caches stay independent and retain other elections", async () => {
-  const cache = new Map<string, VoterInfoResponse>();
+  const cache = new Map<string, VoterInfoResponse>([
+    ["voterinfo", ballot],
+    ["voterinfoBase", ballot],
+  ]);
   let fetches = 0;
   let enrichments = 0;
   const load = createVoterInfoLoader({
@@ -60,46 +63,24 @@ void test("base and enriched caches stay independent and retain other elections"
   assert.equal(enrichments, 1);
 });
 
-void test("unknown election retries once, failure writes no cache or enrichment", async () => {
+void test("provider failure is not retried, enriched or cached", async () => {
   let fetches = 0;
   const load = createVoterInfoLoader({
-    getCached: async () => null,
+    getCached: async (_, endpoint) => {
+      assert.ok(endpoint.startsWith("democracy-works:v2:1:"));
+      return null;
+    },
     setCache: async () => {
       assert.fail("must not cache failure");
     },
     enrich: async () => {
       assert.fail("must not enrich failure");
     },
-    fetch: async (params) => {
+    fetch: async () => {
       fetches++;
-      assert.equal(params.electionId, fetches === 1 ? "bad" : undefined);
-      throw new Error("Election unknown");
+      throw new Error("provider unavailable");
     },
   });
-  await assert.rejects(load("a", "bad"), /Election unknown/);
-  assert.equal(fetches, 2);
-});
-
-void test("successful fallback preserves returned election and caches only its identity", async () => {
-  let calls = 0;
-  let written: Record<string, unknown> | undefined;
-  const load = createVoterInfoLoader({
-    getCached: async () => null,
-    setCache: async (_, __, params) => {
-      written = params;
-    },
-    enrich: async () => {
-      assert.fail("base-only must not enrich");
-    },
-    fetch: async (params) => {
-      calls++;
-      if (calls === 1) throw new Error("Election unknown");
-      assert.equal(params.electionId, undefined);
-      return structuredClone(ballot);
-    },
-  });
-  const result = await load("a", "rejected", { includeEnrichment: false });
-  assert.equal(result.election.id, "1");
-  assert.deepEqual(written, { electionId: "1" });
-  assert.equal(calls, 2);
+  await assert.rejects(load("a", "dw:selected"), /provider unavailable/);
+  assert.equal(fetches, 1);
 });

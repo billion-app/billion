@@ -68,9 +68,9 @@ void test("Expo requires valid PostHog configuration", () => {
   );
 });
 
-void test("Next.js requires the Google Civic key", () => {
+void test("Next.js requires the Democracy Works ballot key", () => {
   const civic = definitionsFor("nextjs").find(
-    ({ definition }) => definition.key === "GOOGLE_CIVIC_API_KEY",
+    ({ definition }) => definition.key === "DEMOCRACY_WORKS_API_KEY",
   );
   assert.equal(civic?.requirement, "required");
 });
