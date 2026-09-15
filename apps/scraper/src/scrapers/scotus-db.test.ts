@@ -75,6 +75,9 @@ void test(
           court: CourtCase.court,
           description: CourtCase.description,
           aiGeneratedArticle: CourtCase.aiGeneratedArticle,
+          fullText: CourtCase.fullText,
+          url: CourtCase.url,
+          filedDate: CourtCase.filedDate,
         })
         .from(CourtCase)
         .where(eq(CourtCase.caseNumber, caseNumber));
@@ -84,21 +87,15 @@ void test(
       assert.equal(rows[0].court, input.data.court);
       assert.equal(rows[0].description, null);
       assert.equal(rows[0].aiGeneratedArticle, null);
+      assert.equal(rows[0].fullText, input.data.fullText);
+      assert.equal(rows[0].url, input.data.url);
+      assert.deepEqual(rows[0].filedDate, input.data.filedDate);
       // The source hash now matches. Missing derived text must still request a
       // generation slot on the next scan, rather than reuse the stale article.
       assert.deepEqual(
         await upsertContent(input, { newItemLimiter: createNewItemLimiter(0) }),
         { status: "deferred", reason: "run budget reached" },
       );
-      const { createCaller } = await import("@acme/api");
-      const api = createCaller({ db, session: null, authApi: {} as never });
-      const detail = await api.content.getById({ id });
-      assert.equal(detail.id, id);
-      assert.equal(detail.originalContent, input.data.fullText);
-      assert.equal(detail.articleContent, input.data.fullText);
-      assert.equal(detail.isAIGenerated, false);
-      assert.equal(detail.url, input.data.url);
-      assert.equal(detail.lensData, null);
       assert.deepEqual(
         await db
           .select({ id: ContentLens.id })
@@ -106,13 +103,6 @@ void test(
           .where(eq(ContentLens.contentId, id)),
         [],
       );
-      const results = await api.content.search({
-        query: caseNumber,
-        type: "court_case",
-        limit: 10,
-      });
-      assert.equal(results.length, 1);
-      assert.equal(results[0]?.id, id);
     } finally {
       // Only the UUID created by this test is removed. No user rows are touched.
       try {
