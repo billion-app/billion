@@ -172,7 +172,7 @@ function LocationGroup({
     <View style={styles.surface}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${group.title}, ${group.locations.length} ${group.locations.length === 1 ? "location" : "locations"} supplied`}
+        accessibilityLabel={`${group.title}, ${group.locations.length} ${group.locations.length === 1 ? "location" : "locations"}`}
         accessibilityState={{ expanded }}
         onPress={() => setExpanded((value) => !value)}
         style={({ pressed }) => [
@@ -197,7 +197,7 @@ function LocationGroup({
           </Text>
           <Text style={[styles.summary, { color: theme.foreground }]}>
             {group.locations.length}{" "}
-            {group.locations.length === 1 ? "location" : "locations"} supplied
+            {group.locations.length === 1 ? "location" : "locations"}
           </Text>
         </View>
         <View
@@ -265,6 +265,11 @@ export function VotingLogisticsSection({
   const current = data ?? {};
   const groups = votingLocationGroups(current);
   const missing = groups.filter((group) => !group.locations.length);
+  const missingNames = missing.map((group) => group.title.toLowerCase());
+  const missingLabel =
+    missingNames.length > 1
+      ? `${missingNames.slice(0, -1).join(", ")} and ${missingNames.at(-1)}`
+      : (missingNames[0] ?? "");
   const links = votingInformationLinks(current);
   const offices = [...new Set(links.map((link) => link.office))];
   return (
@@ -304,8 +309,8 @@ export function VotingLogisticsSection({
         {missing.length ? (
           <Text style={[styles.body, { color: theme.foreground }]}>
             {missing.length === groups.length
-              ? "No voting locations were returned for this lookup."
-              : `Not supplied: ${missing.map((group) => group.title.toLowerCase()).join(", ")}.`}
+              ? "Location details aren’t available here."
+              : `${missingLabel.charAt(0).toUpperCase()}${missingLabel.slice(1)} details aren’t available here.`}
           </Text>
         ) : null}
         {links.length ? (
