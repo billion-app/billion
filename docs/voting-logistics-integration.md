@@ -1,12 +1,8 @@
-# National voting logistics (#331)
+# Voting logistics
 
-The reusable [VotingLogisticsSection](../apps/expo/src/components/voting-logistics/VotingLogisticsSection.tsx) renders supplied voting locations and election-office information for any state. It makes no provider calls. The [derivation utilities](../apps/expo/src/utils/voting-logistics.ts) use existing `@acme/api` types through type-only imports.
+[VotingLogisticsSection](../apps/expo/src/components/voting-logistics/VotingLogisticsSection.tsx) presents supplied locations and official information for the selected address and election. It makes no provider calls and imports API types only. The national ballot route answers "What is on my ballot?" with races, candidates, measures, sources, and coverage information. Arnav owns the midterms explanation and general participation content; coordinate placement of these reusable logistics through the project owner.
 
-## Integration handoff to #329
-
-The national ballot route answers "What is on my ballot?" with address-specific races, candidates, measures, sources, and honest coverage or missing-data explanations. It is not a midterms explainer or a general participation view.
-
-Where the route includes supplied address-specific logistics, mount the reusable component inside its scroll container:
+## Component contract
 
 ```tsx
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
@@ -14,32 +10,26 @@ import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogi
 <VotingLogisticsSection status="ready" data={voterInfo} />;
 ```
 
-`data` accepts the existing response fields `pollingLocations`, `earlyVoteSites`, `dropOffLocations`, `mailOnly`, and `state`. A full `VoterInfoResponse` is compatible. Pass the successful response for the currently selected address and election. Set `status` to `idle`, `loading`, or `error` before that response is available. Those states suppress supplied data, including stale cached results. The route owns retry controls and broader coverage/source status from #330.
+Mount inside the route's scroll container. The component provides its own heading and 16-point padding. `data` accepts `pollingLocations`, `earlyVoteSites`, `dropOffLocations`, `mailOnly`, and `state`; a full `VoterInfoResponse` is compatible. Pass only the successful response for the selected address and election. `idle`, `loading`, and `error` suppress supplied data, including stale results. The route owns retry controls and broader coverage status.
 
-The component displays all supplied location hours, start/end date strings, notes, services, and source names without truncation. Dates remain attached to their location and are not interpreted as statewide dates or deadlines. A source receives an official label only when its `official` value is true. An absent source URL remains plain attribution. Only HTTP(S) links without embedded credentials are actionable.
+Location rows group Election Day, early voting, and ballot drop-off sites. Names, addresses, hours, and supplied date endpoints stay visible. Identical date endpoints appear once. "Notes & sources" opens a titled reading panel with original paragraphs, services, and attribution. Text scales without truncation; disclosure controls expose their expanded state and have at least 44-point touch targets.
 
-The `state` administration bodies supply registration, absentee/mail voting, ballot information, location-finder, election-information, and rules links. Local offices appear before state offices. This relies on the existing `localJurisdiction` model; provider normalization belongs to the API owner. The component does not fabricate an office URL when none was supplied.
+One notice describes missing location groups without establishing publication status or voting-method availability. The mail-only notice attributes the indicator to the lookup and directs readers to official return instructions. "About this information" explains registration and tracking limitations.
 
-An empty location group says the lookup supplied no locations and directs the reader to their election office. It does not establish publication status or availability of a voting method. `mailOnly: true` is attributed to the supplied precinct data; it never promises automatic ballot mailing or a drop-off option. All supplied groups remain visible even when mail-only is set.
+## Official links and evidence
 
-## Boundaries and dependencies
+The [utilities](../apps/expo/src/utils/voting-logistics.ts) use supplied administration-body URLs. Local offices appear first, with location finders first within each office. Each URL appears once; a shared destination serving several purposes is labeled "Election office website." Distinct pages remain available. HTTP(S) links reject embedded credentials. Missing URLs remain plain attribution. Sources receive an official label only when `official` is true.
 
-Arnav owns "What are the midterms?" and "How can you participate?", including the Elections layout and #272 explanatory content. Keep that explanation and general participation guidance in his work. #331 supplies reusable presentation of returned location details and official links; it does not introduce another participation lesson. Where these logistics overlap his participation view, hand off `VotingLogisticsSection` and its existing response-field contract for reuse, and coordinate placement with Arnav through the project owner. Do not independently add the component to his Elections layout or duplicate its content in both views. This document records the handoff; it does not claim teammate coordination has occurred.
+Registration deadlines require authoritative citations from #294. This component uses official registration links and does not infer deadlines, eligibility, personal registration status, or mail-ballot tracking. Avoid `KeyDatesSection` for national deadlines: it subtracts 15 days from election day. Its correction belongs in coordinated #272 work.
 
-Route integration is intentionally pending #329. This change does not modify the Elections tab, navigation, address autocomplete, #272 content, provider selection, ingestion, or launch flags. It has no dependency on a new service or database migration.
+Google's [voterInfoQuery field reference](https://developers.google.com/civic-information/docs/v2/elections/voterInfoQuery) defines the provider fields; it does not establish live coverage. Provider normalization, ingestion, and launch flags remain outside this component.
 
-Registration deadlines are not rendered because the existing response has no authoritative deadline field. Registration links are the fallback required by #331. A future #294 integration must carry authoritative citations before adding dates. Do not reuse `KeyDatesSection` for national registration deadlines: its current implementation subtracts 15 days from election day. Correcting that existing component belongs in coordinated #272 work. Personal registration status and ballot tracking are outside this response's capability.
+## Preview and checks
 
-The field contract was checked against Google's [voterInfoQuery reference](https://developers.google.com/civic-information/docs/v2/elections/voterInfoQuery) on September 14, 2026. That page documents the endpoint and its fields; it does not establish live coverage or nationwide readiness.
-
-## Verification and preview
-
-Run the focused Expo checks from [Contributing](../CONTRIBUTING.md#check-your-change). [Utility tests](../apps/expo/src/utils/voting-logistics.test.ts) cover supplied details, partial addresses, end-only dates, missing groups, mail-only combinations, office links, and unsafe URLs.
-
-[VotingLogisticsPreview](../apps/expo/src/components/voting-logistics/VotingLogisticsPreview.tsx) is a complete synthetic preview with full, partial, mail-only, idle, loading, and error cases. To review locally, temporarily create `apps/expo/src/app/voting-logistics-preview.tsx` with:
+[VotingLogisticsPreview](../apps/expo/src/components/voting-logistics/VotingLogisticsPreview.tsx) contains synthetic locations, original-length notes, links, and loading/error states. Mount it temporarily in a local route:
 
 ```tsx
 export { VotingLogisticsPreview as default } from "~/components/voting-logistics/VotingLogisticsPreview";
 ```
 
-Open `/voting-logistics-preview` in the local app, using the mobile setup in Contributing. Remove the temporary route afterward. The preview is not a shipped route and never calls Civic or Places. Its `example.org` links and locations are synthetic, not election guidance. Check long notes, source attribution, link labels, narrow widths, and large text. Loading/error previews deliberately receive data to verify it stays hidden.
+Remove the temporary route after use. Fixtures never call a provider, and `example.org` links are not election guidance. Check disclosure open/close, long paragraphs, attribution, missing groups, and stale-data suppression at default and larger text sizes. Follow [Contributing](../CONTRIBUTING.md#check-your-change) for Expo checks; [utility tests](../apps/expo/src/utils/voting-logistics.test.ts) cover partial data and safe, deduplicated links.

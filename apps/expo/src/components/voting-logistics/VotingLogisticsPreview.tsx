@@ -5,7 +5,7 @@ import { sp, typography, useTheme } from "~/styles";
 import { VotingLogisticsSection } from "./VotingLogisticsSection";
 
 /** Synthetic fixtures only. No addresses are sent to a provider. */
-const complete: VotingLogisticsData = {
+export const votingLogisticsFixture: VotingLogisticsData = {
   pollingLocations: [
     {
       name: "Example community center",
@@ -19,7 +19,7 @@ const complete: VotingLogisticsData = {
       startDate: "2026-11-03",
       endDate: "2026-11-03",
       notes:
-        "Example note: use the accessible entrance on the east side. This long note must remain fully visible at large text sizes and must never be truncated.",
+        "Use the accessible entrance on the east side of the community center. The main entrance faces the parking lot; follow the posted signs to the voting room. Staff at the entrance can help you find the accessible route.\n\nParking is available behind the building. The library entrance is separate from the voting entrance. Check the posted site instructions when you arrive.",
       sources: [
         {
           name: "Example election office",
@@ -31,7 +31,14 @@ const complete: VotingLogisticsData = {
   ],
   earlyVoteSites: [
     {
-      address: { line1: "", city: "Example City", state: "NC", zip: "" },
+      name: "Example library",
+      address: {
+        line1: "789 Example Avenue",
+        city: "Example City",
+        state: "NC",
+        zip: "",
+      },
+      pollingHours: "Monday–Friday, 9 AM–5 PM",
       endDate: "2026-10-31",
       sources: [{ name: "Example community source", official: false }],
     },
@@ -45,13 +52,15 @@ const complete: VotingLogisticsData = {
         state: "NC",
         zip: "",
       },
-      notes: "Example instructions supplied by the source.",
+      pollingHours: "9 AM–5 PM",
+      notes: "Use the marked ballot return slot beside the main entrance.",
     },
   ],
   state: [
     {
       name: "Example state",
       electionAdministrationBody: {
+        votingLocationFinderUrl: "https://example.org/locations",
         electionRegistrationUrl: "https://example.org/register",
         absenteeVotingInfoUrl: "https://example.org/mail",
         ballotInfoUrl: "https://example.org/ballot",
@@ -71,15 +80,15 @@ export function VotingLogisticsPreview() {
       <Text style={[typography.h2, { color: theme.foreground }]}>
         Synthetic voting logistics preview
       </Text>
-      <VotingLogisticsSection status="ready" data={complete} />
+      <VotingLogisticsSection status="ready" data={votingLogisticsFixture} />
       <VotingLogisticsSection status="ready" data={{ mailOnly: true }} />
       <VotingLogisticsSection
         status="ready"
-        data={{ pollingLocations: complete.pollingLocations }}
+        data={{ pollingLocations: votingLogisticsFixture.pollingLocations }}
       />
       <VotingLogisticsSection status="idle" />
-      <VotingLogisticsSection status="loading" data={complete} />
-      <VotingLogisticsSection status="error" data={complete} />
+      <VotingLogisticsSection status="loading" data={votingLogisticsFixture} />
+      <VotingLogisticsSection status="error" data={votingLogisticsFixture} />
     </ScrollView>
   );
 }
