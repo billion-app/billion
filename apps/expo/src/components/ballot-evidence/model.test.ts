@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   ballotStatus,
+  citationFieldLabel,
   verificationLabel,
   verifiedLanguages,
   webUrl,
@@ -17,7 +18,11 @@ void test("lookup evidence remains distinct without inferring publication or com
     ballotStatus({ kind: "result", electionKnown: true, contestCount: 2 }),
   ] as const;
   assert.equal(new Set(states.map((state) => state.title)).size, 5);
-  assert.match(states[2].detail, /does not establish/);
+  assert.match(states[2].detail, /Billion has no contest information/);
+  assert.doesNotMatch(
+    states[2].detail,
+    /not (yet )?published|not available yet/i,
+  );
   assert.match(states[3].detail, /does not mean/);
   assert.match(states[4].detail, /Confirm your complete ballot/);
 });
@@ -91,5 +96,12 @@ void test("external links reject invalid and executable schemes", () => {
   assert.equal(
     webUrl("https://example.gov/guide"),
     "https://example.gov/guide",
+  );
+});
+
+void test("readable field labels preserve candidate attribution punctuation", () => {
+  assert.equal(
+    citationFieldLabel("Alexandra Example-Sullivan · statementSummary"),
+    "Alexandra Example-Sullivan · Statement summary",
   );
 });

@@ -1,11 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   Image,
+  Keyboard,
   LayoutAnimation,
   Linking,
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -20,23 +22,21 @@ import {
   BallotSources,
   ElectionOfficeLink,
 } from "~/components/ballot-evidence/BallotEvidence";
-import { BallotReadingText } from "~/components/ballot-evidence/BallotReadingCard";
-import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import {
-  Card,
-  Icon,
-  Kicker,
-  NavHeader,
-  Pill,
-  Pills,
-  SearchInput,
-} from "~/components/ui";
+  BallotReadingMode,
+  BallotReadingText,
+} from "~/components/ballot-evidence/BallotReadingCard";
+import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { Card, Icon, Kicker, NavHeader } from "~/components/ui";
 import {
   DigestHair,
   DigestRadii,
   DigestSpace,
   fontBody,
+  fontDisplay,
+  fontEditorial,
   DigestPalette as P,
+  planes,
 } from "~/styles";
 
 const cardChrome = {
@@ -67,14 +67,13 @@ interface CandidateParam {
   statementSummary?: string;
   statementSummaryIsAiGenerated?: boolean;
   incumbent?: boolean;
+  ballotStatus?: "onBallot" | "withdrewStillOnBallot";
   citations?: CandidateCitation[];
 }
 
-function partyInitial(party?: string): string {
-  const p = (party ?? "").toLowerCase();
-  if (p.startsWith("d")) return "D";
-  if (p.startsWith("r")) return "R";
-  return "NP";
+function partyLabel(party?: string): string {
+  const label = party?.trim() ?? "";
+  return label.length ? label : "Party unavailable";
 }
 
 /**
@@ -103,33 +102,22 @@ function CandidateStatement({ cand }: { cand: CandidateParam }) {
 
   return (
     <View style={s.statementWrap}>
+      <Text accessibilityRole="header" style={s.readingLabel}>
+        {showTabs || !showingSummary
+          ? "Candidate statement"
+          : "Statement summary"}
+      </Text>
       {showTabs && (
-        <View style={s.statementTabs}>
-          {(
-            [
-              ["summary", "Summary"],
-              ["verbatim", "Original statement"],
-            ] as const
-          ).map(([id, label]) => (
-            <Pressable
-              key={id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: mode === id }}
-              onPress={() => setMode(id)}
-              style={[s.statementTab, mode === id && s.statementTabActive]}
-            >
-              <Text style={s.statementTabText}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <BallotReadingMode
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: "summary", label: "Summary" },
+            { value: "verbatim", label: "Original statement" },
+          ]}
+        />
       )}
-      {showingSummary && summaryIsAi ? (
-        <AiSummaryLabel />
-      ) : (
-        <Text style={s.readingLabel}>
-          {showingSummary ? "Summary" : "Candidate statement"}
-        </Text>
-      )}
+      {showingSummary && summaryIsAi && <AiSummaryLabel />}
       <BallotReadingText
         text={(showingSummary ? cand.statementSummary : cand.statement) ?? ""}
       />
@@ -179,11 +167,11 @@ export default function ContestDetailScreen() {
     });
   }, []);
 
-  /** Party initials actually present in this contest, in first-seen order. */
+  /** Party labels actually present in this contest, in first-seen order. */
   const partyOptions = useMemo(() => {
     const seen: string[] = [];
     for (const c of candidates) {
-      const p = partyInitial(c.party);
+      const p = partyLabel(c.party);
       if (!seen.includes(p)) seen.push(p);
     }
     return seen;
@@ -215,7 +203,7 @@ export default function ContestDetailScreen() {
         !c.statementSummary?.trim()
       )
         return false;
-      if (activeParty && partyInitial(c.party) !== activeParty) return false;
+      if (activeParty && partyLabel(c.party) !== activeParty) return false;
       return true;
     });
 
@@ -245,6 +233,8 @@ export default function ContestDetailScreen() {
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <Text accessibilityRole="header" style={s.office}>
           {params.office}
@@ -271,60 +261,81 @@ export default function ContestDetailScreen() {
             </Text>
           )}
 
-          {candidates.length > 1 ? (
+          {candidates.length > 5 && (
             <View style={s.filters}>
-              <SearchInput
-                placeholder="Search candidates…"
+              <TextInput
+                accessibilityLabel="Search candidates"
+                placeholder="Search candidates"
+                placeholderTextColor={P.quiet}
+                style={s.search}
                 value={query}
                 onChangeText={setQuery}
                 autoCorrect={false}
                 autoCapitalize="none"
                 returnKeyType="search"
+                onSubmitEditing={Keyboard.dismiss}
+                clearButtonMode="while-editing"
               />
-              <View style={s.pillsBleed}>
-                <Pills>
-                  <Pill
-                    label="Has statement"
-                    icon="doc"
-                    active={hasStatementOnly}
-                    onPress={() => setHasStatementOnly((v) => !v)}
-                  />
-                  {partyOptions.map((p) => (
-                    <Pill
+              <View style={s.filterOptions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: hasStatementOnly }}
+                  style={[s.filterOption, hasStatementOnly && s.filterSelected]}
+                  onPress={() => setHasStatementOnly((v) => !v)}
+                >
+                  <Text style={s.filterText}>Has statement</Text>
+                </Pressable>
+                {partyOptions.length > 1 &&
+                  partyOptions.map((p) => (
+                    <Pressable
                       key={p}
-                      label={p}
-                      active={activeParty === p}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: activeParty === p }}
+                      style={[
+                        s.filterOption,
+                        activeParty === p && s.filterSelected,
+                      ]}
                       onPress={() =>
                         setActiveParty((cur) => (cur === p ? null : p))
                       }
-                    />
+                    >
+                      <Text style={s.filterText}>{p}</Text>
+                    </Pressable>
                   ))}
-                </Pills>
               </View>
             </View>
-          ) : null}
+          )}
 
           {filtered.length === 0 && (
             <View style={s.emptyState}>
-              <Text style={s.candBio}>
+              <Text accessibilityRole="header" style={s.emptyTitle}>
                 {candidates.length
                   ? "No candidates match your filters."
-                  : "Candidate information is unavailable to Billion."}
+                  : "Candidate details unavailable"}
               </Text>
+              {!candidates.length && (
+                <Text style={s.candBio}>
+                  Billion has no candidate details for this contest. Check your
+                  election office for the official candidate list.
+                </Text>
+              )}
               {candidates.length ? (
                 <Pressable
                   accessibilityRole="button"
-                  style={s.statementTab}
+                  style={[s.statementTab, s.clearFilters]}
                   onPress={() => {
                     setQuery("");
                     setActiveParty(null);
                     setHasStatementOnly(false);
+                    Keyboard.dismiss();
                   }}
                 >
-                  <Text style={s.statementTabText}>Clear filters</Text>
+                  <Text style={[s.statementTabText, { color: P.canvas }]}>
+                    Clear filters
+                  </Text>
                 </Pressable>
               ) : (
-                <ElectionOfficeLink />
+                <ElectionOfficeLink prominence="primary" />
               )}
             </View>
           )}
@@ -365,21 +376,34 @@ export default function ContestDetailScreen() {
                 !!cand.statement?.trim() || !!cand.statementSummary?.trim();
 
               return (
-                <Card key={key} style={cardChrome}>
+                <Card key={key} style={s.candidateSection}>
                   <TouchableOpacity
                     style={s.candHeader}
                     accessibilityRole="button"
-                    accessibilityLabel={cand.name}
+                    accessibilityLabel={[
+                      cand.name,
+                      cand.party,
+                      cand.incumbent ? "Incumbent" : undefined,
+                      cand.ballotStatus === "withdrewStillOnBallot"
+                        ? "Withdrawn; still on ballot"
+                        : undefined,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
                     accessibilityState={{ expanded: open }}
                     activeOpacity={0.7}
                     onPress={() => toggle(key)}
                   >
-                    {cand.photoUrl && (
+                    {cand.photoUrl ? (
                       <Image
                         source={{ uri: cand.photoUrl }}
                         style={s.partyPhoto}
                         resizeMode="cover"
                       />
+                    ) : (
+                      <View style={s.identityIcon}>
+                        <Icon name="user" size={20} color={P.inkOnNight} />
+                      </View>
                     )}
                     <View style={{ flex: 1 }}>
                       <View style={s.candNameRow}>
@@ -393,6 +417,11 @@ export default function ContestDetailScreen() {
                       {cand.party ? (
                         <Text style={s.candParty}>{cand.party}</Text>
                       ) : null}
+                      {cand.ballotStatus === "withdrewStillOnBallot" && (
+                        <Text style={s.withdrawn}>
+                          Withdrawn; still on ballot
+                        </Text>
+                      )}
                     </View>
                     <Icon
                       name={open ? "chevD" : "chevR"}
@@ -404,7 +433,12 @@ export default function ContestDetailScreen() {
                     <View style={s.candBody}>
                       {cand.biography ? (
                         <View style={s.readingSection}>
-                          <Text style={s.readingLabel}>About</Text>
+                          <Text
+                            accessibilityRole="header"
+                            style={s.readingLabel}
+                          >
+                            About the candidate
+                          </Text>
                           <BallotReadingText text={cand.biography} />
                         </View>
                       ) : null}
@@ -478,7 +512,7 @@ const s = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 48,
   },
-  section: { marginTop: 20, marginBottom: 16 },
+  section: { marginTop: 12, marginBottom: 12 },
   filters: { gap: 12, marginBottom: 16 },
   kicker: {
     color: P.spark,
@@ -489,8 +523,9 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   office: {
-    fontFamily: fontBody.semibold,
-    fontSize: 28,
+    fontFamily: fontDisplay.bold,
+    fontSize: 34,
+    lineHeight: 40,
     color: P.inkOnNight,
     marginBottom: 4,
     letterSpacing: -0.55,
@@ -502,7 +537,32 @@ const s = StyleSheet.create({
     opacity: 0.7,
     marginBottom: 12,
   },
-  pillsBleed: { marginHorizontal: -20 },
+  search: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: P.border,
+    borderRadius: 10,
+    padding: 12,
+    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
+    fontSize: 16,
+  },
+  filterOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  filterOption: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: P.border,
+    borderRadius: 8,
+  },
+  filterSelected: { backgroundColor: P.card, borderColor: P.inkOnNight },
+  filterText: {
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    color: P.inkOnNight,
+  },
   descText: {
     fontFamily: fontBody.regular,
     fontSize: 14.5,
@@ -515,6 +575,14 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
+  identityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: planes.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   partyPhoto: { width: 34, height: 34, borderRadius: 9 },
   candNameRow: {
     flexDirection: "row",
@@ -523,9 +591,9 @@ const s = StyleSheet.create({
     flexWrap: "wrap",
   },
   candName: {
-    fontFamily: fontBody.semibold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontFamily: fontEditorial.bold,
+    fontSize: 22,
+    lineHeight: 28,
     letterSpacing: -0.2,
     color: P.inkOnNight,
   },
@@ -544,20 +612,24 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  emptyState: { gap: 8, paddingVertical: 16 },
+  emptyState: { ...cardChrome, gap: 12, padding: 20 },
+  emptyTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 22,
+    color: P.inkOnNight,
+  },
+  candidateSection: {
+    ...cardChrome,
+    padding: 16,
+  },
   readingSection: { gap: 12, marginBottom: 16 },
   readingLabel: {
-    fontFamily: fontBody.semibold,
+    fontFamily: fontEditorial.bold,
     fontSize: 16,
     color: P.inkOnNight,
     marginBottom: 8,
   },
-  statementTabs: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
-    marginBottom: 12,
-  },
+  clearFilters: { backgroundColor: P.inkOnNight, alignSelf: "flex-start" },
   statementTab: {
     minHeight: 44,
     paddingVertical: 12,
@@ -565,7 +637,6 @@ const s = StyleSheet.create({
     justifyContent: "center",
     borderRadius: DigestRadii.menuRow,
   },
-  statementTabActive: { backgroundColor: P.canvas },
   statementTabText: {
     fontFamily: fontBody.medium,
     fontSize: 16,
@@ -577,6 +648,12 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
     lineHeight: 26,
     marginBottom: 4,
+  },
+  withdrawn: {
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    color: P.inkOnNight,
+    marginTop: 8,
   },
   candParty: {
     fontFamily: fontBody.medium,
