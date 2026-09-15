@@ -155,9 +155,16 @@ export function BallotStatusNotice({
   );
   return (
     <View style={s.recoveryCard}>
-      <Text accessibilityRole="header" style={s.statusTitle}>
-        {status.title}
-      </Text>
+      <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+        <Icon
+          name={retryFirst ? "info" : "doc"}
+          size={20}
+          color={retryFirst ? P.spark : P.primary}
+        />
+        <Text accessibilityRole="header" style={[s.statusTitle, { flex: 1 }]}>
+          {status.title}
+        </Text>
+      </View>
       <Text style={s.body}>{status.detail}</Text>
       <View style={s.actions}>
         {retryFirst ? (

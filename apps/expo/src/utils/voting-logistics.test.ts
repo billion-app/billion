@@ -6,10 +6,70 @@ import type { PollingLocation } from "@acme/api";
 import {
   describeVotingLocation,
   votingDateLabel,
+  votingGuidance,
   votingInformationLinks,
   votingLocationGroups,
   votingWebUrl,
 } from "./voting-logistics";
+
+void test("official guidance stays scoped to its election and preserves source date wording", () => {
+  const officialVotingGuidance = {
+    electionDate: "2026-11-03",
+    jurisdiction: "ocd-division/country:us/state:ca" as const,
+    sourceName: "California Secretary of State" as const,
+    sourceUrl: "https://voterguide.sos.ca.gov/en/voting-info/",
+    fetchedAt: "2026-09-15T00:00:00Z",
+    checksum: "test",
+    coverage: "statewide_guidance_only" as const,
+    items: [
+      {
+        kind: "registration" as const,
+        dateText: "October 19, 2026",
+        text: "Official registration instructions remain unchanged.",
+        links: [
+          { label: "Register", url: "https://registertovote.ca.gov/" },
+          { label: "Invalid", url: "javascript:alert(1)" },
+        ],
+      },
+    ],
+  };
+  const election = {
+    id: "ca-general",
+    name: "General election",
+    electionDay: "2026-11-03",
+    ocdDivisionId: "ocd-division/country:us/state:ca",
+  };
+  const result = votingGuidance({ election, officialVotingGuidance });
+  assert.equal(result?.items[0]?.dateText, "October 19, 2026");
+  assert.equal(result.items[0].text, officialVotingGuidance.items[0]?.text);
+  assert.equal(result.items[0].title, "Registration");
+  assert.equal(result.items[0].links.length, 1);
+  assert.equal(votingGuidance({ officialVotingGuidance }), undefined);
+  assert.equal(
+    votingGuidance({
+      election: { ...election, electionDay: "2026-06-02" },
+      officialVotingGuidance,
+    }),
+    undefined,
+  );
+  assert.equal(
+    votingGuidance({
+      election,
+      officialVotingGuidance: {
+        ...officialVotingGuidance,
+        sourceUrl: "https://user:secret@example.org/",
+      },
+    }),
+    undefined,
+  );
+  assert.equal(
+    votingGuidance({
+      election,
+      officialVotingGuidance: { ...officialVotingGuidance, items: [] },
+    }),
+    undefined,
+  );
+});
 
 const location: PollingLocation = {
   address: {

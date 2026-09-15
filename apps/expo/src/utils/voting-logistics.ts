@@ -11,7 +11,54 @@ export type VotingLogisticsData = Pick<
   | "dropOffLocations"
   | "mailOnly"
   | "state"
->;
+  | "officialVotingGuidance"
+  | "officialLocationSource"
+> &
+  Partial<Pick<VoterInfoResponse, "election">>;
+
+const guidanceTitles = {
+  mailing_starts: "Mailing begins by",
+  early_voting: "Early voting",
+  drop_off: "Ballot drop-off",
+  registration: "Registration",
+  conditional_registration: "Conditional registration",
+  election_day: "Election Day",
+  mail_return: "Mail ballot receipt deadline",
+} as const;
+
+/** Only show guidance for the selected election; keep official date wording intact. */
+export function votingGuidance(data: VotingLogisticsData) {
+  const guidance = data.officialVotingGuidance;
+  if (!guidance || guidance.electionDate !== data.election?.electionDay)
+    return undefined;
+  const sourceUrl = votingWebUrl(guidance.sourceUrl);
+  if (!sourceUrl) return undefined;
+  const items = guidance.items
+    .filter((item) => item.dateText.trim() && item.text.trim())
+    .map((item) => ({
+      ...item,
+      title: guidanceTitles[item.kind],
+      links: item.links.flatMap((link) => {
+        const url = votingWebUrl(link.url);
+        return url ? [{ label: link.label, url }] : [];
+      }),
+    }));
+  const fetched = new Date(guidance.fetchedAt);
+  const retrievedLabel = Number.isNaN(fetched.getTime())
+    ? undefined
+    : fetched.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "UTC",
+        timeZoneName: "short",
+      });
+  return items.length
+    ? { ...guidance, sourceUrl, items, retrievedLabel }
+    : undefined;
+}
 
 const clean = (value?: string) => {
   const trimmed = value?.trim();

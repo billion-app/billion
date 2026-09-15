@@ -41,3 +41,5 @@ flowchart TD
     merge --> write["setCachedCandidate()<br/>(TTL 7d)"]
     write --> backfill
 ```
+
+The base ballot route reads date-scoped candidate statements from the [official guide scraper](../apps/scraper/README.md#ballot-source-collection). It matches a unique full name and statewide office within a provider-selected California statewide contest. It does not invoke the request-time enrichment adapters when `includeEnrichment` is false.

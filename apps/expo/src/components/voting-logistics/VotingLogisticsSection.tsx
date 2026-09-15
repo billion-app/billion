@@ -24,6 +24,7 @@ import {
 import {
   describeVotingLocation,
   votingDateLabel,
+  votingGuidance,
   votingInformationLinks,
   votingLocationGroups,
 } from "~/utils/voting-logistics";
@@ -82,18 +83,34 @@ function LocationRow({ location }: { location: PollingLocation }) {
   const hours = location.pollingHours?.trim();
   const facts = [styles.body, { color: theme.foreground }];
   return (
-    <View style={[styles.location, { borderColor: theme.border }]}>
+    <View style={styles.location}>
       <Text style={[styles.name, { color: theme.foreground }]}>
         {item.name}
       </Text>
-      <Text selectable style={facts}>
-        {item.address}
-      </Text>
-      <Text selectable style={facts}>
-        {hours === undefined || hours === ""
-          ? "Hours not supplied"
-          : `Hours: ${location.pollingHours}`}
-      </Text>
+      <View style={styles.factRow}>
+        <Icon name="pin" size={15} color={colors.bill} />
+        <View style={styles.factContent}>
+          <Text style={styles.factLabel}>ADDRESS</Text>
+          <Text
+            selectable
+            style={[styles.factText, { color: theme.foreground }]}
+          >
+            {item.address}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.factRow}>
+        <Icon name="clock" size={15} color={colors.textSecondary} />
+        <View style={styles.factContent}>
+          <Text style={styles.factLabel}>HOURS</Text>
+          <Text
+            selectable
+            style={[styles.factText, { color: theme.foreground }]}
+          >
+            {hours === undefined || hours === "" ? "Hours not supplied" : hours}
+          </Text>
+        </View>
+      </View>
       {location.startDate?.trim() || location.endDate?.trim() ? (
         <Text selectable style={facts}>
           {location.startDate?.trim() && location.startDate === location.endDate
@@ -168,6 +185,8 @@ function LocationGroup({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { theme } = useTheme();
+  const accent =
+    group.title === "Ballot drop-off" ? colors.green[500] : colors.bill;
   return (
     <View style={styles.surface}>
       <Pressable
@@ -186,9 +205,15 @@ function LocationGroup({
           importantForAccessibility="no-hide-descendants"
         >
           <Icon
-            name={group.title === "Early voting" ? "calendar" : "pin"}
+            name={
+              group.title === "Early voting"
+                ? "calendar"
+                : group.title === "Ballot drop-off"
+                  ? "download"
+                  : "vote"
+            }
             size={20}
-            color={colors.bill}
+            color={accent}
           />
         </View>
         <View style={styles.groupLabel}>
@@ -217,6 +242,94 @@ function LocationGroup({
             <LocationRow key={index} location={location} />
           ))}
         </View>
+      ) : null}
+    </View>
+  );
+}
+
+function GuidanceDates({ data }: { data: VotingLogisticsData }) {
+  const guidance = votingGuidance(data);
+  const [expanded, setExpanded] = useState<string>();
+  const { theme } = useTheme();
+  if (!guidance) return null;
+  return (
+    <View style={[styles.surface, styles.resources]}>
+      <View style={styles.resourceHeader}>
+        <View style={styles.iconTile} accessibilityElementsHidden>
+          <Icon name="calendar" size={20} color={colors.bill} />
+        </View>
+        <Text
+          accessibilityRole="header"
+          style={[styles.groupTitle, styles.flex, { color: theme.foreground }]}
+        >
+          California voting dates
+        </Text>
+      </View>
+      <Text style={[styles.summary, { color: theme.foreground }]}>
+        Statewide guidance · {guidance.sourceName}
+      </Text>
+      {guidance.items.map((item) => (
+        <View key={item.kind} style={styles.guidanceRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${item.title}, ${item.dateText}`}
+            accessibilityHint={
+              item.kind === "mail_return"
+                ? "Postmark requirements apply. Open for official instructions."
+                : undefined
+            }
+            accessibilityState={{ expanded: expanded === item.kind }}
+            onPress={() =>
+              setExpanded(expanded === item.kind ? undefined : item.kind)
+            }
+            style={styles.control}
+          >
+            <View style={[styles.flex, { gap: sp[1] }]}>
+              <Text style={[styles.groupTitle, { color: theme.foreground }]}>
+                {item.title}
+              </Text>
+              <Text style={[styles.summary, { color: theme.foreground }]}>
+                {item.dateText}
+              </Text>
+              {item.kind === "mail_return" ? (
+                <Text style={[styles.summary, { color: theme.foreground }]}>
+                  Postmark requirements apply
+                </Text>
+              ) : null}
+            </View>
+            <Icon
+              name={expanded === item.kind ? "chevD" : "chevR"}
+              size={16}
+              color={theme.foreground}
+            />
+          </Pressable>
+          {expanded === item.kind ? (
+            <View style={styles.details}>
+              <Text
+                selectable
+                style={[styles.reading, { color: theme.foreground }]}
+              >
+                {item.text}
+              </Text>
+              {item.links.map((link) => (
+                <InformationLink
+                  key={link.url}
+                  label={link.label}
+                  url={link.url}
+                />
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ))}
+      <InformationLink
+        label="Read the official voting guide"
+        url={guidance.sourceUrl}
+      />
+      {guidance.retrievedLabel ? (
+        <Text style={[styles.summary, { color: theme.foreground }]}>
+          Retrieved {guidance.retrievedLabel}
+        </Text>
       ) : null}
     </View>
   );
@@ -278,6 +391,15 @@ export function VotingLogisticsSection({
     links.every((link) => link.label === "Registration information");
   return (
     <View style={styles.section}>
+      <GuidanceDates data={current} />
+      {current.officialLocationSource &&
+      current.officialLocationSource.electionDate ===
+        current.election?.electionDay ? (
+        <Text style={[styles.caption, { color: theme.foreground }]}>
+          Includes published vote centers from{" "}
+          {current.officialLocationSource.sourceName}
+        </Text>
+      ) : null}
       {missing.length < groups.length ? heading : null}
       {groups
         .filter((group) => group.locations.length)
@@ -364,6 +486,10 @@ export function VotingLogisticsSection({
 
 const styles = StyleSheet.create({
   section: { gap: sp[4] },
+  guidanceRow: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: hair[2],
+  },
   title: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
@@ -378,7 +504,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     opacity: 0.8,
   },
-  name: { fontFamily: fontBody.semibold, fontSize: 17 },
+  name: { fontFamily: fontBody.semibold, fontSize: 15, lineHeight: 20 },
+  factRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  factContent: { flex: 1, gap: 3 },
+  factLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.8,
+    color: colors.textSecondary,
+  },
+  factText: { fontFamily: fontBody.regular, fontSize: 14, lineHeight: 20 },
   body: { fontFamily: fontBody.regular, fontSize: 16, lineHeight: 24 },
   caption: {
     fontFamily: fontBody.medium,
@@ -393,7 +529,7 @@ const styles = StyleSheet.create({
     borderRadius: rd.lg,
   },
   groupHeader: {
-    minHeight: 76,
+    minHeight: 68,
     flexDirection: "row",
     alignItems: "center",
     padding: sp[4],
@@ -424,9 +560,7 @@ const styles = StyleSheet.create({
   resourceHeader: { flexDirection: "row", alignItems: "center", gap: sp[3] },
   officeLinks: { gap: sp[2] },
   location: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingBottom: sp[1],
-    gap: sp[2],
+    gap: 14,
   },
   control: {
     minHeight: 44,

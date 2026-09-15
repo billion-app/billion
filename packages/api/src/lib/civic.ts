@@ -16,6 +16,8 @@ import type {
   StatewideOffice,
 } from "../clients/ca-sos-results";
 import type { CrossValidateContext } from "./measure-crossvalidate";
+import type { ElectionGuidance } from "./voting-logistics/ca-sos-cache";
+import type { CountyLocations } from "./voting-logistics/county-locations-cache";
 import {
   getDistrictResults,
   getStatewideResults,
@@ -31,7 +33,24 @@ import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
 import { createCivicReadGuard } from "./civic-read-guard";
 import { createVoterInfoLoader } from "./civic-voter-info";
+import {
+  attachIngestedBallotSources,
+  confirmedBallotCounty,
+} from "./ingested-ballot-sources";
 import { crossValidateMeasure } from "./measure-crossvalidate";
+import {
+  CA_OFFICIAL_GUIDE_ENDPOINT,
+  officialGuideCacheParams,
+} from "./official-guide-cache";
+import {
+  CA_LOGISTICS_ENDPOINT,
+  caLogisticsCacheParams,
+} from "./voting-logistics/ca-sos-cache";
+import {
+  COUNTY_LOCATIONS_ENDPOINT,
+  countyLocationsCacheParams,
+  SANTA_CRUZ_JURISDICTION,
+} from "./voting-logistics/county-locations-cache";
 
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
@@ -291,6 +310,17 @@ export interface ElectionOfficial {
 }
 
 export interface VoterInfoResponse {
+  officialLocationSource?: Pick<
+    CountyLocations,
+    | "jurisdiction"
+    | "electionDate"
+    | "sourceName"
+    | "sourceUrl"
+    | "fetchedAt"
+    | "coverage"
+  >;
+  /** Date-scoped official guidance collected independently of the ballot provider. */
+  officialVotingGuidance?: ElectionGuidance;
   submittedAddress?: string;
   provider?: {
     name: "democracy_works";
@@ -897,6 +927,39 @@ const loadVoterInfo = createVoterInfoLoader({
     setCache(address, endpoint, params, result, CACHE_TTL.voterinfo),
   fetch: (params) =>
     ballotProvider.getVoterInfo(params.address ?? "", params.electionId),
+  supplement: async (result) => {
+    if (
+      !/^ocd-division\/country:us\/state:ca(?:\/|$)/.test(
+        result.election.ocdDivisionId,
+      )
+    )
+      return result;
+    const date = result.election.electionDay;
+    const county = confirmedBallotCounty(result);
+    const [guide, guidance, locations] = await Promise.all([
+      getCached<unknown>(
+        "__global__",
+        CA_OFFICIAL_GUIDE_ENDPOINT,
+        JSON.parse(officialGuideCacheParams(date)) as Record<string, unknown>,
+      ).catch(() => null),
+      getCached<unknown>(
+        "__global__",
+        CA_LOGISTICS_ENDPOINT,
+        JSON.parse(caLogisticsCacheParams(date)) as Record<string, unknown>,
+      ).catch(() => null),
+      county === SANTA_CRUZ_JURISDICTION
+        ? getCached<unknown>(
+            "__global__",
+            COUNTY_LOCATIONS_ENDPOINT,
+            JSON.parse(countyLocationsCacheParams(date, county)) as Record<
+              string,
+              unknown
+            >,
+          ).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+    return attachIngestedBallotSources(result, guide, guidance, locations);
+  },
   enrich: async (result) => {
     result.contests = await enrichContests(result.contests, {
       stateAbbrev: /\/state:([a-z]{2})(?:\/|$)/

@@ -13,17 +13,15 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 
-import type { Contest } from "@acme/api";
-
 import type { BallotResponse } from "~/utils/ballot-lookup";
 import {
   BallotLanguages,
-  BallotSources,
   BallotStatusNotice,
   SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { Segmented } from "~/components/ui";
 import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
@@ -41,9 +39,9 @@ import {
   ballotElectionOptions,
   ballotModel,
   ballotOfficeUrl,
-  contestBallotCitations,
   validateBallotAddress,
 } from "~/utils/ballot-lookup";
+import { BallotContestCard } from "./BallotContestCard";
 
 export interface BallotLookupViewProps {
   address: string;
@@ -60,93 +58,11 @@ export interface BallotLookupViewProps {
   renderCaliforniaResults?: (data: BallotResponse) => ReactNode;
 }
 
-function Disclosure({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={{ expanded }}
-        onPress={() => setExpanded(!expanded)}
-        style={s.disclosure}
-      >
-        <Text style={s.actionText}>{label}</Text>
-        <Icon
-          name={expanded ? "chevD" : "chevR"}
-          size={18}
-          color={P.inkOnNight}
-        />
-      </Pressable>
-      {expanded && <View style={s.details}>{children}</View>}
-    </View>
-  );
-}
-
-function ContestCard({ contest }: { contest: Contest }) {
-  const citations = [
-    ...contestBallotCitations(contest),
-    ...(contest.candidates ?? []).flatMap((candidate) =>
-      (candidate.citations ?? []).map((citation) => ({
-        ...citation,
-        field: `${candidate.name} · ${citation.field}`,
-      })),
-    ),
-  ];
-  return (
-    <Card style={s.card}>
-      <Text style={s.eyebrow}>
-        {contest.referendumTitle ? "Ballot measure" : "Candidate race"}
-      </Text>
-      <Text accessibilityRole="header" style={s.contestTitle}>
-        {contest.referendumTitle ?? contest.office ?? "Ballot contest"}
-      </Text>
-      {!!contest.district?.name && (
-        <Text style={s.secondary}>{contest.district.name}</Text>
-      )}
-      {!!contest.referendumSubtitle && (
-        <Text style={s.body}>{contest.referendumSubtitle}</Text>
-      )}
-      {!contest.referendumTitle && !contest.candidates?.length && (
-        <Text style={s.secondary}>
-          Candidate information is unavailable to Billion.
-        </Text>
-      )}
-      {contest.candidates?.map((candidate, index) => (
-        <View key={index} style={s.candidate}>
-          <Text style={s.candidateName}>{candidate.name}</Text>
-          {candidate.ballotStatus === "withdrewStillOnBallot" && (
-            <Text style={s.withdrawn}>Withdrawn; still on ballot</Text>
-          )}
-          {!!candidate.party && (
-            <Text style={s.secondary}>{candidate.party}</Text>
-          )}
-        </View>
-      ))}
-      {!!contest.referendumText && (
-        <Disclosure label="Read measure text">
-          <Text selectable style={s.body}>
-            {contest.referendumText}
-          </Text>
-        </Disclosure>
-      )}
-      <BallotSources
-        citations={citations}
-        contentKind="citations"
-        showRecovery={false}
-      />
-    </Card>
-  );
-}
-
 export function BallotLookupView(props: BallotLookupViewProps) {
   const router = useRouter();
+  const [ballotTab, setBallotTab] = useState<"candidates" | "measures">(
+    "candidates",
+  );
   const { fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState(props.address);
@@ -209,6 +125,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const hasContests = !!model?.contests.length;
   const hasSupport =
     hasContests ||
+    !!data?.officialVotingGuidance?.items.length ||
     !!data?.pollingLocations?.length ||
     !!data?.earlyVoteSites?.length ||
     !!data?.dropOffLocations?.length ||
@@ -533,12 +450,47 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   {model.contests.length === 1 ? "contest" : "contests"} ·
                   Coverage may be incomplete
                 </Text>
-                {model.contests.map((contest, index) => (
-                  <ContestCard
-                    key={`${model.election?.id ?? "unknown"}:${index}`}
-                    contest={contest}
-                  />
-                ))}
+                <Segmented
+                  value={ballotTab}
+                  onChange={setBallotTab}
+                  options={[
+                    {
+                      id: "candidates",
+                      label: `Candidates ${model.contests.filter((c) => !c.referendumTitle).length}`,
+                      icon: "vote",
+                    },
+                    {
+                      id: "measures",
+                      label: `Measures ${model.contests.filter((c) => !!c.referendumTitle).length}`,
+                      icon: "scale",
+                    },
+                  ]}
+                />
+                {!model.contests.some((c) =>
+                  ballotTab === "measures"
+                    ? !!c.referendumTitle
+                    : !c.referendumTitle,
+                ) && (
+                  <Card style={s.card}>
+                    <Text style={s.secondary}>
+                      {ballotTab === "measures"
+                        ? "No measures supplied for this ballot."
+                        : "No candidate races supplied for this ballot."}
+                    </Text>
+                  </Card>
+                )}
+                {model.contests
+                  .filter((c) =>
+                    ballotTab === "measures"
+                      ? !!c.referendumTitle
+                      : !c.referendumTitle,
+                  )
+                  .map((contest, index) => (
+                    <BallotContestCard
+                      key={`${model.election?.id ?? "unknown"}:${index}`}
+                      contest={contest}
+                    />
+                  ))}
               </>
             )}
             {hasSupport && (
@@ -567,11 +519,17 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             {data.provider && (
               <View style={s.provider}>
                 <Text style={s.secondary}>
-                  Ballot data from Democracy Works. Coverage is partial.
+                  {data.kind === "development-fixture"
+                    ? "Synthetic development data. Not a real ballot."
+                    : "Ballot data from Democracy Works. Coverage is partial."}
                 </Text>
                 {data.provider.sourceUrl && (
                   <SourceLink
-                    label="View ballot data source"
+                    label={
+                      data.kind === "development-fixture"
+                        ? "Fixture reference"
+                        : "View ballot data source"
+                    }
                     url={data.provider.sourceUrl}
                   />
                 )}
@@ -605,12 +563,6 @@ const s = StyleSheet.create({
     borderLeftColor: P.spark,
     paddingLeft: 12,
     gap: 6,
-  },
-  withdrawn: {
-    fontFamily: fontBody.semibold,
-    fontSize: 14,
-    lineHeight: 20,
-    color: P.inkOnNight,
   },
   form: { gap: 16, padding: 16, borderRadius: 16 },
   pageTitle: {
@@ -792,24 +744,4 @@ const s = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: DigestHair.cardBorder,
   },
-  candidate: {
-    paddingVertical: 6,
-    gap: 4,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.cardBorder,
-  },
-  candidateName: {
-    fontFamily: fontBody.semibold,
-    fontSize: 16,
-    lineHeight: 22,
-    color: P.inkOnNight,
-  },
-  disclosure: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  details: { gap: 12, paddingTop: 8 },
 });

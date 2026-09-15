@@ -91,6 +91,21 @@ const scraperCostDefinitions = [
 ] as const;
 const scraperSourceLimitDefinitions = [
   [
+    "SANTA_CRUZ_LOCATIONS_MAX_ITEMS",
+    "Santa Cruz election location collections per run (must be 1).",
+    "1",
+  ],
+  [
+    "CA_GUIDE_MAX_ITEMS",
+    "California official guide detail pages per run (1–100; incomplete collections are not saved).",
+    "40",
+  ],
+  [
+    "CA_LOGISTICS_MAX_ITEMS",
+    "California election key-dates pages per run (1–4).",
+    "1",
+  ],
+  [
     "WHITEHOUSE_MAX_ITEMS",
     "whitehouse.gov presidential actions per run.",
     "20",
@@ -105,6 +120,37 @@ const scraperSourceLimitDefinitions = [
 ] as const;
 
 export const envRegistry = [
+  define({
+    key: "SANTA_CRUZ_ELECTION_DATE",
+    description:
+      "Exact election date required for the Santa Cruz location collection.",
+    group: "Scraper sources",
+    secret: false,
+    example: "2026-11-03",
+    requirements: { scraper: "optional" },
+    schema: z.iso.date(),
+  }),
+  define({
+    key: "SANTA_CRUZ_ELECTION_PAGE_URL",
+    description:
+      "Official Santa Cruz election landing page used to discover the published location list.",
+    group: "Scraper sources",
+    secret: false,
+    example:
+      "https://votescount.santacruzcountyca.gov/Home/Elections/November3,2026CaliforniaGeneralElection.aspx",
+    requirements: { scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "CA_GUIDE_ELECTION_DATE",
+    description:
+      "Exact election date required by the California official-guide scraper. The source banner must match.",
+    group: "Scraper sources",
+    secret: false,
+    example: "2026-11-03",
+    requirements: { scraper: "optional" },
+    schema: z.iso.date(),
+  }),
   define({
     key: "POSTGRES_URL",
     description:
