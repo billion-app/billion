@@ -1,5 +1,9 @@
 import type { PollingLocation, VoterInfoResponse } from "@acme/api";
 
+import { webUrl } from "./web-url";
+
+export const votingWebUrl: (value?: string) => string | undefined = webUrl;
+
 export type VotingLogisticsData = Pick<
   VoterInfoResponse,
   | "pollingLocations"
@@ -8,23 +12,6 @@ export type VotingLogisticsData = Pick<
   | "mailOnly"
   | "state"
 >;
-
-/** Accept web links only; provider strings must never launch arbitrary schemes. */
-export function votingWebUrl(value?: string): string | undefined {
-  if (!value?.trim()) return undefined;
-  try {
-    const url = new URL(value.trim());
-    if (
-      !["https:", "http:"].includes(url.protocol) ||
-      url.username ||
-      url.password
-    )
-      return undefined;
-    return url.href;
-  } catch {
-    return undefined;
-  }
-}
 
 const clean = (value?: string) => {
   const trimmed = value?.trim();
@@ -69,12 +56,12 @@ export function describeVotingLocation(location: PollingLocation) {
 export function votingLocationGroups(data: VotingLogisticsData) {
   return [
     {
-      title: "Election Day polling locations",
+      title: "Election Day",
       locations: data.pollingLocations ?? [],
     },
-    { title: "Early voting locations", locations: data.earlyVoteSites ?? [] },
+    { title: "Early voting", locations: data.earlyVoteSites ?? [] },
     {
-      title: "Ballot drop-off locations",
+      title: "Ballot drop-off",
       locations: data.dropOffLocations ?? [],
     },
   ];
@@ -84,10 +71,10 @@ export function votingLocationGroups(data: VotingLogisticsData) {
 export function votingInformationLinks(data: VotingLogisticsData) {
   const links: { label: string; office: string; url: string }[] = [];
   const fields = [
+    ["votingLocationFinderUrl", "Find voting locations"],
     ["electionRegistrationUrl", "Registration information"],
     ["absenteeVotingInfoUrl", "Absentee and mail voting information"],
     ["ballotInfoUrl", "Ballot information"],
-    ["votingLocationFinderUrl", "Find voting locations"],
     ["electionInfoUrl", "Election information"],
     ["electionRulesUrl", "Voting rules"],
   ] as const;
@@ -100,13 +87,14 @@ export function votingInformationLinks(data: VotingLogisticsData) {
       const url = votingWebUrl(body[field]);
       const office =
         clean(body.name) ?? clean(region.name) ?? "Election office";
-      if (
-        url &&
-        !links.some(
-          (link) =>
-            link.url === url && link.label === label && link.office === office,
-        )
-      ) {
+      if (!url) continue;
+      const existing = links.find((link) => link.url === url);
+      if (existing) {
+        // A single office page may serve several purposes. Keep one action and
+        // use a broad label rather than silently advertising only one purpose.
+        if (existing.label !== label)
+          existing.label = "Election office website";
+      } else {
         links.push({ label, office, url });
       }
     }
