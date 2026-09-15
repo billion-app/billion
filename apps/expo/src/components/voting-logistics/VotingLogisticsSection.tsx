@@ -272,6 +272,10 @@ export function VotingLogisticsSection({
       : (missingNames[0] ?? "");
   const links = votingInformationLinks(current);
   const offices = [...new Set(links.map((link) => link.office))];
+  const needsLocationHelp =
+    missing.length === groups.length &&
+    links.length > 0 &&
+    links.every((link) => link.label === "Registration information");
   return (
     <View style={styles.section}>
       {missing.length < groups.length ? heading : null}
@@ -313,6 +317,7 @@ export function VotingLogisticsSection({
               : `${missingLabel.charAt(0).toUpperCase()}${missingLabel.slice(1)} details aren’t available here.`}
           </Text>
         ) : null}
+        {needsLocationHelp ? <ElectionOfficeLink prominence="primary" /> : null}
         {links.length ? (
           offices.map((office) => (
             <View key={office} style={styles.officeLinks}>
@@ -327,7 +332,9 @@ export function VotingLogisticsSection({
                     label={link.label}
                     url={link.url}
                     prominence={
-                      missing.length === groups.length && link === links[0]
+                      missing.length === groups.length &&
+                      !needsLocationHelp &&
+                      link === links[0]
                         ? "primary"
                         : "secondary"
                     }
