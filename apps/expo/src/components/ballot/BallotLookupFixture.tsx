@@ -8,14 +8,14 @@ import { BallotLookupView } from "./BallotLookupView";
 
 const election = {
   id: "fixture-general",
-  name: "Fixture general election",
+  name: "General election",
   electionDay: "2099-11-03",
   ocdDivisionId: "ocd-division/country:us",
 };
 const special = {
   ...election,
   id: "fixture-special",
-  name: "Fixture special election",
+  name: "Special municipal election",
 };
 const ballot: BallotResponse = {
   kind: "fixture",
@@ -30,12 +30,12 @@ const ballot: BallotResponse = {
   contests: [
     {
       type: "General",
-      office: "Fixture city council",
+      office: "City Council, District 2",
       district: { name: "Example District 2" },
       candidates: [
         {
-          name: "Alex Example",
-          party: "Example party",
+          name: "Alexandra Example-Sullivan",
+          party: "Democratic Party",
           citations: [
             {
               field: "name",
@@ -58,8 +58,8 @@ const ballot: BallotResponse = {
     },
     {
       type: "Referendum",
-      referendumTitle: "Fixture park measure",
-      referendumSubtitle: "A fictional measure for layout testing.",
+      referendumTitle: "Parks, libraries and neighborhood improvements",
+      referendumSubtitle: "Measure A · A proposed bond for public facilities",
       referendumText:
         "This is synthetic measure text for reviewing the ballot layout. It is not an official proposal or voting guidance.\n\nA longer second paragraph tests whether the full source text remains readable when expanded. The text should wrap without truncation at larger accessibility sizes.",
       referendumUrl: "https://example.org/measure",
@@ -67,7 +67,7 @@ const ballot: BallotResponse = {
   ],
   pollingLocations: [
     {
-      name: "Fixture community center",
+      name: "Example Community Center — West Entrance",
       address: {
         line1: "123 Example Street",
         city: "Example",
@@ -95,6 +95,39 @@ const ballot: BallotResponse = {
 };
 export const ballotFixtures = {
   NC: ballot,
+  statewide: {
+    ...ballot,
+    normalizedInput: { line1: "", city: "", state: "", zip: "" },
+    pollingLocations: undefined,
+    provider: {
+      name: "democracy_works",
+      sourceUrl: "https://www.democracy.works/",
+      fetchedAt: "2099-10-01T12:00:00Z",
+      coverage: "partial",
+      addressScope: "statewide_only",
+      ballotDataStatus: "provided",
+      addressNormalization: "unavailable",
+      logistics: "lookup_links_only",
+    },
+    contests: [
+      {
+        office: "Governor",
+        type: "General",
+        candidates: [
+          {
+            name: "Alexandra Example-Sullivan",
+            party: "Democratic Party",
+            ballotStatus: "withdrewStillOnBallot",
+          },
+          {
+            name: "Jordan Sample",
+            party: "Independent",
+            ballotStatus: "onBallot",
+          },
+        ],
+      },
+    ],
+  },
   CA: {
     ...ballot,
     normalizedInput: { ...ballot.normalizedInput, state: "CA" },
@@ -109,18 +142,32 @@ export const ballotFixtures = {
   },
   empty: { kind: "fixture", election, contests: [] },
   noData: { kind: "fixture" },
+  noAddress: { kind: "fixture" },
 } satisfies Record<string, BallotResponse>;
 
-type Scenario = keyof typeof ballotFixtures | "failed" | "loading" | "fallback";
+export type Scenario =
+  | keyof typeof ballotFixtures
+  | "failed"
+  | "failedCached"
+  | "loading"
+  | "fallback";
 
-export function BallotLookupFixture() {
-  const [scenario, setScenario] = useState<Scenario>("NC");
+export function BallotLookupFixture({
+  initialScenario = "NC",
+  hideControls = false,
+}: {
+  initialScenario?: Scenario;
+  hideControls?: boolean;
+}) {
+  const [scenario, setScenario] = useState<Scenario>(initialScenario);
   const [pending, setPending] = useState(false);
   const [selected, setSelected] = useState<string>();
   const discovery =
     scenario === "failed"
       ? undefined
-      : scenario === "loading" || scenario === "fallback"
+      : scenario === "loading" ||
+          scenario === "fallback" ||
+          scenario === "failedCached"
         ? ballotFixtures.NC
         : ballotFixtures[scenario];
   const data =
@@ -133,15 +180,24 @@ export function BallotLookupFixture() {
       : discovery;
   return (
     <View style={{ flex: 1, backgroundColor: P.canvas }}>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", padding: 16 }}>
+      <View
+        style={
+          hideControls
+            ? { display: "none" }
+            : { flexDirection: "row", flexWrap: "wrap", padding: 16 }
+        }
+      >
         {(
           [
             "CA",
             "NC",
+            "statewide",
             "partial",
             "empty",
             "noData",
+            "noAddress",
             "failed",
+            "failedCached",
             "loading",
             "fallback",
           ] as const
@@ -161,7 +217,11 @@ export function BallotLookupFixture() {
       </View>
       <BallotLookupView
         key={scenario}
-        address="Fictional address"
+        address={
+          scenario === "noAddress"
+            ? ""
+            : "123 Example Street, Apt 204, Example, NC 00000"
+        }
         onAddress={() => {
           setScenario("NC");
           setSelected(undefined);
@@ -171,7 +231,7 @@ export function BallotLookupFixture() {
         settled={scenario !== "loading"}
         requestedElectionId={scenario === "fallback" ? special.id : selected}
         loading={scenario === "loading" || pending}
-        failed={scenario === "failed"}
+        failed={scenario === "failed" || scenario === "failedCached"}
         onRetry={() => setScenario("NC")}
         onElection={(id) => {
           setPending(true);

@@ -89,6 +89,8 @@ export function contestBallotCitations(contest: Contest) {
 }
 
 export function ballotOfficeUrl(response: BallotResponse) {
+  // Provider lookup destinations are not necessarily election-office websites.
+  if (response.provider?.name === "democracy_works") return undefined;
   for (const region of response.state ?? []) {
     const url =
       ballotWebUrl(
@@ -96,4 +98,17 @@ export function ballotOfficeUrl(response: BallotResponse) {
       ) ?? ballotWebUrl(region.electionAdministrationBody?.electionInfoUrl);
     if (url) return url;
   }
+}
+
+/** Election days are calendar dates, independent of the reader's time zone. */
+export function ballotElectionDate(value: string) {
+  const date = new Date(`${value}T12:00:00Z`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      });
 }

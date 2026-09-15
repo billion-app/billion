@@ -19,6 +19,7 @@ import {
   BallotLanguages,
   BallotSources,
   BallotStatusNotice,
+  SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
@@ -30,9 +31,12 @@ import {
   DigestHair,
   fontBody,
   fontDisplay,
+  fontEditorial,
   DigestPalette as P,
+  planes,
 } from "~/styles";
 import {
+  ballotElectionDate,
   ballotElectionOptions,
   ballotModel,
   ballotOfficeUrl,
@@ -58,21 +62,39 @@ export interface BallotLookupViewProps {
 function Disclosure({
   label,
   children,
+  open,
+  onOpenChange,
+  summary,
 }: {
   label: string;
   children: ReactNode;
+  summary?: string;
+  open?: boolean;
+  onOpenChange?: (value: boolean) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [localExpanded, setExpanded] = useState(false);
+  const expanded = open ?? localExpanded;
   return (
     <View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ expanded }}
-        onPress={() => setExpanded(!expanded)}
-        style={s.disclosure}
+        onPress={() => {
+          setExpanded(!expanded);
+          onOpenChange?.(!expanded);
+        }}
+        style={summary ? s.votingEntry : s.disclosure}
       >
-        <Text style={s.actionText}>{label}</Text>
+        {summary && (
+          <View style={s.iconTile}>
+            <Icon name="vote" size={22} color={P.primary} />
+          </View>
+        )}
+        <View style={s.flex}>
+          <Text style={summary ? s.entryTitle : s.actionText}>{label}</Text>
+          {summary && <Text style={s.secondary}>{summary}</Text>}
+        </View>
         <Icon
           name={expanded ? "chevD" : "chevR"}
           size={18}
@@ -108,9 +130,17 @@ function ContestCard({ contest }: { contest: Contest }) {
       {!!contest.referendumSubtitle && (
         <Text style={s.body}>{contest.referendumSubtitle}</Text>
       )}
+      {!contest.referendumTitle && !contest.candidates?.length && (
+        <Text style={s.secondary}>
+          Candidate information is unavailable to Billion.
+        </Text>
+      )}
       {contest.candidates?.map((candidate, index) => (
         <View key={index} style={s.candidate}>
           <Text style={s.candidateName}>{candidate.name}</Text>
+          {candidate.ballotStatus === "withdrewStillOnBallot" && (
+            <Text style={s.withdrawn}>Withdrawn; still on ballot</Text>
+          )}
           {!!candidate.party && (
             <Text style={s.secondary}>{candidate.party}</Text>
           )}
@@ -140,6 +170,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const [editing, setEditing] = useState(!props.address);
   const [invalid, setInvalid] = useState(false);
   const [choosingElection, setChoosingElection] = useState(false);
+  const [votingExpanded, setVotingExpanded] = useState(false);
   const addressInput = useRef<TextInput>(null);
   // Keep cached ballot content out of address editing and request transitions.
   const data =
@@ -157,29 +188,47 @@ export function BallotLookupView(props: BallotLookupViewProps) {
     }
   };
   const officeUrl = data ? ballotOfficeUrl(data) : undefined;
-  const evidence = invalid
-    ? { kind: "invalid-input" as const }
-    : props.failed
+  const evidence =
+    !editing &&
+    !props.loading &&
+    (props.failed
       ? { kind: "provider-failure" as const }
-      : !props.loading && !editing && props.settled
+      : props.settled
         ? {
             kind: "result" as const,
             electionKnown: !!model?.election,
             contestCount: model?.contests.length ?? 0,
           }
-        : undefined;
-  const status = evidence && (
-    <BallotStatusNotice
-      evidence={evidence}
-      officialOfficeUrl={officeUrl}
-      onRetry={invalid ? () => addressInput.current?.focus() : props.onRetry}
-    />
+        : undefined);
+  const hasContests = !!model?.contests.length;
+  const hasSupport =
+    hasContests ||
+    !!data?.pollingLocations?.length ||
+    !!data?.earlyVoteSites?.length ||
+    !!data?.dropOffLocations?.length ||
+    !!data?.state?.length;
+  const addressSummary = !editing && !!props.address && (
+    <View style={[s.addressRow, fontScale > 1.3 && s.stackedRow]}>
+      {fontScale <= 1.3 && <Icon name="pin" size={20} color={P.primary} />}
+      <Text style={[s.secondary, s.flex]}>For {props.address}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Edit voting address: ${props.address}`}
+        onPress={() => {
+          setChoosingElection(false);
+          setEditing(true);
+        }}
+        style={s.textButton}
+      >
+        <Text style={s.linkText}>Edit address</Text>
+      </Pressable>
+    </View>
   );
   return (
     <View style={s.screen}>
       <NavHeader
         key={fontScale}
-        title="Your ballot"
+        title=""
         onBack={() =>
           router.canGoBack() ? router.back() : router.replace("/")
         }
@@ -189,16 +238,21 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           s.content,
           { paddingBottom: insets.bottom + 24 },
         ]}
+        automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
       >
+        <Text accessibilityRole="header" style={s.pageTitle}>
+          Your ballot
+        </Text>
         {editing ? (
-          <Card style={s.card}>
-            <Text accessibilityRole="header" style={s.contestTitle}>
-              Voting address
+          <Card style={s.form}>
+            <Text accessibilityRole="header" style={s.electionTitle}>
+              Find your ballot
             </Text>
             <Text style={s.secondary}>
-              Find the contests returned for your address.
+              Enter the address where you’re registered to vote.
             </Text>
+            <Text style={s.actionText}>Voting address</Text>
             <TextInput
               ref={addressInput}
               accessibilityLabel="Voting address"
@@ -209,8 +263,15 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               onSubmitEditing={submit}
               returnKeyType="search"
               autoFocus={!!props.address}
-              style={s.input}
+              style={[s.input, invalid && s.invalidInput]}
             />
+            {invalid && (
+              <Text accessibilityRole="alert" style={s.errorText}>
+                {draft.trim().length > 300
+                  ? "Keep your address under 300 characters."
+                  : "Enter a street address, city, state and ZIP code."}
+              </Text>
+            )}
             <Pressable
               accessibilityRole="button"
               onPress={submit}
@@ -226,25 +287,20 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   setInvalid(false);
                   setEditing(false);
                 }}
-                style={s.outlineButton}
+                style={s.textButton}
               >
                 <Text style={s.actionText}>Cancel editing</Text>
               </Pressable>
             )}
           </Card>
         ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Edit voting address: ${props.address}`}
-            onPress={() => setEditing(true)}
-            style={s.addressRow}
-          >
-            <View style={s.flex}>
-              <Text style={s.eyebrow}>Voting address</Text>
-              <Text style={s.body}>{props.address}</Text>
-            </View>
-            <Text style={s.actionText}>Edit</Text>
-          </Pressable>
+          !props.failed && addressSummary
+        )}
+        {editing && (
+          <SourceLink
+            label="Find your election office"
+            url="https://www.usa.gov/state-election-office"
+          />
         )}
         {props.loading && (
           <View accessibilityLiveRegion="polite" style={s.loading}>
@@ -253,31 +309,57 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           </View>
         )}
         {!!model?.election && (
-          <Card style={s.card}>
-            <Text style={s.eyebrow}>
-              Election · {model.election.electionDay}
-            </Text>
-            <Text accessibilityRole="header" style={s.contestTitle}>
+          <View style={s.electionHeader}>
+            <Text accessibilityRole="header" style={s.electionTitle}>
               {model.election.name}
             </Text>
-            {elections.length > 1 && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Change election"
-                accessibilityState={{ expanded: choosingElection }}
-                onPress={() => setChoosingElection(!choosingElection)}
-                style={s.outlineButton}
-              >
-                <Text style={s.actionText}>Change election</Text>
-                <Icon name="chevD" size={16} color={P.inkOnNight} />
-              </Pressable>
-            )}
-          </Card>
+            <View style={[s.electionMeta, fontScale > 1.3 && s.stackedRow]}>
+              <Text style={s.body}>
+                {ballotElectionDate(model.election.electionDay)}
+              </Text>
+              {elections.length > 1 && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Change election"
+                  accessibilityState={{ expanded: choosingElection }}
+                  onPress={() => setChoosingElection(!choosingElection)}
+                  style={s.textButton}
+                >
+                  <Text style={s.linkText}>
+                    {choosingElection ? "Close choices" : "Change election"}
+                  </Text>
+                  <Icon
+                    name={choosingElection ? "chevD" : "chevR"}
+                    size={14}
+                    color={P.inkOnNight}
+                  />
+                </Pressable>
+              )}
+            </View>
+          </View>
         )}
         {!editing &&
-          elections.length > 1 &&
-          (choosingElection || !model?.election) && (
-            <Card style={s.card}>
+          !props.loading &&
+          !props.failed &&
+          !model?.election &&
+          elections.length > 0 && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: choosingElection }}
+              onPress={() => setChoosingElection(!choosingElection)}
+              style={s.textButton}
+            >
+              <Text style={s.linkText}>
+                {choosingElection ? "Close choices" : "Choose election"}
+              </Text>
+            </Pressable>
+          )}
+        {!editing &&
+          !props.loading &&
+          !props.failed &&
+          elections.length > 0 &&
+          choosingElection && (
+            <View style={s.choices}>
               <Text accessibilityRole="header" style={s.eyebrow}>
                 Elections for this address
               </Text>
@@ -296,25 +378,25 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                 >
                   <View style={s.flex}>
                     <Text style={s.actionText}>{election.name}</Text>
-                    <Text style={s.secondary}>{election.electionDay}</Text>
+                    <Text style={s.secondary}>
+                      {ballotElectionDate(election.electionDay)}
+                    </Text>
                   </View>
                   {model?.election?.id === election.id && (
                     <Text style={s.secondary}>Selected</Text>
                   )}
                 </Pressable>
               ))}
-            </Card>
+            </View>
           )}
-        {status && !model?.contests.length && (
-          <Card style={s.card}>
-            {status}
-            {invalid && (
-              <Text accessibilityRole="alert" style={s.secondary}>
-                Use 5–300 characters without control characters.
-              </Text>
-            )}
-          </Card>
+        {evidence && !hasContests && (
+          <BallotStatusNotice
+            evidence={evidence}
+            officialOfficeUrl={officeUrl}
+            onRetry={props.onRetry}
+          />
         )}
+        {!editing && props.failed && addressSummary}
         {data?.election &&
           props.requestedElectionId &&
           data.election.id !== props.requestedElectionId && (
@@ -328,34 +410,89 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           )}
         {model && data && (
           <>
+            {data.provider?.addressScope === "statewide_only" && (
+              <View style={s.coverageNotice}>
+                <Text accessibilityRole="header" style={s.actionText}>
+                  Statewide contests only
+                </Text>
+                <Text style={s.secondary}>
+                  Local races and measures may be missing from this result.
+                </Text>
+              </View>
+            )}
+            {data.provider?.addressScope === "unknown" && (
+              <View style={s.coverageNotice}>
+                <Text accessibilityRole="header" style={s.actionText}>
+                  Address coverage unconfirmed
+                </Text>
+                <Text style={s.secondary}>
+                  Billion cannot confirm that this result includes the contests
+                  for your address.
+                </Text>
+              </View>
+            )}
+            {hasSupport && (
+              <Disclosure
+                label="How to vote"
+                summary={
+                  model.election
+                    ? "Voting resources for this election"
+                    : "Find voting resources"
+                }
+                open={votingExpanded}
+                onOpenChange={setVotingExpanded}
+              >
+                <VotingLogisticsSection status="ready" data={data} />
+              </Disclosure>
+            )}
             {!!model.contests.length && (
               <>
-                <View style={s.sectionHeading}>
-                  <Text accessibilityRole="header" style={s.sectionTitle}>
-                    On your ballot
-                  </Text>
-                  <Text style={s.secondary}>
-                    {model.contests.length}{" "}
-                    {model.contests.length === 1 ? "contest" : "contests"}{" "}
-                    returned
-                  </Text>
-                </View>
-                <Text style={s.secondary}>
-                  Confirm your complete ballot with your election office.
+                <Text style={s.coverage}>
+                  {model.contests.length}{" "}
+                  {model.contests.length === 1 ? "contest" : "contests"}{" "}
+                  returned · Coverage may be incomplete
                 </Text>
                 {model.contests.map((contest, index) => (
                   <ContestCard key={index} contest={contest} />
                 ))}
               </>
             )}
-            <Card style={s.card}>
-              <Disclosure label="Voting information">
-                <VotingLogisticsSection status="ready" data={data} />
-              </Disclosure>
-            </Card>
-            <Card style={s.card}>
-              <BallotLanguages items={[]} officialOfficeUrl={officeUrl} />
-            </Card>
+            {hasSupport && (
+              <View style={s.support}>
+                <BallotLanguages items={[]} showRecovery={false} />
+                {hasContests && !votingExpanded && (
+                  <View style={s.confirm}>
+                    <Text style={s.secondary}>
+                      Check your complete ballot and current voting details with
+                      your election office.
+                    </Text>
+                    <SourceLink
+                      label={
+                        officeUrl
+                          ? "Visit election office"
+                          : "Find your election office"
+                      }
+                      url={
+                        officeUrl ?? "https://www.usa.gov/state-election-office"
+                      }
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+            {data.provider && (
+              <View style={s.provider}>
+                <Text style={s.secondary}>
+                  Ballot data from Democracy Works. Coverage is partial.
+                </Text>
+                {data.provider.sourceUrl && (
+                  <SourceLink
+                    label="View ballot data source"
+                    url={data.provider.sourceUrl}
+                  />
+                )}
+              </View>
+            )}
             {model.isCalifornia &&
               model.election &&
               (props.renderCaliforniaResults ? (
@@ -377,7 +514,107 @@ export function BallotLookupView(props: BallotLookupViewProps) {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: P.canvas },
   content: { padding: 16, gap: 12 },
-  card: { gap: 10 },
+  card: { gap: 10, borderRadius: 14, padding: 16 },
+  provider: { paddingTop: 12, gap: 4 },
+  coverageNotice: {
+    borderLeftWidth: 3,
+    borderLeftColor: P.spark,
+    paddingLeft: 12,
+    gap: 6,
+  },
+  withdrawn: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: P.inkOnNight,
+  },
+  form: { gap: 16, padding: 16, borderRadius: 16 },
+  pageTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 34,
+    lineHeight: 40,
+    color: P.inkOnNight,
+  },
+  electionTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: P.inkOnNight,
+  },
+  entryTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 20,
+    lineHeight: 25,
+    color: P.inkOnNight,
+  },
+  votingEntry: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: P.card,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+  },
+  iconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: planes.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  electionHeader: { gap: 4, paddingTop: 4 },
+  electionMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  stackedRow: { flexDirection: "column", alignItems: "flex-start", gap: 0 },
+  textButton: {
+    minHeight: 44,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  linkText: {
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    color: P.inkOnNight,
+    textDecorationLine: "underline",
+    flexShrink: 1,
+  },
+  coverage: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: P.inkOnNight,
+    opacity: 0.75,
+    marginBottom: 2,
+  },
+  choices: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    borderRadius: 10,
+    gap: 4,
+  },
+  support: {
+    marginTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.cardBorder,
+  },
+  confirm: { paddingTop: 20, gap: 4 },
+  invalidInput: { borderColor: P.spark },
+  errorText: {
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: P.spark,
+  },
   flex: { flex: 1, gap: 4 },
   eyebrow: {
     fontFamily: fontBody.semibold,
@@ -386,17 +623,11 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
   },
   contestTitle: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 22,
-    lineHeight: 28,
+    fontFamily: fontEditorial.bold,
+    fontSize: 20,
+    lineHeight: 26,
     color: P.inkOnNight,
   },
-  sectionTitle: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 24,
-    color: P.inkOnNight,
-  },
-  sectionHeading: { gap: 4, marginTop: 8 },
   body: {
     fontFamily: fontBody.regular,
     fontSize: 16,
@@ -419,33 +650,20 @@ const s = StyleSheet.create({
   addressRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    minHeight: 60,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
-    borderRadius: 16,
+    gap: 16,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
   },
   primaryButton: {
     minHeight: 48,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: P.spark,
+    backgroundColor: P.inkOnNight,
     alignItems: "center",
     justifyContent: "center",
   },
-  primaryText: { fontFamily: fontBody.bold, fontSize: 16, color: P.ink },
-  outlineButton: {
-    minHeight: 44,
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
+  primaryText: { fontFamily: fontBody.bold, fontSize: 16, color: P.canvas },
   input: {
     minHeight: 48,
     padding: 12,
