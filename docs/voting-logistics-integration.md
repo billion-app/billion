@@ -1,6 +1,6 @@
 # Voting logistics
 
-[VotingLogisticsSection](../apps/expo/src/components/voting-logistics/VotingLogisticsSection.tsx) presents supplied locations and official information for the selected address and election. It makes no provider calls and imports API types only. The national ballot route answers "What is on my ballot?" with races, candidates, measures, sources, and coverage information. Arnav owns the midterms explanation and general participation content; coordinate placement of these reusable logistics through the project owner.
+[VotingLogisticsSection](../apps/expo/src/components/voting-logistics/VotingLogisticsSection.tsx) presents supplied locations and official information for the selected address and election. It makes no provider calls and imports API types only.
 
 ## Component contract
 
@@ -20,7 +20,7 @@ One notice describes missing location groups without establishing publication st
 
 The [utilities](../apps/expo/src/utils/voting-logistics.ts) use supplied administration-body URLs. Local offices appear first, with location finders first within each office. Each URL appears once; a shared destination serving several purposes is labeled "Election office website." Distinct pages remain available. HTTP(S) links reject embedded credentials. Missing URLs remain plain attribution. Sources receive an official label only when `official` is true.
 
-Registration deadlines require authoritative citations from #294. This component uses official registration links and does not infer deadlines, eligibility, personal registration status, or mail-ballot tracking. Avoid `KeyDatesSection` for national deadlines: it subtracts 15 days from election day. Its correction belongs in coordinated #272 work.
+The response has no registration deadline, eligibility, personal registration status, or mail-ballot tracking fields. The component links to official registration information. `KeyDatesSection` subtracts 15 days from election day and cannot supply national registration deadlines.
 
 Google's [voterInfoQuery field reference](https://developers.google.com/civic-information/docs/v2/elections/voterInfoQuery) defines the provider fields; it does not establish live coverage. Provider normalization, ingestion, and launch flags remain outside this component.
 
