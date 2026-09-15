@@ -41,7 +41,7 @@ If a card is missing, trace that order. First establish whether the source recor
 
 ## Follow a ballot lookup
 
-The [Elections screen](<../apps/expo/src/app/(tabs)/elections.tsx>) accepts an address. The [Places router](../packages/api/src/router/places.ts) resolves autocomplete results into an address; the [civic router](../packages/api/src/router/civic.ts) requests voter information. [Measure enrichment](measure-enrichment.md) and [candidate enrichment](candidate-enrichment.md) add evidence from other sources.
+The [Elections screen](<../apps/expo/src/app/(tabs)/elections.tsx>) accepts an address. The [Places router](../packages/api/src/router/places.ts) resolves autocomplete results into an address; the [civic router](../packages/api/src/router/civic.ts) requests Democracy Works voter information. [Measure enrichment](measure-enrichment.md) and [candidate enrichment](candidate-enrichment.md) add evidence from other sources.
 
 These lookups use `civic_api_cache` with endpoint-specific expiry. The schema includes election, contest, and candidate tables, but their existence does not mean every request persists a normalized ballot. For example, candidate enrichment uses the cache. Follow the relevant router's write path when deciding where data lives.
 

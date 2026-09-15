@@ -302,13 +302,23 @@ export const envRegistry = [
     schema: positiveInteger,
   }),
   define({
+    key: "DEMOCRACY_WORKS_API_KEY",
+    description:
+      "Required for ballot lookup only; the host can start without this Democracy Works REST v2 elections and ballot-data key.",
+    group: "Civic data",
+    secret: true,
+    setupUrl: "https://developers.democracy.works/api/v2",
+    requirements: { nextjs: "recommended" },
+    schema: string,
+  }),
+  define({
     key: "GOOGLE_CIVIC_API_KEY",
     description:
-      "Google Civic Information API key for real ballot and representative data.",
+      "Google Civic divisions key for the separate elected-officials lookup; not used for ballot reads.",
     group: "Civic data",
     secret: true,
     setupUrl: "https://developers.google.com/civic-information/docs/using_api",
-    requirements: { nextjs: "required" },
+    requirements: { nextjs: "optional" },
     schema: string,
   }),
   define({
