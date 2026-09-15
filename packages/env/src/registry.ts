@@ -91,6 +91,16 @@ const scraperCostDefinitions = [
 ] as const;
 const scraperSourceLimitDefinitions = [
   [
+    "CA_GUIDE_MAX_ITEMS",
+    "California official guide detail pages per run (1–100; incomplete collections are not saved).",
+    "40",
+  ],
+  [
+    "CA_LOGISTICS_MAX_ITEMS",
+    "California election key-dates pages per run (1–4).",
+    "1",
+  ],
+  [
     "WHITEHOUSE_MAX_ITEMS",
     "whitehouse.gov presidential actions per run.",
     "20",
@@ -105,6 +115,16 @@ const scraperSourceLimitDefinitions = [
 ] as const;
 
 export const envRegistry = [
+  define({
+    key: "CA_GUIDE_ELECTION_DATE",
+    description:
+      "Exact election date required by the California official-guide scraper. The source banner must match.",
+    group: "Scraper sources",
+    secret: false,
+    example: "2026-11-03",
+    requirements: { scraper: "optional" },
+    schema: z.iso.date(),
+  }),
   define({
     key: "POSTGRES_URL",
     description:

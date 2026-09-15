@@ -6,6 +6,6 @@ export const caOfficialGuideConfig = {
   source: "California Secretary of State Official Voter Information Guide",
   environment: {
     required: ["POSTGRES_URL", "CA_GUIDE_ELECTION_DATE"],
-    optional: [],
+    optional: ["CA_GUIDE_MAX_ITEMS"],
   },
 } as const satisfies ScraperEnvContract;

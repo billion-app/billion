@@ -1,4 +1,6 @@
 import type { Scraper } from "./utils/types.js";
+import { caElectionLogistics } from "./scrapers/ca-election-logistics.js";
+import { caOfficialGuide } from "./scrapers/ca-official-guide.js";
 import { caSosStatements } from "./scrapers/ca-sos-statements.js";
 import { congress } from "./scrapers/congress.js";
 import { federalregister } from "./scrapers/federalregister.js";
@@ -18,4 +20,6 @@ export const scrapers: readonly Scraper[] = [
   openStates,
   sccCvig,
   caSosStatements,
+  caOfficialGuide,
+  caElectionLogistics,
 ];

@@ -50,6 +50,14 @@
     "./lib/measure-sources/disabled/vig-archive": {
       "types": "./dist/lib/measure-sources/disabled/vig-archive.d.ts",
       "default": "./src/lib/measure-sources/disabled/vig-archive.ts"
+    },
+    "./lib/official-guide-cache": {
+      "types": "./dist/lib/official-guide-cache.d.ts",
+      "default": "./src/lib/official-guide-cache.ts"
+    },
+    "./lib/voting-logistics/ca-sos-cache": {
+      "types": "./dist/lib/voting-logistics/ca-sos-cache.d.ts",
+      "default": "./src/lib/voting-logistics/ca-sos-cache.ts"
     }
   },
   "license": "MIT",

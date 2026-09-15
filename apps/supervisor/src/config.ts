@@ -149,8 +149,28 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
-  // Everything below is manual: it runs only when someone drops a request file,
-  // never on a schedule.
+  {
+    id: "ca-official-guide-daily",
+    description: "Refresh the November 2026 official California ballot guide",
+    script: "main.js",
+    args: ["ca-official-guide"],
+    env: { CA_GUIDE_ELECTION_DATE: "2026-11-03" },
+    schedule: { kind: "daily", hour: 4, minute: 30 },
+    priority: 13,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
+    id: "ca-election-logistics-daily",
+    description:
+      "Refresh official California election dates and voting guidance",
+    script: "main.js",
+    args: ["ca-election-logistics", "--max-items", "4"],
+    schedule: { kind: "daily", hour: 4, minute: 45 },
+    priority: 14,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
   {
     id: "open-states-targeted",
     description:

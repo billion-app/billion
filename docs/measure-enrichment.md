@@ -134,3 +134,5 @@ The source-adapter interface (`MeasureSourceData`) is generic, so the **source s
 4. **Phase 4 — CA local:** CEDA for county/city/school-district measures.
 
 Outreach-gated sources (CEDA, NCSL, VIP) follow the same code path once access is granted — a data-access request just precedes the build. **Risk mitigations baked into source design:** scrapers tag the source-structure version they target; 403-prone sites (live VIG) fall back to archived versions plus politeness delays; PDF-only states (FL, TX) use `pdfminer`/`pdfplumber` and are deprioritized; government data has no SLA, so results are cached aggressively with last-fetched timestamps. CEDA historical data can validate extraction accuracy.
+
+The base ballot route reads date-scoped official summaries, fiscal impacts and published argument summaries from the [official guide scraper](../apps/scraper/README.md#ballot-source-collection). Source text is preserved without generating an explanation. A unique proposition number must match a provider-selected California statewide contest for the same election date. County measures are excluded from this join.

@@ -16,6 +16,7 @@ import type {
   StatewideOffice,
 } from "../clients/ca-sos-results";
 import type { CrossValidateContext } from "./measure-crossvalidate";
+import type { ElectionGuidance } from "./voting-logistics/ca-sos-cache";
 import {
   getDistrictResults,
   getStatewideResults,
@@ -31,7 +32,16 @@ import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
 import { createCivicReadGuard } from "./civic-read-guard";
 import { createVoterInfoLoader } from "./civic-voter-info";
+import { attachIngestedBallotSources } from "./ingested-ballot-sources";
 import { crossValidateMeasure } from "./measure-crossvalidate";
+import {
+  CA_OFFICIAL_GUIDE_ENDPOINT,
+  officialGuideCacheParams,
+} from "./official-guide-cache";
+import {
+  CA_LOGISTICS_ENDPOINT,
+  caLogisticsCacheParams,
+} from "./voting-logistics/ca-sos-cache";
 
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
@@ -291,6 +301,8 @@ export interface ElectionOfficial {
 }
 
 export interface VoterInfoResponse {
+  /** Date-scoped official guidance collected independently of the ballot provider. */
+  officialVotingGuidance?: ElectionGuidance;
   submittedAddress?: string;
   provider?: {
     name: "democracy_works";
@@ -897,6 +909,28 @@ const loadVoterInfo = createVoterInfoLoader({
     setCache(address, endpoint, params, result, CACHE_TTL.voterinfo),
   fetch: (params) =>
     ballotProvider.getVoterInfo(params.address ?? "", params.electionId),
+  supplement: async (result) => {
+    if (
+      !/^ocd-division\/country:us\/state:ca(?:\/|$)/.test(
+        result.election.ocdDivisionId,
+      )
+    )
+      return result;
+    const date = result.election.electionDay;
+    const [guide, guidance] = await Promise.all([
+      getCached<unknown>(
+        "__global__",
+        CA_OFFICIAL_GUIDE_ENDPOINT,
+        JSON.parse(officialGuideCacheParams(date)) as Record<string, unknown>,
+      ).catch(() => null),
+      getCached<unknown>(
+        "__global__",
+        CA_LOGISTICS_ENDPOINT,
+        JSON.parse(caLogisticsCacheParams(date)) as Record<string, unknown>,
+      ).catch(() => null),
+    ]);
+    return attachIngestedBallotSources(result, guide, guidance);
+  },
   enrich: async (result) => {
     result.contests = await enrichContests(result.contests, {
       stateAbbrev: /\/state:([a-z]{2})(?:\/|$)/

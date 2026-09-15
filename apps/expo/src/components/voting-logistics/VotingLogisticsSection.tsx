@@ -24,6 +24,7 @@ import {
 import {
   describeVotingLocation,
   votingDateLabel,
+  votingGuidance,
   votingInformationLinks,
   votingLocationGroups,
 } from "~/utils/voting-logistics";
@@ -222,6 +223,94 @@ function LocationGroup({
   );
 }
 
+function GuidanceDates({ data }: { data: VotingLogisticsData }) {
+  const guidance = votingGuidance(data);
+  const [expanded, setExpanded] = useState<string>();
+  const { theme } = useTheme();
+  if (!guidance) return null;
+  return (
+    <View style={[styles.surface, styles.resources]}>
+      <View style={styles.resourceHeader}>
+        <View style={styles.iconTile} accessibilityElementsHidden>
+          <Icon name="calendar" size={20} color={colors.bill} />
+        </View>
+        <Text
+          accessibilityRole="header"
+          style={[styles.groupTitle, styles.flex, { color: theme.foreground }]}
+        >
+          California voting dates
+        </Text>
+      </View>
+      <Text style={[styles.summary, { color: theme.foreground }]}>
+        Statewide guidance · {guidance.sourceName}
+      </Text>
+      {guidance.items.map((item) => (
+        <View key={item.kind} style={styles.guidanceRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${item.title}, ${item.dateText}`}
+            accessibilityHint={
+              item.kind === "mail_return"
+                ? "Postmark requirements apply. Open for official instructions."
+                : undefined
+            }
+            accessibilityState={{ expanded: expanded === item.kind }}
+            onPress={() =>
+              setExpanded(expanded === item.kind ? undefined : item.kind)
+            }
+            style={styles.control}
+          >
+            <View style={[styles.flex, { gap: sp[1] }]}>
+              <Text style={[styles.groupTitle, { color: theme.foreground }]}>
+                {item.title}
+              </Text>
+              <Text style={[styles.summary, { color: theme.foreground }]}>
+                {item.dateText}
+              </Text>
+              {item.kind === "mail_return" ? (
+                <Text style={[styles.summary, { color: theme.foreground }]}>
+                  Postmark requirements apply
+                </Text>
+              ) : null}
+            </View>
+            <Icon
+              name={expanded === item.kind ? "chevD" : "chevR"}
+              size={16}
+              color={theme.foreground}
+            />
+          </Pressable>
+          {expanded === item.kind ? (
+            <View style={styles.details}>
+              <Text
+                selectable
+                style={[styles.reading, { color: theme.foreground }]}
+              >
+                {item.text}
+              </Text>
+              {item.links.map((link) => (
+                <InformationLink
+                  key={link.url}
+                  label={link.label}
+                  url={link.url}
+                />
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ))}
+      <InformationLink
+        label="Read the official voting guide"
+        url={guidance.sourceUrl}
+      />
+      {guidance.retrievedLabel ? (
+        <Text style={[styles.summary, { color: theme.foreground }]}>
+          Retrieved {guidance.retrievedLabel}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 /** Presentation only: no network requests, eligibility checks, or deadline arithmetic. */
 export function VotingLogisticsSection({
   data,
@@ -278,6 +367,7 @@ export function VotingLogisticsSection({
     links.every((link) => link.label === "Registration information");
   return (
     <View style={styles.section}>
+      <GuidanceDates data={current} />
       {missing.length < groups.length ? heading : null}
       {groups
         .filter((group) => group.locations.length)
@@ -364,6 +454,10 @@ export function VotingLogisticsSection({
 
 const styles = StyleSheet.create({
   section: { gap: sp[4] },
+  guidanceRow: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: hair[2],
+  },
   title: {
     fontFamily: fontBody.semibold,
     fontSize: 11,

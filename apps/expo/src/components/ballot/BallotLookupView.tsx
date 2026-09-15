@@ -209,6 +209,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const hasContests = !!model?.contests.length;
   const hasSupport =
     hasContests ||
+    !!data?.officialVotingGuidance?.items.length ||
     !!data?.pollingLocations?.length ||
     !!data?.earlyVoteSites?.length ||
     !!data?.dropOffLocations?.length ||

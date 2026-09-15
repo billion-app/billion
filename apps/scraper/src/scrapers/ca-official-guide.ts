@@ -17,7 +17,10 @@ export const caOfficialGuide: Scraper = {
   async scrape(options) {
     const electionDate = process.env.CA_GUIDE_ELECTION_DATE;
     if (!electionDate) throw new Error("CA_GUIDE_ELECTION_DATE is required");
-    const payload = await collectOfficialGuide(electionDate, options?.maxItems);
+    const payload = await collectOfficialGuide(
+      electionDate,
+      options?.maxItems ?? Number(process.env.CA_GUIDE_MAX_ITEMS ?? 40),
+    );
     if (!payload.complete)
       throw new Error(
         "Page limit stopped collection; refusing to replace the complete cache. Use the read-only collector to sample pages.",

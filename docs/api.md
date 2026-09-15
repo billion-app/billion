@@ -48,6 +48,14 @@ Missing provider access or failed reads return errors without a Google fallback.
 See [ballot read limits](ballot-read-hardening.md) for cache identity, metadata,
 selection and verification.
 
+Base ballot reads also attach unexpired, election-date-scoped official guide
+records and California voting guidance collected by the [ballot source
+scrapers](../apps/scraper/README.md#ballot-source-collection). This is a cache-only
+join and invokes no live enrichment or generation. The provider must still
+supply the election and address-specific contest selection. Missing source
+records leave those fields absent. Official guidance carries its own source and
+retrieval time; provider metadata continues to describe the provider alone.
+
 The separate elected-officials lookup uses Google Civic's `divisionsByAddress` to
 match Open States lawmakers. Its key is optional at startup and required for that
 feature. Places has development mocks when keys are absent; ballot reads do not.

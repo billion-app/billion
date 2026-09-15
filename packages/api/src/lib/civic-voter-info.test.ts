@@ -85,6 +85,44 @@ void test("provider failure is not retried, enriched or cached", async () => {
   assert.equal(fetches, 1);
 });
 
+void test("base reads receive refreshed ingested sources without enrichment or persisting them in the provider cache", async () => {
+  let stored: VoterInfoResponse | null = null;
+  let sourceStatement: string | undefined = "Published statement";
+  let fetches = 0;
+  const load = createVoterInfoLoader({
+    getCached: async () => stored,
+    setCache: async (_, __, ___, result) => {
+      stored = result;
+    },
+    fetch: async () => {
+      fetches++;
+      return structuredClone(ballot);
+    },
+    enrich: async () =>
+      assert.fail("base reads must not invoke live enrichment"),
+    supplement: async (result) => {
+      assert.ok(result.contests?.[0]);
+      result.contests[0].summary = sourceStatement;
+      return result;
+    },
+  });
+  assert.equal(
+    (await load("a", "1", { includeEnrichment: false })).contests?.[0]?.summary,
+    "Published statement",
+  );
+  sourceStatement = "Corrected statement";
+  assert.equal(
+    (await load("a", "1", { includeEnrichment: false })).contests?.[0]?.summary,
+    "Corrected statement",
+  );
+  sourceStatement = undefined;
+  assert.equal(
+    (await load("a", "1", { includeEnrichment: false })).contests?.[0]?.summary,
+    undefined,
+  );
+  assert.equal(fetches, 1);
+});
+
 void test("default cache rolls over with selection date while explicit election remains cached", async () => {
   let clock = new Date("2026-11-04T11:59:59Z");
   const cache = new Map<string, VoterInfoResponse>();
