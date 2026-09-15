@@ -1,83 +1,90 @@
 # Ballot read limits
 
-Issue #335 protects the existing `getVoterInfo` API path. The public response shape,
-provider selection and cache freshness policy stay the same. No UI integration is
-required. Lookup/status UI consumers should display the unavailable error without
-interpreting it as an empty ballot or unpublished election.
+`civic.getVoterInfo` reads a ballot for an address and optional election ID.
+It includes enrichment by default; `includeEnrichment: false` requests provider
+data without enrichment. Both modes return the provider's `election` and optional
+`otherElections`.
 
-## Cold reads and failure
+## Request sharing and deadlines
 
-Previously, every simultaneous cache miss fetched voter info, enriched all contests
-and wrote the same cache entry. The candidate limiter limited running candidates,
-but did not coalesce ballots or bound its waiting queue across requests.
+[The voter-info entry point](../packages/api/src/lib/civic.ts) shares one operation
+among concurrent callers with the same trimmed, case-insensitive address,
+election ID and enrichment mode. The address is hashed in the key. The shared
+operation covers the cache read, provider request, enrichment and cache write.
+Duplicate callers share its deadline.
 
-[The voter-info entry point](../packages/api/src/lib/civic.ts) now shares the full
-cache-read/provider/enrichment/cache-write operation for an identical hashed,
-trimmed, case-insensitive address and election ID. Different elections remain
-separate. The [read guard](../packages/api/src/lib/civic-read-guard.ts) admits at
-most 32 distinct operations per process and has no waiting queue. Duplicate
-callers share the admitted operation, including its deadline.
+The [read guard](../packages/api/src/lib/civic-read-guard.ts) admits up to 32
+distinct operations per process. Additional distinct requests fail immediately;
+there is no waiting queue.
 
-Base-only callers receive a result or failure within ten seconds of admission;
-enriched callers have a provisional 60-second deadline. Existing enrichment
-fetches allow 12 seconds per source and candidate work runs in batches of five,
-followed by AI calls without an explicit deadline. Ten seconds would routinely
-cut off that path. Sixty seconds allows multiple batches, but is not a measured
-production SLO and can still truncate unusually slow enrichment. Google
-Civic requests have a four-second abort deadline, including response-body reads.
-The existing unknown-election retry remains limited to one retry. Provider,
-cache or enrichment failures may still fail the read; the router returns a generic
-message so provider payloads do not expose addresses. Timeout and admission
-failures use tRPC `SERVICE_UNAVAILABLE`.
+| Operation            | Deadline                                   |
+| -------------------- | ------------------------------------------ |
+| Base-only ballot     | 10 seconds from admission                  |
+| Enriched ballot      | 60 seconds from admission                  |
+| Google Civic request | 4 seconds, including reading the response  |
 
-A timed-out operation keeps its slot until the underlying work settles. Database
-and enrichment work is not cancelled by the response deadline. If all slots hang,
-this process fails closed until work settles or the process restarts. This is a
-process-local bound, not a deployment-wide provider quota. Distinct ballots can
-still repeat candidate enrichment, and unusually large provider ballots can still
-create substantial enrichment work within a slot.
+The 60-second enrichment deadline is provisional. Enrichment source fetches can
+allow 12 seconds each, candidate work has a concurrency limit of five, and AI
+calls lack an explicit deadline. Slow enrichment can outlast the response deadline.
 
-## Freshness and warming
+A timed-out operation occupies its slot until the underlying work settles.
+The response deadline does not cancel database or enrichment work. If all 32
+slots hang, the process rejects reads until work settles or the process restarts.
+The limit applies independently in each server process. Distinct ballots can
+repeat candidate enrichment, and large ballots can create substantial work
+within one slot.
 
-Warming is demand-driven only: one admitted read can populate one existing ballot
-cache entry. There is no scheduled warmer, new persistence, stale-on-error fallback
-or automatic retry loop. Existing expiry remains 24 hours for voter info; expired
-rows are never read as current logistics. Existing source fields and AI labels are
-returned unchanged. The response does not yet expose cache timestamps; this change
-does not claim that a cached location has been independently verified recently.
+## Cache identity and freshness
 
-## Bounded verification
+The [loader](../packages/api/src/lib/civic-voter-info.ts) uses separate endpoints
+in `civic_api_cache` for each mode:
 
-Run `pnpm --filter @acme/api test` from the repository root. The
-[guard tests](../packages/api/src/lib/civic-read-guard.test.ts) exercise the exact
-admission/deadline helper used by voter info with fake upstream work. No production
-database or provider is contacted. Two bursts each contain 100 simultaneous
-identical cold requests with a 20 ms fake provider. The local regression limits
-are one upstream request per burst, p95 below 200 ms, zero errors on success and
-100 explicit errors on provider failure. These are test limits, not agreed
-production latency objectives. Additional checks cover admission exhaustion,
-non-cancellable work, recovery, synchronous failure and election-key isolation.
+| Request mode                     | Cache endpoint |
+| -------------------------------- | -------------- |
+| `includeEnrichment: false`       | `voterinfoBase` |
+| `includeEnrichment: true` or omitted | `voterinfo` |
 
-These tests do not measure real provider latency, database pool contention,
-enrichment cost, cross-process coalescing or the tRPC HTTP transport. Production
-capacity limits still require an agreed traffic envelope and a separately
-authorized staging exercise. No production mobile changes are included.
+Cache keys also include the normalized address hash and election ID, when
+specified. Entries expire 24 hours after the cache write. Reads exclude expired
+entries, including during provider failures. Cache population is demand-driven:
+a successful cache miss writes one entry. The response does not expose
+cache timestamps, so consumers cannot determine a cached location's age from
+the response.
 
-### Base-only lookup integration (#329)
+## Election fallback and errors
 
-`civic.getVoterInfo` accepts optional `includeEnrichment: false`. Omitting it
-preserves enrichment. Base-only reads use the `voterinfoBase` endpoint in the
-existing cache table; enriched reads retain `voterinfo`. In-flight keys also
-include the mode. Both modes retain `otherElections?: Election[]` and use the
-same expiry policy. The loader tests verify both cache modes, preservation of
-other elections, and the one-retry ceiling without external services.
+If Google Civic rejects an explicit election ID with "Election unknown", the
+loader retries once without that ID. The response contains the returned
+`election.id`, and the cache write uses that returned ID. Consumers must compare
+requested and returned IDs before labeling a ballot as the selected election.
 
-Local run on September 14, 2026: the 100-request successful burst recorded
-p95 23.0 ms, 0% errors and one upstream call. The failing burst recorded p95
-23.1 ms, 100% explicit errors and one upstream call. These fake-provider results
-validate coalescing, not real-world availability or production capacity.
+Provider, cache or enrichment failures can fail the read. The
+[civic router](../packages/api/src/router/civic.ts) returns a generic unavailable
+message rather than provider error details. Timeout and admission failures use
+tRPC `SERVICE_UNAVAILABLE`; other read failures use `INTERNAL_SERVER_ERROR`.
+Consumers should display an unavailable state rather than interpreting a failure
+as an empty ballot or evidence that an election is unpublished.
 
-Unknown-election fallback preserves the provider-returned `election.id`. When
-a specific ID was requested, the cache write uses the returned ID, never the
-rejected ID. The lookup route should compare requested and returned IDs before
-labeling the ballot as the selected election.
+## Verification
+
+Run `pnpm --filter @acme/api test` from the repository root.
+
+The [guard tests](../packages/api/src/lib/civic-read-guard.test.ts) use fake
+upstream work. Each cold-cache burst has 100 simultaneous identical requests
+and a 20 ms fake provider. The tests print request counts, upstream counts, error
+counts and p95 latency, with these regression limits:
+
+- One upstream request per burst.
+- p95 latency below 200 ms.
+- Zero errors for success; 100 explicit errors for provider failure.
+
+The guard tests also cover admission exhaustion, timeout slot retention,
+recovery, synchronous failures, key isolation and separate response deadlines.
+The [loader tests](../packages/api/src/lib/civic-voter-info.test.ts) use an
+in-memory cache to verify separate base/enriched entries, `otherElections`, the
+one-retry limit and fallback election identity.
+
+These tests run without live providers or a database. They cover the guard and
+loader, but do not measure HTTP transport, database contention, actual enrichment
+cost or production capacity. Production latency and capacity limits require a
+traffic model and staging measurements.
