@@ -57,7 +57,13 @@ These dates are not national deadlines. Do not extrapolate a mailing deadline or
 
 ## Teammate boundary and integration handoff
 
-The September 13 meeting assigned **HalwaHacker/Arnav** #272, Elections tab redesign, the midterms explanation and voter impact, and investigation/migration away from Google Civic/Places. This decision document does not change that ownership or promise their delivery.
+The September 13 meeting assigned **HalwaHacker/Arnav** #272, Elections tab redesign, the midterms explanation and voter impact, and investigation/migration away from Google Civic/Places. The user's clarified boundary is:
+
+- Arnav owns “what ARE the midterms?” and “how can you participate?”
+- The user's national ballot work owns “what’s on MY ballot?”: actual address-specific races, candidates, and measures, with sources and honest coverage and missing-data explanations.
+- #331 voting logistics remain reusable components. Hand off their contracts and source metadata to Arnav and coordinate placement wherever they overlap with participation; do not build a duplicate participation view into the ballot route.
+
+This decision document does not change that ownership or promise Arnav's delivery. The dedicated route is an address-specific ballot lookup, not a midterms explainer or participation view.
 
 Sibling modules may supply a dedicated ballot route, source/status UI, logistics UI, coverage tooling, and read-path hardening. The minimal integration handoff is to give Arnav the route/component contracts and tested entry point, have the coordinated release candidate connect it to the agreed navigation, and verify both Expo Router and custom TabBar in production. Do not independently change Elections, TabBar, AddressAutocomplete, provider migration, or #272 explanation content to satisfy this document. Keep `electionsAreLive` disabled until a separate reviewed release decision authorizes activation.
 
