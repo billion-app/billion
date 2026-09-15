@@ -23,7 +23,7 @@ The lookup retains contests for every state, including contests without candidat
 | `BallotLanguages`                                                                                   | Receives no language evidence from this response and reports unknown availability. It does not infer that translated materials are unavailable.                                                                                                 |
 | [`VotingLogisticsSection`](../apps/expo/src/components/voting-logistics/VotingLogisticsSection.tsx) | Receives the current response's location groups, `mailOnly`, and administration regions with `status="ready"`. It displays supplied details and office links without inferring deadlines. Non-ready states suppress data when reused elsewhere. |
 
-See the [ballot evidence contracts](../apps/expo/src/components/ballot-evidence/README.md) and [voting logistics guide](voting-logistics-integration.md) for field attribution and reuse details.
+The component props define field attribution and recovery actions. See the [voting logistics guide](voting-logistics-integration.md) for location fields and reuse.
 
 ## Local fixture and verification
 
@@ -37,12 +37,12 @@ Use the [mobile setup](../CONTRIBUTING.md#run-the-mobile-app), complete onboardi
 
 Exercise the fixture controls:
 
-- Select NC and its special election. Check the loading state and returned contest.
+- Select NC, open "Change election", and choose its special election. Check the loading state and returned contest.
 - Switch between CA, partial, empty, and noData. Check California-only results and the distinct missing-data messages.
 - Select failed, then retry. Select loading to verify that its deliberately supplied stale response stays hidden.
 - Select fallback to check the election-ID mismatch notice.
-- Submit blank, over-300-character, and valid addresses. Check validation, editing focus, and recovery.
-- Inspect source labels, supplied location details, narrow layouts, and large text on the target platform.
+- Tap "Edit" beside the voting address, then submit blank, over-300-character, and valid addresses. Check validation, editing focus, cancellation, and recovery.
+- Expand "Sources", "Voting information", and long measure text. Inspect field labels, supplied location details, narrow layouts, and large text on the target platform.
 
 The fixture replaces request behavior. To test requests, mount the exported `BallotExperience` in a temporary test entry with an intercepted transport. Assert that discovery omits election ID, selection preserves the address and exact ID, both requests disable enrichment, address changes clear selection, and invalid input makes no request. Use fictional responses and remove the test entry afterward.
 
