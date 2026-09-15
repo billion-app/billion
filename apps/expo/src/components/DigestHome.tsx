@@ -1,7 +1,4 @@
-import type {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-} from "react-native";
+import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -26,6 +23,7 @@ import { GoldFoilText } from "~/components/GoldBillionMark";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useLastVisit } from "~/hooks/useLastVisit";
 import { useOnboarding } from "~/hooks/useOnboarding";
+import { useReadContent } from "~/hooks/useReadContent";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
@@ -36,6 +34,7 @@ import {
   jurisdictionFromAddress,
   JURISDICTIONS,
 } from "~/utils/jurisdiction";
+import { unreadArticles } from "~/utils/read-content";
 import { BRIEF_MAX, changeConnection } from "~/utils/what-changed";
 
 const CANVAS = P.night;
@@ -123,11 +122,12 @@ export function DigestHome() {
   const { jurisdiction: browseJurisdiction } = useContentJurisdiction();
   const onboarding = useOnboarding();
   const { savedIds } = useSavedContent();
+  const { readIds, isLoading: readHistoryLoading } = useReadContent();
   const lastVisitAt = useLastVisit();
   const savedIdSet = useMemo(() => new Set(savedIds), [savedIds]);
 
   // Local rail follows saved address → Browse state preference → CA fallback.
-  // Federal cover stays federal (Also Today).
+  // Also Today stays federal and only shows unread articles.
   const localJurisdiction = useMemo((): StateJurisdiction => {
     const fromAddress = jurisdictionFromAddress(address ?? null);
     if (fromAddress) return fromAddress;
@@ -163,7 +163,7 @@ export function DigestHome() {
   const federalFeed = useQuery({
     ...trpc.content.getByType.queryOptions({
       type: "bill",
-      limit: 3,
+      limit: BRIEF_MAX,
       jurisdiction: "federal",
     }),
     enabled: federalEmpty || !!featuredFederal.error,
@@ -178,11 +178,14 @@ export function DigestHome() {
     return all.slice(0, BRIEF_MAX);
   }, [featuredLocal.data, localFeed.data]);
 
-  const coverItem = useMemo((): DigestCard | undefined => {
+  const alsoCards = useMemo((): DigestCard[] => {
     const featured = featuredFederal.data;
-    if (featured && featured.length > 0) return featured[0];
-    return federalFeed.data?.items[0];
-  }, [featuredFederal.data, federalFeed.data]);
+    const articles =
+      featured && featured.length > 0
+        ? featured
+        : (federalFeed.data?.items ?? []);
+    return unreadArticles<DigestCard>(articles, readIds).slice(0, BRIEF_MAX);
+  }, [featuredFederal.data, federalFeed.data, readIds]);
 
   const changeContext = useMemo(
     () => ({
@@ -194,10 +197,6 @@ export function DigestHome() {
     [lastVisitAt, localPlace, onboarding.vectors, savedIdSet],
   );
 
-  const coverConnection = coverItem
-    ? changeConnection(asChangeItem(coverItem), changeContext)
-    : undefined;
-
   const localLoading =
     featuredLocal.isLoading || (featuredEmpty && localFeed.isLoading);
   const localError =
@@ -206,10 +205,12 @@ export function DigestHome() {
     !!localFeed.error &&
     (featuredEmpty || !!featuredLocal.error);
   const coverLoading =
-    featuredFederal.isLoading || (federalEmpty && federalFeed.isLoading);
+    readHistoryLoading ||
+    featuredFederal.isLoading ||
+    ((federalEmpty || !!featuredFederal.error) && federalFeed.isLoading);
   const coverError =
     !coverLoading &&
-    !coverItem &&
+    alsoCards.length === 0 &&
     !!federalFeed.error &&
     (federalEmpty || !!featuredFederal.error);
 
@@ -397,60 +398,74 @@ export function DigestHome() {
             <ActivityIndicator
               color={MUTED}
               style={{ marginVertical: 28 }}
-              accessibilityLabel="Loading federal cover"
+              accessibilityLabel="Loading unread articles"
             />
           ) : coverError ? (
             <View style={s.emptyWrap}>
-              <Text style={s.emptyTitle}>Federal cover didn’t load</Text>
+              <Text style={s.emptyTitle}>Articles didn’t load</Text>
               <Text style={s.emptySub}>Try again in a moment.</Text>
             </View>
-          ) : !coverItem ? (
+          ) : alsoCards.length === 0 ? (
             <View style={s.emptyWrap}>
-              <Text style={s.emptyTitle}>No federal cover yet</Text>
+              <Text style={s.emptyTitle}>No new articles today</Text>
               <Text style={s.emptySub}>
                 Check Browse for the full federal feed.
               </Text>
             </View>
           ) : (
-            <Pressable
-              style={s.alsoCard}
-              onPress={() => openArticle(coverItem.id)}
-              accessibilityRole="button"
-              accessibilityLabel={`${coverMeta(coverItem)}. ${coverItem.title}`}
-            >
-              <View style={s.cover}>
-                <GoldFoilText text="COVER · CONGRESS" style={s.coverKicker} />
-                <View style={s.coverRule} />
-                <View style={s.coverGrid}>
-                  <View style={s.coverCopy}>
-                    <Text style={s.coverHeadline}>{coverItem.title}</Text>
-                    <Text style={s.coverMeta}>{coverMeta(coverItem)}</Text>
-                    {coverConnection ? (
-                      <Text style={s.coverConnection}>{coverConnection}</Text>
-                    ) : null}
-                  </View>
-                  {contentImageSource(
-                    coverItem.imageUri ?? coverItem.thumbnailUrl,
-                  ) ? (
-                    <Image
-                      source={contentImageSource(
+            alsoCards.map((coverItem) => {
+              const coverConnection = changeConnection(
+                asChangeItem(coverItem),
+                changeContext,
+              );
+              return (
+                <Pressable
+                  key={coverItem.id}
+                  style={s.alsoCard}
+                  onPress={() => openArticle(coverItem.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${coverMeta(coverItem)}. ${coverItem.title}`}
+                >
+                  <View style={s.cover}>
+                    <GoldFoilText
+                      text="COVER · CONGRESS"
+                      style={s.coverKicker}
+                    />
+                    <View style={s.coverRule} />
+                    <View style={s.coverGrid}>
+                      <View style={s.coverCopy}>
+                        <Text style={s.coverHeadline}>{coverItem.title}</Text>
+                        <Text style={s.coverMeta}>{coverMeta(coverItem)}</Text>
+                        {coverConnection ? (
+                          <Text style={s.coverConnection}>
+                            {coverConnection}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {contentImageSource(
                         coverItem.imageUri ?? coverItem.thumbnailUrl,
+                      ) ? (
+                        <Image
+                          source={contentImageSource(
+                            coverItem.imageUri ?? coverItem.thumbnailUrl,
+                          )}
+                          style={s.coverArt}
+                          contentFit="cover"
+                          accessibilityLabel=""
+                        />
+                      ) : (
+                        <Image
+                          source={CAPITOL}
+                          style={s.coverArt}
+                          contentFit="contain"
+                          accessibilityLabel="U.S. Capitol line art"
+                        />
                       )}
-                      style={s.coverArt}
-                      contentFit="cover"
-                      accessibilityLabel=""
-                    />
-                  ) : (
-                    <Image
-                      source={CAPITOL}
-                      style={s.coverArt}
-                      contentFit="contain"
-                      accessibilityLabel="U.S. Capitol line art"
-                    />
-                  )}
-                </View>
-              </View>
-            </Pressable>
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -617,6 +632,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
   },
   alsoCard: {
+    marginBottom: 12,
     backgroundColor: CARD,
     borderRadius: 28,
     borderWidth: 1,

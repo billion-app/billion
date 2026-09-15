@@ -34,6 +34,7 @@ import {
   Segmented,
 } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useReadContent } from "~/hooks/useReadContent";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import { useScreenshotDetection } from "~/hooks/useScreenshotDetection";
 import {
@@ -102,6 +103,13 @@ export default function ArticleDetailScreen() {
     ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
     enabled: !!articleId,
   });
+
+  const { markRead } = useReadContent();
+  const loadedArticleId = !error ? content?.id : undefined;
+  useEffect(() => {
+    // Failed requests and cards merely seen on Home are not reads.
+    if (loadedArticleId) markRead(loadedArticleId);
+  }, [loadedArticleId, markRead]);
 
   useEffect(() => {
     if (content) {
