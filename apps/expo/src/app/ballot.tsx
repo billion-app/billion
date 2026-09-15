@@ -1,35 +1,73 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
-import { Link } from "expo-router";
+import { Pressable, Text, View } from "react-native";
+import { Link, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { BallotLookupView } from "~/components/ballot/BallotLookupView";
-import { DigestPalette as P } from "~/styles";
+import { Card } from "~/components/ui/layout";
+import { NavHeader } from "~/components/ui/NavHeader";
+import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
 import { electionsAreLive } from "~/utils/elections-live";
 
 /** Dedicated route; the Elections tab remains parked pending launch review. */
 export default function BallotRoute() {
+  const router = useRouter();
   if (!electionsAreLive()) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          padding: 24,
-          gap: 16,
-          backgroundColor: P.canvas,
-        }}
-      >
-        <Text style={{ color: P.inkOnNight, fontSize: 22 }}>
-          Ballot lookup is coming soon
-        </Text>
-        <Text style={{ color: P.inkOnNight }}>
-          We’re checking election coverage before making this lookup available.
-        </Text>
-        <Link href="/" style={{ color: P.spark }}>
-          Back to home
-        </Link>
+      <View style={{ flex: 1, backgroundColor: P.canvas }}>
+        <NavHeader
+          title="Your ballot"
+          onBack={() =>
+            router.canGoBack() ? router.back() : router.replace("/")
+          }
+        />
+        <Card style={{ margin: 16, gap: 16 }}>
+          <Text
+            accessibilityRole="header"
+            style={{
+              fontFamily: fontDisplay.bold,
+              fontSize: 24,
+              lineHeight: 30,
+              color: P.inkOnNight,
+            }}
+          >
+            Ballot lookup is coming soon
+          </Text>
+          <Text
+            style={{
+              fontFamily: fontBody.regular,
+              fontSize: 16,
+              lineHeight: 24,
+              color: P.inkOnNight,
+            }}
+          >
+            We’re checking election coverage before opening this lookup.
+          </Text>
+          <Link href="/" asChild>
+            <Pressable
+              accessibilityRole="button"
+              style={{
+                minHeight: 48,
+                padding: 12,
+                borderRadius: 12,
+                backgroundColor: P.spark,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: fontBody.bold,
+                  fontSize: 16,
+                  color: P.ink,
+                }}
+              >
+                Back home
+              </Text>
+            </Pressable>
+          </Link>
+        </Card>
       </View>
     );
   }

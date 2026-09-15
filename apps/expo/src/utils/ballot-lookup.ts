@@ -1,5 +1,9 @@
 import type { Contest, Election, VoterInfoResponse } from "@acme/api";
 
+import { webUrl as ballotWebUrl } from "./web-url";
+
+export { ballotWebUrl };
+
 /** Preserve provider fields until the shared Civic response type includes them. */
 export type BallotResponse = Omit<
   VoterInfoResponse,
@@ -35,21 +39,6 @@ export function ballotModel(response: BallotResponse) {
     isCalifornia: state === "ca" || state === "california",
     empty: contests.length === 0,
   };
-}
-
-/** Only navigable web URLs from the provider may leave the ballot screen. */
-export function ballotWebUrl(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  try {
-    const url = new URL(value);
-    return ["http:", "https:"].includes(url.protocol) &&
-      !url.username &&
-      !url.password
-      ? url.href
-      : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /** Mirror the route's bounded input contract without claiming to validate residence. */
