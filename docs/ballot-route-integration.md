@@ -4,9 +4,11 @@ The [`/ballot` route](../apps/expo/src/app/ballot.tsx) answers "What is on my ba
 
 ## Public gate and lookup behavior
 
-[`electionsAreLive()`](../apps/expo/src/utils/elections-live.ts) returns false. The public route checks it before mounting query hooks, so direct links show coming-soon content without requesting a ballot. The route is separate from the Elections tab. When lookup is enabled, its back action returns to the previous screen or home if opened directly.
+[`electionsAreLive()`](../apps/expo/src/utils/elections-live.ts) returns false. The public route checks it before mounting query hooks, so direct links show coming-soon content without requesting a ballot. The route can also supply the Elections tab and local-election screen when those callers receive Democracy Works data. When lookup is enabled, its back action returns to the previous screen or home if opened directly.
 
-`BallotExperience` accepts a manually entered voting address and stores it in component state. It does not put the address in route parameters or analytics events. [Local validation](../apps/expo/src/utils/ballot-lookup.ts) trims the input and requires 5–300 characters without control characters. This checks input shape, not residence or eligibility.
+`BallotExperience` accepts a manually entered voting address and stores it in component state. Its optional `initialAddress` seeds that state when an existing entry point already has a stored address; the caller keys the experience by that address so an external change resets its selection. Editing inside the national lookup remains local to that experience. It does not put the address in route parameters or analytics events. [Local validation](../apps/expo/src/utils/ballot-lookup.ts) trims the input and requires 5–300 characters without control characters. This checks input shape, not residence or eligibility.
+
+The legacy callers detect the provider with enrichment disabled and route Democracy Works responses into this view instead of the California-only presentation. They no longer request an addressless election list. The local screen shows loading or retry while resolving the provider and gates representatives on a returned normalized California state.
 
 The first `civic.getVoterInfo` request sends the address with `includeEnrichment: false`. The returned `election` and `otherElections` populate the selector. Selecting another election sends its exact ID with the same address. Changing the address clears that selection. Discovery options remain available while another election loads; cached contests and logistics are hidden during loading, failure, or invalid input. A response for a different election is labeled with both requested and returned IDs.
 

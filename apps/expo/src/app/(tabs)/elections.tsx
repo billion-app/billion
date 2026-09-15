@@ -35,17 +35,16 @@ import {
   fontDisplay,
 } from "~/styles";
 import { trpc } from "~/utils/api";
-import { monthDay } from "~/utils/dates";
 import {
   contestListTitle,
   earliestEarlyVoteStart,
   groupContestsByLevel,
   isCaliforniaState,
   measureIsStatewide,
-  pickUpcomingCaliforniaElection,
   pollingPlaceSubtitle,
 } from "~/utils/elections";
 import { electionsAreLive } from "~/utils/elections-live";
+import { BallotExperience } from "../ballot";
 
 type BallotTab = "candidates" | "measures";
 
@@ -243,21 +242,23 @@ function ElectionsLive() {
 
   const hasAddress = !!storedAddress;
 
-  // Nationwide list is only a teaser before an address is set. Ballot contests
-  // always come from getVoterInfo so Civic can resolve THIS address.
-  const electionsQuery = useQuery({
-    ...trpc.civic.getElections.queryOptions(),
-    enabled: !hasAddress,
-  });
-  const upcomingCaliforniaElection = pickUpcomingCaliforniaElection(
-    electionsQuery.data ?? [],
-  );
-
   const voterInfoQuery = useQuery({
-    ...trpc.civic.getVoterInfo.queryOptions({ address: storedAddress ?? "" }),
+    ...trpc.civic.getVoterInfo.queryOptions({
+      address: storedAddress ?? "",
+      includeEnrichment: false,
+    }),
     enabled: hasAddress,
     retry: 1,
   });
+
+  if (voterInfoQuery.data?.provider?.name === "democracy_works") {
+    return (
+      <BallotExperience
+        key={storedAddress}
+        initialAddress={storedAddress ?? ""}
+      />
+    );
+  }
 
   // Ballot/results coverage is California-only. Civic usually sends "CA";
   // accept the full name so production voterinfo still gates correctly.
@@ -342,20 +343,6 @@ function ElectionsLive() {
               <Text style={s.emptyLead}>Enter a registered address.</Text>
             </View>
           </View>
-
-          {upcomingCaliforniaElection ? (
-            <View style={s.emptyDates}>
-              <Text style={s.emptyDatesEyebrow}>
-                {upcomingCaliforniaElection.name}
-              </Text>
-              <View style={s.emptyDateRow}>
-                <Text style={s.emptyDateLabel}>Election Day</Text>
-                <Text style={s.emptyDateValue}>
-                  {monthDay(upcomingCaliforniaElection.electionDay)}
-                </Text>
-              </View>
-            </View>
-          ) : null}
         </View>
       )}
 
@@ -799,37 +786,6 @@ const s = StyleSheet.create({
     lineHeight: 32,
     letterSpacing: -0.6,
     color: DigestPalette.inkOnNight,
-  },
-  emptyDates: {
-    paddingTop: 8,
-  },
-  emptyDatesEyebrow: {
-    fontFamily: fontBody.bold,
-    fontSize: 11,
-    letterSpacing: 1.8,
-    color: DigestPalette.quiet,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  emptyDateRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 12,
-  },
-  emptyDateLabel: {
-    fontFamily: fontBody.semibold,
-    fontSize: 14,
-    color: DigestPalette.inkOnNight,
-  },
-  emptyDateValue: {
-    flex: 1,
-    fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 18,
-    color: DigestPalette.quiet,
-    textAlign: "right",
   },
   pollRow: {
     flexDirection: "row",
