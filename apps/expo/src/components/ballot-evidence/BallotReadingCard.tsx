@@ -27,6 +27,7 @@ export function BallotReadingText({
   return (
     <View style={{ gap: 8 }}>
       <Text
+        selectable
         style={[s.body, source && s.sourceText]}
         numberOfLines={long && !expanded ? 7 : undefined}
       >
@@ -110,7 +111,7 @@ export function BallotReadingCard({
         </View>
         {text &&
           (hasExtended ? (
-            <Text style={s.body}>{text}</Text>
+            <BallotReadingText text={text} />
           ) : (
             <BallotReadingText text={text} source={!inset} />
           ))}
@@ -124,7 +125,7 @@ export function BallotReadingCard({
         {hasExtended && expanded && (
           <View style={s.extended}>
             <Text style={s.kicker}>EXTENDED SUMMARY</Text>
-            <Text style={s.body}>{extendedText}</Text>
+            <BallotReadingText text={extendedText} />
           </View>
         )}
         {children}
@@ -210,7 +211,7 @@ export function BallotBiography({ text }: { text: string }) {
           color={P.inkOnNight}
         />
       </Pressable>
-      {expanded && <Text style={s.body}>{text}</Text>}
+      {expanded && <BallotReadingText text={text} />}
     </View>
   );
 }

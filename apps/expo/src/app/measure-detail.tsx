@@ -32,15 +32,7 @@ import {
   planes,
   sp,
 } from "~/styles";
-
-function parseJson<T>(raw: string | undefined, fallback: T): T {
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
+import { parseRouteArray } from "~/utils/route-array";
 
 export default function MeasureDetailScreen() {
   const router = useRouter();
@@ -61,9 +53,21 @@ export default function MeasureDetailScreen() {
     conArguments: string;
     citations: string;
   }>();
-  const proArgs = parseJson<MeasureArgumentRef[]>(params.proArguments, []);
-  const conArgs = parseJson<MeasureArgumentRef[]>(params.conArguments, []);
-  const citations = parseJson<MeasureCitationRef[]>(params.citations, []);
+  const proArgs = parseRouteArray<MeasureArgumentRef>(
+    params.proArguments,
+    ["text"],
+    ["sourceName", "sourceUrl", "author"],
+  );
+  const conArgs = parseRouteArray<MeasureArgumentRef>(
+    params.conArguments,
+    ["text"],
+    ["sourceName", "sourceUrl", "author"],
+  );
+  const citations = parseRouteArray<MeasureCitationRef>(
+    params.citations,
+    ["field", "sourceName"],
+    ["sourceUrl", "tier", "fetchedAt", "verifiedAt", "verifiedBy"],
+  );
   const pros = proArgs.length
     ? proArgs
     : params.referendumProStatement

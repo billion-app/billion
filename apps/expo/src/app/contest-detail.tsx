@@ -38,6 +38,7 @@ import {
   DigestPalette as P,
   planes,
 } from "~/styles";
+import { parseRouteArray } from "~/utils/route-array";
 
 const cardChrome = {
   backgroundColor: P.card,
@@ -149,21 +150,55 @@ export default function ContestDetailScreen() {
     citations?: string;
   }>();
 
-  const candidates: CandidateParam[] = useMemo(
+  const candidates = useMemo(
     () =>
-      params.candidates
-        ? (JSON.parse(params.candidates) as CandidateParam[])
-        : [],
+      parseRouteArray<CandidateParam>(
+        params.candidates,
+        ["name"],
+        [
+          "party",
+          "candidateUrl",
+          "phone",
+          "email",
+          "photoUrl",
+          "biography",
+          "statement",
+          "statementSummary",
+          "ballotStatus",
+        ],
+      ).map((candidate) => ({
+        ...candidate,
+        citations: parseRouteArray<CandidateCitation>(
+          JSON.stringify(candidate.citations),
+          ["field", "sourceName"],
+          ["sourceUrl", "tier", "fetchedAt", "verifiedAt", "verifiedBy"],
+        ),
+        channels: parseRouteArray<{ type: string; id: string }>(
+          JSON.stringify(candidate.channels),
+          ["type", "id"],
+        ),
+      })),
     [params.candidates],
   );
-  const raceCitations = useMemo(() => {
-    try {
-      const value: unknown = JSON.parse(params.citations ?? "[]");
-      return Array.isArray(value) ? (value as CandidateCitation[]) : [];
-    } catch {
-      return [];
-    }
-  }, [params.citations]);
+  const raceCitations = useMemo(
+    () =>
+      parseRouteArray<CandidateCitation>(
+        params.citations,
+        ["field", "sourceName"],
+        ["sourceUrl", "tier", "fetchedAt", "verifiedAt", "verifiedBy"],
+      ),
+    [params.citations],
+  );
+  const [contactError, setContactError] = useState<string>();
+  const openContact = (url: string, label: string) => {
+    void Linking.openURL(url).then(
+      () => setContactError(undefined),
+      () =>
+        setContactError(
+          `Could not open ${label}. Tap the contact again to retry.`,
+        ),
+    );
+  };
   const description = params.roleDescription || null;
 
   // Expansion keyed by candidate identity (name + original index), not array
@@ -370,19 +405,19 @@ export default function ContestDetailScreen() {
                   icon: "globe" as const,
                   label: "Website",
                   value: candidateUrl,
-                  onPress: () => void Linking.openURL(candidateUrl),
+                  onPress: () => openContact(candidateUrl, "website"),
                 },
                 cand.phone && {
                   icon: "message" as const,
                   label: "Phone",
                   value: cand.phone,
-                  onPress: () => void Linking.openURL(`tel:${cand.phone}`),
+                  onPress: () => openContact(`tel:${cand.phone}`, "phone"),
                 },
                 cand.email && {
                   icon: "edit" as const,
                   label: "Email",
                   value: cand.email,
-                  onPress: () => void Linking.openURL(`mailto:${cand.email}`),
+                  onPress: () => openContact(`mailto:${cand.email}`, "email"),
                 },
               ].filter(Boolean) as {
                 icon: "globe" | "message" | "edit";
@@ -391,7 +426,7 @@ export default function ContestDetailScreen() {
                 onPress: () => void;
               }[];
 
-              const sources = cand.citations ?? [];
+              const sources = cand.citations;
               const hasStatement =
                 !!cand.statement?.trim() || !!cand.statementSummary?.trim();
 
@@ -498,7 +533,7 @@ export default function ContestDetailScreen() {
                             <Icon name="external" size={13} color={P.primary} />
                           </TouchableOpacity>
                         ))}
-                      {cand.channels && cand.channels.length > 0 && (
+                      {cand.channels.length > 0 && (
                         <View style={s.channelsWrap}>
                           {cand.channels.map((ch) => (
                             <View
@@ -526,6 +561,11 @@ export default function ContestDetailScreen() {
             })}
           </View>
         </View>
+        {contactError && (
+          <Text accessibilityRole="alert" style={s.noContact}>
+            {contactError}
+          </Text>
+        )}
         <BallotDetailEvidence
           citations={raceCitations}
           showOfficeLink={candidates.length > 0}

@@ -466,6 +466,19 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                     },
                   ]}
                 />
+                {!model.contests.some((c) =>
+                  ballotTab === "measures"
+                    ? !!c.referendumTitle
+                    : !c.referendumTitle,
+                ) && (
+                  <Card style={s.card}>
+                    <Text style={s.secondary}>
+                      {ballotTab === "measures"
+                        ? "No measures supplied for this ballot."
+                        : "No candidate races supplied for this ballot."}
+                    </Text>
+                  </Card>
+                )}
                 {model.contests
                   .filter((c) =>
                     ballotTab === "measures"
@@ -506,11 +519,17 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             {data.provider && (
               <View style={s.provider}>
                 <Text style={s.secondary}>
-                  Ballot data from Democracy Works. Coverage is partial.
+                  {data.kind === "development-fixture"
+                    ? "Synthetic development data. Not a real ballot."
+                    : "Ballot data from Democracy Works. Coverage is partial."}
                 </Text>
                 {data.provider.sourceUrl && (
                   <SourceLink
-                    label="View ballot data source"
+                    label={
+                      data.kind === "development-fixture"
+                        ? "Fixture reference"
+                        : "View ballot data source"
+                    }
                     url={data.provider.sourceUrl}
                   />
                 )}
