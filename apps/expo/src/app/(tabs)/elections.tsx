@@ -170,7 +170,59 @@ function MeasureCard({
 
 export default function ElectionsScreen() {
   if (!electionsAreLive()) return <ElectionsComingSoon />;
+  if (__DEV__) return <DevelopmentElections />;
   return <ElectionsLive />;
+}
+
+function DevelopmentElections() {
+  const [scenario, setScenario] = useState("full");
+  return (
+    <View style={{ flex: 1 }}>
+      <View
+        style={{
+          paddingTop: useSafeAreaInsets().top,
+          paddingHorizontal: 16,
+          backgroundColor: DigestPalette.canvas,
+        }}
+      >
+        <Text style={{ color: DigestPalette.quiet, fontSize: 12 }}>
+          Development · synthetic ballot scenarios
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 12,
+            paddingVertical: 8,
+          }}
+        >
+          {["live", "full", "partial", "empty", "error"].map((value) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => setScenario(value)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: scenario === value }}
+              style={{ paddingVertical: 8 }}
+            >
+              <Text
+                style={{
+                  color: DigestPalette.primary,
+                  fontWeight: scenario === value ? "700" : "400",
+                }}
+              >
+                {value}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      {scenario === "live" ? (
+        <ElectionsLive />
+      ) : (
+        <BallotExperience key={scenario} initialAddress={`mock:${scenario}`} />
+      )}
+    </View>
+  );
 }
 
 function ElectionsComingSoon() {

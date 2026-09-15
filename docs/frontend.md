@@ -65,3 +65,9 @@ The Next.js App Router lives in [apps/nextjs/src/app](../apps/nextjs/src/app). I
 [packages/auth/src/index.ts](../packages/auth/src/index.ts) configures Better Auth with the Drizzle adapter, optional Discord OAuth, the OAuth proxy, and the native callback bridge. Next.js exposes it through `/api/auth` and passes the resulting session into the tRPC context.
 
 Web requests carry session cookies. The Expo auth client stores its session locally and supplies a `Cookie` header through the tRPC link. For an auth failure, follow the callback, stored cookie, and API context before changing a screen. See [API](api.md#request-path) and [Troubleshooting](troubleshooting.md).
+
+## Development ballot scenarios
+
+Development builds show a scenario picker above the Elections tab. `full` opens a synthetic ballot with candidate statements, a measure and voting locations. `partial` omits statements and locations; `empty` omits contests; `error` exercises retry handling. `live` uses the saved address and normal provider. Mock selection does not overwrite the saved address.
+
+These screens call the local `civic.getVoterInfo` API with explicit `mock:full`, `mock:partial`, `mock:empty` or `mock:error` addresses. The server recognizes them only when `NODE_ENV=development`, before any provider or cache operation. Production never returns these fixtures. Names, instructions and schedules in the fixtures are fictional.

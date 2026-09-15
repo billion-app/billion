@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 import { caSosResultsClient } from "../clients/ca-sos-results";
 import { BallotProviderError } from "../clients/democracy-works";
+import { getDevBallot } from "../lib/ballot-dev-mocks";
 import {
   getDistrictElectionResults,
   getElectionResults,
@@ -117,6 +118,8 @@ export const civicRouter = {
     )
     .query(async ({ input }) => {
       try {
+        const mock = getDevBallot(input.address);
+        if (mock) return mock;
         return await getVoterInfo(input.address, input.electionId, {
           includeEnrichment: input.includeEnrichment,
         });
