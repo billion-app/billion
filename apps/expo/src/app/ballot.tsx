@@ -15,7 +15,7 @@ import {
 import { trpc } from "~/utils/api";
 import { electionsAreLive } from "~/utils/elections-live";
 
-/** Dedicated route; the Elections tab remains parked pending launch review. */
+/** Public lookup remains gated pending launch review. */
 export default function BallotRoute() {
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
@@ -93,8 +93,12 @@ export default function BallotRoute() {
 }
 
 /** Mount directly in controlled tests; the public route always checks launch readiness. */
-export function BallotExperience() {
-  const [address, setAddress] = useState("");
+export function BallotExperience({
+  initialAddress = "",
+}: {
+  initialAddress?: string;
+}) {
+  const [address, setAddress] = useState(initialAddress);
   return (
     <AddressBallot key={address} address={address} onAddress={setAddress} />
   );
