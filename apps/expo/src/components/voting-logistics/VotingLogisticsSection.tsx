@@ -77,24 +77,46 @@ function Disclosure({
   );
 }
 
-function LocationRow({ location }: { location: PollingLocation }) {
+function LocationRow({
+  location,
+  accent,
+}: {
+  location: PollingLocation;
+  accent: string;
+}) {
   const { theme } = useTheme();
   const item = describeVotingLocation(location);
   const hours = location.pollingHours?.trim();
   const facts = [styles.body, { color: theme.foreground }];
   return (
-    <View style={[styles.location, { borderColor: theme.border }]}>
+    <View style={[styles.location, { borderLeftColor: accent }]}>
       <Text style={[styles.name, { color: theme.foreground }]}>
         {item.name}
       </Text>
-      <Text selectable style={facts}>
-        {item.address}
-      </Text>
-      <Text selectable style={facts}>
-        {hours === undefined || hours === ""
-          ? "Hours not supplied"
-          : `Hours: ${location.pollingHours}`}
-      </Text>
+      <View style={styles.factRow}>
+        <Icon name="pin" size={15} color={colors.bill} />
+        <View style={styles.factContent}>
+          <Text style={styles.factLabel}>ADDRESS</Text>
+          <Text
+            selectable
+            style={[styles.factText, { color: theme.foreground }]}
+          >
+            {item.address}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.factRow}>
+        <Icon name="clock" size={15} color={colors.textSecondary} />
+        <View style={styles.factContent}>
+          <Text style={styles.factLabel}>HOURS</Text>
+          <Text
+            selectable
+            style={[styles.factText, { color: theme.foreground }]}
+          >
+            {hours === undefined || hours === "" ? "Hours not supplied" : hours}
+          </Text>
+        </View>
+      </View>
       {location.startDate?.trim() || location.endDate?.trim() ? (
         <Text selectable style={facts}>
           {location.startDate?.trim() && location.startDate === location.endDate
@@ -169,6 +191,8 @@ function LocationGroup({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { theme } = useTheme();
+  const accent =
+    group.title === "Ballot drop-off" ? colors.green[500] : colors.bill;
   return (
     <View style={styles.surface}>
       <Pressable
@@ -187,9 +211,15 @@ function LocationGroup({
           importantForAccessibility="no-hide-descendants"
         >
           <Icon
-            name={group.title === "Early voting" ? "calendar" : "pin"}
+            name={
+              group.title === "Early voting"
+                ? "calendar"
+                : group.title === "Ballot drop-off"
+                  ? "download"
+                  : "vote"
+            }
             size={20}
-            color={colors.bill}
+            color={accent}
           />
         </View>
         <View style={styles.groupLabel}>
@@ -215,7 +245,7 @@ function LocationGroup({
       {expanded ? (
         <View style={styles.groupBody}>
           {group.locations.map((location, index) => (
-            <LocationRow key={index} location={location} />
+            <LocationRow key={index} location={location} accent={accent} />
           ))}
         </View>
       ) : null}
@@ -480,7 +510,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     opacity: 0.8,
   },
-  name: { fontFamily: fontBody.semibold, fontSize: 17 },
+  name: { fontFamily: fontBody.semibold, fontSize: 15, lineHeight: 20 },
+  factRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  factContent: { flex: 1, gap: 3 },
+  factLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.8,
+    color: colors.textSecondary,
+  },
+  factText: { fontFamily: fontBody.regular, fontSize: 14, lineHeight: 20 },
   body: { fontFamily: fontBody.regular, fontSize: 16, lineHeight: 24 },
   caption: {
     fontFamily: fontBody.medium,
@@ -495,7 +535,7 @@ const styles = StyleSheet.create({
     borderRadius: rd.lg,
   },
   groupHeader: {
-    minHeight: 76,
+    minHeight: 68,
     flexDirection: "row",
     alignItems: "center",
     padding: sp[4],
@@ -526,9 +566,11 @@ const styles = StyleSheet.create({
   resourceHeader: { flexDirection: "row", alignItems: "center", gap: sp[3] },
   officeLinks: { gap: sp[2] },
   location: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingBottom: sp[1],
-    gap: sp[2],
+    borderLeftWidth: 3,
+    backgroundColor: planes.surface,
+    borderRadius: 10,
+    padding: 14,
+    gap: 14,
   },
   control: {
     minHeight: 44,
