@@ -89,6 +89,20 @@ void test("executive actions refresh daily", () => {
   assert.ok(whiteHouseJob.priority < job.priority);
 });
 
+void test("Supreme Court rulings refresh daily with bounded source work and generation", () => {
+  const job = findJob("scotus-daily");
+  assert.ok(job, "daily Supreme Court job is missing");
+  assert.deepEqual(job.args, [
+    "scotus",
+    "--max-items",
+    "20",
+    "--concurrency",
+    "1",
+  ]);
+  assert.equal(job.schedule.kind, "daily");
+  assert.equal(job.env?.SCRAPER_MAX_NEW_ITEMS_PER_RUN, "5");
+});
+
 void test("San Jose decisions refresh daily through the Legistar scraper", () => {
   const job = findJob("legistar-daily");
   assert.ok(job, "daily Legistar job is missing");

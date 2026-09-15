@@ -3,17 +3,14 @@ import type { ScraperEnvContract } from "@acme/env";
 export const scotusConfig = {
   id: "scotus",
   name: "SCOTUS",
-  source: "CourtListener API — Supreme Court opinions and dockets",
+  source:
+    "SupremeCourt.gov — published opinions and opinions relating to orders",
   environment: {
     required: ["POSTGRES_URL"],
     requiredAny: [
       ["OPENROUTER_API_KEY", "LOCAL_LLM_BASE_URL", "DEEPSEEK_API_KEY"],
     ],
-    recommended: [
-      "OPENROUTER_API_KEY",
-      "LOCAL_LLM_BASE_URL",
-      "COURTLISTENER_API_KEY",
-    ],
+    recommended: ["OPENROUTER_API_KEY", "LOCAL_LLM_BASE_URL"],
     optional: [
       "OPENROUTER_MODEL",
       "LOCAL_LLM_MODEL",

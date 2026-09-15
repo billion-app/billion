@@ -199,9 +199,10 @@ from older source; current source uses `EXPO_PUBLIC_POSTHOG_TOKEN`.
 ## Scraper and scheduled data jobs
 
 The registered CLI scrapers are `whitehouse`, `federalregister`, `legistar`,
-`congress`, `open-states`, `scc-cvig`, and `ca-sos-statements`. The registry in
-`apps/scraper/src/scrapers.ts` is authoritative. `scotus.ts` is unregistered;
-files under `scrapers/disabled/` are also inactive. See the [scraper CLI
+`congress`, `scotus`, `open-states`, `scc-cvig`, and `ca-sos-statements`. The registry in
+`apps/scraper/src/scrapers.ts` is authoritative. SCOTUS reads official opinion
+and order-opinion PDFs without a CourtListener token. Files under
+`scrapers/disabled/` are inactive. See the [scraper CLI
 guide](../apps/scraper/README.md#active-sources) for destinations and examples.
 
 ### Shared scraper variables
@@ -258,17 +259,19 @@ limit; retries and additional invocations each receive a fresh allowance.
 | ------------------------------- | ------: | ----------------------------------- |
 | `FEDERALREGISTER_MAX_ITEMS`     |      20 | Federal Register documents          |
 | `CONGRESS_MAX_ITEMS`            |     100 | Congress.gov bills                  |
-| `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters      |
+| `SCOTUS_MAX_ITEMS`              |      20 | Recent Supreme Court decisions      |
 | `SCC_CVIG_MAX_ITEMS`            |      10 | Santa Clara voter-guide PDFs        |
 | `CA_SOS_MAX_ITEMS`              |       9 | California SOS office pages         |
 | `OPEN_STATES_MAX_ITEMS`         |     100 | Open States bills, per state        |
 | `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving AI/image work |
 
-The last setting is an enrichment budget, not a source-fetch limit. Raw records
-beyond that enrichment budget are still stored and can be enriched later.
+The last setting is an enrichment budget, not a source-fetch limit. New content
+that cannot be enriched within the budget is deferred without publishing a raw
+row. Existing records can receive source updates while enrichment is deferred.
 
 `COURTLISTENER_API_KEY` is an authentication token despite its historical
-`*_API_KEY` name. Send it only to CourtListener and store it as a secret.
+`*_API_KEY` name. It is retained as a legacy environment declaration; the active
+SCOTUS adapter does not use it. Store any retained token as a secret.
 
 ### Scraper cost-reporting overrides
 
