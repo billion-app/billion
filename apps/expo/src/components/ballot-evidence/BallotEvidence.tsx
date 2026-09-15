@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
 
 import type { BallotCitation, BallotEvidence, LanguageEvidence } from "./model";
 import { Icon } from "~/components/ui/Icon";
 import { DigestHair, fontBody, DigestPalette as P, sp } from "~/styles";
+import { BallotText as Text } from "./BallotText";
 import {
   ballotStatus,
   citationFieldLabel,

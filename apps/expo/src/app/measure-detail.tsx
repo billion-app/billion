@@ -1,4 +1,9 @@
-import { ScrollView, StyleSheet, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import type { MeasureArgumentRef, MeasureCitationRef } from "@acme/api";
@@ -12,8 +17,8 @@ import {
   BallotReadingCard,
   BallotReadingText,
 } from "~/components/ballot-evidence/BallotReadingCard";
+import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
-import { Text } from "~/components/Themed";
 import { NavHeader } from "~/components/ui";
 import { DigestSpace, fontBody, DigestPalette as P, sp } from "~/styles";
 
@@ -28,6 +33,7 @@ function parseJson<T>(raw: string | undefined, fallback: T): T {
 
 export default function MeasureDetailScreen() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const params = useLocalSearchParams<{
     referendumTitle: string;
     referendumSubtitle: string;
@@ -74,7 +80,12 @@ export default function MeasureDetailScreen() {
     );
   return (
     <View style={s.screen}>
-      <NavHeader title="Measure" tone="dark" onBack={() => router.back()} />
+      <NavHeader
+        key={fontScale}
+        title="Measure"
+        tone="dark"
+        onBack={() => router.back()}
+      />
       <ScrollView contentContainerStyle={s.content}>
         <Text accessibilityRole="header" style={s.title}>
           {params.referendumTitle}

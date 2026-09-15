@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -20,7 +21,7 @@ import {
   ElectionOfficeLink,
 } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotReadingText } from "~/components/ballot-evidence/BallotReadingCard";
-import { Text } from "~/components/Themed";
+import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import {
   Card,
   Icon,
@@ -138,6 +139,7 @@ function CandidateStatement({ cand }: { cand: CandidateParam }) {
 
 export default function ContestDetailScreen() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const params = useLocalSearchParams<{
     office: string;
     roles: string;
@@ -233,7 +235,12 @@ export default function ContestDetailScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Candidates" tone="dark" onBack={() => router.back()} />
+      <NavHeader
+        key={fontScale}
+        title="Candidates"
+        tone="dark"
+        onBack={() => router.back()}
+      />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
