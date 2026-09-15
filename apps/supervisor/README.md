@@ -64,6 +64,9 @@ scheduled and backfill jobs do not use it.
 | `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content      |
 | `backfill-content-images`      | manual            | Drains missing or style-stale header art across all retained content             |
 | `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
+| `ca-official-guide-daily`      | daily 04:30 local | Date-scoped California official guide                                            |
+| `ca-election-logistics-daily`  | daily 04:45 local | Official statewide election dates and guidance                                   |
+| `santa-cruz-locations-daily`   | daily 05:00 local | Published Santa Cruz vote centers for the configured election                    |
 | `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                              |
 | `retro-briefs`                 | manual            | Fills in missing structured briefs                                               |
 | `retro-lenses`                 | manual            | Fills in missing dual-lens perspectives                                          |

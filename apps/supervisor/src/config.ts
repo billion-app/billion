@@ -172,6 +172,21 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 12,
   },
   {
+    id: "santa-cruz-locations-daily",
+    description: "Refresh published Santa Cruz November 2026 vote centers",
+    script: "main.js",
+    args: ["santa-cruz-locations", "--max-items", "1"],
+    env: {
+      SANTA_CRUZ_ELECTION_DATE: "2026-11-03",
+      SANTA_CRUZ_ELECTION_PAGE_URL:
+        "https://votescount.santacruzcountyca.gov/Home/Elections/November3,2026CaliforniaGeneralElection.aspx",
+    },
+    schedule: { kind: "daily", hour: 5, minute: 0 },
+    priority: 15,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "open-states-targeted",
     description:
       "Import an explicit state/session bill manifest without advancing the cursor",

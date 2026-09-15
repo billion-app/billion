@@ -49,7 +49,7 @@ See [ballot read limits](ballot-read-hardening.md) for cache identity, metadata,
 selection and verification.
 
 Base ballot reads also attach unexpired, election-date-scoped official guide
-records and California voting guidance collected by the [ballot source
+records, California voting guidance and published Santa Cruz vote centers collected by the [ballot source
 scrapers](../apps/scraper/README.md#ballot-source-collection). This is a cache-only
 join and invokes no live enrichment or generation. The provider must still
 supply the election and address-specific contest selection. Missing source

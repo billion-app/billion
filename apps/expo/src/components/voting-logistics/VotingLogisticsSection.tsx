@@ -368,6 +368,14 @@ export function VotingLogisticsSection({
   return (
     <View style={styles.section}>
       <GuidanceDates data={current} />
+      {current.officialLocationSource &&
+      current.officialLocationSource.electionDate ===
+        current.election?.electionDay ? (
+        <Text style={[styles.caption, { color: theme.foreground }]}>
+          Includes published vote centers from{" "}
+          {current.officialLocationSource.sourceName}
+        </Text>
+      ) : null}
       {missing.length < groups.length ? heading : null}
       {groups
         .filter((group) => group.locations.length)

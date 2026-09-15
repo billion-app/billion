@@ -58,6 +58,10 @@
     "./lib/voting-logistics/ca-sos-cache": {
       "types": "./dist/lib/voting-logistics/ca-sos-cache.d.ts",
       "default": "./src/lib/voting-logistics/ca-sos-cache.ts"
+    },
+    "./lib/voting-logistics/county-locations-cache": {
+      "types": "./dist/lib/voting-logistics/county-locations-cache.d.ts",
+      "default": "./src/lib/voting-logistics/county-locations-cache.ts"
     }
   },
   "license": "MIT",

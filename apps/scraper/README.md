@@ -34,6 +34,7 @@ Source limits and generation budgets are different. `--max-items` limits source 
 | `congress`              | Congress.gov bills, text, summaries, and actions            | `bill`                                         |
 | `open-states`           | State legislation through Open States                       | `bill`                                         |
 | `scc-cvig`              | Santa Clara County voter-guide PDFs                         | Candidate statements in `civic_api_cache`      |
+| `santa-cruz-locations`  | Election-specific Santa Cruz vote-center lists              | County locations in `civic_api_cache`          |
 | `ca-official-guide`     | Date-scoped California official measure and candidate guide | Official guide records in `civic_api_cache`    |
 | `ca-election-logistics` | California SOS election-specific key dates                  | Statewide voting guidance in `civic_api_cache` |
 | `ca-sos-statements`     | California candidate-statement pages and PDF fallback       | Candidate statements in `civic_api_cache`      |
@@ -133,8 +134,25 @@ with an exact election date and unique measure number or candidate name/office.
 It does not construct a person's ballot from a statewide roster. Each API read
 checks source-cache expiry independently of the address lookup cache.
 
-Coverage is California statewide guide content and statewide voting guidance.
-County locations, statewide legislative-district statements and other states
+`santa-cruz-locations` discovers the vote-center list linked from a configured
+Santa Cruz election page. It validates the visible election date, URL, and
+opening schedules before storing addresses, published hours, and local
+exceptions. The API attaches these countywide centers only when Democracy Works
+returns an address-matched ballot with one consistent Santa Cruz county division.
+Undated drop-box records are excluded.
+
+Configure `SANTA_CRUZ_ELECTION_DATE` and `SANTA_CRUZ_ELECTION_PAGE_URL`; the daily
+job selects the November 3, 2026 general election. `SANTA_CRUZ_LOCATIONS_MAX_ITEMS`
+and `--max-items` accept one election collection per run. Missing published lists
+or inconsistent source dates fail without replacing stored records.
+
+```bash
+pnpm --filter @acme/scraper exec tsx src/scrapers/santa-cruz-locations-preview.ts 'https://votescount.santacruzcountyca.gov/Home/Elections/November3,2026CaliforniaGeneralElection.aspx' 2026-11-03
+pnpm --filter @acme/scraper start santa-cruz-locations --max-items 1
+```
+
+Coverage is California statewide guide content and statewide voting guidance,
+plus published Santa Cruz vote centers. Santa Clara locations and other states
 remain outside these collectors. The Santa Clara CVIG scraper has only 2024
 PDF discovery configured. Its year-scoped cache and the separate
 `ca-sos-statements` cache are not used by this date-scoped ballot path.

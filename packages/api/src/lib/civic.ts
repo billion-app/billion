@@ -17,6 +17,7 @@ import type {
 } from "../clients/ca-sos-results";
 import type { CrossValidateContext } from "./measure-crossvalidate";
 import type { ElectionGuidance } from "./voting-logistics/ca-sos-cache";
+import type { CountyLocations } from "./voting-logistics/county-locations-cache";
 import {
   getDistrictResults,
   getStatewideResults,
@@ -32,7 +33,10 @@ import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
 import { createCivicReadGuard } from "./civic-read-guard";
 import { createVoterInfoLoader } from "./civic-voter-info";
-import { attachIngestedBallotSources } from "./ingested-ballot-sources";
+import {
+  attachIngestedBallotSources,
+  confirmedBallotCounty,
+} from "./ingested-ballot-sources";
 import { crossValidateMeasure } from "./measure-crossvalidate";
 import {
   CA_OFFICIAL_GUIDE_ENDPOINT,
@@ -42,6 +46,11 @@ import {
   CA_LOGISTICS_ENDPOINT,
   caLogisticsCacheParams,
 } from "./voting-logistics/ca-sos-cache";
+import {
+  COUNTY_LOCATIONS_ENDPOINT,
+  countyLocationsCacheParams,
+  SANTA_CRUZ_JURISDICTION,
+} from "./voting-logistics/county-locations-cache";
 
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
@@ -301,6 +310,15 @@ export interface ElectionOfficial {
 }
 
 export interface VoterInfoResponse {
+  officialLocationSource?: Pick<
+    CountyLocations,
+    | "jurisdiction"
+    | "electionDate"
+    | "sourceName"
+    | "sourceUrl"
+    | "fetchedAt"
+    | "coverage"
+  >;
   /** Date-scoped official guidance collected independently of the ballot provider. */
   officialVotingGuidance?: ElectionGuidance;
   submittedAddress?: string;
@@ -917,7 +935,8 @@ const loadVoterInfo = createVoterInfoLoader({
     )
       return result;
     const date = result.election.electionDay;
-    const [guide, guidance] = await Promise.all([
+    const county = confirmedBallotCounty(result);
+    const [guide, guidance, locations] = await Promise.all([
       getCached<unknown>(
         "__global__",
         CA_OFFICIAL_GUIDE_ENDPOINT,
@@ -928,8 +947,18 @@ const loadVoterInfo = createVoterInfoLoader({
         CA_LOGISTICS_ENDPOINT,
         JSON.parse(caLogisticsCacheParams(date)) as Record<string, unknown>,
       ).catch(() => null),
+      county === SANTA_CRUZ_JURISDICTION
+        ? getCached<unknown>(
+            "__global__",
+            COUNTY_LOCATIONS_ENDPOINT,
+            JSON.parse(countyLocationsCacheParams(date, county)) as Record<
+              string,
+              unknown
+            >,
+          ).catch(() => null)
+        : Promise.resolve(null),
     ]);
-    return attachIngestedBallotSources(result, guide, guidance);
+    return attachIngestedBallotSources(result, guide, guidance, locations);
   },
   enrich: async (result) => {
     result.contests = await enrichContests(result.contests, {

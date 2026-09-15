@@ -12,6 +12,7 @@ export type VotingLogisticsData = Pick<
   | "mailOnly"
   | "state"
   | "officialVotingGuidance"
+  | "officialLocationSource"
 > &
   Partial<Pick<VoterInfoResponse, "election">>;
 

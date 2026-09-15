@@ -5,8 +5,29 @@ import {
   officialGuidePayloadSchema,
 } from "./official-guide-cache";
 import { electionGuidanceSchema } from "./voting-logistics/ca-sos-cache";
+import { countyLocationsSchema } from "./voting-logistics/county-locations-cache";
 
 const CA = "ocd-division/country:us/state:ca";
+
+/** County data requires an address-matched ballot with one consistent county. */
+export function confirmedBallotCounty(
+  ballot: VoterInfoResponse,
+): string | undefined {
+  if (ballot.provider?.addressScope !== "address") return undefined;
+  const divisions = [
+    ballot.election.ocdDivisionId,
+    ...(ballot.contests ?? []).map((contest) => contest.district?.id ?? ""),
+  ];
+  const counties = new Set(
+    divisions.flatMap((division) => {
+      const county = /^ocd-division\/country:us\/state:ca\/county:[^/]+/.exec(
+        division,
+      )?.[0];
+      return county ? [county] : [];
+    }),
+  );
+  return counties.size === 1 ? [...counties][0] : undefined;
+}
 const nameKey = (value: string) =>
   value
     .normalize("NFKC")
@@ -27,11 +48,65 @@ export function attachIngestedBallotSources(
   ballot: VoterInfoResponse,
   guideValue: unknown,
   guidanceValue: unknown,
+  locationsValue?: unknown,
 ): VoterInfoResponse {
   const result = structuredClone(ballot);
   const date = result.election.electionDay;
   const division = result.election.ocdDivisionId;
   if (division !== CA && !division.startsWith(`${CA}/`)) return result;
+  const locations = countyLocationsSchema.safeParse(locationsValue);
+  if (
+    locations.success &&
+    locations.data.electionDate === date &&
+    locations.data.jurisdiction === confirmedBallotCounty(result)
+  ) {
+    const centers = locations.data.locations.map((location) => ({
+      name: location.name,
+      address: {
+        line1: location.line1,
+        city: location.city,
+        state: location.state,
+        zip: "",
+      },
+      pollingHours: location.schedule,
+      notes: location.notes || undefined,
+      sources: [
+        {
+          name: locations.data.sourceName,
+          official: true,
+          tier: "county_registrar",
+          url: location.sourceUrl,
+        },
+      ],
+    }));
+    // These are the county's published vote centers, not an assigned precinct.
+    const earlyCenters = centers.filter(
+      (_, index) => locations.data.locations[index]?.earlyVoting,
+    );
+    const suppliesElectionDay = !result.pollingLocations?.length;
+    const suppliesEarly =
+      !result.earlyVoteSites?.length && earlyCenters.length > 0;
+    if (suppliesElectionDay || suppliesEarly) {
+      const {
+        jurisdiction,
+        electionDate,
+        sourceName,
+        sourceUrl,
+        fetchedAt,
+        coverage,
+      } = locations.data;
+      result.officialLocationSource = {
+        jurisdiction,
+        electionDate,
+        sourceName,
+        sourceUrl,
+        fetchedAt,
+        coverage,
+      };
+    }
+    if (suppliesElectionDay) result.pollingLocations = centers;
+    if (suppliesEarly) result.earlyVoteSites = earlyCenters;
+  }
   const guidance = electionGuidanceSchema.safeParse(guidanceValue);
   if (guidance.success && guidance.data.electionDate === date)
     result.officialVotingGuidance = guidance.data;

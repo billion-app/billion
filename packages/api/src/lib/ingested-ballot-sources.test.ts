@@ -170,3 +170,72 @@ void test("does not join county propositions, unscoped races, ambiguous names, o
     undefined,
   );
 });
+
+void test("county locations require an address-matched ballot and unique confirmed county for the same election", () => {
+  const county = `${ca}/county:santa_cruz`;
+  const value = {
+    electionDate: "2026-11-03",
+    jurisdiction: county,
+    sourceUrl:
+      "https://votescount.santacruzcountyca.gov/Home/Elections/November3,2026CaliforniaGeneralElection/VoteCenterDropBoxLocations.aspx",
+    sourceName: "Santa Cruz County Elections",
+    fetchedAt: "2026-09-15T12:00:00Z",
+    checksum: "a".repeat(64),
+    coverage: "published_vote_centers_only",
+    locations: [
+      {
+        name: "Test center",
+        line1: "1 Test Street",
+        city: "Santa Cruz",
+        state: "CA",
+        earlyVoting: true,
+        schedule: "Published hours",
+        notes: "Published notes",
+        sourceUrl:
+          "https://votescount.santacruzcountyca.gov/Home/Elections/November3,2026CaliforniaGeneralElection/VoteCenterDropBoxLocations.aspx",
+      },
+    ],
+  };
+  const addressed = structuredClone(ballot);
+  addressed.provider = {
+    name: "democracy_works",
+    fetchedAt: "2026-09-15T12:00:00Z",
+    coverage: "partial",
+    addressScope: "address",
+    ballotDataStatus: "provided",
+    addressNormalization: "unavailable",
+    logistics: "lookup_links_only",
+  };
+  addressed.contests?.push({
+    type: "candidate",
+    district: { name: "County", id: `${county}/supervisor_district:1` },
+  });
+  const result = attachIngestedBallotSources(addressed, null, null, value);
+  assert.equal(result.pollingLocations?.[0]?.address.line1, "1 Test Street");
+  assert.equal(result.earlyVoteSites?.length, 1);
+  assert.equal(result.dropOffLocations, undefined);
+  assert.equal(
+    attachIngestedBallotSources(ballot, null, null, value).pollingLocations,
+    undefined,
+  );
+  assert.equal(
+    attachIngestedBallotSources(addressed, null, null, {
+      ...value,
+      electionDate: "2026-06-02",
+    }).pollingLocations,
+    undefined,
+  );
+  addressed.contests?.push({
+    type: "candidate",
+    district: { name: "Other county", id: `${ca}/county:santa_clara` },
+  });
+  assert.equal(
+    attachIngestedBallotSources(addressed, null, null, value).pollingLocations,
+    undefined,
+  );
+  addressed.provider.addressScope = "statewide_only";
+  assert.equal(
+    attachIngestedBallotSources(addressed, null, null, value).pollingLocations,
+    undefined,
+  );
+});
