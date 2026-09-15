@@ -3,6 +3,7 @@ import {
   Image,
   LayoutAnimation,
   Linking,
+  Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -12,14 +13,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Fuse from "fuse.js";
 
 import {
+  AiSummaryLabel,
+  BallotDetailEvidence,
   BallotLanguages,
   BallotSources,
   ElectionOfficeLink,
 } from "~/components/ballot-evidence/BallotEvidence";
-import {
-  EmptyBallotMark,
-  SectionFlourish,
-} from "~/components/digest/CraftMarks";
+import { BallotReadingText } from "~/components/ballot-evidence/BallotReadingCard";
 import { Text } from "~/components/Themed";
 import {
   Card,
@@ -29,20 +29,18 @@ import {
   Pill,
   Pills,
   SearchInput,
-  Segmented,
 } from "~/components/ui";
 import {
   DigestHair,
   DigestRadii,
   DigestSpace,
   fontBody,
-  fontDisplay,
   DigestPalette as P,
 } from "~/styles";
 
 const cardChrome = {
   backgroundColor: P.card,
-  borderRadius: DigestRadii.card,
+  borderRadius: DigestRadii.menu,
   borderWidth: StyleSheet.hairlineWidth,
   borderColor: DigestHair.cardBorder,
 } as const;
@@ -71,13 +69,6 @@ interface CandidateParam {
   citations?: CandidateCitation[];
 }
 
-function partyColor(party?: string): string {
-  const p = (party ?? "").toLowerCase();
-  if (p.startsWith("d")) return P.badgeBlue;
-  if (p.startsWith("r")) return P.quiet;
-  return P.quiet;
-}
-
 function partyInitial(party?: string): string {
   const p = (party ?? "").toLowerCase();
   if (p.startsWith("d")) return "D";
@@ -94,6 +85,13 @@ function partyInitial(party?: string): string {
 function CandidateStatement({ cand }: { cand: CandidateParam }) {
   const hasSummary = !!cand.statementSummary?.trim();
   const hasVerbatim = !!cand.statement?.trim();
+  const summaryIsAi =
+    cand.statementSummaryIsAiGenerated === true ||
+    cand.citations?.some(
+      (citation) =>
+        citation.field === "statementSummary" &&
+        citation.tier === "ai_generated",
+    );
   const [mode, setMode] = useState<"summary" | "verbatim">(
     hasSummary ? "summary" : "verbatim",
   );
@@ -105,27 +103,35 @@ function CandidateStatement({ cand }: { cand: CandidateParam }) {
   return (
     <View style={s.statementWrap}>
       {showTabs && (
-        <Segmented
-          value={mode}
-          onChange={setMode}
-          options={[
-            { id: "summary", label: "Plain summary", icon: "sparkle" },
-            { id: "verbatim", label: "Statement", icon: "doc" },
-          ]}
-        />
-      )}
-      {showingSummary && cand.statementSummaryIsAiGenerated && (
-        <View style={s.aiNotice}>
-          <Icon name="sparkle" size={13} color={P.spark} />
-          <Text style={s.aiNoticeText}>
-            AI summary of the candidate&apos;s own statement — not an official
-            source. Read the full statement for their exact words.
-          </Text>
+        <View style={s.statementTabs}>
+          {(
+            [
+              ["summary", "Summary"],
+              ["verbatim", "Original statement"],
+            ] as const
+          ).map(([id, label]) => (
+            <Pressable
+              key={id}
+              accessibilityRole="button"
+              accessibilityState={{ selected: mode === id }}
+              onPress={() => setMode(id)}
+              style={[s.statementTab, mode === id && s.statementTabActive]}
+            >
+              <Text style={s.statementTabText}>{label}</Text>
+            </Pressable>
+          ))}
         </View>
       )}
-      <Text style={s.candBio}>
-        {showingSummary ? cand.statementSummary : cand.statement}
-      </Text>
+      {showingSummary && summaryIsAi ? (
+        <AiSummaryLabel />
+      ) : (
+        <Text style={s.readingLabel}>
+          {showingSummary ? "Summary" : "Candidate statement"}
+        </Text>
+      )}
+      <BallotReadingText
+        text={(showingSummary ? cand.statementSummary : cand.statement) ?? ""}
+      />
     </View>
   );
 }
@@ -152,7 +158,11 @@ export default function ContestDetailScreen() {
 
   // Expansion keyed by candidate identity (name + original index), not array
   // index — index-keying breaks once the list is filtered.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(() =>
+    candidates.length === 1 && candidates[0]
+      ? new Set([`${candidates[0].name}-0`])
+      : new Set(),
+  );
   const [query, setQuery] = useState("");
   const [hasStatementOnly, setHasStatementOnly] = useState(false);
   const [activeParty, setActiveParty] = useState<string | null>(null);
@@ -223,24 +233,18 @@ export default function ContestDetailScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader
-        title={params.office}
-        tone="dark"
-        onBack={() => router.back()}
-      />
+      <NavHeader title="Candidates" tone="dark" onBack={() => router.back()} />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.contestKicker}>Contest</Text>
-        <Text style={s.office}>{params.office}</Text>
+        <Text accessibilityRole="header" style={s.office}>
+          {params.office}
+        </Text>
         {params.districtName ? (
           <Text style={s.district}>{params.districtName}</Text>
         ) : null}
-        <View style={s.flourishWrap}>
-          <SectionFlourish width={88} />
-        </View>
 
         {description ? (
           <View style={s.section}>
@@ -252,11 +256,13 @@ export default function ContestDetailScreen() {
         ) : null}
 
         <View style={s.section}>
-          <Kicker style={s.kicker}>
-            {filtering
-              ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
-              : `${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
-          </Kicker>
+          {(candidates.length > 1 || filtering) && (
+            <Text style={s.readingLabel}>
+              {filtering
+                ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
+                : `${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
+            </Text>
+          )}
 
           {candidates.length > 1 ? (
             <View style={s.filters}>
@@ -291,22 +297,30 @@ export default function ContestDetailScreen() {
             </View>
           ) : null}
 
-          {filtered.length === 0 ? (
-            <Card style={[cardChrome, s.emptyCard]}>
-              <EmptyBallotMark width={80} />
-              <Text style={s.emptyTitle}>
+          {filtered.length === 0 && (
+            <View style={s.emptyState}>
+              <Text style={s.candBio}>
                 {candidates.length
-                  ? "No candidates match"
-                  : "Candidate data unavailable"}
+                  ? "No candidates match your filters."
+                  : "Candidate information is unavailable to Billion."}
               </Text>
-              <Text style={s.noContact}>
-                {candidates.length
-                  ? "Try clearing search or party filters."
-                  : "Billion has no candidate data for this contest. Check with your election office."}
-              </Text>
-              {candidates.length === 0 && <ElectionOfficeLink />}
-            </Card>
-          ) : null}
+              {candidates.length ? (
+                <Pressable
+                  accessibilityRole="button"
+                  style={s.statementTab}
+                  onPress={() => {
+                    setQuery("");
+                    setActiveParty(null);
+                    setHasStatementOnly(false);
+                  }}
+                >
+                  <Text style={s.statementTabText}>Clear filters</Text>
+                </Pressable>
+              ) : (
+                <ElectionOfficeLink />
+              )}
+            </View>
+          )}
 
           <View style={{ gap: 12 }}>
             {filtered.map((cand) => {
@@ -342,39 +356,24 @@ export default function ContestDetailScreen() {
               const sources = cand.citations ?? [];
               const hasStatement =
                 !!cand.statement?.trim() || !!cand.statementSummary?.trim();
-              const hasContact =
-                contactRows.length > 0 || (cand.channels?.length ?? 0) > 0;
-              const hasBody =
-                hasContact ||
-                !!cand.biography ||
-                hasStatement ||
-                sources.length > 0;
 
               return (
                 <Card key={key} style={cardChrome}>
                   <TouchableOpacity
                     style={s.candHeader}
+                    accessibilityRole="button"
+                    accessibilityLabel={cand.name}
+                    accessibilityState={{ expanded: open }}
                     activeOpacity={0.7}
                     onPress={() => toggle(key)}
                   >
-                    <View style={s.partyTile}>
-                      {cand.photoUrl ? (
-                        <Image
-                          source={{ uri: cand.photoUrl }}
-                          style={s.partyPhoto}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <Text
-                          style={[
-                            s.partyText,
-                            { color: partyColor(cand.party) },
-                          ]}
-                        >
-                          {partyInitial(cand.party)}
-                        </Text>
-                      )}
-                    </View>
+                    {cand.photoUrl && (
+                      <Image
+                        source={{ uri: cand.photoUrl }}
+                        style={s.partyPhoto}
+                        resizeMode="cover"
+                      />
+                    )}
                     <View style={{ flex: 1 }}>
                       <View style={s.candNameRow}>
                         <Text style={s.candName}>{cand.name}</Text>
@@ -397,22 +396,17 @@ export default function ContestDetailScreen() {
                   {open && (
                     <View style={s.candBody}>
                       {cand.biography ? (
-                        <Text style={s.candBio}>{cand.biography}</Text>
-                      ) : null}
-                      <CandidateStatement cand={cand} />
-                      {!hasStatement ? (
-                        <View style={s.emptyNote}>
-                          <Icon name="doc" size={13} color={P.quiet} />
-                          <Text style={s.noContact}>
-                            Statement unavailable to Billion.
-                          </Text>
+                        <View style={s.readingSection}>
+                          <Text style={s.readingLabel}>About</Text>
+                          <BallotReadingText text={cand.biography} />
                         </View>
                       ) : null}
-                      {!hasBody ? (
+                      <CandidateStatement cand={cand} />
+                      {!hasStatement && (
                         <Text style={s.noContact}>
-                          No contact information available.
+                          Statement unavailable to Billion.
                         </Text>
-                      ) : null}
+                      )}
                       {contactRows.length > 0 &&
                         contactRows.map((row) => (
                           <TouchableOpacity
@@ -449,15 +443,9 @@ export default function ContestDetailScreen() {
                       )}
                       <BallotSources
                         citations={sources}
-                        contentKind={
-                          !hasStatement && !cand.biography
-                            ? "enrichment-unavailable"
-                            : "citations"
-                        }
+                        contentKind="citations"
+                        showRecovery={false}
                       />
-                      {!hasStatement && cand.biography ? (
-                        <ElectionOfficeLink />
-                      ) : null}
                     </View>
                   )}
                 </Card>
@@ -465,7 +453,11 @@ export default function ContestDetailScreen() {
             })}
           </View>
         </View>
-        <BallotLanguages items={[]} />
+        {candidates.length === 0 ? (
+          <BallotDetailEvidence citations={[]} showOfficeLink={false} />
+        ) : (
+          <BallotLanguages items={[]} />
+        )}
       </ScrollView>
     </View>
   );
@@ -475,10 +467,12 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: P.canvas },
   scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: DigestSpace.coverPadX,
-    paddingTop: 8,
+    paddingHorizontal: DigestSpace.screenPadX,
+    paddingTop: 20,
     paddingBottom: 48,
   },
+  section: { marginTop: 20, marginBottom: 16 },
+  filters: { gap: 12, marginBottom: 16 },
   kicker: {
     color: P.spark,
     fontFamily: fontBody.bold,
@@ -487,40 +481,19 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 8,
   },
-  contestKicker: {
-    fontFamily: fontBody.bold,
-    fontSize: 10.5,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    color: P.spark,
-    marginBottom: 8,
-  },
   office: {
-    fontFamily: fontDisplay.bold,
+    fontFamily: fontBody.semibold,
     fontSize: 28,
     color: P.inkOnNight,
     marginBottom: 4,
-    lineHeight: 34,
     letterSpacing: -0.55,
   },
   district: {
     fontFamily: fontBody.medium,
     fontSize: 13.5,
-    color: P.quiet,
-    marginBottom: 12,
-  },
-  flourishWrap: { marginBottom: 20, alignItems: "flex-start" },
-  section: { marginBottom: 28 },
-  filters: { gap: 12, marginBottom: 12 },
-  emptyCard: {
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 20,
-  },
-  emptyTitle: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 18,
     color: P.inkOnNight,
+    opacity: 0.7,
+    marginBottom: 12,
   },
   pillsBleed: { marginHorizontal: -20 },
   descText: {
@@ -530,19 +503,11 @@ const s = StyleSheet.create({
     lineHeight: 22,
   },
   candHeader: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  partyTile: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: P.stone,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  partyText: { fontFamily: fontBody.bold, fontSize: 13 },
   partyPhoto: { width: 34, height: 34, borderRadius: 9 },
   candNameRow: {
     flexDirection: "row",
@@ -551,7 +516,7 @@ const s = StyleSheet.create({
     flexWrap: "wrap",
   },
   candName: {
-    fontFamily: fontDisplay.bold,
+    fontFamily: fontBody.semibold,
     fontSize: 17,
     lineHeight: 22,
     letterSpacing: -0.2,
@@ -572,17 +537,45 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
+  emptyState: { gap: 8, paddingVertical: 16 },
+  readingSection: { gap: 12, marginBottom: 16 },
+  readingLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    color: P.inkOnNight,
+    marginBottom: 8,
+  },
+  statementTabs: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginBottom: 12,
+  },
+  statementTab: {
+    minHeight: 44,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+    borderRadius: DigestRadii.menuRow,
+  },
+  statementTabActive: { backgroundColor: P.canvas },
+  statementTabText: {
+    fontFamily: fontBody.medium,
+    fontSize: 16,
+    color: P.inkOnNight,
+  },
   candBio: {
     fontFamily: fontBody.regular,
-    fontSize: 14,
+    fontSize: 17,
     color: P.inkOnNight,
-    lineHeight: 21,
+    lineHeight: 26,
     marginBottom: 4,
   },
   candParty: {
     fontFamily: fontBody.medium,
     fontSize: 12.5,
-    color: P.quiet,
+    color: P.inkOnNight,
+    opacity: 0.7,
   },
   candBody: {
     marginTop: 12,
@@ -594,24 +587,8 @@ const s = StyleSheet.create({
   statementWrap: {
     gap: 10,
   },
-  aiNotice: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: DigestHair.tabActivePill,
-    borderWidth: 1,
-    borderColor: DigestHair.coverBorder,
-    borderRadius: DigestRadii.menu,
-    padding: 12,
-  },
-  aiNoticeText: {
-    flex: 1,
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    color: P.quiet,
-    lineHeight: 18,
-  },
   contactRow: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -620,7 +597,8 @@ const s = StyleSheet.create({
   contactLabel: {
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: P.quiet,
+    color: P.inkOnNight,
+    opacity: 0.7,
   },
   contactValue: {
     fontFamily: fontBody.semibold,
@@ -628,15 +606,11 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
     marginTop: 1,
   },
-  emptyNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   noContact: {
     fontFamily: fontBody.regular,
     fontSize: 13,
-    color: P.quiet,
+    color: P.inkOnNight,
+    opacity: 0.7,
   },
   channelsWrap: {
     borderTopWidth: 1,

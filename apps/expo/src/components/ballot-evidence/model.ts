@@ -1,3 +1,7 @@
+import { webUrl } from "../../utils/web-url";
+
+export { webUrl } from "../../utils/web-url";
+
 /** UI evidence only. An empty provider response is not proof of publication status. */
 export type BallotEvidence =
   | { kind: "invalid-input" }
@@ -47,20 +51,6 @@ export interface BallotCitation {
   verifiedBy?: string;
 }
 
-export function webUrl(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  try {
-    const url = new URL(value);
-    return ["https:", "http:"].includes(url.protocol) &&
-      !url.username &&
-      !url.password
-      ? url.href
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 export function verificationLabel(citation: BallotCitation): string {
   if (
     !citation.verifiedAt ||
@@ -88,4 +78,33 @@ export function verifiedLanguages(items: readonly LanguageEvidence[]) {
       citation.verifiedBy &&
       Number.isFinite(Date.parse(citation.verifiedAt)),
   );
+}
+
+/** Present field names as reader-facing labels without changing attribution. */
+export function citationFieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    referendumText: "Original text",
+    referendumUrl: "Original text link",
+    summary: "Summary",
+    summaryShort: "Summary",
+    summaryLong: "Summary",
+    statement: "Candidate statement",
+    statementSummary: "Statement summary",
+    biography: "Biography",
+    fiscalImpact: "Fiscal impact",
+    proArguments: "Arguments in favor",
+    conArguments: "Arguments against",
+    candidateUrl: "Candidate website",
+    photoUrl: "Photo",
+    incumbent: "Incumbency",
+    referendumProStatement: "Statement in favor",
+    referendumConStatement: "Statement against",
+  };
+  const label = labels[field];
+  if (label) return label;
+  const words = field
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  return words ? words[0]?.toUpperCase() + words.slice(1) : "Content";
 }
