@@ -3,8 +3,10 @@ import test from "node:test";
 
 import type { BallotResponse } from "./ballot-lookup";
 import {
+  ballotElectionDate,
   ballotElectionOptions,
   ballotModel,
+  ballotOfficeUrl,
   contestBallotCitations,
   validateBallotAddress,
 } from "./ballot-lookup";
@@ -97,4 +99,35 @@ void test("contest citations preserve field and official evidence without inferr
   assert.deepEqual(result[0], citation);
   assert.equal(result.length, 2);
   assert.equal(result[1]?.official, false);
+});
+
+void test("election calendar dates retain the provider day", () => {
+  assert.equal(ballotElectionDate("2099-11-03"), "November 3, 2099");
+  assert.equal(ballotElectionDate("not-a-date"), "not-a-date");
+});
+
+void test("provider lookup URL and empty normalized address do not imply official office or California", () => {
+  const data: BallotResponse = {
+    kind: "provider",
+    normalizedInput: { state: "" },
+    provider: {
+      name: "democracy_works",
+      fetchedAt: "2099-10-01T12:00:00Z",
+      coverage: "partial",
+      addressScope: "statewide_only",
+      ballotDataStatus: "provided",
+      addressNormalization: "unavailable",
+      logistics: "lookup_links_only",
+    },
+    state: [
+      {
+        name: "California",
+        electionAdministrationBody: {
+          electionInfoUrl: "https://example.org/lookup",
+        },
+      },
+    ],
+  };
+  assert.equal(ballotOfficeUrl(data), undefined);
+  assert.equal(ballotModel(data).isCalifornia, false);
 });

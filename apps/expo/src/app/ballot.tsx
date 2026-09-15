@@ -5,9 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { BallotLookupView } from "~/components/ballot/BallotLookupView";
-import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
-import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  fontEditorial,
+  DigestPalette as P,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import { electionsAreLive } from "~/utils/elections-live";
 
@@ -20,16 +24,27 @@ export default function BallotRoute() {
       <View style={{ flex: 1, backgroundColor: P.canvas }}>
         <NavHeader
           key={fontScale}
-          title="Your ballot"
+          title=""
           onBack={() =>
             router.canGoBack() ? router.back() : router.replace("/")
           }
         />
-        <Card style={{ margin: 16, gap: 16 }}>
+        <View style={{ margin: 24, gap: 20 }}>
           <Text
             accessibilityRole="header"
             style={{
               fontFamily: fontDisplay.bold,
+              fontSize: 34,
+              lineHeight: 40,
+              color: P.inkOnNight,
+            }}
+          >
+            Your ballot
+          </Text>
+          <Text
+            accessibilityRole="header"
+            style={{
+              fontFamily: fontEditorial.bold,
               fontSize: 24,
               lineHeight: 30,
               color: P.inkOnNight,
@@ -54,7 +69,7 @@ export default function BallotRoute() {
                 minHeight: 48,
                 padding: 12,
                 borderRadius: 12,
-                backgroundColor: P.spark,
+                backgroundColor: P.inkOnNight,
                 alignItems: "center",
                 justifyContent: "center",
               }}
@@ -63,14 +78,14 @@ export default function BallotRoute() {
                 style={{
                   fontFamily: fontBody.bold,
                   fontSize: 16,
-                  color: P.ink,
+                  color: P.canvas,
                 }}
               >
                 Back home
               </Text>
             </Pressable>
           </Link>
-        </Card>
+        </View>
       </View>
     );
   }
