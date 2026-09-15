@@ -39,10 +39,10 @@ import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 import { MIN_SECTORS, SECTOR_SHORT, toggleIn } from "~/utils/onboarding-store";
 import { ArriveStage } from "./ArriveStage";
-import { CapitolSpin } from "./CapitolSpin";
 import { Orb } from "./Orb";
 import { TopicOrb } from "./TopicOrb";
 import { WelcomeStage } from "./WelcomeStage";
+import { WhiteHouseSpin } from "./WhiteHouseSpin";
 
 const PAGES = 4;
 const SLIDE = Easing.bezier(0.22, 1, 0.36, 1);
@@ -73,13 +73,6 @@ function watchLine(ids: TrackingVector[]) {
     return `${names[0]}, ${names[1]}, and ${names[2]}.`;
   }
   return `${names[0]}, ${names[1]}, ${names[2]}, and ${names[3]}.`;
-}
-
-/** Typical path is 1 watch pick + 3 topics — the figure should be done by then. */
-function figureProgress(watch: number, topics: number) {
-  const w = Math.min(watch, 1);
-  const t = Math.min(topics, MIN_SECTORS);
-  return w * 0.68 + (t / MIN_SECTORS) * 0.32;
 }
 
 export function OnboardingFlow() {
@@ -264,11 +257,11 @@ export function OnboardingFlow() {
               </Text>
             </View>
             <View style={s.watchFigure}>
-              <CapitolSpin
+              <WhiteHouseSpin
                 active={index === 1}
                 width={width - 40}
-                picks={figureProgress(vectors.length, sectors.length)}
-                max={1}
+                watch={vectors.length}
+                topics={0}
               />
             </View>
           </View>
@@ -299,11 +292,14 @@ export function OnboardingFlow() {
               ))}
             </View>
             <View style={s.watchFigure}>
-              <CapitolSpin
+              <WhiteHouseSpin
                 active={index === 2}
                 width={width - 40}
-                picks={figureProgress(vectors.length, sectors.length)}
-                max={1}
+                watch={Math.max(
+                  vectors.length,
+                  Math.min(4, sectors.length + 1),
+                )}
+                topics={sectors.length}
               />
             </View>
           </View>

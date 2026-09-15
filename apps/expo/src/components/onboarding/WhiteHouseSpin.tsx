@@ -1,6 +1,6 @@
 /**
- * The welcome Capitol, turning slowly under the watch picks.
- * Neighboring yaw frames are lerped so the drum and dome read as 3D.
+ * The White House grows with each government and topic selection.
+ * Neighboring yaw frames are lerped to keep the architecture in 3D.
  * Extra strokes fade in as the reader marks more options.
  */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
@@ -21,20 +21,13 @@ import Animated, {
 import Svg, { Path } from "react-native-svg";
 
 import { DigestPalette as P } from "~/styles";
-import { SPIN_AZ0, SPIN_BANDS, SPIN_N, SPIN_VIEW } from "./capitol3d";
+import { SPIN_AZ0, SPIN_BANDS, SPIN_N, SPIN_VIEW } from "./whiteHouse3d";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
-const TURN_MS = 16000;
+const TURN_MS = 60000;
 const DETAIL_MS = 560;
 const VB = `0 0 ${SPIN_VIEW.w} ${SPIN_VIEW.h}`;
 const PULL = Easing.bezier(0.22, 1, 0.36, 1);
-const BAND_IN: [number, number][] = [
-  [-1, 0],
-  [0, 0.38],
-  [0.22, 0.55],
-  [0.42, 0.68],
-  [0.68, 1],
-];
 
 function pathFrom(flat: number[], breaks: number[]): string {
   "worklet";
@@ -104,22 +97,23 @@ function Band({
   );
 }
 
-export function CapitolSpin({
+export function WhiteHouseSpin({
   active,
   width,
-  picks,
-  max = 4,
+  watch,
+  topics,
 }: {
   active: boolean;
   width: number;
-  picks: number;
-  max?: number;
+  watch: number;
+  topics: number;
 }) {
   const reduce = useReducedMotion();
   const az = useSharedValue(SPIN_AZ0);
   const detail = useSharedValue(0);
   const [box, setBox] = useState(180);
-  const target = Math.max(0, Math.min(1, picks / Math.max(1, max)));
+  const target = Math.min(4, Math.max(0, watch));
+  const topicDetail = useSharedValue(0);
 
   useEffect(() => {
     if (!active || reduce) {
@@ -146,12 +140,19 @@ export function CapitolSpin({
     detail.value = withTiming(target, { duration: DETAIL_MS, easing: PULL });
   }, [detail, reduce, target]);
 
+  useEffect(() => {
+    topicDetail.value = withTiming(Math.min(6, Math.max(0, topics)), {
+      duration: reduce ? 0 : DETAIL_MS,
+      easing: PULL,
+    });
+  }, [topics, topicDetail, reduce]);
+
   const rig = useAnimatedStyle(() => ({
     transform: [
       {
         scale: interpolate(
           detail.value,
-          [0, 1],
+          [0, 4],
           [0.92, 1],
           Extrapolation.CLAMP,
         ),
@@ -168,7 +169,7 @@ export function CapitolSpin({
       <Animated.View style={[s.rig, rig]}>
         <Svg
           width={width}
-          height={Math.max(140, box)}
+          height={Math.max(1, box)}
           viewBox={VB}
           preserveAspectRatio="xMidYMax meet"
         >
@@ -178,10 +179,10 @@ export function CapitolSpin({
               az={az}
               frames={band.frames}
               breaks={band.breaks}
-              detail={detail}
-              from={BAND_IN[i]![0]}
-              to={BAND_IN[i]![1]}
-              weight={i >= 3 ? 1.55 : 1.25}
+              detail={i > 4 ? topicDetail : detail}
+              from={i === 0 ? -1 : i > 4 ? i - 5 : i - 1}
+              to={i > 4 ? i - 4 : i}
+              weight={i > 4 ? 0.8 : 1.15}
             />
           ))}
         </Svg>
