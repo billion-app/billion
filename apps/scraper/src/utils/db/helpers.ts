@@ -3,7 +3,7 @@
  * Check for existing records before performing expensive operations
  */
 
-import { and, desc, eq, inArray } from "@acme/db";
+import { and, desc, eq, inArray, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -13,6 +13,7 @@ import {
 } from "@acme/db/schema";
 
 import type { ExistingRecordCheck } from "../types.js";
+import { courtIdentityNames } from "../court-identity.js";
 import { createLogger } from "../log.js";
 
 const logger = createLogger("db");
@@ -165,6 +166,7 @@ export async function checkExistingCourtCase(
   try {
     const [existing] = await db
       .select({
+        id: CourtCase.id,
         contentHash: CourtCase.contentHash,
         description: CourtCase.description,
         aiGeneratedArticle: CourtCase.aiGeneratedArticle,
@@ -172,7 +174,14 @@ export async function checkExistingCourtCase(
       })
       .from(CourtCase)
       .where(
-        and(eq(CourtCase.caseNumber, caseNumber), eq(CourtCase.court, court)),
+        and(
+          eq(CourtCase.caseNumber, caseNumber),
+          inArray(CourtCase.court, courtIdentityNames(court)),
+        ),
+      )
+      // Prefer the canonical row if an older database already has both names.
+      .orderBy(
+        desc(sql`case when ${CourtCase.court} = ${court} then 1 else 0 end`),
       )
       .limit(1);
 
@@ -182,6 +191,7 @@ export async function checkExistingCourtCase(
 
     return {
       exists: true,
+      id: existing.id,
       contentHash: existing.contentHash,
       description: existing.description,
       hasArticle: !!existing.aiGeneratedArticle,

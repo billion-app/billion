@@ -39,6 +39,8 @@ export interface ScraperMetrics {
 
 // Existing record check result (helper return type, not a database entity)
 export interface ExistingRecordCheck {
+  /** Court refreshes preserve the original row ID across source-name aliases. */
+  id?: string;
   exists: boolean;
   contentHash?: string;
   description?: string | null;

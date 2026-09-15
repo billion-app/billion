@@ -8,7 +8,7 @@ For setup, bounded examples, active source names, and production builds, use the
 
 ## Scrapers
 
-[The registry](../apps/scraper/src/scrapers.ts) includes White House, Federal Register, Legistar, Congress, Open States, Santa Clara County voter guides, and California candidate statements. CourtListener code exists but is unregistered and unavailable through the current CLI.
+[The registry](../apps/scraper/src/scrapers.ts) includes White House, Federal Register, Legistar, Congress, SCOTUS, Open States, Santa Clara County voter guides, and California candidate statements. SCOTUS reads official Supreme Court opinion and order-opinion indexes and their full PDFs, including published emergency order opinions. It does not depend on CourtListener indexing or authentication.
 
 Congress and Open States normalize legislation into `bill`. White House and Federal Register documents share `government_content`; source identity and title normalization prevent duplicate presidential records. Legistar has its own normalized local-decision ingestion path, described in [Local government and Legistar](local-government-legistar.md).
 
@@ -74,8 +74,7 @@ California's lower house is the **Assembly**, not the House.
 abstracts, actions and versions inline rather than fetching each bill's detail
 separately. This is a quota decision, not a style one — the free Open States
 tier allows a few hundred requests a day, and at one request per bill a
-California session would take weeks to drain, which is exactly why the
-CourtListener scraper is parked. Bill _text_ is fetched from the state's own
+California session would take weeks to drain. Bill _text_ is fetched from the state's own
 site (leginfo for CA), so it does not draw on the API budget at all.
 
 Everything else matches the federal walk: ascending `updated_since` from a

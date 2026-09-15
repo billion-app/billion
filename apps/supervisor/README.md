@@ -54,19 +54,20 @@ regeneration, and records an exhausted rejection so later drains skip it.
 `--skip-review` remains available as an explicit manual outage mode, but the
 scheduled and backfill jobs do not use it.
 
-| id                             | schedule          | notes                                                                            |
-| ------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
-| `congress-daily`               | daily 03:15 local | Refreshes federal bills and applies the 90-day editorial retention policy        |
-| `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes state measures and applies the same retention policy                   |
-| `bill-interest-daily`          | daily 02:00 local | Scores missing or changed bills for interest, controversy, and outside attention |
-| `whitehouse-daily`             | daily 01:00 local | Reads presidential actions directly from the White House RSS feed                |
-| `federalregister-daily`        | daily 01:30 local | Refreshes executive orders and presidential documents                            |
-| `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content      |
-| `backfill-content-images`      | manual            | Drains missing or style-stale header art across all retained content             |
-| `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
-| `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                              |
-| `retro-briefs`                 | manual            | Fills in missing structured briefs                                               |
-| `retro-lenses`                 | manual            | Fills in missing dual-lens perspectives                                          |
+| id                             | schedule          | notes                                                                                     |
+| ------------------------------ | ----------------- | ----------------------------------------------------------------------------------------- |
+| `congress-daily`               | daily 03:15 local | Refreshes federal bills and applies the 90-day editorial retention policy                 |
+| `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes state measures and applies the same retention policy                            |
+| `bill-interest-daily`          | daily 02:00 local | Scores missing or changed bills for interest, controversy, and outside attention          |
+| `whitehouse-daily`             | daily 01:00 local | Reads presidential actions directly from the White House RSS feed                         |
+| `federalregister-daily`        | daily 01:30 local | Refreshes executive orders and presidential documents                                     |
+| `scotus-daily`                 | daily 01:45 local | Reads 20 recent official Court decisions, including order opinions; five generation slots |
+| `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content               |
+| `backfill-content-images`      | manual            | Drains missing or style-stale header art across all retained content                      |
+| `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                            |
+| `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                                       |
+| `retro-briefs`                 | manual            | Fills in missing structured briefs                                                        |
+| `retro-lenses`                 | manual            | Fills in missing dual-lens perspectives                                                   |
 
 The federal and state daily jobs are the point of the whole arrangement: the
 app is a news feed, so a bill whose status changed today matters more than one

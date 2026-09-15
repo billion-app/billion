@@ -32,15 +32,57 @@ Source limits and generation budgets are different. `--max-items` limits source 
 | `federalregister`   | Federal Register presidential documents               | `government_content`                      |
 | `legistar`          | San José meetings, matters, documents, and votes      | Normalized `local_*` tables               |
 | `congress`          | Congress.gov bills, text, summaries, and actions      | `bill`                                    |
+| `scotus`            | Supreme Court opinion and order-opinion indexes/PDFs  | `court_case`                              |
 | `open-states`       | State legislation through Open States                 | `bill`                                    |
 | `scc-cvig`          | Santa Clara County voter-guide PDFs                   | Candidate statements in `civic_api_cache` |
 | `ca-sos-statements` | California candidate-statement pages and PDF fallback | Candidate statements in `civic_api_cache` |
 
 `all` starts registered scrapers concurrently and validates the whole set's environment first. It is broader than a production scheduled refresh. The supervisor names jobs separately so it can control timing, retention, and budgets.
 
-`scotus.ts` is present but unregistered, so the current CLI does not accept `scotus`. Existing court content can still be read. Files under [scrapers/disabled](src/scrapers/disabled/README.md) are also inactive.
+The `scotus` source reads the Court's current and previous October-term indexes,
+combines entries for the same docket and publication date, and processes the
+newest decisions first. It includes opinions relating to emergency orders,
+such as the September 14, 2026 mail-ballot ruling in `26A305`. It does not cover
+every unsigned order, circuit court, or district court decision. The complete
+official PDF text remains separate from the generated explanation; when opinions
+use separate PDFs, their URLs are retained alongside their text. Browse uses the
+decision's publication date, stored in the shared `filedDate` field, rather than
+the original lawsuit's filing date. No CourtListener token is needed.
+
+To scan the latest published decision with one generation slot, after checking the selected database:
+
+```bash
+SCRAPER_MAX_NEW_ITEMS_PER_RUN=1 pnpm --filter @acme/scraper run start scotus --max-items 1 --concurrency 1
+```
+
+This command writes and may pay for one item's enrichment. Each run also selects
+up to `max-items` due retries, sharing the same generation budget. The supervisor's
+`scotus-daily` job scans 20 recent decisions plus up to 20 due retries with five
+generation slots per run. Deferred cases and PDF failures are stored in
+`scraper_retry`, keyed by term and docket, and remain eligible outside the recent
+window. Queued terms are fetched even after they age out of the two-term scan.
+Healthy cases are processed despite failures in other PDFs; outstanding failures
+then fail the job so the supervisor retries with backoff. Budget deferral alone
+is expected and does not fail the job.
+Until that configuration is deployed, production does not run the new source.
+When a refreshed docket already exists under the old CourtListener court-URL
+alias, its source fields and court name are updated on the original ID rather
+than creating a second card. Changed court text invalidates its old generated
+summary, article, and perspectives, so a budget-limited refresh cannot permanently reuse an
+explanation of the previous decision. Other historical records are not bulk rewritten. Files under
+[scrapers/disabled](src/scrapers/disabled/README.md) remain inactive.
 
 Each source declares its environment contract in an adjacent `*.config.ts`. Use those contracts and [the environment guide](../../docs/launch.md#scraper-and-scheduled-data-jobs) for required provider keys and current defaults.
+
+The court identity/source-refresh database regression is opt-in. Set
+`SCOTUS_TEST_POSTGRES_URL` to a migrated local database, then run:
+
+```bash
+pnpm --filter @acme/scraper exec tsx --test src/scrapers/scotus-db.test.ts
+```
+
+It refuses remote hosts, uses zero generation slots, checks the real tRPC
+search/detail responses, and removes only its own fixture UUID afterward.
 
 ## Build for production
 

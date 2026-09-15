@@ -8,7 +8,7 @@ The database separates records fetched from government sources from the explanat
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `bill`                            | Federal and state legislation, source identity, text, status, actions, and source or generated description |
 | `government_content`              | Presidential documents collected from White House and Federal Register sources                             |
-| `court_case`                      | Stored court opinions; the CourtListener scraper is currently unregistered                                 |
+| `court_case`                      | Official Supreme Court opinions and order opinions, plus historical CourtListener records                  |
 | `content_brief`                   | Structured bill explanations, validated by `@acme/validators`                                              |
 | `content_lens`                    | Competing perspectives with citations and generation metadata                                              |
 | `content_image`                   | Generated header-art storage paths, hashes, prompts, and dimensions                                        |
