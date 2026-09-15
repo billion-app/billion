@@ -41,6 +41,7 @@ export interface BallotCitation {
   sourceName: string;
   sourceUrl?: string;
   official?: boolean;
+  tier?: string;
   fetchedAt?: string;
   verifiedAt?: string;
   verifiedBy?: string;

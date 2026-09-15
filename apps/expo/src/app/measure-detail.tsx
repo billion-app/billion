@@ -1,8 +1,13 @@
-import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import type { MeasureArgumentRef, MeasureCitationRef } from "@acme/api";
 
+import {
+  BallotLanguages,
+  BallotSources,
+} from "~/components/ballot-evidence/BallotEvidence";
+import { webUrl } from "~/components/ballot-evidence/model";
 import {
   MeasureBalance,
   SectionFlourish,
@@ -27,18 +32,6 @@ function parseJson<T>(raw: string | undefined, fallback: T): T {
     return fallback;
   }
 }
-
-/** Human-readable label for a source tier. */
-const TIER_LABEL: Record<string, string> = {
-  county_registrar: "County Registrar",
-  state_sos: "Secretary of State",
-  lwv: "League of Women Voters",
-  ballotpedia: "Ballotpedia",
-  wikipedia: "Wikipedia",
-  vote_smart: "Vote Smart",
-  google_civic: "Google Civic",
-  ai_generated: "AI-generated",
-};
 
 const cardChrome = {
   backgroundColor: P.card,
@@ -84,8 +77,7 @@ export default function MeasureDetailScreen() {
         ? [{ text: params.referendumConStatement, sourceName: "" }]
         : [];
 
-  // Unique sources for the attribution footer, official ones first.
-  const sources = dedupeSources(citations);
+  const sourceUrl = webUrl(params.referendumUrl);
 
   return (
     <View style={s.screen}>
@@ -126,11 +118,7 @@ export default function MeasureDetailScreen() {
               </View>
             )}
           </>
-        ) : (
-          <Text style={s.subtitle}>
-            No official information is available for this measure yet.
-          </Text>
-        )}
+        ) : null}
 
         {/* Fiscal impact (official analysis) */}
         {params.fiscalImpact ? (
@@ -175,51 +163,23 @@ export default function MeasureDetailScreen() {
           </View>
         ) : null}
 
-        {/* Sources / citations — every source points back to its original. */}
-        {sources.length > 0 && (
-          <View style={s.section}>
-            <Kicker style={s.kicker}>Sources</Kicker>
-            <Card style={cardChrome}>
-              {sources.map((src, i) => {
-                const url = src.sourceUrl;
-                const open = url ? () => void Linking.openURL(url) : undefined;
-                return (
-                  <Pressable
-                    key={`src-${i}`}
-                    onPress={open}
-                    disabled={!open}
-                    style={[s.sourceRow, i > 0 && s.sourceRowBorder]}
-                  >
-                    <Icon
-                      name={src.official ? "shield" : "info"}
-                      size={14}
-                      color={src.official ? P.badgeTeal : P.quiet}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.sourceName}>{src.sourceName}</Text>
-                      <Text style={s.sourceMeta}>
-                        {src.official ? "Official · " : ""}
-                        {TIER_LABEL[src.tier] ?? src.tier} · for{" "}
-                        {src.fields.join(", ")}
-                      </Text>
-                    </View>
-                    {open ? (
-                      <Icon name="external" size={14} color={P.quiet} />
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </Card>
-          </View>
-        )}
+        <BallotSources
+          citations={citations}
+          contentKind={
+            params.summaryLong || params.summary || params.referendumSubtitle
+              ? "citations"
+              : "enrichment-unavailable"
+          }
+        />
+        <BallotLanguages items={[]} />
 
         {/* Source link */}
-        {params.referendumUrl ? (
+        {sourceUrl ? (
           <View style={s.section}>
             <PrimaryButton
-              label="View official source"
+              label="View measure source"
               icon="external"
-              onPress={() => void Linking.openURL(params.referendumUrl)}
+              onPress={() => void Linking.openURL(sourceUrl)}
             />
           </View>
         ) : null}
@@ -261,36 +221,6 @@ function StanceCard({
         <Text style={s.argAttribution}>— {attribution}</Text>
       ) : null}
     </Card>
-  );
-}
-
-interface FooterSource {
-  sourceName: string;
-  sourceUrl?: string;
-  official: boolean;
-  tier: string;
-  fields: string[];
-}
-
-/** Collapse per-field citations into one row per source. */
-function dedupeSources(citations: MeasureCitationRef[]): FooterSource[] {
-  const byName = new Map<string, FooterSource>();
-  for (const c of citations) {
-    const existing = byName.get(c.sourceName);
-    if (existing) {
-      if (!existing.fields.includes(c.field)) existing.fields.push(c.field);
-    } else {
-      byName.set(c.sourceName, {
-        sourceName: c.sourceName,
-        sourceUrl: c.sourceUrl,
-        official: c.official,
-        tier: c.tier,
-        fields: [c.field],
-      });
-    }
-  }
-  return [...byName.values()].sort(
-    (a, b) => Number(b.official) - Number(a.official),
   );
 }
 
@@ -407,26 +337,5 @@ const s = StyleSheet.create({
     fontSize: 14,
     color: P.inkOnNight,
     lineHeight: 22,
-  },
-  sourceRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingVertical: 10,
-  },
-  sourceRowBorder: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.cardBorder,
-  },
-  sourceName: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13.5,
-    color: P.inkOnNight,
-  },
-  sourceMeta: {
-    fontFamily: fontBody.regular,
-    fontSize: 11.5,
-    color: P.quiet,
-    marginTop: 2,
   },
 });

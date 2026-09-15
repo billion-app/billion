@@ -48,6 +48,16 @@ function SourceLink({ label, url }: { label: string; url?: string }) {
   );
 }
 
+/** USAGov directory is a recovery path when no local office is known. */
+export function ElectionOfficeLink() {
+  return (
+    <SourceLink
+      label="Find your official election office (USAGov)"
+      url="https://www.usa.gov/state-election-office"
+    />
+  );
+}
+
 /** Required retry keeps every unavailable state actionable, even without an office URL. */
 export function BallotStatusNotice({
   evidence,
@@ -94,24 +104,30 @@ export function BallotSources({
   onRetry,
 }: {
   citations: readonly BallotCitation[];
-  contentKind: "source" | "ai-summary" | "enrichment-unavailable";
-  onRetry: () => void;
+  contentKind: "source" | "citations" | "ai-summary" | "enrichment-unavailable";
+  onRetry?: () => void;
 }) {
   const { theme } = useTheme();
   return (
     <View style={{ gap: sp[2], paddingVertical: sp[3] }}>
       <Text style={[typography.body, { color: theme.foreground }]}>
-        {contentKind === "source"
-          ? "Source material"
-          : contentKind === "ai-summary"
-            ? "AI-generated explanation · Check the cited sources"
-            : "Additional explanation unavailable · Ballot data may still be available"}
+        {contentKind === "citations"
+          ? "Sources and citations"
+          : contentKind === "source"
+            ? "Source material"
+            : contentKind === "ai-summary"
+              ? "AI-generated explanation · Check the cited sources"
+              : "Additional explanation unavailable · Ballot data may still be available"}
       </Text>
       {citations.map((citation, index) => (
         <View key={`${citation.field}-${index}`}>
           <Text style={{ color: theme.textSecondary }}>
             {citation.field} ·{" "}
-            {citation.official === true ? "Official source" : "Source"}
+            {citation.tier === "ai_generated"
+              ? "AI-generated explanation"
+              : citation.official === true
+                ? "Official source"
+                : "Source"}
           </Text>
           <SourceLink label={citation.sourceName} url={citation.sourceUrl} />
           <Text style={{ color: theme.textSecondary }}>
@@ -129,15 +145,20 @@ export function BallotSources({
           Source citations unavailable to Billion.
         </Text>
       )}
-      {(contentKind === "enrichment-unavailable" || citations.length === 0) && (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onRetry}
-          style={{ paddingVertical: sp[3] }}
-        >
-          <Text style={{ color: theme.foreground }}>Retry loading details</Text>
-        </Pressable>
-      )}
+      {(contentKind === "enrichment-unavailable" || citations.length === 0) &&
+        (onRetry ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onRetry}
+            style={{ paddingVertical: sp[3] }}
+          >
+            <Text style={{ color: theme.foreground }}>
+              Retry loading details
+            </Text>
+          </Pressable>
+        ) : (
+          <ElectionOfficeLink />
+        ))}
     </View>
   );
 }
@@ -148,7 +169,7 @@ export function BallotLanguages({
   officialOfficeUrl,
 }: {
   items: readonly LanguageEvidence[];
-  onRetry: () => void;
+  onRetry?: () => void;
   officialOfficeUrl?: string;
 }) {
   const { theme } = useTheme();
@@ -180,17 +201,20 @@ export function BallotLanguages({
       {webUrl(officialOfficeUrl) && (
         <SourceLink label="Official election office" url={officialOfficeUrl} />
       )}
-      {verified.length === 0 && (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onRetry}
-          style={{ paddingVertical: sp[3] }}
-        >
-          <Text style={{ color: theme.foreground }}>
-            Retry language information
-          </Text>
-        </Pressable>
-      )}
+      {verified.length === 0 &&
+        (onRetry ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onRetry}
+            style={{ paddingVertical: sp[3] }}
+          >
+            <Text style={{ color: theme.foreground }}>
+              Retry language information
+            </Text>
+          </Pressable>
+        ) : (
+          <ElectionOfficeLink />
+        ))}
     </View>
   );
 }

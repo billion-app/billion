@@ -3,7 +3,6 @@ import {
   Image,
   LayoutAnimation,
   Linking,
-  Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -12,6 +11,11 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Fuse from "fuse.js";
 
+import {
+  BallotLanguages,
+  BallotSources,
+  ElectionOfficeLink,
+} from "~/components/ballot-evidence/BallotEvidence";
 import {
   EmptyBallotMark,
   SectionFlourish,
@@ -65,42 +69,6 @@ interface CandidateParam {
   statementSummaryIsAiGenerated?: boolean;
   incumbent?: boolean;
   citations?: CandidateCitation[];
-}
-
-/** Human-readable label for a source tier (mirrors measure-detail). */
-const TIER_LABEL: Record<string, string> = {
-  county_registrar: "County Registrar",
-  state_sos: "Secretary of State",
-  lwv: "League of Women Voters",
-  ballotpedia: "Ballotpedia",
-  wikipedia: "Wikipedia",
-  vote_smart: "Vote Smart",
-  google_civic: "Google Civic",
-  ai_generated: "AI-generated",
-};
-
-interface FooterSource {
-  sourceName: string;
-  sourceUrl?: string;
-  official: boolean;
-  tier: string;
-}
-
-/** Collapse per-field citations into one row per distinct source. */
-function dedupeSources(citations: CandidateCitation[]): FooterSource[] {
-  const byName = new Map<string, FooterSource>();
-  for (const c of citations) {
-    if (byName.has(c.sourceName)) continue;
-    byName.set(c.sourceName, {
-      sourceName: c.sourceName,
-      sourceUrl: c.sourceUrl,
-      official: c.official,
-      tier: c.tier,
-    });
-  }
-  return [...byName.values()].sort(
-    (a, b) => Number(b.official) - Number(a.official),
-  );
 }
 
 function partyColor(party?: string): string {
@@ -326,10 +294,17 @@ export default function ContestDetailScreen() {
           {filtered.length === 0 ? (
             <Card style={[cardChrome, s.emptyCard]}>
               <EmptyBallotMark width={80} />
-              <Text style={s.emptyTitle}>No candidates match</Text>
-              <Text style={s.noContact}>
-                Try clearing search or party filters.
+              <Text style={s.emptyTitle}>
+                {candidates.length
+                  ? "No candidates match"
+                  : "Candidate data unavailable"}
               </Text>
+              <Text style={s.noContact}>
+                {candidates.length
+                  ? "Try clearing search or party filters."
+                  : "Billion has no candidate data for this contest. Check with your election office."}
+              </Text>
+              {candidates.length === 0 && <ElectionOfficeLink />}
             </Card>
           ) : null}
 
@@ -364,9 +339,7 @@ export default function ContestDetailScreen() {
                 onPress: () => void;
               }[];
 
-              const sources = cand.citations
-                ? dedupeSources(cand.citations)
-                : [];
+              const sources = cand.citations ?? [];
               const hasStatement =
                 !!cand.statement?.trim() || !!cand.statementSummary?.trim();
               const hasContact =
@@ -431,7 +404,7 @@ export default function ContestDetailScreen() {
                         <View style={s.emptyNote}>
                           <Icon name="doc" size={13} color={P.quiet} />
                           <Text style={s.noContact}>
-                            No statement submitted to the official voter guide.
+                            Statement unavailable to Billion.
                           </Text>
                         </View>
                       ) : null}
@@ -474,47 +447,17 @@ export default function ContestDetailScreen() {
                           ))}
                         </View>
                       )}
-                      {sources.length > 0 && (
-                        <View style={s.sourcesWrap}>
-                          <Text style={s.sourcesLabel}>Sources</Text>
-                          {sources.map((src, si) => {
-                            const openSrc = src.sourceUrl
-                              ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                                () => void Linking.openURL(src.sourceUrl!)
-                              : undefined;
-                            return (
-                              <Pressable
-                                key={`src-${si}`}
-                                onPress={openSrc}
-                                disabled={!openSrc}
-                                style={s.sourceRow}
-                              >
-                                <Icon
-                                  name={src.official ? "shield" : "info"}
-                                  size={13}
-                                  color={src.official ? P.badgeTeal : P.quiet}
-                                />
-                                <View style={{ flex: 1 }}>
-                                  <Text style={s.sourceName}>
-                                    {src.sourceName}
-                                  </Text>
-                                  <Text style={s.sourceMeta}>
-                                    {src.official ? "Official · " : ""}
-                                    {TIER_LABEL[src.tier] ?? src.tier}
-                                  </Text>
-                                </View>
-                                {openSrc ? (
-                                  <Icon
-                                    name="external"
-                                    size={13}
-                                    color={P.quiet}
-                                  />
-                                ) : null}
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      )}
+                      <BallotSources
+                        citations={sources}
+                        contentKind={
+                          !hasStatement && !cand.biography
+                            ? "enrichment-unavailable"
+                            : "citations"
+                        }
+                      />
+                      {!hasStatement && cand.biography ? (
+                        <ElectionOfficeLink />
+                      ) : null}
                     </View>
                   )}
                 </Card>
@@ -522,6 +465,7 @@ export default function ContestDetailScreen() {
             })}
           </View>
         </View>
+        <BallotLanguages items={[]} />
       </ScrollView>
     </View>
   );
@@ -699,36 +643,5 @@ const s = StyleSheet.create({
     borderTopColor: DigestHair.cardBorder,
     paddingTop: 8,
     marginTop: 4,
-  },
-  sourcesWrap: {
-    borderTopWidth: 1,
-    borderTopColor: DigestHair.cardBorder,
-    paddingTop: 10,
-    marginTop: 4,
-  },
-  sourcesLabel: {
-    fontFamily: fontBody.medium,
-    fontSize: 11,
-    color: P.quiet,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  sourceRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingVertical: 7,
-  },
-  sourceName: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13,
-    color: P.inkOnNight,
-  },
-  sourceMeta: {
-    fontFamily: fontBody.regular,
-    fontSize: 11,
-    color: P.quiet,
-    marginTop: 1,
   },
 });
