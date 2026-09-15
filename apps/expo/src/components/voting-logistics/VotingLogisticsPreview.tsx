@@ -8,7 +8,7 @@ import { VotingLogisticsSection } from "./VotingLogisticsSection";
 export const votingLogisticsFixture: VotingLogisticsData = {
   pollingLocations: [
     {
-      name: "Example community center",
+      name: "Example Community and Recreation Center",
       address: {
         line1: "123 Example Street",
         city: "Example City",
@@ -22,7 +22,7 @@ export const votingLogisticsFixture: VotingLogisticsData = {
         "Use the accessible entrance on the east side of the community center. The main entrance faces the parking lot; follow the posted signs to the voting room. Staff at the entrance can help you find the accessible route.\n\nParking is available behind the building. The library entrance is separate from the voting entrance. Check the posted site instructions when you arrive.",
       sources: [
         {
-          name: "Example election office",
+          name: "Example County Board of Elections",
           official: true,
           url: "https://example.org/source",
         },
@@ -31,7 +31,7 @@ export const votingLogisticsFixture: VotingLogisticsData = {
   ],
   earlyVoteSites: [
     {
-      name: "Example library",
+      name: "Example Regional Library",
       address: {
         line1: "789 Example Avenue",
         city: "Example City",
