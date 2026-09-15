@@ -16,9 +16,9 @@ export function ballotStatus(evidence: BallotEvidence) {
     };
   if (evidence.kind === "provider-failure")
     return {
-      title: "Ballot lookup failed",
+      title: "We couldn’t load your ballot",
       detail:
-        "Billion could not reach ballot information. Try again or check with your election office.",
+        "Try again to load your ballot, or visit your election office for local information.",
     };
   if (evidence.contestCount > 0)
     return {
@@ -28,9 +28,9 @@ export function ballotStatus(evidence: BallotEvidence) {
     };
   if (evidence.electionKnown)
     return {
-      title: "Election found; ballot unavailable",
+      title: "Ballot details unavailable",
       detail:
-        "Billion found an election but has no ballot contests for this lookup. This does not establish whether the official ballot has been published.",
+        "Billion has no contest information for this election. Check your election office for the official ballot.",
     };
   return {
     title: "No ballot data found",
@@ -82,6 +82,9 @@ export function verifiedLanguages(items: readonly LanguageEvidence[]) {
 
 /** Present field names as reader-facing labels without changing attribution. */
 export function citationFieldLabel(field: string): string {
+  const separator = field.indexOf(" · ");
+  if (separator > 0)
+    return `${field.slice(0, separator)} · ${citationFieldLabel(field.slice(separator + 3))}`;
   const labels: Record<string, string> = {
     referendumText: "Original text",
     referendumUrl: "Original text link",

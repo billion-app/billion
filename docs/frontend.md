@@ -22,6 +22,8 @@ The Feed tab is a short brief. [DigestHome](../apps/expo/src/components/DigestHo
 
 Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab is a coming-soon placeholder and does not call Civic or Places while `electionsAreLive()` returns false. While it is parked, set a home address (Places autocomplete) and coverage (federal, California, North Carolina, Texas) from the Feed lockup dropdown or the Browse jurisdiction sheet. Check both Expo Router options and the custom `TabBar` when changing visibility.
 
+Candidate and measure details keep generated summaries separate from original text, with a reading control when both are available. Source disclosures retain field-specific links and distinguish retrieval from human verification. Missing details lead to an election-office link; language availability stays unknown unless verified evidence is supplied. Candidate filters appear for contests with more than five entries and use the supplied party names. A candidate explicitly marked as withdrawn but still on the ballot remains readable with that status shown.
+
 ## Onboarding and content preferences
 
 `OnboardingGate` waits for the device store to load, then sends a reader who has not completed onboarding to the onboarding route. The store writes one JSON object to AsyncStorage under the versioned key `billion.onboarding.v1`. It contains the completion flag, selected government vectors, sectors, derived topic labels, alert choices, and whether the reader dismissed the account prompt. These values do not require an account and remain on that device.
