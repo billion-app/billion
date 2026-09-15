@@ -1,22 +1,28 @@
-# PR 369 native screenshots
+# PR 369 native comparison
 
-The running Billion development app on an iPhone 17 Pro simulator, iOS 26.5. Metro served the code in commit `cdfc251cd9c53da43e9b506ca511aa8e150f0c74` on localhost:8149 with temporary synthetic route fixtures. The fixtures are excluded from the product commit.
+These are screenshots of the running Billion development app on an iPhone 17 Pro simulator, iOS 26.5, using code from `39d5f924cad8e58aa53f68edc993fa87ce3a4a9b`.
 
-All election content, candidate names, source names and URLs are synthetic. These captures demonstrate the native interface, not live election coverage.
+The actual article-detail route and BillBrief components rendered a synthetic `content.getById` response from localhost:8158. The measure and candidate routes rendered temporary synthetic route fixtures through Metro on localhost:8159. No production data was queried. Fixture files are excluded from the product commit.
 
-## Default text size
+All titles, candidate names, prose, source names and URLs are synthetic. These images demonstrate the actual native components, not live election coverage.
 
-The simulator content-size category was explicitly set to `large`, the iOS default (1.0 scale), before these captures:
+## Default-size comparison
 
-- `measure-ios.png`: Overview and its AI label share a reading card; the original-text control stays above it. Supplied prose is preserved.
-- `candidate-ios.png`: Long biography excerpt with an expansion action, statement controls, and navy-backed blue contact action.
-- `measure-missing-ios.png`: Compact missing-data card and primary election-office recovery.
-- `measure-original-only-ios.png`: Available original text opens directly when no overview is supplied.
+The simulator used `large`, the iOS default text-size category, for all three comparison images:
 
-Screen titles retain IBM Plex Serif Bold 34/38; card headings retain Inria Serif Bold 16/19. Blue `#4A7CFF` actions on navy `#0E1530` have a calculated contrast ratio of 4.81:1.
+- `article-ios.png`: Existing article reading layout, including its summary, source control and context disclosure.
+- `measure-ios.png`: Supplied short summary first, distinct extended summary on demand, fiscal context and argument disclosures.
+- `candidate-ios.png`: Separate candidate identity, statement summary, optional biography, and named website action with hostname.
+- `measure-original-only-ios.png`: Original text opens directly when no overview is supplied, with its source action above the ink reading panel.
 
-## Enlarged text, separate verification
+Editorial page titles use IBM Plex Serif Bold 30/34; summary headings use Inria Serif Bold 17/22; summary prose uses Albert Sans 15/23. The shared article segmented control now has intrinsic height, 44-point minimum targets and selected accessibility state. Its blue selection uses navy text for contrast. Blue actions on navy have a calculated contrast ratio of 4.81:1.
 
-`measure-large-text-ios.png` and `candidate-contact-large-text-ios.png` use `accessibility-medium`. Scaling remains enabled: reading controls stack, and the full contact URL wraps within its action. These images are not default-size design references.
+The article's black status bar on navy is an existing route behavior in this simulator configuration; article source and domain logic were not changed for the comparison.
 
-Native interactions checked included original-only access, argument/source/language disclosures, biography expansion to its concluding sentence, enlarged collapse, and opening the candidate website in Safari. The simulator was explicitly returned to default `large` after verification. Two independent reviewers inspected the code and fresh native states and found no remaining actionable defects within the reviewed scope. This is not a full VoiceOver or live-provider audit.
+## Enlarged verification
+
+`measure-large-text-ios.png`, `candidate-contact-large-text-ios.png`, and `article-large-text-ios.png` use `accessibility-medium`. Text scaling remains enabled. Controls stack, paragraphs remain readable, and the candidate website action uses a readable title and hostname while retaining the full validated URL as its destination and accessibility label. Long title words may naturally break across lines at this scale.
+
+Native interactions verified original statement switching, original-only measure access, full supplied extended summary, full biography including its concluding sentence, and candidate website navigation to Safari. Two independent reviewers compared the actual article and ballot captures against the supplied design references and found no remaining actionable issues in the inspected states. This evidence does not claim a full VoiceOver or live-provider audit.
+
+The simulator was returned to the default `large` text-size category after verification.
