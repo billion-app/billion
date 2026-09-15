@@ -81,8 +81,9 @@ The court identity/source-refresh database regression is opt-in. Set
 pnpm --filter @acme/scraper exec tsx --test src/scrapers/scotus-db.test.ts
 ```
 
-It refuses remote hosts, uses zero generation slots, checks the real tRPC
-search/detail responses, and removes only its own fixture UUID afterward.
+It refuses remote hosts, uses zero generation slots, verifies stored source
+fields and stale-content invalidation through typed Drizzle queries, and removes
+only its own fixture UUID afterward.
 
 ## Build for production
 
