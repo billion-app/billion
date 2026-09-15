@@ -99,6 +99,9 @@ export function parseGuideMeasure(
       !url.password &&
       !url.port &&
       url.hostname === "vig.cdn.sos.ca.gov" &&
+      new RegExp(`/prop${number}-text-proposed-laws\\.pdf$`, "i").test(
+        url.pathname,
+      ) &&
       url.pathname.startsWith(
         `/${electionDate.slice(0, 4)}/${/general election/i.test($("#txtBnr").text()) ? "general" : "primary"}/`,
       )
