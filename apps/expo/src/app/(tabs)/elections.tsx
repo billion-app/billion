@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Contest } from "@acme/api";
 
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
+import { BallotStatusNotice } from "~/components/ballot-evidence/BallotEvidence";
 import { EmptyBallotMark, PinMark } from "~/components/digest/CraftMarks";
 import { EMPTY_CIVIC } from "~/components/digest/staticAssets";
 import { ProfileMarkButton } from "~/components/DigestProfileMark";
@@ -256,6 +257,7 @@ function ElectionsLive() {
       <BallotExperience
         key={storedAddress}
         initialAddress={storedAddress ?? ""}
+        reuseInitialLookup
       />
     );
   }
@@ -348,10 +350,12 @@ function ElectionsLive() {
 
       {hasAddress && voterInfoQuery.isError && (
         <View style={s.section}>
-          <EmptyBallotMark width={72} />
-          <Text style={s.empty}>
-            Couldn’t look up this ballot. Check the address and try again.
-          </Text>
+          <BallotStatusNotice
+            evidence={{ kind: "provider-failure" }}
+            onRetry={() => {
+              void voterInfoQuery.refetch();
+            }}
+          />
         </View>
       )}
 

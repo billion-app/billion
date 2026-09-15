@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 
 import type { Contest } from "@acme/api";
 
@@ -62,39 +63,21 @@ export interface BallotLookupViewProps {
 function Disclosure({
   label,
   children,
-  open,
-  onOpenChange,
-  summary,
 }: {
   label: string;
   children: ReactNode;
-  summary?: string;
-  open?: boolean;
-  onOpenChange?: (value: boolean) => void;
 }) {
-  const [localExpanded, setExpanded] = useState(false);
-  const expanded = open ?? localExpanded;
+  const [expanded, setExpanded] = useState(false);
   return (
     <View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ expanded }}
-        onPress={() => {
-          setExpanded(!expanded);
-          onOpenChange?.(!expanded);
-        }}
-        style={summary ? s.votingEntry : s.disclosure}
+        onPress={() => setExpanded(!expanded)}
+        style={s.disclosure}
       >
-        {summary && (
-          <View style={s.iconTile}>
-            <Icon name="vote" size={22} color={P.primary} />
-          </View>
-        )}
-        <View style={s.flex}>
-          <Text style={summary ? s.entryTitle : s.actionText}>{label}</Text>
-          {summary && <Text style={s.secondary}>{summary}</Text>}
-        </View>
+        <Text style={s.actionText}>{label}</Text>
         <Icon
           name={expanded ? "chevD" : "chevR"}
           size={18}
@@ -172,9 +155,31 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const [choosingElection, setChoosingElection] = useState(false);
   const [votingExpanded, setVotingExpanded] = useState(false);
   const addressInput = useRef<TextInput>(null);
+  const ballotScroll = useRef(0);
+  const [ballotOffset, setBallotOffset] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      if (!votingExpanded) return;
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          setVotingExpanded(false);
+          return true;
+        },
+      );
+      return () => subscription.remove();
+    }, [votingExpanded]),
+  );
   // Keep cached ballot content out of address editing and request transitions.
+  const mismatch =
+    !props.loading &&
+    !props.failed &&
+    !editing &&
+    !!props.requestedElectionId &&
+    !!props.data &&
+    props.data.election?.id !== props.requestedElectionId;
   const data =
-    props.loading || props.failed || invalid || editing
+    props.loading || props.failed || invalid || editing || mismatch
       ? undefined
       : props.data;
   const model = data ? ballotModel(data) : undefined;
@@ -191,6 +196,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const evidence =
     !editing &&
     !props.loading &&
+    !mismatch &&
     (props.failed
       ? { kind: "provider-failure" as const }
       : props.settled
@@ -207,6 +213,49 @@ export function BallotLookupView(props: BallotLookupViewProps) {
     !!data?.earlyVoteSites?.length ||
     !!data?.dropOffLocations?.length ||
     !!data?.state?.length;
+  if (votingExpanded && !editing && !mismatch) {
+    return (
+      <View style={s.screen}>
+        <NavHeader
+          key={fontScale}
+          title=""
+          onBack={() => setVotingExpanded(false)}
+        />
+        <ScrollView
+          key="voting"
+          contentContainerStyle={[
+            s.content,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
+        >
+          <Text accessibilityRole="header" style={s.pageTitle}>
+            How to vote
+          </Text>
+          {model?.election && (
+            <View style={s.electionHeader}>
+              <Text style={s.electionTitle}>{model.election.name}</Text>
+              <Text style={s.secondary}>
+                {ballotElectionDate(model.election.electionDay)}
+              </Text>
+            </View>
+          )}
+          {props.loading ? (
+            <View accessibilityLiveRegion="polite" style={s.loading}>
+              <ActivityIndicator color={P.spark} />
+              <Text style={s.body}>Updating voting information…</Text>
+            </View>
+          ) : props.failed ? (
+            <BallotStatusNotice
+              evidence={{ kind: "provider-failure" }}
+              onRetry={props.onRetry}
+            />
+          ) : data ? (
+            <VotingLogisticsSection status="ready" data={data} />
+          ) : null}
+        </ScrollView>
+      </View>
+    );
+  }
   const addressSummary = !editing && !!props.address && (
     <View style={[s.addressRow, fontScale > 1.3 && s.stackedRow]}>
       {fontScale <= 1.3 && <Icon name="pin" size={20} color={P.primary} />}
@@ -237,6 +286,12 @@ export function BallotLookupView(props: BallotLookupViewProps) {
         }
       />
       <ScrollView
+        key="ballot"
+        contentOffset={{ x: 0, y: ballotOffset }}
+        onScroll={(event) => {
+          ballotScroll.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
         contentContainerStyle={[
           s.content,
           { paddingBottom: insets.bottom + 24 },
@@ -247,6 +302,24 @@ export function BallotLookupView(props: BallotLookupViewProps) {
         <Text accessibilityRole="header" style={s.pageTitle}>
           Your ballot
         </Text>
+        {mismatch && (
+          <Card style={s.card}>
+            <Text accessibilityRole="header" style={s.contestTitle}>
+              Selected ballot unavailable
+            </Text>
+            <Text accessibilityRole="alert" style={s.body}>
+              The provider returned a different election. Choose another
+              election or try again to get the ballot you selected.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={props.onRetry}
+              style={s.primaryButton}
+            >
+              <Text style={s.primaryText}>Try again</Text>
+            </Pressable>
+          </Card>
+        )}
         {editing ? (
           <Card style={s.form}>
             <Text accessibilityRole="header" style={s.electionTitle}>
@@ -353,7 +426,11 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               style={s.textButton}
             >
               <Text style={s.linkText}>
-                {choosingElection ? "Close choices" : "Choose election"}
+                {choosingElection
+                  ? "Close choices"
+                  : mismatch
+                    ? "Change election"
+                    : "Choose election"}
               </Text>
             </Pressable>
           )}
@@ -375,6 +452,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   }}
                   onPress={() => {
                     setChoosingElection(false);
+                    setVotingExpanded(false);
                     props.onElection(election.id);
                   }}
                   style={s.electionOption}
@@ -400,17 +478,6 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           />
         )}
         {!editing && props.failed && addressSummary}
-        {data?.election &&
-          props.requestedElectionId &&
-          data.election.id !== props.requestedElectionId && (
-            <Card style={s.card}>
-              <Text accessibilityRole="alert" style={s.body}>
-                The provider returned a different election. Showing{" "}
-                {data.election.name} (ID {data.election.id}); requested ID{" "}
-                {props.requestedElectionId}.
-              </Text>
-            </Card>
-          )}
         {model && data && (
           <>
             {data.provider?.addressScope === "statewide_only" && (
@@ -435,28 +502,42 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               </View>
             )}
             {hasSupport && (
-              <Disclosure
-                label="How to vote"
-                summary={
-                  model.election
-                    ? "Voting resources for this election"
-                    : "Find voting resources"
-                }
-                open={votingExpanded}
-                onOpenChange={setVotingExpanded}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="How to vote"
+                accessibilityHint="Opens voting information"
+                onPress={() => {
+                  setBallotOffset(ballotScroll.current);
+                  setVotingExpanded(true);
+                }}
+                style={s.votingEntry}
               >
-                <VotingLogisticsSection status="ready" data={data} />
-              </Disclosure>
+                <View style={s.iconTile}>
+                  <Icon name="vote" size={22} color={P.primary} />
+                </View>
+                <View style={s.flex}>
+                  <Text style={s.entryTitle}>How to vote</Text>
+                  <Text style={s.secondary}>
+                    {model.election
+                      ? "Voting resources for this election"
+                      : "Find voting resources"}
+                  </Text>
+                </View>
+                <Icon name="chevR" size={18} color={P.inkOnNight} />
+              </Pressable>
             )}
             {!!model.contests.length && (
               <>
                 <Text style={s.coverage}>
                   {model.contests.length}{" "}
-                  {model.contests.length === 1 ? "contest" : "contests"}{" "}
-                  returned · Coverage may be incomplete
+                  {model.contests.length === 1 ? "contest" : "contests"} ·
+                  Coverage may be incomplete
                 </Text>
                 {model.contests.map((contest, index) => (
-                  <ContestCard key={index} contest={contest} />
+                  <ContestCard
+                    key={`${model.election?.id ?? "unknown"}:${index}`}
+                    contest={contest}
+                  />
                 ))}
               </>
             )}
@@ -712,15 +793,15 @@ const s = StyleSheet.create({
     borderBottomColor: DigestHair.cardBorder,
   },
   candidate: {
-    paddingVertical: 10,
+    paddingVertical: 6,
     gap: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: DigestHair.cardBorder,
   },
   candidateName: {
     fontFamily: fontBody.semibold,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 22,
     color: P.inkOnNight,
   },
   disclosure: {

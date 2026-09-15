@@ -58,7 +58,13 @@ export default function LocalElectionsScreen() {
   }
 
   if (voterInfoQuery.data?.provider?.name === "democracy_works") {
-    return <BallotExperience key={address} initialAddress={address ?? ""} />;
+    return (
+      <BallotExperience
+        key={address}
+        initialAddress={address ?? ""}
+        reuseInitialLookup
+      />
+    );
   }
 
   return (

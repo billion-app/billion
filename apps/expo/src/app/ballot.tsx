@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Pressable, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Link, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { ElectionOfficeLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { BallotLookupView } from "~/components/ballot/BallotLookupView";
+import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
 import {
   fontBody,
@@ -19,6 +22,7 @@ import { electionsAreLive } from "~/utils/elections-live";
 export default function BallotRoute() {
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   if (!electionsAreLive()) {
     return (
       <View style={{ flex: 1, backgroundColor: P.canvas }}>
@@ -29,7 +33,13 @@ export default function BallotRoute() {
             router.canGoBack() ? router.back() : router.replace("/")
           }
         />
-        <View style={{ margin: 24, gap: 20 }}>
+        <ScrollView
+          contentContainerStyle={{
+            padding: 16,
+            gap: 16,
+            paddingBottom: insets.bottom + 24,
+          }}
+        >
           <Text
             accessibilityRole="header"
             style={{
@@ -41,51 +51,54 @@ export default function BallotRoute() {
           >
             Your ballot
           </Text>
-          <Text
-            accessibilityRole="header"
-            style={{
-              fontFamily: fontEditorial.bold,
-              fontSize: 24,
-              lineHeight: 30,
-              color: P.inkOnNight,
-            }}
-          >
-            Ballot lookup is coming soon
-          </Text>
-          <Text
-            style={{
-              fontFamily: fontBody.regular,
-              fontSize: 16,
-              lineHeight: 24,
-              color: P.inkOnNight,
-            }}
-          >
-            We’re checking election coverage before opening this lookup.
-          </Text>
-          <Link href="/" asChild>
-            <Pressable
-              accessibilityRole="button"
+          <Card style={{ padding: 16, gap: 16, borderRadius: 14 }}>
+            <Text
+              accessibilityRole="header"
               style={{
-                minHeight: 48,
-                padding: 12,
-                borderRadius: 12,
-                backgroundColor: P.inkOnNight,
-                alignItems: "center",
-                justifyContent: "center",
+                fontFamily: fontEditorial.bold,
+                fontSize: 16,
+                lineHeight: 19,
+                color: P.inkOnNight,
               }}
             >
-              <Text
+              Ballot lookup is coming soon
+            </Text>
+            <Text
+              style={{
+                fontFamily: fontBody.regular,
+                fontSize: 16,
+                lineHeight: 24,
+                color: P.inkOnNight,
+              }}
+            >
+              We’re checking election coverage before opening this lookup.
+            </Text>
+            <ElectionOfficeLink prominence="primary" />
+            <Link href="/" asChild>
+              <Pressable
+                accessibilityRole="button"
                 style={{
-                  fontFamily: fontBody.bold,
-                  fontSize: 16,
-                  color: P.canvas,
+                  minHeight: 48,
+                  padding: 12,
+                  borderRadius: 12,
+                  backgroundColor: P.canvas,
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                Back home
-              </Text>
-            </Pressable>
-          </Link>
-        </View>
+                <Text
+                  style={{
+                    fontFamily: fontBody.bold,
+                    fontSize: 16,
+                    color: P.primary,
+                  }}
+                >
+                  Back home
+                </Text>
+              </Pressable>
+            </Link>
+          </Card>
+        </ScrollView>
       </View>
     );
   }
@@ -95,20 +108,33 @@ export default function BallotRoute() {
 /** Mount directly in controlled tests; the public route always checks launch readiness. */
 export function BallotExperience({
   initialAddress = "",
+  reuseInitialLookup = false,
 }: {
   initialAddress?: string;
+  /** A legacy caller already loaded this exact address into the query cache. */
+  reuseInitialLookup?: boolean;
 }) {
-  const [address, setAddress] = useState(initialAddress);
+  const [{ address, reuseLookup }, setLookup] = useState({
+    address: initialAddress,
+    reuseLookup: reuseInitialLookup,
+  });
   return (
-    <AddressBallot key={address} address={address} onAddress={setAddress} />
+    <AddressBallot
+      key={address}
+      address={address}
+      onAddress={(address) => setLookup({ address, reuseLookup: false })}
+      reuseLookup={reuseLookup}
+    />
   );
 }
 
 function AddressBallot({
   address,
   onAddress,
+  reuseLookup,
 }: {
   address: string;
+  reuseLookup: boolean;
   onAddress: (address: string) => void;
 }) {
   const [electionId, setElectionId] = useState<string>();
@@ -118,6 +144,8 @@ function AddressBallot({
   const discovery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions(request),
     enabled: !!address,
+    // Handoff reuses the caller’s result; edits and explicit retries still fetch.
+    refetchOnMount: reuseLookup ? false : true,
     retry: false,
   });
   const selection = useQuery({
