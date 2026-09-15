@@ -11,7 +11,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-import type { BillBriefRecord } from "@acme/validators";
+import type { BillBriefRecord, CourtBriefRecord } from "@acme/validators";
 
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
@@ -1145,7 +1145,7 @@ export const ContentImageReview = pgTable(
  * ContentLens (regenerated when `contentHash` moves). Kept out of the content
  * tables so a brief can be regenerated, versioned, or dropped without touching
  * scraped source rows, and so the three content types can adopt it one at a
- * time. Only bills are generated today.
+ * time. Bills and courts currently have separate validated brief schemas.
  */
 export const ContentBrief = pgTable(
   "content_brief",
@@ -1154,7 +1154,7 @@ export const ContentBrief = pgTable(
     contentType: t.varchar({ length: 20 }).notNull(), // "bill" | "government_content" | "court_case"
     contentId: t.uuid().notNull(),
     contentHash: t.varchar({ length: 64 }).notNull(),
-    brief: t.jsonb().$type<BillBriefRecord>().notNull(),
+    brief: t.jsonb().$type<BillBriefRecord | CourtBriefRecord>().notNull(),
     modelVersion: t.varchar({ length: 50 }).notNull(),
     createdAt: t.timestamp().defaultNow().notNull(),
     updatedAt: t

@@ -12,7 +12,7 @@ export interface ReprocessingState {
   contentType: ReprocessContentType;
   fullText: string | null;
   aiGeneratedArticle: string | null;
-  /** Whether a structured brief exists. Bills only — see `needsReprocessing`. */
+  /** Whether a current structured brief exists for bills or court cases. */
   hasBrief: boolean;
 }
 
@@ -63,6 +63,16 @@ export function isUsableGovernmentContentTitle(title: string): boolean {
   );
 }
 
+/** Short court orders are complete evidence; legislative stubs are not. */
+export function isUsableExplanationSource(
+  text: string | undefined | null,
+  type: ReprocessContentType,
+): text is string {
+  return type === "court_case"
+    ? Boolean(text?.trim())
+    : isUsableSourceText(text);
+}
+
 export function governmentContentSourceDeferralReason(
   title: string,
   fullText: string | undefined | null,
@@ -94,11 +104,10 @@ export function isUsableAIArticle(article: string | undefined | null): boolean {
  * would select every correctly-stored bill and regenerate the artifact we
  * deliberately stopped producing.
  *
- * Court cases and executive actions have no brief schema yet, so for them the
- * article is still the only long-form content and remains required.
+ * Court cases also use typed briefs. Executive actions still require articles.
  */
 export function requiresBrief(contentType: ReprocessContentType): boolean {
-  return contentType === "bill";
+  return contentType === "bill" || contentType === "court_case";
 }
 
 export function needsReprocessing(
@@ -107,7 +116,8 @@ export function needsReprocessing(
 ): boolean {
   if (mode === "replace") return true;
 
-  if (!isUsableSourceText(state.fullText)) return true;
+  if (!isUsableExplanationSource(state.fullText, state.contentType))
+    return true;
   return requiresBrief(state.contentType)
     ? !state.hasBrief
     : !isUsableAIArticle(state.aiGeneratedArticle);

@@ -19,7 +19,7 @@ import {
   GovernmentContent,
   SavedArticle,
 } from "@acme/db/schema";
-import { parseBillBriefRecord } from "@acme/validators";
+import { parseBillBriefRecord, parseCourtBriefRecord } from "@acme/validators";
 
 import type { ContentJurisdiction } from "../lib/content-jurisdiction";
 import { toBillTimelineActions } from "../lib/bill-actions";
@@ -140,9 +140,13 @@ export async function attachContentImages<T extends ContentImageRef>(
 async function getLensData(
   contentId: string,
   contentType: "bill" | "government_content" | "court_case",
+  sourceHash?: string | null,
 ) {
   const [lens] = await db
-    .select({ lensData: ContentLens.lensData })
+    .select({
+      lensData: ContentLens.lensData,
+      contentHash: ContentLens.contentHash,
+    })
     .from(ContentLens)
     .where(
       and(
@@ -151,13 +155,15 @@ async function getLensData(
       ),
     )
     .limit(1);
-  return lens?.lensData ?? null;
+  return sourceHash !== undefined && lens?.contentHash !== sourceHash
+    ? null
+    : (lens?.lensData ?? null);
 }
 
 // Look up the cached structured brief for a content item. Rows written by an
 // older shipped shapes are normalized here, so the client can treat a present
 // brief as renderable while the scraper refreshes stale rows independently.
-// Bills are the only type generating briefs today.
+// Court briefs have a separate projection and never enter the bill parser.
 async function getBrief(
   contentId: string,
   contentType: "bill" | "government_content" | "court_case",
@@ -981,20 +987,39 @@ export const contentRouter = {
         .limit(1);
       if (courtCase[0]) {
         const c = courtCase[0];
+        const [briefRows, lensData] = await Promise.all([
+          db
+            .select()
+            .from(ContentBrief)
+            .where(
+              and(
+                eq(ContentBrief.contentId, c.id),
+                eq(ContentBrief.contentType, "court_case"),
+              ),
+            )
+            .limit(1),
+          getLensData(c.id, "court_case", c.contentHash),
+        ]);
+        const [storedBrief] = briefRows;
+        const courtBrief =
+          storedBrief?.contentHash === c.contentHash
+            ? parseCourtBriefRecord(storedBrief.brief, c.contentHash)
+            : null;
         const [result] = await attachContentImages([
           {
             id: c.id,
             title: c.title,
             description: c.description ?? "",
             type: "court_case" as const,
-            isAIGenerated: !!c.aiGeneratedArticle,
+            isAIGenerated: !!courtBrief || !!c.aiGeneratedArticle,
             thumbnailUrl: c.thumbnailUrl ?? undefined,
             billNumber: undefined,
             articleContent:
               c.aiGeneratedArticle ?? c.fullText ?? "No content available",
             originalContent: c.fullText ?? "Full text not available",
             url: c.url,
-            lensData: await getLensData(c.id, "court_case"),
+            courtBrief,
+            lensData,
           },
         ]);
         if (!result) throw new Error(`Failed to decorate court case ${c.id}`);
