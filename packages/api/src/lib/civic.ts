@@ -329,18 +329,25 @@ async function fetchCivicApi<T>(
     url.searchParams.set(key, value);
   }
 
-  const response = await fetch(url.toString(), {
-    signal: AbortSignal.timeout(4_000),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4_000);
+  try {
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      `Google Civic API error: ${response.status} ${response.statusText} - ${JSON.stringify(error)}`,
-    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(
+        `Google Civic API error: ${response.status} ${response.statusText} - ${JSON.stringify(error)}`,
+      );
+    }
+
+    // Await the body so the deadline covers it as well as the headers.
+    return (await response.json()) as T;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return response.json() as Promise<T>;
 }
 
 /** Resolve an address to its current Open Civic Data political divisions. */
