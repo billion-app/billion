@@ -11,12 +11,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import type { MeasureArgumentRef, MeasureCitationRef } from "@acme/api";
 
 import {
-  AiSummaryLabel,
   BallotDetailEvidence,
   ElectionOfficeLink,
   SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
 import {
+  BallotAiDisclosure,
   BallotReadingCard,
   BallotReadingMode,
   BallotReadingText,
@@ -25,7 +25,6 @@ import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Icon, NavHeader } from "~/components/ui";
 import {
-  DigestSpace,
   fontBody,
   fontDisplay,
   fontEditorial,
@@ -76,7 +75,7 @@ export default function MeasureDetailScreen() {
       ? [{ text: params.referendumConStatement, sourceName: "" }]
       : [];
   const summary =
-    params.summaryLong || params.summary || params.referendumSubtitle;
+    params.summary || params.summaryLong || params.referendumSubtitle;
   const sourceUrl = webUrl(params.referendumUrl);
   const summaryIsAi =
     params.summaryIsAiGenerated === "true" ||
@@ -151,8 +150,11 @@ export default function MeasureDetailScreen() {
               <BallotReadingCard
                 inset
                 title="Measure overview"
+                icon={summaryIsAi ? "sparkle" : "book"}
+                accent
                 text={summary}
-                label={summaryIsAi ? <AiSummaryLabel /> : undefined}
+                extendedText={params.summaryLong}
+                label={summaryIsAi ? <BallotAiDisclosure /> : undefined}
               />
             ) : (
               <Text style={s.secondary}>
@@ -163,10 +165,11 @@ export default function MeasureDetailScreen() {
               <BallotReadingCard
                 inset
                 title="Fiscal impact"
+                icon="trendingUp"
                 text={params.fiscalImpact}
                 label={
                   isGenerated("fiscalImpact") ? (
-                    <AiSummaryLabel label="AI-generated explanation" />
+                    <BallotAiDisclosure label="AI-generated explanation" />
                   ) : undefined
                 }
               />
@@ -187,14 +190,19 @@ export default function MeasureDetailScreen() {
             )}
           </>
         ) : (
-          <BallotReadingCard
-            title="Original measure text"
-            text={params.referendumText}
-          >
+          <>
             {sourceUrl && (
-              <SourceLink label="Open original source" url={sourceUrl} />
+              <SourceLink
+                label="Open original source"
+                url={sourceUrl}
+                prominence="primary"
+              />
             )}
-          </BallotReadingCard>
+            <BallotReadingCard
+              title="Original measure text"
+              text={params.referendumText}
+            />
+          </>
         )}
         <BallotDetailEvidence
           citations={citations}
@@ -241,7 +249,7 @@ function ArgumentCard({
       </Pressable>
       {expanded && (
         <View style={s.argumentBody}>
-          {generated && <AiSummaryLabel label="AI-generated explanation" />}
+          {generated && <BallotAiDisclosure label="AI-generated explanation" />}
           <View style={{ gap: sp[4] }}>
             {args.map((arg, index) => (
               <View key={index} style={{ gap: sp[2] }}>
@@ -289,17 +297,17 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconTile: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     backgroundColor: planes.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   argumentTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 16,
-    lineHeight: 19,
+    fontSize: 17,
+    lineHeight: 22,
     color: P.inkOnNight,
   },
   argumentBody: {
@@ -311,15 +319,15 @@ const s = StyleSheet.create({
   },
   screen: { flex: 1, backgroundColor: P.canvas },
   content: {
-    paddingHorizontal: DigestSpace.screenPadX,
+    paddingHorizontal: 20,
     paddingTop: sp[5],
     paddingBottom: sp[12],
-    gap: sp[6],
+    gap: 18,
   },
   title: {
     fontFamily: fontDisplay.bold,
-    fontSize: 34,
-    lineHeight: 38,
+    fontSize: 30,
+    lineHeight: 34,
     color: P.inkOnNight,
     marginBottom: sp[2],
   },
@@ -331,8 +339,8 @@ const s = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 16,
-    lineHeight: 19,
+    fontSize: 17,
+    lineHeight: 22,
     color: P.inkOnNight,
   },
   secondary: {

@@ -1,5 +1,11 @@
 /** Segmented — Digest night control (The brief / Original text). */
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import type { IconName } from "./Icon";
 import {
@@ -25,20 +31,30 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (id: T) => void;
 }) {
+  const { fontScale } = useWindowDimensions();
+  const stacked = fontScale > 1.3;
   return (
-    <View style={s.wrap}>
+    <View style={[s.wrap, stacked && { flexDirection: "column" }]}>
       {options.map((o) => {
         const active = value === o.id;
-        const fg = active ? P.inkOnNight : P.quiet;
+        const fg = active ? P.canvas : P.inkOnNight;
         return (
           <TouchableOpacity
             key={o.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
             onPress={() => onChange(o.id)}
             activeOpacity={0.8}
-            style={[s.seg, active ? s.segActive : undefined]}
+            style={[
+              s.seg,
+              stacked && { flex: 0 },
+              active ? s.segActive : undefined,
+            ]}
           >
             {o.icon && <Icon name={o.icon} size={15} color={fg} />}
-            <Text style={[s.segText, { color: fg }]}>{o.label}</Text>
+            <Text key={fontScale} style={[s.segText, { color: fg }]}>
+              {o.label}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -58,7 +74,9 @@ const s = StyleSheet.create({
   },
   seg: {
     flex: 1,
-    height: 38,
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     borderRadius: DigestRadii.menuRow,
     flexDirection: "row",
     alignItems: "center",
@@ -68,5 +86,10 @@ const s = StyleSheet.create({
   segActive: {
     backgroundColor: P.primary,
   },
-  segText: { fontFamily: fontBody.semibold, fontSize: 13.5 },
+  segText: {
+    flexShrink: 1,
+    fontFamily: fontBody.semibold,
+    fontSize: 13.5,
+    textAlign: "center",
+  },
 });
