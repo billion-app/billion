@@ -352,7 +352,13 @@ export function VotingLogisticsSection({
 
 const styles = StyleSheet.create({
   section: { gap: sp[4] },
-  title: { fontFamily: fontEditorial.bold, fontSize: 22, lineHeight: 28 },
+  title: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11,
+    lineHeight: 13,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   groupTitle: { fontFamily: fontEditorial.bold, fontSize: 16, lineHeight: 19 },
   sourceHeading: {
     fontFamily: fontBody.semibold,
