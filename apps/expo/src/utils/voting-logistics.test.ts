@@ -134,3 +134,60 @@ void test("unsafe and credential-bearing source URLs are not actionable", () => 
     "http://example.org/vote",
   );
 });
+
+void test("a shared office destination appears once, with a label covering its purposes", () => {
+  const links = votingInformationLinks({
+    state: [
+      {
+        name: "State office",
+        electionAdministrationBody: {
+          electionRegistrationUrl: "https://example.org/services",
+          ballotInfoUrl: "https://example.org/services",
+        },
+        localJurisdiction: {
+          name: "Local office",
+          electionAdministrationBody: {
+            electionRegistrationUrl: "https://example.org/services",
+            votingLocationFinderUrl: "https://example.org/locations",
+          },
+        },
+      },
+    ],
+  });
+  assert.deepEqual(links, [
+    {
+      label: "Find voting locations",
+      office: "Local office",
+      url: "https://example.org/locations",
+    },
+    {
+      label: "Election office website",
+      office: "Local office",
+      url: "https://example.org/services",
+    },
+  ]);
+});
+
+void test("distinct official pages remain available even when labels match", () => {
+  const links = votingInformationLinks({
+    state: [
+      {
+        name: "State",
+        electionAdministrationBody: {
+          ballotInfoUrl: "https://example.org/state-ballot",
+        },
+        localJurisdiction: {
+          name: "County",
+          electionAdministrationBody: {
+            ballotInfoUrl: "https://example.org/county-ballot",
+          },
+        },
+      },
+    ],
+  });
+  assert.equal(links.length, 2);
+  assert.deepEqual(
+    links.map((link) => link.office),
+    ["County", "State"],
+  );
+});
