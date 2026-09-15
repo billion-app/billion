@@ -6,6 +6,8 @@ import {
   ballotElectionOptions,
   ballotModel,
   ballotWebUrl,
+  contestBallotCitations,
+  validateBallotAddress,
 } from "./ballot-lookup";
 
 function response(state: string): BallotResponse {
@@ -80,4 +82,30 @@ void test("missing election and normalized address remain unknown", () => {
   assert.equal(ballotModel(data).election, undefined);
   assert.equal(ballotModel(data).isCalifornia, false);
   assert.deepEqual(ballotElectionOptions(data), []);
+});
+
+void test("address validation bounds input without claiming eligibility", () => {
+  for (const value of ["", "   ", "abcd", "x".repeat(301), "123\nMain"])
+    assert.equal(validateBallotAddress(value), false);
+  for (const value of ["123 Main St, Example, NC", "x".repeat(300)])
+    assert.equal(validateBallotAddress(value), true);
+});
+void test("contest citations preserve field and official evidence without inferring it from URLs", () => {
+  const citation = {
+    field: "referendumText",
+    sourceName: "Office",
+    sourceUrl: "https://example.org/source",
+    official: true,
+    tier: "state_sos",
+  };
+  const result = contestBallotCitations({
+    type: "Referendum",
+    citations: [citation],
+    sources: [{ name: "Office", url: citation.sourceUrl, official: true }],
+    referendumUrl: "https://example.org/measure",
+  });
+  assert.deepEqual(result[0], citation);
+  assert.equal(result.length, 2);
+  assert.equal(result[1]?.official, false);
+  assert.equal(ballotWebUrl("https://user:password@example.org"), undefined);
 });
