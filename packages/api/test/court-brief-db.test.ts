@@ -3,34 +3,38 @@ import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import pg from "pg";
 
-import { generateCourtBrief } from "../utils/ai/court-brief.js";
+import { and, eq } from "@acme/db";
+import { ContentBrief, CourtCase } from "@acme/db/schema";
+import { parseCourtBriefRecord } from "@acme/validators";
+
+import { generateCourtBrief } from "../../../apps/scraper/src/utils/ai/court-brief.js";
 import {
   emergency,
   emergencyOutput,
   fixtureModel,
-} from "../utils/ai/fixtures/court-brief-fixtures.js";
-import { createNewItemLimiter } from "../utils/new-item-limit.js";
+} from "../../../apps/scraper/src/utils/ai/fixtures/court-brief-fixtures.js";
+import { createNewItemLimiter } from "../../../apps/scraper/src/utils/new-item-limit.js";
 
 void test(
   "source → real generation/validation → stored court brief → tRPC, with cache and fallback regressions",
   { skip: !process.env.SCOTUS_TEST_POSTGRES_URL },
   async () => {
-    const url = process.env.SCOTUS_TEST_POSTGRES_URL!;
+    const url = process.env.SCOTUS_TEST_POSTGRES_URL;
+    assert.ok(url);
     assert.ok(
       ["127.0.0.1", "localhost", "[::1]"].includes(new URL(url).hostname),
       "Court fixture writes require a local database",
     );
     process.env.POSTGRES_URL = url;
+    // Test-controlled constant, not an input to Turbo's cache.
+    // eslint-disable-next-line turbo/no-undeclared-env-vars
     process.env.SCRAPER_SKIP_DUAL_LENS = "1";
     const { upsertContent, upsertCourtBrief } =
-      await import("../utils/db/operations.js");
+      await import("../../../apps/scraper/src/utils/db/operations.js");
     const { db } = await import("@acme/db/client");
-    const { createCaller } = await import("@acme/api");
+    const { createCaller } = await import("../src/root");
     const api = createCaller({ db, session: null, authApi: {} as never });
-    const client = new pg.Client({ connectionString: url });
-    await client.connect();
     const id = randomUUID();
     const data = { ...emergency.data };
     const input = { type: "court_case" as const, data };
@@ -49,10 +53,15 @@ void test(
         );
     };
     try {
-      const { rows: existing } = await client.query(
-        "select id from court_case where case_number=$1 and court=$2",
-        [data.caseNumber, data.court],
-      );
+      const existing = await db
+        .select({ id: CourtCase.id })
+        .from(CourtCase)
+        .where(
+          and(
+            eq(CourtCase.caseNumber, data.caseNumber),
+            eq(CourtCase.court, data.court),
+          ),
+        );
       assert.equal(
         existing.length,
         0,
@@ -72,14 +81,14 @@ void test(
       assert.deepEqual(
         await upsertContent(newInput, {
           newItemLimiter: createNewItemLimiter(1),
-          courtBriefGenerator: async () => null,
+          courtBriefGenerator: () => Promise.resolve(null),
         }),
         { status: "deferred", reason: "enrichment did not complete" },
       );
-      const { rows: partialRows } = await client.query(
-        "select id from court_case where case_number=$1",
-        [newInput.data.caseNumber],
-      );
+      const partialRows = await db
+        .select({ id: CourtCase.id })
+        .from(CourtCase)
+        .where(eq(CourtCase.caseNumber, newInput.data.caseNumber));
       assert.equal(partialRows.length, 0);
       assert.deepEqual(
         await upsertContent({
@@ -88,15 +97,18 @@ void test(
         }),
         { status: "deferred", reason: "court source text unavailable" },
       );
-      await client.query(
-        `insert into court_case (id, case_number, title, court, description, ai_generated_article, full_text, url, thumbnail_url, content_hash)
-      values ($1,$2,$3,$4,'Legacy summary','Legacy Markdown explanation',$5,$6,'https://example.org/existing.png','old')`,
-        [id, data.caseNumber, data.title, data.court, data.fullText, data.url],
-      );
+      await db.insert(CourtCase).values({
+        id,
+        ...data,
+        description: "Legacy summary",
+        aiGeneratedArticle: "Legacy Markdown explanation",
+        thumbnailUrl: "https://example.org/existing.png",
+        contentHash: "old",
+      });
       const missing = await api.content.getById({ id });
       assert.equal(missing.type, "court_case");
       assert.equal("brief" in missing, false);
-      assert.equal(missing.type === "court_case" && missing.courtBrief, null);
+      assert.equal(missing.courtBrief, null);
       assert.equal(missing.articleContent, "Legacy Markdown explanation");
       artifact("missing", missing);
 
@@ -109,12 +121,18 @@ void test(
         { status: "written", id },
       );
       assert.equal(model.doGenerateCalls.length, 1);
-      const { rows: stored } = await client.query(
-        "select content_hash, brief from content_brief where content_id=$1 and content_type='court_case'",
-        [id],
+      const briefWhere = and(
+        eq(ContentBrief.contentId, id),
+        eq(ContentBrief.contentType, "court_case"),
       );
+      const stored = await db.select().from(ContentBrief).where(briefWhere);
       assert.equal(stored.length, 1);
-      assert.equal(stored[0].brief.sourceHash, stored[0].content_hash);
+      assert.ok(stored[0]);
+      const storedBrief = parseCourtBriefRecord(
+        stored[0].brief,
+        stored[0].contentHash,
+      );
+      assert.ok(storedBrief);
       const detail = await api.content.getById({ id });
       assert.ok(detail.type === "court_case" && detail.courtBrief);
       assert.equal(detail.courtBrief.action.text, emergencyOutput.action.text);
@@ -136,10 +154,11 @@ void test(
       );
       assert.equal(model.doGenerateCalls.length, 1);
 
-      await client.query(
-        "update content_brief set brief=jsonb_set(brief,'{generatorVersion}','\"old\"') where content_id=$1",
-        [id],
-      );
+      await db
+        .update(ContentBrief)
+        // @ts-expect-error Deliberately persist an obsolete version to test rejection.
+        .set({ brief: { ...storedBrief, generatorVersion: "old" } })
+        .where(briefWhere);
       const invalid = await api.content.getById({ id });
       assert.equal(invalid.type === "court_case" && invalid.courtBrief, null);
       artifact("invalid", invalid);
@@ -178,28 +197,40 @@ void test(
       assert.equal(stale.articleContent, changed.data.fullText);
       assert.equal(stale.isAIGenerated, false);
       artifact("stale", stale);
-      const { rows: hashes } = await client.query(
-        "select content_hash from court_case where id=$1",
-        [id],
-      );
+      const hashes = await db
+        .select({ contentHash: CourtCase.contentHash })
+        .from(CourtCase)
+        .where(eq(CourtCase.id, id));
+      assert.ok(hashes[0]);
       const args = {
         contentId: id,
-        contentHash: hashes[0].content_hash as string,
+        contentHash: hashes[0].contentHash,
         data: changed.data,
       };
-      assert.equal(await upsertCourtBrief(args, async () => null), false);
+      assert.equal(
+        await upsertCourtBrief(args, () => Promise.resolve(null)),
+        false,
+      );
       assert.equal(await upsertCourtBrief(args, generator), true);
       assert.equal(model.doGenerateCalls.length, 3);
       const refreshed = await api.content.getById({ id });
       assert.ok(refreshed.type === "court_case" && refreshed.courtBrief);
     } finally {
-      await client.query(
-        "delete from content_brief where content_id=$1 and content_type='court_case'",
-        [id],
-      );
-      await client.query("delete from court_case where id=$1", [id]);
-      await client.end();
-      await (db as unknown as { $client: pg.Pool }).$client.end();
+      try {
+        await db
+          .delete(ContentBrief)
+          .where(
+            and(
+              eq(ContentBrief.contentId, id),
+              eq(ContentBrief.contentType, "court_case"),
+            ),
+          );
+        await db.delete(CourtCase).where(eq(CourtCase.id, id));
+      } finally {
+        await (
+          db as typeof db & { $client: { end(): Promise<void> } }
+        ).$client.end();
+      }
     }
   },
 );

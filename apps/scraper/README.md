@@ -100,11 +100,14 @@ Use a migrated local fixture database for the complete deterministic chain.
 Both database tests refuse remote hosts and remove only their own UUIDs. The
 new test uses the real generator with an AI SDK test model, exercises ordinary
 upsert/cache behavior and real tRPC detail, and writes optional response artifacts.
+It lives in `packages/api/test` so the scraper build does not import the API's
+auth context. All fixture reads and writes use the shared Drizzle schema.
 The Expo test renders the actual court component through React Native Web:
 
 ```bash
 mkdir -p /tmp/billion-court-brief-check
-SCOTUS_TEST_POSTGRES_URL=postgresql://LOCAL_USER@127.0.0.1:5432/LOCAL_FIXTURE_DB COURT_BRIEF_TEST_ARTIFACT_DIR=/tmp/billion-court-brief-check pnpm --filter @acme/scraper exec tsx --test src/scrapers/court-brief-db.test.ts src/scrapers/scotus-db.test.ts
+SCOTUS_TEST_POSTGRES_URL=postgresql://LOCAL_USER@127.0.0.1:5432/LOCAL_FIXTURE_DB pnpm --filter @acme/scraper exec tsx --test src/scrapers/scotus-db.test.ts
+SCOTUS_TEST_POSTGRES_URL=postgresql://LOCAL_USER@127.0.0.1:5432/LOCAL_FIXTURE_DB COURT_BRIEF_TEST_ARTIFACT_DIR=/tmp/billion-court-brief-check pnpm --filter @acme/api exec tsx --test test/court-brief-db.test.ts
 COURT_BRIEF_TEST_ARTIFACT_DIR=/tmp/billion-court-brief-check pnpm --filter @acme/expo exec tsx --test src/components/ui/CourtBrief.test.ts
 pnpm --filter @acme/scraper exec tsx --test src/utils/ai/court-brief.test.ts
 ```
