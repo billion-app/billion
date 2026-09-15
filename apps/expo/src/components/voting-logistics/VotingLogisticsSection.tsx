@@ -1,14 +1,11 @@
 import type { ReactNode } from "react";
-import type { TextProps } from "react-native";
 import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Linking,
-  Text as NativeText,
   Pressable,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from "react-native";
 
