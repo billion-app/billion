@@ -144,7 +144,7 @@ export async function saveOnboarding(state: OnboardingState): Promise<void> {
   }
 }
 
-/** Development affordance: replay the flow from the first screen. */
+/** Clear device preferences so the onboarding gate replays the flow. */
 export async function resetOnboarding(): Promise<void> {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
