@@ -1,0 +1,12 @@
+✔ missing fields and election identity remain distinct (0.802875ms)
+✔ otherElections requires an explicit choice without assuming the national election (0.767042ms)
+✔ bounded read-only request preserves selected ID and excludes secrets and address (103.320792ms)
+✔ credentials, transport errors and HTTP errors never become absence (110.09025ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 687.63025

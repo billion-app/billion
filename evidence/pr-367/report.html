@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>PR 367 — actual tooling evidence</title><style>
+body{margin:0;background:#f4f5f7;color:#172333;font:18px/1.5 system-ui,sans-serif}main{padding:36px 48px;max-width:1250px;margin:auto}h1{font-size:32px;margin:6px 0 10px}h2{font-size:22px;margin:0 0 12px}.label{font-size:14px;letter-spacing:1px;text-transform:uppercase;color:#516078}.banner{padding:16px 20px;background:#fff0cf;border-left:5px solid #b76b00;margin:20px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{background:white;border:1px solid #d9dfe6;border-radius:10px;padding:22px}pre{font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f9;padding:16px}table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:7px;text-align:left;border-bottom:1px solid #e1e5eb}.small{font-size:14px;color:#516078}p{margin:10px 0}.footer{margin-top:18px;font-size:14px;color:#516078}</style><main>
+<div class="label">Billion · PR #367 · Documentation and tooling</div><h1>Coverage evidence and harness verification</h1><p>Actual report data and fresh offline test output. This is not an app screen or live ballot coverage.</p>
+<div class="banner"><strong>National coverage is not established.</strong> All 15 address samples remain unmeasured.<br>Historical Google access failure is evidence only; replacement-provider research is the future direction.</div>
+<div class="grid"><section><h2>Historical provider probe</h2><p class="small">Committed artifact: tools/issue-332/evidence/2026-09-15-endpoint.json</p><pre>{
+  &quot;checkedAt&quot;: &quot;2026-09-15T00:18:48.190Z&quot;,
+  &quot;endpoint&quot;: &quot;https://www.googleapis.com/civicinfo/v2/elections&quot;,
+  &quot;httpStatus&quot;: 403,
+  &quot;outcome&quot;: &quot;api_access_not_configured&quot;
+}</pre><p>HTTP 403 is an API configuration/access failure. It does not establish missing ballots or an invalid key.</p><h2 style="margin-top:26px">Offline harness verification</h2><p class="small">Fresh run: node --test --test-reporter=spec tools/issue-332/coverage.test.mjs<br>Synthetic test responses; no provider calls.</p><pre>✔ missing fields and election identity remain distinct (0.802875ms)
+✔ otherElections requires an explicit choice without assuming the national election (0.767042ms)
+✔ bounded read-only request preserves selected ID and excludes secrets and address (103.320792ms)
+✔ credentials, transport errors and HTTP errors never become absence (110.09025ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 687.63025
+</pre></section><section><h2>15-state sample plan</h2><p class="small">Actual planned jurisdictions from samples.json. Residential addresses and official comparisons are pending.</p><table><thead><tr><th>State</th><th>Planned jurisdiction</th><th>Coverage</th></tr></thead><tbody><tr><td>CA</td><td>Santa Clara County</td><td>Unmeasured</td></tr><tr><td>TX</td><td>Harris County</td><td>Unmeasured</td></tr><tr><td>FL</td><td>Miami-Dade County</td><td>Unmeasured</td></tr><tr><td>NY</td><td>New York City</td><td>Unmeasured</td></tr><tr><td>PA</td><td>Allegheny County</td><td>Unmeasured</td></tr><tr><td>MI</td><td>Detroit</td><td>Unmeasured</td></tr><tr><td>WI</td><td>Dane County</td><td>Unmeasured</td></tr><tr><td>AZ</td><td>Maricopa County</td><td>Unmeasured</td></tr><tr><td>GA</td><td>Fulton County</td><td>Unmeasured</td></tr><tr><td>NC</td><td>Wake County</td><td>Unmeasured</td></tr><tr><td>OH</td><td>Athens County</td><td>Unmeasured</td></tr><tr><td>CO</td><td>Denver</td><td>Unmeasured</td></tr><tr><td>WA</td><td>King County</td><td>Unmeasured</td></tr><tr><td>ME</td><td>Farmington</td><td>Unmeasured</td></tr><tr><td>AK</td><td>Bethel</td><td>Unmeasured</td></tr></tbody></table><p class="small">Election IDs and field availability are unmeasured. A sample cannot certify statewide completeness.</p></section></div>
+<p class="footer">Source implementation: cd2db6b652845f5dce2127aee2bc7fb561b71de2 · Evidence page generated 2026-09-15T01:25:40.029768+00:00<br>No iOS UI changed. No production writes, enrichment or paid provider requests.</p></main></html>
