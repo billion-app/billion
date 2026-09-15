@@ -838,7 +838,11 @@ export function getVoterInfo(
     electionId === "" ? null : (electionId ?? null),
     options.includeEnrichment !== false,
   ]);
-  return readBallot(key, () => loadVoterInfo(address, electionId, options));
+  return readBallot(
+    key,
+    () => loadVoterInfo(address, electionId, options),
+    options.includeEnrichment === false ? 10_000 : 60_000,
+  );
 }
 
 const loadVoterInfo = createVoterInfoLoader({

@@ -97,3 +97,20 @@ void test("distinct election/address keys remain isolated and sync throws releas
   );
   assert.equal(await read("a", () => Promise.resolve(3)), 3);
 });
+
+void test("enriched reads can use a longer deadline in the same admission pool", async () => {
+  const read = createCivicReadGuard({ timeoutMs: 1, maxActive: 1 });
+  const enriched = read(
+    "enriched",
+    async () => {
+      await delay(10);
+      return "ready";
+    },
+    500,
+  );
+  await assert.rejects(
+    read("base", () => Promise.resolve("blocked")),
+    CivicReadUnavailableError,
+  );
+  assert.equal(await enriched, "ready");
+});

@@ -18,7 +18,12 @@ separate. The [read guard](../packages/api/src/lib/civic-read-guard.ts) admits a
 most 32 distinct operations per process and has no waiting queue. Duplicate
 callers share the admitted operation, including its deadline.
 
-Each caller receives a result or failure within ten seconds of admission. Google
+Base-only callers receive a result or failure within ten seconds of admission;
+enriched callers have a provisional 60-second deadline. Existing enrichment
+fetches allow 12 seconds per source and candidate work runs in batches of five,
+followed by AI calls without an explicit deadline. Ten seconds would routinely
+cut off that path. Sixty seconds allows multiple batches, but is not a measured
+production SLO and can still truncate unusually slow enrichment. Google
 Civic requests have a four-second abort deadline, including response-body reads.
 The existing unknown-election retry remains limited to one retry. Provider,
 cache or enrichment failures may still fail the read; the router returns a generic
@@ -71,3 +76,8 @@ Local run on September 14, 2026: the 100-request successful burst recorded
 p95 23.0 ms, 0% errors and one upstream call. The failing burst recorded p95
 23.1 ms, 100% explicit errors and one upstream call. These fake-provider results
 validate coalescing, not real-world availability or production capacity.
+
+Unknown-election fallback preserves the provider-returned `election.id`. When
+a specific ID was requested, the cache write uses the returned ID, never the
+rejected ID. The lookup route should compare requested and returned IDs before
+labeling the ballot as the selected election.

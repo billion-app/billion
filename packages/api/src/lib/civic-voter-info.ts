@@ -37,7 +37,11 @@ export function createVoterInfoLoader(deps: {
       result = await deps.fetch(params);
     }
     if (options.includeEnrichment !== false) await deps.enrich(result);
-    await deps.setCache(address, endpoint, cacheParams, result);
+    // A fallback election must not be cached under the rejected election ID.
+    const writeParams = electionId
+      ? { electionId: result.election.id }
+      : cacheParams;
+    await deps.setCache(address, endpoint, writeParams, result);
     return result;
   };
 }
