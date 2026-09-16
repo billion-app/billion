@@ -1,5 +1,5 @@
 import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import type { RouterOutputs } from "~/utils/api";
 import type { StateJurisdiction } from "~/utils/jurisdiction";
@@ -34,7 +34,7 @@ import {
   jurisdictionFromAddress,
   JURISDICTIONS,
 } from "~/utils/jurisdiction";
-import { unreadArticles } from "~/utils/read-content";
+import { visibleArticles } from "~/utils/read-content";
 import { BRIEF_MAX, changeConnection } from "~/utils/what-changed";
 
 const CANVAS = P.night;
@@ -51,6 +51,7 @@ const RAIL_CARD_HEIGHT = 350;
 const RAIL_GAP = 12;
 const RAIL_INSET = 16;
 const RAIL_SNAP = RAIL_CARD_WIDTH + RAIL_GAP;
+const ALSO_PAGE_SIZE = 12;
 
 /** Design-only cover art — not content fixtures. */
 const CAPITOL = CAPITOL_LINE;
@@ -122,12 +123,12 @@ export function DigestHome() {
   const { jurisdiction: browseJurisdiction } = useContentJurisdiction();
   const onboarding = useOnboarding();
   const { savedIds } = useSavedContent();
-  const { readIds, isLoading: readHistoryLoading } = useReadContent();
+  const { readHistory, isLoading: readHistoryLoading } = useReadContent();
   const lastVisitAt = useLastVisit();
   const savedIdSet = useMemo(() => new Set(savedIds), [savedIds]);
 
   // Local rail follows saved address → Browse state preference → CA fallback.
-  // Also Today stays federal and only shows unread articles.
+  // Also Today stays federal. Read articles remain for 24 hours.
   const localJurisdiction = useMemo((): StateJurisdiction => {
     const fromAddress = jurisdictionFromAddress(address ?? null);
     if (fromAddress) return fromAddress;
@@ -158,16 +159,26 @@ export function DigestHome() {
   const featuredFederal = useQuery(
     trpc.content.getFeaturedBills.queryOptions({ jurisdiction: "federal" }),
   );
-  const federalEmpty =
-    !featuredFederal.isLoading && (featuredFederal.data?.length ?? 0) === 0;
-  const federalFeed = useQuery({
-    ...trpc.content.getByType.queryOptions({
-      type: "bill",
-      limit: BRIEF_MAX,
-      jurisdiction: "federal",
-    }),
-    enabled: federalEmpty || !!featuredFederal.error,
-  });
+  const {
+    data: federalFeed,
+    error: federalFeedError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: federalFeedLoading,
+  } = useInfiniteQuery(
+    trpc.content.getByType.infiniteQueryOptions(
+      {
+        type: "bill",
+        limit: ALSO_PAGE_SIZE,
+        jurisdiction: "federal",
+      },
+      {
+        initialCursor: 0,
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+      },
+    ),
+  );
 
   const localCards = useMemo((): DigestCard[] => {
     const featured = featuredLocal.data;
@@ -179,13 +190,10 @@ export function DigestHome() {
   }, [featuredLocal.data, localFeed.data]);
 
   const alsoCards = useMemo((): DigestCard[] => {
-    const featured = featuredFederal.data;
-    const articles =
-      featured && featured.length > 0
-        ? featured
-        : (federalFeed.data?.items ?? []);
-    return unreadArticles<DigestCard>(articles, readIds).slice(0, BRIEF_MAX);
-  }, [featuredFederal.data, federalFeed.data, readIds]);
+    const featured = featuredFederal.data ?? [];
+    const articles = federalFeed?.pages.flatMap((page) => page.items) ?? [];
+    return visibleArticles<DigestCard>([...featured, ...articles], readHistory);
+  }, [featuredFederal.data, federalFeed?.pages, readHistory]);
 
   const changeContext = useMemo(
     () => ({
@@ -205,14 +213,33 @@ export function DigestHome() {
     !!localFeed.error &&
     (featuredEmpty || !!featuredLocal.error);
   const coverLoading =
-    readHistoryLoading ||
-    featuredFederal.isLoading ||
-    ((federalEmpty || !!featuredFederal.error) && federalFeed.isLoading);
+    readHistoryLoading || featuredFederal.isLoading || federalFeedLoading;
   const coverError =
     !coverLoading &&
     alsoCards.length === 0 &&
-    !!federalFeed.error &&
-    (federalEmpty || !!featuredFederal.error);
+    !!federalFeedError &&
+    !!featuredFederal.error;
+
+  const loadMoreArticles = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  const onFeedScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      const distanceFromBottom =
+        contentSize.height - contentOffset.y - layoutMeasurement.height;
+      if (distanceFromBottom < 600) loadMoreArticles();
+    },
+    [loadMoreArticles],
+  );
+
+  // If a fetched page is entirely past the 24-hour read window, keep paging
+  // until there is something to render or the federal feed is exhausted.
+  useEffect(() => {
+    if (!coverLoading && alsoCards.length === 0) loadMoreArticles();
+  }, [alsoCards.length, coverLoading, loadMoreArticles]);
 
   const openArticle = (id: string) => {
     router.push(`/article-detail?id=${id}`);
@@ -267,6 +294,8 @@ export function DigestHome() {
         bounces={!railHeld}
         directionalLockEnabled
         scrollEnabled={!railHeld}
+        onScroll={onFeedScroll}
+        scrollEventThrottle={200}
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
       >
         <View style={s.sectionHead}>
@@ -467,6 +496,13 @@ export function DigestHome() {
               );
             })
           )}
+          {isFetchingNextPage ? (
+            <ActivityIndicator
+              color={MUTED}
+              style={s.alsoLoader}
+              accessibilityLabel="Loading more articles"
+            />
+          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -638,6 +674,9 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(247,244,238,0.10)",
     overflow: "hidden",
+  },
+  alsoLoader: {
+    marginVertical: 20,
   },
   cover: {
     backgroundColor: CARD,
