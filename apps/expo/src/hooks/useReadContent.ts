@@ -5,8 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createReadContentStore } from "~/utils/read-content";
 
 const store = createReadContentStore(AsyncStorage);
-const queryKey = ["read-content-ids"] as const;
-const EMPTY_IDS: string[] = [];
+const queryKey = ["read-content-history"] as const;
+const EMPTY_HISTORY: Awaited<ReturnType<typeof store.read>> = [];
 
 export function useReadContent() {
   const client = useQueryClient();
@@ -21,7 +21,7 @@ export function useReadContent() {
   });
   const markRead = useCallback((id: string) => mutate(id), [mutate]);
   return {
-    readIds: history.data ?? EMPTY_IDS,
+    readHistory: history.data ?? EMPTY_HISTORY,
     isLoading: history.isLoading,
     markRead,
   };

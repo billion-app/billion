@@ -3,82 +3,121 @@ import test from "node:test";
 
 import {
   createReadContentStore,
-  parseReadIds,
+  LEGACY_READ_CONTENT_KEY,
+  parseReadHistory,
   READ_CONTENT_KEY,
-  unreadArticles,
+  READ_VISIBILITY_WINDOW_MS,
+  visibleArticles,
 } from "./read-content";
 
-function memoryStorage(initial: string | null = null) {
-  let value = initial;
+function memoryStorage(initial: Record<string, string> = {}) {
+  const values = new Map(Object.entries(initial));
   return {
-    getItem: (key: string) => {
-      assert.equal(key, READ_CONTENT_KEY);
-      return Promise.resolve(value);
-    },
-    setItem: async (key: string, next: string) => {
-      assert.equal(key, READ_CONTENT_KEY);
+    getItem: (key: string) => Promise.resolve(values.get(key) ?? null),
+    setItem: async (key: string, value: string) => {
       await Promise.resolve();
-      value = next;
+      values.set(key, value);
     },
+    value: (key: string) => values.get(key),
   };
 }
 
 void test("missing or corrupt history doesn't stop the feed", () => {
-  for (const raw of [null, "", "broken", "{}", '[1,"a"]']) {
-    assert.deepEqual(parseReadIds(raw), []);
+  for (const raw of [null, "", "broken", "{}", "[1]"]) {
+    assert.deepEqual(parseReadHistory(raw), []);
   }
-  assert.deepEqual(parseReadIds('["a","a","b"]'), ["a", "b"]);
 });
 
-void test("unread articles retain editorial order and don't duplicate", () => {
-  const articles = [{ id: "a" }, { id: "b" }, { id: "a" }, { id: "c" }];
-  assert.deepEqual(unreadArticles(articles, []), [
-    { id: "a" },
-    { id: "b" },
-    { id: "c" },
-  ]);
-  assert.deepEqual(unreadArticles(articles, ["a", "unknown"]), [
-    { id: "b" },
-    { id: "c" },
-  ]);
-});
-
-void test("reading the selection empties it, and a newly featured article reappears", async () => {
-  const storage = memoryStorage();
-  const store = createReadContentStore(storage);
-  const articles = [{ id: "a" }, { id: "b" }];
-  assert.equal(unreadArticles(articles, await store.read()).length, 2);
-  await store.markRead("a");
-  assert.deepEqual(unreadArticles(articles, await store.read()), [{ id: "b" }]);
-  await store.markRead("b");
-  assert.deepEqual(unreadArticles(articles, await store.read()), []);
-  // Relaunch reads the persisted history, not just the old in-memory value.
-  const relaunched = createReadContentStore(storage);
-  assert.deepEqual(unreadArticles(articles, await relaunched.read()), []);
+void test("history retains the first valid timestamp and ignores bad entries", () => {
   assert.deepEqual(
-    unreadArticles([...articles, { id: "new" }], await relaunched.read()),
-    [{ id: "new" }],
+    parseReadHistory(
+      '[{"id":"a","firstReadAt":10},{"id":"a","firstReadAt":20},{"id":"b","firstReadAt":30},{"id":"bad","firstReadAt":-1}]',
+    ),
+    [
+      { id: "a", firstReadAt: 10 },
+      { id: "b", firstReadAt: 30 },
+    ],
   );
 });
 
-void test("concurrent opens and repeat visits don't lose reads", async () => {
+void test("read articles stay visible for 24 hours, then hide", () => {
+  const firstReadAt = 1_000;
+  const articles = [{ id: "a" }, { id: "b" }, { id: "a" }];
+  const history = [{ id: "a", firstReadAt }];
+
+  assert.deepEqual(
+    visibleArticles(
+      articles,
+      history,
+      firstReadAt + READ_VISIBILITY_WINDOW_MS - 1,
+    ),
+    [{ id: "a" }, { id: "b" }],
+  );
+  assert.deepEqual(
+    visibleArticles(articles, history, firstReadAt + READ_VISIBILITY_WINDOW_MS),
+    [{ id: "b" }],
+  );
+});
+
+void test("legacy read IDs migrate with a first-read timestamp", async () => {
+  const now = 50_000;
+  const storage = memoryStorage({
+    [LEGACY_READ_CONTENT_KEY]: '["a","a","b"]',
+  });
+  const history = await createReadContentStore(storage, () => now).read();
+  assert.deepEqual(history, [
+    { id: "a", firstReadAt: now },
+    { id: "b", firstReadAt: now },
+  ]);
+  assert.deepEqual(
+    JSON.parse(storage.value(READ_CONTENT_KEY) ?? "null"),
+    history,
+  );
+});
+
+void test("repeat visits preserve the first-read timestamp", async () => {
+  let now = 100;
   const storage = memoryStorage();
-  const store = createReadContentStore(storage);
+  const store = createReadContentStore(storage, () => now);
+  await store.markRead("a");
+  now = 200;
+  await store.markRead("a");
+  await store.markRead("b");
+  assert.deepEqual(await store.read(), [
+    { id: "a", firstReadAt: 100 },
+    { id: "b", firstReadAt: 200 },
+  ]);
+
+  const relaunched = createReadContentStore(storage, () => 300);
+  assert.deepEqual(await relaunched.read(), [
+    { id: "a", firstReadAt: 100 },
+    { id: "b", firstReadAt: 200 },
+  ]);
+});
+
+void test("concurrent opens don't lose reads", async () => {
+  let now = 0;
+  const store = createReadContentStore(memoryStorage(), () => ++now);
   await Promise.all([
     store.markRead("a"),
     store.markRead("b"),
     store.markRead("a"),
   ]);
-  assert.deepEqual(await createReadContentStore(storage).read(), ["a", "b"]);
+  assert.deepEqual(await store.read(), [
+    { id: "a", firstReadAt: 1 },
+    { id: "b", firstReadAt: 2 },
+  ]);
 });
 
 void test("storage failures retain read history for the session", async () => {
-  const store = createReadContentStore({
-    getItem: () => Promise.reject(new Error("unavailable")),
-    setItem: () => Promise.reject(new Error("full")),
-  });
+  const store = createReadContentStore(
+    {
+      getItem: () => Promise.reject(new Error("unavailable")),
+      setItem: () => Promise.reject(new Error("full")),
+    },
+    () => 10,
+  );
   assert.deepEqual(await store.read(), []);
   await store.markRead("a");
-  await store.markRead("b");
-  assert.deepEqual(await store.read(), ["a", "b"]);
+  assert.deepEqual(await store.read(), [{ id: "a", firstReadAt: 10 }]);
 });

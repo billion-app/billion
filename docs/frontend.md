@@ -30,7 +30,7 @@ The watch and topic pages share a rotating White House illustration. Each govern
 
 When onboarding finishes with an authenticated session, `OnboardingFlow` also calls the protected `user.setPreferences` procedure. That procedure upserts topic and content-type arrays in PostgreSQL. The device record remains the source used by the onboarding gate and Digest connection labels; the Settings interest screen reads the server record instead. There is no general synchronization between the two stores.
 
-The current Feed does not filter or rank cards by stored topics or content types. It chooses local content from the saved address or Browse jurisdiction and uses selected government vectors only for connection copy such as “You watch Congress.” Alert choices are recorded but do not schedule notifications or email digests. Keep those limits explicit until the corresponding delivery paths exist.
+The current Feed does not filter or rank cards by stored topics or content types. It chooses local content from the saved address or Browse jurisdiction and uses selected government vectors only for connection copy such as “You watch Congress.” “Also today” loads more federal articles as the reader scrolls. Opening an article records its first-read time on the device; the card remains in the feed for 24 hours, then stays hidden. Alert choices are recorded but do not schedule notifications or email digests. Keep those limits explicit until the corresponding delivery paths exist.
 
 The historical notes in `src/new_pages_implementation/` describe earlier page plans. Read the actual route before using one as an implementation reference.
 
