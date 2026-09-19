@@ -30,6 +30,10 @@ import {
   rd,
   useTheme,
 } from "~/styles";
+import {
+  resolveUpdatePrompt,
+  shouldForceShowBanner,
+} from "~/utils/update-prompt";
 
 const TIMER_MS = 8000;
 const TO_CENTER_MS = 420;
@@ -46,13 +50,6 @@ async function restartWithUpdate() {
   }
 }
 
-/** DEV: EXPO_PUBLIC_FORCE_UPDATE_BANNER=1 to preview without a real OTA. */
-function shouldForceShowBanner(forceShowProp?: boolean): boolean {
-  if (forceShowProp) return true;
-  if (!__DEV__) return false;
-  return process.env.EXPO_PUBLIC_FORCE_UPDATE_BANNER === "1";
-}
-
 export interface UpdatePromptProps {
   /** Force banner visible for DEV / preview. */
   forceShow?: boolean;
@@ -65,26 +62,30 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
-  const { downloadedUpdate, isUpdatePending } = Updates.useUpdates();
+  const { currentlyRunning, downloadedUpdate, isUpdatePending } =
+    Updates.useUpdates();
   const [dismissedUpdateId, setDismissedUpdateId] = useState<string | null>(
     null,
   );
   const [phase, setPhase] = useState<Phase>("toast");
   const [phaseForId, setPhaseForId] = useState<string | null>(null);
 
-  const forcePreview = shouldForceShowBanner(forceShow);
-  const updateId = forcePreview
-    ? "dev-preview"
-    : isUpdatePending
-      ? (downloadedUpdate?.updateId ?? "pending")
-      : null;
-  const visible =
-    updateId != null &&
-    dismissedUpdateId !== updateId &&
-    (forcePreview || isUpdatePending);
+  const forcePreview = shouldForceShowBanner({
+    forceShowProp: forceShow,
+    isDev: __DEV__,
+    forceEnv: process.env.EXPO_PUBLIC_FORCE_UPDATE_BANNER,
+  });
+  const { visible, updateId } = resolveUpdatePrompt({
+    forcePreview,
+    updatesEnabled: Updates.isEnabled,
+    isUpdatePending,
+    currentlyRunningUpdateId: currentlyRunning.updateId,
+    downloadedUpdate,
+    dismissedUpdateId,
+  });
 
   // Reset phase when a new update id becomes active (render-time adjust).
-  if (updateId != null && phaseForId !== updateId && dismissedUpdateId !== updateId && (forcePreview || isUpdatePending)) {
+  if (visible && updateId != null && phaseForId !== updateId) {
     setPhaseForId(updateId);
     setPhase(reduceMotion ? "ask" : "toast");
   }
