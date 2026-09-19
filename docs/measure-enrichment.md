@@ -1,10 +1,9 @@
 # Ballot-Measure Enrichment
 
-How `civic.getVoterInfo` turns the bare measure titles Google Civic returns into fully attributed measure cards: summary, fiscal impact, pro/con arguments, and per-field citations.
-
-## The problem
-
-The Google Civic Information API reliably returns ballot-measure **titles** but almost never populates the content fields (subtitle, pro/con, fiscal impact, full text) — especially for local (city/county) measures. The expanded measure cards in the app were therefore mostly empty. All of this data is **public record**; paid aggregators (Ballotpedia, BallotReady, Democracy Works) just structure it. So instead of paying for a thin API, we combine several free, official sources and cross-validate them. There is **no national clearinghouse** for measure content — it's a state-and-local matter, which is why coverage is built up state by state.
+`civic.getVoterInfo` accepts Democracy Works ballot measures and enriches them
+with source-attributed summaries, fiscal impact and arguments. Provider input is
+attributed to Democracy Works/Ballotpedia; supplementary sources can supply
+additional fields. `includeEnrichment: false` returns the provider fields alone.
 
 ## Engine + entry point
 
@@ -18,7 +17,7 @@ LWV CaVotes (Pros & Cons)    ─┤
 Ballotpedia (statewide+local)─┤
 Wikipedia (statewide props)  ─┼──▶ Cross-Validation Engine ──▶ Canonical Measure ──▶ Cache (CivicApiCache) ──▶ App
 Vote Smart API               ─┤        │ merge by trust tier        │ citation on every field
-Google Civic API             ─┤        │ AI structures, never authors
+Ballot provider input        ─┤        │ AI structures, never authors
 SPUR + AI (grounded fallback)─┘        └── flags discrepancies for review
 ```
 
@@ -38,15 +37,15 @@ county_registrar > state_sos > lwv > ballotpedia > wikipedia > vote_smart > goog
 
 Each adapter fetches over a shared, defensive helper (`measure-sources/fetch.ts`) that uses a browser User-Agent and turns any failure into `null`.
 
-| Source                           | Adapter                | Tier           | Scope / method                                                                                                                                                                                                                                                                                                                                                                 |
-| -------------------------------- | ---------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CA SOS Official Voter Guide      | `ca-sos-voterguide.ts` | `state_sos`    | CA statewide props. Official AG summary, pro/con, full-text URL — **real official text, not AI.** Matches on the prop number parsed from the title. The guide is rebuilt each cycle and only serves the active election, so it yields nothing between prop cycles.                                                                                                             |
-| CA LAO Fiscal Analyses           | `ca-lao-fiscal.ts`     | `state_sos`    | CA statewide props. Official nonpartisan fiscal impact analysis for each proposition. HTML scrape of `lao.ca.gov/BallotAnalysis/Proposition?number=N&year=YYYY` — no API exists. Pre-warmed by the `ca-lao-fiscal` scraper into `CivicApiCache`; adapter reads cache first, falls back to live fetch. Only fires for parsed proposition numbers (not local lettered measures). |
-| League of Women Voters — CaVotes | `cavotes.ts`           | `lwv`          | CA statewide props. Nonpartisan "Pros & Cons" summary, fiscal effects, supporter/opponent arguments via the CaVotes WordPress REST API (`cavotes.org/wp-json/wp/v2/ballots`). Slugs are inconsistent across years, so it enumerates the list and matches by prop number + year.                                                                                                |
-| Ballotpedia                      | `ballotpedia.ts`       | `ballotpedia`  | **Statewide _and_ local** lettered measures — the main source for local. Rendered article HTML (MediaWiki API disabled), resolved from a year/county index. Extracts ballot summary/question, fiscal impact / impartial analysis, arguments. Year-gated so a same-letter measure from another cycle isn't surfaced.                                                            |
-| Wikipedia                        | `wikipedia.ts`         | `wikipedia`    | CA statewide props only — gated on a parsed prop number (local titles like "Measure Q" collide with unrelated articles). MediaWiki extract for `<year> California Proposition <n>`; neutral encyclopedic overview.                                                                                                                                                             |
-| Vote Smart                       | `votesmart.ts`         | `vote_smart`   | State-level measures. Fuzzy-matches the title to a Vote Smart measure → summary, full-text URL, pro/con URLs. Requires `VOTE_SMART_API_KEY`.                                                                                                                                                                                                                                   |
-| Google Civic                     | (the input itself)     | `google_civic` | The measure as the API returned it — lowest-trust, so its subtitle/text still surface when nothing better exists.                                                                                                                                                                                                                                                              |
+| Source                           | Adapter                | Tier          | Scope / method                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------- | ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CA SOS Official Voter Guide      | `ca-sos-voterguide.ts` | `state_sos`   | CA statewide props. Official AG summary, pro/con, full-text URL — **real official text, not AI.** Matches on the prop number parsed from the title. The guide is rebuilt each cycle and only serves the active election, so it yields nothing between prop cycles.                                                                                                             |
+| CA LAO Fiscal Analyses           | `ca-lao-fiscal.ts`     | `state_sos`   | CA statewide props. Official nonpartisan fiscal impact analysis for each proposition. HTML scrape of `lao.ca.gov/BallotAnalysis/Proposition?number=N&year=YYYY` — no API exists. Pre-warmed by the `ca-lao-fiscal` scraper into `CivicApiCache`; adapter reads cache first, falls back to live fetch. Only fires for parsed proposition numbers (not local lettered measures). |
+| League of Women Voters — CaVotes | `cavotes.ts`           | `lwv`         | CA statewide props. Nonpartisan "Pros & Cons" summary, fiscal effects, supporter/opponent arguments via the CaVotes WordPress REST API (`cavotes.org/wp-json/wp/v2/ballots`). Slugs are inconsistent across years, so it enumerates the list and matches by prop number + year.                                                                                                |
+| Ballotpedia                      | `ballotpedia.ts`       | `ballotpedia` | **Statewide _and_ local** lettered measures — the main source for local. Rendered article HTML (MediaWiki API disabled), resolved from a year/county index. Extracts ballot summary/question, fiscal impact / impartial analysis, arguments. Year-gated so a same-letter measure from another cycle isn't surfaced.                                                            |
+| Wikipedia                        | `wikipedia.ts`         | `wikipedia`   | CA statewide props only — gated on a parsed prop number (local titles like "Measure Q" collide with unrelated articles). MediaWiki extract for `<year> California Proposition <n>`; neutral encyclopedic overview.                                                                                                                                                             |
+| Vote Smart                       | `votesmart.ts`         | `vote_smart`  | State-level measures. Fuzzy-matches the title to a Vote Smart measure → summary, full-text URL, pro/con URLs. Requires `VOTE_SMART_API_KEY`.                                                                                                                                                                                                                                   |
+| Democracy Works/Ballotpedia      | (the input itself)     | `ballotpedia` | Provider-supplied measure fields with provider attribution.                                                                                                                                                                                                                                                                                                                    |
 
 **Local lettered measures:** the County Counsel / City Attorney **Impartial Analysis** (carried on Ballotpedia) is extracted on its own and wins the summary slot ahead of the bare ballot question — it's the authoritative neutral text, so it no longer gets buried in the fiscal field, and the advocacy/AI fallback only runs when it's absent.
 
@@ -66,14 +65,14 @@ Each adapter fetches over a shared, defensive helper (`measure-sources/fetch.ts`
 
 ```mermaid
 flowchart TD
-    measure["Ballot measure<br/>(from Google Civic)"] --> fetch["Fetch all sources concurrently<br/>(Promise.all)"]
+    measure["Ballot measure<br/>(from Democracy Works)"] --> fetch["Fetch all sources concurrently<br/>(Promise.all)"]
 
     fetch --> sos["CA SOS Voter Guide"]
     fetch --> lwv["LWV / CaVotes"]
     fetch --> bp["Ballotpedia"]
     fetch --> wiki["Wikipedia"]
     fetch --> vs["Vote Smart"]
-    fetch --> gc["Google Civic input"]
+    fetch --> gc["Ballot provider input"]
 
     sos & lwv & bp & wiki & vs & gc --> merge["Merge by trust tier<br/>(highest wins per field)"]
 

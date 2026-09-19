@@ -68,11 +68,16 @@ void test("Expo requires valid PostHog configuration", () => {
   );
 });
 
-void test("Next.js requires the Google Civic key", () => {
+void test("Next.js can start without the feature-specific Democracy Works key", () => {
   const civic = definitionsFor("nextjs").find(
-    ({ definition }) => definition.key === "GOOGLE_CIVIC_API_KEY",
+    ({ definition }) => definition.key === "DEMOCRACY_WORKS_API_KEY",
   );
-  assert.equal(civic?.requirement, "required");
+  assert.equal(civic?.requirement, "recommended");
+  const result = validateEnvironment({ environment: {}, surface: "nextjs" });
+  assert.equal(
+    result.issues.some(({ key }) => key === "DEMOCRACY_WORKS_API_KEY"),
+    false,
+  );
 });
 
 void test("configured optional values cannot be blank", () => {

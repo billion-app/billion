@@ -1,7 +1,7 @@
 /**
- * Google Civic Information API Client
+ * Civic lookup and enrichment services
  *
- * API Reference: https://developers.google.com/civic-information/docs/v2
+ * Ballots: Democracy Works v2. Divisions: Google Civic (elected officials only).
  */
 
 import { createHash } from "crypto";
@@ -20,12 +20,18 @@ import {
   getDistrictResults,
   getStatewideResults,
 } from "../clients/ca-sos-results";
+import {
+  BALLOT_CACHE_VERSION,
+  ballotSelectionDate,
+  createDemocracyWorksClient,
+} from "../clients/democracy-works";
 import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
 import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
+import { createCivicReadGuard } from "./civic-read-guard";
+import { createVoterInfoLoader } from "./civic-voter-info";
 import { crossValidateMeasure } from "./measure-crossvalidate";
-import { normalizeMeasureTitle } from "./measure-sources/ballotpedia";
 
 const CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2";
 
@@ -38,7 +44,6 @@ function getApiKey(): string | null {
 // ============================================================================
 
 const CACHE_TTL = {
-  elections: 7 * 24 * 60 * 60 * 1000,
   voterinfo: 24 * 60 * 60 * 1000,
   divisions: 30 * 24 * 60 * 60 * 1000,
   // Live results move fast on/after election night — keep it short so the feed
@@ -220,6 +225,7 @@ export interface Contest {
 }
 
 export interface Candidate {
+  ballotStatus?: "onBallot" | "withdrewStillOnBallot";
   name: string;
   party?: string;
   candidateUrl?: string;
@@ -285,8 +291,21 @@ export interface ElectionOfficial {
 }
 
 export interface VoterInfoResponse {
+  submittedAddress?: string;
+  provider?: {
+    name: "democracy_works";
+    sourceUrl?: string;
+    updatedAt?: string;
+    fetchedAt: string;
+    coverage: "partial";
+    addressScope: "address" | "statewide_only" | "unknown";
+    ballotDataStatus: "provided" | "unavailable";
+    addressNormalization: "unavailable";
+    logistics: "lookup_links_only";
+  };
   kind: string;
   election: Election;
+  otherElections?: Election[];
   normalizedInput: Address;
   pollingLocations?: PollingLocation[];
   earlyVoteSites?: PollingLocation[];
@@ -326,16 +345,25 @@ async function fetchCivicApi<T>(
     url.searchParams.set(key, value);
   }
 
-  const response = await fetch(url.toString());
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4_000);
+  try {
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      `Google Civic API error: ${response.status} ${response.statusText} - ${JSON.stringify(error)}`,
-    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(
+        `Google Civic API error: ${response.status} ${response.statusText} - ${JSON.stringify(error)}`,
+      );
+    }
+
+    // Await the body so the deadline covers it as well as the headers.
+    return (await response.json()) as T;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return response.json() as Promise<T>;
 }
 
 /** Resolve an address to its current Open Civic Data political divisions. */
@@ -503,12 +531,8 @@ async function enrichContest(
   ctx?: EnrichmentContext,
 ): Promise<Contest> {
   if (contest.referendumTitle) {
-    // Google Civic doubles the measure letter ("Measure A A"); collapse it for
-    // display and so source matching keys off the clean title.
-    contest.referendumTitle = normalizeMeasureTitle(contest.referendumTitle);
-
     // Cross-validate across all measure sources (county registrar, state SOS,
-    // Vote Smart, Google Civic) and merge by trust tier with source
+    // Vote Smart, and the ballot provider) and merge by trust tier with source
     // attribution. AI is only used as a clearly-labeled last resort.
     const cvCtx: CrossValidateContext = {
       stateAbbrev: ctx?.stateAbbrev,
@@ -520,7 +544,16 @@ async function enrichContest(
       const merged = await crossValidateMeasure(
         {
           title: contest.referendumTitle,
-          subtitle: contest.referendumSubtitle,
+          subtitle: contest.referendumSubtitle ?? contest.summary,
+          source:
+            contest.sources?.[0]?.tier === "ballotpedia"
+              ? {
+                  tier: "ballotpedia",
+                  sourceName: contest.sources[0].name,
+                  sourceUrl: contest.sources[0].url,
+                  official: false,
+                }
+              : undefined,
           text: contest.referendumText,
           url: contest.referendumUrl,
           proStatement: contest.referendumProStatement,
@@ -566,7 +599,7 @@ async function enrichContest(
         tier: c.tier,
       }));
     } catch {
-      // Enrichment failed entirely — leave the raw Google Civic data intact.
+      // Enrichment failed entirely — leave the raw provider data intact.
     }
     return contest;
   }
@@ -618,7 +651,7 @@ async function enrichContest(
             }
 
             // Merge canonical fields back onto the candidate, preferring enriched
-            // values but never clobbering existing Google Civic data with empties.
+            // values but never clobbering provider data with empties.
             candidate.biography = merged.biography ?? candidate.biography;
             candidate.statement = merged.statement ?? candidate.statement;
             candidate.statementSummary =
@@ -634,11 +667,19 @@ async function enrichContest(
             candidate.phone = merged.phone ?? candidate.phone;
             candidate.channels = merged.channels ?? candidate.channels;
 
-            // Cite raw Google Civic fields that survived onto the candidate but
+            // Cite raw provider fields that survived onto the candidate but
             // no higher-tier source claimed. Better a cited official-ish link
             // than a blank card; each field is cited once (enriched citation
-            // wins; google_civic only fills the gaps).
-            const citations: MeasureCitationRef[] = [...merged.citations];
+            // wins; provider citations only fill the gaps).
+            const enrichedFields = new Set(
+              merged.citations.map((citation) => citation.field),
+            );
+            const citations: MeasureCitationRef[] = [
+              ...merged.citations,
+              ...(candidate.citations ?? []).filter(
+                (citation) => !enrichedFields.has(citation.field),
+              ),
+            ];
             const cited = new Set(citations.map((c) => c.field));
             const rawCivicFields: [string, unknown][] = [
               ["candidateUrl", candidate.candidateUrl],
@@ -654,8 +695,9 @@ async function enrichContest(
               if (value && !cited.has(field)) {
                 citations.push({
                   field,
-                  sourceName: "Google Civic Information API",
-                  tier: "google_civic",
+                  sourceName: contest.sources?.[0]?.name ?? "Ballot provider",
+                  sourceUrl: contest.sources?.[0]?.url,
+                  tier: contest.sources?.[0]?.tier ?? "ballotpedia",
                   official: false,
                 });
                 cited.add(field);
@@ -664,7 +706,7 @@ async function enrichContest(
             candidate.citations = citations.length ? citations : undefined;
           } catch {
             // Best-effort per candidate: one failure must not break the contest
-            // or the other candidates — leave the raw Google Civic data intact.
+            // or the other candidates — leave the raw provider data intact.
           }
         }),
       ),
@@ -721,19 +763,23 @@ async function enrichContests(
  *
  * @returns List of elections visible to the API
  */
-export async function getElections(): Promise<Election[]> {
-  const cached = await getCached<Election[]>("__global__", "elections");
-  if (cached) return cached;
-
-  const response = await fetchCivicApi<ElectionsResponse>("elections");
-  await setCache(
-    "__global__",
-    "elections",
-    {},
-    response.elections,
-    CACHE_TTL.elections,
+export async function getElections(address?: string): Promise<Election[]> {
+  // Discovery is address-scoped; an unscoped list is not a voter's ballot.
+  if (!address) return [];
+  ballotProvider.requireAccess();
+  const params = { startDate: ballotSelectionDate() };
+  const endpoint = `${BALLOT_CACHE_VERSION}:elections`;
+  return readBallot(
+    JSON.stringify([endpoint, hashAddress(address), params.startDate]),
+    async () => {
+      const cached = await getCached<Election[]>(address, endpoint, params);
+      if (cached) return cached;
+      const elections = await ballotProvider.getElections(address);
+      await setCache(address, endpoint, params, elections, CACHE_TTL.voterinfo);
+      return elections;
+    },
+    10_000,
   );
-  return response.elections;
 }
 
 /**
@@ -820,64 +866,49 @@ export async function getDistrictElectionResults(
  *                     returns info for the most relevant upcoming election.
  * @returns Polling locations, ballot info, and contests for the address
  */
-export async function getVoterInfo(
+const readBallot = createCivicReadGuard();
+const ballotProvider = createDemocracyWorksClient();
+
+export function getVoterInfo(
   address: string,
   electionId?: string,
+  options: { includeEnrichment?: boolean } = {},
 ): Promise<VoterInfoResponse> {
-  const cacheParams: Record<string, unknown> = electionId ? { electionId } : {};
-  const cached = await getCached<VoterInfoResponse>(
-    address,
-    "voterinfo",
-    cacheParams,
+  ballotProvider.requireAccess();
+  // Match the persisted cache identity without retaining addresses in the map.
+  const key = JSON.stringify([
+    BALLOT_CACHE_VERSION,
+    hashAddress(address),
+    electionId === ""
+      ? ballotSelectionDate()
+      : (electionId ?? ballotSelectionDate()),
+    options.includeEnrichment !== false,
+  ]);
+  return readBallot(
+    key,
+    () => loadVoterInfo(address, electionId, options),
+    options.includeEnrichment === false ? 10_000 : 60_000,
   );
-  if (cached) return cached;
-
-  const enrichCtx = (resp: VoterInfoResponse): EnrichmentContext => ({
-    stateAbbrev: resp.normalizedInput.state,
-    county: deriveCounty(resp),
-    electionYear: resp.election.electionDay
-      ? new Date(resp.election.electionDay).getFullYear()
-      : new Date().getFullYear(),
-  });
-
-  const params: Record<string, string> = { address };
-
-  if (electionId) {
-    params.electionId = electionId;
-  }
-
-  try {
-    let result: VoterInfoResponse;
-    try {
-      result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
-    } catch (err) {
-      // A stale/invalid electionId yields "Election unknown" (400). Retry
-      // without it so Civic resolves the relevant upcoming election itself.
-      if (electionId && /election unknown/i.test(String(err))) {
-        console.warn(
-          "[civic] electionId rejected, retrying without it:",
-          electionId,
-        );
-        delete params.electionId;
-        result = await fetchCivicApi<VoterInfoResponse>("voterinfo", params);
-      } else {
-        throw err;
-      }
-    }
-    result.contests = await enrichContests(result.contests, enrichCtx(result));
-    await setCache(
-      address,
-      "voterinfo",
-      cacheParams,
-      result,
-      CACHE_TTL.voterinfo,
-    );
-    return result;
-  } catch (error) {
-    console.error("[civic] getVoterInfo failed:", error);
-    throw error;
-  }
 }
+
+const loadVoterInfo = createVoterInfoLoader({
+  getCached,
+  setCache: (address, endpoint, params, result) =>
+    setCache(address, endpoint, params, result, CACHE_TTL.voterinfo),
+  fetch: (params) =>
+    ballotProvider.getVoterInfo(params.address ?? "", params.electionId),
+  enrich: async (result) => {
+    result.contests = await enrichContests(result.contests, {
+      stateAbbrev: /\/state:([a-z]{2})(?:\/|$)/
+        .exec(result.election.ocdDivisionId)?.[1]
+        ?.toUpperCase(),
+      county: deriveCounty(result),
+      electionYear: result.election.electionDay
+        ? new Date(result.election.electionDay).getFullYear()
+        : new Date().getFullYear(),
+    });
+  },
+});
 
 // NOTE: Representatives lookup was removed when Google turned down the Civic
 // Representatives API (2025-04-30). A replacement "your elected officials"

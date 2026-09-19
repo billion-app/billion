@@ -4,7 +4,8 @@ How to obtain keys/access for every civic integration. For local dev, copy `.env
 
 | Source                                 | Key required | Cost                             | Env variable                                                          |
 | -------------------------------------- | ------------ | -------------------------------- | --------------------------------------------------------------------- |
-| Google Civic API                       | Yes          | Free (25k/day)                   | `GOOGLE_CIVIC_API_KEY`                                                |
+| Democracy Works REST v2                | Yes          | Licensed access                  | `DEMOCRACY_WORKS_API_KEY`                                             |
+| Google Civic divisions API             | Yes          | Free (25k/day)                   | `GOOGLE_CIVIC_API_KEY`                                                |
 | Open States API                        | Yes          | Free (~500 req/day default tier) | `OPEN_STATES_API_KEY`                                                 |
 | Google Places (address autocomplete)   | Yes          | Pay-as-you-go                    | `GOOGLE_PLACES_API_KEY` (→ `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`) |
 | Vote Smart                             | Yes          | Free (org tier)                  | `VOTE_SMART_API_KEY`                                                  |
@@ -15,9 +16,9 @@ How to obtain keys/access for every civic integration. For local dev, copy `.env
 
 > ⚠️ **`CA_SOS_API_KEY` is dead cruft.** Earlier docs listed it for election results, but the results client uses the free, keyless `media.sos.ca.gov` endpoint — the key is unused in code. Safe to drop from `.env.example`.
 
-**Google Civic Information API** — elections, polling locations, ballot info; 25k req/day free. [Cloud Console](https://console.cloud.google.com/) → create/select project → APIs & Services → Library → enable "Google Civic Information API" → Credentials → Create API Key. For production, restrict the key (HTTP referrers/IP + this API only). → `GOOGLE_CIVIC_API_KEY`.
+**Democracy Works REST v2** supplies address-scoped elections and ballot data. Obtain an account and API key with `/elections` ballot-data access through the [provider access documentation](https://developers.democracy.works/api/v2). Configure `DEMOCRACY_WORKS_API_KEY` on the server. Local coverage is limited; see [ballot read limits](ballot-read-hardening.md).
 
-> ⚠️ **Representatives API turned down 2025-04-30.** Google retired the `/representatives` endpoint; only the **Elections** endpoints (`elections`, `voterinfo`, results) remain. Those are what `getVoterInfo` and the enrichment pipeline use, and the only Civic calls the app makes. The dead `getRepresentatives` / `getRepresentativesEnriched` functions have been **removed** from `civic.ts`. A replacement "your elected officials" lookup (Open States legislators + Legistar local + OCD-IDs via the Divisions API for address→district) is a roadmap feature — [issue #123](https://github.com/billion-app/billion/issues/123).
+**Google Civic divisions** supplies geography for the separate elected-officials lookup through `divisionsByAddress`. Configure `GOOGLE_CIVIC_API_KEY` for that feature. Ballot reads do not use it.
 
 **Open States API** — CA state bills, legislators, voting records. [Sign up](https://open.pluralpolicy.com/accounts/signup/) → verify email → [profile](https://open.pluralpolicy.com/accounts/profile/) → API Keys → Generate. Docs: <https://docs.openstates.org/api-v3/>. → `OPEN_STATES_API_KEY`.
 
