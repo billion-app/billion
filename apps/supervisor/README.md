@@ -63,6 +63,7 @@ scheduled and backfill jobs do not use it.
 | `federalregister-daily`        | daily 01:30 local | Refreshes executive orders and presidential documents                                     |
 | `scotus-daily`                 | daily 01:45 local | Reads 20 recent official Court decisions, including order opinions; five generation slots |
 | `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content               |
+| `notify-followers-hourly`      | every 60 minutes  | Sends lock-screen alerts for bills a reader asked us to watch                             |
 | `backfill-content-images`      | manual            | Drains missing or style-stale header art across all retained content                      |
 | `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                            |
 | `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                                       |

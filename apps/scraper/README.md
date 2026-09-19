@@ -109,6 +109,7 @@ Use the focused command for the missing asset. Check its help and preview mode f
 | `retroactive-lenses`         | Generate missing or stale perspectives; supports `--dry-run`      |
 | `content-images`             | Generate header artwork                                           |
 | `bill-interest`              | Score editorial interest; supports `--dry-run`                    |
+| `notify-followers`           | Enqueue and send lock-screen alerts for followed bills            |
 | `prune-bills`                | Inspect retention candidates; read-only until `--apply`           |
 
 For example:

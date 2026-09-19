@@ -20,18 +20,19 @@ The development timing middleware adds a random 100 to 500 ms delay to procedure
 
 The root router is the authoritative list. This table describes responsibility rather than copying every procedure signature.
 
-| Router       | Responsibility                                                                          |
-| ------------ | --------------------------------------------------------------------------------------- |
-| `content`    | Browse, search, detail, featured bills, sponsors, and content saves                     |
-| `civic`      | Elections, voter information, representatives, and ballot enrichment                    |
-| `places`     | Address autocomplete and address resolution                                             |
-| `legistar`   | Stored local decisions, bodies, and ingestion health; also legacy source-format queries |
-| `openStates` | Request-time state legislation, legislator, and vote lookups                            |
-| `user`       | Preferences, blocked content, settings, profile, and saved articles                     |
-| `feedback`   | Public feedback submission with optional session context                                |
-| `auth`       | Session access and the protected example procedure                                      |
-| `post`       | Legacy sample-post CRUD inherited from the template                                     |
-| `video`      | Compatibility endpoint returning an empty feed page                                     |
+| Router          | Responsibility                                                                                        |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| `content`       | Browse, search, detail, featured bills, sponsors, and content saves                                   |
+| `civic`         | Elections, voter information, representatives, and ballot enrichment                                  |
+| `places`        | Address autocomplete and address resolution                                                           |
+| `legistar`      | Stored local decisions, bodies, and ingestion health; also legacy source-format queries               |
+| `openStates`    | Request-time state legislation, legislator, and vote lookups                                          |
+| `user`          | Preferences, blocked content, settings, profile, and saved articles                                   |
+| `feedback`      | Public feedback submission with optional session context                                              |
+| `notifications` | Device push registration, follow sync, test send, and alert history. Identity is the Expo push token. |
+| `auth`          | Session access and the protected example procedure                                                    |
+| `post`          | Legacy sample-post CRUD inherited from the template                                                   |
+| `video`         | Compatibility endpoint returning an empty feed page                                                   |
 
 The protected `user.getPreferences` procedure returns the caller's `user_preference` row, or default topic and content-type arrays when no row exists. `user.setPreferences` replaces both arrays in one upsert. Expo onboarding calls it only when an authenticated session exists. Account-free onboarding preferences stay on the device and do not pass through tRPC.
 
@@ -56,5 +57,7 @@ API-side model selection lives in [ai-provider.ts](../packages/api/src/lib/ai-pr
 ## Add or change a procedure
 
 Choose the existing router that owns the behavior. Define runtime input validation, choose public or authenticated access, and keep provider-specific transport and parsing in `lib/`. Register a new router in `root.ts` only when the behavior needs its own group.
+
+Lock-screen alerts live on `notifications`. The phone is the identity: Expo registers a push token, `sync` upserts that token with prefs and saved bill IDs, and `notify-followers` later sends through Expo Push. There is no account. Copy, quiet hours, and the Expo client live under `packages/api/src/lib/notifications/`.
 
 Read an adjacent procedure and test for the project's conventions. Check the response from its real caller, including missing data and unauthorized access where relevant. Installed mobile apps may keep calling an old procedure after a server deploy, which is why retired paths such as `video.getInfinite` can remain as compatibility stubs.
