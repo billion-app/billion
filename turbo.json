@@ -27,6 +27,7 @@
       "outputs": [".cache/tsbuildinfo.json"]
     },
     "test": {
+      "env": ["SCOTUS_TEST_POSTGRES_URL", "COURT_BRIEF_TEST_ARTIFACT_DIR"],
       "dependsOn": ["^topo", "^build"]
     },
     "clean": {

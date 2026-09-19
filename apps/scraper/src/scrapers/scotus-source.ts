@@ -12,6 +12,7 @@ export interface PublishedOpinion {
   filedDate: Date;
   description?: string;
   pdfUrls: string[];
+  status: string;
 }
 
 /** October terms continue through the summer, including emergency orders. */
@@ -78,6 +79,11 @@ export function parseOpinionIndex(
           filedDate,
           description: links.first().attr("title")?.trim() || undefined,
           pdfUrls: [url],
+          status:
+            /^\d{2}A\d+$/i.test(caseNumber) ||
+            indexUrl.includes("relatingtoorders")
+              ? "Published order opinion"
+              : "Published merits opinion",
         });
       });
   });
@@ -188,7 +194,7 @@ export async function collectScotusCases(
         // Browse needs the published decision date, not the lawsuit's filing date.
         filedDate: opinion.filedDate,
         description: opinion.description,
-        status: "Published opinion or order",
+        status: opinion.status,
         fullText: texts.join("\n\n"),
         url: opinion.pdfUrls[0]!,
       };

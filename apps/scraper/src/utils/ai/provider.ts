@@ -229,6 +229,13 @@ export function getTextModelVersion(): string {
   return modernProviders || "deepseek:deepseek-v4-flash";
 }
 
+/** Actual model selected for structured output, independent of the lens cache key. */
+export function getStructuredModelVersion(): string {
+  if (getOpenRouterApiKey()) return `openrouter:${getOpenRouterModel()}`;
+  if (process.env.DEEPSEEK_API_KEY?.trim()) return "deepseek:deepseek-v4-flash";
+  return `local:${getLocalModel()}`;
+}
+
 // The deprecated direct-DeepSeek fallback uses its Anthropic-compatible
 // endpoint for native web search. OpenRouter exposes an equivalent provider
 // server tool through its AI SDK integration.

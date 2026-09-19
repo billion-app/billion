@@ -24,6 +24,7 @@ import {
   Badge,
   BillBrief,
   Card,
+  CourtBrief,
   GhostButton,
   Icon,
   Kicker,
@@ -256,12 +257,11 @@ export default function ArticleDetailScreen() {
     });
   };
 
-  // A structured brief replaces the markdown explainer when one has been
-  // generated. Content without a brief (every type except bills, and bills the
-  // pipeline hasn't reached yet) keeps rendering the long-form article, so this
-  // is additive rather than a cutover.
+  // Bill and court briefs keep their own types; older records retain the explainer.
   const brief: BillBriefData | null =
     "brief" in content ? (content.brief as BillBriefData | null) : null;
+  const courtBrief = content.type === "court_case" ? content.courtBrief : null;
+  const hasBrief = Boolean(brief ?? courtBrief);
 
   const rawContent =
     mode === "explainer" ? content.articleContent : content.originalContent;
@@ -477,7 +477,7 @@ export default function ArticleDetailScreen() {
             options={[
               {
                 id: "explainer",
-                label: brief ? "The brief" : "Plain explainer",
+                label: hasBrief ? "The brief" : "Plain explainer",
                 icon: "sparkle",
               },
               { id: "source", label: "Original text", icon: "doc" },
@@ -514,7 +514,7 @@ export default function ArticleDetailScreen() {
               {provenanceOpen ? (
                 <Text style={s.disclaimerText}>
                   Created from the official text.{" "}
-                  {brief
+                  {hasBrief
                     ? "Quoted passages are checked against that source; everything else is AI analysis."
                     : "The plain-language explanation is AI analysis."}{" "}
                   Use Original text or the linked official site to verify
@@ -545,7 +545,9 @@ export default function ArticleDetailScreen() {
             sourcePanelY.current = event.nativeEvent.layout.y;
           }}
         >
-          {mode === "explainer" && brief ? (
+          {mode === "explainer" && courtBrief ? (
+            <CourtBrief data={courtBrief} />
+          ) : mode === "explainer" && brief ? (
             <BillBrief
               data={brief}
               accent={t.color}
@@ -577,90 +579,100 @@ export default function ArticleDetailScreen() {
           </View>
         )}
 
-        {/* timeline */}
-        <Kicker style={s.timelineKicker}>Where it stands</Kicker>
-        <Card style={{ marginBottom: 24 }}>
-          {timeline.map((step, i) => {
-            const expandable = !!step.fullText && step.label !== step.fullText;
-            const isExpanded = expandedStep === i;
-            const isCurrent = i === currentTimelineIndex;
-            return (
-              <TouchableOpacity
-                key={i}
-                style={s.timelineRow}
-                activeOpacity={expandable ? 0.6 : 1}
-                onPress={() =>
-                  expandable && setExpandedStep(isExpanded ? null : i)
-                }
-                accessibilityRole={expandable ? "button" : undefined}
-              >
-                <View style={s.timelineMarker}>
-                  <View
-                    style={[
-                      s.timelineDot,
-                      {
-                        borderColor: step.done ? t.color : hair[3],
-                        backgroundColor: isCurrent ? t.color : "transparent",
-                      },
-                    ]}
-                  />
-                  {i < timeline.length - 1 && (
-                    <View
-                      style={[
-                        s.timelineLine,
-                        { backgroundColor: step.done ? t.color : hair[2] },
-                      ]}
-                    />
-                  )}
-                </View>
-                <View style={s.timelineBody}>
-                  {!!step.date && (
-                    <Text style={s.timelineDate}>{formatDate(step.date)}</Text>
-                  )}
-                  <View style={s.timelineLabelRow}>
-                    <Text
-                      style={[
-                        s.timelineLabel,
-                        {
-                          color: step.done
-                            ? colors.white
-                            : colors.textSecondary,
-                          fontFamily: isCurrent
-                            ? fontBody.bold
-                            : fontBody.medium,
-                        },
-                      ]}
-                    >
-                      {isExpanded ? step.fullText : step.label}
-                    </Text>
-                    {expandable && (
-                      <Icon
-                        name={isExpanded ? "chevD" : "chevR"}
-                        size={13}
-                        color={colors.textSecondary}
+        {/* Legislative stages apply only to bills. Court posture lives in its brief. */}
+        {content.type === "bill" ? (
+          <>
+            <Kicker style={s.timelineKicker}>Where it stands</Kicker>
+            <Card style={{ marginBottom: 24 }}>
+              {timeline.map((step, i) => {
+                const expandable =
+                  !!step.fullText && step.label !== step.fullText;
+                const isExpanded = expandedStep === i;
+                const isCurrent = i === currentTimelineIndex;
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={s.timelineRow}
+                    activeOpacity={expandable ? 0.6 : 1}
+                    onPress={() =>
+                      expandable && setExpandedStep(isExpanded ? null : i)
+                    }
+                    accessibilityRole={expandable ? "button" : undefined}
+                  >
+                    <View style={s.timelineMarker}>
+                      <View
+                        style={[
+                          s.timelineDot,
+                          {
+                            borderColor: step.done ? t.color : hair[3],
+                            backgroundColor: isCurrent
+                              ? t.color
+                              : "transparent",
+                          },
+                        ]}
                       />
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-          {timelineSourceUrl && (
-            <TouchableOpacity
-              style={s.timelineSource}
-              activeOpacity={0.7}
-              onPress={() => void Linking.openURL(timelineSourceUrl)}
-            >
-              <Icon name="info" size={13} color={colors.textSecondary} />
-              <Text style={s.timelineSourceText}>
-                Official record ·{" "}
-                {("sourceLabel" in content ? content.sourceLabel : undefined) ??
-                  "congress.gov"}
-              </Text>
-              <Icon name="chevR" size={12} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </Card>
+                      {i < timeline.length - 1 && (
+                        <View
+                          style={[
+                            s.timelineLine,
+                            { backgroundColor: step.done ? t.color : hair[2] },
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <View style={s.timelineBody}>
+                      {!!step.date && (
+                        <Text style={s.timelineDate}>
+                          {formatDate(step.date)}
+                        </Text>
+                      )}
+                      <View style={s.timelineLabelRow}>
+                        <Text
+                          style={[
+                            s.timelineLabel,
+                            {
+                              color: step.done
+                                ? colors.white
+                                : colors.textSecondary,
+                              fontFamily: isCurrent
+                                ? fontBody.bold
+                                : fontBody.medium,
+                            },
+                          ]}
+                        >
+                          {isExpanded ? step.fullText : step.label}
+                        </Text>
+                        {expandable && (
+                          <Icon
+                            name={isExpanded ? "chevD" : "chevR"}
+                            size={13}
+                            color={colors.textSecondary}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              {timelineSourceUrl && (
+                <TouchableOpacity
+                  style={s.timelineSource}
+                  activeOpacity={0.7}
+                  onPress={() => void Linking.openURL(timelineSourceUrl)}
+                >
+                  <Icon name="info" size={13} color={colors.textSecondary} />
+                  <Text style={s.timelineSourceText}>
+                    Official record ·{" "}
+                    {("sourceLabel" in content
+                      ? content.sourceLabel
+                      : undefined) ?? "congress.gov"}
+                  </Text>
+                  <Icon name="chevR" size={12} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </Card>
+          </>
+        ) : null}
 
         {/* The explainer ends by handing the reader back to the official
             record. The source tab already has that action at the top. */}
