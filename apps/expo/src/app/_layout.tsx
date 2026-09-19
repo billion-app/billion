@@ -39,6 +39,7 @@ import { posthog } from "~/config/posthog";
 import { useTheme } from "~/styles";
 import { queryClient } from "~/utils/api";
 import { authClient } from "~/utils/auth";
+import { markSplashHidden } from "~/utils/splash-gate";
 
 import "../styles.css";
 
@@ -162,9 +163,17 @@ export default function RootLayout() {
         // Font loading failure is non-fatal — app falls back to system fonts
         console.warn("Font loading failed:", e);
       } finally {
-        // Set even on failure: system fallbacks beat a stuck splash screen.
+        // Render under the splash, then fade it. The greeting waits on
+        // markSplashHidden so it does not type out behind the fade.
         setFontsReady(true);
-        await SplashScreen.hideAsync();
+        try {
+          await SplashScreen.hideAsync();
+        } catch (error) {
+          posthog.capture("splash_hide_failed", {
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+        markSplashHidden();
       }
     }
     void loadFonts();

@@ -288,7 +288,7 @@ export function DigestHome() {
 
   return (
     <View style={s.screen}>
-      <DigestGreetingBar />
+      <DigestGreetingBar stageReady={!localLoading} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={!railHeld}

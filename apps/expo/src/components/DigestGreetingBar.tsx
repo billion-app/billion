@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   AppState,
   Dimensions,
@@ -23,26 +23,31 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import type { ContentJurisdiction } from "~/utils/jurisdiction";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
-import {
-  GoldBillionMark,
-  GoldFoilScript,
-} from "~/components/GoldBillionMark";
 import {
   PROFILE_MARK_SIZE,
   ProfileFace,
   ProfileMenu,
   useProfileIdentity,
 } from "~/components/DigestProfileMark";
+import { GoldBillionMark, GoldFoilScript } from "~/components/GoldBillionMark";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { fontBody, DigestPalette as P } from "~/styles";
-import type { ContentJurisdiction } from "~/utils/jurisdiction";
 import {
+  ceremonyReducer,
+  GREETING_SPLASH_FALLBACK_MS,
+  GREETING_STAGE_WAIT_MS,
+  initialCeremonyState,
+  sheetVisible,
+} from "~/utils/greeting-start";
+import {
+  jurisdictionFromAddress,
   JURISDICTIONS,
   SUPPORTED_STATE_JURISDICTIONS,
-  jurisdictionFromAddress,
 } from "~/utils/jurisdiction";
+import { isSplashHidden, whenSplashHidden } from "~/utils/splash-gate";
 
 const CANVAS = P.night;
 const NAVY = P.night;
@@ -59,7 +64,8 @@ const COMPACT_INNER = 48;
  */
 const CURTAIN_INNER = 300;
 const CHAR_MS = 44;
-const START_DELAY_MS = 500;
+/** One frame after the brief is on screen — not a pause, just a commit beat. */
+const START_DELAY_MS = 32;
 const DROP_MS = 720;
 const HOLD_AFTER_TYPE_MS = 500;
 /** Morph formation (greeting → centered B + Billion lockup). */
@@ -170,7 +176,12 @@ function localityFromAddress(
   return first ?? null;
 }
 
-export function DigestGreetingBar() {
+export function DigestGreetingBar({
+  stageReady = true,
+}: {
+  /** Home queries have settled (or failed) so the curtain retracts onto real cards. */
+  stageReady?: boolean;
+}) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const [now, setNow] = useState(() => new Date());
@@ -178,8 +189,11 @@ export function DigestGreetingBar() {
   const freeze = greetFreeze();
   const screenW = Dimensions.get("window").width;
 
-  const [ready, setReady] = useState(false);
-  const [playCeremony, setPlayCeremony] = useState(false);
+  const [ceremony, dispatch] = useReducer(
+    ceremonyReducer,
+    AppState.currentState === "active",
+    initialCeremonyState,
+  );
   const [typed, setTyped] = useState("");
   const [settledUI, setSettledUI] = useState(false);
   const [showGreeting, setShowGreeting] = useState(true);
@@ -195,8 +209,12 @@ export function DigestGreetingBar() {
   const greeting = firstName
     ? `${PERIOD_LABEL[period]}, ${firstName}`
     : PERIOD_LABEL[period];
-  const { address, setAddress, clearAddress, isLoading: addressLoading } =
-    useUserAddress();
+  const {
+    address,
+    setAddress,
+    clearAddress,
+    isLoading: addressLoading,
+  } = useUserAddress();
   const { jurisdiction, setJurisdiction } = useContentJurisdiction();
   const location =
     localityFromAddress(address) ??
@@ -226,12 +244,23 @@ export function DigestGreetingBar() {
   const compactH = insets.top + COMPACT_INNER;
   const curtainH = insets.top + CURTAIN_INNER;
 
+  if (ceremony.stageReady !== stageReady) {
+    dispatch({ type: "stageReady", ready: stageReady });
+  }
+  if (ceremony.reduceMotion !== !!reduceMotion) {
+    dispatch({ type: "reduceMotion", value: !!reduceMotion });
+  }
+  if (ceremony.freeze !== (freeze != null)) {
+    dispatch({ type: "freeze", on: freeze != null });
+  }
+
   // Re-evaluate the period when the app returns from the background and
   // periodically while it remains open. Without this, a session opened in
   // the morning could never transition into the afternoon greeting.
   useEffect(() => {
     const refreshNow = () => setNow(new Date());
     const subscription = AppState.addEventListener("change", (state) => {
+      dispatch({ type: "appActive", active: state === "active" });
       if (state === "active") refreshNow();
     });
     const timer = setInterval(refreshNow, 60_000);
@@ -239,6 +268,32 @@ export function DigestGreetingBar() {
       subscription.remove();
       clearInterval(timer);
     };
+  }, []);
+
+  useEffect(() => {
+    if (isSplashHidden()) {
+      dispatch({ type: "splashHidden" });
+      return;
+    }
+    let cancelled = false;
+    void whenSplashHidden().then(() => {
+      if (!cancelled) dispatch({ type: "splashHidden" });
+    });
+    const fallback = setTimeout(() => {
+      if (!cancelled) dispatch({ type: "splashHidden" });
+    }, GREETING_SPLASH_FALLBACK_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(fallback);
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => dispatch({ type: "waitExpired" }),
+      GREETING_STAGE_WAIT_MS,
+    );
+    return () => clearTimeout(timer);
   }, []);
 
   const writeCoords = (w: number, h: number) => {
@@ -296,6 +351,7 @@ export function DigestGreetingBar() {
       schedule(() => {
         if (runIdRef.current !== runId) return;
         setSettledUI(true);
+        dispatch({ type: "finished" });
       }, SLIDE_MS + 20);
     }, FORM_MS + HOLD_LOCKUP_MS);
   };
@@ -334,25 +390,19 @@ export function DigestGreetingBar() {
         play = true;
       }
       if (cancelled) return;
-      setPlayCeremony(play);
-      setReady(true);
-      if (play) {
-        try {
-          await AsyncStorage.setItem(storageKey(period, now), "1");
-        } catch {
-          /* ignore */
-        }
-      }
+      dispatch({ type: "decided", play });
     }
 
     void decide();
     return () => {
       cancelled = true;
     };
-  }, [period, day, now]);
+    // `now` ticks every minute; period + day are the only keys that matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- storage keyed by period/day
+  }, [period, day]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (ceremony.phase === "boot" || ceremony.phase === "wait") return;
 
     runIdRef.current += 1;
     const runId = runIdRef.current;
@@ -372,6 +422,15 @@ export function DigestGreetingBar() {
         setShowGreeting(nextShowGreeting);
         setTyped(nextTyped);
       });
+    };
+
+    const applySettled = () => {
+      freezeCoords();
+      drop.value = 1;
+      expand.value = 0;
+      morph.value = 1;
+      slide.value = 1;
+      applyFreezeFrame(true, false, greeting);
     };
 
     if (freeze === "typing" || freeze === "dropped") {
@@ -408,26 +467,8 @@ export function DigestGreetingBar() {
         clearTimers();
       };
     }
-    if (freeze === "settled") {
-      freezeCoords();
-      drop.value = 1;
-      expand.value = 0;
-      morph.value = 1;
-      slide.value = 1;
-      applyFreezeFrame(true, false, greeting);
-      return () => {
-        runIdRef.current += 1;
-        clearTimers();
-      };
-    }
-
-    if (!playCeremony || reduceMotion) {
-      freezeCoords();
-      drop.value = 1;
-      expand.value = 0;
-      morph.value = 1;
-      slide.value = 1;
-      applyFreezeFrame(true, false, greeting);
+    if (freeze === "settled" || ceremony.phase === "settled") {
+      applySettled();
       return () => {
         runIdRef.current += 1;
         clearTimers();
@@ -439,6 +480,12 @@ export function DigestGreetingBar() {
     morph.value = 0;
     slide.value = 0;
     applyFreezeFrame(false, true, "");
+
+    // Persist at play, not boot — a load that outlasts the animation used
+    // to consume the one-shot unseen. A failed write can replay this day-part.
+    AsyncStorage.setItem(storageKey(period, now), "1").catch(() => {
+      /* replay this day-part if the write fails */
+    });
 
     schedule(() => {
       if (runIdRef.current !== runId) return;
@@ -454,9 +501,9 @@ export function DigestGreetingBar() {
       runIdRef.current += 1;
       clearTimers();
     };
-    // Ceremony shared values / helpers are stable for the bar lifetime.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional ceremony deps
-  }, [ready, playCeremony, reduceMotion, greeting, freeze]);
+    // Copy is locked at play; a late firstName must not restart the typewriter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- drive from phase
+  }, [ceremony.phase, freeze]);
 
   useEffect(
     () => () => {
@@ -467,7 +514,7 @@ export function DigestGreetingBar() {
   );
 
   const ceremonyMode =
-    (playCeremony && !reduceMotion) ||
+    ceremony.phase === "play" ||
     freeze === "typing" ||
     freeze === "dropped" ||
     freeze === "morph" ||
@@ -652,7 +699,7 @@ export function DigestGreetingBar() {
         style={{ height: compactH, backgroundColor: CANVAS }}
         pointerEvents="none"
       />
-      {!ready ? null : (
+      {sheetVisible(ceremony.phase) ? (
         <Animated.View
           style={[styles.sheet, sheetStyle]}
           pointerEvents={settledUI || ceremonyMode ? "auto" : "none"}
@@ -747,7 +794,7 @@ export function DigestGreetingBar() {
             </Animated.View>
           </View>
         </Animated.View>
-      )}
+      ) : null}
 
       <Modal
         visible={locationOpen}
@@ -821,9 +868,7 @@ export function DigestGreetingBar() {
                 style={styles.menuRow}
                 onPress={() => setEditingAddress(true)}
                 accessibilityRole="menuitem"
-                accessibilityLabel={
-                  address ? "Change address" : "Set address"
-                }
+                accessibilityLabel={address ? "Change address" : "Set address"}
               >
                 <Text
                   style={[
