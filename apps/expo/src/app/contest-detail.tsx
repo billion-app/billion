@@ -1,44 +1,48 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   Image,
+  Keyboard,
   LayoutAnimation,
   Linking,
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Fuse from "fuse.js";
 
 import {
-  EmptyBallotMark,
-  SectionFlourish,
-} from "~/components/digest/CraftMarks";
-import { Text } from "~/components/Themed";
+  BallotDetailEvidence,
+  BallotLanguages,
+  BallotSources,
+  ElectionOfficeLink,
+} from "~/components/ballot-evidence/BallotEvidence";
 import {
-  Card,
-  Icon,
-  Kicker,
-  NavHeader,
-  Pill,
-  Pills,
-  SearchInput,
-  Segmented,
-} from "~/components/ui";
+  BallotAiDisclosure,
+  BallotBiography,
+  BallotReadingCard,
+  BallotReadingMode,
+} from "~/components/ballot-evidence/BallotReadingCard";
+import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { webUrl } from "~/components/ballot-evidence/model";
+import { Card, Icon, Kicker, NavHeader } from "~/components/ui";
 import {
   DigestHair,
   DigestRadii,
-  DigestSpace,
   fontBody,
   fontDisplay,
+  fontEditorial,
   DigestPalette as P,
+  planes,
 } from "~/styles";
 
 const cardChrome = {
   backgroundColor: P.card,
-  borderRadius: DigestRadii.card,
+  borderRadius: DigestRadii.menu,
   borderWidth: StyleSheet.hairlineWidth,
   borderColor: DigestHair.cardBorder,
 } as const;
@@ -64,57 +68,21 @@ interface CandidateParam {
   statementSummary?: string;
   statementSummaryIsAiGenerated?: boolean;
   incumbent?: boolean;
+  ballotStatus?: "onBallot" | "withdrewStillOnBallot";
   citations?: CandidateCitation[];
 }
 
-/** Human-readable label for a source tier (mirrors measure-detail). */
-const TIER_LABEL: Record<string, string> = {
-  county_registrar: "County Registrar",
-  state_sos: "Secretary of State",
-  lwv: "League of Women Voters",
-  ballotpedia: "Ballotpedia",
-  wikipedia: "Wikipedia",
-  vote_smart: "Vote Smart",
-  google_civic: "Google Civic",
-  ai_generated: "AI-generated",
-};
-
-interface FooterSource {
-  sourceName: string;
-  sourceUrl?: string;
-  official: boolean;
-  tier: string;
-}
-
-/** Collapse per-field citations into one row per distinct source. */
-function dedupeSources(citations: CandidateCitation[]): FooterSource[] {
-  const byName = new Map<string, FooterSource>();
-  for (const c of citations) {
-    if (byName.has(c.sourceName)) continue;
-    byName.set(c.sourceName, {
-      sourceName: c.sourceName,
-      sourceUrl: c.sourceUrl,
-      official: c.official,
-      tier: c.tier,
-    });
+function websiteLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
   }
-  return [...byName.values()].sort(
-    (a, b) => Number(b.official) - Number(a.official),
-  );
 }
 
-function partyColor(party?: string): string {
-  const p = (party ?? "").toLowerCase();
-  if (p.startsWith("d")) return P.badgeBlue;
-  if (p.startsWith("r")) return P.quiet;
-  return P.quiet;
-}
-
-function partyInitial(party?: string): string {
-  const p = (party ?? "").toLowerCase();
-  if (p.startsWith("d")) return "D";
-  if (p.startsWith("r")) return "R";
-  return "NP";
+function partyLabel(party?: string): string {
+  const label = party?.trim() ?? "";
+  return label.length ? label : "Party unavailable";
 }
 
 /**
@@ -126,6 +94,13 @@ function partyInitial(party?: string): string {
 function CandidateStatement({ cand }: { cand: CandidateParam }) {
   const hasSummary = !!cand.statementSummary?.trim();
   const hasVerbatim = !!cand.statement?.trim();
+  const summaryIsAi =
+    cand.statementSummaryIsAiGenerated === true ||
+    cand.citations?.some(
+      (citation) =>
+        citation.field === "statementSummary" &&
+        citation.tier === "ai_generated",
+    );
   const [mode, setMode] = useState<"summary" | "verbatim">(
     hasSummary ? "summary" : "verbatim",
   );
@@ -137,33 +112,34 @@ function CandidateStatement({ cand }: { cand: CandidateParam }) {
   return (
     <View style={s.statementWrap}>
       {showTabs && (
-        <Segmented
+        <BallotReadingMode
           value={mode}
           onChange={setMode}
           options={[
-            { id: "summary", label: "Plain summary", icon: "sparkle" },
-            { id: "verbatim", label: "Statement", icon: "doc" },
+            { value: "summary", label: "Summary" },
+            { value: "verbatim", label: "Original statement" },
           ]}
         />
       )}
-      {showingSummary && cand.statementSummaryIsAiGenerated && (
-        <View style={s.aiNotice}>
-          <Icon name="sparkle" size={13} color={P.spark} />
-          <Text style={s.aiNoticeText}>
-            AI summary of the candidate&apos;s own statement — not an official
-            source. Read the full statement for their exact words.
-          </Text>
-        </View>
-      )}
-      <Text style={s.candBio}>
-        {showingSummary ? cand.statementSummary : cand.statement}
-      </Text>
+      <BallotReadingCard
+        inset={showingSummary}
+        accent={showingSummary}
+        icon={showingSummary ? (summaryIsAi ? "sparkle" : "book") : "doc"}
+        title={
+          showingSummary ? "Statement summary" : "Original candidate statement"
+        }
+        label={
+          showingSummary && summaryIsAi ? <BallotAiDisclosure /> : undefined
+        }
+        text={(showingSummary ? cand.statementSummary : cand.statement) ?? ""}
+      />
     </View>
   );
 }
 
 export default function ContestDetailScreen() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const params = useLocalSearchParams<{
     office: string;
     roles: string;
@@ -184,7 +160,11 @@ export default function ContestDetailScreen() {
 
   // Expansion keyed by candidate identity (name + original index), not array
   // index — index-keying breaks once the list is filtered.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(() =>
+    candidates.length === 1 && candidates[0]
+      ? new Set([`${candidates[0].name}-0`])
+      : new Set(),
+  );
   const [query, setQuery] = useState("");
   const [hasStatementOnly, setHasStatementOnly] = useState(false);
   const [activeParty, setActiveParty] = useState<string | null>(null);
@@ -199,11 +179,11 @@ export default function ContestDetailScreen() {
     });
   }, []);
 
-  /** Party initials actually present in this contest, in first-seen order. */
+  /** Party labels actually present in this contest, in first-seen order. */
   const partyOptions = useMemo(() => {
     const seen: string[] = [];
     for (const c of candidates) {
-      const p = partyInitial(c.party);
+      const p = partyLabel(c.party);
       if (!seen.includes(p)) seen.push(p);
     }
     return seen;
@@ -235,7 +215,7 @@ export default function ContestDetailScreen() {
         !c.statementSummary?.trim()
       )
         return false;
-      if (activeParty && partyInitial(c.party) !== activeParty) return false;
+      if (activeParty && partyLabel(c.party) !== activeParty) return false;
       return true;
     });
 
@@ -256,7 +236,8 @@ export default function ContestDetailScreen() {
   return (
     <View style={s.screen}>
       <NavHeader
-        title={params.office}
+        key={fontScale}
+        title="Candidates"
         tone="dark"
         onBack={() => router.back()}
       />
@@ -264,15 +245,15 @@ export default function ContestDetailScreen() {
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        <Text style={s.contestKicker}>Contest</Text>
-        <Text style={s.office}>{params.office}</Text>
+        <Text accessibilityRole="header" style={s.office}>
+          {params.office}
+        </Text>
         {params.districtName ? (
           <Text style={s.district}>{params.districtName}</Text>
         ) : null}
-        <View style={s.flourishWrap}>
-          <SectionFlourish width={88} />
-        </View>
 
         {description ? (
           <View style={s.section}>
@@ -284,66 +265,104 @@ export default function ContestDetailScreen() {
         ) : null}
 
         <View style={s.section}>
-          <Kicker style={s.kicker}>
-            {filtering
-              ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
-              : `${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
-          </Kicker>
+          {(candidates.length > 1 || filtering) && (
+            <Text style={s.readingLabel}>
+              {filtering
+                ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
+                : `${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
+            </Text>
+          )}
 
-          {candidates.length > 1 ? (
+          {candidates.length > 5 && (
             <View style={s.filters}>
-              <SearchInput
-                placeholder="Search candidates…"
+              <TextInput
+                accessibilityLabel="Search candidates"
+                placeholder="Search candidates"
+                placeholderTextColor={P.quiet}
+                style={s.search}
                 value={query}
                 onChangeText={setQuery}
                 autoCorrect={false}
                 autoCapitalize="none"
                 returnKeyType="search"
+                onSubmitEditing={Keyboard.dismiss}
+                clearButtonMode="while-editing"
               />
-              <View style={s.pillsBleed}>
-                <Pills>
-                  <Pill
-                    label="Has statement"
-                    icon="doc"
-                    active={hasStatementOnly}
-                    onPress={() => setHasStatementOnly((v) => !v)}
-                  />
-                  {partyOptions.map((p) => (
-                    <Pill
+              <View style={s.filterOptions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: hasStatementOnly }}
+                  style={[s.filterOption, hasStatementOnly && s.filterSelected]}
+                  onPress={() => setHasStatementOnly((v) => !v)}
+                >
+                  <Text style={s.filterText}>Has statement</Text>
+                </Pressable>
+                {partyOptions.length > 1 &&
+                  partyOptions.map((p) => (
+                    <Pressable
                       key={p}
-                      label={p}
-                      active={activeParty === p}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: activeParty === p }}
+                      style={[
+                        s.filterOption,
+                        activeParty === p && s.filterSelected,
+                      ]}
                       onPress={() =>
                         setActiveParty((cur) => (cur === p ? null : p))
                       }
-                    />
+                    >
+                      <Text style={s.filterText}>{p}</Text>
+                    </Pressable>
                   ))}
-                </Pills>
               </View>
             </View>
-          ) : null}
+          )}
 
-          {filtered.length === 0 ? (
-            <Card style={[cardChrome, s.emptyCard]}>
-              <EmptyBallotMark width={80} />
-              <Text style={s.emptyTitle}>No candidates match</Text>
-              <Text style={s.noContact}>
-                Try clearing search or party filters.
+          {filtered.length === 0 && (
+            <View style={s.emptyState}>
+              <Text accessibilityRole="header" style={s.emptyTitle}>
+                {candidates.length
+                  ? "No candidates match your filters."
+                  : "Candidate details unavailable"}
               </Text>
-            </Card>
-          ) : null}
+              {!candidates.length && (
+                <Text style={s.candBio}>
+                  Billion has no candidate details for this contest. Check your
+                  election office for the official candidate list.
+                </Text>
+              )}
+              {candidates.length ? (
+                <Pressable
+                  accessibilityRole="button"
+                  style={[s.statementTab, s.clearFilters]}
+                  onPress={() => {
+                    setQuery("");
+                    setActiveParty(null);
+                    setHasStatementOnly(false);
+                    Keyboard.dismiss();
+                  }}
+                >
+                  <Text style={[s.statementTabText, { color: P.canvas }]}>
+                    Clear filters
+                  </Text>
+                </Pressable>
+              ) : (
+                <ElectionOfficeLink prominence="primary" />
+              )}
+            </View>
+          )}
 
           <View style={{ gap: 12 }}>
             {filtered.map((cand) => {
               const key = `${cand.name}-${candidates.indexOf(cand)}`;
               const open = expanded.has(key);
+              const candidateUrl = webUrl(cand.candidateUrl);
               const contactRows = [
-                cand.candidateUrl && {
+                candidateUrl && {
                   icon: "globe" as const,
                   label: "Website",
-                  value: cand.candidateUrl,
-                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                  onPress: () => void Linking.openURL(cand.candidateUrl!),
+                  value: candidateUrl,
+                  onPress: () => void Linking.openURL(candidateUrl),
                 },
                 cand.phone && {
                   icon: "message" as const,
@@ -364,44 +383,40 @@ export default function ContestDetailScreen() {
                 onPress: () => void;
               }[];
 
-              const sources = cand.citations
-                ? dedupeSources(cand.citations)
-                : [];
+              const sources = cand.citations ?? [];
               const hasStatement =
                 !!cand.statement?.trim() || !!cand.statementSummary?.trim();
-              const hasContact =
-                contactRows.length > 0 || (cand.channels?.length ?? 0) > 0;
-              const hasBody =
-                hasContact ||
-                !!cand.biography ||
-                hasStatement ||
-                sources.length > 0;
 
               return (
-                <Card key={key} style={cardChrome}>
+                <View key={key} style={s.candidateSection}>
                   <TouchableOpacity
                     style={s.candHeader}
+                    accessibilityRole="button"
+                    accessibilityLabel={[
+                      cand.name,
+                      cand.party,
+                      cand.incumbent ? "Incumbent" : undefined,
+                      cand.ballotStatus === "withdrewStillOnBallot"
+                        ? "Withdrawn; still on ballot"
+                        : undefined,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                    accessibilityState={{ expanded: open }}
                     activeOpacity={0.7}
                     onPress={() => toggle(key)}
                   >
-                    <View style={s.partyTile}>
-                      {cand.photoUrl ? (
-                        <Image
-                          source={{ uri: cand.photoUrl }}
-                          style={s.partyPhoto}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <Text
-                          style={[
-                            s.partyText,
-                            { color: partyColor(cand.party) },
-                          ]}
-                        >
-                          {partyInitial(cand.party)}
-                        </Text>
-                      )}
-                    </View>
+                    {cand.photoUrl ? (
+                      <Image
+                        source={{ uri: cand.photoUrl }}
+                        style={s.partyPhoto}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={s.identityIcon}>
+                        <Icon name="user" size={20} color={P.inkOnNight} />
+                      </View>
+                    )}
                     <View style={{ flex: 1 }}>
                       <View style={s.candNameRow}>
                         <Text style={s.candName}>{cand.name}</Text>
@@ -414,6 +429,11 @@ export default function ContestDetailScreen() {
                       {cand.party ? (
                         <Text style={s.candParty}>{cand.party}</Text>
                       ) : null}
+                      {cand.ballotStatus === "withdrewStillOnBallot" && (
+                        <Text style={s.withdrawn}>
+                          Withdrawn; still on ballot
+                        </Text>
+                      )}
                     </View>
                     <Icon
                       name={open ? "chevD" : "chevR"}
@@ -423,39 +443,51 @@ export default function ContestDetailScreen() {
                   </TouchableOpacity>
                   {open && (
                     <View style={s.candBody}>
-                      {cand.biography ? (
-                        <Text style={s.candBio}>{cand.biography}</Text>
-                      ) : null}
                       <CandidateStatement cand={cand} />
-                      {!hasStatement ? (
-                        <View style={s.emptyNote}>
-                          <Icon name="doc" size={13} color={P.quiet} />
-                          <Text style={s.noContact}>
-                            No statement submitted to the official voter guide.
-                          </Text>
-                        </View>
+                      {cand.biography ? (
+                        <BallotBiography text={cand.biography} />
                       ) : null}
-                      {!hasBody ? (
+                      {!hasStatement && (
                         <Text style={s.noContact}>
-                          No contact information available.
+                          Statement unavailable to Billion.
                         </Text>
-                      ) : null}
+                      )}
                       {contactRows.length > 0 &&
                         contactRows.map((row) => (
                           <TouchableOpacity
                             key={row.label}
-                            style={s.contactRow}
+                            accessibilityRole="link"
+                            accessibilityLabel={`${row.label === "Website" ? "Candidate website" : row.label}: ${row.value}`}
+                            style={[s.contactRow, s.contactAction]}
                             onPress={row.onPress}
                             activeOpacity={0.7}
                           >
-                            <Icon name={row.icon} size={16} color={P.spark} />
+                            <Icon name={row.icon} size={16} color={P.primary} />
                             <View style={{ flex: 1 }}>
-                              <Text style={s.contactLabel}>{row.label}</Text>
-                              <Text style={s.contactValue} numberOfLines={1}>
-                                {row.value}
+                              <Text
+                                style={
+                                  row.label === "Website"
+                                    ? s.websiteTitle
+                                    : s.contactLabel
+                                }
+                              >
+                                {row.label === "Website"
+                                  ? "Candidate website"
+                                  : row.label}
+                              </Text>
+                              <Text
+                                style={
+                                  row.label === "Website"
+                                    ? s.websiteHost
+                                    : [s.contactValue, { color: P.primary }]
+                                }
+                              >
+                                {row.label === "Website"
+                                  ? websiteLabel(row.value)
+                                  : row.value}
                               </Text>
                             </View>
-                            <Icon name="external" size={13} color={P.quiet} />
+                            <Icon name="external" size={13} color={P.primary} />
                           </TouchableOpacity>
                         ))}
                       {cand.channels && cand.channels.length > 0 && (
@@ -474,54 +506,23 @@ export default function ContestDetailScreen() {
                           ))}
                         </View>
                       )}
-                      {sources.length > 0 && (
-                        <View style={s.sourcesWrap}>
-                          <Text style={s.sourcesLabel}>Sources</Text>
-                          {sources.map((src, si) => {
-                            const openSrc = src.sourceUrl
-                              ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                                () => void Linking.openURL(src.sourceUrl!)
-                              : undefined;
-                            return (
-                              <Pressable
-                                key={`src-${si}`}
-                                onPress={openSrc}
-                                disabled={!openSrc}
-                                style={s.sourceRow}
-                              >
-                                <Icon
-                                  name={src.official ? "shield" : "info"}
-                                  size={13}
-                                  color={src.official ? P.badgeTeal : P.quiet}
-                                />
-                                <View style={{ flex: 1 }}>
-                                  <Text style={s.sourceName}>
-                                    {src.sourceName}
-                                  </Text>
-                                  <Text style={s.sourceMeta}>
-                                    {src.official ? "Official · " : ""}
-                                    {TIER_LABEL[src.tier] ?? src.tier}
-                                  </Text>
-                                </View>
-                                {openSrc ? (
-                                  <Icon
-                                    name="external"
-                                    size={13}
-                                    color={P.quiet}
-                                  />
-                                ) : null}
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      )}
+                      <BallotSources
+                        citations={sources}
+                        contentKind="citations"
+                        showRecovery={false}
+                      />
                     </View>
                   )}
-                </Card>
+                </View>
               );
             })}
           </View>
         </View>
+        {candidates.length === 0 ? (
+          <BallotDetailEvidence citations={[]} showOfficeLink={false} />
+        ) : (
+          <BallotLanguages items={[]} />
+        )}
       </ScrollView>
     </View>
   );
@@ -531,10 +532,12 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: P.canvas },
   scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: DigestSpace.coverPadX,
-    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 48,
   },
+  section: { marginTop: 12, marginBottom: 12 },
+  filters: { gap: 12, marginBottom: 16 },
   kicker: {
     color: P.spark,
     fontFamily: fontBody.bold,
@@ -543,42 +546,47 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 8,
   },
-  contestKicker: {
-    fontFamily: fontBody.bold,
-    fontSize: 10.5,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    color: P.spark,
-    marginBottom: 8,
-  },
   office: {
     fontFamily: fontDisplay.bold,
-    fontSize: 28,
+    fontSize: 30,
+    lineHeight: 34,
     color: P.inkOnNight,
     marginBottom: 4,
-    lineHeight: 34,
     letterSpacing: -0.55,
   },
   district: {
     fontFamily: fontBody.medium,
     fontSize: 13.5,
-    color: P.quiet,
+    color: P.inkOnNight,
+    opacity: 0.7,
     marginBottom: 12,
   },
-  flourishWrap: { marginBottom: 20, alignItems: "flex-start" },
-  section: { marginBottom: 28 },
-  filters: { gap: 12, marginBottom: 12 },
-  emptyCard: {
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 20,
+  search: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: P.border,
+    borderRadius: 10,
+    padding: 12,
+    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
+    fontSize: 16,
   },
-  emptyTitle: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 18,
+  filterOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  filterOption: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: P.border,
+    borderRadius: 8,
+  },
+  filterSelected: { backgroundColor: P.card, borderColor: P.inkOnNight },
+  filterText: {
+    fontFamily: fontBody.medium,
+    fontSize: 14,
     color: P.inkOnNight,
   },
-  pillsBleed: { marginHorizontal: -20 },
   descText: {
     fontFamily: fontBody.regular,
     fontSize: 14.5,
@@ -586,19 +594,21 @@ const s = StyleSheet.create({
     lineHeight: 22,
   },
   candHeader: {
+    ...cardChrome,
+    padding: 14,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  partyTile: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: P.stone,
+  identityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: planes.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  partyText: { fontFamily: fontBody.bold, fontSize: 13 },
   partyPhoto: { width: 34, height: 34, borderRadius: 9 },
   candNameRow: {
     flexDirection: "row",
@@ -607,7 +617,7 @@ const s = StyleSheet.create({
     flexWrap: "wrap",
   },
   candName: {
-    fontFamily: fontDisplay.bold,
+    fontFamily: fontEditorial.bold,
     fontSize: 17,
     lineHeight: 22,
     letterSpacing: -0.2,
@@ -628,55 +638,89 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
+  emptyState: { ...cardChrome, gap: 12, padding: 20 },
+  emptyTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 22,
+    color: P.inkOnNight,
+  },
+  candidateSection: { gap: 18 },
+  readingLabel: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 22,
+    color: P.inkOnNight,
+    marginBottom: 8,
+  },
+  clearFilters: { backgroundColor: P.inkOnNight, alignSelf: "flex-start" },
+  statementTab: {
+    minHeight: 44,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+    borderRadius: DigestRadii.menuRow,
+  },
+  statementTabText: {
+    fontFamily: fontBody.medium,
+    fontSize: 16,
+    color: P.inkOnNight,
+  },
   candBio: {
     fontFamily: fontBody.regular,
+    fontSize: 17,
+    color: P.inkOnNight,
+    lineHeight: 26,
+    marginBottom: 4,
+  },
+  withdrawn: {
+    fontFamily: fontBody.medium,
     fontSize: 14,
     color: P.inkOnNight,
-    lineHeight: 21,
-    marginBottom: 4,
+    marginTop: 8,
   },
   candParty: {
     fontFamily: fontBody.medium,
     fontSize: 12.5,
-    color: P.quiet,
+    color: P.inkOnNight,
+    opacity: 0.7,
   },
-  candBody: {
-    marginTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.cardBorder,
-    paddingTop: 12,
-    gap: 8,
-  },
+  candBody: { gap: 18 },
   statementWrap: {
-    gap: 10,
-  },
-  aiNotice: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: DigestHair.tabActivePill,
-    borderWidth: 1,
-    borderColor: DigestHair.coverBorder,
-    borderRadius: DigestRadii.menu,
-    padding: 12,
-  },
-  aiNoticeText: {
-    flex: 1,
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    color: P.quiet,
-    lineHeight: 18,
+    gap: 18,
   },
   contactRow: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingVertical: 6,
   },
+  contactAction: {
+    backgroundColor: P.canvas,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+  },
+  websiteTitle: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13.5,
+    color: P.primary,
+  },
+  websiteHost: {
+    fontFamily: fontBody.regular,
+    fontSize: 12,
+    color: P.inkOnNight,
+    opacity: 0.7,
+    marginTop: 3,
+  },
   contactLabel: {
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: P.quiet,
+    color: P.inkOnNight,
+    opacity: 0.7,
   },
   contactValue: {
     fontFamily: fontBody.semibold,
@@ -684,51 +728,16 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
     marginTop: 1,
   },
-  emptyNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   noContact: {
     fontFamily: fontBody.regular,
     fontSize: 13,
-    color: P.quiet,
+    color: P.inkOnNight,
+    opacity: 0.7,
   },
   channelsWrap: {
     borderTopWidth: 1,
     borderTopColor: DigestHair.cardBorder,
     paddingTop: 8,
     marginTop: 4,
-  },
-  sourcesWrap: {
-    borderTopWidth: 1,
-    borderTopColor: DigestHair.cardBorder,
-    paddingTop: 10,
-    marginTop: 4,
-  },
-  sourcesLabel: {
-    fontFamily: fontBody.medium,
-    fontSize: 11,
-    color: P.quiet,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  sourceRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingVertical: 7,
-  },
-  sourceName: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13,
-    color: P.inkOnNight,
-  },
-  sourceMeta: {
-    fontFamily: fontBody.regular,
-    fontSize: 11,
-    color: P.quiet,
-    marginTop: 1,
   },
 });

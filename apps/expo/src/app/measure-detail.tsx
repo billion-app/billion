@@ -1,24 +1,38 @@
-import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import type { MeasureArgumentRef, MeasureCitationRef } from "@acme/api";
 
 import {
-  MeasureBalance,
-  SectionFlourish,
-} from "~/components/digest/CraftMarks";
-import { Text } from "~/components/Themed";
-import { Card, Icon, Kicker, NavHeader, PrimaryButton } from "~/components/ui";
+  BallotDetailEvidence,
+  ElectionOfficeLink,
+  SourceLink,
+} from "~/components/ballot-evidence/BallotEvidence";
 import {
-  DigestHair,
-  DigestRadii,
-  DigestSpace,
+  BallotAiDisclosure,
+  BallotReadingCard,
+  BallotReadingMode,
+  BallotReadingText,
+} from "~/components/ballot-evidence/BallotReadingCard";
+import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { webUrl } from "~/components/ballot-evidence/model";
+import { Icon, NavHeader } from "~/components/ui";
+import {
   fontBody,
   fontDisplay,
+  fontEditorial,
   DigestPalette as P,
+  planes,
+  sp,
 } from "~/styles";
 
-/** Parse a JSON-encoded route param, tolerating empty/malformed values. */
 function parseJson<T>(raw: string | undefined, fallback: T): T {
   if (!raw) return fallback;
   try {
@@ -28,27 +42,10 @@ function parseJson<T>(raw: string | undefined, fallback: T): T {
   }
 }
 
-/** Human-readable label for a source tier. */
-const TIER_LABEL: Record<string, string> = {
-  county_registrar: "County Registrar",
-  state_sos: "Secretary of State",
-  lwv: "League of Women Voters",
-  ballotpedia: "Ballotpedia",
-  wikipedia: "Wikipedia",
-  vote_smart: "Vote Smart",
-  google_civic: "Google Civic",
-  ai_generated: "AI-generated",
-};
-
-const cardChrome = {
-  backgroundColor: P.card,
-  borderRadius: DigestRadii.card,
-  borderWidth: StyleSheet.hairlineWidth,
-  borderColor: DigestHair.cardBorder,
-} as const;
-
 export default function MeasureDetailScreen() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
+  const [mode, setMode] = useState<"overview" | "original">("overview");
   const params = useLocalSearchParams<{
     referendumTitle: string;
     referendumSubtitle: string;
@@ -64,369 +61,293 @@ export default function MeasureDetailScreen() {
     conArguments: string;
     citations: string;
   }>();
-
-  const summaryIsAi = params.summaryIsAiGenerated === "true";
   const proArgs = parseJson<MeasureArgumentRef[]>(params.proArguments, []);
   const conArgs = parseJson<MeasureArgumentRef[]>(params.conArguments, []);
   const citations = parseJson<MeasureCitationRef[]>(params.citations, []);
+  const pros = proArgs.length
+    ? proArgs
+    : params.referendumProStatement
+      ? [{ text: params.referendumProStatement, sourceName: "" }]
+      : [];
+  const cons = conArgs.length
+    ? conArgs
+    : params.referendumConStatement
+      ? [{ text: params.referendumConStatement, sourceName: "" }]
+      : [];
+  const summary =
+    params.summary || params.summaryLong || params.referendumSubtitle;
+  const sourceUrl = webUrl(params.referendumUrl);
+  const summaryIsAi =
+    params.summaryIsAiGenerated === "true" ||
+    citations.some(
+      (citation) =>
+        citation.tier === "ai_generated" &&
+        ["summary", "summaryLong", "summaryShort"].includes(citation.field),
+    );
 
-  // Fall back to the legacy single-statement fields when no structured list.
-  const pros =
-    proArgs.length > 0
-      ? proArgs
-      : params.referendumProStatement
-        ? [{ text: params.referendumProStatement, sourceName: "" }]
-        : [];
-  const cons =
-    conArgs.length > 0
-      ? conArgs
-      : params.referendumConStatement
-        ? [{ text: params.referendumConStatement, sourceName: "" }]
-        : [];
+  const hasContent = !!(
+    summary ||
+    params.fiscalImpact ||
+    pros.length ||
+    cons.length ||
+    params.referendumText ||
+    sourceUrl
+  );
 
-  // Unique sources for the attribution footer, official ones first.
-  const sources = dedupeSources(citations);
+  const hasOverview = !!(
+    summary ||
+    params.fiscalImpact ||
+    pros.length ||
+    cons.length
+  );
+  const showingOriginal =
+    !!params.referendumText && (!hasOverview || mode === "original");
 
+  const isGenerated = (field: string) =>
+    citations.some(
+      (citation) =>
+        citation.field === field && citation.tier === "ai_generated",
+    );
   return (
     <View style={s.screen}>
       <NavHeader
-        title="Ballot Measure"
+        key={fontScale}
+        title="Measure"
         tone="dark"
         onBack={() => router.back()}
       />
-      <ScrollView
-        style={s.scroll}
-        contentContainerStyle={s.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={s.heroMarkRow}>
-          <MeasureBalance width={36} />
-          <Text style={s.measureKicker}>Ballot measure</Text>
-        </View>
-
-        <Text style={s.title}>{params.referendumTitle}</Text>
-        <View style={s.flourishWrap}>
-          <SectionFlourish width={88} />
-        </View>
-
-        {params.summaryLong || params.summary || params.referendumSubtitle ? (
-          <>
-            <Text style={s.subtitle}>
-              {params.summaryLong ||
-                params.summary ||
-                params.referendumSubtitle}
+      <ScrollView contentContainerStyle={s.content}>
+        <Text accessibilityRole="header" style={s.title}>
+          {params.referendumTitle}
+        </Text>
+        {params.referendumText && hasOverview && (
+          <BallotReadingMode
+            value={showingOriginal ? "original" : "overview"}
+            onChange={setMode}
+            options={[
+              { value: "overview", label: "Overview" },
+              { value: "original", label: "Original text" },
+            ]}
+          />
+        )}
+        {!showingOriginal && !params.referendumText && sourceUrl && (
+          <SourceLink label="Read original source" url={sourceUrl} />
+        )}
+        {!hasContent ? (
+          <View style={s.emptyCard}>
+            <Text accessibilityRole="header" style={s.emptyTitle}>
+              Measure details unavailable
             </Text>
-            {summaryIsAi && (
-              <View style={s.aiNotice}>
-                <Icon name="sparkle" size={13} color={P.spark} />
-                <Text style={s.aiNoticeText}>
-                  AI-generated summary — not from an official source. Verify
-                  against the official text below.
-                </Text>
-              </View>
+            <Text style={s.emptyBody}>
+              Billion has no text or analysis for this measure. Check your
+              election office for the official measure information.
+            </Text>
+            <ElectionOfficeLink prominence="primary" />
+          </View>
+        ) : !showingOriginal ? (
+          <>
+            {summary ? (
+              <BallotReadingCard
+                inset
+                title="Measure overview"
+                icon={summaryIsAi ? "sparkle" : "book"}
+                accent
+                text={summary}
+                extendedText={params.summaryLong}
+                label={summaryIsAi ? <BallotAiDisclosure /> : undefined}
+              />
+            ) : (
+              <Text style={s.secondary}>
+                A summary is unavailable to Billion.
+              </Text>
+            )}
+            {params.fiscalImpact && (
+              <BallotReadingCard
+                inset
+                title="Fiscal impact"
+                icon="trendingUp"
+                text={params.fiscalImpact}
+                label={
+                  isGenerated("fiscalImpact") ? (
+                    <BallotAiDisclosure label="AI-generated explanation" />
+                  ) : undefined
+                }
+              />
+            )}
+            {pros.length > 0 && (
+              <ArgumentCard
+                title="Arguments in favor"
+                args={pros}
+                generated={isGenerated("proArguments")}
+              />
+            )}
+            {cons.length > 0 && (
+              <ArgumentCard
+                title="Arguments against"
+                args={cons}
+                generated={isGenerated("conArguments")}
+              />
             )}
           </>
         ) : (
-          <Text style={s.subtitle}>
-            No official information is available for this measure yet.
-          </Text>
-        )}
-
-        {/* Fiscal impact (official analysis) */}
-        {params.fiscalImpact ? (
-          <View style={s.section}>
-            <Kicker style={s.kicker}>Fiscal impact</Kicker>
-            <Card style={cardChrome}>
-              <Text style={s.fiscalText}>{params.fiscalImpact}</Text>
-            </Card>
-          </View>
-        ) : null}
-
-        {/* Yes / No arguments — one card per side, arguments as bullets. */}
-        {(pros.length > 0 || cons.length > 0) && (
-          <View style={s.section}>
-            <Kicker style={s.kicker}>A YES vote vs. a NO vote</Kicker>
-            <View style={{ gap: 12 }}>
-              {pros.length > 0 && (
-                <StanceCard
-                  label="A YES vote means"
-                  color={P.badgeTeal}
-                  args={pros}
-                />
-              )}
-              {cons.length > 0 && (
-                <StanceCard
-                  label="A NO vote means"
-                  color={P.spark}
-                  args={cons}
-                />
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Full referendum text */}
-        {params.referendumText ? (
-          <View style={s.section}>
-            <Kicker style={s.kicker}>Full text</Kicker>
-            <Card style={cardChrome}>
-              <Text style={s.fullText}>{params.referendumText}</Text>
-            </Card>
-          </View>
-        ) : null}
-
-        {/* Sources / citations — every source points back to its original. */}
-        {sources.length > 0 && (
-          <View style={s.section}>
-            <Kicker style={s.kicker}>Sources</Kicker>
-            <Card style={cardChrome}>
-              {sources.map((src, i) => {
-                const url = src.sourceUrl;
-                const open = url ? () => void Linking.openURL(url) : undefined;
-                return (
-                  <Pressable
-                    key={`src-${i}`}
-                    onPress={open}
-                    disabled={!open}
-                    style={[s.sourceRow, i > 0 && s.sourceRowBorder]}
-                  >
-                    <Icon
-                      name={src.official ? "shield" : "info"}
-                      size={14}
-                      color={src.official ? P.badgeTeal : P.quiet}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.sourceName}>{src.sourceName}</Text>
-                      <Text style={s.sourceMeta}>
-                        {src.official ? "Official · " : ""}
-                        {TIER_LABEL[src.tier] ?? src.tier} · for{" "}
-                        {src.fields.join(", ")}
-                      </Text>
-                    </View>
-                    {open ? (
-                      <Icon name="external" size={14} color={P.quiet} />
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </Card>
-          </View>
-        )}
-
-        {/* Source link */}
-        {params.referendumUrl ? (
-          <View style={s.section}>
-            <PrimaryButton
-              label="View official source"
-              icon="external"
-              onPress={() => void Linking.openURL(params.referendumUrl)}
+          <>
+            {sourceUrl && (
+              <SourceLink
+                label="Open original source"
+                url={sourceUrl}
+                prominence="primary"
+              />
+            )}
+            <BallotReadingCard
+              title="Original measure text"
+              text={params.referendumText}
             />
-          </View>
-        ) : null}
+          </>
+        )}
+        <BallotDetailEvidence
+          citations={citations}
+          showOfficeLink={hasContent}
+        />
       </ScrollView>
     </View>
   );
 }
 
-/** One stance card (YES or NO) listing all of that side's arguments as bullets. */
-function StanceCard({
-  label,
-  color,
+function ArgumentCard({
+  title,
   args,
+  generated,
 }: {
-  label: string;
-  color: string;
+  title: string;
   args: MeasureArgumentRef[];
+  generated: boolean;
 }) {
-  // Attribute once per card from the distinct sources of its arguments.
-  const attribution = [
-    ...new Set(
-      args.map((a) => a.author ?? a.sourceName).filter((x): x is string => !!x),
-    ),
-  ].join(", ");
+  const [expanded, setExpanded] = useState(false);
   return (
-    <Card style={[cardChrome, s.stanceCard, { borderLeftColor: color }]}>
-      <View style={s.stanceHeader}>
-        <Text style={s.stanceLabel}>{label}</Text>
-      </View>
-      <View style={{ gap: 8 }}>
-        {args.map((arg, i) => (
-          <View key={i} style={s.bulletRow}>
-            <Text style={[s.bulletDot, { color }]}>•</Text>
-            <Text style={s.stanceText}>{arg.text}</Text>
+    <View style={s.argumentCard}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, ${args.length} ${args.length === 1 ? "argument" : "arguments"}`}
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded(!expanded)}
+        style={s.argumentHeader}
+      >
+        <View style={s.iconTile}>
+          <Icon name="message" size={20} color={P.inkOnNight} />
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={s.argumentTitle}>{title}</Text>
+          <Text style={s.secondary}>
+            {args.length} {args.length === 1 ? "argument" : "arguments"}
+          </Text>
+        </View>
+        <Icon
+          name={expanded ? "chevD" : "chevR"}
+          size={16}
+          color={P.inkOnNight}
+        />
+      </Pressable>
+      {expanded && (
+        <View style={s.argumentBody}>
+          {generated && <BallotAiDisclosure label="AI-generated explanation" />}
+          <View style={{ gap: sp[4] }}>
+            {args.map((arg, index) => (
+              <View key={index} style={{ gap: sp[2] }}>
+                <BallotReadingText text={arg.text} />
+                {(arg.author ?? arg.sourceName) &&
+                  (arg.sourceUrl ? (
+                    <SourceLink
+                      label={arg.author ?? arg.sourceName}
+                      url={arg.sourceUrl}
+                    />
+                  ) : (
+                    <Text style={s.secondary}>
+                      {arg.author ?? arg.sourceName}
+                    </Text>
+                  ))}
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
-      {attribution ? (
-        <Text style={s.argAttribution}>— {attribution}</Text>
-      ) : null}
-    </Card>
-  );
-}
-
-interface FooterSource {
-  sourceName: string;
-  sourceUrl?: string;
-  official: boolean;
-  tier: string;
-  fields: string[];
-}
-
-/** Collapse per-field citations into one row per source. */
-function dedupeSources(citations: MeasureCitationRef[]): FooterSource[] {
-  const byName = new Map<string, FooterSource>();
-  for (const c of citations) {
-    const existing = byName.get(c.sourceName);
-    if (existing) {
-      if (!existing.fields.includes(c.field)) existing.fields.push(c.field);
-    } else {
-      byName.set(c.sourceName, {
-        sourceName: c.sourceName,
-        sourceUrl: c.sourceUrl,
-        official: c.official,
-        tier: c.tier,
-        fields: [c.field],
-      });
-    }
-  }
-  return [...byName.values()].sort(
-    (a, b) => Number(b.official) - Number(a.official),
+        </View>
+      )}
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: P.canvas },
-  scroll: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: DigestSpace.coverPadX,
-    paddingTop: 8,
-    paddingBottom: 48,
+  emptyCard: {
+    backgroundColor: P.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: P.border,
+    padding: 20,
+    gap: 12,
   },
-  kicker: {
-    color: P.spark,
-    fontFamily: fontBody.bold,
-    fontSize: 10.5,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    marginBottom: 8,
+  argumentCard: {
+    backgroundColor: P.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: P.border,
+    padding: 16,
   },
-  heroMarkRow: {
+  argumentHeader: {
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 12,
   },
-  measureKicker: {
-    fontFamily: fontBody.bold,
-    fontSize: 10.5,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    color: P.spark,
+  iconTile: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: planes.surface,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  flourishWrap: { marginBottom: 16, alignItems: "flex-start" },
+  argumentTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 22,
+    color: P.inkOnNight,
+  },
+  argumentBody: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: P.border,
+    gap: 12,
+  },
+  screen: { flex: 1, backgroundColor: P.canvas },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: sp[5],
+    paddingBottom: sp[12],
+    gap: 18,
+  },
   title: {
     fontFamily: fontDisplay.bold,
-    fontSize: 28,
-    color: P.inkOnNight,
-    marginBottom: 8,
+    fontSize: 30,
     lineHeight: 34,
-    letterSpacing: -0.55,
+    color: P.inkOnNight,
+    marginBottom: sp[2],
   },
-  subtitle: {
+  emptyBody: {
+    fontFamily: fontBody.regular,
+    fontSize: 17,
+    lineHeight: 26,
+    color: P.inkOnNight,
+  },
+  emptyTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 22,
+    color: P.inkOnNight,
+  },
+  secondary: {
     fontFamily: fontBody.regular,
     fontSize: 15,
-    color: P.quiet,
     lineHeight: 22,
-    marginBottom: 8,
-  },
-  aiNotice: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: DigestHair.tabActivePill,
-    borderWidth: 1,
-    borderColor: DigestHair.coverBorder,
-    borderRadius: DigestRadii.menu,
-    padding: 12,
-    marginBottom: 16,
-  },
-  aiNoticeText: {
-    flex: 1,
-    fontFamily: fontBody.regular,
-    fontSize: 12.5,
-    color: P.quiet,
-    lineHeight: 18,
-  },
-  section: { marginBottom: 28 },
-  fiscalText: {
-    fontFamily: fontBody.regular,
-    fontSize: 14.5,
     color: P.inkOnNight,
-    lineHeight: 22,
-  },
-  stanceCard: {
-    borderLeftWidth: 3,
-    paddingVertical: 4,
-  },
-  stanceHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  stanceLabel: {
-    fontFamily: fontBody.bold,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: P.inkOnNight,
-  },
-  stanceText: {
-    flex: 1,
-    fontFamily: fontBody.regular,
-    fontSize: 14.5,
-    color: P.inkOnNight,
-    lineHeight: 22,
-  },
-  bulletRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  bulletDot: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  argAttribution: {
-    fontFamily: fontBody.medium,
-    fontSize: 12.5,
-    color: P.quiet,
-    marginTop: 8,
-  },
-  fullText: {
-    fontFamily: fontBody.regular,
-    fontSize: 14,
-    color: P.inkOnNight,
-    lineHeight: 22,
-  },
-  sourceRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingVertical: 10,
-  },
-  sourceRowBorder: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.cardBorder,
-  },
-  sourceName: {
-    fontFamily: fontBody.semibold,
-    fontSize: 13.5,
-    color: P.inkOnNight,
-  },
-  sourceMeta: {
-    fontFamily: fontBody.regular,
-    fontSize: 11.5,
-    color: P.quiet,
-    marginTop: 2,
+    opacity: 0.7,
   },
 });
