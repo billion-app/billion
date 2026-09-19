@@ -94,6 +94,7 @@ data, email workflows, and the registered scraper suite:
 | `GOOGLE_PLACES_API_KEY` | Launch required  | Next.js API                                  | Enables production address autocomplete and place details.                                                              |
 | `OPENROUTER_API_KEY`    | Feature required | Content-enriching scrapers                   | Used by content scrapers; a local endpoint or deprecated direct DeepSeek key also satisfies their environment contract. |
 | `CONGRESS_API_KEY`      | Feature required | `congress` scraper                           | Authenticates Congress.gov bill ingestion.                                                                              |
+| `EXPO_ACCESS_TOKEN`     | Optional         | Next.js test send; `notify-followers` job    | Raises Expo Push rate limits. Alerts still send without it.                                                             |
 
 The local FLUX variables configure explicit image jobs. The scheduled header-art
 job is local-only; `BFL_API_KEY` remains available to the separate shared helper
@@ -134,6 +135,14 @@ string copied from the provider is normally already safe to paste.
 | `RESEND_GENERAL_UPDATES_SEGMENT_ID`           | Optional    | Adds mailing-list subscribers to the General updates segment | Contacts are still created globally, but are not assigned to the segment.                                                                                                     | Create/copy the segment in the Resend Audience dashboard; see [Segments](https://resend.com/docs/dashboard/segments/introduction).      |
 | `RESEND_GENERAL_UPDATES_TOPIC_ID`             | Optional    | Opts subscribers into the user-facing General updates topic  | Contacts are created without that topic subscription.                                                                                                                         | Create/copy the topic in Resend; see [Topics](https://resend.com/docs/knowledge-base/why-use-topics).                                   |
 | `RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL` | Optional    | Sends a one-time confirmation after a new subscription       | New subscribers are still stored if it is missing; no confirmation email is sent. Existing/repeated subscribers never receive it again.                                       | Verify a domain in [Resend Domains](https://resend.com/docs/dashboard/domains/introduction), then use `Billion <hello@yourdomain.com>`. |
+
+### Lock-screen alerts
+
+| Variable            | Requirement | Used for                                        | Default / missing behavior                                            | Where to get it                                                                  |
+| ------------------- | ----------- | ----------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `EXPO_ACCESS_TOKEN` | Optional    | Authenticates server sends to the Expo Push API | Alerts still send; Expo applies a lower rate limit without the token. | [Expo access tokens](https://expo.dev/accounts/[account]/settings/access-tokens) |
+
+The phone is the identity: Expo registers a push token, `notifications.sync` stores prefs and saved bill IDs, and `notify-followers` sends the lock-screen alert. Simulator builds have no Expo token, so Settings → Test falls back to a local OS notification.
 
 ### Civic and address data
 

@@ -52,6 +52,7 @@
     "repair-bill-descriptions": "tsx src/repair-bill-descriptions-entry.ts",
     "content-images": "tsx src/content-images.ts",
     "bill-interest": "tsx src/bill-interest-entry.ts",
+    "notify-followers": "tsx src/notify-followers-entry.ts",
     "prune-bills": "tsx src/prune-bills-entry.ts"
   },
   "author": "It's not you it's me",

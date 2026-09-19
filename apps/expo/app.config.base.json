@@ -135,6 +135,7 @@
       }
     ],
     "expo-build-properties",
-    "expo-font"
+    "expo-font",
+    "expo-notifications"
   ]
 }

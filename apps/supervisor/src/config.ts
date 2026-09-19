@@ -83,6 +83,16 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 24,
   },
   {
+    id: "notify-followers-hourly",
+    description: "Send lock-screen alerts for bills a reader asked us to watch",
+    script: "notify-followers.js",
+    args: [],
+    schedule: { kind: "interval", everyMinutes: 60 },
+    priority: 8,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "content-images-daily",
     description: "Generate illustrated header art for recent retained content",
     script: "content-images.js",
