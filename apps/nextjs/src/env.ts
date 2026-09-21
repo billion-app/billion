@@ -27,6 +27,7 @@ export const env = createEnv({
       envSchemas.RESEND_GENERAL_UPDATES_TOPIC_ID!.optional(),
     RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL:
       envSchemas.RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL!.optional(),
+    EXPO_ACCESS_TOKEN: envSchemas.EXPO_ACCESS_TOKEN!.optional(),
   },
 
   /**

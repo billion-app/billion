@@ -32,7 +32,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { PostHogProvider } from "posthog-react-native";
 
 import { GREAT_VIBES } from "~/components/digest/staticAssets";
+import { NotificationTapHandler } from "~/components/NotificationTapHandler";
 import { OnboardingGate } from "~/components/onboarding/OnboardingGate";
+import { PushSync } from "~/components/PushSync";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { UpdatePrompt } from "~/components/UpdatePrompt";
 import { posthog } from "~/config/posthog";
@@ -197,6 +199,8 @@ export default function RootLayout() {
             <Stack.Screen name="(onboarding)" />
           </Stack>
           <OnboardingGate />
+          <NotificationTapHandler />
+          <PushSync />
           {/* Absolute overlay: update banner sits above Stack without affecting tab/stack layout */}
           <UpdatePrompt />
           <StatusBar style={statusBarStyleFor(pathname)} />

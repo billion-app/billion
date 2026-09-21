@@ -226,6 +226,16 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "EXPO_ACCESS_TOKEN",
+    description:
+      "Optional Expo access token for the push API. Lock-screen alerts work without it; the token raises rate limits.",
+    group: "Notifications",
+    secret: true,
+    setupUrl: "https://expo.dev/accounts/[account]/settings/access-tokens",
+    requirements: { nextjs: "optional", scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "NEXT_PUBLIC_POSTHOG_KEY",
     description: "PostHog project API key used by the Next.js client.",
     group: "Analytics",

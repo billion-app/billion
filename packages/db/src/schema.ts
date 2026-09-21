@@ -637,6 +637,120 @@ export const UserSettings = pgTable(
   }),
 );
 
+/**
+ * A phone that can receive lock-screen alerts. Identity is the Expo push
+ * token, not an account — saving and following already work without sign-in.
+ */
+export const PushDevice = pgTable(
+  "push_device",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    expoPushToken: t.text("expo_push_token").notNull(),
+    platform: t.varchar({ length: 20 }).notNull(),
+    timezone: t
+      .varchar({ length: 64 })
+      .notNull()
+      .default("America/Los_Angeles"),
+    userId: t.text("user_id"),
+    breaking: t.boolean().notNull().default(true),
+    following: t.boolean().notNull().default(true),
+    brief: t.boolean().notNull().default(false),
+    recap: t.boolean().notNull().default(false),
+    quietHours: t.boolean("quiet_hours").notNull().default(true),
+    quietStartMin: t
+      .integer("quiet_start_min")
+      .notNull()
+      .default(22 * 60),
+    quietEndMin: t
+      .integer("quiet_end_min")
+      .notNull()
+      .default(7 * 60),
+    lastSeenAt: t
+      .timestamp("last_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    disabledAt: t.timestamp("disabled_at", { withTimezone: true }),
+    createdAt: t
+      .timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: t
+      .timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => sql`now()`)
+      .notNull(),
+  }),
+  (table) => ({
+    tokenUnique: unique().on(table.expoPushToken),
+    userIdx: index("push_device_user_id_idx").on(table.userId),
+  }),
+);
+
+/** Content this device asked us to watch. Saving on the phone is the follow. */
+export const DeviceFollow = pgTable(
+  "device_follow",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    deviceId: t
+      .uuid("device_id")
+      .notNull()
+      .references(() => PushDevice.id, { onDelete: "cascade" }),
+    contentId: t.uuid("content_id").notNull(),
+    contentType: t.varchar("content_type", { length: 20 }).notNull(),
+    lastNotifiedActionAt: t.timestamp("last_notified_action_at", {
+      withTimezone: true,
+    }),
+    createdAt: t
+      .timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  }),
+  (table) => ({
+    uniqueFollow: unique().on(table.deviceId, table.contentId),
+    contentIdx: index("device_follow_content_id_idx").on(table.contentId),
+    deviceIdx: index("device_follow_device_id_idx").on(table.deviceId),
+  }),
+);
+
+/**
+ * Alerts waiting to send, and the record of what we sent.
+ * `sentAt` null means still queued; quiet hours set `notBefore`.
+ */
+export const NotificationOutbox = pgTable(
+  "notification_outbox",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    deviceId: t
+      .uuid("device_id")
+      .notNull()
+      .references(() => PushDevice.id, { onDelete: "cascade" }),
+    kind: t.varchar({ length: 20 }).notNull(),
+    title: t.text().notNull(),
+    body: t.text().notNull(),
+    href: t.text().notNull(),
+    contentId: t.uuid("content_id"),
+    notBefore: t
+      .timestamp("not_before", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    sentAt: t.timestamp("sent_at", { withTimezone: true }),
+    ticket: t.text(),
+    receiptCheckedAt: t.timestamp("receipt_checked_at", { withTimezone: true }),
+    error: t.text(),
+    createdAt: t
+      .timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  }),
+  (table) => ({
+    dueIdx: index("notification_outbox_due_idx").on(
+      table.sentAt,
+      table.notBefore,
+    ),
+    deviceIdx: index("notification_outbox_device_id_idx").on(table.deviceId),
+  }),
+);
+
 // Local-government decision pipeline. These tables deliberately model the
 // product domain rather than Legistar's wire format so another municipal
 // records adapter can populate the same read model later.

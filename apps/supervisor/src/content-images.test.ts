@@ -134,6 +134,7 @@ void test("covers all feed import and repair jobs but excludes civic caches and 
     "backfill-content-images",
     "change-images",
     "bill-interest-daily",
+    "notify-followers-hourly",
   ]) {
     assert.equal(
       producesContent(definitions.find((j) => j.id === id)!),

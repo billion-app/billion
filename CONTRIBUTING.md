@@ -124,6 +124,18 @@ pnpm exec prettier --check README.md CONTRIBUTING.md docs/architecture.md
 
 Describe what changed and how you verified it in the PR. When behavior changes, update its guide and retain links to the relevant code. Prefer explaining the data flow over copying entire interfaces or dependency version lists into prose.
 
+### Notification delivery integration test
+
+The delivery regression test uses real Postgres and mocks only the Expo Push HTTP response. Use a separate, empty local database whose name ends in `_test`; never point it at a shared database. Apply the committed migrations before running it:
+
+```bash
+createdb billion_notifications_test
+POSTGRES_URL=postgresql://localhost/billion_notifications_test pnpm db:migrate
+NOTIFICATIONS_TEST_DATABASE_URL=postgresql://localhost/billion_notifications_test pnpm --filter @acme/api exec tsx --test src/lib/notifications/deliver.integration.test.ts
+```
+
+The test covers action deduplication in a non-UTC database session, cancelling queued alerts after opt-out or unsave, concurrent enqueue/send workers, test-send isolation, transport failures, Expo rejection, delayed receipt processing, and server history. It skips unless `NOTIFICATIONS_TEST_DATABASE_URL` is explicitly set. Run it directly as above so Turbo cannot reuse cached results from an earlier database state.
+
 ## Production work
 
 [iOS releases](docs/ios-release.md), [scraper deployment](apps/supervisor/README.md), and [launch configuration](docs/launch.md) have separate operational steps.
