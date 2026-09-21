@@ -70,7 +70,10 @@ export function parseAlertHistory(raw: string | null): AlertItem[] {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isAlertItem).slice(0, MAX_ALERTS);
+    return parsed
+      .filter(isAlertItem)
+      .filter((item) => !item.id.startsWith("sample-"))
+      .slice(0, MAX_ALERTS);
   } catch {
     return [];
   }
@@ -84,56 +87,6 @@ export function withAlert(
     0,
     MAX_ALERTS,
   );
-}
-
-function atHoursAgo(now: Date, hours: number): string {
-  return new Date(now.getTime() - hours * 3_600_000).toISOString();
-}
-
-function atLocal(now: Date, hour: number, minute: number): string {
-  const stamp = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    hour,
-    minute,
-    0,
-    0,
-  );
-  if (stamp.getTime() > now.getTime()) {
-    stamp.setDate(stamp.getDate() - 1);
-  }
-  return stamp.toISOString();
-}
-
-/** Local stand-ins until the delivery pipeline writes real receipts. */
-export function sampleAlerts(now: Date): AlertItem[] {
-  return [
-    {
-      id: "sample-passed",
-      at: atHoursAgo(now, 1.3),
-      kind: "follow",
-      title: "Bill you follow passed the Senate.",
-      body: "Here\u2019s what changes now.",
-      href: "/changes",
-    },
-    {
-      id: "sample-election",
-      at: atHoursAgo(now, 5.4),
-      kind: "election",
-      title: "The race you follow just reported.",
-      body: "Official returns, as certified.",
-      href: "/local-elections",
-    },
-    {
-      id: "sample-brief",
-      at: atLocal(now, 9, 4),
-      kind: "brief",
-      title: "Your Billion Brief is ready.",
-      body: "5 things worth knowing today.",
-      href: "/changes?lens=brief",
-    },
-  ];
 }
 
 export function formatAlertTime(at: Date): string {
@@ -233,9 +186,6 @@ export function createAlertHistoryStore(storage: AlertStorage) {
     prepend(item: AlertItem) {
       return commit((items) => withAlert(items, item));
     },
-    seedIfEmpty(now: Date) {
-      return commit((items) => (items.length > 0 ? items : sampleAlerts(now)));
-    },
   };
 }
 
@@ -244,5 +194,3 @@ const store = createAlertHistoryStore(AsyncStorage);
 export const readAlertHistory = (): Promise<AlertItem[]> => store.read();
 export const prependAlert = (item: AlertItem): Promise<AlertItem[]> =>
   store.prepend(item);
-export const seedAlertHistory = (now?: Date): Promise<AlertItem[]> =>
-  store.seedIfEmpty(now ?? new Date());

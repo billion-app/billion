@@ -2,7 +2,7 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, desc, eq, inArray, isNotNull } from "@acme/db";
+import { and, desc, eq, inArray, isNotNull, isNull } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -11,7 +11,7 @@ import {
   PushDevice,
 } from "@acme/db/schema";
 
-import { drainDeviceNow, enqueueTestAlert } from "../lib/notifications/deliver";
+import { drainTestAlert, enqueueTestAlert } from "../lib/notifications/deliver";
 import { isExpoPushToken } from "../lib/notifications/expo-push";
 import { clampMinutes } from "../lib/notifications/quiet-hours";
 import { publicProcedure } from "../trpc";
@@ -113,6 +113,17 @@ export const notificationsRouter = {
       }
 
       await syncFollows(deviceId, input.followIds);
+      if (!prefs.following) {
+        await db
+          .delete(NotificationOutbox)
+          .where(
+            and(
+              eq(NotificationOutbox.deviceId, deviceId),
+              eq(NotificationOutbox.kind, "follow"),
+              isNull(NotificationOutbox.sentAt),
+            ),
+          );
+      }
       return { ok: true as const, deviceId };
     }),
 
@@ -165,8 +176,15 @@ export const notificationsRouter = {
           .limit(1);
         bill = row;
       }
-      await enqueueTestAlert(device.id, bill);
-      const drained = await drainDeviceNow(device.id);
+      const outboxId = await enqueueTestAlert(device.id, bill);
+      const drained = await drainTestAlert(outboxId);
+      if (drained.sent !== 1) {
+        throw new TRPCError({
+          code: "BAD_GATEWAY",
+          message:
+            "Expo did not accept the test notification. Check notification permissions and try again.",
+        });
+      }
       return { ok: true as const, ...drained };
     }),
 
@@ -219,6 +237,19 @@ async function syncFollows(deviceId: string, followIds: string[]) {
     .filter((row) => !wanted.has(row.contentId))
     .map((row) => row.id);
   if (removed.length > 0) {
+    await db.delete(NotificationOutbox).where(
+      and(
+        eq(NotificationOutbox.deviceId, deviceId),
+        eq(NotificationOutbox.kind, "follow"),
+        isNull(NotificationOutbox.sentAt),
+        inArray(
+          NotificationOutbox.contentId,
+          existing
+            .filter((row) => !wanted.has(row.contentId))
+            .map((row) => row.contentId),
+        ),
+      ),
+    );
     await db.delete(DeviceFollow).where(inArray(DeviceFollow.id, removed));
   }
 

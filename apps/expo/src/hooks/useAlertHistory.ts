@@ -1,68 +1,29 @@
-/**
- * Notification history for Your alerts, and the test send from Settings.
- */
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+/** Server-accepted pushes on phones; scheduled local tests on simulators. */
+import { useCallback } from "react";
+import * as Device from "expo-device";
+import { useFocusEffect } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 
-import type { AlertItem } from "~/utils/alert-history";
-import {
-  prependAlert,
-  readAlertHistory,
-  seedAlertHistory,
-  TEST_ALERT,
-} from "~/utils/alert-history";
-
-interface HistoryView {
-  items: AlertItem[];
-  isLoading: boolean;
-}
-
-let snapshot: HistoryView = { items: [], isLoading: true };
-let hydrated = false;
-let inFlight: Promise<void> | null = null;
-const listeners = new Set<() => void>();
-
-function publish(next: AlertItem[]) {
-  snapshot = { items: next, isLoading: !hydrated };
-  for (const notify of listeners) notify();
-}
-
-function subscribe(notify: () => void) {
-  listeners.add(notify);
-  return () => listeners.delete(notify);
-}
-
-async function hydrate(): Promise<void> {
-  inFlight ??= (async () => {
-    await readAlertHistory();
-    const seeded = await seedAlertHistory();
-    hydrated = true;
-    publish(seeded);
-  })();
-  return inFlight;
-}
+import { parseAlertHistory, readAlertHistory } from "~/utils/alert-history";
+import { trpcClient } from "~/utils/api";
+import { ensurePushToken } from "~/utils/push-sync";
 
 export function useAlertHistory() {
-  const view = useSyncExternalStore(
-    subscribe,
-    () => snapshot,
-    () => snapshot,
+  const { data, isPending, error, refetch } = useQuery({
+    queryKey: ["notification-history"],
+    queryFn: async () => {
+      if (!Device.isDevice) return readAlertHistory();
+      const token = await ensurePushToken();
+      if (!token)
+        throw new Error("Enable notifications to load this phone's alerts.");
+      const rows = await trpcClient.notifications.history.query({ token });
+      return parseAlertHistory(JSON.stringify(rows));
+    },
+  });
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
   );
-
-  useEffect(() => {
-    void hydrate();
-  }, []);
-
-  const sendTest = useCallback(async (patch?: Partial<AlertItem>) => {
-    await hydrate();
-    const next = await prependAlert({
-      id: `test-${Date.now()}`,
-      at: new Date().toISOString(),
-      ...TEST_ALERT,
-      ...patch,
-    });
-    publish(next);
-    return next[0];
-  }, []);
-
-  return { ...view, sendTest };
+  return { items: data ?? [], isLoading: isPending, error };
 }

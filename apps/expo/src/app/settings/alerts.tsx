@@ -17,7 +17,7 @@ import { formatAlertTime, groupAlertsByDay } from "~/utils/alert-history";
 
 export default function AlertsScreen() {
   const router = useRouter();
-  const { items } = useAlertHistory();
+  const { items, isLoading, error } = useAlertHistory();
   const groups = groupAlertsByDay(items, new Date());
 
   return (
@@ -30,9 +30,17 @@ export default function AlertsScreen() {
       >
         {groups.length === 0 ? (
           <View>
-            <Text style={s.emptyTitle}>Nothing yet.</Text>
+            <Text style={s.emptyTitle}>
+              {isLoading
+                ? "Loading alerts…"
+                : error
+                  ? "Could not load alerts."
+                  : "Nothing yet."}
+            </Text>
             <Text style={s.emptySub}>
-              When something you follow moves, it lands here.
+              {error
+                ? error.message
+                : "When something you follow moves, it lands here."}
             </Text>
           </View>
         ) : (

@@ -62,3 +62,7 @@ The Next.js App Router lives in [apps/nextjs/src/app](../apps/nextjs/src/app). I
 [packages/auth/src/index.ts](../packages/auth/src/index.ts) configures Better Auth with the Drizzle adapter, optional Discord OAuth, the OAuth proxy, and the native callback bridge. Next.js exposes it through `/api/auth` and passes the resulting session into the tRPC context.
 
 Web requests carry session cookies. The Expo auth client stores its session locally and supplies a `Cookie` header through the tRPC link. For an auth failure, follow the callback, stored cookie, and API context before changing a screen. See [API](api.md#request-path) and [Troubleshooting](troubleshooting.md).
+
+### Notification history and testing
+
+On a physical phone, Your alerts loads the server history when the screen opens. These are pushes accepted by Expo, not delivery receipts from APNs. Empty history stays empty; old sample entries are discarded. Test reports push failures without substituting a local notification. Simulators use local OS notifications and keep only successfully scheduled tests in local history.

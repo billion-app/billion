@@ -1,13 +1,13 @@
 import type { Href } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { NotificationPrefs } from "~/utils/notification-prefs";
 import { Icon, Kicker, NavHeader, Toggle } from "~/components/ui";
 import { posthog } from "~/config/posthog";
-import { useAlertHistory } from "~/hooks/useAlertHistory";
 import { useNotificationPrefs } from "~/hooks/useNotificationPrefs";
 import { useOnboarding } from "~/hooks/useOnboarding";
 import { useSavedContent } from "~/hooks/useSavedContent";
@@ -18,7 +18,7 @@ import {
   fontDisplay,
   DigestPalette as P,
 } from "~/styles";
-import { TEST_ALERT } from "~/utils/alert-history";
+import { prependAlert, TEST_ALERT } from "~/utils/alert-history";
 import { trpc, trpcClient } from "~/utils/api";
 import { deliveryNote, scheduleLocalAlert } from "~/utils/local-notification";
 import {
@@ -33,7 +33,7 @@ export default function NotificationsScreen() {
   const prefs = useNotificationPrefs();
   const onboarding = useOnboarding();
   const { savedIds } = useSavedContent();
-  const { sendTest } = useAlertHistory();
+  const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const featured = useQuery(
     trpc.content.getFeaturedBills.queryOptions({ jurisdiction: "federal" }),
@@ -54,6 +54,8 @@ export default function NotificationsScreen() {
   };
 
   const onTest = () => {
+    if (sending) return;
+    setSending(true);
     const bill = featured.data?.[0];
     const href = bill?.id
       ? `/article-detail?id=${bill.id}`
@@ -63,40 +65,50 @@ export default function NotificationsScreen() {
     const body = bill?.billNumber
       ? `${bill.billNumber} advanced.`
       : TEST_ALERT.body;
-    void sendTest({ href, body, title });
     void (async () => {
-      await syncPushRegistration(prefs, savedIds);
-      const token = getPushToken();
-      if (token) {
-        try {
+      try {
+        if (Device.isDevice) {
+          await syncPushRegistration(prefs, savedIds);
+          const token = getPushToken();
+          if (!token)
+            throw new Error(
+              "Push registration unavailable. Check this phone's notification permissions and try again.",
+            );
           await trpcClient.notifications.test.mutate({
             token,
             billId: bill?.id,
           });
           setStatus(
-            "Sent to this phone. Lock it (Cmd+L) to see the lock-screen card.",
+            "Expo accepted the test. Check this phone's notifications for delivery.",
           );
-          return;
-        } catch (error: unknown) {
-          console.warn("[billion] remote test failed", error);
+        } else {
+          const result = await scheduleLocalAlert(
+            { title, body, href, test: true },
+            prefs,
+          );
+          setStatus(deliveryNote(result, prefs));
+          if (!result.ok) return;
+          await prependAlert({
+            id: `test-${Date.now()}`,
+            at: result.when.toISOString(),
+            kind: "test",
+            title,
+            body,
+            href,
+          });
         }
-      }
-      try {
-        const result = await scheduleLocalAlert(
-          { title, body, href, test: true },
-          prefs,
-        );
-        setStatus(deliveryNote(result, prefs));
+        posthog.capture("notification_test_sent", {
+          href,
+          billId: bill?.id ?? null,
+        });
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : "Could not send the alert.";
-        setStatus(message);
+        setStatus(
+          error instanceof Error ? error.message : "Could not send the alert.",
+        );
+      } finally {
+        setSending(false);
       }
     })();
-    posthog.capture("notification_test_sent", {
-      href,
-      billId: bill?.id ?? null,
-    });
   };
 
   return (
@@ -166,6 +178,7 @@ export default function NotificationsScreen() {
 
         <Pressable
           onPress={onTest}
+          disabled={sending}
           style={s.test}
           accessibilityRole="button"
           accessibilityLabel="Send a test notification"
@@ -176,7 +189,9 @@ export default function NotificationsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={s.testLabel}>Test notification</Text>
             <Text style={s.testSub}>
-              {status ?? "Lock-screen only. Tap it to open that bill."}
+              {sending
+                ? "Sending…"
+                : (status ?? "Lock-screen only. Tap it to open that bill.")}
             </Text>
           </View>
           <Icon name="chevR" size={15} color={P.quiet} />

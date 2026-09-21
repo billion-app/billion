@@ -27,7 +27,8 @@
       "outputs": [".cache/tsbuildinfo.json"]
     },
     "test": {
-      "dependsOn": ["^topo", "^build"]
+      "dependsOn": ["^topo", "^build"],
+      "env": ["NOTIFICATIONS_TEST_DATABASE_URL"]
     },
     "clean": {
       "cache": false

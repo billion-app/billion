@@ -60,4 +60,6 @@ Choose the existing router that owns the behavior. Define runtime input validati
 
 Lock-screen alerts live on `notifications`. The phone is the identity: Expo registers a push token, `sync` upserts that token with prefs and saved bill IDs, and `notify-followers` later sends through Expo Push. There is no account. Copy, quiet hours, and the Expo client live under `packages/api/src/lib/notifications/`.
 
+Turning off follow alerts or removing a saved bill cancels its unsent follow notifications. Delivery also checks the current preference and follow record. A test sends only its own outbox row; it does not release the quiet-hours backlog. A successful test response means Expo accepted the push, not that APNs delivered it. Expo rejection returns an API error.
+
 Read an adjacent procedure and test for the project's conventions. Check the response from its real caller, including missing data and unauthorized access where relevant. Installed mobile apps may keep calling an old procedure after a server deploy, which is why retired paths such as `video.getInfinite` can remain as compatibility stubs.

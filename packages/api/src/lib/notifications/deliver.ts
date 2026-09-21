@@ -1,11 +1,12 @@
 import {
   and,
   eq,
-  gt,
+  exists,
   inArray,
   isNotNull,
   isNull,
   lte,
+  ne,
   or,
   sql,
 } from "@acme/db";
@@ -63,7 +64,9 @@ export async function enqueueFollowMoves(
         isNotNull(Bill.lastActionAt),
         or(
           isNull(DeviceFollow.lastNotifiedActionAt),
-          sql`${Bill.lastActionAt} > ${DeviceFollow.lastNotifiedActionAt}`,
+          // Bill timestamps are stored as UTC without a time zone; compare
+          // instants explicitly so the DB session zone cannot replay a move.
+          sql`${Bill.lastActionAt} AT TIME ZONE 'UTC' > ${DeviceFollow.lastNotifiedActionAt}`,
         ),
       ),
     );
@@ -134,6 +137,7 @@ export async function enqueueTestAlert(
 
 export async function drainOutbox(
   now = new Date(),
+  outboxId?: string,
 ): Promise<Omit<FollowNotificationRun, "enqueued">> {
   const due = await db
     .select({
@@ -152,6 +156,24 @@ export async function drainOutbox(
         isNull(NotificationOutbox.sentAt),
         isNull(PushDevice.disabledAt),
         lte(NotificationOutbox.notBefore, now),
+        outboxId ? eq(NotificationOutbox.id, outboxId) : undefined,
+        or(
+          ne(NotificationOutbox.kind, "follow"),
+          and(
+            eq(PushDevice.following, true),
+            exists(
+              db
+                .select({ id: DeviceFollow.id })
+                .from(DeviceFollow)
+                .where(
+                  and(
+                    eq(DeviceFollow.deviceId, NotificationOutbox.deviceId),
+                    eq(DeviceFollow.contentId, NotificationOutbox.contentId),
+                  ),
+                ),
+            ),
+          ),
+        ),
       ),
     )
     .limit(200);
@@ -222,20 +244,7 @@ export async function runFollowNotifications(
   return { enqueued, ...drained };
 }
 
-/** Used by the test mutation so a queued row goes out immediately. */
-export async function drainDeviceNow(
-  deviceId: string,
-  now = new Date(),
-): Promise<Omit<FollowNotificationRun, "enqueued">> {
-  await db
-    .update(NotificationOutbox)
-    .set({ notBefore: now })
-    .where(
-      and(
-        eq(NotificationOutbox.deviceId, deviceId),
-        isNull(NotificationOutbox.sentAt),
-        gt(NotificationOutbox.notBefore, now),
-      ),
-    );
-  return drainOutbox(now);
+/** Send only the newly queued test; leave quiet-hours backlog untouched. */
+export async function drainTestAlert(outboxId: string, now = new Date()) {
+  return drainOutbox(now, outboxId);
 }

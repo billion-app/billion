@@ -8,7 +8,6 @@ import {
   groupAlertsByDay,
   MAX_ALERTS,
   parseAlertHistory,
-  sampleAlerts,
   TEST_ALERT,
   withAlert,
 } from "./alert-history";
@@ -77,24 +76,12 @@ void test("the test send is the signature Billion line", () => {
   assert.match(TEST_ALERT.body, /what changed/i);
 });
 
-void test("sample alerts open distinct places, not one dump", () => {
-  const samples = sampleAlerts(NOW);
-  assert.equal(samples.length, 3);
-  const first = samples[0];
-  assert.ok(first);
-  assert.equal(first.kind, "follow");
-  assert.equal(first.href, "/changes");
-  assert.equal(
-    samples.find((item) => item.kind === "election")?.href,
-    "/local-elections",
-  );
-  assert.ok(
-    samples.some(
-      (item) =>
-        item.kind === "brief" &&
-        item.href === "/changes?lens=brief" &&
-        new Date(item.at).getTime() <= NOW.getTime(),
+void test("old sample history is discarded", () => {
+  assert.deepEqual(
+    parseAlertHistory(
+      JSON.stringify([alert("sample-passed", NOW), alert("real", NOW)]),
     ),
+    [alert("real", NOW)],
   );
 });
 
@@ -102,7 +89,7 @@ void test("alert times are clock stamps, not relative phrases", () => {
   assert.match(formatAlertTime(NOW), /7:42/);
 });
 
-void test("seeding an empty store writes the preview once", async () => {
+void test("an empty store stays empty", async () => {
   let value: string | null = null;
   const store = createAlertHistoryStore({
     getItem: () => Promise.resolve(value),
@@ -111,14 +98,11 @@ void test("seeding an empty store writes the preview once", async () => {
       return Promise.resolve();
     },
   });
-  const seeded = await store.seedIfEmpty(NOW);
-  assert.equal(seeded.length, 3);
-  const again = await store.seedIfEmpty(NOW);
-  assert.equal(again.length, 3);
-  assert.equal(again[0]?.id, seeded[0]?.id);
+  assert.deepEqual(await store.read(), []);
+  assert.equal(value, null);
 });
 
-void test("a test send lands in front of the preview", async () => {
+void test("a scheduled local test is recorded", async () => {
   let value: string | null = null;
   const store = createAlertHistoryStore({
     getItem: () => Promise.resolve(value),
@@ -127,12 +111,11 @@ void test("a test send lands in front of the preview", async () => {
       return Promise.resolve();
     },
   });
-  await store.seedIfEmpty(NOW);
   const next = await store.prepend({
     id: "test-1",
     at: NOW.toISOString(),
     ...TEST_ALERT,
   });
   assert.equal(next[0]?.id, "test-1");
-  assert.equal(next.length, 4);
+  assert.equal(next.length, 1);
 });
