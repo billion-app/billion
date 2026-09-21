@@ -44,9 +44,10 @@ jobs:
             exit 1
           fi
 
+      # Build workspace declarations before checking mobile; a clean checkout
+      # otherwise falls back to typechecking server source with React Native globals.
       - name: Typecheck
-        working-directory: apps/expo
-        run: pnpm typecheck
+        run: pnpm turbo run typecheck --filter=@acme/expo
 
       - name: Lint
         working-directory: apps/expo
