@@ -11,6 +11,7 @@ import type { NotificationPrefs } from "~/utils/notification-prefs";
 import {
   DEFAULT_NOTIFICATION_PREFS,
   loadNotificationPrefs,
+  notificationPrefsFromOnboarding,
   saveNotificationPrefs,
 } from "~/utils/notification-prefs";
 import { loadOnboarding } from "~/utils/onboarding-store";
@@ -45,17 +46,10 @@ async function hydrate(): Promise<void> {
       return;
     }
     const onboarding = await loadOnboarding();
-    const next: NotificationPrefs = {
-      ...loaded,
-      following: onboarding.completed
-        ? onboarding.alerts.instant
-        : loaded.following,
-      recap: onboarding.completed ? onboarding.alerts.digest : loaded.recap,
-      settled: true,
-    };
+    const next = notificationPrefsFromOnboarding(loaded, onboarding);
     hydrated = true;
     publish(next);
-    await saveNotificationPrefs(next);
+    if (next.settled) await saveNotificationPrefs(next);
   })();
   return inFlight;
 }
@@ -72,9 +66,11 @@ export function useNotificationPrefs() {
   }, []);
 
   const update = useCallback((patch: Partial<NotificationPrefs>) => {
-    const next = { ...state, ...patch, settled: true };
-    publish(next);
-    void saveNotificationPrefs(next);
+    void hydrate().then(() => {
+      const next = { ...state, ...patch, settled: true };
+      publish(next);
+      void saveNotificationPrefs(next);
+    });
   }, []);
 
   return { ...view, update };

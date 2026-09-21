@@ -23,5 +23,5 @@ if (argv.dryRun) {
 
 const result = await runFollowNotifications();
 logger.info(
-  `enqueued ${result.enqueued}, sent ${result.sent}, failed ${result.failed}, unregistered ${result.unregistered}`,
+  `enqueued ${result.enqueued}, sent ${result.sent}, failed ${result.failed}, unregistered ${result.unregistered}; receipts checked ${result.receipts.checked}, failed ${result.receipts.failed}, unregistered ${result.receipts.unregistered}`,
 );

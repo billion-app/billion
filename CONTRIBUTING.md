@@ -134,7 +134,7 @@ POSTGRES_URL=postgresql://localhost/billion_notifications_test pnpm db:migrate
 NOTIFICATIONS_TEST_DATABASE_URL=postgresql://localhost/billion_notifications_test pnpm --filter @acme/api exec tsx --test src/lib/notifications/deliver.integration.test.ts
 ```
 
-The test covers action deduplication in a non-UTC database session, cancelling queued alerts after opt-out or unsave, test-send isolation, Expo rejection, and server history. It skips unless `NOTIFICATIONS_TEST_DATABASE_URL` is explicitly set. Run it directly as above so Turbo cannot reuse cached results from an earlier database state.
+The test covers action deduplication in a non-UTC database session, cancelling queued alerts after opt-out or unsave, concurrent enqueue/send workers, test-send isolation, transport failures, Expo rejection, delayed receipt processing, and server history. It skips unless `NOTIFICATIONS_TEST_DATABASE_URL` is explicitly set. Run it directly as above so Turbo cannot reuse cached results from an earlier database state.
 
 ## Production work
 

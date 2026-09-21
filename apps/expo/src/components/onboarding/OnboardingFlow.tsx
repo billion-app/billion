@@ -28,6 +28,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { Sector, TrackingVector } from "~/utils/onboarding-store";
 import { requestGreetingPlay } from "~/components/DigestGreetingBar";
 import { posthog } from "~/config/posthog";
+import { useNotificationPrefs } from "~/hooks/useNotificationPrefs";
 import { useOnboarding } from "~/hooks/useOnboarding";
 import {
   DigestRadii,
@@ -76,6 +77,7 @@ function watchLine(ids: TrackingVector[]) {
 }
 
 export function OnboardingFlow() {
+  const { update: updateNotificationPrefs } = useNotificationPrefs();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const reduce = useReducedMotion();
@@ -162,6 +164,7 @@ export function OnboardingFlow() {
       const sec = next?.sectors ?? sectors;
       const inst = next?.instant ?? instant;
       const eve = next?.evening ?? evening;
+      updateNotificationPrefs({ following: inst, recap: eve });
       onboarding.update({
         completed: true,
         deferredClaim: deferred,
@@ -191,6 +194,7 @@ export function OnboardingFlow() {
       });
     },
     [
+      updateNotificationPrefs,
       evening,
       instant,
       onboarding,

@@ -206,6 +206,7 @@ export const notificationsRouter = {
           and(
             eq(NotificationOutbox.deviceId, device.id),
             isNotNull(NotificationOutbox.sentAt),
+            isNull(NotificationOutbox.error),
           ),
         )
         .orderBy(desc(NotificationOutbox.sentAt))

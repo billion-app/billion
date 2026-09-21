@@ -46,6 +46,23 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   settled: false,
 };
 
+/** Do not freeze defaults before the reader has chosen their alert cadence. */
+export function notificationPrefsFromOnboarding(
+  prefs: NotificationPrefs,
+  onboarding: {
+    completed: boolean;
+    alerts: { instant: boolean; digest: boolean };
+  },
+): NotificationPrefs {
+  if (prefs.settled || !onboarding.completed) return prefs;
+  return {
+    ...prefs,
+    following: onboarding.alerts.instant,
+    recap: onboarding.alerts.digest,
+    settled: true,
+  };
+}
+
 export function clampMinutes(value: number): number {
   if (!Number.isFinite(value)) return 0;
   const rounded = Math.round(value);

@@ -1,0 +1,1 @@
+ALTER TABLE "notification_outbox" ADD COLUMN "receipt_checked_at" timestamp with time zone;

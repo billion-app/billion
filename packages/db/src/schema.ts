@@ -735,6 +735,7 @@ export const NotificationOutbox = pgTable(
       .notNull(),
     sentAt: t.timestamp("sent_at", { withTimezone: true }),
     ticket: t.text(),
+    receiptCheckedAt: t.timestamp("receipt_checked_at", { withTimezone: true }),
     error: t.text(),
     createdAt: t
       .timestamp("created_at", { withTimezone: true })

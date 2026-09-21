@@ -5,16 +5,23 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 import { useNotificationPrefs } from "~/hooks/useNotificationPrefs";
+import { useOnboarding } from "~/hooks/useOnboarding";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import { syncPushRegistration } from "~/utils/push-sync";
 
 export function PushSync() {
   const prefs = useNotificationPrefs();
+  const onboarding = useOnboarding();
+  const ready =
+    !prefs.isLoading &&
+    prefs.settled &&
+    !onboarding.isLoading &&
+    onboarding.completed;
   const { savedIds } = useSavedContent();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (prefs.isLoading) return;
+    if (!ready) return;
     if (timer.current) clearTimeout(timer.current);
     const payload = {
       breaking: prefs.breaking,
@@ -32,7 +39,7 @@ export function PushSync() {
       if (timer.current) clearTimeout(timer.current);
     };
   }, [
-    prefs.isLoading,
+    ready,
     prefs.breaking,
     prefs.following,
     prefs.brief,
@@ -45,7 +52,7 @@ export function PushSync() {
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state !== "active" || prefs.isLoading) return;
+      if (state !== "active" || !ready) return;
       void syncPushRegistration(
         {
           breaking: prefs.breaking,
@@ -61,7 +68,7 @@ export function PushSync() {
     });
     return () => sub.remove();
   }, [
-    prefs.isLoading,
+    ready,
     prefs.breaking,
     prefs.following,
     prefs.brief,

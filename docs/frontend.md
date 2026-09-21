@@ -65,4 +65,6 @@ Web requests carry session cookies. The Expo auth client stores its session loca
 
 ### Notification history and testing
 
-On a physical phone, Your alerts loads the server history when the screen opens. These are pushes accepted by Expo, not delivery receipts from APNs. Empty history stays empty; old sample entries are discarded. Test reports push failures without substituting a local notification. Simulators use local OS notifications and keep only successfully scheduled tests in local history.
+On a physical phone, Your alerts loads the server history when the screen opens. These are pushes accepted by Expo; entries are removed if a later receipt reports failure or delivery remains unknown after 24 hours. Receipt success confirms provider acceptance, not display on the phone. Empty history stays empty; old sample entries are discarded. Test reports push failures without substituting a local notification. Simulators use local OS notifications and keep only successfully scheduled tests in local history.
+
+Push registration waits for onboarding to finish and notification preferences to load. Completing onboarding writes the selected instant and recap choices to the notification store before registration starts. Later Settings edits remain authoritative across launches.

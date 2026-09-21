@@ -62,4 +62,10 @@ Lock-screen alerts live on `notifications`. The phone is the identity: Expo regi
 
 Turning off follow alerts or removing a saved bill cancels its unsent follow notifications. Delivery also checks the current preference and follow record. A test sends only its own outbox row; it does not release the quiet-hours backlog. A successful test response means Expo accepted the push, not that APNs delivered it. Expo rejection returns an API error.
 
+Workers lock outbox rows while sending so overlapping test requests and hourly runs cannot submit the same row concurrently. Follow discovery locks the follow record and queues its notification in the same transaction as advancing its action timestamp. Each send transaction contains at most 100 messages (one Expo request). A network timeout or a process crash after Expo accepts a push can still leave an ambiguous outcome; Expo does not provide an exactly-once delivery guarantee.
+
+Before discovering new moves, the hourly job checks tickets at least 15 minutes old using Expo's receipt endpoint. It records provider failures, disables tokens reported as `DeviceNotRegistered`, and leaves missing receipts pending until 24 hours have elapsed. After that it records delivery as unknown. Failed/unknown rows are excluded from alert history; successful receipts confirm APNs/FCM acceptance, not display on the phone. Receipt failures and invalid-device counts are included in the job log.
+
+Apply migration `0021_lucky_talon` before deploying this API or notification worker. It adds `notification_outbox.receipt_checked_at`; previous migrations remain unchanged.
+
 Read an adjacent procedure and test for the project's conventions. Check the response from its real caller, including missing data and unauthorized access where relevant. Installed mobile apps may keep calling an old procedure after a server deploy, which is why retired paths such as `video.getInfinite` can remain as compatibility stubs.

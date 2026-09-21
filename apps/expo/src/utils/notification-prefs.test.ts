@@ -7,6 +7,7 @@ import {
   formatClock,
   inQuietHours,
   nextDeliveryAt,
+  notificationPrefsFromOnboarding,
   parseNotificationPrefs,
   quietHoursLabel,
   stepHour,
@@ -91,4 +92,39 @@ void test("stepping an hour wraps the day", () => {
   assert.equal(stepHour(23 * 60, 1), 0);
   assert.equal(stepHour(0, -1), 23 * 60);
   assert.equal(clampMinutes(-1), 23 * 60 + 59);
+});
+
+void test("fresh launch leaves prefs unsettled until onboarding opt-out", () => {
+  const initial = notificationPrefsFromOnboarding(DEFAULT_NOTIFICATION_PREFS, {
+    completed: false,
+    alerts: { instant: true, digest: true },
+  });
+  assert.equal(initial.settled, false);
+  const completed = notificationPrefsFromOnboarding(initial, {
+    completed: true,
+    alerts: { instant: false, digest: false },
+  });
+  assert.equal(completed.following, false);
+  assert.equal(completed.recap, false);
+  assert.equal(completed.settled, true);
+  assert.deepEqual(
+    parseNotificationPrefs(JSON.stringify(completed)),
+    completed,
+  );
+});
+void test("onboarding initializes opt-in but cannot overwrite later settings", () => {
+  const onboarded = notificationPrefsFromOnboarding(
+    DEFAULT_NOTIFICATION_PREFS,
+    { completed: true, alerts: { instant: true, digest: true } },
+  );
+  assert.equal(onboarded.following, true);
+  assert.equal(onboarded.recap, true);
+  const changed = { ...onboarded, following: false };
+  assert.equal(
+    notificationPrefsFromOnboarding(changed, {
+      completed: true,
+      alerts: { instant: true, digest: true },
+    }).following,
+    false,
+  );
 });
