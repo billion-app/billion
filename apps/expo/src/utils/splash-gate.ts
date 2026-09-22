@@ -5,7 +5,7 @@
  */
 let hidden = false;
 let resolveHidden: (() => void) | undefined;
-let hiddenPromise = new Promise<void>((resolve) => {
+const hiddenPromise = new Promise<void>((resolve) => {
   resolveHidden = resolve;
 });
 
