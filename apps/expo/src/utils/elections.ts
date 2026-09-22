@@ -195,17 +195,6 @@ export function pickUpcomingCaliforniaElection(
     .sort((a, b) => a.electionDay.localeCompare(b.electionDay))[0];
 }
 
-/** Earliest Civic early-vote startDate, if the voterinfo payload included any. */
-export function earliestEarlyVoteStart(
-  sites: readonly PollingLocation[] | undefined,
-): string | undefined {
-  const dates = (sites ?? [])
-    .map((s) => s.startDate)
-    .filter((d): d is string => !!d);
-  if (dates.length === 0) return undefined;
-  return [...dates].sort()[0];
-}
-
 /** One-line polling subtitle from Civic locations — never a hardcoded site. */
 export function pollingPlaceSubtitle(
   locations: readonly PollingLocation[] | undefined,
