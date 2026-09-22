@@ -3,7 +3,7 @@
  *
  * Names the address-resolved election (from getVoterInfo, not the nationwide
  * getElections list), explains in plain language what that kind of election
- * decides, and lays out the key dates.
+ * decides, and shows Election Day.
  */
 import { StyleSheet, View } from "react-native";
 
@@ -18,7 +18,7 @@ import {
   fontBody,
   fontDisplay,
 } from "~/styles";
-import { daysUntil, monthDay, shiftDays } from "~/utils/dates";
+import { daysUntil, monthDay } from "~/utils/dates";
 import {
   electionExplainer,
   electionType,
@@ -28,27 +28,23 @@ import {
 interface ElectionHeroProps {
   /** The election the ballot belongs to, as resolved for the user's address. */
   election: Election;
-  /**
-   * Civic `earlyVoteSites[].startDate` when the voterinfo payload includes it.
-   * Registration close remains a CA 15-day offset from `election.electionDay`
-   * (Civic has no registration-deadline field).
-   */
-  earlyVoteStart?: string;
 }
 
-export function ElectionHero({ election, earlyVoteStart }: ElectionHeroProps) {
+/**
+ * Only Election Day is shown here, and only because Google Civic actually
+ * returns it. The "Registration closes" and "Ballots mailed" rows that used
+ * to sit alongside it were computed as electionDay-15 and electionDay-8 —
+ * a plausible California timeline presented as fact, with no source and no
+ * hedging. Deadlines vary by state and county and change between cycles, so
+ * an offset is a guess, not a deadline. Voting logistics now belong on the
+ * How to Vote screen, which renders an honest "not published" state rather
+ * than inventing a date.
+ */
+export function ElectionHero({ election }: ElectionHeroProps) {
   const type = electionType(election.name);
   const days = daysUntil(election.electionDay);
 
   const dates = [
-    {
-      label: "Register by",
-      value: monthDay(shiftDays(election.electionDay, -15)),
-    },
-    {
-      label: earlyVoteStart ? "Early voting" : "Ballots mailed",
-      value: monthDay(earlyVoteStart ?? shiftDays(election.electionDay, -8)),
-    },
     {
       label: "Election Day",
       value: monthDay(election.electionDay),

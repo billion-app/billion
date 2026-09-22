@@ -15,6 +15,9 @@ export type {
   DivisionByAddressResponse,
   CivicDivision,
   PollingLocation,
+  AdministrationRegion,
+  AdministrationBody,
+  ElectionOfficial,
   Contest,
   Candidate,
   Source,
@@ -48,10 +51,6 @@ export type {
   DistrictRef,
 } from "./clients/ca-sos-results";
 export { SOS_RESULTS_HOME } from "./clients/ca-sos-results";
-
-// Google Places address autocomplete
-export type { AddressSuggestion } from "./lib/places";
-export { getAddressSuggestions, getPlaceDetails } from "./lib/places";
 
 // Open States API types
 export type {

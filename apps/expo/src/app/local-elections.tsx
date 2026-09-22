@@ -14,7 +14,6 @@ import { useUserAddress } from "~/hooks/useUserAddress";
 import { DigestPalette, fontBody, fontDisplay } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
-  earliestEarlyVoteStart,
   pickUpcomingCaliforniaElection,
 } from "~/utils/elections";
 import { electionsAreLive } from "~/utils/elections-live";
@@ -87,12 +86,7 @@ export default function LocalElectionsScreen() {
         />
 
         {calendarElection && (
-          <KeyDatesSection
-            electionDate={calendarElection.electionDay}
-            earlyVoteStart={earliestEarlyVoteStart(
-              voterInfoQuery.data?.earlyVoteSites,
-            )}
-          />
+          <KeyDatesSection electionDate={calendarElection.electionDay} />
         )}
 
         <RepsSection address={address} />
