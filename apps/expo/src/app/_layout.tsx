@@ -168,10 +168,8 @@ export default function RootLayout() {
         setFontsReady(true);
         try {
           await SplashScreen.hideAsync();
-        } catch (error) {
-          posthog.capture("splash_hide_failed", {
-            message: error instanceof Error ? error.message : String(error),
-          });
+        } catch {
+          /* still release waiters */
         }
         markSplashHidden();
       }
