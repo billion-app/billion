@@ -316,17 +316,6 @@ export const envRegistry = [
     schema: string,
   }),
   define({
-    key: "GOOGLE_PLACES_API_KEY",
-    description:
-      "Dedicated Places API (New) key for production address autocomplete.",
-    group: "Civic data",
-    secret: true,
-    setupUrl:
-      "https://developers.google.com/maps/documentation/places/web-service/cloud-setup",
-    requirements: { nextjs: "recommended" },
-    schema: string,
-  }),
-  define({
     key: "OPEN_STATES_API_KEY",
     description:
       "Open States key for state bills, legislators, and voting records.",
@@ -488,7 +477,7 @@ export const envRegistry = [
   }),
   define({
     key: "GOOGLE_API_KEY",
-    description: "Google Custom Search key; also a fallback for Places.",
+    description: "Google Custom Search key.",
     group: "Google images",
     secret: true,
     setupUrl: "https://console.cloud.google.com/apis/credentials",

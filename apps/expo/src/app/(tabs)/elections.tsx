@@ -20,6 +20,7 @@ import { EMPTY_CIVIC } from "~/components/digest/staticAssets";
 import { ProfileMarkButton } from "~/components/DigestProfileMark";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { HowToVoteEntryCard } from "~/components/HowToVoteEntryCard";
 import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
 import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
@@ -35,15 +36,14 @@ import {
   fontDisplay,
 } from "~/styles";
 import { trpc } from "~/utils/api";
-import { monthDay } from "~/utils/dates";
+import { daysUntil, monthDay } from "~/utils/dates";
+import { buildVotingPlan, electionPhase } from "~/utils/voting";
 import {
   contestListTitle,
-  earliestEarlyVoteStart,
   groupContestsByLevel,
   isCaliforniaState,
   measureIsStatewide,
   pickUpcomingCaliforniaElection,
-  pollingPlaceSubtitle,
 } from "~/utils/elections";
 import { electionsAreLive } from "~/utils/elections-live";
 
@@ -273,6 +273,13 @@ function ElectionsLive() {
   // The address-specific election the ballot belongs to.
   const selected = unsupportedState ? undefined : voterInfoQuery.data?.election;
 
+  // Voting logistics for the entry card. Derived from the same response the
+  // ballot uses, so the card never disagrees with the screen it opens.
+  const votingPlan = buildVotingPlan(
+    unsupportedState ? undefined : voterInfoQuery.data,
+  );
+  const phase = electionPhase(selected?.electionDay);
+
   const contests = unsupportedState
     ? []
     : (voterInfoQuery.data?.contests ?? []);
@@ -381,14 +388,28 @@ function ElectionsLive() {
       <LocalDecisionsPreview address={storedAddress} />
 
       {/* election hero — what election is happening, what it means */}
-      {selected && (
-        <ElectionHero
-          election={selected}
-          earlyVoteStart={earliestEarlyVoteStart(
-            voterInfoQuery.data?.earlyVoteSites,
-          )}
+      {selected && <ElectionHero election={selected} />}
+
+      {/* How to Vote — the logistics half of the tab. Sits right under the
+          hero so "how do I vote in it" follows "which election is it", and
+          lands above the ballot list for anyone who only came for logistics. */}
+      <View style={s.section}>
+        <HowToVoteEntryCard
+          hasAddress={hasAddress}
+          plan={unsupportedState ? undefined : votingPlan}
+          phase={phase}
+          onPress={() => {
+            posthog.capture("how_to_vote_opened", {
+              entry_point: "elections_hero",
+              days_until_election: selected
+                ? daysUntil(selected.electionDay)
+                : null,
+              available_methods: votingPlan.availableCount,
+            });
+            router.push("/how-to-vote");
+          }}
         />
-      )}
+      </View>
 
       {/* live results (CA SOS feed): statewide + the voter's district races,
           scoped from their ballot. Self-hides when off-season. Only
@@ -579,26 +600,31 @@ function ElectionsLive() {
           </View>
         )}
 
-      {/* polling place exit — locations come from getVoterInfo when present */}
+      {/* polling place exit — routes into How to Vote. The old row pushed to
+          /local-elections, whose voting sections this screen supersedes; the
+          How to Vote screen now owns locations, hours, and drop boxes. */}
       <View style={s.section}>
         <TouchableOpacity
           activeOpacity={0.85}
-          onPress={() => router.push("/local-elections")}
+          onPress={() => {
+            posthog.capture("how_to_vote_opened", {
+              entry_point: "elections_footer",
+              days_until_election: selected
+                ? daysUntil(selected.electionDay)
+                : null,
+              available_methods: votingPlan.availableCount,
+            });
+            router.push("/how-to-vote");
+          }}
           style={s.pollRow}
           accessibilityRole="button"
-          accessibilityLabel="Find your polling place"
+          accessibilityLabel="Where to vote"
         >
           <PinMark size={18} color={DigestPalette.quiet} />
           <View style={{ flex: 1 }}>
-            <Text style={s.pollTitle}>Polling place</Text>
+            <Text style={s.pollTitle}>Where to vote</Text>
             <Text style={s.pollSub}>
-              {pollingPlaceSubtitle(
-                voterInfoQuery.data?.pollingLocations,
-                voterInfoQuery.data?.mailOnly,
-              ) ??
-                (hasAddress
-                  ? "Maps, hours, and drop boxes"
-                  : "Look up after you add an address")}
+              Polling places, drop boxes, and hours
             </Text>
           </View>
           <Icon name="chevR" size={16} color={DigestPalette.quiet} />

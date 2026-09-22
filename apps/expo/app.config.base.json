@@ -135,6 +135,14 @@
       }
     ],
     "expo-build-properties",
-    "expo-font"
+    "expo-font",
+    [
+      "expo-location",
+      {
+        "locationAlwaysAndWhenInUsePermission": "Billion uses your location to find your registered address, polling places, and deadlines for your ballot.",
+        "locationWhenInUsePermission": "Billion uses your location to find your registered address, polling places, and deadlines for your ballot.",
+        "isAndroidBackgroundLocationEnabled": false
+      }
+    ]
   ]
 }

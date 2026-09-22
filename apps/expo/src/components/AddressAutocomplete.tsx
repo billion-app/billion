@@ -1,5 +1,14 @@
 /**
- * Address field with Places autocomplete, then Civic lookup.
+ * Address field with native device-location capture, then Civic lookup.
+ *
+ * GPS is the fast path: one native permission prompt, one fix, reverse-geocoded
+ * on-device by the OS. Typed entry stays as the equal-path fallback — GPS
+ * gives you where you are, not necessarily where you're *registered*, so the
+ * field never treats the fix as the final answer and never blocks typing.
+ *
+ * Google Places autocomplete is gone from this surface: suggestions required a
+ * billed server key, and the native path resolves the same need with no key
+ * and no per-keystroke network round-trip.
  */
 import { useState } from "react";
 import {
@@ -10,18 +19,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import * as Location from "expo-location";
 
 import { PinMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
-import { useDebounced } from "~/hooks/useDebounce";
+import { useDeviceLocation } from "~/hooks/useDeviceLocation";
 import { DigestHair, DigestPalette, fontBody } from "~/styles";
-import { trpc } from "~/utils/api";
 
 interface AddressAutocompleteProps {
   /** Initial text to seed the field (e.g. the currently stored address). */
   initialValue?: string;
-  /** Commit a final address (suggestion tap or Look Up press). */
+  /** Commit a final address (GPS resolve, or Look Up press). */
   onSubmit: (address: string) => void;
   /**
    * Optional field hint. Pass `null` to hide — Elections empty state carries
@@ -30,24 +38,27 @@ interface AddressAutocompleteProps {
    */
   hint?: string | null;
   autoFocus?: boolean;
-  /** Menu/sheet field: type and pick. No Look Up chrome. */
+  /** Menu/sheet field: type and commit. No Look Up chrome. */
   inline?: boolean;
 }
 
-/**
- * RFC-4122 v4 UUID, used as a Places session token to bundle one address
- * entry's autocomplete calls (+ the closing details call) into a single
- * billed session. Inline to avoid a uuid/crypto dependency.
- */
-function uuidv4(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = Math.floor(Math.random() * 16);
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
 const DEFAULT_HINT = "Enter your address to see what's on your ballot.";
+
+/** "123 Oak St, Sacramento, CA 95814" from the OS reverse-geocode placemark. */
+function formatPlacemark(p: Location.LocationGeocodedAddress): string | null {
+  const street = [p.streetNumber, p.street].filter(Boolean).join(" ");
+  const city = p.city ?? p.district ?? p.subregion;
+  const parts = [
+    street,
+    city,
+    p.region,
+    p.postalCode,
+  ].filter(Boolean);
+  // A fix without a street or a city is a coordinate, not a usable
+  // registered address — let the caller fall back to manual entry.
+  if (!street || !city) return null;
+  return parts.join(", ");
+}
 
 export function AddressAutocomplete({
   initialValue = "",
@@ -57,98 +68,78 @@ export function AddressAutocomplete({
   inline = false,
 }: AddressAutocompleteProps) {
   const [input, setInput] = useState(initialValue);
-  // Closed right after a pick so the dropdown doesn't reopen on the
-  // programmatic setInput; reopened as soon as the user types again.
-  const [open, setOpen] = useState(false);
-  // One token per address-entry; regenerated after each committed pick.
-  const [sessionToken, setSessionToken] = useState(uuidv4);
-  const debouncedQuery = useDebounced(input, 250);
-
-  const suggestionsQuery = useQuery({
-    ...trpc.places.autocomplete.queryOptions({
-      query: debouncedQuery,
-      sessionToken,
-    }),
-    enabled: open && debouncedQuery.trim().length >= 3,
-    retry: false,
-  });
-
-  // Closes the billing session and returns the full formatted address (with
-  // ZIP, which the prediction omits). Null on the mock path → use the raw text.
-  const detailsMutation = useMutation(trpc.places.details.mutationOptions());
-
-  const suggestions = suggestionsQuery.data ?? [];
-  const showDropdown =
-    open &&
-    !detailsMutation.isPending &&
-    input.trim().length >= 3 &&
-    (suggestions.length > 0 || suggestionsQuery.isFetching);
+  const { request: locate, locating, error: locationError } =
+    useDeviceLocation();
+  // The committed address while the post-GPS lookup is still resolving.
+  const [resolving, setResolving] = useState(false);
 
   const commit = (address: string) => {
-    setOpen(false);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setInput(address);
-    setSessionToken(uuidv4()); // fresh token for the next entry
     onSubmit(address);
   };
 
-  const pick = async (sug: { description: string; placeId: string }) => {
-    setOpen(false);
+  const captureLocation = async () => {
+    const fix = await locate();
+    if (!fix) return; // hook already set the error state we render below
+
+    setResolving(true);
     try {
-      const full = await detailsMutation.mutateAsync({
-        placeId: sug.placeId,
-        sessionToken,
+      const placemarks = await Location.reverseGeocodeAsync({
+        latitude: fix.coords.latitude,
+        longitude: fix.coords.longitude,
       });
-      commit(full ?? sug.description);
+      const formatted = placemarks[0] ? formatPlacemark(placemarks[0]) : null;
+      // Without a usable placemark, hand the coordinates to Civic anyway —
+      // Civic accepts "latitude,longitude" and resolves the jurisdiction.
+      commit(formatted ?? `${fix.coords.latitude.toFixed(5)},${fix.coords.longitude.toFixed(5)}`);
     } catch {
-      // Details failed (e.g. network) — fall back to the prediction text.
-      commit(sug.description);
+      // Reverse geocode failed but the fix itself was good — coordinates
+      // still beat nothing, and Civic can resolve them.
+      commit(
+        `${fix.coords.latitude.toFixed(5)},${fix.coords.longitude.toFixed(5)}`,
+      );
+    } finally {
+      setResolving(false);
     }
   };
 
-  const pending = (
-    <View style={inline ? s.dropdownInline : s.dropdown}>
-      <View style={inline ? s.suggestionInline : s.suggestion}>
-        <ActivityIndicator size="small" color={DigestPalette.spark} />
-        {inline ? null : (
-          <Text style={s.suggestionText}>Confirming address…</Text>
-        )}
-      </View>
-    </View>
-  );
+  const locationStatus = resolving ? (
+    inline ? null : (
+      <Text style={s.statusText}>Confirming your address…</Text>
+    )
+  ) : locationError === "denied" ? (
+    <Text style={s.statusText}>
+      Location is off for Billion — type your address below instead.
+    </Text>
+  ) : locationError === "unavailable" ? (
+    <Text style={s.statusText}>
+      Location services are off — type your address below instead.
+    </Text>
+  ) : locationError === "failed" ? (
+    <Text style={s.statusText}>
+      Couldn&apos;t get a location fix — try again or type it in.
+    </Text>
+  ) : null;
 
-  const suggestionList = (
-    <View style={inline ? s.dropdownInline : s.dropdown}>
-      {suggestions.map((sug, i) => (
-        <TouchableOpacity
-          key={sug.placeId}
-          style={[
-            inline ? s.suggestionInline : s.suggestion,
-            i > 0 && (inline ? s.suggestionBorderInline : s.suggestionBorder),
-          ]}
-          activeOpacity={0.7}
-          onPress={() => void pick(sug)}
-        >
-          {inline ? null : (
-            <PinMark size={14} color={DigestPalette.quiet} />
-          )}
-          <Text
-            style={inline ? s.suggestionTextInline : s.suggestionText}
-            numberOfLines={1}
-          >
-            {sug.description}
-          </Text>
-        </TouchableOpacity>
-      ))}
-      {suggestions.length === 0 && suggestionsQuery.isFetching && (
-        <View style={inline ? s.suggestionInline : s.suggestion}>
-          <ActivityIndicator size="small" color={DigestPalette.quiet} />
-          {inline ? null : (
-            <Text style={s.suggestionText}>Searching…</Text>
-          )}
-        </View>
+  const gpsButton = (
+    <TouchableOpacity
+      style={[s.gpsBtn, locating && s.gpsBtnBusy]}
+      disabled={locating || resolving}
+      onPress={() => void captureLocation()}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel="Use my current location"
+    >
+      {locating || resolving ? (
+        <ActivityIndicator size="small" color={DigestPalette.spark} />
+      ) : (
+        <>
+          <PinMark size={14} color={DigestPalette.spark} />
+          <Text style={s.gpsText}>Use my location</Text>
+        </>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   if (inline) {
@@ -159,10 +150,7 @@ export function AddressAutocomplete({
           placeholder="Address"
           placeholderTextColor={DigestPalette.quiet}
           value={input}
-          onChangeText={(t) => {
-            setOpen(true);
-            setInput(t);
-          }}
+          onChangeText={setInput}
           autoComplete="street-address"
           textContentType="fullStreetAddress"
           autoFocus={autoFocus}
@@ -172,7 +160,8 @@ export function AddressAutocomplete({
             if (next) commit(next);
           }}
         />
-        {detailsMutation.isPending ? pending : showDropdown ? suggestionList : null}
+        {gpsButton}
+        {locationStatus}
       </View>
     );
   }
@@ -190,10 +179,7 @@ export function AddressAutocomplete({
             placeholder="Registered address"
             placeholderTextColor={DigestHair.inkMuted}
             value={input}
-            onChangeText={(t) => {
-              setOpen(true);
-              setInput(t);
-            }}
+            onChangeText={setInput}
             autoComplete="street-address"
             textContentType="fullStreetAddress"
             autoFocus={autoFocus}
@@ -201,15 +187,15 @@ export function AddressAutocomplete({
         </View>
         <TouchableOpacity
           style={[s.btn, !input.trim() && s.btnOff]}
-          disabled={!input.trim() || detailsMutation.isPending}
+          disabled={!input.trim() || resolving}
           onPress={() => input.trim() && commit(input.trim())}
         >
           <Text style={s.btnText}>Look Up</Text>
         </TouchableOpacity>
       </View>
 
-      {detailsMutation.isPending && pending}
-      {showDropdown && suggestionList}
+      {gpsButton}
+      {locationStatus}
     </View>
   );
 }
@@ -224,22 +210,6 @@ const s = StyleSheet.create({
     color: DigestPalette.inkOnNight,
     fontFamily: fontBody.semibold,
     fontSize: 15,
-  },
-  dropdownInline: {
-    marginTop: 2,
-  },
-  suggestionInline: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-  },
-  suggestionBorderInline: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.cardBorder,
-  },
-  suggestionTextInline: {
-    fontFamily: fontBody.regular,
-    fontSize: 14,
-    color: DigestPalette.quiet,
   },
   hint: {
     fontFamily: fontBody.regular,
@@ -274,29 +244,30 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: DigestPalette.inkOnNight,
   },
-  dropdown: {
+  gpsBtn: {
     marginTop: 10,
-    backgroundColor: DigestPalette.stone,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: DigestHair.menuBorder,
-    borderRadius: 18,
-    overflow: "hidden",
-  },
-  suggestion: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    gap: 7,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: 9999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: DigestPalette.stone,
   },
-  suggestionBorder: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.cardBorder,
-  },
-  suggestionText: {
-    fontFamily: fontBody.medium,
+  gpsBtnBusy: { opacity: 0.7 },
+  gpsText: {
+    fontFamily: fontBody.semibold,
     fontSize: 14,
     color: DigestPalette.inkOnNight,
-    flex: 1,
+  },
+  statusText: {
+    fontFamily: fontBody.regular,
+    fontSize: 12.5,
+    color: DigestPalette.quiet,
+    marginTop: 8,
+    lineHeight: 17,
   },
 });

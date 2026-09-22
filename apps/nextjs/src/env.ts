@@ -19,7 +19,6 @@ export const env = createEnv({
   server: {
     POSTGRES_URL: envSchemas.POSTGRES_URL!,
     GOOGLE_CIVIC_API_KEY: envSchemas.GOOGLE_CIVIC_API_KEY!,
-    GOOGLE_PLACES_API_KEY: envSchemas.GOOGLE_PLACES_API_KEY!.optional(),
     RESEND_API_KEY: envSchemas.RESEND_API_KEY!.optional(),
     RESEND_GENERAL_UPDATES_SEGMENT_ID:
       envSchemas.RESEND_GENERAL_UPDATES_SEGMENT_ID!.optional(),

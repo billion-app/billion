@@ -1,5 +1,6 @@
 import { withPostHogConfig } from "@posthog/nextjs-config";
 import { createJiti } from "jiti";
+import { fileURLToPath } from "node:url";
 
 const jiti = createJiti(import.meta.url);
 
@@ -9,9 +10,11 @@ const loadEnvConfig = nextEnv.loadEnvConfig ?? nextEnv.default?.loadEnvConfig;
 
 // Next only auto-loads env files from the app directory. Load the monorepo root
 // so every workspace can continue sharing the repository-level .env file.
+// fileURLToPath matters: URL.pathname yields "/C:/..." on Windows, which fs
+// cannot open, so the root .env would silently fail to load there.
 if (typeof loadEnvConfig === "function") {
   loadEnvConfig(
-    new URL("../..", import.meta.url).pathname,
+    fileURLToPath(new URL("../..", import.meta.url)),
     process.env.NODE_ENV === "development",
     undefined,
     true,

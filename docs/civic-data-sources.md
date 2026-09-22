@@ -6,7 +6,6 @@ How to obtain keys/access for every civic integration. For local dev, copy `.env
 | -------------------------------------- | ------------ | -------------------------------- | --------------------------------------------------------------------- |
 | Google Civic API                       | Yes          | Free (25k/day)                   | `GOOGLE_CIVIC_API_KEY`                                                |
 | Open States API                        | Yes          | Free (~500 req/day default tier) | `OPEN_STATES_API_KEY`                                                 |
-| Google Places (address autocomplete)   | Yes          | Pay-as-you-go                    | `GOOGLE_PLACES_API_KEY` (→ `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`) |
 | Vote Smart                             | Yes          | Free (org tier)                  | `VOTE_SMART_API_KEY`                                                  |
 | Legistar (local councils)              | No           | Free                             | —                                                                     |
 | VOTE411 / LWV (scraper)                | No           | Free                             | —                                                                     |
@@ -27,8 +26,6 @@ to fit inside that — it hydrates twenty bills per request rather than fetching
 each bill's detail — and the same account can download login-gated bulk session
 CSVs for backfills that cost no quota at all. See
 [the scraper docs](./scraper.md#state-bills-open-states).
-
-**Google Places (Autocomplete New)** — US street-address autocomplete for the ballot lookup. Same Cloud Console flow as Civic; enable "Places API (New)". Reuses the Google key chain. See `packages/api/src/lib/places.ts` (session-token billing). → `GOOGLE_PLACES_API_KEY`.
 
 **Vote Smart** — voting records, candidate bios, measure pro/con. Access is **member vs. business/organizational** (not nonprofit vs. for-profit) — org fees apply; ToS bars use "in any campaign activity". [Register](https://votesmart.org/share/api). → `VOTE_SMART_API_KEY`.
 
