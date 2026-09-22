@@ -78,12 +78,19 @@
 .cinematic-nav-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-family: var(--font-ibm-plex-serif), Georgia, serif;
-  font-size: 15px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-transform: none;
   color: #f4efe6;
+}
+
+.cinematic-nav-brand img {
+  display: block;
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px rgba(244, 239, 230, 0.12);
 }
 
 .cinematic-pill,
@@ -852,7 +859,7 @@
 .phone-btn {
   position: absolute;
   width: 4px;
-  background: linear-gradient(#c4a35a, #8a7340);
+  background: linear-gradient(#3a4258, #1a2030);
   border-radius: 2px;
 }
 

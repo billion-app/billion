@@ -12,7 +12,7 @@ export function ReducedMotionPage() {
   return (
     <main className="cinematic-static">
       <header className="cinematic-static-hero">
-        <BillionMark size={22} />
+        <BillionMark size={28} />
         <h1>Know what government is doing.</h1>
         <p className="cinematic-dek cinematic-dek-left">
           Billion turns bills, elections, court decisions, and executive actions

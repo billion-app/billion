@@ -1,25 +1,23 @@
 import { CinematicPalette } from "./palette";
 
+/** Real brand mark — ivory B on navy. Never gold. */
 export function BillionMark({
-  size = 18,
+  size = 28,
   className,
 }: {
   size?: number;
   className?: string;
 }) {
   return (
-    <svg
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/billion-logo.png"
+      alt=""
       width={size}
       height={size}
-      viewBox="0 0 24 24"
       className={className}
       aria-hidden="true"
-    >
-      <path
-        d="M6.2 3.2h6.4c3.15 0 5.25 1.55 5.25 4.15 0 1.55-.85 2.8-2.35 3.45 1.85.55 3 1.9 3 3.85 0 2.85-2.35 4.7-6 4.7H6.2V3.2zm3.15 7.2h3.35c1.55 0 2.4-.75 2.4-1.9s-.85-1.9-2.4-1.9H9.35v3.8zm0 6.55h3.7c1.75 0 2.7-.85 2.7-2.1s-.95-2.1-2.7-2.1h-3.7v4.2z"
-        fill={CinematicPalette.gold}
-      />
-    </svg>
+    />
   );
 }
 
