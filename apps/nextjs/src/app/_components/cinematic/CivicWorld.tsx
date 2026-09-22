@@ -4,12 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-import {
-  cameraAt,
-  layoutMix,
-  phoneFootprint,
-  prismMorph,
-} from "./journey";
+import { cameraAt, layoutMix, phoneFootprint, prismMorph } from "./journey";
 import { CinematicPalette, GOLD_RGB, IVORY_RGB } from "./palette";
 import {
   lineFragment,
@@ -31,7 +26,13 @@ import {
 function contourGeometry() {
   const geo = new THREE.BufferGeometry();
   const points: number[] = [];
-  const pushRing = (count: number, rx: number, ry: number, z: number, dx = 0) => {
+  const pushRing = (
+    count: number,
+    rx: number,
+    ry: number,
+    z: number,
+    dx = 0,
+  ) => {
     for (let i = 0; i < count; i++) {
       const t0 = (i / count) * Math.PI * 2;
       const t1 = ((i + 1) / count) * Math.PI * 2;
@@ -94,9 +95,7 @@ function CivicScene() {
     }
     geo.setAttribute(
       "position",
-      new THREE.BufferAttribute(positions, 3).setUsage(
-        THREE.DynamicDrawUsage,
-      ),
+      new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage),
     );
     geo.setAttribute("aStrength", new THREE.BufferAttribute(strength, 1));
     return geo;
@@ -209,7 +208,15 @@ function CivicScene() {
       lineMat.dispose();
       capitolMat.dispose();
     };
-  }, [pointsGeo, lineGeo, pointsMat, lineMat, contours, capitolGeo, capitolMat]);
+  }, [
+    pointsGeo,
+    lineGeo,
+    pointsMat,
+    lineMat,
+    contours,
+    capitolGeo,
+    capitolMat,
+  ]);
 
   useFrame(({ camera, clock, size, gl }) => {
     const progress = progressRef.current;
@@ -293,13 +300,13 @@ function CivicScene() {
       (foot.halfWPct / 100) * size.width * dpr,
       (foot.halfHPct / 100) * size.height * dpr,
     );
-    holeUniforms.uHoleOn.value = foot.opacity;
+    const holeOnUniform = pointsMatRef.current.uniforms.uHoleOn;
+    if (holeOnUniform) holeOnUniform.value = foot.opacity;
 
     if (prismGroupRef.current) {
       prismGroupRef.current.rotation.y =
         clock.elapsedTime * 0.055 * form.spin + form.morph * 0.52;
-      prismGroupRef.current.rotation.x =
-        0.28 * form.spin + form.morph * 0.02;
+      prismGroupRef.current.rotation.x = 0.28 * form.spin + form.morph * 0.02;
       prismGroupRef.current.scale.setScalar(form.scale);
     }
     if (capitolGroupRef.current) {

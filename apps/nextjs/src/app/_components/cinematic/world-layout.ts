@@ -95,11 +95,7 @@ function threadsPos(p: Particle): Vec3 {
 }
 
 function dustPos(p: Particle): Vec3 {
-  return [
-    (p.u - 0.5) * 7.4,
-    (p.v - 0.5) * 4.6,
-    (p.w - 0.5) * 3.2,
-  ];
+  return [(p.u - 0.5) * 7.4, (p.v - 0.5) * 4.6, (p.w - 0.5) * 3.2];
 }
 
 function pushSeg(
@@ -220,8 +216,8 @@ function arch(
   z: number,
 ) {
   const spring = y0 + (peak - y0) * 0.42;
-  pushSeg(out, x0, y0, z, x0, spring);
-  pushSeg(out, x1, y0, z, x1, spring);
+  pushSeg(out, x0, y0, z, x0, spring, z);
+  pushSeg(out, x1, y0, z, x1, spring, z);
   let px = x0;
   let py = spring;
   for (let i = 1; i <= 7; i++) {
@@ -470,9 +466,8 @@ export function createLayouts(particles: readonly Particle[]) {
 export function createEdges(particles: readonly Particle[], maxEdges: number) {
   const rng = mulberry32(91);
   const edges: number[] = [];
-  for (let i = 0; i < particles.length; i++) {
-    const a = particles[i];
-    if (!a || rng() > 0.22) continue;
+  for (const a of particles) {
+    if (rng() > 0.22) continue;
     const b = Math.floor(rng() * particles.length);
     if (b === a.index) continue;
     edges.push(a.index, b);

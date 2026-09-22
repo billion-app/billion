@@ -2,11 +2,8 @@
 
 import type { ReactNode } from "react";
 
-import {
-  PERSONAL_TOPICS,
-  type AppScreenId,
-  type PersonalTopicId,
-} from "./journey";
+import type { AppScreenId, PersonalTopicId } from "./journey";
+import { PERSONAL_TOPICS } from "./journey";
 
 const FEED_SRC = "/product-screens/feed.png";
 const ELECTION_SRC = "/product-screens/election.png";
@@ -169,7 +166,6 @@ function BillScreen({ node }: { node: number }) {
     },
   ] as const;
   const brief = briefs[node] ?? briefs[0];
-  if (!brief) return null;
   return (
     <ScreenChrome>
       <div className="phone-face-home">
@@ -238,11 +234,7 @@ function CourtScreen() {
 function SearchScreen() {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={SEARCH_SRC}
-      alt="Billion browse"
-      className="phone-face-photo"
-    />
+    <img src={SEARCH_SRC} alt="Billion browse" className="phone-face-photo" />
   );
 }
 
