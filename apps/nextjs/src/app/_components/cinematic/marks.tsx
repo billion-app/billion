@@ -1,17 +1,6 @@
-"use client";
-
-import { useEffect, useId, useState } from "react";
-
-import { B_PATHS } from "./billion-mark-paths";
 import { CinematicPalette } from "./palette";
 
-/** Digest spark — same foil midtone as Expo `GoldBillionMark`. */
-const FOIL_GOLD = "#D4AF37";
-
-/**
- * Brand B with traveling gold foil (matches native GoldBillionMark).
- * Reduced motion: flat spark fill, no sweep.
- */
+/** Real brand mark — ivory B on navy. Never gold on the marketing site. */
 export function BillionMark({
   size = 28,
   className,
@@ -19,133 +8,16 @@ export function BillionMark({
   size?: number;
   className?: string;
 }) {
-  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const foilId = `bfoil-${uid}`;
-  const specId = `bspec-${uid}`;
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReduceMotion(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  if (reduceMotion) {
-    return (
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        className={className}
-        aria-hidden="true"
-      >
-        {B_PATHS.map((d, i) => (
-          <path
-            key={i}
-            d={d}
-            fill={FOIL_GOLD}
-            stroke={FOIL_GOLD}
-            strokeWidth={0.35}
-            strokeLinejoin="round"
-          />
-        ))}
-      </svg>
-    );
-  }
-
   return (
-    <svg
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/billion-logo.png"
+      alt=""
       width={size}
       height={size}
-      viewBox="0 0 24 24"
-      className={className ? `billion-foil-mark ${className}` : "billion-foil-mark"}
+      className={className}
       aria-hidden="true"
-    >
-      <defs>
-        <linearGradient
-          id={foilId}
-          gradientUnits="userSpaceOnUse"
-          x1={-10}
-          y1={-6}
-          x2={30}
-          y2={30}
-        >
-          <stop offset="0" stopColor="#3D2A0C" />
-          <stop offset="0.18" stopColor="#8A6410" />
-          <stop offset="0.38" stopColor={FOIL_GOLD} />
-          <stop offset="0.5" stopColor="#FFE9A8" />
-          <stop offset="0.62" stopColor={FOIL_GOLD} />
-          <stop offset="0.82" stopColor="#8A6410" />
-          <stop offset="1" stopColor="#3D2A0C" />
-          <animate
-            attributeName="x1"
-            values="-14;8;-14"
-            dur="2.8s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="y1"
-            values="-8;2;-8"
-            dur="2.8s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="x2"
-            values="26;48;26"
-            dur="2.8s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="y2"
-            values="28;38;28"
-            dur="2.8s"
-            repeatCount="indefinite"
-          />
-        </linearGradient>
-        <linearGradient
-          id={specId}
-          gradientUnits="userSpaceOnUse"
-          x1={-12}
-          y1={0}
-          x2={28}
-          y2={10}
-        >
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0" />
-          <stop offset="0.38" stopColor="#FFFFFF" stopOpacity="0" />
-          <stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.62" />
-          <stop offset="0.62" stopColor="#FFFFFF" stopOpacity="0" />
-          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-          <animate
-            attributeName="x1"
-            values="-16;10;-16"
-            dur="2.2s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="x2"
-            values="24;50;24"
-            dur="2.2s"
-            repeatCount="indefinite"
-          />
-        </linearGradient>
-      </defs>
-      {B_PATHS.map((d, i) => (
-        <path
-          key={i}
-          d={d}
-          fill={`url(#${foilId})`}
-          stroke={`url(#${foilId})`}
-          strokeWidth={0.4}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-      ))}
-      {B_PATHS.map((d, i) => (
-        <path key={`s-${i}`} d={d} fill={`url(#${specId})`} />
-      ))}
-    </svg>
+    />
   );
 }
 

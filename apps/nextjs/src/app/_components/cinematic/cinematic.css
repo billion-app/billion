@@ -87,10 +87,10 @@
   color: #f4efe6;
 }
 
-.cinematic-nav-brand .billion-foil-mark {
+.cinematic-nav-brand img {
   display: block;
-  flex-shrink: 0;
-  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.28));
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px rgba(244, 239, 230, 0.12);
 }
 
 .cinematic-pill,
