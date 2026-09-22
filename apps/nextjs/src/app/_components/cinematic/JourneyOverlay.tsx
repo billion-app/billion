@@ -100,7 +100,7 @@ export function JourneyOverlay() {
 
       <header className="cinematic-nav" style={{ opacity: p < 0.96 ? 1 : 0 }}>
         <span className="cinematic-nav-brand">
-          <BillionMark />
+          <BillionMark size={28} />
           Billion
         </span>
         <a

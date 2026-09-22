@@ -1,21 +1,13 @@
 "use client";
 
-import {
-  CHAPTER_SPANS,
-  appScreenAt,
-  billJourneyAt,
-  phonePose,
-} from "./journey";
+import { appScreenAt, phonePose } from "./journey";
 import { AppFace } from "./AppFace";
 import { useJourney } from "./use-journey";
 
 export function PhoneStage() {
-  const { overlayProgress, width, focusTopic } = useJourney();
+  const { overlayProgress, width } = useJourney();
   const pose = phonePose(overlayProgress, width);
   const screen = appScreenAt(overlayProgress);
-  const bill = billJourneyAt(overlayProgress);
-  const photo =
-    screen === "feed" || screen === "election" || screen === "search";
   const flat = Math.abs(pose.rotateY) < 3 && Math.abs(pose.rotateX) < 3;
 
   return (
@@ -45,16 +37,7 @@ export function PhoneStage() {
           <div className="phone-back" />
           <div className="phone-front">
             <div className="phone-glass">
-              <AppFace
-                screen={screen}
-                topic={
-                  overlayProgress >= CHAPTER_SPANS.personal.start
-                    ? focusTopic
-                    : null
-                }
-                preferPhoto={photo}
-                billNode={bill.node}
-              />
+              <AppFace screen={screen} />
               <div className="phone-specular" />
             </div>
           </div>
