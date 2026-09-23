@@ -140,13 +140,9 @@ export async function attachContentImages<T extends ContentImageRef>(
 async function getLensData(
   contentId: string,
   contentType: "bill" | "government_content" | "court_case",
-  sourceHash?: string | null,
 ) {
   const [lens] = await db
-    .select({
-      lensData: ContentLens.lensData,
-      contentHash: ContentLens.contentHash,
-    })
+    .select({ lensData: ContentLens.lensData })
     .from(ContentLens)
     .where(
       and(
@@ -155,9 +151,7 @@ async function getLensData(
       ),
     )
     .limit(1);
-  return sourceHash !== undefined && lens?.contentHash !== sourceHash
-    ? null
-    : (lens?.lensData ?? null);
+  return lens?.lensData ?? null;
 }
 
 // Look up the cached structured brief for a content item. Rows written by an
@@ -998,7 +992,7 @@ export const contentRouter = {
               ),
             )
             .limit(1),
-          getLensData(c.id, "court_case", c.contentHash),
+          getLensData(c.id, "court_case"),
         ]);
         const [storedBrief] = briefRows;
         const courtBrief =
