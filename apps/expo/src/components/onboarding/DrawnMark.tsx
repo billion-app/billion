@@ -19,7 +19,7 @@ export const QUIET = P.quiet;
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-export function useDraw(selected: boolean, delay = 0, duration = 680) {
+export function useDraw(selected: boolean, delay = 0, duration = 360) {
   const reduce = useReducedMotion();
   const p = useSharedValue(selected ? 1 : 0);
   useEffect(() => {
@@ -28,8 +28,8 @@ export function useDraw(selected: boolean, delay = 0, duration = 680) {
       return;
     }
     p.value = selected
-      ? withDelay(delay, withTiming(1, { duration, easing: DRAW }))
-      : withTiming(0, { duration: 280, easing: DRAW });
+      ? withDelay(delay * 0.5, withTiming(1, { duration, easing: DRAW }))
+      : withTiming(0, { duration: 180, easing: DRAW });
   }, [delay, duration, p, reduce, selected]);
   return p;
 }

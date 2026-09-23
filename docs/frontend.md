@@ -58,6 +58,8 @@ Dependency versions live in the [Expo manifest](../apps/expo/package.json) and [
 
 The Next.js App Router lives in [apps/nextjs/src/app](../apps/nextjs/src/app). It includes the landing page, legal/support pages, public content previews, waitlist routes, and API endpoints. [Sharing and saves](virality.md) follows the public preview and share-image paths in detail.
 
+The landing page uses [CinematicExperience](../apps/nextjs/src/app/_components/cinematic/CinematicExperience.tsx) for its scroll-driven story on desktop, tablet, and mobile. Its hero stacks copy above the phone through 1100px; wider windows place the copy beside the phone. [journey.ts](../apps/nextjs/src/app/_components/cinematic/journey.ts) fits the phone to both viewport dimensions and gives compact screens their own motion path. On portrait phones, the product moves below the copy and the bill timeline advances one milestone at a time. Short landscape windows put the phone beside the copy. The phone exits before the compact signup scene, whose form can scroll when the keyboard reduces available space. Touch scrolling stays native. Only the reduced-motion preference selects [StaticExperience](../apps/nextjs/src/app/_components/cinematic/StaticExperience.tsx) and disables scroll animation.
+
 [trpc/server.tsx](../apps/nextjs/src/trpc/server.tsx) supplies server-side callers and query hydration. [trpc/react.tsx](../apps/nextjs/src/trpc/react.tsx) supplies the browser client with `httpBatchStreamLink`. Both use the same `appRouter`; server callers can invoke it without an HTTP request.
 
 ### Web Browse and the reader
