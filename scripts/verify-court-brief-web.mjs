@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -12,6 +12,8 @@ assert.ok(
   directory,
   "Set COURT_BRIEF_TEST_ARTIFACT_DIR to the DB test artifacts",
 );
+const screenshotDirectory = process.env.COURT_BRIEF_SCREENSHOT_DIR ?? directory;
+mkdirSync(screenshotDirectory, { recursive: true });
 const webUrl = process.env.COURT_BRIEF_TEST_WEB_URL ?? "http://127.0.0.1:8091";
 assert.ok(["127.0.0.1", "localhost"].includes(new URL(webUrl).hostname));
 const details = Object.fromEntries(
@@ -73,6 +75,10 @@ try {
       assert.match(text, /What remains unresolved/);
       assert.match(text, /concurrence/);
       assert.match(text, /dissent/);
+      await browser(
+        "screenshot",
+        join(screenshotDirectory, "court-brief-overview.png"),
+      );
       const snapshot = await browser("snapshot", "-i");
       assert.match(snapshot, /Open full official document document-1/);
       await browser(
@@ -93,7 +99,10 @@ try {
         ).includes(details.valid.courtBrief.sources[0].url),
       );
       await browser("eval", "window.open=window.__courtOriginalOpen");
-      await browser("screenshot", join(directory, "court-page.png"));
+      await browser(
+        "screenshot",
+        join(screenshotDirectory, "court-brief-details.png"),
+      );
     } else {
       assert.doesNotMatch(text, /Emergency order · Interim relief/);
       assert.match(
@@ -105,9 +114,15 @@ try {
     }
     console.log(`Expo court article route: ${name} passed`);
   }
+  await browser("open", `${webUrl}/article-detail?id=valid`);
+  await browser("wait", '[data-testid="article-content"]');
   await browser("find", "text", "Original text", "click");
   await browser("wait", '[data-testid="article-content"]');
   assert.match(await browser("get", "text", "body"), /application for stay/);
+  await browser(
+    "screenshot",
+    join(screenshotDirectory, "court-brief-original-text.png"),
+  );
   console.log("Original court source text passed");
 } finally {
   await browser("close");
