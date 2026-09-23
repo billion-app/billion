@@ -26,6 +26,10 @@ void test("26A305 stays interim; merits and separately published opinions valida
     order.opinions.map((opinion) => opinion.kind),
     ["concurrence", "dissent"],
   );
+  assert.match(
+    order.terms.find((term) => term.term === "stay")?.plain ?? "",
+    /temporary pause/i,
+  );
   assert.equal(
     validateCourtBrief(meritsOutput, merits, "fixture").proceeding,
     "merits_opinion",
@@ -85,6 +89,28 @@ void test("unknown evidence remains sparse; unknown citations fail and unverifia
   );
   assert.equal(sparse.proceeding, "unknown");
   assert.equal(sparse.opinions.length, 0);
+  assert.deepEqual(
+    sparse.terms.map((term) => term.term),
+    ["stay", "merits"],
+  );
+  const unmatchedTerm = validateCourtBrief(
+    {
+      ...emergencyOutput,
+      terms: [
+        ...emergencyOutput.terms,
+        {
+          term: "writ of certiorari",
+          plain: "A request for Supreme Court review.",
+        },
+      ],
+    },
+    emergency,
+    "fixture",
+  );
+  assert.equal(
+    unmatchedTerm.terms.some((term) => term.term === "writ of certiorari"),
+    false,
+  );
   const invalid = structuredClone(separateOutput);
   invalid.opinions[0]!.quote!.documentId = "document-3";
   invalid.action.quote!.text =

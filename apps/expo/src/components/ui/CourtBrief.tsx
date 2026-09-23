@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { StyleProp, TextStyle } from "react-native";
 import { useState } from "react";
 import {
   Linking,
@@ -20,12 +21,13 @@ type CourtDetail = Extract<
 >;
 export type CourtBriefData = NonNullable<CourtDetail["courtBrief"]>;
 type Point = CourtBriefData["action"];
+type CourtTerm = CourtBriefData["terms"][number];
 
 const PROCEEDING = {
   emergency_order: {
-    badge: "INTERIM",
+    badge: "TEMPORARY",
     label: "Emergency order",
-    detail: "Interim relief while the case continues",
+    detail: "Temporary decision while the case continues",
   },
   order: {
     badge: "ORDER",
@@ -34,8 +36,8 @@ const PROCEEDING = {
   },
   merits_opinion: {
     badge: "DECISION",
-    label: "Merits opinion",
-    detail: "The court decided issues on the merits",
+    label: "Full decision",
+    detail: "The court decided the legal questions before it",
   },
   unknown: {
     badge: "SCOPE UNCLEAR",
@@ -52,15 +54,93 @@ const REASON = {
 } as const;
 
 const OPINION = {
-  majority: { label: "MAJORITY", color: "#55D6BE" },
-  per_curiam: { label: "PER CURIAM", color: "#55D6BE" },
-  concurrence: { label: "CONCURRENCE", color: "#B8A1FF" },
-  dissent: { label: "DISSENT", color: "#FF9575" },
+  majority: { label: "COURT'S MAIN OPINION", color: "#55D6BE" },
+  per_curiam: { label: "COURT OPINION · UNSIGNED", color: "#55D6BE" },
+  concurrence: { label: "AGREES · CONCURRENCE", color: "#B8A1FF" },
+  dissent: { label: "DISAGREES · DISSENT", color: "#FF9575" },
   unknown: { label: "OPINION", color: "#F4C95D" },
 } as const;
 
 function BlockTitle({ children }: { children: string }) {
   return <Text style={s.blockTitle}>{children}</Text>;
+}
+
+function escapePattern(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Keep definitions tied to the generated case vocabulary, not a global legal dictionary. */
+function DefinedText({
+  text,
+  terms,
+  accent,
+  style,
+}: {
+  text: string;
+  terms: CourtBriefData["terms"];
+  accent: string;
+  style: StyleProp<TextStyle>;
+}) {
+  const [openTerm, setOpenTerm] = useState<CourtTerm | null>(null);
+  const usableTerms = terms
+    .filter((term) => term.term.trim())
+    .sort((left, right) => right.term.length - left.term.length);
+  const byName = new Map(
+    usableTerms.map((term) => [term.term.toLocaleLowerCase(), term]),
+  );
+  const pattern = usableTerms.length
+    ? new RegExp(
+        `\\b(${usableTerms.map((term) => escapePattern(term.term)).join("|")})\\b`,
+        "gi",
+      )
+    : null;
+  const parts = pattern ? text.split(pattern) : [text];
+
+  return (
+    <View style={s.definedWrap}>
+      <Text style={style}>
+        {parts.map((part, index) => {
+          const term = byName.get(part.toLocaleLowerCase());
+          if (!term) return part;
+          const expanded = openTerm?.term === term.term;
+          return (
+            <Text
+              key={`${term.term}-${index}`}
+              style={[s.definedTerm, { color: accent }]}
+              onPress={() => setOpenTerm(expanded ? null : term)}
+              accessibilityRole="button"
+              accessibilityLabel={`Define ${term.term}`}
+              accessibilityHint="Shows a plain-language definition"
+              accessibilityState={{ expanded }}
+            >
+              {part}
+            </Text>
+          );
+        })}
+      </Text>
+      {openTerm ? (
+        <View
+          style={[
+            s.definitionCard,
+            {
+              backgroundColor: `${accent}12`,
+              borderColor: `${accent}55`,
+            },
+          ]}
+          accessibilityLiveRegion="polite"
+          testID="court-term-definition"
+        >
+          <View style={s.definitionHead}>
+            <Icon name="book" size={13} color={accent} />
+            <Text style={[s.definitionTerm, { color: accent }]}>
+              {openTerm.term}
+            </Text>
+          </View>
+          <Text style={s.definitionPlain}>{openTerm.plain}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 function QuoteDisclosure({
@@ -168,7 +248,12 @@ function PointCard({
           <Text style={[s.kindChipText, { color: accent }]}>{label}</Text>
         </View>
       ) : null}
-      <Text style={s.pointText}>{point.text}</Text>
+      <DefinedText
+        text={point.text}
+        terms={data.terms}
+        accent={accent}
+        style={s.pointText}
+      />
       <QuoteDisclosure
         point={point}
         accent={accent}
@@ -208,7 +293,12 @@ function OpinionsSection({
                   {opinion.author ?? "Author not established"}
                 </Text>
               </View>
-              <Text style={s.opinionText}>{opinion.text}</Text>
+              <DefinedText
+                text={opinion.text}
+                terms={data.terms}
+                accent={accent}
+                style={s.opinionText}
+              />
               <QuoteDisclosure
                 point={opinion}
                 accent={accent}
@@ -242,7 +332,12 @@ function UnknownsCard({
             <Text style={[s.unknownIndex, { color: accent }]}>
               {String(index + 1).padStart(2, "0")}
             </Text>
-            <Text style={s.unknownText}>{unknown}</Text>
+            <DefinedText
+              text={unknown}
+              terms={data.terms}
+              accent={accent}
+              style={s.unknownText}
+            />
           </View>
         ))}
       </View>
@@ -314,7 +409,12 @@ export function CourtBrief({
             </Text>
           </View>
         </View>
-        <Text style={s.summaryText}>{data.takeaway.text}</Text>
+        <DefinedText
+          text={data.takeaway.text}
+          terms={data.terms}
+          accent={accent}
+          style={s.summaryText}
+        />
         <QuoteDisclosure
           point={data.takeaway}
           accent={accent}
@@ -337,6 +437,15 @@ export function CourtBrief({
         </View>
       </View>
 
+      {data.terms.length ? (
+        <View style={s.definitionHint} testID="court-brief-definition-hint">
+          <Icon name="book" size={13} color={accent} />
+          <Text style={s.definitionHintText}>
+            Tap any blue legal term for a plain-language definition.
+          </Text>
+        </View>
+      ) : null}
+
       <BlockTitle>What the court did</BlockTitle>
       <View style={[s.rulingCard, { borderLeftColor: accent }]}>
         <View style={s.rulingHead}>
@@ -345,10 +454,20 @@ export function CourtBrief({
           </View>
           <Text style={s.rulingLabel}>THE RULING</Text>
         </View>
-        <Text style={s.rulingText}>{data.action.text}</Text>
+        <DefinedText
+          text={data.action.text}
+          terms={data.terms}
+          accent={accent}
+          style={s.rulingText}
+        />
         <View style={s.postureBlock}>
           <Text style={s.postureLabel}>WHAT THE COURT WAS DECIDING</Text>
-          <Text style={s.postureText}>{data.posture}</Text>
+          <DefinedText
+            text={data.posture}
+            terms={data.terms}
+            accent={accent}
+            style={s.postureText}
+          />
         </View>
         <QuoteDisclosure
           point={data.action}
@@ -368,7 +487,12 @@ export function CourtBrief({
                   {String(index + 1).padStart(2, "0")}
                 </Text>
                 <View style={s.numberedCopy}>
-                  <Text style={s.numberedText}>{question.text}</Text>
+                  <DefinedText
+                    text={question.text}
+                    terms={data.terms}
+                    accent={accent}
+                    style={s.numberedText}
+                  />
                   <SourcePills data={data} point={question} />
                 </View>
               </View>
@@ -445,7 +569,12 @@ export function CourtBrief({
                       </Text>
                     </View>
                   </View>
-                  <Text style={s.effectText}>{effect.text}</Text>
+                  <DefinedText
+                    text={effect.text}
+                    terms={data.terms}
+                    accent={accent}
+                    style={s.effectText}
+                  />
                   <QuoteDisclosure
                     point={effect}
                     accent={accent}
@@ -500,8 +629,8 @@ export function CourtOpinions({
         <View style={s.opinionsIntroCopy}>
           <Text style={s.opinionsIntroTitle}>Read the opinions</Text>
           <Text style={s.opinionsIntroText}>
-            Separate writings can agree with the result, reject it, or explain a
-            different path. They are not the court&apos;s controlling order.
+            Separate writings explain why individual justices agreed or
+            disagreed. They do not change what the court ordered.
           </Text>
           <Text style={s.scopeMeta}>
             {data.court} · {data.docket}
@@ -521,6 +650,28 @@ export function CourtOpinions({
 
 const s = StyleSheet.create({
   root: { gap: 18, paddingBottom: 24 },
+  definedWrap: { flexShrink: 1, gap: 8 },
+  definedTerm: {
+    fontFamily: fontBody.semibold,
+    textDecorationLine: "underline",
+  },
+  definitionCard: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 11,
+    gap: 5,
+  },
+  definitionHead: { flexDirection: "row", alignItems: "center", gap: 6 },
+  definitionTerm: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11.5,
+  },
+  definitionPlain: {
+    fontFamily: fontBody.regular,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: "rgba(255,255,255,0.8)",
+  },
   blockTitle: {
     fontFamily: fontEditorial.bold,
     fontSize: 18,
@@ -600,6 +751,20 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 10.5,
     lineHeight: 16,
+    color: colors.textSecondary,
+  },
+  definitionHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 7,
+    marginTop: -8,
+    paddingHorizontal: 3,
+  },
+  definitionHintText: {
+    fontFamily: fontBody.medium,
+    fontSize: 11.5,
+    lineHeight: 17,
     color: colors.textSecondary,
   },
   opinionsIntro: {

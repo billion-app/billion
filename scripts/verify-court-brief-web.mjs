@@ -83,7 +83,7 @@ try {
     assert.doesNotMatch(text, /Committee review|Becomes law/);
     if (name === "valid") {
       assert.match(text, /Emergency order/);
-      assert.match(text, /Interim relief/);
+      assert.match(text, /Temporary decision/);
       assert.match(text, /What the court did/);
       assert.match(text, /How the court got there/);
       assert.match(text, /Who it lands on/);
@@ -96,6 +96,32 @@ try {
       await browser(
         "screenshot",
         join(screenshotDirectory, "court-brief-ruling.png"),
+      );
+      await browser(
+        "eval",
+        `(() => {
+          const terms = [...document.querySelectorAll('[aria-label="Define stay"]')];
+          const target = terms.at(-1);
+          if (!target) throw new Error("Missing inline definition for stay");
+          target.click();
+        })()`,
+      );
+      await browser("wait", '[data-testid="court-term-definition"]');
+      assert.match(await browser("get", "text", "body"), /temporary pause/i);
+      await browser(
+        "eval",
+        `(() => {
+          const target = document.querySelector('[data-testid="court-term-definition"]');
+          target.scrollIntoView({ block: "center" });
+        })()`,
+      );
+      await browser(
+        "screenshot",
+        join(screenshotDirectory, "court-brief-definition.png"),
+      );
+      await browser(
+        "eval",
+        `document.querySelector('[aria-label="Define stay"][aria-expanded="true"]')?.click()`,
       );
       await browser(
         "find",

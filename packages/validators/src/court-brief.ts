@@ -18,6 +18,22 @@ export const CourtBriefPointSchema = z.object({
     .object({ text, documentId: text, locator: text.nullable() })
     .nullable(),
 });
+export const CourtBriefTermSchema = z.object({
+  term: z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .describe(
+      "The exact legal word or short phrase used in the generated brief.",
+    ),
+  plain: z
+    .string()
+    .trim()
+    .min(1)
+    .max(280)
+    .describe("A concise, self-contained definition in everyday language."),
+});
 export const CourtBriefSchema = z.object({
   takeaway: CourtBriefPointSchema,
   action: CourtBriefPointSchema.describe(
@@ -62,6 +78,12 @@ export const CourtBriefSchema = z.object({
     )
     .max(6),
   unknowns: z.array(text).min(1).max(5),
+  terms: z
+    .array(CourtBriefTermSchema)
+    .max(8)
+    .describe(
+      "Legal jargon used in the brief that a general reader may not know. Use the exact displayed wording and explain it in everyday language.",
+    ),
 });
 export const CourtBriefRecordSchema = CourtBriefSchema.extend({
   version: z.literal(COURT_BRIEF_VERSION),

@@ -54,8 +54,11 @@ void test(
       );
       assert.match(html, /The short version/);
       assert.match(html, /Emergency order/);
-      assert.match(html, /Interim relief/);
+      assert.match(html, /Temporary decision/);
       assert.match(html, /What the court did/);
+      assert.match(html, /Tap any blue legal term/);
+      assert.match(html, /Define stay/);
+      assert.doesNotMatch(html, /A temporary pause/);
       assert.match(html, /How the court got there/);
       assert.match(html, /Who it lands on/);
       assert.match(html, /Separate opinions/);

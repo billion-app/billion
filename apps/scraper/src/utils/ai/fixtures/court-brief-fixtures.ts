@@ -24,7 +24,7 @@ export const point = (text: string, documentId = "document-1") => ({
 });
 export const emergencyOutput: CourtBrief = {
   takeaway: point(
-    "The Court denied a stay, leaving the challenged injunction in place at this interim stage.",
+    "The Court refused to pause a lower-court order, so that order stays in effect for now.",
   ),
   action: {
     ...point("The government's request to pause the injunction was denied."),
@@ -42,7 +42,7 @@ export const emergencyOutput: CourtBrief = {
   reasoning: [
     {
       ...point(
-        "The Court said the government was unlikely to succeed on its challenge and the emergency-relief factors did not favor a stay.",
+        "The Court said the government was unlikely to succeed and had not met the requirements for pausing the order.",
       ),
       kind: "court_reasoning",
     },
@@ -71,7 +71,42 @@ export const emergencyOutput: CourtBrief = {
     },
   ],
   unknowns: [
-    "This interim ruling does not finally resolve every question about the Postal Service's statutory authority.",
+    "This temporary ruling does not finally resolve every question about the Postal Service's statutory authority.",
+  ],
+  terms: [
+    {
+      term: "stay",
+      plain:
+        "A temporary pause. Here, the government asked the Court to pause a lower court's order while the case continues.",
+    },
+    {
+      term: "injunction",
+      plain:
+        "A court order that requires someone to do something or stop doing something.",
+    },
+    {
+      term: "preliminary injunction",
+      plain:
+        "A temporary court order that applies while a lawsuit is still being decided.",
+    },
+    {
+      term: "merits",
+      plain:
+        "The underlying legal questions in the case, rather than a temporary request about what happens while it continues.",
+    },
+    {
+      term: "concurred",
+      plain:
+        "Agreed with the Court's result, sometimes for different or additional reasons.",
+    },
+    {
+      term: "dissented",
+      plain: "Disagreed with the Court's result.",
+    },
+    {
+      term: "statutory authority",
+      plain: "Legal power granted by a law passed by the legislature.",
+    },
   ],
 };
 
@@ -112,6 +147,7 @@ export const meritsOutput: CourtBrief = {
   effects: [],
   opinions: [],
   unknowns: ["The Court did not decide the amount of benefits owed."],
+  terms: [],
 };
 export const separate: CourtBriefInput = {
   ...merits,
