@@ -36,6 +36,7 @@ import { uploadContentImage } from "./utils/storage/content-images.js";
 
 const logger = createLogger("content-images");
 type ContentType = "bill" | "government_content" | "court_case";
+type ContentTypeFilter = ContentType | "all";
 
 interface Candidate {
   id: string;
@@ -328,6 +329,11 @@ async function generate(
 }
 
 const argv = await yargs(hideBin(process.argv))
+  .option("type", {
+    choices: ["all", "bill", "government_content", "court_case"] as const,
+    default: "all" as ContentTypeFilter,
+    describe: "Restrict candidates to one content type",
+  })
   .option("bill-limit", {
     type: "number",
     default: 80,
@@ -343,8 +349,7 @@ const argv = await yargs(hideBin(process.argv))
   .option("skip-review", {
     type: "boolean",
     default: false,
-    describe:
-      "Publish generated images without the DeepSeek suitability review",
+    describe: "Publish generated images without the suitability review",
   })
   .option("drain", {
     type: "boolean",
@@ -366,13 +371,17 @@ if (argv.concurrency < 1 || argv.concurrency > 2) {
 }
 
 await runImageBatches(async () => {
+  const includes = (type: ContentType) =>
+    argv.type === "all" || argv.type === type;
   const candidates = [
-    ...(await billCandidates(argv.billLimit)),
-    ...(await governmentCandidates(argv.otherLimit)),
-    ...(await courtCandidates(argv.otherLimit)),
+    ...(includes("bill") ? await billCandidates(argv.billLimit) : []),
+    ...(includes("government_content")
+      ? await governmentCandidates(argv.otherLimit)
+      : []),
+    ...(includes("court_case") ? await courtCandidates(argv.otherLimit) : []),
   ];
   logger.info(
-    `Found ${candidates.length} missing or stale header image(s), capped at ${argv.billLimit} bills and ${argv.otherLimit} per other type`,
+    `Found ${candidates.length} missing or stale header image(s) for ${argv.type}, capped at ${argv.billLimit} bills and ${argv.otherLimit} per other type`,
   );
   if (argv.dryRun) {
     for (const item of candidates)

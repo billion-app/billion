@@ -62,7 +62,11 @@ void test("bill interest scoring runs before source refreshes", () => {
 });
 
 void test("image jobs keep suitability review enabled", () => {
-  for (const id of ["content-images-daily", "backfill-content-images"]) {
+  for (const id of [
+    "content-images-daily",
+    "court-image-smoke",
+    "backfill-content-images",
+  ]) {
     const job = findJob(id);
     assert.ok(job, `${id} is missing`);
     assert.ok(
@@ -70,6 +74,24 @@ void test("image jobs keep suitability review enabled", () => {
       `${id} bypasses image review`,
     );
   }
+});
+
+void test("court image smoke test is real, reviewed, and bounded", () => {
+  const job = findJob("court-image-smoke");
+  assert.ok(job, "court image smoke job is missing");
+  assert.deepEqual(job.args, [
+    "--type",
+    "court_case",
+    "--bill-limit",
+    "0",
+    "--other-limit",
+    "1",
+    "--concurrency",
+    "1",
+  ]);
+  assert.deepEqual(job.schedule, { kind: "manual" });
+  assert.ok(!job.args.includes("--dry-run"));
+  assert.ok(!job.args.includes("--skip-review"));
 });
 
 void test("executive actions refresh daily", () => {

@@ -170,6 +170,11 @@ Use the focused command for the missing asset. Check its help and preview mode f
 | `notify-followers`           | Enqueue and send lock-screen alerts for followed bills            |
 | `prune-bills`                | Inspect retention candidates; read-only until `--apply`           |
 
+`content-images` accepts `--type bill`, `--type government_content`, or
+`--type court_case` for a bounded single-domain run. Production's manual
+`court-image-smoke` supervisor job uses `--type court_case --other-limit 1`
+with suitability review enabled; it is a real generation check, not a fixture.
+
 For example:
 
 ```bash
