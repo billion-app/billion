@@ -192,7 +192,34 @@ interface ReviewProvider {
   modelVersion: string;
   timeoutMs: number;
   trackUsage: boolean;
+  allowUnknownRejectionReasons?: boolean;
   body?: Record<string, unknown>;
+}
+
+function normalizeRejectedReview(
+  review: unknown,
+  allowUnknownReasons: boolean,
+): unknown {
+  if (
+    !allowUnknownReasons ||
+    !review ||
+    typeof review !== "object" ||
+    Array.isArray(review)
+  ) {
+    return review;
+  }
+
+  const record = review as Record<string, unknown>;
+  if (record.decision !== "reject" || !Array.isArray(record.rejectionReasons)) {
+    return review;
+  }
+
+  const knownReasons = record.rejectionReasons.filter(
+    (reason): reason is ContentImageReviewReason =>
+      typeof reason === "string" &&
+      (CONTENT_IMAGE_REVIEW_REASONS as readonly string[]).includes(reason),
+  );
+  return { ...record, rejectionReasons: knownReasons };
 }
 
 async function reviewWithProvider(
@@ -266,7 +293,12 @@ async function reviewWithProvider(
     );
   }
 
-  const result = ContentImageReviewSchema.safeParse(modelReview);
+  const result = ContentImageReviewSchema.safeParse(
+    normalizeRejectedReview(
+      modelReview,
+      provider.allowUnknownRejectionReasons === true,
+    ),
+  );
   if (!result.success) {
     throw new ContentImageReviewError(
       `${provider.label} review failed schema validation: ${result.error.message}`,
@@ -278,7 +310,9 @@ async function reviewWithProvider(
 /**
  * Review one image through the local multimodal model first, then fall back to
  * DeepSeek. Every provider uses the same strict schema: a transport failure or
- * malformed model output is never an implicit approval.
+ * malformed model output is never an implicit approval. The local model may
+ * add extra rejection labels; known labels are retained only for rejections,
+ * while accepted images remain strictly validated.
  */
 export async function reviewContentImage(
   image: GeneratedImage,
@@ -305,6 +339,7 @@ export async function reviewContentImage(
           modelVersion: `local:${local.model}`,
           timeoutMs: 120_000,
           trackUsage: false,
+          allowUnknownRejectionReasons: true,
           body: { think: false, reasoning_effort: "none" },
         },
         imageDataUrls,

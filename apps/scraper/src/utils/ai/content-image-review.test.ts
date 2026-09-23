@@ -264,6 +264,46 @@ test("image review prefers the configured local model without hidden reasoning",
   assert.equal(response.reviewModelVersion, "local:local-vision");
 });
 
+test("local review keeps known rejection reasons and ignores extra labels", async () => {
+  const generated = await image();
+  const requests: string[] = [];
+  const response = await reviewContentImage(generated, source, {
+    apiKey: "deepseek-test-key",
+    local: {
+      baseURL: "http://local.test/v1",
+      model: "local-vision",
+      apiKey: "local-test-key",
+    },
+    fetch: async (url) => {
+      requests.push(String(url));
+      assert.match(String(url), /^http:\/\/local\.test/);
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  decision: "reject",
+                  description:
+                    "The subject is difficult to identify in the square crop.",
+                  rejectionReasons: ["unclear-subject", "too-generic"],
+                  feedback: "Make the court building the clear focal point.",
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    },
+  });
+
+  assert.deepEqual(requests, ["http://local.test/v1/chat/completions"]);
+  assert.equal(response.decision, "reject");
+  assert.deepEqual(response.rejectionReasons, ["unclear-subject"]);
+  assert.equal(response.reviewModelVersion, "local:local-vision");
+});
+
 test("image review falls back to DeepSeek when the local model fails", async () => {
   const generated = await image();
   const requests: string[] = [];
