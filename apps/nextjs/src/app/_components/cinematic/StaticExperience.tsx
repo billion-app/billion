@@ -1,34 +1,58 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import posthog from "posthog-js";
 
 import { APP_STORE_URL } from "~/app/_lib/app-store";
 import { WaitlistForm } from "../waitlist-form";
-import { COMPLICATED_BEATS, EDITORIAL_PHONES, PERSONAL_TOPICS } from "./journey";
+import { BILL_NODES, COMPLICATED_BEATS, PERSONAL_TOPICS } from "./journey";
 import { BillionMark, SectionRule } from "./marks";
 
-export function ReducedMotionPage() {
+export function StaticExperience() {
+  const surface = "reduced-motion";
   return (
     <main className="cinematic-static">
+      <nav className="cinematic-static-nav" aria-label="Main">
+        <span className="cinematic-nav-brand">
+          <BillionMark size={28} />
+          Billion
+        </span>
+        <a
+          href={APP_STORE_URL}
+          className="cinematic-pill cinematic-pill-nav"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Download
+        </a>
+      </nav>
       <header className="cinematic-static-hero">
-        <BillionMark size={28} />
         <h1>Know what government is doing.</h1>
         <p className="cinematic-dek cinematic-dek-left">
-          Billion turns bills, elections, court decisions, and executive actions
-          into intelligence you can actually understand.
+          Bills, elections, courts, and executive actions — in English, on your
+          phone.
         </p>
         <a
           href={APP_STORE_URL}
-          className="cinematic-store"
+          className="cinematic-pill"
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() =>
-            posthog.capture("app_store_clicked", { surface: "reduced-motion" })
-          }
+          onClick={() => posthog.capture("app_store_clicked", { surface })}
         >
-          Download on the App Store
+          Download →
         </a>
+        <div className="cinematic-static-product">
+          <Image
+            src="/product-screens/feed.png"
+            width={390}
+            height={844}
+            sizes="(max-width: 760px) 80vw, 390px"
+            alt="Billion's daily brief with sourced news about California legislation"
+            loading="eager"
+            unoptimized
+          />
+        </div>
       </header>
 
       <section className="cinematic-static-section">
@@ -46,6 +70,23 @@ export function ReducedMotionPage() {
 
       <section className="cinematic-static-section">
         <SectionRule />
+        <h2>A bill enters Congress.</h2>
+        <p className="cinematic-dek cinematic-dek-left">
+          Billion keeps the official timeline.
+        </p>
+        <ol className="cinematic-static-timeline">
+          {BILL_NODES.map((node) => (
+            <li key={node.id}>
+              <time>{node.date}</time>
+              <strong>{node.label}</strong>
+              <span>{node.note}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="cinematic-static-section">
+        <SectionRule />
         <p className="cinematic-kicker">
           Built for people who don’t live in Washington.
         </p>
@@ -56,32 +97,23 @@ export function ReducedMotionPage() {
         <p className="cinematic-static-topics">
           {PERSONAL_TOPICS.map((topic) => topic.label).join(" · ")}
         </p>
-        <div className="cinematic-static-phones">
-          {EDITORIAL_PHONES.map((phone) => (
-            <article key={phone.id}>
-              <p className="cinematic-kicker">{phone.kicker}</p>
-              <h3>{phone.title}</h3>
-              <p className="cinematic-dek cinematic-dek-left">{phone.dek}</p>
-            </article>
-          ))}
-        </div>
       </section>
 
-      <section className="cinematic-static-end">
+      <section id="download" className="cinematic-static-end">
         <h2>
           Government doesn’t stop moving. Neither should your understanding of
           it.
         </h2>
         <a
           href={APP_STORE_URL}
-          className="cinematic-store"
+          className="cinematic-pill"
           target="_blank"
           rel="noopener noreferrer"
         >
           Download Billion
         </a>
         <div className="cinematic-finale-form">
-          <WaitlistForm formLocation="reduced-motion" />
+          <WaitlistForm formLocation={surface} />
         </div>
         <footer>
           <Link href="/support">Support</Link>

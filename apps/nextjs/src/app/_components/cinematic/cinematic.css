@@ -135,25 +135,19 @@
 }
 
 .cinematic-copy-hero {
-  top: 14%;
-  width: min(820px, calc(100% - 48px));
+  left: 6vw;
+  right: 6vw;
+  top: 100px;
+  width: auto;
+  min-height: calc(100svh - 180px);
+  display: grid;
+  grid-template-columns: 25% 1fr 23%;
+  align-items: center;
+  text-align: left;
 }
 
-.cinematic-copy-hero-left {
-  left: 6.5vw;
-  top: 50%;
-  transform: none;
-  text-align: left;
-  width: min(340px, 24vw);
-}
-
-.cinematic-copy-hero-right {
-  left: auto;
-  right: 5.5vw;
-  top: 50%;
-  transform: none;
-  text-align: left;
-  width: min(260px, 20vw);
+.cinematic-hero-summary {
+  grid-column: 3;
 }
 
 .cinematic-copy-bill {
@@ -174,7 +168,7 @@
 
 .cinematic-copy-finale {
   left: 8vw;
-  right: 42vw;
+  right: 52vw;
   top: 14vh;
   bottom: 8vh;
   z-index: 2;
@@ -260,7 +254,7 @@
   font-weight: 400;
 }
 
-.cinematic-copy-hero-right .cinematic-dek {
+.cinematic-hero-summary .cinematic-dek {
   max-width: none;
   font-size: 16px;
   line-height: 1.45;
@@ -738,11 +732,6 @@
   transition: opacity 0.35s linear;
 }
 
-.phone-rig.is-hero {
-  width: 372px;
-  height: 764px;
-}
-
 .phone-rig.is-hero .phone-shadow {
   opacity: 0.45;
 }
@@ -1119,14 +1108,14 @@ body:has(.cinematic-static) {
 .cinematic-static {
   background: #0e1530;
   color: #f4efe6;
-  padding: 12vh 6vw 8vh;
+  padding: 22px 24px 48px;
 }
 
 .cinematic-static-hero,
 .cinematic-static-section,
 .cinematic-static-end {
   max-width: 720px;
-  margin: 0 auto 16vh;
+  margin: 0 auto 80px;
 }
 
 .cinematic-static h1,
@@ -1176,114 +1165,59 @@ body:has(.cinematic-static) {
   font-size: 13px;
 }
 
-.cinematic-static-phones {
-  display: grid;
-  gap: 24px;
-  margin-top: 32px;
+.cinematic-static-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto 48px;
 }
 
-@media (min-width: 860px) {
-  .cinematic-static-phones {
-    grid-template-columns: repeat(3, 1fr);
-  }
+.cinematic-static-hero {
+  text-align: center;
 }
 
-@media (max-width: 760px) {
-  .cinematic-finale-capitol {
-    display: none;
-  }
+.cinematic-static h1 {
+  max-width: 620px;
+  margin: 0 auto 20px;
+  font-size: clamp(2.25rem, 5.5vw, 3.5rem);
+  line-height: 1.08;
+}
 
-  .phone-rig {
-    width: 280px;
-    height: 574px;
-  }
+.cinematic-static h2 {
+  font-size: clamp(1.9rem, 4vw, 2.75rem);
+}
 
-  .cinematic-copy-left,
-  .cinematic-copy-finale,
-  .cinematic-copy-right,
-  .cinematic-copy-hero-left,
-  .cinematic-copy-hero-right,
-  .cinematic-copy-statement,
-  .cinematic-copy-bill {
-    left: 50%;
-    right: auto;
-    transform: translate(-50%, 0);
-    text-align: center;
-    width: min(520px, calc(100% - 40px));
-  }
+.cinematic-static-hero .cinematic-dek {
+  max-width: 360px;
+  margin: 0 auto 24px;
+  text-align: center;
+  font-size: 16px;
+  line-height: 1.45;
+}
 
-  .cinematic-copy-finale {
-    top: 16vh;
-    bottom: auto;
-    display: block;
-    z-index: 5;
-  }
+.cinematic-static-product {
+  max-width: 390px;
+  height: clamp(340px, 65svh, 600px);
+  overflow: hidden;
+  margin: 48px auto 0;
+  border-radius: 32px 32px 0 0;
+  mask-image: linear-gradient(#000 85%, transparent);
+}
 
-  .cinematic-finale-copy {
-    width: 100%;
-  }
+.cinematic-static-product img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
 
-  .cinematic-copy-hero-left {
-    top: 12%;
-  }
+.cinematic-static-timeline time {
+  color: #8a8fa0;
+  font-size: 12px;
+}
 
-  .cinematic-copy-hero-right {
-    top: 34%;
-  }
-
-  .cinematic-copy-bill {
-    top: 12%;
-    text-align: left;
-  }
-
-  .cinematic-bill-thread {
-    margin-left: auto;
-    margin-right: auto;
-    width: min(340px, 100%);
-  }
-
-  .cinematic-bill-steps li {
-    text-align: left;
-  }
-
-  .cinematic-hero-actions-start {
-    justify-content: center;
-  }
-
-  .cinematic-copy-left .cinematic-finale-actions,
-  .cinematic-copy-finale .cinematic-finale-actions {
-    justify-content: center;
-  }
-
-  .cinematic-copy-left .cinematic-finale-form,
-  .cinematic-copy-finale .cinematic-finale-form {
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .cinematic-copy-hero {
-    top: 12%;
-  }
-
-  .cinematic-trio {
-    gap: 10px;
-    top: 62%;
-  }
-
-  .phone-mini {
-    height: 220px;
-  }
-
-  .cinematic-nav {
-    left: 18px;
-    right: 18px;
-    top: 16px;
-  }
-
-  .phone-rig.is-hero {
-    width: 300px;
-    height: 616px;
-  }
+.cinematic-static-end {
+  margin-bottom: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1296,4 +1230,265 @@ body:has(.cinematic-static) {
     animation: none;
     transform: none;
   }
+}
+
+/* Copy stays in document flow within its band; the phone gets its own space. */
+@media (max-width: 1100px) {
+  .cinematic-copy-hero {
+    top: clamp(96px, 12svh, 140px);
+    left: 24px;
+    right: 24px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .cinematic-headline-hero {
+    max-width: 620px;
+    margin: 0;
+    font-size: clamp(2.25rem, 5.5vw, 3.5rem);
+    line-height: 1.08;
+  }
+
+  .cinematic-hero-summary {
+    max-width: 360px;
+  }
+
+  .cinematic-hero-summary .cinematic-dek {
+    margin: 0;
+    text-align: center;
+  }
+
+  .cinematic-hero-actions-start {
+    margin-top: 20px;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1100px) {
+  .cinematic-copy-finale .cinematic-finale-form form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Compact screens keep the same scroll story, with a separate copy band. */
+.is-compact .cinematic-nav {
+  top: 16px;
+  left: 20px;
+  right: 20px;
+}
+
+.is-compact .cinematic-copy {
+  /* Scroll progress owns the fade; a time-based transition would lag behind. */
+  transition: none;
+  left: 24px;
+  right: auto;
+  top: 88px;
+  width: calc(48% - 32px);
+  min-height: 0;
+  text-align: left;
+}
+
+.is-compact .cinematic-copy-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.is-compact .cinematic-headline {
+  font-size: clamp(1.75rem, 4.8vw, 2.25rem);
+  line-height: 1.08;
+}
+
+.is-compact .cinematic-headline-hero {
+  font-size: clamp(2rem, 9vw, 2.5rem);
+}
+
+.is-compact .cinematic-dek {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.is-compact .cinematic-copy-statement {
+  top: 210px;
+}
+
+.is-compact .cinematic-word {
+  font-size: clamp(2.65rem, 10vw, 4rem);
+}
+
+.is-compact .cinematic-copy-finale {
+  bottom: auto;
+  display: block;
+  max-height: calc(100dvh - 150px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.is-compact .cinematic-finale-capitol {
+  display: none;
+}
+
+.is-compact .cinematic-topics-inline {
+  margin-top: 20px;
+  gap: 8px;
+}
+
+.is-compact .cinematic-topics button {
+  min-height: 44px;
+  padding: 8px 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.is-compact .cinematic-footer {
+  left: 20px;
+  right: 20px;
+  bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.is-compact .cinematic-footer a {
+  margin-left: 0;
+  margin-right: 16px;
+}
+
+.is-stacked .cinematic-copy {
+  width: calc(100% - 48px);
+}
+
+.is-stacked .cinematic-copy-hero,
+.is-stacked .cinematic-copy-finale {
+  text-align: center;
+}
+
+.is-stacked .cinematic-hero-summary,
+.is-stacked .cinematic-finale-copy {
+  width: 100%;
+  max-width: none;
+}
+
+.is-stacked .cinematic-hero-actions-start,
+.is-stacked .cinematic-finale-actions {
+  justify-content: center;
+  align-items: center;
+}
+
+.is-stacked .cinematic-world {
+  mask-image: linear-gradient(
+    transparent 100px,
+    rgba(0, 0, 0, 0.06) 350px,
+    #000 650px
+  );
+}
+
+.cinematic-mobile-timeline {
+  margin-top: 24px;
+}
+
+.cinematic-mobile-steps {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.cinematic-mobile-steps span {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(244, 239, 230, 0.16);
+  transition: background 0.25s;
+}
+
+.cinematic-mobile-steps .is-seen {
+  background: #c4a35a;
+}
+
+.cinematic-mobile-step {
+  animation: cinematic-step-enter 0.35s ease both;
+}
+
+.cinematic-mobile-step .cinematic-kicker {
+  margin-bottom: 8px;
+}
+
+.cinematic-mobile-step strong {
+  font-family: var(--font-ibm-plex-serif), Georgia, serif;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.cinematic-mobile-step > p:last-child {
+  margin-top: 4px;
+  color: #a6a9b5;
+  font-size: 14px;
+}
+
+@keyframes cinematic-step-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.is-compact:not(.is-stacked) .cinematic-copy {
+  top: 80px;
+  max-height: calc(100dvh - 110px);
+  overflow-y: auto;
+}
+
+.is-compact:not(.is-stacked) .cinematic-headline {
+  font-size: clamp(1.4rem, 3.5vw, 2rem);
+}
+
+.is-compact:not(.is-stacked) .cinematic-copy-left {
+  display: none;
+}
+
+.is-compact:not(.is-stacked) .cinematic-hero-summary .cinematic-dek {
+  text-align: left;
+  font-size: 14px;
+}
+
+.is-compact:not(.is-stacked) .cinematic-hero-actions-start {
+  margin-top: 12px;
+  align-items: flex-start;
+}
+
+.is-compact:not(.is-stacked) .cinematic-copy-finale {
+  top: 48px;
+  width: calc(100% - 48px);
+  max-height: calc(100dvh - 96px);
+}
+
+.is-compact:not(.is-stacked) .cinematic-finale-copy {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 40px;
+}
+
+.is-compact:not(.is-stacked) .cinematic-finale-copy > .cinematic-headline,
+.is-compact:not(.is-stacked) .cinematic-finale-copy > .cinematic-dek,
+.is-compact:not(.is-stacked) .cinematic-finale-actions {
+  grid-column: 1;
+  margin: 0;
+}
+
+.is-compact:not(.is-stacked) .cinematic-finale-form {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  align-self: center;
+  margin: 0;
 }

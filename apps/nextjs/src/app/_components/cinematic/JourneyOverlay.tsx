@@ -9,9 +9,10 @@ import { WaitlistForm } from "../waitlist-form";
 import { TopicPills } from "./AppFace";
 import {
   BILL_NODES,
-  COMPLICATED_BEATS,
-  COPY_BEATS,
   billJourneyAt,
+  compactLayout,
+  COMPLICATED_BEATS,
+  copyOpacityAt,
 } from "./journey";
 import { BillionMark, SectionRule } from "./marks";
 import { useJourney } from "./use-journey";
@@ -29,43 +30,22 @@ function CopyBlock({
     | "lower"
     | "hero"
     | "statement"
-    | "hero-left"
-    | "hero-right"
     | "bill"
     | "finale";
   children: ReactNode;
 }) {
-  const { width } = useJourney();
-  const compact = width < 760;
+  const { width, height } = useJourney();
+  const compact = compactLayout(width, height);
   const visible = opacity > 0.03;
   const shift = (1 - opacity) * 12;
-  const isColumn =
-    align === "left" ||
-    align === "right" ||
-    align === "statement" ||
-    align === "hero-left" ||
-    align === "hero-right" ||
-    align === "bill" ||
-    align === "finale";
-  const stackHero =
-    compact &&
-    (align === "hero-left" ||
-      align === "hero-right" ||
-      align === "bill" ||
-      align === "finale");
-  const centerHero =
-    !compact &&
-    (align === "hero-left" || align === "hero-right" || align === "bill");
-  const pinLower = align === "lower";
-  const transform = stackHero
-    ? `translate(-50%, ${shift}px)`
-    : pinLower
-      ? `translate(-50%, ${shift}px)`
-      : centerHero
-        ? `translateY(calc(-50% + ${shift}px))`
-        : isColumn
-          ? `translateY(${shift}px)`
-          : `translate(-50%, calc(-50% + ${shift}px))`;
+  const transform =
+    align === "bill" && !compact
+      ? `translateY(calc(-50% + ${shift}px))`
+      : align === "lower"
+        ? `translate(-50%, ${shift}px)`
+        : align === "center"
+          ? `translate(-50%, calc(-50% + ${shift}px))`
+          : `translateY(${shift}px)`;
   return (
     <div
       className={`cinematic-copy cinematic-copy-${align}`}
@@ -75,6 +55,8 @@ function CopyBlock({
         pointerEvents: opacity > 0.25 ? "auto" : "none",
       }}
       aria-hidden={!visible}
+      inert={!visible}
+      data-lenis-prevent={compact && align === "finale" ? true : undefined}
     >
       {children}
     </div>
@@ -87,10 +69,11 @@ export function JourneyOverlay() {
     focusTopic,
     setFocusTopic,
     width,
+    height,
   } = useJourney();
+  const compact = compactLayout(width, height);
 
   const bill = billJourneyAt(p);
-  const compact = width < 760;
 
   return (
     <div className="cinematic-overlay" suppressHydrationWarning>
@@ -98,7 +81,12 @@ export function JourneyOverlay() {
         Skip to download
       </a>
 
-      <header className="cinematic-nav" style={{ opacity: p < 0.96 ? 1 : 0 }}>
+      <header
+        className="cinematic-nav"
+        style={{ opacity: p < 0.96 ? 1 : 0 }}
+        inert={p >= 0.96}
+        aria-hidden={p >= 0.96}
+      >
         <span className="cinematic-nav-brand">
           <BillionMark size={28} />
           Billion
@@ -116,37 +104,35 @@ export function JourneyOverlay() {
         </a>
       </header>
 
-      <CopyBlock opacity={COPY_BEATS.hero(p)} align="hero-left">
+      <CopyBlock opacity={copyOpacityAt("hero", p, !!compact)} align="hero">
         <h1 className="cinematic-headline cinematic-headline-hero">
-          Know what
-          <br />
-          government
-          <br />
-          is doing.
+          Know what government is doing.
         </h1>
-      </CopyBlock>
-
-      <CopyBlock opacity={COPY_BEATS.hero(p)} align="hero-right">
-        <p className="cinematic-dek cinematic-dek-left">
-          Bills, elections, courts, and executive actions — in English, on
-          your phone.
-        </p>
-        <div className="cinematic-hero-actions cinematic-hero-actions-start">
-          <a
-            href={APP_STORE_URL}
-            className="cinematic-pill"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() =>
-              posthog.capture("app_store_clicked", { surface: "hero" })
-            }
-          >
-            Download →
-          </a>
+        <div className="cinematic-hero-summary">
+          <p className="cinematic-dek cinematic-dek-left">
+            Bills, elections, courts, and executive actions — in English, on
+            your phone.
+          </p>
+          <div className="cinematic-hero-actions cinematic-hero-actions-start">
+            <a
+              href={APP_STORE_URL}
+              className="cinematic-pill"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() =>
+                posthog.capture("app_store_clicked", { surface: "hero" })
+              }
+            >
+              Download →
+            </a>
+          </div>
         </div>
       </CopyBlock>
 
-      <CopyBlock opacity={COPY_BEATS.complicatedHead(p)} align="left">
+      <CopyBlock
+        opacity={copyOpacityAt("complicatedHead", p, !!compact)}
+        align="left"
+      >
         <SectionRule />
         <p className="cinematic-headline cinematic-headline-sm">
           Government is complicated.
@@ -158,58 +144,82 @@ export function JourneyOverlay() {
       {COMPLICATED_BEATS.map((beat) => (
         <CopyBlock
           key={beat.id}
-          opacity={COPY_BEATS[beat.id](p)}
-          align={compact ? "center" : "statement"}
+          opacity={copyOpacityAt(beat.id, p, !!compact)}
+          align="statement"
         >
           <p className="cinematic-word">{beat.word}</p>
           <p className="cinematic-dek cinematic-dek-left">{beat.line}</p>
         </CopyBlock>
       ))}
 
-      <CopyBlock opacity={COPY_BEATS.bill(p)} align="bill">
+      <CopyBlock opacity={copyOpacityAt("bill", p, !!compact)} align="bill">
         <p className="cinematic-headline cinematic-headline-section">
           A bill enters Congress.
         </p>
         <p className="cinematic-dek cinematic-dek-left">
           Billion keeps the official timeline.
         </p>
-        <div className="cinematic-bill-thread">
-          <div className="cinematic-bill-rail" aria-hidden="true">
-            <span
-              className="cinematic-bill-rail-fill"
-              style={{
-                height: `${((bill.node + 0.5) / BILL_NODES.length) * 100}%`,
-              }}
-            />
-            <span
-              className="cinematic-bill-pip"
-              style={{
-                top: `${((bill.node + 0.5) / BILL_NODES.length) * 100}%`,
-              }}
-            />
-          </div>
-          <ol className="cinematic-bill-steps">
-            {BILL_NODES.map((node, i) => {
-              const active = bill.node === i;
-              const seen = bill.node > i;
-              return (
-                <li
+        {compact ? (
+          <div className="cinematic-mobile-timeline">
+            <div
+              className="cinematic-mobile-steps"
+              aria-label={`Step ${bill.node + 1} of ${BILL_NODES.length}`}
+            >
+              {BILL_NODES.map((node, i) => (
+                <span
                   key={node.id}
-                  className={
-                    active ? "is-active" : seen ? "is-seen" : undefined
-                  }
-                >
-                  <time>{node.date}</time>
-                  <strong>{node.label}</strong>
-                  <em>{node.note}</em>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
+                  className={i <= bill.node ? "is-seen" : undefined}
+                />
+              ))}
+            </div>
+            <div key={bill.node} className="cinematic-mobile-step">
+              <p className="cinematic-kicker">
+                {bill.node + 1} / {BILL_NODES.length} ·{" "}
+                {BILL_NODES[bill.node]?.date}
+              </p>
+              <strong>{BILL_NODES[bill.node]?.label}</strong>
+              <p>{BILL_NODES[bill.node]?.note}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="cinematic-bill-thread">
+            <div className="cinematic-bill-rail" aria-hidden="true">
+              <span
+                className="cinematic-bill-rail-fill"
+                style={{
+                  height: `${((bill.node + 0.5) / BILL_NODES.length) * 100}%`,
+                }}
+              />
+              <span
+                className="cinematic-bill-pip"
+                style={{
+                  top: `${((bill.node + 0.5) / BILL_NODES.length) * 100}%`,
+                }}
+              />
+            </div>
+            <ol className="cinematic-bill-steps">
+              {BILL_NODES.map((node, i) => {
+                const active = bill.node === i;
+                const seen = bill.node > i;
+                return (
+                  <li
+                    key={node.id}
+                    className={
+                      active ? "is-active" : seen ? "is-seen" : undefined
+                    }
+                  >
+                    <time>{node.date}</time>
+                    <strong>{node.label}</strong>
+                    <em>{node.note}</em>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
       </CopyBlock>
 
-      <CopyBlock opacity={COPY_BEATS.personal(p)} align="bill">
+      <CopyBlock opacity={copyOpacityAt("personal", p, !!compact)} align="bill">
         <p className="cinematic-kicker">
           Built for people who don’t live in Washington.
         </p>
@@ -219,13 +229,13 @@ export function JourneyOverlay() {
         <p className="cinematic-dek cinematic-dek-left">
           Choose what you watch. Billion reorganizes around it.
         </p>
-        <TopicPills
-          active={focusTopic}
-          onSelect={(id) => setFocusTopic(id)}
-        />
+        <TopicPills active={focusTopic} onSelect={(id) => setFocusTopic(id)} />
       </CopyBlock>
 
-      <CopyBlock opacity={COPY_BEATS.download(p)} align="finale">
+      <CopyBlock
+        opacity={copyOpacityAt("download", p, !!compact)}
+        align="finale"
+      >
         <div className="cinematic-finale-copy">
           <p className="cinematic-headline cinematic-headline-section">
             Government doesn’t stop moving.
@@ -258,6 +268,8 @@ export function JourneyOverlay() {
 
       <footer
         className="cinematic-footer"
+        inert={p <= 0.92}
+        aria-hidden={p <= 0.92}
         style={{ opacity: p > 0.92 ? 1 : 0 }}
       >
         <span>© 2026 Bryan Hu</span>

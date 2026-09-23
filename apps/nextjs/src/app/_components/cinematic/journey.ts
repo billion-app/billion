@@ -1,5 +1,12 @@
 import type { Vec3 } from "./math";
-import { clamp, lerp, lerp3, pickKeyframes, smootherstep, windowOpacity } from "./math";
+import {
+  clamp,
+  lerp,
+  lerp3,
+  pickKeyframes,
+  smootherstep,
+  windowOpacity,
+} from "./math";
 
 export const CHAPTER_IDS = [
   "hero",
@@ -289,6 +296,47 @@ export const COPY_BEATS = {
     ),
 } as const;
 
+/** Compact copy shares one band, so outgoing and incoming beats cannot overlap. */
+export function copyOpacityAt(
+  beat: keyof typeof COPY_BEATS,
+  progress: number,
+  compact = false,
+) {
+  if (!compact) return COPY_BEATS[beat](progress);
+  if (beat === "hero") {
+    return windowOpacity(
+      progress,
+      -0.01,
+      0,
+      CHAPTER_SPANS.hero.end - 0.05,
+      CHAPTER_SPANS.hero.end - 0.012,
+    );
+  }
+  if (beat === "download") {
+    return windowOpacity(
+      progress,
+      CHAPTER_SPANS.download.start - 0.006,
+      CHAPTER_SPANS.download.start + 0.018,
+      1,
+      1.05,
+    );
+  }
+  const word = COMPLICATED_BEATS.findIndex((item) => item.id === beat);
+  const span =
+    beat === "complicatedHead" || word >= 0
+      ? CHAPTER_SPANS.complicated
+      : CHAPTER_SPANS[beat as "bill" | "personal"];
+  const start = word >= 0 ? span.start + complicatedThird * word : span.start;
+  const end = word >= 0 ? start + complicatedThird : span.end;
+  return windowOpacity(
+    progress,
+    start + 0.012,
+    start + 0.032,
+    end - 0.025,
+    end - 0.012,
+  );
+}
+
 export interface PhonePose {
   xPct: number;
   yPct: number;
@@ -392,66 +440,129 @@ const PHONE_KEYS: readonly PhoneKey[] = [
   },
 ];
 
-const PHONE_KEYS_COMPACT: readonly PhoneKey[] = [
-  {
-    t: 0,
-    xPct: 50,
-    yPct: 88,
-    scale: 1.32,
-    rotateY: 0,
-    rotateX: 0,
-    opacity: 1,
-  },
-  {
-    t: CHAPTER_SPANS.hero.end - 0.02,
-    xPct: 50,
-    yPct: 88,
-    scale: 1.34,
-    rotateY: 2,
-    rotateX: 2,
-    opacity: 1,
-  },
-  {
-    t: CHAPTER_SPANS.complicated.start + 0.02,
-    xPct: 50,
-    yPct: 72,
-    scale: 0.72,
-    rotateY: 12,
-    rotateX: 6,
-    opacity: 1,
-  },
-  {
-    t: CHAPTER_SPANS.bill.start + 0.03,
-    xPct: 50,
-    yPct: 76,
-    scale: 1.06,
-    rotateY: 10,
-    rotateX: 5,
-    opacity: 1,
-  },
-  {
-    t: CHAPTER_SPANS.personal.start + 0.03,
-    xPct: 50,
-    yPct: 76,
-    scale: 1.04,
-    rotateY: 9,
-    rotateX: 5,
-    opacity: 1,
-  },
-  {
-    t: 1,
-    xPct: 50,
-    yPct: 78,
-    scale: 0.92,
-    rotateY: 8,
-    rotateX: 6,
-    opacity: 1,
-  },
-];
+/** Compact scenes stay animated; only the composition changes. */
+export function compactLayout(width: number, height: number) {
+  if (width > 760 && height >= 600) return null;
+  // Keep portrait phones stacked when the software keyboard reduces height.
+  return width <= 480 || (width <= 760 && height >= width) ? "stacked" : "wide";
+}
 
-export function phonePose(progress: number, width: number): PhonePose {
-  const keys = width < 760 ? PHONE_KEYS_COMPACT : PHONE_KEYS;
+function compactPhonePose(
+  progress: number,
+  width: number,
+  height: number,
+): PhonePose {
+  const stacked = compactLayout(width, height) === "stacked";
+  const scale = stacked
+    ? Math.min(width - 64, 320, height * 0.48) / 340
+    : Math.min(width * 0.36, height * 0.46) / 340;
+  const heroTop = Math.max(370, height * 0.44);
+  const keys = [
+    { t: 0, top: heroTop, x: 50, turn: 0, size: 1, opacity: 1 },
+    {
+      t: CHAPTER_SPANS.hero.end - 0.035,
+      top: heroTop - 12,
+      x: 50,
+      turn: -3,
+      size: 1.02,
+      opacity: 1,
+    },
+    {
+      t: CHAPTER_SPANS.complicated.start + 0.03,
+      top: 370,
+      x: 53,
+      turn: -16,
+      size: 0.92,
+      opacity: 1,
+    },
+    {
+      t: CHAPTER_SPANS.bill.start - 0.025,
+      top: 370,
+      x: 48,
+      turn: 12,
+      size: 0.96,
+      opacity: 1,
+    },
+    {
+      t: CHAPTER_SPANS.bill.start + 0.035,
+      top: 390,
+      x: 50,
+      turn: -12,
+      size: 1,
+      opacity: 1,
+    },
+    {
+      t: CHAPTER_SPANS.personal.start - 0.025,
+      top: 390,
+      x: 50,
+      turn: -7,
+      size: 1,
+      opacity: 1,
+    },
+    {
+      t: CHAPTER_SPANS.personal.start + 0.035,
+      top: 450,
+      x: 52,
+      turn: 14,
+      size: 0.94,
+      opacity: 1,
+    },
+    {
+      t: CHAPTER_SPANS.download.start - 0.035,
+      top: 450,
+      x: 52,
+      turn: 10,
+      size: 0.94,
+      opacity: 1,
+    },
+    {
+      t: CHAPTER_SPANS.download.start + 0.005,
+      top: height + 40,
+      x: 50,
+      turn: -18,
+      size: 0.8,
+      opacity: 0,
+    },
+    { t: 1, top: height + 40, x: 50, turn: -18, size: 0.8, opacity: 0 },
+  ];
   const { from, to, local } = pickKeyframes(keys, progress);
+  const fittedScale = scale * lerp(from.size, to.size, local);
+  const top = stacked ? lerp(from.top, to.top, local) : 78;
+  return {
+    xPct: stacked ? lerp(from.x, to.x, local) : 76,
+    yPct: ((top + 350 * fittedScale) / height) * 100,
+    scale: fittedScale,
+    rotateY: lerp(from.turn, to.turn, local),
+    rotateX: 4 * smootherstep(0, CHAPTER_SPANS.hero.end, progress),
+    opacity: lerp(from.opacity, to.opacity, local),
+  };
+}
+
+// Match the fixed 340 × 700 rig in CSS. Fit the opening composition to both
+// viewport dimensions before interpolating into the rest of the journey.
+export function phonePose(
+  progress: number,
+  width: number,
+  height = 800,
+): PhonePose {
+  if (compactLayout(width, height))
+    return compactPhonePose(progress, width, height);
+  const frame = pickKeyframes(PHONE_KEYS, progress);
+  const fitHero = (key: PhoneKey): PhoneKey => {
+    if (key.t > CHAPTER_SPANS.hero.end - 0.02) return key;
+    const stacked = width <= 1100;
+    const phoneWidth = stacked
+      ? Math.min(width - 64, 440)
+      : Math.min(width * 0.34, height * 0.6, 560);
+    const top = stacked
+      ? Math.max(380, height * 0.45)
+      : Math.max(110, height * 0.19);
+    const scale = phoneWidth / 340;
+    return { ...key, scale, yPct: ((top + 350 * scale) / height) * 100 };
+  };
+  const from = fitHero(frame.from);
+  const to = fitHero(frame.to);
+  const { local } = frame;
   return {
     xPct: lerp(from.xPct, to.xPct, local),
     yPct: lerp(from.yPct, to.yPct, local),
@@ -476,11 +587,9 @@ export function phoneFootprint(
   width: number,
   height: number,
 ): PhoneFootprint {
-  const pose = phonePose(progress, width);
-  const compact = width < 760;
-  const hero = Math.abs(pose.rotateY) < 3 && Math.abs(pose.rotateX) < 3;
-  const baseW = compact ? 280 : hero ? 372 : 340;
-  const baseH = compact ? 574 : hero ? 764 : 700;
+  const pose = phonePose(progress, width, height);
+  const baseW = 340;
+  const baseH = 700;
   const pad = 1.12;
   return {
     xPct: pose.xPct,

@@ -6,7 +6,9 @@ import {
   billJourneyAt,
   cameraAt,
   chapterAt,
+  compactLayout,
   COPY_BEATS,
+  copyOpacityAt,
   keepOffPhone,
   layoutMix,
   phoneFootprint,
@@ -58,12 +60,38 @@ void test("hero copy is visible at the first frame", () => {
   assert.ok(COPY_BEATS.hero(0) > 0.5);
 });
 
-void test("the hero phone is huge, frontal, and cropped off the bottom", () => {
-  const hero = phonePose(0, 1200);
-  assert.ok(hero.yPct > 80);
-  assert.ok(hero.scale > 1.4);
-  assert.ok(Math.abs(hero.rotateY) < 1);
-  assert.ok(Math.abs(hero.rotateX) < 1);
+void test("the hero phone fits its column and keeps its frontal crop", () => {
+  for (const [width, height] of [
+    [1101, 600],
+    [1280, 720],
+    [1440, 900],
+    [1920, 1080],
+  ] as const) {
+    const hero = phonePose(0, width, height);
+    const phoneWidth = 340 * hero.scale;
+    const left = width / 2 - phoneWidth / 2;
+    const top = (height * hero.yPct) / 100 - 350 * hero.scale;
+    assert.ok(left > width * 0.28, "phone must leave room for the headline");
+    assert.ok(top >= 110, "phone must clear navigation on short screens");
+    assert.ok(top + 700 * hero.scale > height, "retain the bottom crop");
+    assert.equal(hero.rotateY, 0);
+    assert.equal(hero.rotateX, 0);
+  }
+});
+
+void test("tablet hero leaves a separate band for copy above the phone", () => {
+  for (const width of [761, 820, 1024, 1100]) {
+    const hero = phonePose(0, width, 930);
+    const top = (930 * hero.yPct) / 100 - 350 * hero.scale;
+    assert.ok(top >= 380);
+    assert.ok(340 * hero.scale <= width - 64);
+    const foot = phoneFootprint(0, width, 930);
+    assert.equal(foot.yPct, hero.yPct);
+    assert.ok(
+      Math.abs(foot.halfWPct - ((340 * hero.scale * 1.12) / 2 / width) * 100) <
+        0.001,
+    );
+  }
 });
 
 void test("the phone moves aside while the three statements appear", () => {
@@ -173,4 +201,64 @@ void test("projection keeps a point in front of the camera on screen", () => {
 void test("lerp3 and clamp stay numeric", () => {
   assert.deepEqual(lerp3([0, 0, 0], [10, 0, 0], 0.5), [5, 0, 0]);
   assert.equal(clamp(1.4), 1);
+});
+
+void test("mobile keeps a moving phone below the copy across chapters", () => {
+  for (const [width, height] of [
+    [320, 600],
+    [390, 844],
+    [430, 932],
+  ] as const) {
+    const hero = phonePose(0, width, height);
+    const track = phonePose(0.23, width, height);
+    const bill = phonePose(0.5, width, height);
+    const personal = phonePose(0.7, width, height);
+    for (const pose of [hero, track, bill, personal]) {
+      const top = (height * pose.yPct) / 100 - 350 * pose.scale;
+      assert.ok(top >= 350, "copy has its own band above the phone");
+      assert.ok(top < height - 100, "the product remains visible");
+      assert.equal(pose.opacity, 1);
+    }
+    assert.ok(Math.abs(track.rotateY - hero.rotateY) > 10);
+    assert.ok(Math.abs(personal.rotateY - bill.rotateY) > 15);
+    assert.equal(
+      phonePose(0.86, width, height).opacity,
+      0,
+      "phone clears signup",
+    );
+  }
+});
+
+void test("compact landscape uses a separate product column", () => {
+  assert.equal(compactLayout(844, 390), "wide");
+  assert.equal(
+    compactLayout(390, 300),
+    "stacked",
+    "keyboard does not change portrait composition",
+  );
+  const pose = phonePose(0.5, 844, 390);
+  assert.ok(pose.xPct >= 70);
+  assert.ok(340 * pose.scale < 844 * 0.4);
+});
+
+void test("every bill milestone appears during the mobile timeline", () => {
+  const seen = new Set<number>();
+  for (let p = 0.42; p < 0.6; p += 0.005) seen.add(billJourneyAt(p).node);
+  assert.deepEqual([...seen], [0, 1, 2, 3]);
+});
+
+void test("compact copy hands off without double-exposing headlines", () => {
+  const groups = [
+    ["hero", "complicatedHead", "bill", "personal", "download"],
+    ["track", "understand", "ahead"],
+  ] as const;
+  for (const group of groups) {
+    for (let p = 0; p <= 1; p += 0.001) {
+      const visible = group.filter((beat) => copyOpacityAt(beat, p, true) > 0);
+      assert.ok(
+        visible.length <= 1,
+        `overlapping copy at ${p}: ${visible.join(", ")}`,
+      );
+    }
+  }
 });

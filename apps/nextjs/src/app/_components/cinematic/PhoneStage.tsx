@@ -1,19 +1,19 @@
 "use client";
 
-import { appScreenAt, phonePose } from "./journey";
 import { AppFace } from "./AppFace";
+import { appScreenAt, phonePose } from "./journey";
 import { useJourney } from "./use-journey";
 
 export function PhoneStage() {
-  const { overlayProgress, width } = useJourney();
-  const pose = phonePose(overlayProgress, width);
+  const { overlayProgress, width, height } = useJourney();
+  const pose = phonePose(overlayProgress, width, height);
   const screen = appScreenAt(overlayProgress);
   const flat = Math.abs(pose.rotateY) < 3 && Math.abs(pose.rotateX) < 3;
 
   return (
     <div className="phone-stage" aria-hidden={pose.opacity < 0.08}>
       <div
-        className={`phone-rig${flat ? " is-hero" : ""}`}
+        className={flat ? "phone-rig is-hero" : "phone-rig"}
         style={{
           left: `${pose.xPct}%`,
           top: `${pose.yPct}%`,
@@ -23,7 +23,7 @@ export function PhoneStage() {
       >
         <div className="phone-shadow" />
         <div
-          className={`phone-body${flat ? " is-flat" : ""}`}
+          className={flat ? "phone-body is-flat" : "phone-body"}
           style={{
             transform: `rotateX(${pose.rotateX}deg) rotateY(${pose.rotateY}deg)`,
           }}

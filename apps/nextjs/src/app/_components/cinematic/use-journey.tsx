@@ -87,7 +87,7 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
     const lenis = new Lenis({
       lerp: 0.075,
       smoothWheel: true,
-      syncTouch: true,
+      syncTouch: false,
       touchMultiplier: 1.05,
     });
 
@@ -95,6 +95,13 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
       progressRef.current = progress;
     };
     lenis.on("scroll", onScroll);
+
+    const onResize = () => {
+      const progress = progressRef.current;
+      lenis.resize();
+      lenis.scrollTo(progress * lenis.limit, { immediate: true });
+    };
+    window.addEventListener("resize", onResize);
 
     const onClick = (event: MouseEvent) => {
       const target = event.target;
@@ -132,6 +139,7 @@ export function JourneyProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelAnimationFrame(frame);
       lenis.off("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
       document.removeEventListener("click", onClick, true);
       lenis.destroy();
     };
