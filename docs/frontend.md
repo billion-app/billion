@@ -56,6 +56,8 @@ Mobile imports API types, not the database client. `@acme/db/client` requires No
 
 ## Styling and shared UI
 
+Every new content type must follow the [content-detail design language and workflow](content-detail-design.md): share typography, cards, and source disclosure while designing its own structure and interactions. That guide explains bills and court cases and identifies executive orders as the next structured-output adaptation.
+
 Use [styles.ts](../apps/expo/src/styles.ts) as the mobile styling entry point. It combines shared theme tokens with native helpers and reusable styles. The [Expo styling guide](expo-styling.md) explains tokens, spacing, and the theme hook.
 
 `packages/ui` contains web components, native helpers, and shared tokens. Radix/shadcn web components require browser APIs; choose native exports or mobile components for Expo. `pnpm ui-add` adds shared web components.

@@ -4,6 +4,8 @@ All styling in the Expo app is consolidated into a single location: `apps/expo/s
 
 **Import everything from `~/styles`** — no need to import from `@acme/ui/theme-tokens` directly. Do **not** add a parallel palette file or `~/theme` package; Digest surfaces (`DigestPalette`, `DigestRadii`, `digest`, etc.) live in `styles.ts` next to `planes` / `hair`.
 
+For content-detail screens, follow the mandatory [content-detail design language and workflow](content-detail-design.md). Shared typography, cards, and source disclosure support content-specific structures and interactions; a new type needs more than a restyled bill screen.
+
 ## What's Available
 
 ```tsx
@@ -21,8 +23,8 @@ import {
   createSearchStyles, // createSearchStyles(theme) → search input styles
   createTabContainerStyles, // createTabContainerStyles(theme) → tab bar styles
   darkTheme, // Dark mode semantic colors
-  DigestPalette, // Digest night/paper/spark roles (aliases of planes + digest)
   digest, // Digest accents (spark, quiet, badges)
+  DigestPalette, // Digest night/paper/spark roles (aliases of planes + digest)
   fontSize, // Font sizes (fontSize.base, fontSize.xl, etc.)
   fontWeight, // Font weights (fontWeight.bold, fontWeight.medium, etc.)
   // Helper functions
