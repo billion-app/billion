@@ -25,6 +25,7 @@ import {
   BillBrief,
   Card,
   CourtBrief,
+  CourtOpinions,
   GhostButton,
   Icon,
   Kicker,
@@ -57,12 +58,14 @@ import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 
 export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
+type ArticleMode = "explainer" | "opinions" | "source";
+
 export default function ArticleDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  const [mode, setMode] = useState<"explainer" | "source">("explainer");
+  const [mode, setMode] = useState<ArticleMode>("explainer");
   const [provenanceOpen, setProvenanceOpen] = useState(false);
   const [sourceHighlight, setSourceHighlight] = useState<BriefQuote | null>(
     null,
@@ -86,7 +89,7 @@ export default function ArticleDetailScreen() {
     ),
   );
 
-  const handleModeChange = (newMode: "explainer" | "source") => {
+  const handleModeChange = (newMode: ArticleMode) => {
     setSourceHighlight(null);
     setMode(newMode);
     posthog.capture("article_view_mode_toggled", {
@@ -264,7 +267,7 @@ export default function ArticleDetailScreen() {
   const hasBrief = Boolean(brief ?? courtBrief);
 
   const rawContent =
-    mode === "explainer" ? content.articleContent : content.originalContent;
+    mode === "source" ? content.originalContent : content.articleContent;
   // The types say this is a string, but the router has no `.output()` schema,
   // so nothing enforces that at runtime. `.includes`/`.length` on a null would
   // take the whole app down rather than render an empty article.
@@ -477,15 +480,32 @@ export default function ArticleDetailScreen() {
             options={[
               {
                 id: "explainer",
-                label: hasBrief ? "The brief" : "Plain explainer",
+                label:
+                  content.type === "court_case"
+                    ? "Case brief"
+                    : hasBrief
+                      ? "The brief"
+                      : "Plain explainer",
                 icon: "sparkle",
               },
-              { id: "source", label: "Original text", icon: "doc" },
+              ...(content.type === "court_case" && courtBrief?.opinions.length
+                ? ([
+                    { id: "opinions", label: "Opinions", icon: "message" },
+                  ] as const)
+                : []),
+              {
+                id: "source",
+                label:
+                  content.type === "court_case"
+                    ? "Court record"
+                    : "Original text",
+                icon: "doc",
+              },
             ]}
           />
         </View>
 
-        {mode === "explainer" && (
+        {mode !== "source" && (
           <TouchableOpacity
             style={s.disclaimer}
             activeOpacity={0.72}
@@ -517,8 +537,11 @@ export default function ArticleDetailScreen() {
                   {hasBrief
                     ? "Quoted passages are checked against that source; everything else is AI analysis."
                     : "The plain-language explanation is AI analysis."}{" "}
-                  Use Original text or the linked official site to verify
-                  details.
+                  Use{" "}
+                  {content.type === "court_case"
+                    ? "Court record"
+                    : "Original text"}{" "}
+                  or the linked official site to verify details.
                 </Text>
               ) : null}
             </View>
@@ -528,9 +551,11 @@ export default function ArticleDetailScreen() {
         {mode === "source" && sourceUrl && (
           <PrimaryButton
             label={
-              officialUrl
-                ? "View Federal Register record"
-                : "View on Original Site"
+              content.type === "court_case"
+                ? "Open official court record"
+                : officialUrl
+                  ? "View Federal Register record"
+                  : "View on Original Site"
             }
             icon="external"
             onPress={handleOpenOriginal}
@@ -553,6 +578,13 @@ export default function ArticleDetailScreen() {
                 content.lensData ? <LensPanel data={content.lensData} /> : null
               }
               onViewSource={handleViewSource}
+              includeOpinions={!courtBrief.opinions.length}
+            />
+          ) : mode === "opinions" && courtBrief ? (
+            <CourtOpinions
+              data={courtBrief}
+              accent={t.color}
+              onViewSource={handleViewSource}
             />
           ) : mode === "explainer" && brief ? (
             <BillBrief
@@ -568,6 +600,9 @@ export default function ArticleDetailScreen() {
               content={content.originalContent}
               quote={sourceHighlight}
               accent={t.color}
+              title={
+                content.type === "court_case" ? "Court record" : "Original text"
+              }
               onTargetLayout={handleSourceTargetLayout}
             />
           ) : renderMarkdown ? (
@@ -685,21 +720,32 @@ export default function ArticleDetailScreen() {
             record. The source tab already has that action at the top. */}
         {mode === "explainer" ? (
           <View style={s.exit}>
-            <Text style={s.exitTitle}>Don&apos;t take our word for it.</Text>
+            <Text style={s.exitTitle}>
+              {content.type === "court_case"
+                ? "Check the court record."
+                : "Don't take our word for it."}
+            </Text>
             <Text style={s.exitSub}>
-              Read the full, unedited text and track every action on the
-              official record.
+              {content.type === "court_case"
+                ? "Read the court's published documents and verify the procedural posture for yourself."
+                : "Read the full, unedited text and track every action on the official record."}
             </Text>
             <PrimaryButton
-              label="Open the source"
+              label={
+                content.type === "court_case"
+                  ? "Open official court record"
+                  : "Open the source"
+              }
               icon="external"
               onPress={handleOpenOriginal}
             />
-            <GhostButton
-              label="View all related records"
-              onPress={handleOpenOriginal}
-              style={{ width: "100%", marginTop: 6 }}
-            />
+            {content.type !== "court_case" ? (
+              <GhostButton
+                label="View all related records"
+                onPress={handleOpenOriginal}
+                style={{ width: "100%", marginTop: 6 }}
+              />
+            ) : null}
           </View>
         ) : null}
       </ScrollView>
@@ -736,11 +782,13 @@ function HighlightedSource({
   content,
   quote,
   accent,
+  title,
   onTargetLayout,
 }: {
   content: string;
   quote: BriefQuote;
   accent: string;
+  title: string;
   onTargetLayout: (event: LayoutChangeEvent) => void;
 }) {
   const exactIndex = content.indexOf(quote.text);
@@ -769,7 +817,7 @@ function HighlightedSource({
           <Icon name="doc" size={15} color={accent} />
         </View>
         <View style={s.sourceDocumentHeadCopy}>
-          <Text style={s.sourceDocumentTitle}>Original text</Text>
+          <Text style={s.sourceDocumentTitle}>{title}</Text>
           <Text style={s.sourceDocumentMeta}>
             {quote.locator
               ? `Highlighted passage · ${quote.locator}`

@@ -41,7 +41,7 @@ void test(
     });
     try {
       Object.assign(globalThis, { React });
-      const { CourtBrief } = await import("./CourtBrief");
+      const { CourtBrief, CourtOpinions } = await import("./CourtBrief");
       const { renderToStaticMarkup } = createRequire(import.meta.url)(
         "react-dom/server",
       ) as { renderToStaticMarkup: (element: React.ReactElement) => string };
@@ -66,6 +66,13 @@ void test(
       assert.match(html, /role="link"/);
       assert.match(html, /Open full official document document-1/);
       assert.doesNotMatch(html, /Becomes law|Committee review/);
+      const opinionsHtml = renderToStaticMarkup(
+        React.createElement(CourtOpinions, { data: valid.courtBrief }),
+      );
+      assert.match(opinionsHtml, /Read the opinions/);
+      assert.match(opinionsHtml, /CONCURRENCE/);
+      assert.match(opinionsHtml, /DISSENT/);
+      assert.match(opinionsHtml, /Official documents/);
       writeFileSync(join(directory, "court-brief.html"), html);
       for (const name of ["missing", "stale", "invalid"]) {
         const detail = JSON.parse(

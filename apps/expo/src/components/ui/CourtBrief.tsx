@@ -179,16 +179,121 @@ function PointCard({
   );
 }
 
+function OpinionsSection({
+  data,
+  accent,
+  onViewSource,
+}: {
+  data: CourtBriefData;
+  accent: string;
+  onViewSource?: (quote: BriefQuote) => void;
+}) {
+  if (!data.opinions.length) return null;
+  return (
+    <>
+      <BlockTitle>Separate opinions</BlockTitle>
+      <View style={s.cardList} testID="court-brief-opinions">
+        {data.opinions.map((opinion, index) => {
+          const treatment = OPINION[opinion.kind];
+          return (
+            <View
+              key={index}
+              style={[s.opinionCard, { borderLeftColor: treatment.color }]}
+            >
+              <View style={s.opinionHead}>
+                <Text style={[s.opinionKind, { color: treatment.color }]}>
+                  {treatment.label}
+                </Text>
+                <Text style={s.opinionAuthor}>
+                  {opinion.author ?? "Author not established"}
+                </Text>
+              </View>
+              <Text style={s.opinionText}>{opinion.text}</Text>
+              <QuoteDisclosure
+                point={opinion}
+                accent={accent}
+                onViewSource={onViewSource}
+              />
+              <SourcePills data={data} point={opinion} />
+            </View>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
+function UnknownsCard({
+  data,
+  accent,
+}: {
+  data: CourtBriefData;
+  accent: string;
+}) {
+  return (
+    <View style={s.unknownCard} testID="court-brief-unknowns">
+      <View style={s.unknownHead}>
+        <Icon name="help" size={15} color={colors.textSecondary} />
+        <Text style={s.unknownTitle}>What the ruling doesn&apos;t settle</Text>
+      </View>
+      <View style={s.unknownList}>
+        {data.unknowns.map((unknown, index) => (
+          <View key={index} style={s.unknownRow}>
+            <Text style={[s.unknownIndex, { color: accent }]}>
+              {String(index + 1).padStart(2, "0")}
+            </Text>
+            <Text style={s.unknownText}>{unknown}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function OfficialDocuments({ data }: { data: CourtBriefData }) {
+  return (
+    <>
+      <BlockTitle>Official documents</BlockTitle>
+      <View style={s.documentList} testID="court-brief-sources">
+        {data.sources.map((source, index) => (
+          <TouchableOpacity
+            key={source.id}
+            style={s.documentCard}
+            activeOpacity={0.75}
+            accessibilityRole="link"
+            accessibilityLabel={`Open full official document ${source.id}`}
+            onPress={() => void Linking.openURL(source.url)}
+          >
+            <View style={s.documentIcon}>
+              <Icon name="doc" size={15} color={colors.textSecondary} />
+            </View>
+            <View style={s.documentCopy}>
+              <Text style={s.documentEyebrow}>OFFICIAL COURT RECORD</Text>
+              <Text style={s.documentTitle}>Document {index + 1}</Text>
+              <Text style={s.documentUrl} numberOfLines={1}>
+                {source.url}
+              </Text>
+            </View>
+            <Icon name="external" size={14} color={colors.textSecondary} />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </>
+  );
+}
+
 export function CourtBrief({
   data,
   accent = colors.civicBlue,
   dualLens,
   onViewSource,
+  includeOpinions = true,
 }: {
   data: CourtBriefData;
   accent?: string;
   dualLens?: ReactNode;
   onViewSource?: (quote: BriefQuote) => void;
+  includeOpinions?: boolean;
 }) {
   const proceeding = PROCEEDING[data.proceeding];
 
@@ -354,57 +459,15 @@ export function CourtBrief({
         </>
       ) : null}
 
-      {data.opinions.length ? (
-        <>
-          <BlockTitle>Separate opinions</BlockTitle>
-          <View style={s.cardList} testID="court-brief-opinions">
-            {data.opinions.map((opinion, index) => {
-              const treatment = OPINION[opinion.kind];
-              return (
-                <View
-                  key={index}
-                  style={[s.opinionCard, { borderLeftColor: treatment.color }]}
-                >
-                  <View style={s.opinionHead}>
-                    <Text style={[s.opinionKind, { color: treatment.color }]}>
-                      {treatment.label}
-                    </Text>
-                    <Text style={s.opinionAuthor}>
-                      {opinion.author ?? "Author not established"}
-                    </Text>
-                  </View>
-                  <Text style={s.opinionText}>{opinion.text}</Text>
-                  <QuoteDisclosure
-                    point={opinion}
-                    accent={accent}
-                    onViewSource={onViewSource}
-                  />
-                  <SourcePills data={data} point={opinion} />
-                </View>
-              );
-            })}
-          </View>
-        </>
+      {includeOpinions ? (
+        <OpinionsSection
+          data={data}
+          accent={accent}
+          onViewSource={onViewSource}
+        />
       ) : null}
 
-      <View style={s.unknownCard} testID="court-brief-unknowns">
-        <View style={s.unknownHead}>
-          <Icon name="help" size={15} color={colors.textSecondary} />
-          <Text style={s.unknownTitle}>
-            What the ruling doesn&apos;t settle
-          </Text>
-        </View>
-        <View style={s.unknownList}>
-          {data.unknowns.map((unknown, index) => (
-            <View key={index} style={s.unknownRow}>
-              <Text style={[s.unknownIndex, { color: accent }]}>
-                {String(index + 1).padStart(2, "0")}
-              </Text>
-              <Text style={s.unknownText}>{unknown}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
+      <UnknownsCard data={data} accent={accent} />
 
       {dualLens ? (
         <View style={s.lensSection}>
@@ -413,31 +476,45 @@ export function CourtBrief({
         </View>
       ) : null}
 
-      <BlockTitle>Official documents</BlockTitle>
-      <View style={s.documentList} testID="court-brief-sources">
-        {data.sources.map((source, index) => (
-          <TouchableOpacity
-            key={source.id}
-            style={s.documentCard}
-            activeOpacity={0.75}
-            accessibilityRole="link"
-            accessibilityLabel={`Open full official document ${source.id}`}
-            onPress={() => void Linking.openURL(source.url)}
-          >
-            <View style={s.documentIcon}>
-              <Icon name="doc" size={15} color={colors.textSecondary} />
-            </View>
-            <View style={s.documentCopy}>
-              <Text style={s.documentEyebrow}>OFFICIAL COURT RECORD</Text>
-              <Text style={s.documentTitle}>Document {index + 1}</Text>
-              <Text style={s.documentUrl} numberOfLines={1}>
-                {source.url}
-              </Text>
-            </View>
-            <Icon name="external" size={14} color={colors.textSecondary} />
-          </TouchableOpacity>
-        ))}
+      <OfficialDocuments data={data} />
+    </View>
+  );
+}
+
+/** Court opinions are a first-class reading mode, not a bill-style footnote. */
+export function CourtOpinions({
+  data,
+  accent = colors.civicBlue,
+  onViewSource,
+}: {
+  data: CourtBriefData;
+  accent?: string;
+  onViewSource?: (quote: BriefQuote) => void;
+}) {
+  return (
+    <View style={s.root} testID="court-opinions">
+      <View style={[s.opinionsIntro, { borderLeftColor: accent }]}>
+        <View style={[s.summaryIcon, { backgroundColor: `${accent}28` }]}>
+          <Icon name="message" size={16} color={accent} />
+        </View>
+        <View style={s.opinionsIntroCopy}>
+          <Text style={s.opinionsIntroTitle}>Read the opinions</Text>
+          <Text style={s.opinionsIntroText}>
+            Separate writings can agree with the result, reject it, or explain a
+            different path. They are not the court&apos;s controlling order.
+          </Text>
+          <Text style={s.scopeMeta}>
+            {data.court} · {data.docket}
+          </Text>
+        </View>
       </View>
+      <OpinionsSection
+        data={data}
+        accent={accent}
+        onViewSource={onViewSource}
+      />
+      <UnknownsCard data={data} accent={accent} />
+      <OfficialDocuments data={data} />
     </View>
   );
 }
@@ -524,6 +601,29 @@ const s = StyleSheet.create({
     fontSize: 10.5,
     lineHeight: 16,
     color: colors.textSecondary,
+  },
+  opinionsIntro: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 11,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderLeftWidth: 3,
+    borderRadius: 14,
+    padding: 15,
+  },
+  opinionsIntroCopy: { flex: 1, gap: 5 },
+  opinionsIntroTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    color: colors.white,
+  },
+  opinionsIntroText: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "rgba(255,255,255,0.74)",
   },
   rulingCard: {
     backgroundColor: planes.slate,

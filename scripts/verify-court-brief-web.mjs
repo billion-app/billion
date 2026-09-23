@@ -56,6 +56,19 @@ async function browser(...args) {
   );
   return stdout;
 }
+async function scrollToText(text) {
+  await browser(
+    "eval",
+    `(() => {
+      const target = [...document.querySelectorAll('[dir="auto"]')]
+        .find((node) => node.textContent?.trim() === ${JSON.stringify(text)});
+      if (!target) throw new Error(${JSON.stringify(`Missing text: ${text}`)});
+      target.scrollIntoView({ block: "start" });
+      window.scrollBy(0, -72);
+    })()`,
+  );
+  await browser("wait", "250");
+}
 try {
   await browser("set", "viewport", "390", "844");
   await browser("open", `${webUrl}/article-detail?id=valid`);
@@ -75,11 +88,27 @@ try {
       assert.match(text, /How the court got there/);
       assert.match(text, /Who it lands on/);
       assert.match(text, /What the ruling doesn.t settle/);
-      assert.match(text, /CONCURRENCE/);
-      assert.match(text, /DISSENT/);
       await browser(
         "screenshot",
         join(screenshotDirectory, "court-brief-overview.png"),
+      );
+      await scrollToText("What the court did");
+      await browser(
+        "screenshot",
+        join(screenshotDirectory, "court-brief-ruling.png"),
+      );
+      await browser(
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Show the source text",
+      );
+      await scrollToText("What the court did");
+      await browser(
+        "screenshot",
+        join(screenshotDirectory, "court-brief-source-quote.png"),
       );
       const snapshot = await browser("snapshot", "-i");
       assert.match(snapshot, /Open full official document document-1/);
@@ -101,6 +130,12 @@ try {
         ).includes(details.valid.courtBrief.sources[0].url),
       );
       await browser("eval", "window.open=window.__courtOriginalOpen");
+      await browser("find", "text", "Opinions", "click");
+      await browser("wait", '[data-testid="court-opinions"]');
+      const opinionsText = await browser("get", "text", "body");
+      assert.match(opinionsText, /Read the opinions/);
+      assert.match(opinionsText, /CONCURRENCE/);
+      assert.match(opinionsText, /DISSENT/);
       await browser(
         "screenshot",
         join(screenshotDirectory, "court-brief-details.png"),
@@ -118,7 +153,7 @@ try {
   }
   await browser("open", `${webUrl}/article-detail?id=valid`);
   await browser("wait", '[data-testid="article-content"]');
-  await browser("find", "text", "Original text", "click");
+  await browser("find", "text", "Court record", "click");
   await browser("wait", '[data-testid="article-content"]');
   assert.match(await browser("get", "text", "body"), /application for stay/);
   await browser(
