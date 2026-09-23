@@ -400,7 +400,8 @@ pnpm --filter @acme/scraper repair-bill-descriptions --apply --manifest /tmp/bil
   no usable source text, no valid article, or no structured bill brief);
   **`--mode replace`** (the default) regenerates every derived asset.
 - **`--assets images`** limits work to source/search thumbnails;
-  `--assets all` (default) also regenerates long-form text and dual lenses.
+  **`--assets briefs`** limits work to structured bill or court briefs; and
+  `--assets all` (default) regenerates long-form text and dual lenses too.
 - Selection can be scoped with `--type`, `--limit`, `--id`, and `--after-id`
   (resume-after-UUID, single-type only), at `--concurrency` 1–5.
 - **Missing source text is re-fetched, not skipped.** When a row's `full_text`
