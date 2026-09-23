@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { PAGE_SIZE, parseBrowseParams } from "~/lib/browse-params";
 import { JURISDICTIONS } from "~/lib/jurisdictions";
-import { HydrateClient, prefetch, trpc } from "~/trpc/server";
+import { HydrateClient, prefetchNow, trpc } from "~/trpc/server";
 import { BrowseCatalog } from "./_components/browse-catalog";
 
 interface PageProps {
@@ -30,19 +30,25 @@ export default async function BrowsePage({ searchParams }: PageProps) {
   const { scope, type, q } = parseBrowseParams(await searchParams);
   const jurisdiction = scope ?? "federal";
 
-  prefetch(
-    trpc.content.getByType.infiniteQueryOptions(
-      { type, limit: PAGE_SIZE, jurisdiction },
-      { initialCursor: 0, getNextPageParam: (page) => page.nextCursor },
+  // Awaited, not streamed: the first page belongs in the HTML, and the
+  // catalog's plain `useQuery` hooks must hydrate against data, not a spinner.
+  await Promise.all([
+    prefetchNow(
+      trpc.content.getByType.infiniteQueryOptions(
+        { type, limit: PAGE_SIZE, jurisdiction },
+        { initialCursor: 0, getNextPageParam: (page) => page.nextCursor },
+      ),
     ),
-  );
-  if (!q && (type === "all" || type === "bill")) {
-    prefetch(trpc.content.getFeaturedBills.queryOptions({ jurisdiction }));
-  }
+    !q && (type === "all" || type === "bill")
+      ? prefetchNow(
+          trpc.content.getFeaturedBills.queryOptions({ jurisdiction }),
+        )
+      : undefined,
+  ]);
 
   return (
     <HydrateClient>
-      {/* useSearchParams needs a boundary; the prefetched data streams in. */}
+      {/* useSearchParams needs a Suspense boundary to render on the server. */}
       <Suspense>
         <BrowseCatalog />
       </Suspense>

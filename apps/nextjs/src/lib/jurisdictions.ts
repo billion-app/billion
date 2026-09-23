@@ -45,7 +45,9 @@ export const JURISDICTIONS: Record<Scope, JurisdictionInfo> = {
 
 /** Display body for any jurisdiction the API may return, including `mo`. */
 export const STATE_BODIES: Record<string, string | undefined> = {
-  ...Object.fromEntries(SCOPES.map((scope) => [scope, JURISDICTIONS[scope].body])),
+  ...Object.fromEntries(
+    SCOPES.map((scope) => [scope, JURISDICTIONS[scope].body]),
+  ),
   mo: "Missouri General Assembly",
 };
 

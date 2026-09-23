@@ -7,11 +7,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { BrowseParams, TypeFilter } from "~/lib/browse-params";
 import type { ContentListItem } from "~/lib/content-card";
 import type { Scope } from "~/lib/jurisdictions";
-import {
-  browseHref,
-  PAGE_SIZE,
-  parseBrowseParams,
-} from "~/lib/browse-params";
+import { browseHref, PAGE_SIZE, parseBrowseParams } from "~/lib/browse-params";
 import { toCardItem, withoutFeatured } from "~/lib/content-card";
 import { isStateScope, JURISDICTIONS } from "~/lib/jurisdictions";
 import { useStoredJurisdiction } from "~/lib/reader-state";
@@ -58,22 +54,32 @@ export function BrowseCatalog() {
   const [query, setQuery] = useState(params.q);
   const debouncedQuery = useDebounced(query, 300);
 
-  // Keep the box in step when history moves under it (back / forward).
+  // Keep the box in step when history moves under it (back / forward),
+  // without trimming the space the reader is in the middle of typing.
   const urlQuery = params.q;
-  const lastWritten = useRef(urlQuery);
-  useEffect(() => {
-    if (urlQuery !== lastWritten.current) {
-      lastWritten.current = urlQuery;
-      setQuery(urlQuery);
-    }
-  }, [urlQuery]);
+  const [seenUrlQuery, setSeenUrlQuery] = useState(urlQuery);
+  if (urlQuery !== seenUrlQuery) {
+    setSeenUrlQuery(urlQuery);
+    if (urlQuery !== query.trim()) setQuery(urlQuery);
+  }
 
-  useEffect(() => {
-    const next = debouncedQuery.trim();
-    if (next === lastWritten.current) return;
-    lastWritten.current = next;
-    navigate({ scope, type, q: next }, "replace");
-  }, [debouncedQuery, scope, type]);
+  // Typing writes the URL after a pause, reading scope and type from the URL
+  // at that moment so a filter clicked mid-pause is not overwritten.
+  const writeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(writeTimer.current), []);
+  const changeQuery = (next: string) => {
+    setQuery(next);
+    clearTimeout(writeTimer.current);
+    writeTimer.current = setTimeout(() => {
+      const current = parseBrowseParams(
+        new URLSearchParams(window.location.search),
+      );
+      navigate(
+        { scope: current.scope ?? "federal", type: current.type, q: next },
+        "replace",
+      );
+    }, 300);
+  };
 
   const setScope = (next: Scope) => {
     setJurisdiction(next);
@@ -172,7 +178,7 @@ export function BrowseCatalog() {
           language.
         </p>
         <div className="mt-[18px] mb-2 md:mt-0">
-          <SearchField value={query} onChange={setQuery} />
+          <SearchField value={query} onChange={changeQuery} />
         </div>
         <div className="pt-[10px] pb-1 md:hidden">
           <FilterPills value={type} onChange={setType} layout="scroll" />
@@ -255,7 +261,10 @@ export function BrowseCatalog() {
   );
 }
 
-function navigate(view: BrowseParams & { scope: Scope }, mode: "push" | "replace") {
+function navigate(
+  view: BrowseParams & { scope: Scope },
+  mode: "push" | "replace",
+) {
   const href = browseHref(view);
   const current = window.location.pathname + window.location.search;
   if (href === current) return;
@@ -280,10 +289,18 @@ function RailLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function LoadMore({ loading, onLoad }: { loading: boolean; onLoad: () => void }) {
+function LoadMore({
+  loading,
+  onLoad,
+}: {
+  loading: boolean;
+  onLoad: () => void;
+}) {
   const sentinel = useRef<HTMLDivElement>(null);
   const onLoadRef = useRef(onLoad);
-  onLoadRef.current = onLoad;
+  useEffect(() => {
+    onLoadRef.current = onLoad;
+  });
 
   useEffect(() => {
     const el = sentinel.current;

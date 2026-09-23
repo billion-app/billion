@@ -32,31 +32,32 @@
 
 ## File map
 
-| File | Responsibility |
-| --- | --- |
-| `packages/ui/src/digest-tokens.ts` (new) | Plain-data Digest palette, hairlines, radii, spacing, type scale, content-type colors |
-| `packages/ui/package.json` | add `./digest-tokens` export |
-| `apps/expo/src/styles.ts` | import + re-export Digest values from `@acme/ui/digest-tokens` |
-| `apps/nextjs/src/lib/digest-css.ts` (+test) | turn tokens into one `:root{--digest-…}` block |
-| `apps/nextjs/src/app/globals.css` | `@theme inline` mapping `--color-digest-*` → vars |
-| `apps/nextjs/src/lib/browse-params.ts` (+test) | parse/serialize `scope`, `type`, `q` |
-| `apps/nextjs/src/lib/jurisdictions.ts` | web display copy for jurisdictions |
-| `apps/nextjs/src/lib/content-card.ts` (+test) | `toCardItem`, `relativeActivity`, `withoutFeatured`, type presentation |
-| `apps/nextjs/src/lib/reader-state.ts` (+test) | `ReaderState` interface, localStorage impl, `useSaved`/`useJurisdiction` hooks |
-| `apps/nextjs/src/lib/source-match.ts` (+test) | locate a quote inside original text |
-| `apps/nextjs/src/app/(reader)/layout.tsx` | tokens `<style>`, web chrome (wordmark, Browse, Saved) |
-| `apps/nextjs/src/app/(reader)/_components/*` | `SiteBar`, `Icon`, `SaveButton` |
-| `apps/nextjs/src/app/(reader)/browse/page.tsx` | server prefetch + `HydrateClient` |
-| `apps/nextjs/src/app/(reader)/browse/_components/*` | `BrowseCatalog`, `ScopeBar`, `SearchField`, `FilterPills`, `FeaturedRail`, `ResultCard`, states |
-| `apps/nextjs/src/app/(reader)/browse/saved/page.tsx` | saved list |
-| `apps/nextjs/src/app/(reader)/read/[id]/page.tsx` + `reader-content.ts` | server fetch, metadata, 404 |
-| `apps/nextjs/src/app/(reader)/read/_components/*` | `ReaderHeader`, `ReaderBody`, `BriefBlocks`, `LensPanel`, `Timeline`, `SourcePanel`, `Markdown` |
+| File                                                                    | Responsibility                                                                                  |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `packages/ui/src/digest-tokens.ts` (new)                                | Plain-data Digest palette, hairlines, radii, spacing, type scale, content-type colors           |
+| `packages/ui/package.json`                                              | add `./digest-tokens` export                                                                    |
+| `apps/expo/src/styles.ts`                                               | import + re-export Digest values from `@acme/ui/digest-tokens`                                  |
+| `apps/nextjs/src/lib/digest-css.ts` (+test)                             | turn tokens into one `:root{--digest-…}` block                                                  |
+| `apps/nextjs/src/app/globals.css`                                       | `@theme inline` mapping `--color-digest-*` → vars                                               |
+| `apps/nextjs/src/lib/browse-params.ts` (+test)                          | parse/serialize `scope`, `type`, `q`                                                            |
+| `apps/nextjs/src/lib/jurisdictions.ts`                                  | web display copy for jurisdictions                                                              |
+| `apps/nextjs/src/lib/content-card.ts` (+test)                           | `toCardItem`, `relativeActivity`, `withoutFeatured`, type presentation                          |
+| `apps/nextjs/src/lib/reader-state.ts` (+test)                           | `ReaderState` interface, localStorage impl, `useSaved`/`useJurisdiction` hooks                  |
+| `apps/nextjs/src/lib/source-match.ts` (+test)                           | locate a quote inside original text                                                             |
+| `apps/nextjs/src/app/(reader)/layout.tsx`                               | tokens `<style>`, web chrome (wordmark, Browse, Saved)                                          |
+| `apps/nextjs/src/app/(reader)/_components/*`                            | `SiteBar`, `Icon`, `SaveButton`                                                                 |
+| `apps/nextjs/src/app/(reader)/browse/page.tsx`                          | server prefetch + `HydrateClient`                                                               |
+| `apps/nextjs/src/app/(reader)/browse/_components/*`                     | `BrowseCatalog`, `ScopeBar`, `SearchField`, `FilterPills`, `FeaturedRail`, `ResultCard`, states |
+| `apps/nextjs/src/app/(reader)/browse/saved/page.tsx`                    | saved list                                                                                      |
+| `apps/nextjs/src/app/(reader)/read/[id]/page.tsx` + `reader-content.ts` | server fetch, metadata, 404                                                                     |
+| `apps/nextjs/src/app/(reader)/read/_components/*`                       | `ReaderHeader`, `ReaderBody`, `BriefBlocks`, `LensPanel`, `Timeline`, `SourcePanel`, `Markdown` |
 
 ---
 
 ### Task 1: Shared Digest tokens
 
 **Files:**
+
 - Create: `packages/ui/src/digest-tokens.ts`
 - Modify: `packages/ui/package.json` (exports)
 - Modify: `apps/expo/src/styles.ts:31-230` (replace literal definitions with imports + re-exports)
@@ -64,6 +65,7 @@
 - Modify: `apps/nextjs/src/app/globals.css`
 
 **Interfaces:**
+
 - Produces: `planes`, `hair`, `digest`, `DigestHair`, `DigestRadii`, `DigestSpace`, `contentTypeColors` from `@acme/ui/digest-tokens`, and `digestCssVariables(): string` from `~/lib/digest-css`. The CSS names follow `--digest-<group>-<key>`, e.g. `--digest-planes-navy` and `--digest-hair-card-border`.
 
 - [ ] **Step 1:** Move the literal objects `planes`, `hair`, `digest`, `DigestHair`, `DigestRadii`, `DigestSpace` and the `contentType` colors from `styles.ts` into `digest-tokens.ts`, unchanged, `as const`, with no React Native imports.
@@ -76,11 +78,13 @@
 ### Task 2: Browse URL params, jurisdictions, card mapping
 
 **Files:**
+
 - Create: `apps/nextjs/src/lib/browse-params.ts` (+ `.test.ts`)
 - Create: `apps/nextjs/src/lib/jurisdictions.ts`
 - Create: `apps/nextjs/src/lib/content-card.ts` (+ `.test.ts`)
 
 **Interfaces:**
+
 - Produces:
   - `type Scope = "federal" | "ca" | "nc" | "tx"`; `type TypeFilter = "all" | "bill" | "government_content" | "court_case" | "general"`
   - `parseBrowseParams(sp: Record<string, string | string[] | undefined> | URLSearchParams): { scope: Scope | null; type: TypeFilter; q: string }`
@@ -100,12 +104,17 @@
 ### Task 3: ReaderState
 
 **Files:**
+
 - Create: `apps/nextjs/src/lib/reader-state.ts` (+ `.test.ts`)
 
 **Interfaces:**
+
 - Produces:
   ```ts
-  interface SaveMeta { type: string; title: string }
+  interface SaveMeta {
+    type: string;
+    title: string;
+  }
   interface ReaderState {
     savedIds(): Promise<string[]>;
     save(id: string, meta: SaveMeta): Promise<void>;
@@ -114,9 +123,19 @@
     setJurisdiction(j: Scope): Promise<void>;
     subscribe(listener: () => void): () => void;
   }
-  function createLocalReaderState(storage: Pick<Storage,"getItem"|"setItem"> | null): ReaderState
-  function useSavedIds(): { ids: string[]; ready: boolean; isSaved(id): boolean; toggle(id, meta): void }
-  function useStoredJurisdiction(): { jurisdiction: Scope | null; setJurisdiction(j: Scope): void }
+  function createLocalReaderState(
+    storage: Pick<Storage, "getItem" | "setItem"> | null,
+  ): ReaderState;
+  function useSavedIds(): {
+    ids: string[];
+    ready: boolean;
+    isSaved(id): boolean;
+    toggle(id, meta): void;
+  };
+  function useStoredJurisdiction(): {
+    jurisdiction: Scope | null;
+    setJurisdiction(j: Scope): void;
+  };
   ```
 - Keys: `billion.web.saved-content.v1` (ordered ids, newest first, max 200) and `billion.web.jurisdiction.v1`. `subscribe` covers same-tab changes and cross-tab `storage` events.
 
@@ -128,10 +147,12 @@
 ### Task 4: Reader-group layout and chrome
 
 **Files:**
+
 - Create: `apps/nextjs/src/app/(reader)/layout.tsx`
 - Create: `apps/nextjs/src/app/(reader)/_components/site-bar.tsx`, `icon.tsx`, `save-button.tsx`
 
 **Interfaces:**
+
 - Consumes: `digestCssVariables()`, `useSavedIds()`
 - Produces: `<Icon name="bookmark"|"bookmarkFill"|"search"|"chevD"|"chevR"|"external"|"sparkle"|"doc"|"arrowRight"|"close"|"scale"|"book"|"help"|"clock"|"quote"|"link" size? />` and `<SaveButton id type title variant="icon"|"pill" />`
 
@@ -142,10 +163,12 @@
 ### Task 5: `/browse`
 
 **Files:**
+
 - Create: `apps/nextjs/src/app/(reader)/browse/page.tsx`
 - Create: `apps/nextjs/src/app/(reader)/browse/_components/browse-catalog.tsx` (client), `scope-bar.tsx`, `search-field.tsx`, `filter-pills.tsx`, `featured-rail.tsx`, `result-card.tsx`, `list-states.tsx`
 
 **Interfaces:**
+
 - Consumes: `parseBrowseParams`, `browseHref`, `toCardItem`, `withoutFeatured`, `useSavedIds`, `useStoredJurisdiction`, `trpc` (server proxy) / `useTRPC` (client)
 - Page-size constant `PAGE_SIZE = 20`; `MIN_SEARCH_LENGTH = 2`; debounce 300ms.
 
@@ -159,11 +182,13 @@
 ### Task 6: `/read/[id]`
 
 **Files:**
+
 - Create: `apps/nextjs/src/app/(reader)/read/[id]/page.tsx`, `reader-content.ts` (server-only)
 - Create: `apps/nextjs/src/lib/source-match.ts` (+ `.test.ts`)
 - Create: `apps/nextjs/src/app/(reader)/read/_components/reader-body.tsx` (client), `brief-blocks.tsx`, `lens-panel.tsx`, `timeline.tsx`, `source-panel.tsx` (client), `markdown.tsx`, `emphasis.tsx`, `sponsor-card.tsx`
 
 **Interfaces:**
+
 - `getReaderContent(id: string): Promise<ReaderContent | null>` uses a caller with `session: null` and maps `NOT_FOUND` to `null`.
 - `findQuote(text: string, quote: string): { before: string; match: string; after: string; found: boolean }` does an exact search, then a case-insensitive one.
 - `ReaderBody` props: `{ accent: string; hasBrief: boolean; explainer: ReactNode; original: string; sourceUrl?: string; officialLabel: string }`. It provides `useViewSource()` to `ViewSourceButton`.
@@ -180,6 +205,7 @@
 ### Task 7: `/browse/saved`
 
 **Files:**
+
 - Create: `apps/nextjs/src/app/(reader)/browse/saved/page.tsx`, `_components/saved-list.tsx`
 
 - [ ] **Step 1:** The client list reads `useSavedIds()` and queries `content.byIds({ids})`, reordered to save order. Its empty state is "Nothing saved yet — Tap the bookmark on any record to keep it here." with a link to `/browse`. Results use `ResultCard`, and unsaving removes them in place.

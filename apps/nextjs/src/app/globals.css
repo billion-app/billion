@@ -49,7 +49,13 @@
 
 /* The phone's GoldFoilText: the jurisdiction name in the Browse scope row. */
 @utility gold-foil {
-  background: linear-gradient(100deg, #b8912a 0%, #f3d77a 45%, #d4af37 70%, #a8822a 100%);
+  background: linear-gradient(
+    100deg,
+    #b8912a 0%,
+    #f3d77a 45%,
+    #d4af37 70%,
+    #a8822a 100%
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -126,9 +132,15 @@
   line-height: 1.25;
   margin-top: 1.8em;
 }
-.reader-prose h1 { font-size: 1.6em; }
-.reader-prose h2 { font-size: 1.35em; }
-.reader-prose h3 { font-size: 1.15em; }
+.reader-prose h1 {
+  font-size: 1.6em;
+}
+.reader-prose h2 {
+  font-size: 1.35em;
+}
+.reader-prose h3 {
+  font-size: 1.15em;
+}
 .reader-prose a {
   color: var(--digest-digest-primary);
   text-underline-offset: 3px;
@@ -137,16 +149,24 @@
 .reader-prose ol {
   padding-left: 1.3em;
 }
-.reader-prose ul { list-style: disc; }
-.reader-prose ol { list-style: decimal; }
-.reader-prose li + li { margin-top: 0.35em; }
+.reader-prose ul {
+  list-style: disc;
+}
+.reader-prose ol {
+  list-style: decimal;
+}
+.reader-prose li + li {
+  margin-top: 0.35em;
+}
 .reader-prose blockquote {
   border-left: 2px solid var(--digest-hair-3);
   padding-left: 1em;
   color: rgba(255, 255, 255, 0.72);
   font-style: italic;
 }
-.reader-prose strong { color: #fff; }
+.reader-prose strong {
+  color: #fff;
+}
 .reader-prose img {
   max-width: 100%;
   border-radius: 12px;

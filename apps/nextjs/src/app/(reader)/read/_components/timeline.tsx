@@ -84,13 +84,20 @@ export function Timeline({
                   {index < steps.length - 1 ? (
                     <span
                       className="w-[2px] flex-1"
-                      style={{ backgroundColor: step.done ? accent : "var(--digest-hair-2)", minHeight: 18 }}
+                      style={{
+                        backgroundColor: step.done
+                          ? accent
+                          : "var(--digest-hair-2)",
+                        minHeight: 18,
+                      }}
                     />
                   ) : null}
                 </div>
                 <div className="min-w-0 flex-1 pb-4">
                   {step.date ? (
-                    <p className="text-quiet font-sans text-[11px] font-semibold">{formatDate(step.date)}</p>
+                    <p className="text-quiet font-sans text-[11px] font-semibold">
+                      {formatDate(step.date)}
+                    </p>
                   ) : null}
                   {expandable ? (
                     <details className="group">
@@ -102,7 +109,11 @@ export function Timeline({
                         >
                           {step.full}
                         </span>
-                        <Icon name="chevD" size={13} className="text-quiet mt-[3px] shrink-0 transition-transform group-open:rotate-180" />
+                        <Icon
+                          name="chevD"
+                          size={13}
+                          className="text-quiet mt-[3px] shrink-0 transition-transform group-open:rotate-180"
+                        />
                       </summary>
                     </details>
                   ) : (

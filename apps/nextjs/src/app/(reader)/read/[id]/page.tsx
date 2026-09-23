@@ -1,38 +1,45 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import type { Brief } from "../_components/brief-blocks";
+import type { LensData } from "../_components/lens-panel";
+import type { Sponsor } from "../_components/sponsor-card";
+import type { TimelineAction } from "../_components/timeline";
+import type { ReaderContent } from "./reader-content";
 import {
   displayBillNumber,
   presentType,
   safeImageSrc,
   stateBody,
 } from "~/lib/content-card";
-import { markdownToPlainText, shareSegment, truncate } from "../../../b/[id]/share-copy";
-import type { Brief } from "../_components/brief-blocks";
 import { BriefBlocks, Terms } from "../_components/brief-blocks";
-import type { LensData } from "../_components/lens-panel";
 import { LensPanel } from "../_components/lens-panel";
 import { looksLikeMarkdown, Markdown } from "../_components/markdown";
 import { ReaderActions } from "../_components/reader-actions";
 import { ReaderBody } from "../_components/reader-body";
-import type { Sponsor } from "../_components/sponsor-card";
 import { SponsorCard } from "../_components/sponsor-card";
-import type { TimelineAction } from "../_components/timeline";
 import { Timeline } from "../_components/timeline";
-import type { ReaderContent } from "./reader-content";
+import {
+  markdownToPlainText,
+  shareSegment,
+  truncate,
+} from "../../../b/[id]/share-copy";
 import { getReaderContent } from "./reader-content";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { id } = await params;
   const content = await getReaderContent(id);
   if (!content) return { title: "Not found — Billion" };
-  const title = "billNumber" in content && content.billNumber
-    ? `${content.billNumber}: ${content.title}`
-    : content.title;
+  const title =
+    "billNumber" in content && content.billNumber
+      ? `${content.billNumber}: ${content.title}`
+      : content.title;
   return {
     title: `${title} — Billion`,
     description: truncate(markdownToPlainText(content.description), 200),
@@ -58,10 +65,14 @@ export default async function ReaderPage({ params }: PageProps) {
   const accent = type.color;
   const art = safeImageSrc(content.imageUri ?? content.thumbnailUrl);
   const jurisdiction = field<string>(content, "jurisdiction");
-  const billNumber = displayBillNumber(field<string>(content, "billNumber"), jurisdiction);
+  const billNumber = displayBillNumber(
+    field<string>(content, "billNumber"),
+    jurisdiction,
+  );
   const body = stateBody(jurisdiction);
   const sessionLabel = field<string>(content, "sessionLabel");
-  const sponsor = content.type === "bill" ? field<Sponsor>(content, "sponsor") : undefined;
+  const sponsor =
+    content.type === "bill" ? field<Sponsor>(content, "sponsor") : undefined;
   const brief = field<Brief | null>(content, "brief") ?? null;
   const lensData = (content.lensData as LensData | null | undefined) ?? null;
   const actions = field<TimelineAction[]>(content, "actions") ?? [];
@@ -111,7 +122,10 @@ export default async function ReaderPage({ params }: PageProps) {
               {type.label}
             </span>
             {billNumber ? (
-              <span className="text-quiet font-sans text-[13px] font-semibold tracking-[0.02em]" data-testid="article-bill-number">
+              <span
+                className="text-quiet font-sans text-[13px] font-semibold tracking-[0.02em]"
+                data-testid="article-bill-number"
+              >
                 {billNumber}
               </span>
             ) : null}
@@ -125,7 +139,10 @@ export default async function ReaderPage({ params }: PageProps) {
 
           <h1
             className="font-display mb-4 font-bold tracking-[-0.02em]"
-            style={{ fontSize: "clamp(1.9rem, 4.2vw, 2.9rem)", lineHeight: 1.12 }}
+            style={{
+              fontSize: "clamp(1.9rem, 4.2vw, 2.9rem)",
+              lineHeight: 1.12,
+            }}
             data-testid="article-title"
           >
             {content.title}
@@ -137,7 +154,12 @@ export default async function ReaderPage({ params }: PageProps) {
           ) : null}
 
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <ReaderActions id={content.id} type={content.type} title={content.title} sharePath={sharePath} />
+            <ReaderActions
+              id={content.id}
+              type={content.type}
+              title={content.title}
+              sharePath={sharePath}
+            />
           </div>
 
           {sponsor ? (
@@ -179,7 +201,9 @@ function Article({ content }: { content: ReaderContent }) {
   return asMarkdown ? (
     <Markdown source={text} />
   ) : (
-    <p className="font-sans text-[16px] leading-[26px] whitespace-pre-wrap text-white/[0.86]">{text}</p>
+    <p className="font-sans text-[16px] leading-[26px] whitespace-pre-wrap text-white/[0.86]">
+      {text}
+    </p>
   );
 }
 

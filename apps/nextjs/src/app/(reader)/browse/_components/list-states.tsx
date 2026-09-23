@@ -8,9 +8,16 @@ import type { TypeFilter } from "~/lib/browse-params";
 
 export function ListSkeleton() {
   return (
-    <div aria-label="Loading results" role="progressbar" className="grid grid-cols-1 lg:grid-cols-2 lg:gap-x-10">
+    <div
+      aria-label="Loading results"
+      role="progressbar"
+      className="grid grid-cols-1 lg:grid-cols-2 lg:gap-x-10"
+    >
       {Array.from({ length: 6 }, (_, index) => (
-        <div key={index} className="border-rule animate-pulse border-b py-[18px]">
+        <div
+          key={index}
+          className="border-rule animate-pulse border-b py-[18px]"
+        >
           <div className="mb-3 h-[10px] w-24 rounded bg-[rgba(247,244,238,0.08)]" />
           <div className="mb-2 h-5 w-[90%] rounded bg-[rgba(247,244,238,0.10)]" />
           <div className="mb-3 h-5 w-[60%] rounded bg-[rgba(247,244,238,0.10)]" />
@@ -76,7 +83,9 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
       <EmptyMark />
-      <p className="font-display text-ink-night mt-2 text-[18px] font-bold">{title}</p>
+      <p className="font-display text-ink-night mt-2 text-[18px] font-bold">
+        {title}
+      </p>
       <p className="text-quiet max-w-[360px] font-sans text-[14px] leading-5">
         {isState
           ? `${scopeName} legislature only — courts and orders aren’t in yet.`
@@ -111,9 +120,25 @@ function ActionPill({
 function EmptyMark() {
   return (
     <svg width="88" height="64" viewBox="0 0 88 64" fill="none" aria-hidden>
-      <path d="M8 18h44M8 30h32M8 42h38" stroke="rgba(247,244,238,0.16)" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="62" cy="34" r="13" stroke="var(--digest-digest-spark)" strokeWidth="2.2" />
-      <path d="m71.5 43.5 9 9" stroke="var(--digest-digest-spark)" strokeWidth="2.2" strokeLinecap="round" />
+      <path
+        d="M8 18h44M8 30h32M8 42h38"
+        stroke="rgba(247,244,238,0.16)"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="62"
+        cy="34"
+        r="13"
+        stroke="var(--digest-digest-spark)"
+        strokeWidth="2.2"
+      />
+      <path
+        d="m71.5 43.5 9 9"
+        stroke="var(--digest-digest-spark)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

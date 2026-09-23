@@ -13,12 +13,8 @@
 
 import { StyleSheet } from "react-native";
 
-import {
-  contentType,
-  digest,
-  DigestHair,
-  planes,
-} from "@acme/ui/digest-tokens";
+import type { contentType } from "@acme/ui/digest-tokens";
+import { digest, DigestHair, planes } from "@acme/ui/digest-tokens";
 import { colors, fontSize, fontWeight, shadows } from "@acme/ui/theme-tokens";
 
 import { resolveAppTheme } from "./app-theme";

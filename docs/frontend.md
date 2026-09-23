@@ -48,7 +48,7 @@ Mobile imports API types, not the database client. `@acme/db/client` requires No
 
 ## Styling and shared UI
 
-Use [styles.ts](../apps/expo/src/styles.ts) as the mobile styling entry point. It combines shared theme tokens with native helpers and reusable styles. The [Expo styling guide](expo-styling.md) explains tokens, spacing, and the theme hook.
+Use [styles.ts](../apps/expo/src/styles.ts) as the mobile styling entry point. The Digest palette, hairlines, radii and spacing are defined once in [`@acme/ui/digest-tokens`](../packages/ui/src/digest-tokens.ts): `styles.ts` re-exports them and the web reader emits them as CSS variables, so both clients change together. It combines shared theme tokens with native helpers and reusable styles. The [Expo styling guide](expo-styling.md) explains tokens, spacing, and the theme hook.
 
 `packages/ui` contains web components, native helpers, and shared tokens. Radix/shadcn web components require browser APIs; choose native exports or mobile components for Expo. `pnpm ui-add` adds shared web components.
 
@@ -59,6 +59,14 @@ Dependency versions live in the [Expo manifest](../apps/expo/package.json) and [
 The Next.js App Router lives in [apps/nextjs/src/app](../apps/nextjs/src/app). It includes the landing page, legal/support pages, public content previews, waitlist routes, and API endpoints. [Sharing and saves](virality.md) follows the public preview and share-image paths in detail.
 
 [trpc/server.tsx](../apps/nextjs/src/trpc/server.tsx) supplies server-side callers and query hydration. [trpc/react.tsx](../apps/nextjs/src/trpc/react.tsx) supplies the browser client with `httpBatchStreamLink`. Both use the same `appRouter`; server callers can invoke it without an HTTP request.
+
+### Web Browse and the reader
+
+`/browse`, `/browse/saved` and `/read/[id]` are the phone's Browse tab and article screen, laid out for a browser. They live in the [`(reader)` route group](<../apps/nextjs/src/app/(reader)>), whose layout emits the Digest tokens as CSS custom properties. [The design spec](superpowers/specs/2026-09-22-web-browse-design.md) records why each decision was made.
+
+- **The view lives in the URL.** `/browse?scope=ca&type=bill&q=wildfire` can be linked, reloaded and reached with the back button. [browse-params.ts](../apps/nextjs/src/lib/browse-params.ts) is the only code that knows the parameter names. The page awaits the first page on the server (`prefetchNow`) so results are in the HTML. Later filtering and paging run on the client through the same public procedures the phone uses.
+- **`/read/[id]` is not the share page.** `/b/[id]` stays thin and ends with an install prompt. The reader carries the full brief, the Dual-Lens, the timeline and the original text. Its canonical URL points at `/b/…`, so search engines see one URL per record. The explainer/source toggle and the Billion AI provenance note are required: without them the page would present analysis as the record.
+- **No accounts.** Saves and the chosen jurisdiction go through [reader-state.ts](../apps/nextjs/src/lib/reader-state.ts), which uses `localStorage` today. Components never touch storage directly, so a server-backed implementation (`content.saved.*`) can replace it without screen changes.
 
 ## Authentication
 

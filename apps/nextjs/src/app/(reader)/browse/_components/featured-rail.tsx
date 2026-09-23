@@ -37,8 +37,16 @@ export function FeaturedRail({
         </p>
         {items.length > 2 ? (
           <div className="hidden gap-2 md:flex">
-            <RailButton label="Previous featured bills" onClick={() => page(-1)} icon="chevL" />
-            <RailButton label="Next featured bills" onClick={() => page(1)} icon="chevR" />
+            <RailButton
+              label="Previous featured bills"
+              onClick={() => page(-1)}
+              icon="chevL"
+            />
+            <RailButton
+              label="Next featured bills"
+              onClick={() => page(1)}
+              icon="chevR"
+            />
           </div>
         ) : null}
       </div>

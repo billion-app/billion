@@ -24,7 +24,11 @@ export function ScopeBar({
 }) {
   if (layout === "rail") {
     return (
-      <div role="radiogroup" aria-label="Jurisdiction" className="flex flex-col gap-1">
+      <div
+        role="radiogroup"
+        aria-label="Jurisdiction"
+        className="flex flex-col gap-1"
+      >
         {SCOPES.map((scope) => {
           const item = JURISDICTIONS[scope];
           const active = scope === value;
@@ -43,7 +47,10 @@ export function ScopeBar({
               <Icon
                 name={scope === "federal" ? "globe" : "pin"}
                 size={15}
-                className={cn("mt-[2px] shrink-0", active ? "text-spark" : "text-quiet")}
+                className={cn(
+                  "mt-[2px] shrink-0",
+                  active ? "text-spark" : "text-quiet",
+                )}
               />
               <span className="min-w-0">
                 <span
@@ -135,7 +142,10 @@ function ScopeMenu({
                   <Icon
                     name={scope === "federal" ? "globe" : "pin"}
                     size={15}
-                    className={cn("mt-[2px]", active ? "text-spark" : "text-quiet")}
+                    className={cn(
+                      "mt-[2px]",
+                      active ? "text-spark" : "text-quiet",
+                    )}
                   />
                   <span>
                     <span className="text-ink-night block font-sans text-[14px] font-semibold">
@@ -145,7 +155,13 @@ function ScopeMenu({
                       {option.description}
                     </span>
                   </span>
-                  {active ? <Icon name="check" size={15} className="text-spark ml-auto mt-[2px]" /> : null}
+                  {active ? (
+                    <Icon
+                      name="check"
+                      size={15}
+                      className="text-spark mt-[2px] ml-auto"
+                    />
+                  ) : null}
                 </button>
               </li>
             );

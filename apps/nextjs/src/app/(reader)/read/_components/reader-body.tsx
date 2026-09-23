@@ -15,7 +15,9 @@ export interface BriefQuote {
 
 type Mode = "explainer" | "source";
 
-const ViewSourceContext = createContext<(quote: BriefQuote) => void>(() => undefined);
+const ViewSourceContext = createContext<(quote: BriefQuote) => void>(
+  () => undefined,
+);
 
 /**
  * The part of the reader that has state: which view is showing, whether the
@@ -66,7 +68,11 @@ export function ReaderBody({
           value={mode}
           onChange={changeMode}
           options={[
-            { id: "explainer", label: hasBrief ? "The brief" : "Plain explainer", icon: "sparkle" },
+            {
+              id: "explainer",
+              label: hasBrief ? "The brief" : "Plain explainer",
+              icon: "sparkle",
+            },
             { id: "source", label: "Original text", icon: "doc" },
           ]}
         />
@@ -87,11 +93,21 @@ export function ReaderBody({
               <span className="flex-1 font-sans text-[13px] font-semibold text-white/[0.88]">
                 Written by Billion AI · Always check the source
               </span>
-              <span className="font-sans text-[12px] font-semibold" style={{ color: accent }}>
+              <span
+                className="font-sans text-[12px] font-semibold"
+                style={{ color: accent }}
+              >
                 {provenanceOpen ? "Hide" : "Details"}
               </span>
               <span style={{ color: accent }}>
-                <Icon name="chevD" size={14} className={cn("transition-transform", provenanceOpen && "rotate-180")} />
+                <Icon
+                  name="chevD"
+                  size={14}
+                  className={cn(
+                    "transition-transform",
+                    provenanceOpen && "rotate-180",
+                  )}
+                />
               </span>
             </button>
             {provenanceOpen ? (
@@ -115,7 +131,9 @@ export function ReaderBody({
               rel="noopener noreferrer"
               className="bg-primary-blue mb-[18px] flex h-12 w-full items-center justify-center gap-2 rounded-[14px] font-sans text-[15px] font-semibold text-white no-underline hover:brightness-110"
             >
-              {isFederalRegister ? "View Federal Register record" : "View on Original Site"}
+              {isFederalRegister
+                ? "View Federal Register record"
+                : "View on Original Site"}
               <Icon name="external" size={16} />
             </a>
           ) : null}
@@ -131,7 +149,8 @@ export function ReaderBody({
             Don&apos;t take our word for it.
           </h2>
           <p className="text-quiet mx-auto mt-2 mb-5 max-w-[460px] font-sans text-[15px] leading-[22px] md:mx-0">
-            Read the full, unedited text and track every action on the official record.
+            Read the full, unedited text and track every action on the official
+            record.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             {sourceUrl ? (
@@ -162,7 +181,13 @@ export function ReaderBody({
 }
 
 /** "View source" on a change card: jump to the quoted passage in the original text. */
-export function ViewSourceButton({ quote, accent }: { quote: BriefQuote; accent: string }) {
+export function ViewSourceButton({
+  quote,
+  accent,
+}: {
+  quote: BriefQuote;
+  accent: string;
+}) {
   const viewSource = useContext(ViewSourceContext);
   return (
     <button
@@ -187,7 +212,11 @@ function Segmented({
   options: { id: Mode; label: string; icon: "sparkle" | "doc" }[];
 }) {
   return (
-    <div role="tablist" aria-label="Reading mode" className="bg-slate border-card-border flex gap-1 rounded-[14px] border p-1">
+    <div
+      role="tablist"
+      aria-label="Reading mode"
+      className="bg-slate border-card-border flex gap-1 rounded-[14px] border p-1"
+    >
       {options.map((option) => {
         const active = option.id === value;
         return (
@@ -199,7 +228,9 @@ function Segmented({
             onClick={() => onChange(option.id)}
             className={cn(
               "flex h-[38px] flex-1 cursor-pointer items-center justify-center gap-[6px] rounded-[10px] font-sans text-[13.5px] font-semibold transition-colors",
-              active ? "bg-primary-blue text-white" : "text-quiet hover:text-ink-night",
+              active
+                ? "bg-primary-blue text-white"
+                : "text-quiet hover:text-ink-night",
             )}
           >
             <Icon name={option.icon} size={15} />
@@ -222,7 +253,8 @@ function SourcePanel({
 }) {
   const target = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (quote) target.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (quote)
+      target.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [quote]);
 
   const location = quote ? findQuote(text, quote.text) : null;
@@ -247,7 +279,7 @@ function SourcePanel({
           </p>
         </div>
       </div>
-      <div className="font-mono text-[13px] leading-[21px] whitespace-pre-wrap text-white/[0.78] [overflow-wrap:anywhere]">
+      <div className="font-mono text-[13px] leading-[21px] [overflow-wrap:anywhere] whitespace-pre-wrap text-white/[0.78]">
         {location ? (
           <>
             {location.before}
@@ -257,7 +289,10 @@ function SourcePanel({
               className="my-3 rounded-[10px] border p-3 font-sans text-[14px] leading-[21px] whitespace-normal text-white"
               style={{ backgroundColor: `${accent}22`, borderColor: accent }}
             >
-              <p className="mb-1 text-[10px] font-bold tracking-[0.12em]" style={{ color: accent }}>
+              <p
+                className="mb-1 text-[10px] font-bold tracking-[0.12em]"
+                style={{ color: accent }}
+              >
                 {location.found ? "MATCHING PASSAGE" : "CITED PASSAGE"}
               </p>
               {location.match}

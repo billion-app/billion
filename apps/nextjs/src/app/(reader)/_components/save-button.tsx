@@ -47,7 +47,10 @@ export function SaveButton({
         className,
       )}
     >
-      <Icon name={saved ? "bookmarkFill" : "bookmark"} size={variant === "icon" ? 18 : 15} />
+      <Icon
+        name={saved ? "bookmarkFill" : "bookmark"}
+        size={variant === "icon" ? 18 : 15}
+      />
       {variant === "pill" ? (saved ? "Saved" : "Save") : null}
     </button>
   );

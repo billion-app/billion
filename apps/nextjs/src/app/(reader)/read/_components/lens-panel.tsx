@@ -32,8 +32,14 @@ function sideLabels(data: LensData) {
         ? "OPPONENTS"
         : fallback;
   return [
-    { kicker: kicker(data.left.stance, "PROPONENTS"), stance: data.left.stance },
-    { kicker: kicker(data.right.stance, "OPPONENTS"), stance: data.right.stance },
+    {
+      kicker: kicker(data.left.stance, "PROPONENTS"),
+      stance: data.left.stance,
+    },
+    {
+      kicker: kicker(data.right.stance, "OPPONENTS"),
+      stance: data.right.stance,
+    },
   ];
 }
 
@@ -47,27 +53,39 @@ export function LensPanel({ data }: { data: LensData }) {
   const sourceById = new Map(sources.map((s) => [s.id, s]));
 
   return (
-    <section className="bg-slate border-hair-1 rounded-[16px] border p-4 md:p-5" aria-label="Dual-Lens">
+    <section
+      className="bg-slate border-hair-1 rounded-[16px] border p-4 md:p-5"
+      aria-label="Dual-Lens"
+    >
       <div className="mb-4 flex items-center gap-3">
         <span className="bg-surface flex h-9 w-9 items-center justify-center rounded-[10px]">
           <Icon name="scale" size={18} />
         </span>
         <div>
           <p className="font-sans text-[15px] font-bold">Dual-Lens</p>
-          <p className="text-quiet font-sans text-[12.5px]">Competing cases, with sources.</p>
+          <p className="text-quiet font-sans text-[12.5px]">
+            Competing cases, with sources.
+          </p>
         </div>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {(["left", "right"] as const).map((side, index) => {
-          const accent = index === 0 ? lensColors.proponents : lensColors.opponents;
+          const accent =
+            index === 0 ? lensColors.proponents : lensColors.opponents;
           const label = labels[index];
           return (
             <div
               key={side}
               className="rounded-[12px] border-l-[3px] p-[14px]"
-              style={{ borderLeftColor: accent, backgroundColor: `${accent}10` }}
+              style={{
+                borderLeftColor: accent,
+                backgroundColor: `${accent}10`,
+              }}
             >
-              <p className="font-sans text-[10.5px] font-bold tracking-[0.12em]" style={{ color: accent }}>
+              <p
+                className="font-sans text-[10.5px] font-bold tracking-[0.12em]"
+                style={{ color: accent }}
+              >
                 {label?.kicker}
               </p>
               <p className="font-editorial mt-1 mb-3 text-[16px] leading-[21px] font-bold">
@@ -110,22 +128,33 @@ export function LensPanel({ data }: { data: LensData }) {
                       {example ? (
                         <div
                           className="ml-[15px] flex gap-2 rounded-[10px] border p-[10px]"
-                          style={{ borderColor: `${accent}55`, backgroundColor: `${accent}0D` }}
+                          style={{
+                            borderColor: `${accent}55`,
+                            backgroundColor: `${accent}0D`,
+                          }}
                         >
                           <span style={{ color: accent }} className="mt-[2px]">
                             <Icon name="pin" size={13} />
                           </span>
                           <div className="font-sans text-[13px] leading-[19px]">
-                            <p className="text-[10px] font-bold tracking-[0.1em]" style={{ color: accent }}>
+                            <p
+                              className="text-[10px] font-bold tracking-[0.1em]"
+                              style={{ color: accent }}
+                            >
                               REAL-WORLD EXAMPLE
                             </p>
                             <p className="text-white/[0.82]">{example.fact}</p>
                             {example.relevance ? (
                               <>
-                                <p className="mt-2 text-[10px] font-bold tracking-[0.1em]" style={{ color: accent }}>
+                                <p
+                                  className="mt-2 text-[10px] font-bold tracking-[0.1em]"
+                                  style={{ color: accent }}
+                                >
                                   WHAT IT SHOWS
                                 </p>
-                                <p className="text-quiet">{example.relevance}</p>
+                                <p className="text-quiet">
+                                  {example.relevance}
+                                </p>
                               </>
                             ) : null}
                           </div>
@@ -143,12 +172,21 @@ export function LensPanel({ data }: { data: LensData }) {
         <details className="group mt-4">
           <summary className="text-quiet flex cursor-pointer list-none items-center gap-1 font-sans text-[12px] font-semibold">
             {sources.length} {sources.length === 1 ? "source" : "sources"}
-            <Icon name="chevD" size={13} className="transition-transform group-open:rotate-180" />
+            <Icon
+              name="chevD"
+              size={13}
+              className="transition-transform group-open:rotate-180"
+            />
           </summary>
           <ol className="mt-2 flex list-none flex-col gap-1 p-0">
             {sources.map((source) => (
               <li key={source.id} className="font-sans text-[12.5px]">
-                <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-quiet hover:text-ink-night">
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-quiet hover:text-ink-night"
+                >
                   [{source.id}] {source.title}
                 </a>
               </li>

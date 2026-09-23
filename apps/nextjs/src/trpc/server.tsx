@@ -52,3 +52,22 @@ export function prefetch<T extends ReturnType<TRPCQueryOptions<any>>>(
     void queryClient.prefetchQuery(queryOptions);
   }
 }
+
+/**
+ * Like `prefetch`, but resolved before rendering continues, so the data is in
+ * the server-rendered HTML rather than streamed after it. Use it when the
+ * first paint must contain the data (and client components read it with a
+ * plain `useQuery`, which would otherwise hydrate against a loading state).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function prefetchNow<T extends ReturnType<TRPCQueryOptions<any>>>(
+  queryOptions: T,
+) {
+  const queryClient = getQueryClient();
+  if (queryOptions.queryKey[1]?.type === "infinite") {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+    await queryClient.prefetchInfiniteQuery(queryOptions as any);
+  } else {
+    await queryClient.prefetchQuery(queryOptions);
+  }
+}

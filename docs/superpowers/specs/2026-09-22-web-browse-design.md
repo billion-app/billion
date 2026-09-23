@@ -1,6 +1,6 @@
 # Web Browse — design
 
-Status: proposed. Nothing here is built yet.
+Status: implemented on branch `feat/web-browse` (not yet merged). The [implementation plan](../plans/2026-09-22-web-browse.md) records the open-question decisions.
 Date: 2026-09-22
 
 ## What this is
@@ -61,11 +61,11 @@ Out of scope, and stated so a reader does not assume otherwise:
 
 Routes inside `apps/nextjs`, not a new app:
 
-| Route | Renders |
-| --- | --- |
-| `/browse` | The catalog. Scope, search, filters, featured rail, results. |
-| `/browse/saved` | The local saved list. |
-| `/read/[id]` | The full reader. |
+| Route           | Renders                                                      |
+| --------------- | ------------------------------------------------------------ |
+| `/browse`       | The catalog. Scope, search, filters, featured rail, results. |
+| `/browse/saved` | The local saved list.                                        |
+| `/read/[id]`    | The full reader.                                             |
 
 `/read/[id]` rather than reusing `/b/[id]`: two pages with two jobs and two
 endings. The share page keeps its install call to action and its deliberate
@@ -95,13 +95,13 @@ Server-render the first screen, hydrate for interaction:
 
 No new procedures. Reuse:
 
-| Need | Procedure |
-| --- | --- |
-| Result list, paged | `content.getByType` (cursor, `limit`, `jurisdiction`) |
-| Featured rail | `content.getFeaturedBills` |
-| Search, and the cross-jurisdiction count | `content.search` |
-| The record | `content.getById` |
-| Sponsor card | `content.getSponsorProfile` |
+| Need                                     | Procedure                                             |
+| ---------------------------------------- | ----------------------------------------------------- |
+| Result list, paged                       | `content.getByType` (cursor, `limit`, `jurisdiction`) |
+| Featured rail                            | `content.getFeaturedBills`                            |
+| Search, and the cross-jurisdiction count | `content.search`                                      |
+| The record                               | `content.getById`                                     |
+| Sponsor card                             | `content.getSponsorProfile`                           |
 
 `content.getById` already returns the brief, the lens data and the sponsor
 identity, so the reader's depth is a rendering problem, not a data problem.
@@ -171,18 +171,18 @@ of the module; a single direct call defeats it.
 
 Web components, in `apps/nextjs/src/app/browse/_components` unless shared:
 
-| Component | Phone counterpart |
-| --- | --- |
-| `ScopeBar` | `JurisdictionScopeRow` |
-| `SearchField` | `SearchInput` |
-| `FilterPills` | `Pills` / `Pill` |
-| `FeaturedRail` | `FeaturedBills` |
-| `ResultCard` | `ContentCard` |
-| `ReaderHeader` | `NavHeader` + badge row |
-| `BriefBlocks` | `BillBrief` |
-| `LensPanel` | `DualLens` |
-| `Timeline` | the inline timeline in `article-detail.tsx` |
-| `SourcePanel` | `HighlightedSource` |
+| Component      | Phone counterpart                           |
+| -------------- | ------------------------------------------- |
+| `ScopeBar`     | `JurisdictionScopeRow`                      |
+| `SearchField`  | `SearchInput`                               |
+| `FilterPills`  | `Pills` / `Pill`                            |
+| `FeaturedRail` | `FeaturedBills`                             |
+| `ResultCard`   | `ContentCard`                               |
+| `ReaderHeader` | `NavHeader` + badge row                     |
+| `BriefBlocks`  | `BillBrief`                                 |
+| `LensPanel`    | `DualLens`                                  |
+| `Timeline`     | the inline timeline in `article-detail.tsx` |
+| `SourcePanel`  | `HighlightedSource`                         |
 
 These are rewrites in HTML and CSS, not shared code. `packages/ui`'s web
 components need browser APIs and its native ones need React Native; the two

@@ -27,7 +27,7 @@ export function SearchField({
         onChange={(event) => onChange(event.target.value)}
         placeholder="Search bills, orders and cases"
         aria-label="Search the archive"
-        className="bg-paper text-ink-paper placeholder:text-[rgba(22,19,26,0.42)] h-[52px] w-full rounded-[26px] border-0 pr-12 pl-[48px] font-sans text-[16px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--digest-digest-primary)] md:h-[56px] md:rounded-[28px] md:text-[17px]"
+        className="bg-paper text-ink-paper h-[52px] w-full rounded-[26px] border-0 pr-12 pl-[48px] font-sans text-[16px] font-medium outline-none placeholder:text-[rgba(22,19,26,0.42)] focus-visible:ring-2 focus-visible:ring-[var(--digest-digest-primary)] md:h-[56px] md:rounded-[28px] md:text-[17px]"
       />
       {value ? (
         <button

@@ -63,7 +63,10 @@ export interface CardItem {
 }
 
 /** `CA AB 12 (2025-2026)` → `CA AB 12`, or `AB 12` when the chip says CA. */
-function stateBillTag(billNumber: string | undefined, showJurisdiction: boolean) {
+function stateBillTag(
+  billNumber: string | undefined,
+  showJurisdiction: boolean,
+) {
   if (!billNumber) return undefined;
   const match = /^([A-Z]{2})\s+(.+?)\s+\([^)]+\)$/.exec(billNumber);
   if (!match) return billNumber;
@@ -128,7 +131,12 @@ export function relativeActivity(
   if (elapsedDays === 0) return "today";
   if (elapsedDays === 1) return "1 day ago";
   if (elapsedDays < 30) return `${elapsedDays} days ago`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  // UTC so the server's render and the browser's hydration print the same day.
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 export function withoutFeatured<T extends { id: string }>(
