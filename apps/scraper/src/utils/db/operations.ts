@@ -724,9 +724,11 @@ export async function upsertContent(
     // Only UPDATE if something was generated
     const courtDescriptionWasCleared =
       input.type === "court_case" && courtSourceChanged && !sourceDescription;
+    const hasCurrentCourtTakeaway =
+      courtDescriptionWasCleared && courtTakeaway !== undefined;
     const hasNewDescription =
       description !== undefined &&
-      (courtDescriptionWasCleared || description !== effectiveDescription);
+      (hasCurrentCourtTakeaway || description !== effectiveDescription);
     if (
       hasNewDescription ||
       aiGeneratedArticle !== undefined ||

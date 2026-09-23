@@ -216,6 +216,7 @@ void test(
       assert.equal(stale.type === "court_case" && stale.courtBrief, null);
       assert.equal(stale.articleContent, changed.data.fullText);
       assert.equal(stale.isAIGenerated, false);
+      assert.equal(stale.description, "");
       artifact("stale", stale);
       const hashes = await db
         .select({ contentHash: CourtCase.contentHash })
