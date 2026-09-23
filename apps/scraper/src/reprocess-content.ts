@@ -80,6 +80,8 @@ interface ProcessResult {
   errors: string[];
 }
 
+type AssetSelection = "all" | "images" | "briefs";
+
 function rowState(item: ContentItem) {
   return {
     contentType: item.type,
@@ -239,7 +241,7 @@ async function updateSourceText(
 async function processItem(
   item: ContentItem,
   mode: ReprocessMode,
-  assets: "all" | "images",
+  assets: AssetSelection,
 ): Promise<ProcessResult> {
   let fullText = item.fullText;
   let contentHash = item.contentHash;
@@ -274,14 +276,16 @@ async function processItem(
     !requiresBrief(item.type) &&
     (mode === "replace" || !isUsableAIArticle(item.aiGeneratedArticle));
   const shouldGenerateBrief =
-    assets === "all" &&
+    (assets === "all" || assets === "briefs") &&
     requiresBrief(item.type) &&
     (mode === "replace" || !item.hasBrief);
   const imageSearchReady = Boolean(
     process.env.GOOGLE_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID,
   );
   const shouldSearchThumbnail =
-    imageSearchReady && (mode === "replace" || !item.thumbnailUrl);
+    assets !== "briefs" &&
+    imageSearchReady &&
+    (mode === "replace" || !item.thumbnailUrl);
 
   const [articleResult, thumbnailResult] = await Promise.allSettled([
     shouldGenerateArticle
@@ -492,9 +496,10 @@ const argv = await yargs(hideBin(process.argv))
     description: "Concurrent AI jobs (1-5)",
   })
   .option("assets", {
-    choices: ["all", "images"] as const,
+    choices: ["all", "images", "briefs"] as const,
     default: "all" as const,
-    description: "Regenerate every derived asset or feed imagery only",
+    description:
+      "Regenerate every derived asset, feed imagery only, or structured briefs only",
   })
   .option("apply", {
     type: "boolean",
@@ -526,6 +531,13 @@ const argv = await yargs(hideBin(process.argv))
     }
     if (args.afterId && args.id?.length) {
       throw new Error("--after-id and --id cannot be combined");
+    }
+    if (
+      args.assets === "briefs" &&
+      args.type !== "bill" &&
+      args.type !== "court_case"
+    ) {
+      throw new Error("--assets briefs requires --type bill or court_case");
     }
     return true;
   })

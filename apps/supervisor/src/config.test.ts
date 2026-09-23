@@ -94,6 +94,26 @@ void test("court image smoke test is real, reviewed, and bounded", () => {
   assert.ok(!job.args.includes("--skip-review"));
 });
 
+void test("court brief backfill is manual, bounded, and brief-only", () => {
+  const job = findJob("backfill-court-briefs");
+  assert.ok(job, "court brief backfill job is missing");
+  assert.deepEqual(job.args, [
+    "--type",
+    "court_case",
+    "--mode",
+    "missing",
+    "--limit",
+    "1000",
+    "--assets",
+    "briefs",
+    "--concurrency",
+    "2",
+    "--apply",
+    "--yes",
+  ]);
+  assert.deepEqual(job.schedule, { kind: "manual" });
+});
+
 void test("executive actions refresh daily", () => {
   const whiteHouseJob = findJob("whitehouse-daily");
   assert.ok(whiteHouseJob, "daily White House job is missing");

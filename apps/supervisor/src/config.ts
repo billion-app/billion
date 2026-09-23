@@ -271,6 +271,31 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 72,
   },
   {
+    id: "backfill-court-briefs",
+    description: "Generate structured briefs for historical court cases",
+    script: "reprocess-content.js",
+    // This is deliberately brief-only: court perspectives and header artwork
+    // have their own backfills and should not make a factual-brief repair fail.
+    args: [
+      "--type",
+      "court_case",
+      "--mode",
+      "missing",
+      "--limit",
+      "1000",
+      "--assets",
+      "briefs",
+      "--concurrency",
+      "2",
+      "--apply",
+      "--yes",
+    ],
+    schedule: { kind: "manual" },
+    priority: 20,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 72,
+  },
+  {
     id: "retro-lenses",
     description: "Generate dual-lens perspectives for content missing one",
     script: "retroactive-lenses.js",

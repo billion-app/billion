@@ -71,6 +71,7 @@ supervisor job uses it.
 | `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                            |
 | `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                                       |
 | `retro-briefs`                 | manual            | Fills in missing structured briefs                                                        |
+| `backfill-court-briefs`        | manual            | Fills historical court briefs without regenerating perspectives or imagery                |
 | `retro-lenses`                 | manual            | Fills in missing dual-lens perspectives                                                   |
 
 The federal and state daily jobs are the point of the whole arrangement: the
