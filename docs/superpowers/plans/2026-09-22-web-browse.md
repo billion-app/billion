@@ -242,8 +242,13 @@ Recorded after the build; these supersede the tasks above where they differ.
   module) rather than a web copy.
 - "View source" matches quotes with the pipeline's normalization
   (`normalizeForQuoteMatch`), not only exact text.
-- Saved state is one shared `useSyncExternalStore` snapshot; the saved page
-  forgets ids the server no longer returns. Only bills, orders and cases are
-  saveable, as on the phone.
+- Saved state is one shared `useSyncExternalStore` snapshot. The saved page
+  drops ids that fail the server's `z.uuid()` check (they can never load),
+  but never deletes a record the server did not return: it says how many are
+  unavailable and offers "Remove". Only bills, orders and cases are saveable,
+  as on the phone.
+- The stored jurisdiction lives in `localStorage` and is mirrored to the
+  cookie on every read, so an expired cookie is restored rather than the
+  choice being lost.
 - Added after review with the product owner: an "On this page" section list
   in the wide-screen reader rail, and "Clear highlight" in the source view.

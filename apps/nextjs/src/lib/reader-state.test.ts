@@ -117,3 +117,43 @@ void test("the jurisdiction is mirrored to a cookie so the server can render it"
   await state.setJurisdiction("nc");
   assert.deepEqual(written, [[SCOPE_COOKIE, "nc"]]);
 });
+
+void test("reading a stored jurisdiction refreshes the cookie, so it never lapses while stored", async () => {
+  const written: [string, string][] = [];
+  const state = createLocalReaderState(
+    memoryStorage({ [JURISDICTION_KEY]: "tx" }),
+    { writeCookie: (name, value) => written.push([name, value]) },
+  );
+  assert.equal(await state.jurisdiction(), "tx");
+  assert.deepEqual(written, [[SCOPE_COOKIE, "tx"]]);
+});
+
+void test("nothing stored writes no cookie", async () => {
+  const written: [string, string][] = [];
+  const state = createLocalReaderState(memoryStorage(), {
+    writeCookie: (name, value) => written.push([name, value]),
+  });
+  await state.jurisdiction();
+  assert.deepEqual(written, []);
+});
+
+void test("unsaveMany removes several ids in one write and one notification", async () => {
+  const storage = memoryStorage();
+  let writes = 0;
+  const counting = {
+    getItem: storage.getItem,
+    setItem: (key: string, value: string) => {
+      writes++;
+      storage.setItem(key, value);
+    },
+  };
+  const state = createLocalReaderState(counting);
+  for (const id of ["a", "b", "c", "d"]) await state.save(id, bill);
+  writes = 0;
+  let calls = 0;
+  state.subscribe(() => calls++);
+  await state.unsaveMany(["b", "d", "zzz"]);
+  assert.deepEqual(await state.savedIds(), ["c", "a"]);
+  assert.equal(writes, 1);
+  assert.equal(calls, 1);
+});

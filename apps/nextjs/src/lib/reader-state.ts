@@ -14,7 +14,7 @@
  * No component may touch `localStorage` directly. Every read and write goes
  * through here, or the swap stops being a swap.
  */
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 
 import type { Scope } from "./jurisdictions";
 import { SCOPE_COOKIE } from "./browse-params";
@@ -29,6 +29,8 @@ export interface ReaderState {
   savedIds(): Promise<string[]>;
   save(id: string, meta: SaveMeta): Promise<void>;
   unsave(id: string): Promise<void>;
+  /** Remove several at once: one write, one change notification. */
+  unsaveMany(ids: readonly string[]): Promise<void>;
   jurisdiction(): Promise<Scope>;
   setJurisdiction(j: Scope): Promise<void>;
   /** Called after any change, from this tab or another. Returns an unsubscribe. */
@@ -125,10 +127,18 @@ export function createLocalReaderState(
       commit(loadEntries().filter((entry) => entry.id !== id));
       return Promise.resolve();
     },
+    unsaveMany: (ids) => {
+      const drop = new Set(ids);
+      commit(loadEntries().filter((entry) => !drop.has(entry.id)));
+      return Promise.resolve();
+    },
     jurisdiction: () => {
       if (scope === undefined) {
         const stored = read(JURISDICTION_KEY);
         scope = isScope(stored) ? stored : "federal";
+        // Keep the server's copy alive for as long as the choice is stored,
+        // and restore it if the cookie expired or was cleared.
+        if (isScope(stored)) options.writeCookie?.(SCOPE_COOKIE, stored);
       }
       return Promise.resolve(scope);
     },
@@ -249,40 +259,7 @@ export function toggleSaved(id: string, meta: SaveMeta) {
   void (savedSet.has(id) ? state.unsave(id) : state.save(id, meta));
 }
 
-/**
- * Drop saved ids that no longer name a record — retired content, or an id
- * that was never valid. Without this they would stay invisible but counted:
- * the nav badge and the saved page would disagree, and dead entries would
- * take slots under `MAX_SAVED` until real saves were pushed out instead.
- */
+/** Remove several saves at once — used by the saved page, never automatically for records that might return. */
 export function forgetSaved(ids: readonly string[]) {
-  const state = readerState();
-  for (const id of ids) void state.unsave(id);
-}
-
-/** The stored jurisdiction, `null` until read. */
-export function useStoredJurisdiction() {
-  const [jurisdiction, setLocal] = useState<Scope | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    const load = () =>
-      void readerState()
-        .jurisdiction()
-        .then((next) => {
-          if (live) setLocal(next);
-        });
-    load();
-    const off = readerState().subscribe(load);
-    return () => {
-      live = false;
-      off();
-    };
-  }, []);
-
-  const setJurisdiction = useCallback((next: Scope) => {
-    void readerState().setJurisdiction(next);
-  }, []);
-
-  return { jurisdiction, setJurisdiction };
+  if (ids.length > 0) void readerState().unsaveMany(ids);
 }

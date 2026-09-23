@@ -7,48 +7,47 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ContentListItem } from "~/lib/content-card";
 import { toCardItem } from "~/lib/content-card";
 import { forgetSaved, useSavedIds } from "~/lib/reader-state";
+import { splitSaved } from "~/lib/saved-ids";
 import { useTRPC } from "~/trpc/react";
 import { ListSkeleton } from "../_components/list-states";
 import { ResultCard } from "../_components/result-card";
 
 /**
  * What this browser has saved, newest first. The list of ids is local; the
- * records come from `content.byIds`, which keeps save order and drops
- * anything retired since it was saved.
+ * records come from `content.byIds`, which keeps save order.
  *
  * Unsaving removes a row at once, from the local list, rather than waiting
- * for the refetch. Ids the server no longer returns are forgotten, so the
- * count here and the badge in the nav always agree.
+ * for the refetch. Records the server did not return are counted and offered
+ * for removal, never deleted on the reader's behalf: a record can be missing
+ * for a moment and come back.
  */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export function SavedList() {
   const { ids: stored, ready } = useSavedIds();
-  // `content.byIds` rejects the whole request for one malformed id.
-  const ids = useMemo(() => stored.filter((id) => UUID.test(id)), [stored]);
   const trpc = useTRPC();
+  const { loadable, malformed } = useMemo(
+    () => splitSaved(stored, null),
+    [stored],
+  );
   const records = useQuery({
-    ...trpc.content.byIds.queryOptions({ ids }),
-    enabled: ready && ids.length > 0,
+    ...trpc.content.byIds.queryOptions({ ids: loadable }),
+    enabled: ready && loadable.length > 0,
     placeholderData: keepPreviousData,
   });
 
-  // Only a real answer for exactly these ids may prune; placeholder data
-  // belongs to the previous list and would drop a save made a moment ago.
+  // An id that is not a valid record id can never load; it is safe to drop.
+  useEffect(() => {
+    if (ready) forgetSaved(malformed);
+  }, [ready, malformed]);
+
+  // Only a real answer for exactly these ids says what is missing; placeholder
+  // data belongs to the previous list.
   const answer =
     records.isSuccess && !records.isPlaceholderData ? records.data : null;
-  useEffect(() => {
-    if (!ready) return;
-    const invalid = stored.filter((id) => !UUID.test(id));
-    const returned = answer
-      ? new Set(answer.items.map((item) => item.id))
-      : null;
-    const retired = returned ? ids.filter((id) => !returned.has(id)) : [];
-    if (invalid.length + retired.length > 0)
-      forgetSaved([...invalid, ...retired]);
-  }, [ready, stored, ids, answer]);
+  const missing = answer
+    ? splitSaved(loadable, new Set(answer.items.map((item) => item.id))).missing
+    : [];
 
-  const saved = new Set(ids);
+  const saved = new Set(loadable);
   const items = ((records.data?.items ?? []) as ContentListItem[]).filter(
     (item) => saved.has(item.id),
   );
@@ -63,9 +62,9 @@ export function SavedList() {
         device.
       </p>
 
-      {!ready || (ids.length > 0 && records.isLoading) ? (
+      {!ready || (loadable.length > 0 && records.isLoading) ? (
         <ListSkeleton />
-      ) : ids.length === 0 ? (
+      ) : loadable.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-16 text-center">
           <p className="font-display text-ink-night text-[20px] font-bold">
             Nothing saved yet
@@ -101,6 +100,23 @@ export function SavedList() {
           <p className="text-quiet font-sans text-[11px] font-semibold tracking-[0.06em] uppercase">
             {items.length} saved
           </p>
+          {missing.length > 0 ? (
+            <div className="border-rule mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[14px] border border-dashed px-4 py-3">
+              <p className="text-quiet flex-1 font-sans text-[13px] leading-[19px]">
+                {missing.length === 1
+                  ? "1 saved record is no longer available."
+                  : `${missing.length} saved records are no longer available.`}{" "}
+                It may have been withdrawn or replaced.
+              </p>
+              <button
+                type="button"
+                onClick={() => forgetSaved(missing)}
+                className="text-ink-night cursor-pointer font-sans text-[13px] font-semibold hover:underline"
+              >
+                {missing.length === 1 ? "Remove it" : "Remove them"}
+              </button>
+            </div>
+          ) : null}
           <div className="[&>*]:border-rule grid grid-cols-1 lg:grid-cols-2 lg:gap-x-10 [&>*]:border-b">
             {items.map((item) => (
               <ResultCard

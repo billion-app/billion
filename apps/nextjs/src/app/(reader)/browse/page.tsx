@@ -21,7 +21,7 @@ export async function generateMetadata({
   searchParams,
 }: PageProps): Promise<Metadata> {
   const { scope } = parseBrowseParams(await searchParams);
-  const name = JURISDICTIONS[scope ?? "federal"].name;
+  const name = JURISDICTIONS[scope ?? (await cookieScope())].name;
   return {
     title: `Browse ${name} — Billion`,
     alternates: { canonical: "/browse" },
@@ -37,8 +37,7 @@ export default async function BrowsePage({ searchParams }: PageProps) {
   const { scope, type, q } = parseBrowseParams(await searchParams);
   // No scope in the URL: render the reader's stored choice, not federal and
   // then a correction after hydration.
-  const defaultScope =
-    scopeFromCookie((await cookies()).get(SCOPE_COOKIE)?.value) ?? "federal";
+  const defaultScope = await cookieScope();
   const jurisdiction = scope ?? defaultScope;
   const isSearching = q.length >= MIN_SEARCH_LENGTH;
 
@@ -65,5 +64,12 @@ export default async function BrowsePage({ searchParams }: PageProps) {
         <BrowseCatalog defaultScope={defaultScope} />
       </Suspense>
     </HydrateClient>
+  );
+}
+
+/** The reader's stored jurisdiction, as mirrored into a cookie by reader-state. */
+async function cookieScope() {
+  return (
+    scopeFromCookie((await cookies()).get(SCOPE_COOKIE)?.value) ?? "federal"
   );
 }

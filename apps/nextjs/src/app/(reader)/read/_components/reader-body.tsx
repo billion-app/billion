@@ -1,7 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { cn } from "@acme/ui";
 
@@ -293,7 +300,11 @@ function SourcePanel({
       target.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [quote]);
 
-  const location = quote ? findQuote(text, quote.text) : null;
+  // A bill can run to megabytes; find the passage once per quote, not per render.
+  const location = useMemo(
+    () => (quote ? findQuote(text, quote.text) : null),
+    [text, quote],
+  );
 
   return (
     <div className="bg-slate border-hair-1 rounded-[16px] border p-4 md:p-6">

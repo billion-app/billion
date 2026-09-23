@@ -62,3 +62,11 @@ void test("curly quotes and a hyphenated line break still match", () => {
   );
   assert.equal(result.after, ". Next.");
 });
+
+void test("a character that lowercases to two keeps later matches aligned", () => {
+  // "İ" lowercases to "i̇" (two code units); the highlight must not drift.
+  const source = "İSTANBUL clause. The Secretary shall\nact now.";
+  const result = findQuote(source, "the secretary shall act now");
+  assert.equal(result.found, true);
+  assert.equal(result.match, "The Secretary shall\nact now");
+});

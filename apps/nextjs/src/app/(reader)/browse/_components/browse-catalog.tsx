@@ -15,7 +15,7 @@ import {
 } from "~/lib/browse-params";
 import { toCardItem, withoutFeatured } from "~/lib/content-card";
 import { isStateScope, JURISDICTIONS } from "~/lib/jurisdictions";
-import { useStoredJurisdiction } from "~/lib/reader-state";
+import { readerState } from "~/lib/reader-state";
 import { useTRPC } from "~/trpc/react";
 import { FeaturedRail } from "./featured-rail";
 import { FilterPills } from "./filter-pills";
@@ -38,20 +38,29 @@ import { SearchField } from "./search-field";
 export function BrowseCatalog({ defaultScope }: { defaultScope: Scope }) {
   const searchParams = useSearchParams();
   const params = parseBrowseParams(searchParams);
-  const { setJurisdiction } = useStoredJurisdiction();
 
-  // A URL without a scope means "no choice made": the server has already
-  // rendered the reader's stored jurisdiction (from its cookie) as
-  // `defaultScope`, so only the address bar needs catching up.
+  // A URL without a scope means "no choice made". The server rendered the
+  // reader's stored jurisdiction from its cookie as `defaultScope`; the
+  // address bar catches up here. If the cookie had lapsed but the browser
+  // still holds a choice, that choice wins (reading it also restores the
+  // cookie for next time).
   const scope: Scope = params.scope ?? defaultScope;
   const type = params.type;
   const needsScopeInUrl = params.scope === null;
   useEffect(() => {
     if (!needsScopeInUrl) return;
-    const current = parseBrowseParams(
-      new URLSearchParams(window.location.search),
-    );
-    navigate({ ...current, scope: defaultScope }, "replace");
+    void readerState()
+      .jurisdiction()
+      .then((stored) => {
+        const current = parseBrowseParams(
+          new URLSearchParams(window.location.search),
+        );
+        if (current.scope !== null) return;
+        navigate(
+          { ...current, scope: stored !== "federal" ? stored : defaultScope },
+          "replace",
+        );
+      });
   }, [needsScopeInUrl, defaultScope]);
 
   const [query, setQuery] = useState(params.q);
@@ -85,7 +94,7 @@ export function BrowseCatalog({ defaultScope }: { defaultScope: Scope }) {
   };
 
   const setScope = (next: Scope) => {
-    setJurisdiction(next);
+    void readerState().setJurisdiction(next);
     navigate({ scope: next, type, q: query.trim() }, "push");
   };
   const setType = (next: TypeFilter) =>
@@ -97,12 +106,13 @@ export function BrowseCatalog({ defaultScope }: { defaultScope: Scope }) {
   const showFeatured = !isSearching && (type === "all" || type === "bill");
   const otherScope: Scope = scope === "federal" ? "ca" : "federal";
 
-  const list = useInfiniteQuery(
-    trpc.content.getByType.infiniteQueryOptions(
+  const list = useInfiniteQuery({
+    ...trpc.content.getByType.infiniteQueryOptions(
       { type, limit: PAGE_SIZE, jurisdiction: scope },
       { initialCursor: 0, getNextPageParam: (page) => page.nextCursor },
     ),
-  );
+    enabled: !isSearching,
+  });
   const featured = useQuery({
     ...trpc.content.getFeaturedBills.queryOptions({ jurisdiction: scope }),
     enabled: showFeatured,

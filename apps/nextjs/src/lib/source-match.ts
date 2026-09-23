@@ -44,7 +44,9 @@ function exactRange(text: string, quote: string): [number, number] | null {
 
 /**
  * The pipeline's normalization, one output character at a time, remembering
- * which source character each came from.
+ * which source character each came from. Straightening curly quotes is not
+ * repeated here: quotes are punctuation, and every run of punctuation and
+ * whitespace collapses to one space either way.
  */
 function normalize(text: string): { chars: string; origin: number[] } {
   let chars = "";
@@ -52,19 +54,25 @@ function normalize(text: string): { chars: string; origin: number[] } {
   let pendingSpace = -1;
 
   for (let i = 0; i < text.length; i++) {
-    let ch = text.charAt(i);
+    const code = text.charCodeAt(i);
 
     // "trans-\n  portation" → "transportation": drop the hyphen and the break.
-    if (/[-‐-―]/.test(ch)) {
-      const rest = /^[-‐-―]\s*\n\s*/.exec(text.slice(i));
+    if (code === 45 || (code >= 0x2010 && code <= 0x2015)) {
+      const rest = /^.\s*\n\s*/.exec(text.slice(i, i + 64));
       if (rest) {
         i += rest[0].length - 1;
         continue;
       }
     }
 
-    ch = ch.replace(/[‘’ʼ]/, "'").replace(/[“”]/, '"').toLowerCase();
-    if (/[a-z0-9]/.test(ch)) {
+    // Lowercasing can turn one character into two ("İ" → "i̇"); map each
+    // output character back to the same source index so offsets stay aligned.
+    const lower = text.charAt(i).toLowerCase();
+    let kept = false;
+    for (const ch of lower) {
+      const c = ch.charCodeAt(0);
+      const alnum = (c >= 97 && c <= 122) || (c >= 48 && c <= 57);
+      if (!alnum) continue;
       if (pendingSpace >= 0 && chars.length > 0) {
         chars += " ";
         origin.push(pendingSpace);
@@ -72,10 +80,10 @@ function normalize(text: string): { chars: string; origin: number[] } {
       pendingSpace = -1;
       chars += ch;
       origin.push(i);
-    } else if (pendingSpace < 0) {
-      // Any run of non-alphanumerics becomes one space.
-      pendingSpace = i;
+      kept = true;
     }
+    // Any run of non-alphanumerics becomes one space.
+    if (!kept && pendingSpace < 0) pendingSpace = i;
   }
   return { chars, origin };
 }
