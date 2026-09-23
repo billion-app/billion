@@ -19,7 +19,13 @@ export type SectionKey =
   | "unknowns"
   | "explainer"
   | "how-people-make-the-case"
-  | "keep-reading";
+  | "keep-reading"
+  | "court-ruling"
+  | "court-questions"
+  | "court-reasoning"
+  | "court-effects"
+  | "court-opinions"
+  | "court-unknowns";
 
 export interface ReaderSection {
   key: SectionKey;
@@ -34,6 +40,14 @@ interface BriefShape {
   reading?: readonly unknown[];
 }
 
+interface CourtBriefShape {
+  questions: readonly unknown[];
+  reasoning: readonly unknown[];
+  effects: readonly unknown[];
+  opinions: readonly unknown[];
+  unknowns: readonly unknown[];
+}
+
 export function sectionId(key: SectionKey): string {
   return `section-${key}`;
 }
@@ -46,6 +60,12 @@ const LABELS: Record<SectionKey, string> = {
   explainer: "Plain explainer",
   "how-people-make-the-case": "How people make the case",
   "keep-reading": "Keep reading",
+  "court-ruling": "What the court did",
+  "court-questions": "Questions before the court",
+  "court-reasoning": "How the court got there",
+  "court-effects": "Who it lands on",
+  "court-opinions": "Separate opinions",
+  "court-unknowns": "What the ruling doesn't settle",
 };
 
 export function readerSections({
@@ -70,5 +90,25 @@ export function readerSections({
       hasLens
       ? ["explainer", "how-people-make-the-case"]
       : [];
+  return keys.map((key) => ({ key, id: sectionId(key), label: LABELS[key] }));
+}
+
+export function courtReaderSections({
+  brief,
+  hasLens,
+}: {
+  brief: CourtBriefShape;
+  hasLens: boolean;
+}): ReaderSection[] {
+  const keys: SectionKey[] = [
+    "short-version",
+    "court-ruling",
+    ...(brief.questions.length ? (["court-questions"] as const) : []),
+    ...(brief.reasoning.length ? (["court-reasoning"] as const) : []),
+    ...(brief.effects.length ? (["court-effects"] as const) : []),
+    ...(brief.opinions.length ? (["court-opinions"] as const) : []),
+    ...(brief.unknowns.length ? (["court-unknowns"] as const) : []),
+    ...(hasLens ? (["how-people-make-the-case"] as const) : []),
+  ];
   return keys.map((key) => ({ key, id: sectionId(key), label: LABELS[key] }));
 }

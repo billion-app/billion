@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import type { Brief } from "../_components/brief-blocks";
 import type { LensData } from "../_components/lens-panel";
 import type { Sponsor } from "../_components/sponsor-card";
 import type { TimelineAction } from "../_components/timeline";
@@ -12,8 +11,14 @@ import {
   safeImageSrc,
   stateBody,
 } from "~/lib/content-card";
-import { readerSections, sectionId } from "~/lib/reader-sections";
+import { selectReaderBrief } from "~/lib/reader-brief";
+import {
+  courtReaderSections,
+  readerSections,
+  sectionId,
+} from "~/lib/reader-sections";
 import { BriefBlocks, Terms } from "../_components/brief-blocks";
+import { CourtBriefBlocks } from "../_components/court-brief";
 import { LensPanel } from "../_components/lens-panel";
 import { looksLikeMarkdown, Markdown } from "../_components/markdown";
 import { OnThisPage } from "../_components/on-this-page";
@@ -75,7 +80,10 @@ export default async function ReaderPage({ params }: PageProps) {
   const sessionLabel = field<string>(content, "sessionLabel");
   const sponsor =
     content.type === "bill" ? field<Sponsor>(content, "sponsor") : undefined;
-  const brief = field<Brief | null>(content, "brief") ?? null;
+  const structuredBrief = selectReaderBrief(content);
+  const brief = structuredBrief?.kind === "bill" ? structuredBrief.brief : null;
+  const courtBrief =
+    structuredBrief?.kind === "court" ? structuredBrief.brief : null;
   const lensData = (content.lensData as LensData | null | undefined) ?? null;
   const actions = field<TimelineAction[]>(content, "actions") ?? [];
   const officialUrl = field<string>(content, "officialUrl");
@@ -84,7 +92,9 @@ export default async function ReaderPage({ params }: PageProps) {
   const sharePath = `/b/${shareSegment(content.title, content.id)}`;
 
   const lens = lensData ? <LensPanel data={lensData} /> : null;
-  const explainer = brief ? (
+  const explainer = courtBrief ? (
+    <CourtBriefBlocks brief={courtBrief} accent={accent} dualLens={lens} />
+  ) : brief ? (
     <BriefBlocks brief={brief} accent={accent} dualLens={lens} />
   ) : (
     <div className="flex flex-col gap-8">
@@ -101,16 +111,19 @@ export default async function ReaderPage({ params }: PageProps) {
       ) : null}
     </div>
   );
-  const sections = readerSections({ brief, hasLens: !!lensData });
+  const sections = courtBrief
+    ? courtReaderSections({ brief: courtBrief, hasLens: !!lensData })
+    : readerSections({ brief, hasLens: !!lensData });
 
-  const timeline = (
-    <Timeline
-      actions={actions}
-      accent={accent}
-      sourceUrl={actions.length > 0 ? content.url : undefined}
-      sourceLabel={sourceLabel}
-    />
-  );
+  const timeline =
+    content.type === "bill" ? (
+      <Timeline
+        actions={actions}
+        accent={accent}
+        sourceUrl={actions.length > 0 ? content.url : undefined}
+        sourceLabel={sourceLabel}
+      />
+    ) : null;
 
   return (
     <div className="mx-auto max-w-[1160px] px-4 pt-6 pb-24 md:px-8 md:pt-10">
@@ -182,12 +195,13 @@ export default async function ReaderPage({ params }: PageProps) {
 
           <ReaderBody
             accent={accent}
-            hasBrief={!!brief}
+            hasBrief={!!structuredBrief}
             explainer={explainer}
             timeline={<div className="xl:hidden">{timeline}</div>}
             original={content.originalContent}
             sourceUrl={sourceUrl}
             isFederalRegister={!!officialUrl}
+            isCourtCase={content.type === "court_case"}
           />
         </article>
 
@@ -198,7 +212,7 @@ export default async function ReaderPage({ params }: PageProps) {
             {sections.length > 1 ? (
               <OnThisPage sections={sections} accent={accent} />
             ) : null}
-            {timeline}
+            {content.type === "bill" ? timeline : null}
             {brief ? <Terms terms={brief.terms} accent={accent} /> : null}
           </div>
         </aside>

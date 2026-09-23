@@ -34,6 +34,14 @@ linkWorkspacePackages: true
 onlyBuiltDependencies:
   - esbuild
 
+# react-native-worklets' Babel plugin imports these packages at runtime but
+# 0.10.1 does not declare them, which breaks isolated pnpm installs on web.
+packageExtensions:
+  "react-native-worklets@0.10.1":
+    dependencies:
+      "@babel/generator": ^7.29.0
+      "@babel/traverse": ^7.29.0
+
 overrides:
   react: 19.2.3
   react-dom: 19.2.3

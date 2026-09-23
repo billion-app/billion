@@ -17,4 +17,5 @@ export { Segmented, type SegmentOption } from "./Segmented";
 export { SettingsRow } from "./SettingsRow";
 export { LensStrip, LensPanel, type LensData } from "./DualLens";
 export { BillBrief, type BillBriefData, type BriefQuote } from "./BillBrief";
+export { CourtBrief, CourtOpinions } from "./CourtBrief";
 export { ContentCard, type ContentCardItem } from "./ContentCard";

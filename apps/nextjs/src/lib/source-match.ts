@@ -21,9 +21,23 @@ export interface QuoteLocation {
   after: string;
 }
 
-export function findQuote(text: string, quote: string): QuoteLocation {
-  const range = exactRange(text, quote) ?? normalizedRange(text, quote);
-  if (!range) return { found: false, before: "", match: quote, after: text };
+export function findQuote(
+  text: string,
+  quote: string,
+  documentId?: string,
+): QuoteLocation {
+  const scope: [number, number] | null = documentId
+    ? documentRange(text, documentId)
+    : [0, text.length];
+  if (!scope) return missingQuote(text, quote);
+  const [scopeStart, scopeEnd] = scope;
+  const source = text.slice(scopeStart, scopeEnd);
+  const localRange =
+    exactRange(source, quote) ?? normalizedRange(source, quote);
+  const range = localRange
+    ? ([localRange[0] + scopeStart, localRange[1] + scopeStart] as const)
+    : null;
+  if (!range) return missingQuote(text, quote);
   const [start, end] = range;
   return {
     found: true,
@@ -31,6 +45,29 @@ export function findQuote(text: string, quote: string): QuoteLocation {
     match: text.slice(start, end),
     after: text.slice(end),
   };
+}
+
+function documentRange(
+  text: string,
+  documentId: string,
+): [number, number] | null {
+  const id = /^document-(\d+)$/.exec(documentId);
+  if (!id) return null;
+  const index = Number(id[1]) - 1;
+  if (!Number.isSafeInteger(index) || index < 0) return null;
+
+  const markers = [...text.matchAll(/^Source: https?:\/\/\S+\s*\n/gm)];
+  if (!markers.length) return index === 0 ? [0, text.length] : null;
+  const marker = markers[index];
+  if (!marker) return null;
+  return [
+    marker.index + marker[0].length,
+    markers[index + 1]?.index ?? text.length,
+  ];
+}
+
+function missingQuote(text: string, quote: string): QuoteLocation {
+  return { found: false, before: "", match: quote, after: text };
 }
 
 function exactRange(text: string, quote: string): [number, number] | null {

@@ -19,6 +19,7 @@ import { Icon } from "../../_components/icon";
 export interface BriefQuote {
   text: string;
   locator?: string;
+  documentId?: string;
 }
 
 type Mode = "explainer" | "source";
@@ -45,6 +46,7 @@ export function ReaderBody({
   original,
   sourceUrl,
   isFederalRegister,
+  isCourtCase,
 }: {
   accent: string;
   hasBrief: boolean;
@@ -53,6 +55,7 @@ export function ReaderBody({
   original: string;
   sourceUrl?: string;
   isFederalRegister: boolean;
+  isCourtCase: boolean;
 }) {
   const [mode, setMode] = useState<Mode>("explainer");
   const [highlight, setHighlight] = useState<BriefQuote | null>(null);
@@ -101,10 +104,19 @@ export function ReaderBody({
           options={[
             {
               id: "explainer",
-              label: hasBrief ? "The brief" : "Plain explainer",
+              label:
+                isCourtCase && hasBrief
+                  ? "Case brief"
+                  : hasBrief
+                    ? "The brief"
+                    : "Plain explainer",
               icon: "sparkle",
             },
-            { id: "source", label: "Original text", icon: "doc" },
+            {
+              id: "source",
+              label: isCourtCase ? "Court record" : "Original text",
+              icon: "doc",
+            },
           ]}
         />
       </div>
@@ -164,7 +176,9 @@ export function ReaderBody({
             >
               {isFederalRegister
                 ? "View Federal Register record"
-                : "View on Original Site"}
+                : isCourtCase
+                  ? "Open official court record"
+                  : "View on Original Site"}
               <Icon name="external" size={16} />
             </a>
           ) : null}
@@ -173,6 +187,7 @@ export function ReaderBody({
             quote={highlight}
             accent={accent}
             onClear={() => setHighlight(null)}
+            title={isCourtCase ? "Court record" : "Original text"}
           />
         </div>
       )}
@@ -185,8 +200,9 @@ export function ReaderBody({
             Don&apos;t take our word for it.
           </h2>
           <p className="text-quiet mx-auto mt-2 mb-5 max-w-[460px] font-sans text-[15px] leading-[22px] md:mx-0">
-            Read the full, unedited text and track every action on the official
-            record.
+            {isCourtCase
+              ? "Read the full court record and verify the explanation against the official source."
+              : "Read the full, unedited text and track every action on the official record."}
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             {sourceUrl ? (
@@ -196,7 +212,8 @@ export function ReaderBody({
                 rel="noopener noreferrer"
                 className="bg-primary-blue flex h-12 items-center justify-center gap-2 rounded-[14px] px-6 font-sans text-[15px] font-semibold text-white no-underline hover:brightness-110"
               >
-                Open the source <Icon name="external" size={16} />
+                {isCourtCase ? "Open the court record" : "Open the source"}{" "}
+                <Icon name="external" size={16} />
               </a>
             ) : null}
             <button
@@ -207,7 +224,9 @@ export function ReaderBody({
               }}
               className="border-card-border text-ink-night hover:bg-slate flex h-12 cursor-pointer items-center justify-center gap-2 rounded-[14px] border px-6 font-sans text-[15px] font-semibold"
             >
-              Read the original text here
+              {isCourtCase
+                ? "Read the court record here"
+                : "Read the original text here"}
             </button>
           </div>
         </section>
@@ -288,11 +307,13 @@ function SourcePanel({
   quote,
   accent,
   onClear,
+  title,
 }: {
   text: string;
   quote: BriefQuote | null;
   accent: string;
   onClear: () => void;
+  title: string;
 }) {
   const target = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -302,7 +323,7 @@ function SourcePanel({
 
   // A bill can run to megabytes; find the passage once per quote, not per render.
   const location = useMemo(
-    () => (quote ? findQuote(text, quote.text) : null),
+    () => (quote ? findQuote(text, quote.text, quote.documentId) : null),
     [text, quote],
   );
 
@@ -316,7 +337,7 @@ function SourcePanel({
           <Icon name="doc" size={15} />
         </span>
         <div>
-          <p className="font-sans text-[14px] font-bold">Original text</p>
+          <p className="font-sans text-[14px] font-bold">{title}</p>
           <p className="text-quiet font-sans text-[12px]">
             {quote
               ? quote.locator

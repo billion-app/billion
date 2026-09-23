@@ -4,6 +4,8 @@ All styling in the Expo app is consolidated into a single location: `apps/expo/s
 
 **Import everything from `~/styles`** — no need to import from `@acme/ui/theme-tokens` directly. Do **not** add a parallel palette file or `~/theme` package; Digest surfaces (`DigestPalette`, `DigestRadii`, `digest`, etc.) are exported from `styles.ts`. The raw values (`planes`, `hair`, `digest`, `DigestHair`, `DigestRadii`, `DigestSpace`, `contentType`) are defined in [`@acme/ui/digest-tokens`](../packages/ui/src/digest-tokens.ts) so the web reader can read them too; change a value there, and keep importing from `~/styles` in the app.
 
+For content-detail screens, follow the mandatory [content-detail design language and workflow](content-detail-design.md). Shared typography, cards, and source disclosure support content-specific structures and interactions; a new type needs more than a restyled bill screen.
+
 ## What's Available
 
 ```tsx

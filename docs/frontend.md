@@ -22,6 +22,14 @@ Expo Router maps files in `apps/expo/src/app/` to routes. Start with the route, 
 
 The Feed tab is a short brief. [DigestHome](../apps/expo/src/components/DigestHome.tsx) shows up to seven featured local bills under “Today’s local news”. “Also today” shows up to seven unread featured federal bills, falling back to recent federal bills only when no featured bills are available. It preserves the API's ordering rather than inventing a daily ranking or filtering by calendar date. Opening a successfully loaded [article detail](../apps/expo/src/app/article-detail.tsx) records its ID in [device-local read history](../apps/expo/src/utils/read-content.ts), so returning Home removes it from “Also today”. When that selection is empty or fully read, the section says “No new articles today”; loading and request failures remain separate states. Read history does not require an account, sync across devices, or affect Browse and the local rail. Saving a bill, case, or order reuses the separate device-local saved set; the article page draws a four-stop legislative path from the projected status label and does not invent chamber passage. The home greeting starts as soon as the splash has hidden and the local brief has settled, so a cold start does not consume the ceremony behind the splash or a loading spinner.
 
+Article detail renders bill `brief` with `BillBrief` and court `courtBrief` with
+[CourtBrief](../apps/expo/src/components/ui/CourtBrief.tsx). Court sections explain
+the specific relief and its procedural limits, attributed reasoning and opinions,
+effects, unknowns, and linked official documents. Emergency orders are labelled
+as interim relief. Legislative stages appear only for bills. Records missing a
+current court brief keep their Markdown or original-text fallback; the original
+text tab remains available alongside the brief and cited lenses.
+
 Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab is a coming-soon placeholder and does not call Civic or Places while `electionsAreLive()` returns false. While it is parked, set a home address (Places autocomplete) and coverage (federal, California, North Carolina, Texas) from the Feed lockup dropdown or the Browse jurisdiction sheet. Check both Expo Router options and the custom `TabBar` when changing visibility.
 
 The [OTA restart prompt](../apps/expo/src/components/UpdatePrompt.tsx) overlays the root stack. It asks to restart only when `expo-updates` is enabled and a downloaded update is waiting that is not already the running bundle. `isUpdatePending` alone is not enough — Expo can report the current launch as pending after a previous download. Preview the chrome in development with `EXPO_PUBLIC_FORCE_UPDATE_BANNER=1`.
@@ -47,6 +55,8 @@ URL selection first uses `EXPO_PUBLIC_API_URL`, then the Expo development host o
 Mobile imports API types, not the database client. `@acme/db/client` requires Node's PostgreSQL driver and server credentials. Put data access and authorization in the API procedure.
 
 ## Styling and shared UI
+
+Every new content type must follow the [content-detail design language and workflow](content-detail-design.md): share typography, cards, and source disclosure while designing its own structure and interactions. That guide explains bills and court cases and identifies executive orders as the next structured-output adaptation.
 
 Use [styles.ts](../apps/expo/src/styles.ts) as the mobile styling entry point. The Digest palette, hairlines, radii and spacing are defined once in [`@acme/ui/digest-tokens`](../packages/ui/src/digest-tokens.ts): `styles.ts` re-exports them and the web reader emits them as CSS variables, so both clients change together. It combines shared theme tokens with native helpers and reusable styles. The [Expo styling guide](expo-styling.md) explains tokens, spacing, and the theme hook.
 

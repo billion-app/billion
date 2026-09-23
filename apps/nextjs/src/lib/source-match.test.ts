@@ -70,3 +70,25 @@ void test("a character that lowercases to two keeps later matches aligned", () =
   assert.equal(result.found, true);
   assert.equal(result.match, "The Secretary shall\nact now");
 });
+
+void test("a court quote is constrained to its attributed document", () => {
+  const repeated = "The application is denied.";
+  const source = [
+    "Source: https://example.org/order.pdf",
+    repeated,
+    "Source: https://example.org/dissent.pdf",
+    `Justice A wrote: ${repeated}`,
+  ].join("\n");
+  const result = findQuote(source, repeated, "document-2");
+  assert.equal(result.found, true);
+  assert.equal(result.before.length, source.lastIndexOf(repeated));
+  assert.equal(result.match, repeated);
+});
+
+void test("an unknown court document never falls back to another source", () => {
+  const source = "Source: https://example.org/order.pdf\nRepeated wording.";
+  assert.equal(
+    findQuote(source, "Repeated wording.", "document-2").found,
+    false,
+  );
+});

@@ -38,6 +38,13 @@ The protected `user.getPreferences` procedure returns the caller's `user_prefere
 
 For Browse and article detail, start in [content.ts](../packages/api/src/router/content.ts). `getByType` reads paginated stored content, `search` searches the corpus, and `getById` assembles the detail response with available derived content. The [architecture tour](architecture.md#follow-a-bill-to-the-screen) traces these back to ingestion.
 
+Detail keeps bill `brief` and court `courtBrief` as separate response fields.
+Court output is validated against its own schema and current source hash;
+missing, stale, invalid, or unsupported brief versions return `null`. Court
+lenses also need the current source hash. Original text and source URLs remain
+available independently, and Markdown-only court records retain their fallback.
+See [court briefs](article-generation.md#court-briefs) for generation and provenance.
+
 ## Civic lookups and caching
 
 The [civic integration](../packages/api/src/lib/civic.ts) calls Google Civic and caches responses in `civic_api_cache`. Keys include a hashed normalized address, endpoint, and parameters. Expiry varies by endpoint. Candidate and measure enrichment also use this cache; inspect their modules before assuming the normalized election tables hold a response.

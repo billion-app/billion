@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { readerSections, sectionId } from "./reader-sections";
+import {
+  courtReaderSections,
+  readerSections,
+  sectionId,
+} from "./reader-sections";
 
 const full = {
   unknowns: ["one open question"],
@@ -47,4 +51,28 @@ void test("ids are stable, prefixed and shared by the heading and the link", () 
   assert.equal(sectionId("what-would-change"), "section-what-would-change");
   const [first] = readerSections({ brief: full, hasLens: false });
   assert.equal(first?.id, "section-short-version");
+});
+
+void test("court sections follow the case-specific reading order", () => {
+  assert.deepEqual(
+    courtReaderSections({
+      brief: {
+        questions: [{}],
+        reasoning: [{}],
+        effects: [],
+        opinions: [{}],
+        unknowns: [{}],
+      },
+      hasLens: true,
+    }).map((section) => section.label),
+    [
+      "The short version",
+      "What the court did",
+      "Questions before the court",
+      "How the court got there",
+      "Separate opinions",
+      "What the ruling doesn't settle",
+      "How people make the case",
+    ],
+  );
 });

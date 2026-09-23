@@ -4,6 +4,7 @@
  */
 import type { Href } from "expo-router";
 import { useEffect, useRef } from "react";
+import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 
@@ -24,6 +25,10 @@ export function NotificationTapHandler() {
   const lastId = useRef<string | null>(null);
 
   useEffect(() => {
+    // Expo Notifications does not implement response history on web. Native
+    // notification taps are the only events this component needs to handle.
+    if (Platform.OS === "web") return;
+
     const open = (identifier: string, data: unknown) => {
       if (lastId.current === identifier) return;
       const href = hrefFromNotificationData(data);
