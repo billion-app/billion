@@ -2,7 +2,7 @@
 
 All styling in the Expo app is consolidated into a single location: `apps/expo/src/styles.ts` (although more work is on the way to further consolidate it into the ui package?)
 
-**Import everything from `~/styles`** — no need to import from `@acme/ui/theme-tokens` directly. Do **not** add a parallel palette file or `~/theme` package; Digest surfaces (`DigestPalette`, `DigestRadii`, `digest`, etc.) live in `styles.ts` next to `planes` / `hair`.
+**Import everything from `~/styles`** — no need to import from `@acme/ui/theme-tokens` directly. Do **not** add a parallel palette file or `~/theme` package; Digest surfaces (`DigestPalette`, `DigestRadii`, `digest`, etc.) are exported from `styles.ts`. The raw values (`planes`, `hair`, `digest`, `DigestHair`, `DigestRadii`, `DigestSpace`, `contentType`) are defined in [`@acme/ui/digest-tokens`](../packages/ui/src/digest-tokens.ts) so the web reader can read them too; change a value there, and keep importing from `~/styles` in the app.
 
 ## What's Available
 
@@ -21,8 +21,8 @@ import {
   createSearchStyles, // createSearchStyles(theme) → search input styles
   createTabContainerStyles, // createTabContainerStyles(theme) → tab bar styles
   darkTheme, // Dark mode semantic colors
-  DigestPalette, // Digest night/paper/spark roles (aliases of planes + digest)
   digest, // Digest accents (spark, quiet, badges)
+  DigestPalette, // Digest night/paper/spark roles (aliases of planes + digest)
   fontSize, // Font sizes (fontSize.base, fontSize.xl, etc.)
   fontWeight, // Font weights (fontWeight.bold, fontWeight.medium, etc.)
   // Helper functions
