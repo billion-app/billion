@@ -12,9 +12,11 @@ import {
   safeImageSrc,
   stateBody,
 } from "~/lib/content-card";
+import { readerSections, sectionId } from "~/lib/reader-sections";
 import { BriefBlocks, Terms } from "../_components/brief-blocks";
 import { LensPanel } from "../_components/lens-panel";
 import { looksLikeMarkdown, Markdown } from "../_components/markdown";
+import { OnThisPage } from "../_components/on-this-page";
 import { ReaderActions } from "../_components/reader-actions";
 import { ReaderBody } from "../_components/reader-body";
 import { SponsorCard } from "../_components/sponsor-card";
@@ -86,10 +88,20 @@ export default async function ReaderPage({ params }: PageProps) {
     <BriefBlocks brief={brief} accent={accent} dualLens={lens} />
   ) : (
     <div className="flex flex-col gap-8">
-      <Article content={content} />
-      {lens}
+      <div id={sectionId("explainer")} className="scroll-mt-24">
+        <Article content={content} />
+      </div>
+      {lens ? (
+        <div
+          id={sectionId("how-people-make-the-case")}
+          className="scroll-mt-24"
+        >
+          {lens}
+        </div>
+      ) : null}
     </div>
   );
+  const sections = readerSections({ brief, hasLens: !!lensData });
 
   const timeline = (
     <Timeline
@@ -179,9 +191,13 @@ export default async function ReaderPage({ params }: PageProps) {
           />
         </article>
 
-        {/* Wide screens: the phone's inline timeline and glossary, alongside. */}
+        {/* Wide screens: a section list, then the phone's inline timeline and
+            glossary, alongside the text. */}
         <aside className="hidden xl:block">
           <div className="sticky top-[84px] flex max-h-[calc(100vh-100px)] flex-col gap-8 overflow-y-auto pb-6">
+            {sections.length > 1 ? (
+              <OnThisPage sections={sections} accent={accent} />
+            ) : null}
             {timeline}
             {brief ? <Terms terms={brief.terms} accent={accent} /> : null}
           </div>

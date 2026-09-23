@@ -4,6 +4,8 @@ import type { BillBriefRecord } from "@acme/validators";
 import { outcomeColors } from "@acme/ui/digest-tokens";
 
 import type { IconName } from "../../_components/icon";
+import type { SectionKey } from "~/lib/reader-sections";
+import { sectionId } from "~/lib/reader-sections";
 import { Icon } from "../../_components/icon";
 import { Emphasis } from "./emphasis";
 import { Markdown } from "./markdown";
@@ -76,24 +78,26 @@ export function BriefBlocks({
         <Terms terms={brief.terms} accent={accent} />
       </div>
 
-      <BlockTitle>What would change</BlockTitle>
+      <BlockTitle section="what-would-change">What would change</BlockTitle>
       <Changes brief={brief} accent={accent} />
 
-      <BlockTitle>Who it lands on</BlockTitle>
+      <BlockTitle section="who-it-lands-on">Who it lands on</BlockTitle>
       <Affected affected={brief.affected} />
 
       <Unknowns unknowns={brief.unknowns} accent={accent} />
 
       {dualLens ? (
         <>
-          <BlockTitle>How people make the case</BlockTitle>
+          <BlockTitle section="how-people-make-the-case">
+            How people make the case
+          </BlockTitle>
           {dualLens}
         </>
       ) : null}
 
       {brief.deepDive || reading.length > 0 ? (
         <>
-          <BlockTitle>Keep reading</BlockTitle>
+          <BlockTitle section="keep-reading">Keep reading</BlockTitle>
           <FurtherReading
             deepDive={brief.deepDive}
             reading={reading}
@@ -105,9 +109,18 @@ export function BriefBlocks({
   );
 }
 
-function BlockTitle({ children }: { children: string }) {
+function BlockTitle({
+  children,
+  section,
+}: {
+  children: string;
+  section: SectionKey;
+}) {
   return (
-    <h2 className="font-editorial -mb-2 text-[20px] font-bold text-white md:text-[21px]">
+    <h2
+      id={sectionId(section)}
+      className="font-editorial -mb-2 scroll-mt-24 text-[20px] font-bold text-white md:text-[21px]"
+    >
       {children}
     </h2>
   );
@@ -129,8 +142,9 @@ function Hook({ brief, accent }: { brief: Brief; accent: string }) {
   const hasExtended = short !== brief.hook;
   return (
     <section
-      className="bg-slate border-hair-1 flex flex-col gap-[13px] rounded-[14px] border border-l-[3px] p-4 md:p-5"
+      className="bg-slate border-hair-1 flex scroll-mt-24 flex-col gap-[13px] rounded-[14px] border border-l-[3px] p-4 md:p-5"
       style={{ borderLeftColor: accent }}
+      id={sectionId("short-version")}
       data-testid="brief-summary"
     >
       <div className="flex items-center gap-[9px]">
@@ -511,7 +525,8 @@ function Unknowns({
   if (unknowns.length === 0) return null;
   return (
     <section
-      className="bg-surface border-hair-2 rounded-[14px] border p-[15px] md:p-5"
+      className="bg-surface border-hair-2 scroll-mt-24 rounded-[14px] border p-[15px] md:p-5"
+      id={sectionId("unknowns")}
       data-testid="brief-unknowns"
     >
       <div className="mb-3 flex items-center gap-2">

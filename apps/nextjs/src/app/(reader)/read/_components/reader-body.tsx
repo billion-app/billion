@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { cn } from "@acme/ui";
 
+import { GOTO_SECTION_EVENT } from "~/lib/reader-sections";
 import { findQuote } from "~/lib/source-match";
 import { Icon } from "../../_components/icon";
 
@@ -60,6 +61,29 @@ export function ReaderBody({
     setHighlight(quote);
     setMode("source");
   };
+
+  // "On this page" asks for a section by id. Sections live in the explainer,
+  // so from the original text switch back first and scroll once it renders.
+  const pendingSection = useRef<string | null>(null);
+  useEffect(() => {
+    const onGoto = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (mode === "source") {
+        pendingSection.current = id;
+        setHighlight(null);
+        setMode("explainer");
+      } else {
+        scrollToSection(id);
+      }
+    };
+    window.addEventListener(GOTO_SECTION_EVENT, onGoto);
+    return () => window.removeEventListener(GOTO_SECTION_EVENT, onGoto);
+  }, [mode]);
+  useEffect(() => {
+    if (mode !== "explainer" || !pendingSection.current) return;
+    scrollToSection(pendingSection.current);
+    pendingSection.current = null;
+  }, [mode]);
 
   return (
     <ViewSourceContext.Provider value={viewSource}>
@@ -137,7 +161,12 @@ export function ReaderBody({
               <Icon name="external" size={16} />
             </a>
           ) : null}
-          <SourcePanel text={original} quote={highlight} accent={accent} />
+          <SourcePanel
+            text={original}
+            quote={highlight}
+            accent={accent}
+            onClear={() => setHighlight(null)}
+          />
         </div>
       )}
 
@@ -242,14 +271,21 @@ function Segmented({
   );
 }
 
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  window.history.replaceState(null, "", `#${id}`);
+}
+
 function SourcePanel({
   text,
   quote,
   accent,
+  onClear,
 }: {
   text: string;
   quote: BriefQuote | null;
   accent: string;
+  onClear: () => void;
 }) {
   const target = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -278,6 +314,16 @@ function SourcePanel({
               : "Verbatim, as published by the official source"}
           </p>
         </div>
+        {quote ? (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-quiet hover:text-ink-night border-card-border ml-auto inline-flex shrink-0 cursor-pointer items-center gap-[6px] rounded-full border px-3 py-[6px] font-sans text-[12px] font-semibold"
+          >
+            <Icon name="close" size={13} />
+            Clear highlight
+          </button>
+        ) : null}
       </div>
       <div className="font-mono text-[13px] leading-[21px] [overflow-wrap:anywhere] whitespace-pre-wrap text-white/[0.78]">
         {location ? (
