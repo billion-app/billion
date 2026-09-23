@@ -182,31 +182,56 @@ export function getTextLlm(): LanguageModel {
   return textLlm;
 }
 
+export interface StructuredLlmCandidate {
+  model: LanguageModel;
+  modelVersion: string;
+}
+
 /**
- * Resolve a model that supports schema-constrained generation. Some local
- * OpenAI-compatible servers advertise structured output support but cannot
- * compile the brief's JSON grammar. Prefer an API provider for this one
- * workload while retaining the normal local-first text pipeline elsewhere.
+ * Return structured-output providers separately so callers can retry another
+ * provider without losing the model provenance stored with generated content.
+ * Hosted providers retain their historical priority unless a caller has
+ * explicitly validated its workload against the configured local model.
  */
-export function getStructuredLlm(): LanguageModel {
-  if (structuredLlm) return structuredLlm;
-
+export function getStructuredLlmCandidates(options?: {
+  localFirst?: boolean;
+}): StructuredLlmCandidate[] {
+  const localBaseUrl = getLocalBaseUrl();
+  const local: StructuredLlmCandidate | null = localBaseUrl
+    ? {
+        model: getLocalTextModel(localBaseUrl),
+        modelVersion: `local:${getLocalModel()}`,
+      }
+    : null;
   const openrouterKey = getOpenRouterApiKey();
-  if (openrouterKey) {
-    structuredLlm =
-      getOpenRouterProvider(openrouterKey).chat(getOpenRouterModel());
-    return structuredLlm;
-  }
-
+  const openrouter: StructuredLlmCandidate | null = openrouterKey
+    ? {
+        model: getOpenRouterProvider(openrouterKey).chat(getOpenRouterModel()),
+        modelVersion: `openrouter:${getOpenRouterModel()}`,
+      }
+    : null;
   const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
-  if (deepseekKey) {
-    structuredLlm = createDeepSeek({ apiKey: deepseekKey })(
-      "deepseek-v4-flash",
-    );
-    return structuredLlm;
+  const deepseek: StructuredLlmCandidate | null = deepseekKey
+    ? {
+        model: createDeepSeek({ apiKey: deepseekKey })("deepseek-v4-flash"),
+        modelVersion: "deepseek:deepseek-v4-flash",
+      }
+    : null;
+  const candidates = options?.localFirst
+    ? [local, openrouter, deepseek]
+    : [openrouter, deepseek, local];
+  const configured = candidates.filter(
+    (candidate): candidate is StructuredLlmCandidate => candidate !== null,
+  );
+  if (configured.length === 0) {
+    throw new Error("No scraper text provider is configured");
   }
+  return configured;
+}
 
-  structuredLlm = getTextLlm();
+/** Resolve the historical hosted-first structured-output default. */
+export function getStructuredLlm(): LanguageModel {
+  structuredLlm ??= getStructuredLlmCandidates()[0]!.model;
   return structuredLlm;
 }
 
@@ -231,9 +256,7 @@ export function getTextModelVersion(): string {
 
 /** Actual model selected for structured output, independent of the lens cache key. */
 export function getStructuredModelVersion(): string {
-  if (getOpenRouterApiKey()) return `openrouter:${getOpenRouterModel()}`;
-  if (process.env.DEEPSEEK_API_KEY?.trim()) return "deepseek:deepseek-v4-flash";
-  return `local:${getLocalModel()}`;
+  return getStructuredLlmCandidates()[0]!.modelVersion;
 }
 
 // The deprecated direct-DeepSeek fallback uses its Anthropic-compatible

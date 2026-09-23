@@ -173,6 +173,19 @@ void test("real structured generation retries invalid output once and remains re
   assert.equal(invalid.doGenerateCalls.length, 2);
 });
 
+void test("structured generation falls through to the next provider and records its provenance", async () => {
+  const invalid = fixtureModel([{}]);
+  const valid = fixtureModel([emergencyOutput], {
+    provider: "local",
+    modelId: "court-brief-local",
+  });
+  const brief = await generateCourtBrief(emergency, [invalid, valid]);
+
+  assert.equal(invalid.doGenerateCalls.length, 1);
+  assert.equal(valid.doGenerateCalls.length, 1);
+  assert.equal(brief?.modelVersion, "local:court-brief-local");
+});
+
 void test("rate limiting defers the item and stops further provider calls", async () => {
   const model = new MockLanguageModelV3({
     doGenerate: async () => {

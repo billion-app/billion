@@ -188,11 +188,14 @@ export const separateOutput: CourtBrief = {
   ],
 };
 
-export function fixtureModel(outputs: unknown[]) {
+export function fixtureModel(
+  outputs: unknown[],
+  identity: { provider?: string; modelId?: string } = {},
+) {
   let index = 0;
   return new MockLanguageModelV3({
-    provider: "fixture",
-    modelId: "court-brief-test",
+    provider: identity.provider ?? "fixture",
+    modelId: identity.modelId ?? "court-brief-test",
     doGenerate: async () => ({
       content: [
         { type: "text" as const, text: JSON.stringify(outputs[index++]) },
