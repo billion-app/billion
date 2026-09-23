@@ -49,9 +49,10 @@ export function SiteBar() {
         <div className="flex-1" />
         <Link
           href="/"
-          className="border-card-border text-ink-night hover:bg-slate rounded-full border px-4 py-[7px] font-sans text-[13px] font-semibold no-underline transition-colors"
+          className="border-card-border text-ink-night hover:bg-slate rounded-full border px-3 py-[7px] font-sans text-[13px] font-semibold whitespace-nowrap no-underline transition-colors md:px-4"
         >
-          Get the app
+          <span className="hidden sm:inline">Get the app</span>
+          <span className="sm:hidden">Get app</span>
         </Link>
       </div>
     </header>

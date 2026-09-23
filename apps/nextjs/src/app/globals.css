@@ -47,6 +47,21 @@
   }
 }
 
+/* The phone's GoldFoilText: the jurisdiction name in the Browse scope row. */
+@utility gold-foil {
+  background: linear-gradient(100deg, #b8912a 0%, #f3d77a 45%, #d4af37 70%, #a8822a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @utility divider-hairline {
   border: none;
   height: 1px;

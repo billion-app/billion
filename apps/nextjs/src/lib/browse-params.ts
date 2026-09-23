@@ -8,6 +8,9 @@ import { isScope } from "./jurisdictions";
  * names.
  */
 
+/** One page of Browse results; shared by the server prefetch and the client query. */
+export const PAGE_SIZE = 20;
+
 export const TYPE_FILTERS = [
   "all",
   "bill",
