@@ -4,21 +4,20 @@ import { useState } from "react";
 import Link from "next/link";
 
 import type { CardItem } from "~/lib/content-card";
-import { relativeActivity, safeImageSrc } from "~/lib/content-card";
+import { isSaveable, relativeActivity, safeImageSrc } from "~/lib/content-card";
 import { SaveButton } from "../../_components/save-button";
 
 /**
  * A Browse / Saved result. The phone's rhythm, not a boxed tile: kicker,
  * serif title, a two-line gist, a quiet status line, and a hairline between
  * rows. Save sits on the kicker line exactly where the phone puts it.
+ *
+ * The whole card is clickable, but it is not one big link: a button inside a
+ * link is invalid HTML and reads badly to screen readers. The title is the
+ * link, stretched over the card with an overlay, and the save button sits
+ * above that overlay as its sibling.
  */
-export function ResultCard({
-  item,
-  saveable = true,
-}: {
-  item: CardItem;
-  saveable?: boolean;
-}) {
+export function ResultCard({ item }: { item: CardItem }) {
   const [imageFailed, setImageFailed] = useState(false);
   const image = safeImageSrc(item.imageUri);
   const status = [item.status, relativeActivity(item.activityAt)]
@@ -26,11 +25,7 @@ export function ResultCard({
     .join(" · ");
 
   return (
-    <Link
-      href={`/read/${item.id}`}
-      className="group block py-[18px] no-underline"
-      data-testid="result-card"
-    >
+    <article className="group relative py-[18px]" data-testid="result-card">
       <div className="mb-[6px] flex items-center gap-2">
         <span className="text-quiet font-sans text-[11px] font-bold tracking-[0.15em] uppercase">
           <span style={{ color: item.color }} aria-hidden>
@@ -45,14 +40,24 @@ export function ResultCard({
           </span>
         ) : null}
         <span className="flex-1" />
-        {saveable ? (
-          <SaveButton id={item.id} type={item.type} title={item.title} />
+        {isSaveable(item.type) ? (
+          <SaveButton
+            id={item.id}
+            type={item.type}
+            title={item.title}
+            className="relative z-10"
+          />
         ) : null}
       </div>
       <div className="flex items-start gap-[14px]">
         <div className="min-w-0 flex-1">
           <h3 className="font-display text-ink-night line-clamp-3 text-[21px] leading-[26px] font-bold tracking-[-0.02em] group-hover:underline group-hover:decoration-[rgba(247,244,238,0.35)] group-hover:underline-offset-4 md:text-[22px]">
-            {item.title}
+            <Link
+              href={`/read/${item.id}`}
+              className="text-inherit no-underline after:absolute after:inset-0 after:content-['']"
+            >
+              {item.title}
+            </Link>
           </h3>
           {item.gist ? (
             <p className="text-quiet mt-1 line-clamp-2 font-sans text-[14px] leading-[20px]">
@@ -77,6 +82,6 @@ export function ResultCard({
           />
         ) : null}
       </div>
-    </Link>
+    </article>
   );
 }

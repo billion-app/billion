@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  isSaveable,
   presentType,
   relativeActivity,
   toCardItem,
@@ -60,4 +61,12 @@ void test("featured bills are not repeated in the list below them", () => {
     withoutFeatured([{ id: "a" }, { id: "b" }, { id: "c" }], [{ id: "b" }]),
     [{ id: "a" }, { id: "c" }],
   );
+});
+
+void test("only records the saved list can load are saveable, as on the phone", () => {
+  assert.equal(isSaveable("bill"), true);
+  assert.equal(isSaveable("government_content"), true);
+  assert.equal(isSaveable("court_case"), true);
+  assert.equal(isSaveable("general"), false);
+  assert.equal(isSaveable("mystery"), false);
 });

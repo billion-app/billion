@@ -153,3 +153,15 @@ export function safeImageSrc(uri: string | undefined): string | undefined {
   if (!uri) return undefined;
   return /^(https?:|data:image\/)/i.test(uri) ? uri : undefined;
 }
+
+const SAVEABLE_TYPES = new Set(["bill", "government_content", "court_case"]);
+
+/**
+ * Whether a record can be saved. Matches the phone (`useSavedContent`), and
+ * matters for more than parity: the saved list loads through
+ * `content.byIds`, which only returns these three kinds, so a saved briefing
+ * would vanish from the list without a word.
+ */
+export function isSaveable(type: string): boolean {
+  return SAVEABLE_TYPES.has(type);
+}

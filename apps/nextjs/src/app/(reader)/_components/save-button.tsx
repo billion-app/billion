@@ -29,12 +29,7 @@ export function SaveButton({
   return (
     <button
       type="button"
-      onClick={(event) => {
-        // Cards are links; saving must not also open the record.
-        event.preventDefault();
-        event.stopPropagation();
-        toggle(id, { type, title });
-      }}
+      onClick={() => toggle(id, { type, title })}
       aria-pressed={saved}
       aria-label={variant === "icon" ? label : undefined}
       title={variant === "icon" ? label : undefined}
