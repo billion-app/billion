@@ -142,6 +142,7 @@ export async function generateCourtBrief(
       return `[${doc.id}] ${doc.url}\n${excerpt}`;
     })
     .join("\n\n");
+  const allowedDocumentIds = documents.map((document) => document.id);
   const explicitModels = model
     ? Array.isArray(model)
       ? [...model]
@@ -153,6 +154,7 @@ export async function generateCourtBrief(
         modelVersion: `${candidate.provider}:${candidate.modelId}`,
       }))
     : getStructuredLlmCandidates({ localFirst: true });
+  let retryGuidance = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     for (const candidate of candidates) {
       try {
@@ -164,10 +166,11 @@ export async function generateCourtBrief(
 Case: ${input.data.title}; docket: ${input.data.caseNumber}; court: ${input.data.court}.
 Source proceeding classification: ${courtProceeding(input.data)}. Source status: ${input.data.status ?? "unknown"}.
 Explain the specific request and relief granted or denied. A stay denial leaves the challenged action in place at this stage; it does not decide every merits question. For an emergency order, order, or unknown proceeding use court_reasoning, never holding. Even a merits opinion resolves only the issues it actually decides.
-Keep the takeaway and action to one or two short sentences. The takeaway also appears as the article subtitle, so write it without legal shorthand whenever plain wording is accurate. Explain posture in everyday words. Every point must cite document IDs from the supplied list. Quotes must be exact contiguous source passages, attributed to the document containing them; otherwise use null. Include a page/section locator only when known, otherwise null.
+Keep the takeaway and action to one or two short sentences. The takeaway also appears as the article subtitle, so write it without legal shorthand whenever plain wording is accurate. Explain posture in everyday words. The only allowed document IDs are ${allowedDocumentIds.join(", ")}. Every documentIds entry and every quote.documentId must exactly match one of those IDs; never create another ID. Quotes must be exact contiguous source passages, attributed to the document containing them; otherwise use null. Include a page/section locator only when known, otherwise null.
 Prefer everyday language throughout. When an accurate explanation still needs a legal term, add that exact word or short phrase to terms with a concise, self-contained definition a general reader can understand. Include only terms that actually appear in the generated brief, use consistent wording so they can be highlighted inline, and do not define ordinary words. Use an empty terms array when no definition is needed.
 Separate court reasoning from party arguments and allegations. Describe affected groups with a court_order or possible_effect label; do not assert predictions as findings. Summarize separately authored concurrences/dissents only when the source identifies them; a combined PDF can contain several opinions. Authors may be null. Do not infer votes from opinion counts or infer agreement from silence.
 Use empty arrays for unsupported sections. Include explicit unknowns about absent reasoning, missing documents, uncertain effects, or unresolved merits. Do not invent completeness. No partisan debate or researched background: existing cited ContentLens supplies that separately. Never turn a dissent's argument into the Court's ruling.
+${retryGuidance}
 Sources (excerpts may omit material; state the resulting limits):
 ${evidence}`,
         });
@@ -178,8 +181,14 @@ ${evidence}`,
           setRateLimitHit(true);
           throw new AIRateLimitError();
         }
+        const message = error instanceof Error ? error.message : String(error);
+        if (
+          /unknown document|did not match schema|could not parse/i.test(message)
+        ) {
+          retryGuidance = `The previous output failed validation. Correct it and use only these exact document IDs: ${allowedDocumentIds.join(", ")}. Unsupported claims should be omitted, not assigned a made-up document ID.`;
+        }
         logger.warn(
-          `Court brief attempt ${attempt + 1} failed for ${input.data.caseNumber} with ${candidate.modelVersion}: ${error instanceof Error ? error.message : String(error)}`,
+          `Court brief attempt ${attempt + 1} failed for ${input.data.caseNumber} with ${candidate.modelVersion}: ${message}`,
         );
       }
     }
