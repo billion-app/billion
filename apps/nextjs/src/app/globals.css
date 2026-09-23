@@ -106,3 +106,52 @@
     outline-offset: 3px;
   }
 }
+
+/* Long-form Markdown in the web reader (articles, deep dives). */
+.reader-prose {
+  font-family: var(--font-albert-sans), "Helvetica Neue", Arial, sans-serif;
+  font-size: 16.5px;
+  line-height: 1.68;
+  color: rgba(255, 255, 255, 0.86);
+}
+.reader-prose > * + * {
+  margin-top: 1em;
+}
+.reader-prose h1,
+.reader-prose h2,
+.reader-prose h3 {
+  font-family: var(--font-inria-serif), Georgia, serif;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+  margin-top: 1.8em;
+}
+.reader-prose h1 { font-size: 1.6em; }
+.reader-prose h2 { font-size: 1.35em; }
+.reader-prose h3 { font-size: 1.15em; }
+.reader-prose a {
+  color: var(--digest-digest-primary);
+  text-underline-offset: 3px;
+}
+.reader-prose ul,
+.reader-prose ol {
+  padding-left: 1.3em;
+}
+.reader-prose ul { list-style: disc; }
+.reader-prose ol { list-style: decimal; }
+.reader-prose li + li { margin-top: 0.35em; }
+.reader-prose blockquote {
+  border-left: 2px solid var(--digest-hair-3);
+  padding-left: 1em;
+  color: rgba(255, 255, 255, 0.72);
+  font-style: italic;
+}
+.reader-prose strong { color: #fff; }
+.reader-prose img {
+  max-width: 100%;
+  border-radius: 12px;
+}
+.reader-prose code {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.88em;
+}
