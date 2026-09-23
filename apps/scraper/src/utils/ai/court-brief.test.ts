@@ -173,6 +173,27 @@ void test("real structured generation retries invalid output once and remains re
   assert.equal(invalid.doGenerateCalls.length, 2);
 });
 
+void test("a citation-validation retry names the exact allowed document IDs", async () => {
+  const model = fixtureModel([
+    {
+      ...emergencyOutput,
+      action: {
+        ...emergencyOutput.action,
+        documentIds: ["document-999"],
+      },
+    },
+    emergencyOutput,
+  ]);
+
+  const brief = await generateCourtBrief(emergency, model);
+  assert.ok(brief);
+  assert.equal(model.doGenerateCalls.length, 2);
+  const retryPrompt = JSON.stringify(model.doGenerateCalls[1]?.prompt);
+  assert.match(retryPrompt, /previous output failed validation/i);
+  assert.match(retryPrompt, /only these exact document IDs: document-1/);
+  assert.doesNotMatch(retryPrompt, /document-999/);
+});
+
 void test("structured generation falls through to the next provider and records its provenance", async () => {
   const invalid = fixtureModel([{}]);
   const valid = fixtureModel([emergencyOutput], {
