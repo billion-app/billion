@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { SCOPE_COOKIE } from "./browse-params";
 import {
   createLocalReaderState,
   JURISDICTION_KEY,
@@ -106,4 +107,13 @@ void test("subscribers hear about changes", async () => {
   off();
   await state.unsave("a");
   assert.equal(calls, 2);
+});
+
+void test("the jurisdiction is mirrored to a cookie so the server can render it", async () => {
+  const written: [string, string][] = [];
+  const state = createLocalReaderState(memoryStorage(), {
+    writeCookie: (name, value) => written.push([name, value]),
+  });
+  await state.setJurisdiction("nc");
+  assert.deepEqual(written, [[SCOPE_COOKIE, "nc"]]);
 });

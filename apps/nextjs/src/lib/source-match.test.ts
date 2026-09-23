@@ -28,3 +28,37 @@ void test("a quote that is not in the text is shown as cited, above the whole te
     after: TEXT,
   });
 });
+
+// The pipeline accepts a quote when it matches after normalizing punctuation,
+// whitespace, curly quotes and words hyphenated across line breaks
+// (`normalizeForQuoteMatch` in apps/scraper). The reader must find those too.
+void test("a quote verified across a line break and extra spaces is still found", () => {
+  const source = "SEC. 4. The Secretary shall\n   establish a grant\nprogram.";
+  const result = findQuote(
+    source,
+    "The Secretary shall establish a grant program.",
+  );
+  assert.equal(result.found, true);
+  assert.equal(result.before, "SEC. 4. ");
+  // Punctuation is ignored by the match, so the closing period stays outside it.
+  assert.equal(
+    result.match,
+    "The Secretary shall\n   establish a grant\nprogram",
+  );
+  assert.equal(result.after, ".");
+});
+
+void test("curly quotes and a hyphenated line break still match", () => {
+  const source =
+    "the term ‘covered entity’ means any trans-\nportation authority. Next.";
+  const result = findQuote(
+    source,
+    "the term 'covered entity' means any transportation authority",
+  );
+  assert.equal(result.found, true);
+  assert.equal(
+    result.match,
+    "the term ‘covered entity’ means any trans-\nportation authority",
+  );
+  assert.equal(result.after, ". Next.");
+});

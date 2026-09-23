@@ -1,6 +1,6 @@
 import { contentType } from "@acme/ui/digest-tokens";
 
-import { isStateScope, STATE_BODIES } from "./jurisdictions";
+import { isStateScope, stateLegislature } from "./jurisdictions";
 
 /**
  * How a record from `content.getByType` / `content.search` becomes a result
@@ -113,7 +113,7 @@ export function displayBillNumber(
 
 export function stateBody(jurisdiction: string | undefined) {
   return isStateScope(jurisdiction) && jurisdiction
-    ? STATE_BODIES[jurisdiction]
+    ? stateLegislature(jurisdiction)
     : undefined;
 }
 

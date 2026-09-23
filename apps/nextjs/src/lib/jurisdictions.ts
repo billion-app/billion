@@ -1,9 +1,13 @@
+import { STATE_JURISDICTIONS } from "@acme/api/content-jurisdiction";
+
 /**
- * The jurisdictions web Browse can scope to, with the phone's display copy
- * (`apps/expo/src/utils/jurisdiction.ts`).
+ * The jurisdictions web Browse can scope to.
  *
- * Missouri is absent on purpose: the phone keeps it only so old installs can
- * still render a stored `mo`, and a new surface has no such installs.
+ * Names, legislatures and session labels come from the API's own table
+ * (`packages/api/src/lib/content-jurisdiction.ts`) — the same one that labels
+ * each bill — so a new session or a renamed body changes in one place. Which
+ * jurisdictions are *offered* is a client choice, as on the phone: Missouri
+ * stays in the API for old app installs but is not browsable here.
  */
 export const SCOPES = ["federal", "ca", "nc", "tx"] as const;
 
@@ -16,6 +20,16 @@ export interface JurisdictionInfo {
   description: string;
 }
 
+function state(key: Exclude<Scope, "federal">): JurisdictionInfo {
+  const def = STATE_JURISDICTIONS[key];
+  return {
+    name: def.name,
+    body: def.legislature,
+    code: def.code,
+    description: def.currentSessionLabel,
+  };
+}
+
 export const JURISDICTIONS: Record<Scope, JurisdictionInfo> = {
   federal: {
     name: "United States",
@@ -23,33 +37,18 @@ export const JURISDICTIONS: Record<Scope, JurisdictionInfo> = {
     code: "US",
     description: "Congress, the President, the Supreme Court",
   },
-  ca: {
-    name: "California",
-    body: "California State Legislature",
-    code: "CA",
-    description: "State Legislature · 2025–2026 regular session",
-  },
-  nc: {
-    name: "North Carolina",
-    body: "North Carolina General Assembly",
-    code: "NC",
-    description: "General Assembly · 2025–2026 regular session",
-  },
-  tx: {
-    name: "Texas",
-    body: "Texas Legislature",
-    code: "TX",
-    description: "State Legislature · 89th Legislature",
-  },
+  ca: state("ca"),
+  nc: state("nc"),
+  tx: state("tx"),
 };
 
-/** Display body for any jurisdiction the API may return, including `mo`. */
-export const STATE_BODIES: Record<string, string | undefined> = {
-  ...Object.fromEntries(
-    SCOPES.map((scope) => [scope, JURISDICTIONS[scope].body]),
-  ),
-  mo: "Missouri General Assembly",
-};
+/** The legislature for any state the API may return, including retired ones. */
+export function stateLegislature(jurisdiction: string): string | undefined {
+  return Object.hasOwn(STATE_JURISDICTIONS, jurisdiction)
+    ? STATE_JURISDICTIONS[jurisdiction as keyof typeof STATE_JURISDICTIONS]
+        .legislature
+    : undefined;
+}
 
 export function isScope(value: unknown): value is Scope {
   return SCOPES.some((scope) => scope === value);

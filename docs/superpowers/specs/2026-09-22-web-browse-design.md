@@ -1,6 +1,6 @@
 # Web Browse — design
 
-Status: implemented on branch `feat/web-browse` (not yet merged). The [implementation plan](../plans/2026-09-22-web-browse.md) records the open-question decisions.
+Status: implemented. The [implementation plan](../plans/2026-09-22-web-browse.md) records how the open questions were answered and where the build departed from this design.
 Date: 2026-09-22
 
 ## What this is

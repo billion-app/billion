@@ -7,7 +7,12 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { BrowseParams, TypeFilter } from "~/lib/browse-params";
 import type { ContentListItem } from "~/lib/content-card";
 import type { Scope } from "~/lib/jurisdictions";
-import { browseHref, PAGE_SIZE, parseBrowseParams } from "~/lib/browse-params";
+import {
+  browseHref,
+  MIN_SEARCH_LENGTH,
+  PAGE_SIZE,
+  parseBrowseParams,
+} from "~/lib/browse-params";
 import { toCardItem, withoutFeatured } from "~/lib/content-card";
 import { isStateScope, JURISDICTIONS } from "~/lib/jurisdictions";
 import { useStoredJurisdiction } from "~/lib/reader-state";
@@ -18,9 +23,6 @@ import { EmptyState, ErrorState, ListSkeleton } from "./list-states";
 import { ResultCard } from "./result-card";
 import { ScopeBar } from "./scope-bar";
 import { SearchField } from "./search-field";
-
-/** Below this, a query is "not searching yet" — no full-text round trip per keystroke. */
-const MIN_SEARCH_LENGTH = 2;
 
 /**
  * Browse, for a browser. The phone's catalog (`apps/expo/src/app/(tabs)/index.tsx`)
@@ -33,23 +35,24 @@ const MIN_SEARCH_LENGTH = 2;
  * Both go through `history` directly, which Next keeps in step with
  * `useSearchParams`, so a filter click never waits on a server render.
  */
-export function BrowseCatalog() {
+export function BrowseCatalog({ defaultScope }: { defaultScope: Scope }) {
   const searchParams = useSearchParams();
   const params = parseBrowseParams(searchParams);
-  const { jurisdiction: stored, setJurisdiction } = useStoredJurisdiction();
+  const { setJurisdiction } = useStoredJurisdiction();
 
-  const scope: Scope = params.scope ?? "federal";
+  // A URL without a scope means "no choice made": the server has already
+  // rendered the reader's stored jurisdiction (from its cookie) as
+  // `defaultScope`, so only the address bar needs catching up.
+  const scope: Scope = params.scope ?? defaultScope;
   const type = params.type;
-
-  // A URL with no scope takes the reader's last choice, once it is known.
-  const adopted = useRef(false);
+  const needsScopeInUrl = params.scope === null;
   useEffect(() => {
-    if (adopted.current || stored === null) return;
-    adopted.current = true;
-    if (params.scope === null && stored !== "federal") {
-      navigate({ ...params, scope: stored }, "replace");
-    }
-  }, [stored, params]);
+    if (!needsScopeInUrl) return;
+    const current = parseBrowseParams(
+      new URLSearchParams(window.location.search),
+    );
+    navigate({ ...current, scope: defaultScope }, "replace");
+  }, [needsScopeInUrl, defaultScope]);
 
   const [query, setQuery] = useState(params.q);
   const debouncedQuery = useDebounced(query, 300);
@@ -75,7 +78,7 @@ export function BrowseCatalog() {
         new URLSearchParams(window.location.search),
       );
       navigate(
-        { scope: current.scope ?? "federal", type: current.type, q: next },
+        { scope: current.scope ?? defaultScope, type: current.type, q: next },
         "replace",
       );
     }, 300);
@@ -138,7 +141,9 @@ export function BrowseCatalog() {
       ? withoutFeatured(listItems, featuredItems)
       : listItems;
   const loading = isSearching ? search.isLoading : list.isLoading;
-  const error = isSearching ? search.error : list.error;
+  // A failed "Show more" keeps the pages already loaded; only a list with no
+  // data at all is replaced by the error state.
+  const error = isSearching ? search.error : list.data ? null : list.error;
   const retry = () => void (isSearching ? search.refetch() : list.refetch());
 
   const info = JURISDICTIONS[scope];
@@ -224,7 +229,20 @@ export function BrowseCatalog() {
           </ResultGrid>
         )}
 
-        {!isSearching && !loading && !error && list.hasNextPage ? (
+        {!isSearching && !loading && !error && list.isFetchNextPageError ? (
+          <div className="mt-6 flex flex-col items-center gap-2 text-center">
+            <p className="text-quiet font-sans text-[13px]">
+              More results didn’t load.
+            </p>
+            <button
+              type="button"
+              onClick={() => void list.fetchNextPage()}
+              className="border-card-border text-ink-night hover:bg-slate cursor-pointer rounded-full border px-5 py-[10px] font-sans text-[13px] font-semibold"
+            >
+              Try again
+            </button>
+          </div>
+        ) : !isSearching && !loading && !error && list.hasNextPage ? (
           <LoadMore
             loading={list.isFetchingNextPage}
             onLoad={() => void list.fetchNextPage()}

@@ -1,11 +1,12 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import type { ContentListItem } from "~/lib/content-card";
 import { toCardItem } from "~/lib/content-card";
-import { useSavedIds } from "~/lib/reader-state";
+import { forgetSaved, useSavedIds } from "~/lib/reader-state";
 import { useTRPC } from "~/trpc/react";
 import { ListSkeleton } from "../_components/list-states";
 import { ResultCard } from "../_components/result-card";
@@ -16,16 +17,36 @@ import { ResultCard } from "../_components/result-card";
  * anything retired since it was saved.
  *
  * Unsaving removes a row at once, from the local list, rather than waiting
- * for the refetch.
+ * for the refetch. Ids the server no longer returns are forgotten, so the
+ * count here and the badge in the nav always agree.
  */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function SavedList() {
-  const { ids, ready } = useSavedIds();
+  const { ids: stored, ready } = useSavedIds();
+  // `content.byIds` rejects the whole request for one malformed id.
+  const ids = useMemo(() => stored.filter((id) => UUID.test(id)), [stored]);
   const trpc = useTRPC();
   const records = useQuery({
     ...trpc.content.byIds.queryOptions({ ids }),
     enabled: ready && ids.length > 0,
     placeholderData: keepPreviousData,
   });
+
+  // Only a real answer for exactly these ids may prune; placeholder data
+  // belongs to the previous list and would drop a save made a moment ago.
+  const answer =
+    records.isSuccess && !records.isPlaceholderData ? records.data : null;
+  useEffect(() => {
+    if (!ready) return;
+    const invalid = stored.filter((id) => !UUID.test(id));
+    const returned = answer
+      ? new Set(answer.items.map((item) => item.id))
+      : null;
+    const retired = returned ? ids.filter((id) => !returned.has(id)) : [];
+    if (invalid.length + retired.length > 0)
+      forgetSaved([...invalid, ...retired]);
+  }, [ready, stored, ids, answer]);
 
   const saved = new Set(ids);
   const items = ((records.data?.items ?? []) as ContentListItem[]).filter(

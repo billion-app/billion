@@ -4,12 +4,22 @@ import { isScope } from "./jurisdictions";
 /**
  * Browse keeps its view in the URL — `/browse?scope=ca&type=bill&q=wildfire`
  * — so a filtered view can be linked, shared and reached with the back
- * button. These two functions are the only place that knows the parameter
+ * button. These functions are the only place that knows the parameter
  * names.
+ *
+ * `scope` is always written, federal included. A URL without it means "no
+ * choice made", which takes the reader's stored jurisdiction; a shared
+ * federal link must not be read that way and land a Texan in Texas.
  */
 
 /** One page of Browse results; shared by the server prefetch and the client query. */
 export const PAGE_SIZE = 20;
+
+/**
+ * Below this a query is "not searching yet": no full-text round trip per
+ * keystroke. Shared so the server prefetches what the client will show.
+ */
+export const MIN_SEARCH_LENGTH = 2;
 
 export const TYPE_FILTERS = [
   "all",
@@ -65,10 +75,19 @@ export function browseHref(view: {
   type: TypeFilter;
   q: string;
 }): string {
-  const params = new URLSearchParams();
-  if (view.scope !== "federal") params.set("scope", view.scope);
+  const params = new URLSearchParams({ scope: view.scope });
   if (view.type !== "all") params.set("type", view.type);
   if (view.q.trim()) params.set("q", view.q.trim());
-  const query = params.toString();
-  return query ? `/browse?${query}` : "/browse";
+  return `/browse?${params.toString()}`;
+}
+
+/**
+ * The stored jurisdiction, mirrored into a cookie by the reader state so the
+ * server can render a bare `/browse` in the reader's own scope instead of
+ * rendering federal and correcting itself after hydration.
+ */
+export const SCOPE_COOKIE = "billion_scope";
+
+export function scopeFromCookie(value: string | undefined): Scope | null {
+  return isScope(value) ? value : null;
 }

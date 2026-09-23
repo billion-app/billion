@@ -1,5 +1,11 @@
 # Web Browse Implementation Plan
 
+> **Status: implemented** on `feat/web-browse` (2026-09-23). This is the plan as
+> written before the build, kept for history; the checked boxes are done. Where
+> the build departed from it, see [Changes during implementation](#changes-during-implementation).
+> The code and [the frontend guide](../../frontend.md#web-browse-and-the-reader)
+> describe current behavior.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship `/browse`, `/browse/saved` and `/read/[id]` in `apps/nextjs`: the phone's Browse tab and article reader, laid out for a browser, with no sign-in.
@@ -68,12 +74,12 @@
 
 - Produces: `planes`, `hair`, `digest`, `DigestHair`, `DigestRadii`, `DigestSpace`, `contentTypeColors` from `@acme/ui/digest-tokens`, and `digestCssVariables(): string` from `~/lib/digest-css`. The CSS names follow `--digest-<group>-<key>`, e.g. `--digest-planes-navy` and `--digest-hair-card-border`.
 
-- [ ] **Step 1:** Move the literal objects `planes`, `hair`, `digest`, `DigestHair`, `DigestRadii`, `DigestSpace` and the `contentType` colors from `styles.ts` into `digest-tokens.ts`, unchanged, `as const`, with no React Native imports.
-- [ ] **Step 2:** In `styles.ts`, `import { planes, hair, digest, DigestHair, DigestRadii, DigestSpace } from "@acme/ui/digest-tokens"` and `export { … }`. Keep `DigestPalette`, `DigestColor` and the rest as derived aliases in `styles.ts` so every `~/styles` import still resolves.
-- [ ] **Step 3:** Write the failing test `digest-css.test.ts`. It asserts that the output contains `--digest-planes-navy:#0E1530;`, `--digest-digest-ink-on-night:#F7F4EE;` and `--digest-hair-card-border:rgba(247,244,238,0.08);`, and that numeric radii get `px`.
-- [ ] **Step 4:** Implement `digestCssVariables()`: flatten the groups, kebab-case the keys, add `px` to numbers, wrap in `:root{…}`.
-- [ ] **Step 5:** In `globals.css`, add `@theme inline { --color-night: var(--digest-planes-navy); --color-slate: …; --color-surface: …; --color-paper: …; --color-ink-night: …; --color-quiet: …; --color-spark: …; --color-primary-blue: …; --color-rule: var(--digest-hair-section-rule); --color-card-border: …; --color-bill: …; --color-order: …; --color-case: … }`.
-- [ ] **Step 6:** Run `pnpm --filter @acme/nextjs test`, `pnpm --filter @acme/expo typecheck` and `pnpm --filter @acme/ui typecheck`. Commit: `refactor(ui): extract Digest tokens for web and mobile`.
+- [x] **Step 1:** Move the literal objects `planes`, `hair`, `digest`, `DigestHair`, `DigestRadii`, `DigestSpace` and the `contentType` colors from `styles.ts` into `digest-tokens.ts`, unchanged, `as const`, with no React Native imports.
+- [x] **Step 2:** In `styles.ts`, `import { planes, hair, digest, DigestHair, DigestRadii, DigestSpace } from "@acme/ui/digest-tokens"` and `export { … }`. Keep `DigestPalette`, `DigestColor` and the rest as derived aliases in `styles.ts` so every `~/styles` import still resolves.
+- [x] **Step 3:** Write the failing test `digest-css.test.ts`. It asserts that the output contains `--digest-planes-navy:#0E1530;`, `--digest-digest-ink-on-night:#F7F4EE;` and `--digest-hair-card-border:rgba(247,244,238,0.08);`, and that numeric radii get `px`.
+- [x] **Step 4:** Implement `digestCssVariables()`: flatten the groups, kebab-case the keys, add `px` to numbers, wrap in `:root{…}`.
+- [x] **Step 5:** In `globals.css`, add `@theme inline { --color-night: var(--digest-planes-navy); --color-slate: …; --color-surface: …; --color-paper: …; --color-ink-night: …; --color-quiet: …; --color-spark: …; --color-primary-blue: …; --color-rule: var(--digest-hair-section-rule); --color-card-border: …; --color-bill: …; --color-order: …; --color-case: … }`.
+- [x] **Step 6:** Run `pnpm --filter @acme/nextjs test`, `pnpm --filter @acme/expo typecheck` and `pnpm --filter @acme/ui typecheck`. Commit: `refactor(ui): extract Digest tokens for web and mobile`.
 
 ### Task 2: Browse URL params, jurisdictions, card mapping
 
@@ -96,10 +102,10 @@
   - `relativeActivity(value, now)` (the phone's copy, verbatim)
   - `withoutFeatured(items, featured)`
 
-- [ ] **Step 1:** Write the failing tests. `parseBrowseParams({scope:"ca",type:"bill",q:" wildfire "})` returns `{scope:"ca",type:"bill",q:"wildfire"}`. An unknown scope or `mo` returns `null`. An unknown type returns `"all"`. `browseHref({scope:"federal",type:"all",q:""})` returns `/browse`. The state-bill tag becomes `"AB 12"` from `"CA AB 12 (2025-2026)"`, and `relativeActivity` covers today, 1 day and 5 days.
-- [ ] **Step 2:** Run `pnpm --filter @acme/nextjs test` and confirm the tests fail.
-- [ ] **Step 3:** Implement the modules as ports of `apps/expo/src/utils/content.ts`, `utils/jurisdiction.ts`, `utils/relative-activity.ts` and `utils/featured-bills.ts`.
-- [ ] **Step 4:** Run the tests and confirm they pass. Commit: `feat(web): browse params and card mapping`.
+- [x] **Step 1:** Write the failing tests. `parseBrowseParams({scope:"ca",type:"bill",q:" wildfire "})` returns `{scope:"ca",type:"bill",q:"wildfire"}`. An unknown scope or `mo` returns `null`. An unknown type returns `"all"`. `browseHref({scope:"federal",type:"all",q:""})` returns `/browse`. The state-bill tag becomes `"AB 12"` from `"CA AB 12 (2025-2026)"`, and `relativeActivity` covers today, 1 day and 5 days.
+- [x] **Step 2:** Run `pnpm --filter @acme/nextjs test` and confirm the tests fail.
+- [x] **Step 3:** Implement the modules as ports of `apps/expo/src/utils/content.ts`, `utils/jurisdiction.ts`, `utils/relative-activity.ts` and `utils/featured-bills.ts`.
+- [x] **Step 4:** Run the tests and confirm they pass. Commit: `feat(web): browse params and card mapping`.
 
 ### Task 3: ReaderState
 
@@ -139,10 +145,10 @@
   ```
 - Keys: `billion.web.saved-content.v1` (ordered ids, newest first, max 200) and `billion.web.jurisdiction.v1`. `subscribe` covers same-tab changes and cross-tab `storage` events.
 
-- [ ] **Step 1:** Write the failing tests against a fake storage. A save puts the id first, and saving again moves it without duplicating. Unsave removes. Corrupt JSON reads as `[]`. The list is capped at 200. `jurisdiction()` defaults to `"federal"` and ignores unsupported values. A throwing `setItem` keeps the in-memory value. A `null` storage (SSR or blocked) works in memory.
-- [ ] **Step 2:** Run the tests and confirm they fail.
-- [ ] **Step 3:** Implement it, mirroring `apps/expo/src/utils/saved-store.ts`: pure list rules and a serialized update queue. Add the hooks with `useSyncExternalStore`. Server snapshot: `[]` / `null`.
-- [ ] **Step 4:** Run the tests and confirm they pass. Commit: `feat(web): local reader state behind one interface`.
+- [x] **Step 1:** Write the failing tests against a fake storage. A save puts the id first, and saving again moves it without duplicating. Unsave removes. Corrupt JSON reads as `[]`. The list is capped at 200. `jurisdiction()` defaults to `"federal"` and ignores unsupported values. A throwing `setItem` keeps the in-memory value. A `null` storage (SSR or blocked) works in memory.
+- [x] **Step 2:** Run the tests and confirm they fail.
+- [x] **Step 3:** Implement it, mirroring `apps/expo/src/utils/saved-store.ts`: pure list rules and a serialized update queue. Add the hooks with `useSyncExternalStore`. Server snapshot: `[]` / `null`.
+- [x] **Step 4:** Run the tests and confirm they pass. Commit: `feat(web): local reader state behind one interface`.
 
 ### Task 4: Reader-group layout and chrome
 
@@ -156,9 +162,9 @@
 - Consumes: `digestCssVariables()`, `useSavedIds()`
 - Produces: `<Icon name="bookmark"|"bookmarkFill"|"search"|"chevD"|"chevR"|"external"|"sparkle"|"doc"|"arrowRight"|"close"|"scale"|"book"|"help"|"clock"|"quote"|"link" size? />` and `<SaveButton id type title variant="icon"|"pill" />`
 
-- [ ] **Step 1:** The layout renders `<style dangerouslySetInnerHTML={{__html: digestCssVariables()}} />`, `<SiteBar />` and `{children}` on `bg-night text-ink-night`.
-- [ ] **Step 2:** `SiteBar` is sticky, with a 1px `rule` bottom border. It holds the wordmark "Billion" (IBM Plex Serif) linking to `/browse`, the nav links Browse and Saved (with a count badge, client), and "Get the app" linking to `/`.
-- [ ] **Step 3:** Run `pnpm --filter @acme/nextjs typecheck`. Commit.
+- [x] **Step 1:** The layout renders `<style dangerouslySetInnerHTML={{__html: digestCssVariables()}} />`, `<SiteBar />` and `{children}` on `bg-night text-ink-night`.
+- [x] **Step 2:** `SiteBar` is sticky, with a 1px `rule` bottom border. It holds the wordmark "Billion" (IBM Plex Serif) linking to `/browse`, the nav links Browse and Saved (with a count badge, client), and "Get the app" linking to `/`.
+- [x] **Step 3:** Run `pnpm --filter @acme/nextjs typecheck`. Commit.
 
 ### Task 5: `/browse`
 
@@ -172,12 +178,12 @@
 - Consumes: `parseBrowseParams`, `browseHref`, `toCardItem`, `withoutFeatured`, `useSavedIds`, `useStoredJurisdiction`, `trpc` (server proxy) / `useTRPC` (client)
 - Page-size constant `PAGE_SIZE = 20`; `MIN_SEARCH_LENGTH = 2`; debounce 300ms.
 
-- [ ] **Step 1:** In `page.tsx`, await `searchParams` and parse. Treat `scope ?? "federal"` as `initialScope`. Prefetch `trpc.content.getByType.infiniteQueryOptions({type, limit: PAGE_SIZE, jurisdiction}, {initialCursor: 0, getNextPageParam: p => p.nextCursor})`, and prefetch `getFeaturedBills({jurisdiction})` when the type is all or bill and there is no query. Wrap in `<HydrateClient><BrowseCatalog initial={…} /></HydrateClient>`. Set metadata to `Browse — Billion`.
-- [ ] **Step 2:** `BrowseCatalog` holds `scope`/`type`/`q` state seeded from the props and writes changes back with `router.replace(browseHref(…), {scroll:false})`. A new scope also calls `setJurisdiction`. On mount, if the URL had no scope and the stored jurisdiction is not federal, adopt the stored one.
-- [ ] **Step 3:** Queries match the phone's `BrowseCatalog` (`apps/expo/src/app/(tabs)/index.tsx:84-190`): infinite list, featured, search, and other-jurisdiction search (limit 3).
-- [ ] **Step 4:** Layout. At `md:` it is a grid `[260px_1fr]`: the left rail (sticky) holds ScopeBar (a select-like menu of the four scopes, gold name), "Saved" and the vertical FilterPills. The main area holds the "Browse" display title, SearchField, FeaturedRail (horizontal, scroll-snap, 280px tall cards, gradient overlay), the results count and a `md:grid-cols-2` ResultCard grid with hairline rules. Below `md`, it is a single column with horizontally scrolling pills.
-- [ ] **Step 5:** States. A list error shows "`<name>` didn’t load / Your scope hasn’t changed" with Try again, and "Browse Federal instead" when not federal. The empty copy is the phone's, including "Show `<state>` bills". Other-jurisdiction matches get a dashed box with a count and "Switch". "Show more" calls `fetchNextPage`, with an IntersectionObserver sentinel for auto-load.
-- [ ] **Step 6:** Run typecheck and lint, then check against the dev server at 375/768/1440. Commit: `feat(web): browse catalog`.
+- [x] **Step 1:** In `page.tsx`, await `searchParams` and parse. Treat `scope ?? "federal"` as `initialScope`. Prefetch `trpc.content.getByType.infiniteQueryOptions({type, limit: PAGE_SIZE, jurisdiction}, {initialCursor: 0, getNextPageParam: p => p.nextCursor})`, and prefetch `getFeaturedBills({jurisdiction})` when the type is all or bill and there is no query. Wrap in `<HydrateClient><BrowseCatalog initial={…} /></HydrateClient>`. Set metadata to `Browse — Billion`.
+- [x] **Step 2:** `BrowseCatalog` holds `scope`/`type`/`q` state seeded from the props and writes changes back with `router.replace(browseHref(…), {scroll:false})`. A new scope also calls `setJurisdiction`. On mount, if the URL had no scope and the stored jurisdiction is not federal, adopt the stored one.
+- [x] **Step 3:** Queries match the phone's `BrowseCatalog` (`apps/expo/src/app/(tabs)/index.tsx:84-190`): infinite list, featured, search, and other-jurisdiction search (limit 3).
+- [x] **Step 4:** Layout. At `md:` it is a grid `[260px_1fr]`: the left rail (sticky) holds ScopeBar (a select-like menu of the four scopes, gold name), "Saved" and the vertical FilterPills. The main area holds the "Browse" display title, SearchField, FeaturedRail (horizontal, scroll-snap, 280px tall cards, gradient overlay), the results count and a `md:grid-cols-2` ResultCard grid with hairline rules. Below `md`, it is a single column with horizontally scrolling pills.
+- [x] **Step 5:** States. A list error shows "`<name>` didn’t load / Your scope hasn’t changed" with Try again, and "Browse Federal instead" when not federal. The empty copy is the phone's, including "Show `<state>` bills". Other-jurisdiction matches get a dashed box with a count and "Switch". "Show more" calls `fetchNextPage`, with an IntersectionObserver sentinel for auto-load.
+- [x] **Step 6:** Run typecheck and lint, then check against the dev server at 375/768/1440. Commit: `feat(web): browse catalog`.
 
 ### Task 6: `/read/[id]`
 
@@ -193,14 +199,14 @@
 - `findQuote(text: string, quote: string): { before: string; match: string; after: string; found: boolean }` does an exact search, then a case-insensitive one.
 - `ReaderBody` props: `{ accent: string; hasBrief: boolean; explainer: ReactNode; original: string; sourceUrl?: string; officialLabel: string }`. It provides `useViewSource()` to `ViewSourceButton`.
 
-- [ ] **Step 1:** Write the failing `source-match` tests: exact match, case-insensitive match, and a miss returning `found:false` with `after = text`. Implement and pass.
-- [ ] **Step 2:** In `page.tsx`, call `notFound()` on null. `generateMetadata` sets title, description, and a canonical pointing at `/b/<shareSegment>`. The layout is a grid: `xl:grid-cols-[minmax(0,720px)_300px]`, centered.
-- [ ] **Step 3:** The header renders header art (`<img>`, since it may be a data URI), the type badge, bill number, state body/session line, serif title, description, sponsor card and a Save and Copy link row.
-- [ ] **Step 4:** `ReaderBody` has a segmented toggle, "The brief"/"Plain explainer" against "Original text". Under the explainer: the provenance disclosure (`<details>`), with the phone's copy verbatim, then the explainer slot. Under the source: a "View on Original Site" / "View Federal Register record" button, then `SourcePanel`, which highlights and scrolls to the quote.
-- [ ] **Step 5:** `BriefBlocks` is a server component that renders blocks in the phone's order. Hook: the short-version card, with the extended version in `<details>`. WhyNotBefore: `<details>` with numbered sources. Terms: inline, `xl:hidden`. Changes: cards in a grid, not a carousel, with a quote disclosure and a `ViewSourceButton`. Affected: outcome rows with `<details>` "Why this matters". Unknowns. Dual lens. Keep reading: the deep dive as `<details>` rendered with Markdown, and external links. Records without a brief render `articleContent` through `markdown-it` (`html:false`, `linkify:true`), or as plain text.
-- [ ] **Step 6:** `Timeline` gives the phone's "Where it stands" card, with the actions sorted by date and each long entry expandable in `<details>`. It ends with "Official record · {sourceLabel}". It renders inline below `xl` and in the right rail at `xl` and above, next to the Key terms.
-- [ ] **Step 7:** The explainer ends with "Don't take our word for it." and an "Open the source" button.
-- [ ] **Step 8:** Run typecheck, lint and test, then view a bill with a brief, one without, an order and a case. Commit: `feat(web): full reader`.
+- [x] **Step 1:** Write the failing `source-match` tests: exact match, case-insensitive match, and a miss returning `found:false` with `after = text`. Implement and pass.
+- [x] **Step 2:** In `page.tsx`, call `notFound()` on null. `generateMetadata` sets title, description, and a canonical pointing at `/b/<shareSegment>`. The layout is a grid: `xl:grid-cols-[minmax(0,720px)_300px]`, centered.
+- [x] **Step 3:** The header renders header art (`<img>`, since it may be a data URI), the type badge, bill number, state body/session line, serif title, description, sponsor card and a Save and Copy link row.
+- [x] **Step 4:** `ReaderBody` has a segmented toggle, "The brief"/"Plain explainer" against "Original text". Under the explainer: the provenance disclosure (`<details>`), with the phone's copy verbatim, then the explainer slot. Under the source: a "View on Original Site" / "View Federal Register record" button, then `SourcePanel`, which highlights and scrolls to the quote.
+- [x] **Step 5:** `BriefBlocks` is a server component that renders blocks in the phone's order. Hook: the short-version card, with the extended version in `<details>`. WhyNotBefore: `<details>` with numbered sources. Terms: inline, `xl:hidden`. Changes: cards in a grid, not a carousel, with a quote disclosure and a `ViewSourceButton`. Affected: outcome rows with `<details>` "Why this matters". Unknowns. Dual lens. Keep reading: the deep dive as `<details>` rendered with Markdown, and external links. Records without a brief render `articleContent` through `markdown-it` (`html:false`, `linkify:true`), or as plain text.
+- [x] **Step 6:** `Timeline` gives the phone's "Where it stands" card, with the actions sorted by date and each long entry expandable in `<details>`. It ends with "Official record · {sourceLabel}". It renders inline below `xl` and in the right rail at `xl` and above, next to the Key terms.
+- [x] **Step 7:** The explainer ends with "Don't take our word for it." and an "Open the source" button.
+- [x] **Step 8:** Run typecheck, lint and test, then view a bill with a brief, one without, an order and a case. Commit: `feat(web): full reader`.
 
 ### Task 7: `/browse/saved`
 
@@ -208,13 +214,36 @@
 
 - Create: `apps/nextjs/src/app/(reader)/browse/saved/page.tsx`, `_components/saved-list.tsx`
 
-- [ ] **Step 1:** The client list reads `useSavedIds()` and queries `content.byIds({ids})`, reordered to save order. Its empty state is "Nothing saved yet — Tap the bookmark on any record to keep it here." with a link to `/browse`. Results use `ResultCard`, and unsaving removes them in place.
-- [ ] **Step 2:** Run typecheck, then save, reload, unsave. Commit: `feat(web): saved list`.
+- [x] **Step 1:** The client list reads `useSavedIds()` and queries `content.byIds({ids})`, reordered to save order. Its empty state is "Nothing saved yet — Tap the bookmark on any record to keep it here." with a link to `/browse`. Results use `ResultCard`, and unsaving removes them in place.
+- [x] **Step 2:** Run typecheck, then save, reload, unsave. Commit: `feat(web): saved list`.
 
 ### Task 8: Verification
 
-- [ ] `pnpm --filter @acme/nextjs typecheck && pnpm --filter @acme/nextjs lint && pnpm --filter @acme/nextjs test`
-- [ ] `pnpm --filter @acme/expo typecheck`, `pnpm --filter @acme/ui typecheck`
-- [ ] `pnpm --filter @acme/nextjs build`
-- [ ] Take screenshots at 375, 768 and 1440 of `/browse`, `/browse?scope=ca&type=court_case`, a search, `/read/<bill with brief>`, its source mode and `/browse/saved`. Check the back button on a filtered URL.
-- [ ] Update the spec status line to "implemented on `feat/web-browse`" and add a short section to `docs/frontend.md` or `docs/README.md` linking the routes.
+- [x] `pnpm --filter @acme/nextjs typecheck && pnpm --filter @acme/nextjs lint && pnpm --filter @acme/nextjs test`
+- [x] `pnpm --filter @acme/expo typecheck`, `pnpm --filter @acme/ui typecheck`
+- [x] `pnpm --filter @acme/nextjs build`
+- [x] Take screenshots at 375, 768 and 1440 of `/browse`, `/browse?scope=ca&type=court_case`, a search, `/read/<bill with brief>`, its source mode and `/browse/saved`. Check the back button on a filtered URL.
+- [x] Update the spec status line to "implemented on `feat/web-browse`" and add a short section to `docs/frontend.md` or `docs/README.md` linking the routes.
+
+## Changes during implementation
+
+Recorded after the build; these supersede the tasks above where they differ.
+
+- `/browse` awaits its first-screen data on the server (`prefetchNow` in
+  `apps/nextjs/src/trpc/server.tsx`) instead of streaming it, and prefetches
+  search results when the URL has a query. Streaming hydrated `useQuery`
+  against a loading state and produced a hydration mismatch.
+- `scope` is always written to the URL, federal included, and the stored
+  jurisdiction is mirrored to a `billion_scope` cookie so the server renders a
+  bare `/browse` in the reader's scope. Previously a shared federal link could
+  be rewritten to the reader's stored state.
+- Jurisdiction names, legislatures and session labels come from
+  `@acme/api/content-jurisdiction` (a new package export of an existing pure
+  module) rather than a web copy.
+- "View source" matches quotes with the pipeline's normalization
+  (`normalizeForQuoteMatch`), not only exact text.
+- Saved state is one shared `useSyncExternalStore` snapshot; the saved page
+  forgets ids the server no longer returns. Only bills, orders and cases are
+  saveable, as on the phone.
+- Added after review with the product owner: an "On this page" section list
+  in the wide-screen reader rail, and "Clear highlight" in the source view.

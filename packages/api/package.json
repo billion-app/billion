@@ -7,6 +7,10 @@
       "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
     },
+    "./content-jurisdiction": {
+      "types": "./dist/lib/content-jurisdiction.d.ts",
+      "default": "./src/lib/content-jurisdiction.ts"
+    },
     "./integrations/legistar": {
       "types": "./dist/integrations/legistar.d.ts",
       "default": "./src/integrations/legistar.ts"

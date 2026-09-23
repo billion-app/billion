@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { browseHref, parseBrowseParams } from "./browse-params";
+import {
+  browseHref,
+  parseBrowseParams,
+  scopeFromCookie,
+} from "./browse-params";
 
 void test("reads scope, type and a trimmed query from the URL", () => {
   assert.deepEqual(
@@ -31,14 +35,24 @@ void test("accepts URLSearchParams", () => {
   );
 });
 
-void test("browseHref drops defaults so the plain view is a plain URL", () => {
-  assert.equal(browseHref({ scope: "federal", type: "all", q: "" }), "/browse");
+void test("browseHref always names the scope, so a federal link stays federal", () => {
+  assert.equal(
+    browseHref({ scope: "federal", type: "all", q: "" }),
+    "/browse?scope=federal",
+  );
   assert.equal(
     browseHref({ scope: "ca", type: "bill", q: "wildfire smoke" }),
     "/browse?scope=ca&type=bill&q=wildfire+smoke",
   );
   assert.equal(
     browseHref({ scope: "federal", type: "all", q: "  " }),
-    "/browse",
+    "/browse?scope=federal",
   );
+});
+
+void test("the scope cookie accepts supported scopes only", () => {
+  assert.equal(scopeFromCookie("tx"), "tx");
+  assert.equal(scopeFromCookie("federal"), "federal");
+  assert.equal(scopeFromCookie("mo"), null);
+  assert.equal(scopeFromCookie(undefined), null);
 });

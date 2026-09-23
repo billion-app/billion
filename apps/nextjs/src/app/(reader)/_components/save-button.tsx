@@ -2,7 +2,7 @@
 
 import { cn } from "@acme/ui";
 
-import { useSavedIds } from "~/lib/reader-state";
+import { toggleSaved, useIsSaved } from "~/lib/reader-state";
 import { Icon } from "./icon";
 
 /**
@@ -22,14 +22,13 @@ export function SaveButton({
   variant?: "icon" | "pill";
   className?: string;
 }) {
-  const { isSaved, toggle, ready } = useSavedIds();
-  const saved = ready && isSaved(id);
+  const saved = useIsSaved(id);
   const label = saved ? "Remove from saved" : "Save to read later";
 
   return (
     <button
       type="button"
-      onClick={() => toggle(id, { type, title })}
+      onClick={() => toggleSaved(id, { type, title })}
       aria-pressed={saved}
       aria-label={variant === "icon" ? label : undefined}
       title={variant === "icon" ? label : undefined}

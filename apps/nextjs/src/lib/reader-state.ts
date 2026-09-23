@@ -14,9 +14,10 @@
  * No component may touch `localStorage` directly. Every read and write goes
  * through here, or the swap stops being a swap.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import type { Scope } from "./jurisdictions";
+import { SCOPE_COOKIE } from "./browse-params";
 import { isScope } from "./jurisdictions";
 
 export interface SaveMeta {
@@ -76,6 +77,7 @@ function withSaved(entries: readonly SavedEntry[], entry: SavedEntry) {
 
 export function createLocalReaderState(
   storage: KeyValueStorage | null,
+  options: { writeCookie?: (name: string, value: string) => void } = {},
 ): ReaderState & { reload(): void } {
   const listeners = new Set<() => void>();
   const notify = () => listeners.forEach((listener) => listener());
@@ -133,6 +135,8 @@ export function createLocalReaderState(
     setJurisdiction: (next) => {
       scope = next;
       write(JURISDICTION_KEY, next);
+      // Mirrored for the server, which cannot read localStorage.
+      options.writeCookie?.(SCOPE_COOKIE, next);
       notify();
       return Promise.resolve();
     },
@@ -164,7 +168,11 @@ function browserStorage(): KeyValueStorage | null {
 /** The reader state for this browser, kept in step with other tabs. */
 export function readerState(): ReaderState {
   if (!instance) {
-    const local = createLocalReaderState(browserStorage());
+    const local = createLocalReaderState(browserStorage(), {
+      writeCookie: (name, value) => {
+        document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; samesite=lax`;
+      },
+    });
     if (typeof window !== "undefined") {
       window.addEventListener("storage", (event) => {
         if (event.key === SAVED_KEY || event.key === JURISDICTION_KEY) {
@@ -179,39 +187,77 @@ export function readerState(): ReaderState {
 
 /* ---------- hooks ---------- */
 
-/** The saved list. `ready` is false until the first read, including on the server. */
+// One shared snapshot of the saved list for every component on the page, read
+// through `useSyncExternalStore`. A page of results has a save button per card;
+// each one asks only "is *this* id saved?", so a save re-renders the one card
+// that changed rather than every card and its own copy of the list.
+const EMPTY: readonly string[] = [];
+let savedSnapshot: readonly string[] = EMPTY;
+let savedSet = new Set<string>();
+let savedLoaded = false;
+const savedListeners = new Set<() => void>();
+let savedWired = false;
+
+function wireSaved() {
+  if (savedWired || typeof window === "undefined") return;
+  savedWired = true;
+  const refresh = () =>
+    void readerState()
+      .savedIds()
+      .then((ids) => {
+        savedSnapshot = ids;
+        savedSet = new Set(ids);
+        savedLoaded = true;
+        savedListeners.forEach((listener) => listener());
+      });
+  refresh();
+  readerState().subscribe(refresh);
+}
+
+function subscribeSaved(listener: () => void) {
+  wireSaved();
+  savedListeners.add(listener);
+  return () => savedListeners.delete(listener);
+}
+
+/** The saved list, newest first. `ready` is false until read (and on the server). */
 export function useSavedIds() {
-  const [ids, setIds] = useState<string[]>([]);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let live = true;
-    const load = () =>
-      void readerState()
-        .savedIds()
-        .then((next) => {
-          if (!live) return;
-          setIds(next);
-          setReady(true);
-        });
-    load();
-    const off = readerState().subscribe(load);
-    return () => {
-      live = false;
-      off();
-    };
-  }, []);
-
-  const isSaved = useCallback((id: string) => ids.includes(id), [ids]);
-  const toggle = useCallback(
-    (id: string, meta: SaveMeta) => {
-      const state = readerState();
-      void (ids.includes(id) ? state.unsave(id) : state.save(id, meta));
-    },
-    [ids],
+  const ids = useSyncExternalStore(
+    subscribeSaved,
+    () => savedSnapshot,
+    () => EMPTY,
   );
+  const ready = useSyncExternalStore(
+    subscribeSaved,
+    () => savedLoaded,
+    () => false,
+  );
+  return { ids, ready };
+}
 
-  return { ids, ready, isSaved, toggle };
+/** Whether one record is saved; re-renders only when that answer changes. */
+export function useIsSaved(id: string) {
+  return useSyncExternalStore(
+    subscribeSaved,
+    () => savedSet.has(id),
+    () => false,
+  );
+}
+
+export function toggleSaved(id: string, meta: SaveMeta) {
+  const state = readerState();
+  void (savedSet.has(id) ? state.unsave(id) : state.save(id, meta));
+}
+
+/**
+ * Drop saved ids that no longer name a record — retired content, or an id
+ * that was never valid. Without this they would stay invisible but counted:
+ * the nav badge and the saved page would disagree, and dead entries would
+ * take slots under `MAX_SAVED` until real saves were pushed out instead.
+ */
+export function forgetSaved(ids: readonly string[]) {
+  const state = readerState();
+  for (const id of ids) void state.unsave(id);
 }
 
 /** The stored jurisdiction, `null` until read. */
