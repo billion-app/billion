@@ -47,7 +47,7 @@ import { WhiteHouseSpin } from "./WhiteHouseSpin";
 
 const PAGES = 4;
 const SLIDE = Easing.bezier(0.22, 1, 0.36, 1);
-const SLIDE_MS = 540;
+const SLIDE_MS = 320;
 
 const WATCH: { id: TrackingVector; label: string }[] = [
   { id: "congress", label: "Congress" },
