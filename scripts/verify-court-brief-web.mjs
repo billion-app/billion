@@ -72,9 +72,11 @@ try {
       assert.match(text, /Emergency order/);
       assert.match(text, /Interim relief/);
       assert.match(text, /What the court did/);
-      assert.match(text, /What remains unresolved/);
-      assert.match(text, /concurrence/);
-      assert.match(text, /dissent/);
+      assert.match(text, /How the court got there/);
+      assert.match(text, /Who it lands on/);
+      assert.match(text, /What the ruling doesn.t settle/);
+      assert.match(text, /CONCURRENCE/);
+      assert.match(text, /DISSENT/);
       await browser(
         "screenshot",
         join(screenshotDirectory, "court-brief-overview.png"),
@@ -104,7 +106,7 @@ try {
         join(screenshotDirectory, "court-brief-details.png"),
       );
     } else {
-      assert.doesNotMatch(text, /Emergency order · Interim relief/);
+      assert.doesNotMatch(text, /The short version/);
       assert.match(
         text,
         name === "missing"

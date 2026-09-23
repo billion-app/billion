@@ -546,7 +546,14 @@ export default function ArticleDetailScreen() {
           }}
         >
           {mode === "explainer" && courtBrief ? (
-            <CourtBrief data={courtBrief} />
+            <CourtBrief
+              data={courtBrief}
+              accent={t.color}
+              dualLens={
+                content.lensData ? <LensPanel data={content.lensData} /> : null
+              }
+              onViewSource={handleViewSource}
+            />
           ) : mode === "explainer" && brief ? (
             <BillBrief
               data={brief}
@@ -573,7 +580,7 @@ export default function ArticleDetailScreen() {
         </View>
 
         {/* Never present generic copy as if it were generated analysis. */}
-        {mode === "explainer" && content.lensData && !brief && (
+        {mode === "explainer" && content.lensData && !brief && !courtBrief && (
           <View style={{ marginVertical: 24 }}>
             <LensPanel data={content.lensData} />
           </View>

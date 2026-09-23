@@ -20,6 +20,19 @@ void test(
     assert.ok(directory);
     const hooks = registerHooks({
       resolve(specifier, context, nextResolve) {
+        // The native icon implementation pulls in Expo's JSX-in-.js bundle,
+        // which this focused Node renderer intentionally does not transpile.
+        // Icons are decorative here; preserve the real brief component and
+        // replace only that platform boundary with a no-op component.
+        if (
+          specifier === "./Icon" &&
+          context.parentURL?.endsWith("/CourtBrief.tsx")
+        ) {
+          return {
+            shortCircuit: true,
+            url: new URL("./Icon.test-stub.ts", context.parentURL).href,
+          };
+        }
         return nextResolve(
           specifier === "react-native" ? "react-native-web" : specifier,
           context,
@@ -39,13 +52,17 @@ void test(
       const html = renderToStaticMarkup(
         React.createElement(CourtBrief, { data: valid.courtBrief }),
       );
+      assert.match(html, /The short version/);
       assert.match(html, /Emergency order/);
       assert.match(html, /Interim relief/);
       assert.match(html, /What the court did/);
-      assert.match(html, /What remains unresolved/);
+      assert.match(html, /How the court got there/);
+      assert.match(html, /Who it lands on/);
+      assert.match(html, /Separate opinions/);
+      assert.match(html, /What the ruling/);
       assert.match(html, /does not finally resolve/);
-      assert.match(html, /concurrence/);
-      assert.match(html, /dissent/);
+      assert.match(html, /CONCURRENCE/);
+      assert.match(html, /DISSENT/);
       assert.match(html, /role="link"/);
       assert.match(html, /Open full official document document-1/);
       assert.doesNotMatch(html, /Becomes law|Committee review/);
