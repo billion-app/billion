@@ -55,6 +55,7 @@ import { trpc } from "~/utils/api";
 import { formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
+import { findSourcePassage } from "~/utils/source-passage";
 
 export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
@@ -247,6 +248,7 @@ export default function ArticleDetailScreen() {
       content_id: content.id,
       content_type: content.type,
       locator: quote.locator ?? null,
+      document_id: quote.documentId ?? null,
     });
   };
 
@@ -791,22 +793,11 @@ function HighlightedSource({
   title: string;
   onTargetLayout: (event: LayoutChangeEvent) => void;
 }) {
-  const exactIndex = content.indexOf(quote.text);
-  const caseInsensitiveIndex =
-    exactIndex >= 0
-      ? exactIndex
-      : content.toLocaleLowerCase().indexOf(quote.text.toLocaleLowerCase());
-  const found = caseInsensitiveIndex >= 0;
-  const before = found ? content.slice(0, caseInsensitiveIndex) : "";
-  const match = found
-    ? content.slice(
-        caseInsensitiveIndex,
-        caseInsensitiveIndex + quote.text.length,
-      )
-    : quote.text;
-  const after = found
-    ? content.slice(caseInsensitiveIndex + quote.text.length)
-    : content;
+  const { found, before, match, after } = findSourcePassage(
+    content,
+    quote.text,
+    quote.documentId,
+  );
 
   return (
     <View style={s.highlightedSource}>

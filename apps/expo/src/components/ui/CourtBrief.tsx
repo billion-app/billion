@@ -13,6 +13,7 @@ import type { RouterOutputs } from "@acme/api";
 
 import type { BriefQuote } from "./BillBrief";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
+import { courtSourceQuote } from "~/utils/source-passage";
 import { Icon } from "./Icon";
 
 type CourtDetail = Extract<
@@ -155,10 +156,7 @@ function QuoteDisclosure({
   const [open, setOpen] = useState(false);
   if (!point.quote) return null;
 
-  const quote: BriefQuote = {
-    text: point.quote.text,
-    locator: point.quote.locator ?? undefined,
-  };
+  const quote: BriefQuote = courtSourceQuote(point.quote);
 
   return (
     <View style={s.quoteWrap}>

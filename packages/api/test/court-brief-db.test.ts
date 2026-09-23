@@ -42,6 +42,7 @@ void test(
       emergencyOutput,
       emergencyOutput,
       emergencyOutput,
+      emergencyOutput,
     ]);
     const generator = (args: Parameters<typeof generateCourtBrief>[0]) =>
       generateCourtBrief(args, model);
@@ -234,6 +235,34 @@ void test(
       assert.equal(model.doGenerateCalls.length, 3);
       const refreshed = await api.content.getById({ id });
       assert.ok(refreshed.type === "court_case" && refreshed.courtBrief);
+
+      // A source refresh clears the prior description before regenerating the
+      // brief. Even when the takeaway text is unchanged, phase two must restore
+      // that subtitle instead of comparing against the pre-refresh row.
+      await db
+        .update(CourtCase)
+        .set({ description: emergencyOutput.takeaway.text })
+        .where(eq(CourtCase.id, id));
+      const refreshedAgain = {
+        ...changed,
+        data: {
+          ...changed.data,
+          fullText: `${changed.data.fullText}\nSecond revision fixture: no change to the takeaway.`,
+        },
+      };
+      assert.deepEqual(
+        await upsertContent(refreshedAgain, {
+          newItemLimiter: createNewItemLimiter(1),
+          courtBriefGenerator: generator,
+        }),
+        { status: "written", id },
+      );
+      assert.equal(model.doGenerateCalls.length, 4);
+      const [subtitle] = await db
+        .select({ description: CourtCase.description })
+        .from(CourtCase)
+        .where(eq(CourtCase.id, id));
+      assert.equal(subtitle?.description, emergencyOutput.takeaway.text);
     } finally {
       try {
         await db.delete(ContentLens).where(eq(ContentLens.contentId, id));
