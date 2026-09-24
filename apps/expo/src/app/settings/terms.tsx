@@ -9,7 +9,7 @@ import {
   DigestPalette as P,
 } from "~/styles";
 
-const LAST_UPDATED = "September 14, 2026";
+const LAST_UPDATED = "September 23, 2026";
 
 const TERMS_SECTIONS = [
   {
@@ -61,11 +61,11 @@ const TERMS_SECTIONS = [
 const PRIVACY_SECTIONS = [
   {
     title: "1. Information We Collect",
-    body: "Billion does not require an account, and the app does not ask for your name or email address to read summaries or view your ballot. During onboarding, the app asks which governments and topics you want to follow and whether you prefer instant or evening alerts. It stores those answers on your device. If an authenticated session already exists, the app also stores topic and content-type selections with that account. On our website, if you join the waitlist we collect the email address you submit. In the app, if you enter a registered address to load your local ballot and representatives, address text is sent to our servers for autocomplete and lookup, as described in Section 4. If you send feedback, we may receive your message, the category you choose, basic technical details such as app version and build, platform, and operating-system version, and when you contact us by email, your email address and standard email headers. When you use the app or website, our analytics automatically collect usage events such as screens viewed, articles opened, searches you run, and onboarding selections, plus handled error diagnostics and technical details such as device model, operating system and version, app version, language, and time zone. These events are associated with a randomly generated, persistent installation identifier. We do not collect your precise device location, and we do not use advertising identifiers.",
+    body: "Billion does not require an account, and the app does not ask for your name or email address to read summaries or view your ballot. During onboarding, the app asks which governments and topics you want to follow and whether you prefer instant or evening alerts. It stores those answers on your device. If an authenticated session already exists, the app also stores topic and content-type selections with that account. If you join the mailing list in the app or on our website, we collect the email address you submit. In the app, if you enter a registered address to load your local ballot and representatives, address text is sent to our servers for autocomplete and lookup, as described in Section 4. If you send feedback, we may receive your message, the category you choose, basic technical details such as app version and build, platform, and operating-system version, and when you contact us by email, your email address and standard email headers. When you use the app or website, our analytics automatically collect usage events such as screens viewed, articles opened, searches you run, and onboarding selections, plus handled error diagnostics and technical details such as device model, operating system and version, app version, language, and time zone. These events are associated with a randomly generated, persistent installation identifier. We do not collect your precise device location, and we do not use advertising identifiers.",
   },
   {
-    title: "2. Waitlist and Landing Page",
-    body: "When you sign up for our waitlist on our website, we collect your email address to notify you when the App becomes available and to send occasional updates about Billion. Waitlist addresses are stored with our email provider, and we send a confirmation email. You can unsubscribe at any time using the link in our emails or by emailing thatxliner@gmail.com.",
+    title: "2. Mailing List",
+    body: "When you join our mailing list in the app or on our website, we collect your email address to send feature releases and occasional civic updates about Billion. Mailing list addresses are stored with our email provider, and we send a confirmation email. You can unsubscribe at any time using the link in our emails or by emailing thatxliner@gmail.com.",
   },
   {
     title: "3. How We Use Your Information",
@@ -85,11 +85,11 @@ const PRIVACY_SECTIONS = [
   },
   {
     title: "7. Data Retention",
-    body: "Billion does not currently offer a usable account sign-in flow in the app. Your onboarding choices remain on your device until you uninstall the app or the app resets its versioned onboarding record. If an authenticated session already exists, topic and content-type selections may also remain in the account's server record. Waitlist email addresses are retained until you unsubscribe or ask us to delete them. Feedback is retained in Google Forms or email so that we can act on it. Your selected registered address remains on your device until you change it, clear it, or uninstall the app; server lookup caches use a hashed address key, may contain normalized address components, and expire automatically within about thirty days. Analytics and handled-error diagnostic data are retained by our analytics provider according to its retention settings.",
+    body: "Billion does not currently offer a usable account sign-in flow in the app. Your onboarding choices remain on your device until you uninstall the app or the app resets its versioned onboarding record. If an authenticated session already exists, topic and content-type selections may also remain in the account's server record. Mailing list email addresses are retained until you unsubscribe or ask us to delete them. Feedback is retained in Google Forms or email so that we can act on it. Your selected registered address remains on your device until you change it, clear it, or uninstall the app; server lookup caches use a hashed address key, may contain normalized address components, and expire automatically within about thirty days. Analytics and handled-error diagnostic data are retained by our analytics provider according to its retention settings.",
   },
   {
     title: "8. Your Choices",
-    body: "You can control your information in several ways. You can edit or clear your saved address in the app at any time. Uninstalling the app removes its local onboarding choices and saved address from your device and stops further analytics collection from that installation. You can unsubscribe from waitlist emails at any time. You may also email thatxliner@gmail.com to request access to, or deletion of, information we hold about you, such as your waitlist email address, feedback you sent, or preferences attached to an authenticated account, and we will honor applicable requests.",
+    body: "You can control your information in several ways. You can edit or clear your saved address in the app at any time. Uninstalling the app removes its local onboarding choices and saved address from your device and stops further analytics collection from that installation. You can unsubscribe from mailing list emails at any time. You may also email thatxliner@gmail.com to request access to, or deletion of, information we hold about you, such as your waitlist email address, feedback you sent, or preferences attached to an authenticated account, and we will honor applicable requests.",
   },
   {
     title: "9. Security",
