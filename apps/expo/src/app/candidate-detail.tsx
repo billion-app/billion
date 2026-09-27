@@ -55,8 +55,7 @@ export default function CandidateDetailScreen() {
   });
   const guide =
     (!fromBallot || lookupGuide) &&
-    query.data &&
-    query.data.electionDate === ELECTION_DATE &&
+    query.data?.electionDate === ELECTION_DATE &&
     office &&
     params.name
       ? findGuideCandidate(query.data.candidates, params.name, office)
@@ -69,7 +68,7 @@ export default function CandidateDetailScreen() {
           ? fromBallot.statement
           : guide?.statement,
         party: fromBallot.party ?? guide?.party,
-        photoUrl: fromBallot.photoUrl || guide?.photoUrl,
+        photoUrl: fromBallot.photoUrl ?? guide?.photoUrl,
       }
     : guide;
   const statementCitation = fromBallot?.citations?.find(
@@ -158,11 +157,13 @@ export default function CandidateDetailScreen() {
               <View style={s.pills}>
                 <Text style={s.pill}>
                   {fromBallot
-                    ? params.district || "District unavailable"
+                    ? params.district?.trim()
+                      ? params.district
+                      : "District unavailable"
                     : "Statewide"}
                 </Text>
                 <Text style={s.pill}>
-                  {candidate.party || "Party not provided"}
+                  {candidate.party ?? "Party not provided"}
                 </Text>
               </View>
               <Text style={s.muted}>

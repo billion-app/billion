@@ -160,11 +160,14 @@ export function parseBallotCandidate(
       candidate.name !== expectedName
     )
       return undefined;
-    const optionalText = (key: string, limit: number) =>
-      typeof candidate[key] === "string" &&
-      (candidate[key] as string).length <= limit
-        ? (candidate[key] as string)
+    const optionalText = (key: string, limit: number) => {
+      const value = candidate[key];
+      return typeof value === "string" &&
+        value.length > 0 &&
+        value.length <= limit
+        ? value
         : undefined;
+    };
     const citations = Array.isArray(candidate.citations)
       ? candidate.citations.slice(0, 30).flatMap((value: unknown) => {
           if (!value || typeof value !== "object") return [];

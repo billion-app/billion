@@ -34,12 +34,10 @@ void test("guide identity requires exact office and a unique candidate", () => {
     findGuideCandidate(candidates, "Shirley N. Weber", "governor"),
     undefined,
   );
+  const first = candidates[0];
+  assert.ok(first);
   assert.equal(
-    findGuideCandidate(
-      [...candidates, candidates[0]!],
-      "Shirley N. Weber",
-      "sos",
-    ),
+    findGuideCandidate([...candidates, first], "Shirley N. Weber", "sos"),
     undefined,
   );
   assert.notEqual(
