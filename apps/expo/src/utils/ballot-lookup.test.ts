@@ -8,6 +8,7 @@ import {
   ballotModel,
   ballotOfficeUrl,
   contestBallotCitations,
+  currentBallot,
   validateBallotAddress,
 } from "./ballot-lookup";
 
@@ -130,4 +131,26 @@ void test("provider lookup URL and empty normalized address do not imply officia
   };
   assert.equal(ballotOfficeUrl(data), undefined);
   assert.equal(ballotModel(data).isCalifornia, false);
+});
+
+void test("cached ballot details are hidden during edits, refreshes, failures and mismatched elections", () => {
+  const data = response("CA");
+  const ready = { data, editing: false, fetching: false, failed: false };
+  assert.equal(currentBallot(ready).data, data);
+  for (const state of [
+    { editing: true },
+    { fetching: true },
+    { failed: true },
+    { requestedElectionId: "another-election" },
+  ])
+    assert.equal(currentBallot({ ...ready, ...state }).data, undefined);
+  assert.equal(
+    currentBallot({ ...ready, requestedElectionId: "another-election" })
+      .mismatch,
+    true,
+  );
+  assert.equal(
+    currentBallot({ ...ready, requestedElectionId: data.election?.id }).data,
+    data,
+  );
 });

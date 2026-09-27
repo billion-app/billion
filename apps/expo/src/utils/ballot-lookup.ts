@@ -112,3 +112,30 @@ export function ballotElectionDate(value: string) {
         timeZone: "UTC",
       });
 }
+
+/** Cached results must not escape an edit, refresh, failure or election mismatch. */
+export function currentBallot<T extends BallotResponse>({
+  data,
+  requestedElectionId,
+  editing,
+  fetching,
+  failed,
+}: {
+  data?: T;
+  requestedElectionId?: string;
+  editing: boolean;
+  fetching: boolean;
+  failed: boolean;
+}) {
+  const mismatch =
+    !editing &&
+    !fetching &&
+    !failed &&
+    !!requestedElectionId &&
+    !!data &&
+    data.election?.id !== requestedElectionId;
+  return {
+    mismatch,
+    data: editing || fetching || failed || mismatch ? undefined : data,
+  };
+}

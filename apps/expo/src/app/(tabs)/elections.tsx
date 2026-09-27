@@ -29,6 +29,11 @@ import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
+  ballotElectionOptions,
+  contestBallotCitations,
+  currentBallot,
+} from "~/utils/ballot-lookup";
+import {
   groupContestsByLevel,
   isCaliforniaState,
   measureIsStatewide,
@@ -54,17 +59,18 @@ function measureRoute(m: Contest) {
       fiscalImpact: m.fiscalImpact ?? "",
       proArguments: JSON.stringify(m.proArguments ?? []),
       conArguments: JSON.stringify(m.conArguments ?? []),
-      citations: JSON.stringify(m.citations ?? []),
+      citations: JSON.stringify(contestBallotCitations(m)),
     },
   };
 }
 
 /** Short label for the most authoritative source backing a measure. */
 function topSourceLabel(m: Contest): string | null {
-  const official = m.sources?.find((src) => src.official);
-  const src = official ?? m.sources?.[0];
+  const sources = contestBallotCitations(m);
+  const official = sources.find((src) => src.official);
+  const src = official ?? sources[0];
   if (!src) return null;
-  return src.official ? `Official · ${src.name}` : src.name;
+  return src.official ? `Official · ${src.sourceName}` : src.sourceName;
 }
 
 /** Expandable card for a single ballot measure (statewide or local). */
@@ -146,7 +152,9 @@ function MeasureCard({
             <View style={s.sourceChip}>
               <Icon
                 name={
-                  m.sources?.some((src) => src.official) ? "shield" : "info"
+                  contestBallotCitations(m).some((src) => src.official)
+                    ? "shield"
+                    : "info"
                 }
                 size={11}
                 color={colors.textSecondary}
@@ -222,12 +230,10 @@ function ElectionsLive({
   devControls,
 }: { previewAddress?: string; devControls?: ReactNode } = {}) {
   const router = useRouter();
-  const { address: savedAddress, setAddress } = useUserAddress();
-  const [previewEdit, setPreviewEdit] = useState<string>();
-  const storedAddress = previewAddress
-    ? (previewEdit ?? previewAddress)
-    : savedAddress;
-  const isPreview = !!previewAddress;
+  const { address: savedAddress } = useUserAddress();
+  const [lookupAddress, setLookupAddress] = useState<string>();
+  const storedAddress = lookupAddress ?? previewAddress ?? savedAddress;
+  const isPreview = storedAddress?.startsWith("mock:") ?? false;
   const [electionId, setElectionId] = useState<string>();
   const [editing, setEditing] = useState(false);
   const [expandedMeasures, setExpandedMeasures] = useState<Set<number>>(
@@ -262,45 +268,55 @@ function ElectionsLive({
         });
       }
     },
-    [toggleSet, expandedMeasures],
+    [toggleSet, expandedMeasures, setExpandedMeasures],
   );
 
   const hasAddress = !!storedAddress;
 
-  // Let Civic resolve the election for THIS address — getElections returns a
-  // nationwide list, so picking the soonest from it surfaces the wrong
-  // (e.g. out-of-state) election and breaks the ballot lookup.
-  const voterInfoQuery = useQuery({
+  // Retain address-specific discovery so every election remains selectable.
+  const discovery = useQuery({
     ...trpc.civic.getVoterInfo.queryOptions({
       address: storedAddress ?? "",
-      electionId,
       includeEnrichment: false,
     }),
     enabled: hasAddress,
     retry: false,
   });
+  const selection = useQuery({
+    ...trpc.civic.getVoterInfo.queryOptions({
+      address: storedAddress ?? "",
+      electionId,
+      includeEnrichment: false,
+    }),
+    enabled: hasAddress && !!electionId,
+    retry: false,
+  });
+  const voterInfoQuery = electionId ? selection : discovery;
+  const { data, mismatch } = currentBallot({
+    data: voterInfoQuery.data,
+    requestedElectionId: electionId,
+    editing,
+    fetching: voterInfoQuery.isFetching,
+    failed: voterInfoQuery.isError,
+  });
+  const elections = ballotElectionOptions(discovery.data, data);
 
   // Legacy results remain California-only; the migrated provider supplies national ballots.
   const unsupportedState =
     hasAddress &&
-    !!voterInfoQuery.data &&
-    !isCaliforniaState(voterInfoQuery.data.normalizedInput.state) &&
-    voterInfoQuery.data.provider?.name !== "democracy_works";
+    !!data &&
+    !isCaliforniaState(data.normalizedInput.state) &&
+    data.provider?.name !== "democracy_works";
 
   const hasVerifiedCaliforniaAddress =
-    !!voterInfoQuery.data &&
-    isCaliforniaState(voterInfoQuery.data.normalizedInput.state);
+    !!data && isCaliforniaState(data.normalizedInput.state);
 
   // The address-specific election the ballot belongs to.
-  const selected = unsupportedState ? undefined : voterInfoQuery.data?.election;
+  const selected = unsupportedState ? undefined : data?.election;
 
-  const contests = unsupportedState
-    ? []
-    : (voterInfoQuery.data?.contests ?? []);
+  const contests = unsupportedState ? [] : (data?.contests ?? []);
   const measures = contests.filter((c: Contest) => c.referendumTitle);
-  const candidateContests = contests.filter(
-    (c: Contest) => c.candidates && c.candidates.length > 0,
-  );
+  const candidateContests = contests.filter((c: Contest) => !c.referendumTitle);
   const candidateGroups = groupContestsByLevel(candidateContests);
 
   return (
@@ -314,8 +330,10 @@ function ElectionsLive({
             <AddressAutocomplete
               initialValue={storedAddress ?? ""}
               onSubmit={(addr) => {
-                if (isPreview) setPreviewEdit(addr);
-                else void setAddress(addr);
+                setLookupAddress(addr);
+                setExpandedMeasures(new Set());
+                if (addr === storedAddress && !electionId)
+                  void discovery.refetch();
                 setElectionId(undefined);
                 setEditing(false);
                 posthog.capture("voter_address_set", {
@@ -327,7 +345,7 @@ function ElectionsLive({
             <View style={s.addrCard}>
               <Icon name="pin" size={19} color={colors.bill} />
               <View style={s.addrBody}>
-                <Text style={s.addrKicker}>REGISTERED ADDRESS</Text>
+                <Text style={s.addrKicker}>VOTING ADDRESS</Text>
                 <Text style={s.addrText} numberOfLines={1}>
                   {storedAddress}
                 </Text>
@@ -357,6 +375,22 @@ function ElectionsLive({
             evidence={{ kind: "provider-failure" }}
             onRetry={() => void voterInfoQuery.refetch()}
           />
+        </View>
+      )}
+      {mismatch && (
+        <View style={s.section}>
+          <Card>
+            <Text accessibilityRole="alert" style={s.empty}>
+              The provider returned a different election. Choose another
+              election or retry to load the ballot you selected.
+            </Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => void voterInfoQuery.refetch()}
+            >
+              <Text style={s.readMoreText}>Retry selected ballot</Text>
+            </TouchableOpacity>
+          </Card>
         </View>
       )}
       {unsupportedState && (
@@ -389,29 +423,34 @@ function ElectionsLive({
         enabled={!isPreview && hasVerifiedCaliforniaAddress}
       />
 
-      {voterInfoQuery.isLoading && (
+      {voterInfoQuery.isFetching && (
         <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />
       )}
 
-      {!!voterInfoQuery.data?.otherElections?.length && (
+      {!editing && elections.length > 1 && (
         <View style={s.section}>
-          <Kicker>Other elections</Kicker>
-          {voterInfoQuery.data.otherElections.map((election) => (
+          <Kicker>Elections</Kicker>
+          {elections.map((election) => (
             <TouchableOpacity
               key={election.id}
-              onPress={() => setElectionId(election.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selected?.id === election.id }}
+              onPress={() => {
+                setExpandedMeasures(new Set());
+                setElectionId(election.id);
+              }}
             >
               <Text style={s.readMoreText}>{election.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
-      {voterInfoQuery.data?.provider && (
+      {data?.provider && (
         <View style={s.section}>
           <Text style={s.empty}>
-            {voterInfoQuery.data.provider.addressScope === "statewide_only"
+            {data.provider.addressScope === "statewide_only"
               ? "Statewide contests only. Local races and measures may be missing."
-              : voterInfoQuery.data.provider.addressScope === "unknown"
+              : data.provider.addressScope === "unknown"
                 ? "Address coverage unconfirmed. These contests may not match your address."
                 : "Coverage may be incomplete."}
           </Text>
@@ -419,7 +458,7 @@ function ElectionsLive({
             label={
               isPreview ? "Synthetic development fixture" : "Democracy Works"
             }
-            url={voterInfoQuery.data.provider.sourceUrl}
+            url={data.provider.sourceUrl}
           />
         </View>
       )}
@@ -486,9 +525,11 @@ function ElectionsLive({
         </View>
       )}
       {hasAddress &&
+        !editing &&
+        !mismatch &&
         !unsupportedState &&
         contests.length === 0 &&
-        !voterInfoQuery.isLoading &&
+        !voterInfoQuery.isFetching &&
         !voterInfoQuery.isError && (
           <View style={s.section}>
             <Card>
@@ -502,13 +543,13 @@ function ElectionsLive({
 
       <View style={s.section}>
         <VotingLogisticsSection
-          data={voterInfoQuery.data}
+          data={data}
           status={
-            !hasAddress
+            !hasAddress || editing
               ? "idle"
-              : voterInfoQuery.isLoading
+              : voterInfoQuery.isFetching
                 ? "loading"
-                : voterInfoQuery.isError
+                : voterInfoQuery.isError || mismatch
                   ? "error"
                   : "ready"
           }
