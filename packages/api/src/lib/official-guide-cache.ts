@@ -4,6 +4,7 @@ export const CA_OFFICIAL_GUIDE_ENDPOINT = "ca-official-guide-v1";
 export const CA_OFFICIAL_GUIDE_ADDRESS_HASH = "__global__";
 export const CA_OFFICIAL_GUIDE_SOURCE =
   "California Secretary of State Official Voter Information Guide";
+export const CA_GENERAL_ELECTION_DATE = "2026-11-03";
 const text = z.string().min(1).max(30_000);
 const url = z
   .string()
@@ -55,11 +56,22 @@ export const officialGuidePayloadSchema = z.object({
         ]),
         statement: text,
         sourceUrl: url,
+        photoUrl: url.optional(),
       }),
     )
     .max(200),
 });
 export type OfficialGuidePayload = z.infer<typeof officialGuidePayloadSchema>;
+export function currentCaliforniaGuide(
+  value: unknown,
+): OfficialGuidePayload | null {
+  const parsed = officialGuidePayloadSchema.safeParse(value);
+  return parsed.success &&
+    parsed.data.complete &&
+    parsed.data.electionDate === CA_GENERAL_ELECTION_DATE
+    ? parsed.data
+    : null;
+}
 export function officialGuideCacheParams(electionDate: string): string {
   return JSON.stringify({ electionDate, jurisdiction: "CA" });
 }

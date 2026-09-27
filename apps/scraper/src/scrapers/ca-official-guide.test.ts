@@ -127,12 +127,14 @@ test("official candidate prose preserves complete statement and excludes contact
   );
   assert.equal(parsed.length, 2);
   assert.equal(parsed[0]!.name, "Fiona Ma");
+  assert.equal(parsed[0]!.photoUrl, `${GUIDE_BASE}/img/lt-governor/ma.jpg`);
   assert.equal(parsed[0]!.statement.length, 1858);
   assert.doesNotMatch(
     parsed[0]!.statement,
     /Tel:|The views and opinions expressed/,
   );
   assert.equal(parsed[1]!.name, "Gloria Romero");
+  assert.equal(parsed[1]!.photoUrl, `${GUIDE_BASE}/img/lt-governor/romero.jpg`);
 });
 
 test("a same-year primary law link is not a general-election full text", () => {

@@ -174,12 +174,28 @@ export function parseGuideCandidates(
       throw new Error(
         `Unrecognized candidate statement for ${name}: ${sourceUrl}`,
       );
+    const portrait = $(entry)
+      .parent()
+      .find(".grid-30 img[alt]")
+      .filter((_, img) => clean($(img).attr("alt") ?? "") === name);
+    const src = portrait.length === 1 ? portrait.attr("src") : undefined;
+    const photo = src ? new URL(src, GUIDE_BASE) : undefined;
+    const photoUrl =
+      photo?.protocol === "https:" &&
+      photo.hostname === new URL(GUIDE_BASE).hostname &&
+      !photo.username &&
+      !photo.password &&
+      !photo.port &&
+      photo.pathname.startsWith("/img/")
+        ? photo.href
+        : undefined;
     candidates.push({
       name,
       officeSlug:
         officeSlug as OfficialGuidePayload["candidates"][number]["officeSlug"],
       statement,
       sourceUrl,
+      photoUrl,
     });
   });
   return candidates;

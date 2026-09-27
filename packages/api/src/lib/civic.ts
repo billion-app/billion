@@ -43,7 +43,9 @@ import {
 } from "./ingested-ballot-sources";
 import { crossValidateMeasure } from "./measure-crossvalidate";
 import {
+  CA_GENERAL_ELECTION_DATE,
   CA_OFFICIAL_GUIDE_ENDPOINT,
+  currentCaliforniaGuide,
   officialGuideCacheParams,
 } from "./official-guide-cache";
 import {
@@ -107,6 +109,19 @@ async function getCached<T>(
     )
     .limit(1);
   return row ? (row.responseData as T) : null;
+}
+
+/** Public statewide guide; it is not an address-matched ballot roster. */
+export async function getCaliforniaGuide() {
+  const value = await getCached<unknown>(
+    "__global__",
+    CA_OFFICIAL_GUIDE_ENDPOINT,
+    JSON.parse(officialGuideCacheParams(CA_GENERAL_ELECTION_DATE)) as Record<
+      string,
+      unknown
+    >,
+  );
+  return currentCaliforniaGuide(value);
 }
 
 async function setCache(

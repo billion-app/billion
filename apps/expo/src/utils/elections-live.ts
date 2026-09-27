@@ -1,4 +1,4 @@
-/** Ballot tools are available in development builds pending production launch. */
+/** Legacy ballot entry routes remain development-only; the Elections tab has its own preview entry. */
 export function electionsAreLive(): boolean {
   return __DEV__;
 }
