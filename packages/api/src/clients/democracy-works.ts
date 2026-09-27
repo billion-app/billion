@@ -30,6 +30,7 @@ const contest = z.object({
   name: z.string().min(1),
   level: z.string(),
   districtName: z.string(),
+  districtType: text,
   ocdId: z.string(),
   seatsUpForElection: z.string(),
   candidates: z.array(candidate),
@@ -165,6 +166,13 @@ function toContests(election: ProviderElection): Contest[] | undefined {
             ? ["administrativeArea1"]
             : undefined,
       district: { name: race.districtName, id: race.ocdId },
+      roles:
+        race.districtType === "stateLegislativeUpper"
+          ? ["legislatorUpperBody"]
+          : race.districtType === "stateLegislativeLower" ||
+              race.districtType === "congress"
+            ? ["legislatorLowerBody"]
+            : undefined,
       numberElected: /^\d+$/.test(race.seatsUpForElection)
         ? race.seatsUpForElection
         : undefined,

@@ -27,6 +27,7 @@ import {
 } from "../clients/democracy-works";
 import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
 import { crossValidateCandidate } from "./candidate-crossvalidate";
+import { retainCandidateProviderFields } from "./candidate-provider-fields";
 import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
 import { createCivicReadGuard } from "./civic-read-guard";
@@ -650,8 +651,10 @@ async function enrichContest(
               );
             }
 
-            // Merge canonical fields back onto the candidate, preferring enriched
-            // values but never clobbering provider data with empties.
+            // Compare provider evidence too; enrichment's internal ranking only
+            // covers supplementary sources. Do not mutate the candidate cache.
+            merged = retainCandidateProviderFields(candidate, merged);
+            // Merge fields without clobbering provider data with empties.
             candidate.biography = merged.biography ?? candidate.biography;
             candidate.statement = merged.statement ?? candidate.statement;
             candidate.statementSummary =
@@ -772,10 +775,22 @@ export async function getElections(address?: string): Promise<Election[]> {
   return readBallot(
     JSON.stringify([endpoint, hashAddress(address), params.startDate]),
     async () => {
-      const cached = await getCached<Election[]>(address, endpoint, params);
+      const cached = await getCached<Election[]>(
+        address,
+        endpoint,
+        params,
+      ).catch(() => null);
       if (cached) return cached;
       const elections = await ballotProvider.getElections(address);
-      await setCache(address, endpoint, params, elections, CACHE_TTL.voterinfo);
+      await setCache(
+        address,
+        endpoint,
+        params,
+        elections,
+        CACHE_TTL.voterinfo,
+      ).catch(() => {
+        // A cache outage must not discard provider discovery.
+      });
       return elections;
     },
     10_000,

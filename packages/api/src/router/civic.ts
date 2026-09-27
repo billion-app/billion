@@ -38,11 +38,13 @@ export const civicRouter = {
         return await getElections(input?.address);
       } catch (error) {
         throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
+          code:
+            error instanceof CivicReadUnavailableError ||
+            error instanceof BallotProviderError
+              ? "SERVICE_UNAVAILABLE"
+              : "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch elections",
+            "Ballot information is temporarily unavailable. Please try again.",
           cause: error,
         });
       }

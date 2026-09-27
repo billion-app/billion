@@ -30,7 +30,11 @@ export function createVoterInfoLoader(deps: {
     const cacheParams = electionId
       ? { electionId }
       : { startDate: ballotSelectionDate(deps.now?.()) };
-    const cached = await deps.getCached(address, endpoint, cacheParams);
+    // Persistence is an optimization: a rejected cache call must not hide a
+    // fresh provider ballot. The outer read guard still bounds pending work.
+    const cached = await deps
+      .getCached(address, endpoint, cacheParams)
+      .catch(() => null);
     if (cached) return cached;
     const params: Record<string, string> = { address };
     if (electionId) params.electionId = electionId;
@@ -40,7 +44,9 @@ export function createVoterInfoLoader(deps: {
     const writeParams = electionId
       ? { electionId: result.election.id }
       : cacheParams;
-    await deps.setCache(address, endpoint, writeParams, result);
+    await deps.setCache(address, endpoint, writeParams, result).catch(() => {
+      // A cache outage must not discard the provider response.
+    });
     return result;
   };
 }

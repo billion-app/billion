@@ -36,7 +36,8 @@ whether ballot fields were supplied; it does not certify completeness or officia
 publication. Candidate rows require an explicit `onBallot` or
 `withdrewStillOnBallot` status. The latter is exposed as `ballotStatus` for callers
 to label. Cancelled contests are omitted. Unknown or absent candidate status is
-insufficient to include that candidate.
+insufficient to include that candidate. Legislative district types retain upper/lower
+chamber roles so state-legislator enrichment can recognize their scope.
 
 `submittedAddress` is the user's input. The provider's elections endpoint supplies
 no normalized address, so the required legacy `normalizedInput` fields are empty
@@ -46,7 +47,9 @@ Election jurisdiction remains available as `election.ocdDivisionId`.
 
 `provider.sourceUrl`, `updatedAt` and `fetchedAt` carry provider attribution and
 retrieval metadata, not independent verification. Ballot fields cite Democracy
-Works/Ballotpedia with `official: false`. Lookup URLs are passed through in the
+Works/Ballotpedia with `official: false`. Candidate enrichment compares provider
+and supplementary citations before replacing contact or incumbency fields;
+lower-tier evidence cannot replace a cited provider value. Lookup URLs are passed through in the
 legacy administration-body fields; their placement does not establish that the
 provider or URL is an election authority. Use neutral labels unless the destination
 has been verified separately.
@@ -61,7 +64,10 @@ mailing and voting deadlines are not inferred from guidance phases or missing da
 Cache endpoints begin with `democracy-works:v2:1`, followed by `elections`, `base`
 or `enriched`. Address hashes and election parameters also distinguish entries.
 Old Google cache entries are excluded. Entries expire after 24 hours; expired data
-is not returned on failure. Discovery cache keys include the query date.
+is not returned on failure. Rejected cache reads fall through to the provider,
+and rejected cache writes do not discard a fresh response. Pending cache calls
+remain subject to the outer response deadline. Discovery cache keys include the
+query date.
 
 The [read guard](../packages/api/src/lib/civic-read-guard.ts) shares identical
 operations and admits up to 32 distinct operations per process without a queue.

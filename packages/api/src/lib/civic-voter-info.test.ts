@@ -113,3 +113,30 @@ void test("default cache rolls over with selection date while explicit election 
   await load("a", "1");
   assert.equal(fetches, 3);
 });
+
+for (const failingCacheOperation of ["read", "write"] as const) {
+  void test(`cache ${failingCacheOperation} failure does not discard a fresh provider ballot`, async () => {
+    let fetches = 0;
+    const load = createVoterInfoLoader({
+      getCached: async () => {
+        if (failingCacheOperation === "read")
+          throw new Error("cache unavailable");
+        return null;
+      },
+      setCache: async () => {
+        if (failingCacheOperation === "write")
+          throw new Error("cache unavailable");
+      },
+      fetch: async () => {
+        fetches++;
+        return structuredClone(ballot);
+      },
+      enrich: async () => assert.fail("base reads must not enrich"),
+    });
+    assert.deepEqual(
+      await load("a", "1", { includeEnrichment: false }),
+      ballot,
+    );
+    assert.equal(fetches, 1);
+  });
+}

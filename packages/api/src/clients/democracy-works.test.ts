@@ -323,3 +323,23 @@ void test("discovery requires access and credential-bearing URLs are omitted", a
     undefined,
   );
 });
+
+void test("legislative district types preserve the roles required by candidate enrichment", async () => {
+  for (const [districtType, role] of [
+    ["stateLegislativeUpper", "legislatorUpperBody"],
+    ["stateLegislativeLower", "legislatorLowerBody"],
+    ["congress", "legislatorLowerBody"],
+    ["state", undefined],
+    [undefined, undefined],
+  ] as const) {
+    const result = await client(
+      page([
+        {
+          ...election,
+          contests: [{ ...race, level: "state", districtType }],
+        },
+      ]),
+    ).api.getVoterInfo("input");
+    assert.deepEqual(result.contests?.[0]?.roles, role ? [role] : undefined);
+  }
+});
