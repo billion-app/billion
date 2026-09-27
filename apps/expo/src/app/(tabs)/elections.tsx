@@ -180,7 +180,7 @@ export default function ElectionsScreen() {
   if (view === "ballot") return <ElectionsLive />;
   return (
     <CaliforniaGuidePreview
-      onOpenBallot={() => setView("ballot")}
+      onOpenBallot={__DEV__ ? () => setView("ballot") : undefined}
       onOpenFixtures={__DEV__ ? () => setView("fixtures") : undefined}
     />
   );

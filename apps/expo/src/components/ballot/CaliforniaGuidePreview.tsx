@@ -133,7 +133,7 @@ export function CaliforniaGuidePreview({
   onOpenBallot,
   onOpenFixtures,
 }: {
-  onOpenBallot: () => void;
+  onOpenBallot?: () => void;
   onOpenFixtures?: () => void;
 }) {
   const [tab, setTab] = useState<GuideTab>("candidates");
@@ -219,21 +219,28 @@ export function CaliforniaGuidePreview({
               url={guide.sourceUrl}
             />
             <Text style={s.caption}>
-              Confirm your ballot and voting options with your county election
-              office.
+              Billion's address-specific ballot lookup is unavailable. Your
+              county voter guide contains your sample ballot.
             </Text>
-            <TouchableOpacity
-              accessibilityRole="button"
-              onPress={onOpenBallot}
-              style={s.addressAction}
-            >
-              <Text style={s.addressActionText}>Look up my ballot</Text>
-              <Icon name="arrowRight" size={17} color={colors.bill} />
-            </TouchableOpacity>
-            <Text style={s.caption}>
-              Address lookups use a separate ballot provider and may be
-              temporarily unavailable.
-            </Text>
+            <SourceLink
+              label="Check voting information with California"
+              url="https://voterstatus.sos.ca.gov/EN/Authenticate"
+              prominence="primary"
+            />
+            <SourceLink
+              label="Find your county elections office"
+              url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
+            />
+            {onOpenBallot && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={onOpenBallot}
+                style={s.addressAction}
+              >
+                <Text style={s.addressActionText}>Test ballot lookup</Text>
+                <Icon name="arrowRight" size={17} color={colors.bill} />
+              </TouchableOpacity>
+            )}
           </View>
         </>
       )}
