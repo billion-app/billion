@@ -59,6 +59,7 @@ export function votingLocationGroups(data: VotingLogisticsData) {
 /** Use supplied lookup URLs without inferring their authority from the container field. */
 export function votingInformationLinks(data: VotingLogisticsData) {
   const links: { label: string; office: string; url: string }[] = [];
+  let mailUrl: string | undefined;
   const fields = [
     ["votingLocationFinderUrl", "Find voting locations"],
     ["electionRegistrationUrl", "Registration information"],
@@ -86,6 +87,8 @@ export function votingInformationLinks(data: VotingLogisticsData) {
         (sourceNames ? `Via ${sourceNames}` : clean(region.name)) ??
         "Voting information";
       if (!url) continue;
+      // Shared destinations get a broad label, but retain their mail purpose.
+      if (field === "absenteeVotingInfoUrl") mailUrl ??= url;
       const existing = links.find((link) => link.url === url);
       if (existing) {
         // A single office page may serve several purposes. Keep one action and
@@ -99,9 +102,7 @@ export function votingInformationLinks(data: VotingLogisticsData) {
   }
   data.state?.forEach(visit);
   if (data.mailOnly) {
-    const mailIndex = links.findIndex(
-      (link) => link.label === "Absentee and mail voting information",
-    );
+    const mailIndex = links.findIndex((link) => link.url === mailUrl);
     if (mailIndex > 0) links.unshift(...links.splice(mailIndex, 1));
   }
   return links;

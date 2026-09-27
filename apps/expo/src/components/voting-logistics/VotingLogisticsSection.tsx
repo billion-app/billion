@@ -50,7 +50,7 @@ function Disclosure({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label}, ${context}`}
-        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         onPress={() => setExpanded((value) => !value)}
         style={({ pressed }) => [
           styles.control,
@@ -60,10 +60,7 @@ function Disclosure({
         <Text style={[styles.action, { color: theme.foreground }]}>
           {label}
         </Text>
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
+        <View aria-hidden>
           <Icon
             name={expanded ? "chevD" : "chevR"}
             size={16}
@@ -173,18 +170,14 @@ function LocationGroup({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${group.title}, ${group.locations.length} ${group.locations.length === 1 ? "location" : "locations"}`}
-        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         onPress={() => setExpanded((value) => !value)}
         style={({ pressed }) => [
           styles.groupHeader,
           { opacity: pressed ? 0.7 : 1 },
         ]}
       >
-        <View
-          style={styles.iconTile}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
+        <View style={styles.iconTile} aria-hidden>
           <Icon
             name={group.title === "Early voting" ? "calendar" : "pin"}
             size={20}
@@ -200,10 +193,7 @@ function LocationGroup({
             {group.locations.length === 1 ? "location" : "locations"}
           </Text>
         </View>
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
+        <View aria-hidden>
           <Icon
             name={expanded ? "chevD" : "chevR"}
             size={18}
@@ -286,11 +276,7 @@ export function VotingLogisticsSection({
         ))}
       <View style={[styles.surface, styles.resources]}>
         <View style={styles.resourceHeader}>
-          <View
-            style={styles.iconTile}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          >
+          <View style={styles.iconTile} aria-hidden>
             <Icon name="globe" size={20} color={colors.bill} />
           </View>
           <Text

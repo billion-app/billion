@@ -231,3 +231,22 @@ void test("provider lookup links retain attribution without claiming office auth
     },
   ]);
 });
+
+void test("mail-only lookup prioritizes a mail page shared with another purpose", () => {
+  const links = votingInformationLinks({
+    mailOnly: true,
+    state: [
+      {
+        name: "Example state",
+        electionAdministrationBody: {
+          votingLocationFinderUrl: "https://example.org/locations",
+          absenteeVotingInfoUrl: "https://example.org/services",
+          electionInfoUrl: "https://example.org/services",
+        },
+      },
+    ],
+  });
+  assert.equal(links[0]?.url, "https://example.org/services");
+  assert.equal(links[0].label, "Voting information website");
+  assert.equal(links.length, 2);
+});
