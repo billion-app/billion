@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { RouterOutputs } from "~/utils/api";
@@ -14,6 +15,7 @@ import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
+import { propositionDetailRoute } from "~/utils/proposition-explainers";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
@@ -79,6 +81,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
 }
 
 function MeasureCard({ measure }: { measure: Measure }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   return (
     <Card style={s.card}>
@@ -125,6 +128,15 @@ function MeasureCard({ measure }: { measure: Measure }) {
           />
         </View>
       )}
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={`Read Proposition ${measure.number} detail`}
+        onPress={() => router.push(propositionDetailRoute(measure.number))}
+        style={s.detailAction}
+      >
+        <Text style={s.detailActionText}>Read proposition detail</Text>
+        <Icon name="arrowRight" size={17} color={colors.bill} />
+      </TouchableOpacity>
     </Card>
   );
 }
@@ -356,4 +368,20 @@ const s = StyleSheet.create({
     paddingVertical: 12,
   },
   addressActionText: { color: colors.bill, fontFamily: fontBody.semibold },
+  detailAction: {
+    minHeight: 48,
+    marginHorizontal: 14,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: colors.textSecondary,
+  },
+  detailActionText: {
+    color: colors.bill,
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+  },
 });
