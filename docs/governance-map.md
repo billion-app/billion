@@ -1,0 +1,21 @@
+# Governance map prototype
+
+The governance map is a reviewed teaching example in the California statewide voter guide. It answers what a ballot choice controls before asking the reader to open each relationship. The first examples cover the Governor and Proposition 4 on the November 2026 ballot. The proposition removes a legal prohibition; it does not itself create a public financing program.
+
+## Source and editorial contract
+
+[`governance-map.ts`](../apps/expo/src/utils/governance-map.ts) holds fixed example data: a short takeaway, a visible limit, relationship nodes, and a source ID for every relationship. Source IDs resolve to official records linked on the screen. These statements are editorial paraphrases of formal authority, not candidate statements or generated predictions. The UI must keep campaign promises, future policy choices, and election outcomes outside the formal-power path. A conditional branch says what a Yes or No result _would_ permit if the measure passes or fails; it must not imply one reader's vote decides the result.
+
+The office example uses the [California Constitution](https://leginfo.legislature.ca.gov/faces/codesTOCSelected.xhtml?tocCode=CONS), the [Department of Finance budget process](https://dof.ca.gov/budget/budget-process-overview/), and the [Governor's appointments page](https://www.gov.ca.gov/join-the-administration/government-appointments/), and [Government Code §1774](https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?sectionNum=1774.&lawCode=GOV) for Senate confirmation. The measure example uses the [Legislative Analyst's Office analysis](https://lao.ca.gov/BallotAnalysis/Proposition?number=4&year=2026) and the [Secretary of State guide](https://voterguide.sos.ca.gov/propositions/4/index.htm). Proposition numbers and the Secretary of State page URL can be reused in later elections, so measure matching requires the exact state, election date, and number; the URL alone is insufficient.
+
+Before changing a relationship, an editor should reopen its official source, compare the exact authority and exceptions, verify the election date, and review the on-screen summary and text version together. A relationship without adequate evidence should be removed. The app does not synthesize map nodes from provider summaries.
+
+## Entry points and reusable pieces
+
+The [map route](../apps/expo/src/app/governance-map.tsx) renders a numbered path with expandable nodes, an always-visible limit, source links, and a full text version. The existing [California guide](../apps/expo/src/components/ballot/CaliforniaGuidePreview.tsx) links the Governor and Proposition 4 examples. The [candidate detail](../apps/expo/src/app/contest-detail.tsx) offers the office map only when its district identifies California. The measure map appears from the 2026 official guide, whose API result is tied to that election date; the generic measure detail route does not have enough election identity to link safely. The line, node, disclosure, and source-link pattern can be reused for future offices, but their relationships require a separately reviewed source record. The route has no timed animation; both modes and all node details work with reduced motion enabled.
+
+Federal and local roles need their own jurisdiction-specific source records. Federal executive power is checked by Congress and federal courts under federal law; local roles vary by charter and state law. Neither should inherit the California Governor's map through a title match.
+
+## Reader validation before release
+
+This is a design prototype. A moderated or unmoderated study should ask readers, without coaching: (1) What can the Governor do with a proposed budget? (2) What can the Governor not do alone? (3) Does a Yes vote on Proposition 4 create a financing program now? (4) What stays in place after a No result? (5) Where would you verify each claim? Record wrong answers and confusion about the path, then revise wording and retest. Screen-reader and large-text use should be included. This study has not yet been performed with readers, so the issue's user-testing criterion remains open.

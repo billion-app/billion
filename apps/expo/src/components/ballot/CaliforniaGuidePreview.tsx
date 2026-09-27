@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { RouterOutputs } from "~/utils/api";
@@ -14,6 +15,7 @@ import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
+import { exampleForMeasure } from "~/utils/governance-map";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
@@ -32,6 +34,7 @@ const offices: Record<Candidate["officeSlug"], string> = {
 };
 
 function CandidateCard({ candidate }: { candidate: Candidate }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
   return (
@@ -68,6 +71,19 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
       {expanded && (
         <View style={s.cardBody}>
           <Text style={s.statement}>{candidate.statement}</Text>
+          {candidate.officeSlug === "governor" && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({
+                  pathname: "/governance-map",
+                  params: { example: "governor" },
+                })
+              }
+            >
+              <Text style={s.retry}>How this office works →</Text>
+            </TouchableOpacity>
+          )}
           <SourceLink
             label="Official candidate statement"
             url={candidate.sourceUrl}
@@ -78,7 +94,14 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
   );
 }
 
-function MeasureCard({ measure }: { measure: Measure }) {
+function MeasureCard({
+  measure,
+  electionDate,
+}: {
+  measure: Measure;
+  electionDate: string;
+}) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   return (
     <Card style={s.card}>
@@ -118,6 +141,19 @@ function MeasureCard({ measure }: { measure: Measure }) {
               <Text style={s.detailLabel}>Fiscal impact</Text>
               <Text style={s.detailText}>{measure.fiscalImpact}</Text>
             </View>
+          )}
+          {exampleForMeasure(measure.number, electionDate, "California") && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({
+                  pathname: "/governance-map",
+                  params: { example: "prop-4-2026" },
+                })
+              }
+            >
+              <Text style={s.retry}>How this measure works →</Text>
+            </TouchableOpacity>
           )}
           <SourceLink
             label="Official proposition guide"
@@ -209,7 +245,11 @@ export function CaliforniaGuidePreview({
             <View style={s.list}>
               <Kicker>Statewide propositions</Kicker>
               {guide.measures.map((measure) => (
-                <MeasureCard key={measure.number} measure={measure} />
+                <MeasureCard
+                  key={measure.number}
+                  measure={measure}
+                  electionDate={guide.electionDate}
+                />
               ))}
             </View>
           )}
