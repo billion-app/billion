@@ -21,6 +21,13 @@ import {
 
 const BASE_WIDTH = 393;
 const BLUE = P.primary;
+const YES = P.badgeIndigo;
+const NO = P.badgeTeal;
+const LATER = P.badgeBlue;
+const DECISION = P.spark;
+const BUDGET = P.badgeTeal;
+const VETO = P.badgeIndigo;
+const APPOINTMENTS = P.badgeBlue;
 const WHITE = P.inkOnNight;
 const QUIET = P.quiet;
 const FAINT = hair[2];
@@ -64,17 +71,19 @@ function Track({
   muted = false,
   dashed = false,
   width = 3,
+  color = BLUE,
 }: {
   d: string;
   muted?: boolean;
   dashed?: boolean;
   width?: number;
+  color?: string;
 }) {
   return (
     <Path
       d={d}
       fill="none"
-      stroke={muted ? QUIET : BLUE}
+      stroke={muted ? QUIET : color}
       strokeWidth={width}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -190,7 +199,17 @@ function Seal({ x, y }: { x: number; y: number }) {
   );
 }
 
-function Gate({ x, y, open }: { x: number; y: number; open: boolean }) {
+function Gate({
+  x,
+  y,
+  open,
+  color = QUIET,
+}: {
+  x: number;
+  y: number;
+  open: boolean;
+  color?: string;
+}) {
   return (
     <G>
       <Rect
@@ -219,7 +238,7 @@ function Gate({ x, y, open }: { x: number; y: number; open: boolean }) {
             ? `M ${x - 36} ${y - 22} L ${x + 31} ${y - 49}`
             : `M ${x - 36} ${y - 22} L ${x + 36} ${y - 22}`
         }
-        stroke={open ? BLUE : QUIET}
+        stroke={color}
         strokeWidth={7}
         strokeLinecap="round"
       />
@@ -231,7 +250,7 @@ function Gate({ x, y, open }: { x: number; y: number; open: boolean }) {
       {open && (
         <Path
           d={`M ${x - 9} ${y + 22} l 18 0 m -8 -8 l 8 8 l -8 8`}
-          stroke={BLUE}
+          stroke={color}
           strokeWidth={2}
           fill="none"
         />
@@ -245,11 +264,13 @@ function Institution({
   y,
   width = 100,
   court = false,
+  color = BLUE,
 }: {
   x: number;
   y: number;
   width?: number;
   court?: boolean;
+  color?: string;
 }) {
   const half = width / 2;
   return (
@@ -257,7 +278,7 @@ function Institution({
       <Polygon
         points={`${x - half},${y - 27} ${x},${y - 57} ${x + half},${y - 27}`}
         fill={planes.surface}
-        stroke={court ? QUIET : BLUE}
+        stroke={court ? QUIET : color}
         strokeWidth={2}
       />
       <Rect
@@ -266,7 +287,7 @@ function Institution({
         width={width}
         height={12}
         fill={planes.hi}
-        stroke={court ? QUIET : BLUE}
+        stroke={court ? QUIET : color}
         strokeWidth={1.5}
       />
       {[-0.3, 0, 0.3].map((f) => (
@@ -287,14 +308,24 @@ function Institution({
         width={width + 14}
         height={10}
         fill={planes.hi}
-        stroke={court ? QUIET : BLUE}
+        stroke={court ? QUIET : color}
         strokeWidth={1.5}
       />
     </G>
   );
 }
 
-function Program({ x, y, active }: { x: number; y: number; active: boolean }) {
+function Program({
+  x,
+  y,
+  active,
+  color = LATER,
+}: {
+  x: number;
+  y: number;
+  active: boolean;
+  color?: string;
+}) {
   return (
     <G>
       <Circle
@@ -302,7 +333,7 @@ function Program({ x, y, active }: { x: number; y: number; active: boolean }) {
         cy={y}
         r={32}
         fill={planes.slate}
-        stroke={active ? BLUE : QUIET}
+        stroke={color}
         strokeWidth={2}
       />
       {active ? (
@@ -312,7 +343,7 @@ function Program({ x, y, active }: { x: number; y: number; active: boolean }) {
             cy={y}
             r={17}
             fill="none"
-            stroke={BLUE}
+            stroke={color}
             strokeWidth={2}
           />
           <Text x={x} y={y + 7} size={24} fill={WHITE}>
@@ -325,7 +356,7 @@ function Program({ x, y, active }: { x: number; y: number; active: boolean }) {
           y1={y}
           x2={x + 14}
           y2={y}
-          stroke={QUIET}
+          stroke={color}
           strokeWidth={3}
         />
       )}
@@ -468,9 +499,16 @@ function PropositionArt({ activeStage }: { activeStage: number }) {
       >
         02 · RESULT
       </Text>
-      <Track d="M 196 415 C 196 459 99 449 99 493" />
-      <Track d="M 196 415 C 196 459 294 449 294 493" />
-      <Circle cx={99} cy={489} r={22} fill={BLUE} />
+      <Track d="M 196 415 C 196 459 99 449 99 493" color={YES} />
+      <Track d="M 196 415 C 196 459 294 449 294 493" color={NO} />
+      <Circle
+        cx={99}
+        cy={489}
+        r={22}
+        fill={P.canvas}
+        stroke={YES}
+        strokeWidth={2.5}
+      />
       <Text x={99} y={494} size={12} bold>
         YES
       </Text>
@@ -478,15 +516,15 @@ function PropositionArt({ activeStage }: { activeStage: number }) {
         cx={294}
         cy={489}
         r={22}
-        fill={planes.surface}
-        stroke={QUIET}
-        strokeWidth={1.5}
+        fill={P.canvas}
+        stroke={NO}
+        strokeWidth={2.5}
       />
       <Text x={294} y={494} size={12} bold>
         NO
       </Text>
-      <Gate x={99} y={578} open />
-      <Gate x={294} y={578} open={false} />
+      <Gate x={99} y={578} open color={YES} />
+      <Gate x={294} y={578} open={false} color={NO} />
       <Text x={99} y={655} size={16} bold>
         Ban lifts
       </Text>
@@ -499,32 +537,32 @@ function PropositionArt({ activeStage }: { activeStage: number }) {
       <Text x={294} y={677} size={11} fill={QUIET}>
         Existing rule remains
       </Text>
-      <Track d="M 294 689 L 294 722" />
-      <Circle cx={294} cy={728} r={5} fill={QUIET} />
-      <Track d="M 99 689 C 99 758 196 742 196 801" />
+      <Track d="M 294 689 L 294 722" color={NO} />
+      <Circle cx={294} cy={728} r={5} fill={NO} />
+      <Track d="M 99 689 C 99 758 196 742 196 801" color={YES} />
       <Text
         x={360}
         y={771}
         size={11}
-        fill={QUIET}
+        fill={DECISION}
         bold
         anchor="end"
         tracking={1.2}
       >
         03 · IF YES PASSES
       </Text>
-      <Institution x={196} y={877} width={106} />
+      <Institution x={196} y={877} width={106} color={LATER} />
       <Text x={196} y={943} size={16} bold>
         State & local officials
       </Text>
       <Text x={196} y={964} size={11} fill={QUIET}>
         A separate choice, made later
       </Text>
-      <Track d="M 196 966 L 196 1009" />
+      <Track d="M 196 966 L 196 1009" color={LATER} />
       <Polygon
         points="196,1018 242,1065 196,1112 150,1065"
         fill={planes.surface}
-        stroke={BLUE}
+        stroke={DECISION}
         strokeWidth={2.5}
       />
       <Text x={196} y={1061} size={12} bold>
@@ -533,8 +571,8 @@ function PropositionArt({ activeStage }: { activeStage: number }) {
       <Text x={196} y={1078} size={12} bold>
         program?
       </Text>
-      <Track d="M 153 1082 C 119 1109 103 1137 103 1170" />
-      <Track d="M 239 1082 C 272 1109 290 1137 290 1170" />
+      <Track d="M 153 1082 C 119 1109 103 1137 103 1170" color={LATER} />
+      <Track d="M 239 1082 C 272 1109 290 1137 290 1170" color={LATER} />
       <Program x={103} y={1206} active />
       <Program x={290} y={1206} active={false} />
       <Text x={103} y={1266} size={13} bold>
@@ -550,7 +588,15 @@ function PropositionArt({ activeStage }: { activeStage: number }) {
   );
 }
 
-function Budget({ x, y }: { x: number; y: number }) {
+function Budget({
+  x,
+  y,
+  color = BLUE,
+}: {
+  x: number;
+  y: number;
+  color?: string;
+}) {
   return (
     <G>
       <Rect
@@ -560,7 +606,7 @@ function Budget({ x, y }: { x: number; y: number }) {
         height={75}
         rx={5}
         fill={planes.surface}
-        stroke={BLUE}
+        stroke={color}
         strokeWidth={2}
       />
       <Line
@@ -591,7 +637,15 @@ function Budget({ x, y }: { x: number; y: number }) {
   );
 }
 
-function Bill({ x, y }: { x: number; y: number }) {
+function Bill({
+  x,
+  y,
+  color = BLUE,
+}: {
+  x: number;
+  y: number;
+  color?: string;
+}) {
   return (
     <G>
       <Rect
@@ -601,7 +655,7 @@ function Bill({ x, y }: { x: number; y: number }) {
         height={71}
         rx={5}
         fill={planes.surface}
-        stroke={BLUE}
+        stroke={color}
         strokeWidth={2}
       />
       <Path
@@ -619,7 +673,15 @@ function Bill({ x, y }: { x: number; y: number }) {
   );
 }
 
-function Appointment({ x, y }: { x: number; y: number }) {
+function Appointment({
+  x,
+  y,
+  color = BLUE,
+}: {
+  x: number;
+  y: number;
+  color?: string;
+}) {
   return (
     <G>
       <Circle
@@ -627,13 +689,13 @@ function Appointment({ x, y }: { x: number; y: number }) {
         cy={y - 17}
         r={15}
         fill={planes.surface}
-        stroke={BLUE}
+        stroke={color}
         strokeWidth={2}
       />
       <Path
         d={`M ${x - 32} ${y + 34} Q ${x - 29} ${y + 4} ${x} ${y + 4} Q ${x + 29} ${y + 4} ${x + 32} ${y + 34}`}
         fill={planes.surface}
-        stroke={BLUE}
+        stroke={color}
         strokeWidth={2}
       />
       <Circle
@@ -700,18 +762,18 @@ function GovernorArt({ activeStage }: { activeStage: number }) {
       >
         02 · POWERS
       </Text>
-      <Track d="M 173 631 C 173 678 88 674 88 707" />
-      <Track d="M 218 631 C 218 678 305 674 305 707" />
-      <Track d="M 196 632 L 196 877" />
-      <Budget x={88} y={759} />
-      <Bill x={305} y={759} />
+      <Track d="M 173 631 C 173 678 88 674 88 707" color={BUDGET} />
+      <Track d="M 218 631 C 218 678 305 674 305 707" color={VETO} />
+      <Track d="M 196 632 L 196 877" color={APPOINTMENTS} />
+      <Budget x={88} y={759} color={BUDGET} />
+      <Bill x={305} y={759} color={VETO} />
       <Text x={88} y={820} size={14} bold>
         Budget proposal
       </Text>
       <Text x={305} y={820} size={14} bold>
         Sign or veto
       </Text>
-      <Appointment x={196} y={922} />
+      <Appointment x={196} y={922} color={APPOINTMENTS} />
       <Text x={196} y={987} size={14} bold>
         Appointments
       </Text>
@@ -726,24 +788,48 @@ function GovernorArt({ activeStage }: { activeStage: number }) {
       >
         03 · CHECKS
       </Text>
-      <Track d="M 88 830 C 88 925 70 977 70 1080" />
-      <Track d="M 305 830 C 305 925 323 977 323 1080" />
-      <Track d="M 196 996 L 196 1188" />
-      <Rect x={30} y={1058} width={80} height={20} fill={P.canvas} />
-      <Text x={70} y={1073} size={10} fill={QUIET}>
+      <Track d="M 88 830 C 88 925 70 977 70 1080" color={BUDGET} />
+      <Track d="M 305 830 C 305 925 323 977 323 1080" color={VETO} />
+      <Track d="M 196 996 L 196 1188" color={APPOINTMENTS} />
+      <Rect
+        x={30}
+        y={1058}
+        width={80}
+        height={20}
+        fill={P.canvas}
+        stroke={BUDGET}
+        strokeWidth={1}
+      />
+      <Text x={70} y={1073} size={10}>
         BUDGET
       </Text>
-      <Rect x={283} y={1058} width={80} height={20} fill={P.canvas} />
-      <Text x={323} y={1073} size={10} fill={QUIET}>
+      <Rect
+        x={283}
+        y={1058}
+        width={80}
+        height={20}
+        fill={P.canvas}
+        stroke={VETO}
+        strokeWidth={1}
+      />
+      <Text x={323} y={1073} size={10}>
         VETO
       </Text>
-      <Rect x={146} y={1168} width={100} height={20} fill={P.canvas} />
-      <Text x={196} y={1183} size={10} fill={QUIET}>
+      <Rect
+        x={146}
+        y={1168}
+        width={100}
+        height={20}
+        fill={P.canvas}
+        stroke={APPOINTMENTS}
+        strokeWidth={1}
+      />
+      <Text x={196} y={1183} size={10}>
         APPOINTMENTS
       </Text>
-      <Institution x={70} y={1148} width={76} />
-      <Institution x={323} y={1148} width={76} />
-      <Institution x={196} y={1256} width={92} />
+      <Institution x={70} y={1148} width={76} color={BUDGET} />
+      <Institution x={323} y={1148} width={76} color={VETO} />
+      <Institution x={196} y={1256} width={92} color={APPOINTMENTS} />
       <Text x={70} y={1204} size={11} bold>
         Legislature
       </Text>
@@ -763,7 +849,7 @@ function GovernorArt({ activeStage }: { activeStage: number }) {
         confirms some picks
       </Text>
       <Track
-        d="M 258 520 C 367 548 368 700 368 920 L 368 1250 C 368 1320 306 1330 306 1360"
+        d="M 258 520 C 380 548 382 700 382 920 L 382 1250 C 382 1320 306 1330 306 1360"
         muted
         dashed
         width={2}
