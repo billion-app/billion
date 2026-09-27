@@ -20,7 +20,8 @@ test("only the matching 2026 official guide record receives a Billion AI draft",
     "https://voterguide.sos.ca.gov/propositions/1/",
   );
   assert.ok(one);
-  assert.match(one.headline, /\$11\.25 billion/);
+  assert.equal(one.headline, "Housing bonds");
+  assert.match(one.voteBriefYes, /\$11\.25 billion/);
   assert.equal(one.officialTitle, prop1Title);
   assert.notEqual(one.headline, one.officialTitle);
   assert.equal(one.mechanism.before.length, 2);
@@ -66,8 +67,8 @@ test("navigation carries only the proposition number and the draft label is expl
     pathname: "/proposition-detail",
     params: { number: "5" },
   });
-  assert.match(PROPOSITION_AI_LABEL, /AI EXPLANATION/);
-  assert.match(PROPOSITION_AI_LABEL, /EDITORIAL REVIEW PENDING/);
+  assert.match(PROPOSITION_AI_LABEL, /AI draft/);
+  assert.match(PROPOSITION_AI_LABEL, /Editorial review pending/);
 });
 
 test("recall explainer preserves fiscal uncertainty and describes both vote paths", () => {
@@ -79,7 +80,9 @@ test("recall explainer preserves fiscal uncertainty and describes both vote path
   assert.match(five?.fiscal ?? "", /net fiscal effect is unknown/);
   assert.match(five?.yes ?? "", /vacancy/);
   assert.match(five?.yes ?? "", /Lieutenant Governor/);
-  assert.equal(five?.mechanism.after.length, 3);
+  assert.equal(five?.mechanism.after.length, 2);
+  assert.match(five.voteBriefYes, /replacement is chosen afterward/);
+  assert.match(five.voteBriefNo, /same recall ballot/);
   assert.match(five.no, /two-question/);
   assert.match(five.analysisUrl, /\/5\/analysis\.htm$/);
 });

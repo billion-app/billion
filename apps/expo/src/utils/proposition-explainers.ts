@@ -5,6 +5,8 @@
 export interface PropositionExplainer {
   officialTitle: string;
   headline: string;
+  voteBriefYes: string;
+  voteBriefNo: string;
   statusQuo: string;
   yes: string;
   no: string;
@@ -21,7 +23,7 @@ export interface PropositionExplainer {
 }
 
 export const PROPOSITION_AI_LABEL =
-  "BILLION AI EXPLANATION · EDITORIAL REVIEW PENDING";
+  "Billion AI draft · Editorial review pending";
 
 export function propositionDetailRoute(number: string) {
   return {
@@ -43,7 +45,10 @@ const explainers: Record<string, PropositionExplainer> = {
   "1": {
     officialTitle:
       "AUTHORIZES BONDS FOR HOUSING AFFORDABILITY PROGRAMS. LEGISLATIVE STATUTE.",
-    headline: "Would authorize $11.25 billion in housing bonds",
+    headline: "Housing bonds",
+    voteBriefYes:
+      "Authorize $11.25 billion in bonds for housing programs and veterans' home loans.",
+    voteBriefNo: "Keep current programs without this new bond authorization.",
     statusQuo:
       "California already helps fund some housing construction and home loans. The last statewide housing bond approved by voters was in 2024.",
     yes: "The state could sell $11.25 billion in bonds for affordable housing programs and veterans' home loans.",
@@ -65,7 +70,11 @@ const explainers: Record<string, PropositionExplainer> = {
   "5": {
     officialTitle:
       "CHANGES RECALL ELECTION PROCESS FOR STATEWIDE OFFICERS. LEGISLATIVE CONSTITUTIONAL AMENDMENT.",
-    headline: "Would make state recall ballots about removal only",
+    headline: "Recalls of state officials",
+    voteBriefYes:
+      "Vote only on removal. If removal wins, a replacement is chosen afterward by election or appointment; for Governor, the Lieutenant Governor takes over.",
+    voteBriefNo:
+      "Keep removal and a replacement vote on the same recall ballot.",
     statusQuo:
       "A state recall ballot now asks voters whether to remove an official and whom to elect as a replacement if the recall succeeds.",
     yes: "A recall ballot would ask only whether to remove the official. A vacancy would then be filled by a special election, appointment, or Lieutenant Governor succession, depending on the office and timing.",
@@ -73,11 +82,10 @@ const explainers: Record<string, PropositionExplainer> = {
     mechanism: {
       beforeTitle: "Today · one recall ballot",
       before: ["Remove the official?", "Choose a replacement?"],
-      afterTitle: "Two-stage process",
+      afterTitle: "Removal first, replacement afterward",
       after: [
-        "Recall ballot → removal only",
-        "If removed → vacancy",
-        "Vacancy → election, appointment, or Lt. Governor succession",
+        "Recall ballot → removal vote only",
+        "If removed → separate replacement process",
       ],
     },
     implementation:

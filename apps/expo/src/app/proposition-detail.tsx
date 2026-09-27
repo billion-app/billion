@@ -84,11 +84,11 @@ export default function PropositionDetailScreen() {
           <>
             <View style={s.lead}>
               <Text style={s.kicker}>
-                CALIFORNIA · NOVEMBER 3, 2026 · PROP {measure.number}
+                {fontScale >= 1.8 ? `Proposition ${measure.number} · ` : ""}
+                California · November 3, 2026
               </Text>
               {explainer ? (
                 <>
-                  <Text style={s.question}>WHAT WOULD A YES VOTE CHANGE?</Text>
                   <Text
                     accessibilityRole="header"
                     allowFontScaling={false}
@@ -96,10 +96,43 @@ export default function PropositionDetailScreen() {
                   >
                     {explainer.headline}
                   </Text>
-                  <View style={s.aiRow}>
-                    <View style={s.iconTile}>
-                      <Icon name="sparkle" size={14} color={P.primary} />
+                  <View style={s.quickVotes}>
+                    <View
+                      style={[
+                        s.quickVoteRow,
+                        fontScale >= 1.8 && s.quickVoteLarge,
+                      ]}
+                    >
+                      <Text style={s.quickChoice}>YES</Text>
+                      <Text
+                        style={[
+                          s.quickText,
+                          fontScale >= 1.8 && s.quickTextLarge,
+                        ]}
+                      >
+                        {explainer.voteBriefYes}
+                      </Text>
                     </View>
+                    <View
+                      style={[
+                        s.quickVoteRow,
+                        s.quickVoteRule,
+                        fontScale >= 1.8 && s.quickVoteLarge,
+                      ]}
+                    >
+                      <Text style={s.quickChoice}>NO</Text>
+                      <Text
+                        style={[
+                          s.quickText,
+                          fontScale >= 1.8 && s.quickTextLarge,
+                        ]}
+                      >
+                        {explainer.voteBriefNo}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={s.aiRow}>
+                    <Icon name="sparkle" size={12} color={P.quiet} />
                     <Text style={s.aiText}>{PROPOSITION_AI_LABEL}</Text>
                   </View>
                 </>
@@ -114,7 +147,7 @@ export default function PropositionDetailScreen() {
               )}
               <View style={s.officialIdentity}>
                 <Text style={s.metaLabel}>
-                  OFFICIAL BALLOT TITLE · CALIFORNIA SOS
+                  Official ballot title · California SOS
                 </Text>
                 <Text style={s.officialTitle}>{measure.title}</Text>
                 <InlineSource
@@ -127,8 +160,10 @@ export default function PropositionDetailScreen() {
             {explainer ? (
               <>
                 <MechanismDiagram explainer={explainer} />
-                <View style={s.surface}>
-                  <SectionHeading icon="vote" title="What your vote means" />
+                <DetailDisclosure
+                  title="Full Yes and No outcomes"
+                  subtitle="More detail from the official guide"
+                >
                   <View style={s.voteRow}>
                     <Text style={s.choice}>YES</Text>
                     <Text style={[s.body, s.voteBody]}>{explainer.yes}</Text>
@@ -141,7 +176,7 @@ export default function PropositionDetailScreen() {
                     label="California SOS · What Your Vote Means"
                     url={measure.sourceUrl}
                   />
-                </View>
+                </DetailDisclosure>
                 <View style={s.surface}>
                   <SectionHeading icon="trendingUp" title="Fiscal effect" />
                   <Text style={s.body}>{explainer.fiscal}</Text>
@@ -407,19 +442,10 @@ const s = StyleSheet.create({
   },
   lead: { gap: 8, paddingBottom: 3 },
   kicker: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11,
+    fontFamily: fontBody.medium,
+    fontSize: 12,
     lineHeight: 17,
     color: P.primary,
-    letterSpacing: 0.8,
-  },
-  question: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11,
-    lineHeight: 16,
-    color: P.quiet,
-    letterSpacing: 0.8,
-    marginTop: 2,
   },
   headline: {
     fontFamily: fontDisplay.bold,
@@ -427,12 +453,39 @@ const s = StyleSheet.create({
     lineHeight: 28,
     color: P.inkOnNight,
   },
-  aiRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  quickVotes: { gap: 10, marginTop: 2 },
+  quickVoteRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  quickVoteLarge: { flexDirection: "column", gap: 2 },
+  quickVoteRule: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: P.border,
+    paddingTop: 10,
+  },
+  quickChoice: {
+    minWidth: 36,
+    fontFamily: fontBody.bold,
+    fontSize: 12,
+    lineHeight: 20,
+    color: P.primary,
+  },
+  quickText: {
+    flex: 1,
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: P.inkOnNight,
+  },
+  quickTextLarge: { flex: 0 },
+  aiRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   aiText: {
     flex: 1,
-    fontFamily: fontBody.medium,
-    fontSize: 11,
-    lineHeight: 16,
+    fontFamily: fontBody.regular,
+    fontSize: 10,
+    lineHeight: 14,
     color: P.quiet,
   },
   iconTile: {
@@ -446,21 +499,20 @@ const s = StyleSheet.create({
   officialIdentity: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: P.border,
-    paddingTop: 9,
+    paddingTop: 8,
     gap: 4,
   },
   metaLabel: {
-    fontFamily: fontBody.semibold,
+    fontFamily: fontBody.medium,
     fontSize: 10,
-    lineHeight: 15,
-    letterSpacing: 0.8,
+    lineHeight: 14,
     color: P.quiet,
   },
   officialTitle: {
-    fontFamily: fontBody.medium,
-    fontSize: 13,
-    lineHeight: 19,
-    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
+    fontSize: 11,
+    lineHeight: 16,
+    color: P.quiet,
   },
   surface: {
     backgroundColor: P.card,
