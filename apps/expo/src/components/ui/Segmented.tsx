@@ -42,6 +42,7 @@ export function Segmented<T extends string>({
           <TouchableOpacity
             key={o.id}
             accessibilityRole="button"
+            accessibilityLabel={o.label}
             accessibilityState={{ selected: active }}
             onPress={() => onChange(o.id)}
             activeOpacity={0.8}

@@ -14,6 +14,7 @@ import {
 import { BallotText as Text } from "./BallotText";
 import {
   ballotStatus,
+  citationContentLabel,
   citationFieldLabel,
   verificationLabel,
   verifiedLanguages,
@@ -222,13 +223,7 @@ export function BallotSources({
           {citations.map((citation, index) => (
             <View key={`${citation.field}-${index}`} style={s.citation}>
               <Text style={s.label}>{citationFieldLabel(citation.field)}</Text>
-              <Text style={s.secondary}>
-                {citation.tier === "ai_generated"
-                  ? "AI-generated explanation"
-                  : citation.official === true
-                    ? "Official source"
-                    : "Source"}
-              </Text>
+              <Text style={s.secondary}>{citationContentLabel(citation)}</Text>
               <SourceLink
                 label={citation.sourceName}
                 url={citation.sourceUrl}

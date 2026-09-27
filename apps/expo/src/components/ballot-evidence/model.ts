@@ -51,6 +51,16 @@ export interface BallotCitation {
   verifiedBy?: string;
 }
 
+/** The argument fallback tier also carries verbatim advocacy-source text. */
+export function citationContentLabel(citation: BallotCitation): string {
+  if (citation.tier === "ai_generated") {
+    return ["proArguments", "conArguments"].includes(citation.field)
+      ? "May include AI-generated text"
+      : "AI-generated explanation";
+  }
+  return citation.official === true ? "Official source" : "Source";
+}
+
 export function verificationLabel(citation: BallotCitation): string {
   if (
     !citation.verifiedAt ||

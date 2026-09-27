@@ -51,20 +51,20 @@ function ReadingToggle({
   onPress: () => void;
   extended?: boolean;
 }) {
+  const label = expanded
+    ? "Show less"
+    : extended
+      ? "Read extended summary"
+      : "Read full text";
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ expanded }}
       onPress={onPress}
       style={s.action}
     >
-      <Text style={s.actionText}>
-        {expanded
-          ? "Show less"
-          : extended
-            ? "Read extended summary"
-            : "Read full text"}
-      </Text>
+      <Text style={s.actionText}>{label}</Text>
       <Icon name={expanded ? "chevD" : "chevR"} size={14} color={P.primary} />
     </Pressable>
   );
@@ -135,14 +135,18 @@ export function BallotReadingCard({
 
 export function BallotAiDisclosure({
   label = "AI summary",
+  sourceTextPossible = false,
 }: {
   label?: string;
+  /** The API's argument fallback tier does not identify authorship. */
+  sourceTextPossible?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <View style={s.provenance}>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={`${label} · Check the source`}
         accessibilityState={{ expanded }}
         onPress={() => setExpanded(!expanded)}
         style={s.provenanceRow}
@@ -157,8 +161,9 @@ export function BallotAiDisclosure({
       </Pressable>
       {expanded && (
         <Text style={s.provenanceDetail}>
-          This is an AI-generated explanation, not the original source text.
-          Compare it with the original and the sources below.
+          {sourceTextPossible
+            ? "These arguments may be source text or AI-generated explanations. Check the named sources below for the original wording."
+            : "This is an AI-generated explanation, not the original source text. Compare it with the original and the sources below."}
         </Text>
       )}
     </View>
@@ -193,6 +198,7 @@ export function BallotBiography({ text }: { text: string }) {
     <View style={s.card}>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel="About the candidate, Biography"
         accessibilityState={{ expanded }}
         onPress={() => setExpanded(!expanded)}
         style={s.contextHeader}

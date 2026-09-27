@@ -103,7 +103,7 @@ export default function MeasureDetailScreen() {
   const showingOriginal =
     !!params.referendumText && (!hasOverview || mode === "original");
 
-  const isGenerated = (field: string) =>
+  const usesAiTier = (field: string) =>
     citations.some(
       (citation) =>
         citation.field === field && citation.tier === "ai_generated",
@@ -168,7 +168,7 @@ export default function MeasureDetailScreen() {
                 icon="trendingUp"
                 text={params.fiscalImpact}
                 label={
-                  isGenerated("fiscalImpact") ? (
+                  usesAiTier("fiscalImpact") ? (
                     <BallotAiDisclosure label="AI-generated explanation" />
                   ) : undefined
                 }
@@ -178,14 +178,14 @@ export default function MeasureDetailScreen() {
               <ArgumentCard
                 title="Arguments in favor"
                 args={pros}
-                generated={isGenerated("proArguments")}
+                uncertainAuthorship={usesAiTier("proArguments")}
               />
             )}
             {cons.length > 0 && (
               <ArgumentCard
                 title="Arguments against"
                 args={cons}
-                generated={isGenerated("conArguments")}
+                uncertainAuthorship={usesAiTier("conArguments")}
               />
             )}
           </>
@@ -216,11 +216,11 @@ export default function MeasureDetailScreen() {
 function ArgumentCard({
   title,
   args,
-  generated,
+  uncertainAuthorship,
 }: {
   title: string;
   args: MeasureArgumentRef[];
-  generated: boolean;
+  uncertainAuthorship: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -249,7 +249,12 @@ function ArgumentCard({
       </Pressable>
       {expanded && (
         <View style={s.argumentBody}>
-          {generated && <BallotAiDisclosure label="AI-generated explanation" />}
+          {uncertainAuthorship && (
+            <BallotAiDisclosure
+              label="May include AI-generated text"
+              sourceTextPossible
+            />
+          )}
           <View style={{ gap: sp[4] }}>
             {args.map((arg, index) => (
               <View key={index} style={{ gap: sp[2] }}>

@@ -3,11 +3,38 @@ import test from "node:test";
 
 import {
   ballotStatus,
+  citationContentLabel,
   citationFieldLabel,
   verificationLabel,
   verifiedLanguages,
   webUrl,
 } from "./model";
+
+void test("argument fallback tier does not prove AI authorship", () => {
+  // Matches the verbatim SPUR arguments emitted by measure-crossvalidate.
+  const citation = {
+    field: "proArguments",
+    sourceName: "SPUR",
+    sourceUrl: "https://www.spur.org/voter-guide/2026-11",
+    tier: "ai_generated",
+    official: false,
+  };
+  for (const field of ["proArguments", "conArguments"]) {
+    assert.equal(
+      citationContentLabel({ ...citation, field }),
+      "May include AI-generated text",
+    );
+  }
+  assert.equal(
+    citationContentLabel({ ...citation, field: "summary" }),
+    "AI-generated explanation",
+  );
+  assert.equal(
+    citationContentLabel({ ...citation, tier: "state_sos", official: true }),
+    "Official source",
+  );
+  assert.equal(citationContentLabel({ ...citation, tier: "lwv" }), "Source");
+});
 
 void test("lookup evidence remains distinct without inferring publication or completeness", () => {
   const states = [
