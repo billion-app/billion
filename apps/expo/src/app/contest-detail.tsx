@@ -38,6 +38,7 @@ import {
   DigestPalette as P,
   planes,
 } from "~/styles";
+import { exampleForOffice } from "~/utils/governance-map";
 import { parseRouteArray } from "~/utils/route-array";
 
 const cardChrome = {
@@ -297,6 +298,23 @@ export default function ContestDetailScreen() {
         {params.districtName ? (
           <Text style={s.district}>{params.districtName}</Text>
         ) : null}
+        {exampleForOffice(
+          params.office,
+          params.levels,
+          params.districtName,
+        ) && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              router.push({
+                pathname: "/governance-map",
+                params: { example: "governor" },
+              })
+            }
+          >
+            <Text style={s.district}>Explore what this office can do →</Text>
+          </Pressable>
+        )}
 
         {description ? (
           <View style={s.section}>
