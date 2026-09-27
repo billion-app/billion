@@ -50,7 +50,7 @@ These lookups use `civic_api_cache` with endpoint-specific expiry. The schema in
 | Term           | Meaning here                                                                   |
 | -------------- | ------------------------------------------------------------------------------ |
 | Content        | A stored bill, presidential document, or court case                            |
-| Brief          | A structured explanation of a bill, validated with shared schemas              |
+| Brief          | A structured bill or court explanation, validated with its own shared schema   |
 | Lens           | An explanation of competing perspectives, with sources                         |
 | Contest        | A ballot entry, either a candidate race or referendum                          |
 | Jurisdiction   | The government area a record belongs to; affects filtering and source identity |
@@ -69,7 +69,7 @@ The `video` router and Feed route remain for compatibility, but `video.getInfini
 | `@acme/auth`       | Better Auth server configuration and native callback bridge     | Next.js                                                |
 | `@acme/env`        | Variable definitions, validation, local file loading, setup CLI | Server apps, database tools, onboarding                |
 | `@acme/ui`         | Theme tokens and reusable UI                                    | Next.js and Expo, through platform-appropriate exports |
-| `@acme/validators` | Shared structured data schemas, including bill briefs           | Database types, API, scraper                           |
+| `@acme/validators` | Shared structured data schemas, including bill and court briefs | Database types, API, scraper                           |
 
 The pnpm workspace links these packages locally. Turborepo coordinates commands and dependency builds. Some packages expose source for bundlers and generated declarations for TypeScript; a fresh checkout may need dependency builds before a package-specific check. See [Troubleshooting](troubleshooting.md#missing-declarations-or-js-extension-errors).
 

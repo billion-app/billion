@@ -40,33 +40,39 @@ repeats for later import batches. Failed image passes preserve the previous
 success timestamp and retry with backoff. The daily schedule remains as a
 fallback for content inserted outside the supervisor.
 
-Both image jobs use `--drain`: their limits are batch sizes, and they repeat
-until no missing or stale images remain. A failed batch exits with an error
-instead of retrying the same failed candidates in a tight loop. Direct CLI
-imports should be followed by `pnpm --filter @acme/scraper content-images --drain`.
-Without `--drain`, the CLI processes one batch. Image generation runs serially
-with ingestion and may wait behind higher-priority scheduled jobs.
+The scheduled and backfill image jobs use `--drain`: their limits are batch
+sizes, and they repeat until no missing or stale images remain. A failed batch
+exits with an error instead of retrying the same failed candidates in a tight
+loop. The manual `court-image-smoke` job deliberately processes at most one
+court candidate and stops. Direct CLI imports should be followed by
+`pnpm --filter @acme/scraper content-images --drain`. Without `--drain`, the CLI
+processes one batch. Image generation runs serially with ingestion and may wait
+behind higher-priority scheduled jobs.
 
-Both production image jobs review local FLUX output with the configured local
-multimodal model first, then fall back to DeepSeek. The reviewer inspects the
+Every production image job reviews local FLUX output with the configured local
+multimodal model first, then falls back to DeepSeek. The reviewer inspects the
 wide article-header and square browse-card crops, allows one feedback-guided
 regeneration, and records an exhausted rejection so later drains skip it.
-`--skip-review` remains available as an explicit manual outage mode, but the
-scheduled and backfill jobs do not use it.
+`--skip-review` remains available as an explicit manual outage mode, but no
+supervisor job uses it.
 
-| id                             | schedule          | notes                                                                            |
-| ------------------------------ | ----------------- | -------------------------------------------------------------------------------- |
-| `congress-daily`               | daily 03:15 local | Refreshes federal bills and applies the 90-day editorial retention policy        |
-| `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes state measures and applies the same retention policy                   |
-| `bill-interest-daily`          | daily 02:00 local | Scores missing or changed bills for interest, controversy, and outside attention |
-| `whitehouse-daily`             | daily 01:00 local | Reads presidential actions directly from the White House RSS feed                |
-| `federalregister-daily`        | daily 01:30 local | Refreshes executive orders and presidential documents                            |
-| `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content      |
-| `backfill-content-images`      | manual            | Drains missing or style-stale header art across all retained content             |
-| `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                   |
-| `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                              |
-| `retro-briefs`                 | manual            | Fills in missing structured briefs                                               |
-| `retro-lenses`                 | manual            | Fills in missing dual-lens perspectives                                          |
+| id                             | schedule          | notes                                                                                     |
+| ------------------------------ | ----------------- | ----------------------------------------------------------------------------------------- |
+| `congress-daily`               | daily 03:15 local | Refreshes federal bills and applies the 90-day editorial retention policy                 |
+| `open-states-{ca,nc,tx}-daily` | daily 03:30 local | Refreshes state measures and applies the same retention policy                            |
+| `bill-interest-daily`          | daily 02:00 local | Scores missing or changed bills for interest, controversy, and outside attention          |
+| `whitehouse-daily`             | daily 01:00 local | Reads presidential actions directly from the White House RSS feed                         |
+| `federalregister-daily`        | daily 01:30 local | Refreshes executive orders and presidential documents                                     |
+| `scotus-daily`                 | daily 01:45 local | Reads 20 recent official Court decisions, including order opinions; five generation slots |
+| `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content               |
+| `notify-followers-hourly`      | every 60 minutes  | Sends lock-screen alerts for bills a reader asked us to watch                             |
+| `court-image-smoke`            | manual            | Generates and reviews at most one real court-case image for production verification       |
+| `backfill-content-images`      | manual            | Drains missing or style-stale header art across all retained content                      |
+| `scc-cvig-weekly`              | Sundays 03:15     | Santa Clara County voter guide                                                            |
+| `ca-sos-weekly`                | Sundays 03:15     | California SoS candidate statements                                                       |
+| `retro-briefs`                 | manual            | Fills in missing structured briefs                                                        |
+| `backfill-court-briefs`        | manual            | Fills historical court briefs without regenerating perspectives or imagery                |
+| `retro-lenses`                 | manual            | Fills in missing dual-lens perspectives                                                   |
 
 The federal and state daily jobs are the point of the whole arrangement: the
 app is a news feed, so a bill whose status changed today matters more than one

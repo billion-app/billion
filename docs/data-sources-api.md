@@ -283,11 +283,11 @@ const typed = await trpc.content.getByType.query({ type: "court_case" });
 
 **DB tables populated by scrapers:**
 
-| Table               | Populated by                        | Content                                            |
-| ------------------- | ----------------------------------- | -------------------------------------------------- |
-| `Bill`              | `congress.ts` scraper               | Federal bills, actions, sponsor, status, full text |
-| `GovernmentContent` | `federalregister.ts` scraper        | EOs, proclamations, presidential memos             |
-| `CourtCase`         | `scotus.ts`, currently unregistered | Stored CourtListener opinions                      |
+| Table               | Populated by                 | Content                                            |
+| ------------------- | ---------------------------- | -------------------------------------------------- |
+| `Bill`              | `congress.ts` scraper        | Federal bills, actions, sponsor, status, full text |
+| `GovernmentContent` | `federalregister.ts` scraper | EOs, proclamations, presidential memos             |
+| `CourtCase`         | `scotus.ts` scraper          | Official Supreme Court opinions and order opinions |
 
 ---
 

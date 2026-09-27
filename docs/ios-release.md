@@ -167,6 +167,6 @@ Production updates use [Release OTA (Production)](../.github/workflows/release-o
 
 The workflow uses that branch's exact commit and creates the update message from its commit subject. It generates the production iOS fingerprint, selects the newest finished production store build with the same fingerprint, and validates that build's app identity and runtime before publishing. If no compatible build exists, the workflow stops and the change needs a new TestFlight build.
 
-The workflow runs checks and compares the source's native fingerprint and app identity with that store build. If they match, it publishes to production. If native code changed on `main`, create a release branch from the installed build's source and backport only the compatible fix, or ship a new store binary. Keep the fingerprint runtime policy and compatibility check intact.
+The workflow runs checks and compares the source's native fingerprint and app identity with that store build. If they match, it publishes to production. If native code changed on `main`, create a release branch from the installed build's source and backport only the compatible fix, or ship a new store binary. Keep the fingerprint runtime policy and compatibility check intact. The in-app restart prompt appears only after that update has downloaded and differs from the running bundle; see [Frontend](frontend.md).
 
 Agent-operated releases use the [TestFlight release skill](../.codex/skills/release-billion-testflight/SKILL.md), which adds completion criteria and directs agents through these same paths.

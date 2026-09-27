@@ -97,7 +97,11 @@ const scraperSourceLimitDefinitions = [
   ],
   ["FEDERALREGISTER_MAX_ITEMS", "Federal Register documents per run.", "20"],
   ["CONGRESS_MAX_ITEMS", "Congress.gov bills per run.", "100"],
-  ["SCOTUS_MAX_ITEMS", "CourtListener opinion clusters per run.", "50"],
+  [
+    "SCOTUS_MAX_ITEMS",
+    "Recent Supreme Court published decisions per run.",
+    "20",
+  ],
   ["SCC_CVIG_MAX_ITEMS", "Santa Clara voter-guide PDFs per run.", "10"],
   ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
   ["OPEN_STATES_MAX_ITEMS", "Open States bills per state per run.", "100"],
@@ -219,6 +223,16 @@ export const envRegistry = [
     secret: false,
     setupUrl: "https://resend.com/docs/dashboard/domains/introduction",
     requirements: { nextjs: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "EXPO_ACCESS_TOKEN",
+    description:
+      "Optional Expo access token for the push API. Lock-screen alerts work without it; the token raises rate limits.",
+    group: "Notifications",
+    secret: true,
+    setupUrl: "https://expo.dev/accounts/[account]/settings/access-tokens",
+    requirements: { nextjs: "optional", scraper: "optional" },
     schema: string,
   }),
   define({
@@ -447,7 +461,8 @@ export const envRegistry = [
   }),
   define({
     key: "COURTLISTENER_API_KEY",
-    description: "CourtListener token for higher SCOTUS request limits.",
+    description:
+      "Legacy CourtListener token; the official SCOTUS source does not use it.",
     group: "Scraper sources",
     secret: true,
     setupUrl: "https://www.courtlistener.com/sign-in/",
