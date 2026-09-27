@@ -138,8 +138,14 @@ export const ballotFixtures = {
     kind: "fixture",
     contests: [
       { type: "General", office: "Fixture race without candidate data" },
+      {
+        type: "Referendum",
+        office: "Fixture measure without a title",
+        referendumText: "Synthetic measure text with no supplied title.",
+      },
     ],
   },
+  mailOnly: { kind: "fixture", election, mailOnly: true },
   empty: { kind: "fixture", election, contests: [] },
   noData: { kind: "fixture" },
   noAddress: { kind: "fixture" },
@@ -193,6 +199,7 @@ export function BallotLookupFixture({
             "NC",
             "statewide",
             "partial",
+            "mailOnly",
             "empty",
             "noData",
             "noAddress",

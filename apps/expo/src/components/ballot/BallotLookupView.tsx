@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -90,6 +91,8 @@ function Disclosure({
 }
 
 function ContestCard({ contest }: { contest: Contest }) {
+  const isMeasure =
+    contest.type.toLowerCase() === "referendum" || !!contest.referendumTitle;
   const citations = [
     ...contestBallotCitations(contest),
     ...(contest.candidates ?? []).flatMap((candidate) =>
@@ -102,7 +105,7 @@ function ContestCard({ contest }: { contest: Contest }) {
   return (
     <Card style={s.card}>
       <Text style={s.eyebrow}>
-        {contest.referendumTitle ? "Ballot measure" : "Candidate race"}
+        {isMeasure ? "Ballot measure" : "Candidate race"}
       </Text>
       <Text accessibilityRole="header" style={s.contestTitle}>
         {contest.referendumTitle ?? contest.office ?? "Ballot contest"}
@@ -113,7 +116,7 @@ function ContestCard({ contest }: { contest: Contest }) {
       {!!contest.referendumSubtitle && (
         <Text style={s.body}>{contest.referendumSubtitle}</Text>
       )}
-      {!contest.referendumTitle && !contest.candidates?.length && (
+      {!isMeasure && !contest.candidates?.length && (
         <Text style={s.secondary}>
           Candidate information is unavailable to Billion.
         </Text>
@@ -159,7 +162,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const [ballotOffset, setBallotOffset] = useState(0);
   useFocusEffect(
     useCallback(() => {
-      if (!votingExpanded) return;
+      if (!votingExpanded || Platform.OS !== "android") return;
       const subscription = BackHandler.addEventListener(
         "hardwareBackPress",
         () => {
@@ -209,6 +212,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const hasContests = !!model?.contests.length;
   const hasSupport =
     hasContests ||
+    data?.mailOnly === true ||
     !!data?.pollingLocations?.length ||
     !!data?.earlyVoteSites?.length ||
     !!data?.dropOffLocations?.length ||

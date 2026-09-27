@@ -10,9 +10,9 @@ The [`/ballot` route](../apps/expo/src/app/ballot.tsx) answers "What is on my ba
 
 The legacy callers detect the provider with enrichment disabled and route Democracy Works responses into this view instead of the California-only presentation. They no longer request an addressless election list. The local screen shows loading or retry while resolving the provider and gates representatives on a returned normalized California state.
 
-The first `civic.getVoterInfo` request sends the address with `includeEnrichment: false`. The returned `election` and `otherElections` populate the selector. Selecting another election sends its exact ID with the same address. Changing the address clears that selection. Discovery options remain available while another election loads; cached contests and logistics are hidden during loading, failure, or invalid input. A response for a different election is labeled with both requested and returned IDs.
+The first `civic.getVoterInfo` request sends the address with `includeEnrichment: false`. The returned `election` and `otherElections` populate the selector. Selecting another election sends its exact ID with the same address. Changing the address clears that selection. Discovery options are retained while another election loads; cached contests and logistics are hidden during loading, failure, or invalid input. A response for a different election shows a mismatch notice with retry and election-selection recovery.
 
-The lookup retains contests for every state, including contests without candidates or enrichment. The view displays provider race names, candidate names and parties, and referendum text. Missing contests do not establish ballot publication status. California results mount only when the returned normalized state is California and an election is present. Official election-information links elsewhere come from the response; their presence does not establish that results have been published.
+The lookup retains contests for every state, including contests without candidates or enrichment. The view displays provider race names, candidate names and parties, and referendum text. A referendum remains labeled as a measure when its title is missing. Missing contests do not establish ballot publication status. California results mount only when the returned normalized state is California and an election is present. Official election-information links elsewhere come from the response; their presence does not establish that results have been published.
 
 ## Components and response contracts
 
@@ -29,7 +29,7 @@ The component props define field attribution and recovery actions. See the [voti
 
 ## Reading and recovery
 
-The address and election are compact context above the contests. Contest cards group candidate names or original measure text with their sources. A compact "How to vote" entry opens supplied voting resources above the contests. Language help expands below the ballot. Opening voting resources replaces the duplicate footer recovery link with the links inside that section. The input keeps validation beside the address and adjusts for the keyboard.
+The address and election are compact context above the contests. Contest cards group candidate names or original measure text with their sources. A compact "How to vote" entry opens a focused view of supplied voting resources, including mail-only guidance when no contests or locations are supplied. Back returns to the ballot's previous scroll position; Android's hardware Back also closes the focused view. Language help expands below the ballot. The input keeps validation beside the address and adjusts for the keyboard.
 
 Provider coverage metadata remains visible: statewide-only results warn that local contests may be missing, and unknown address scope is labeled unconfirmed. A submitted address is not a verified or provider-normalized address. Democracy Works lookup links do not imply election-office authority; recovery uses the known election-office directory, while supplied destinations remain available as voting information links. Candidates explicitly marked withdrawn but still on the ballot retain that label beside their name. Missing polling-location arrays do not establish that no locations exist.
 
@@ -47,6 +47,7 @@ Exercise the fixture controls:
 
 - Select NC, open "Change election", and choose its special election. Check the loading state and returned contest.
 - Switch between CA, partial, empty, and noData. Check California-only results and the distinct missing-data messages.
+- In partial, confirm the titleless referendum is labeled as a measure without a missing-candidate warning. In mailOnly, open "How to vote" and confirm the supplied mail-only notice remains available without contests or polling locations.
 - Select failed and failedCached, then retry. Confirm cached election choices do not compete with recovery. Select loading to verify that its deliberately supplied stale response stays hidden.
 - Select fallback to check the election-ID mismatch notice.
 - Select statewide to check the explicit coverage limit, empty normalized address, and a candidate marked withdrawn but still on the ballot.
