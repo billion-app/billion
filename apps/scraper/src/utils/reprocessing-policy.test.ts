@@ -20,7 +20,7 @@ ${"Supporters and critics disagree. ".repeat(20)}
 `;
 
 const completeState = {
-  contentType: "court_case" as const,
+  contentType: "government_content" as const,
   fullText: "A normal source sentence with enough context. ".repeat(20),
   aiGeneratedArticle: article,
   hasBrief: false,
@@ -104,8 +104,8 @@ void test("a bill with a legacy article but no brief is still incomplete", () =>
   );
 });
 
-void test("non-bill types still require an article, having no brief schema", () => {
-  for (const contentType of ["government_content", "court_case"] as const) {
+void test("executive actions still require an article", () => {
+  for (const contentType of ["government_content"] as const) {
     assert.equal(
       needsReprocessing({ ...completeState, contentType }, "missing"),
       false,
@@ -119,6 +119,27 @@ void test("non-bill types still require an article, having no brief schema", () 
       `${contentType} should still need its article`,
     );
   }
+});
+
+void test("court records need a current brief; a legacy article remains eligible for bounded rollout", () => {
+  const court = {
+    ...completeState,
+    contentType: "court_case" as const,
+    hasBrief: true,
+    aiGeneratedArticle: null,
+  };
+  assert.equal(needsReprocessing(court, "missing"), false);
+  assert.equal(
+    needsReprocessing({ ...court, fullText: "The stay is denied." }, "missing"),
+    false,
+  );
+  assert.equal(
+    needsReprocessing(
+      { ...court, hasBrief: false, aiGeneratedArticle: article },
+      "missing",
+    ),
+    true,
+  );
 });
 
 void test("missing source text outranks the long-form check", () => {

@@ -27,7 +27,12 @@
       "outputs": [".cache/tsbuildinfo.json"]
     },
     "test": {
-      "dependsOn": ["^topo", "^build"]
+      "dependsOn": ["^topo", "^build"],
+      "env": [
+        "NOTIFICATIONS_TEST_DATABASE_URL",
+        "SCOTUS_TEST_POSTGRES_URL",
+        "COURT_BRIEF_TEST_ARTIFACT_DIR"
+      ]
     },
     "clean": {
       "cache": false
@@ -89,6 +94,7 @@
     "RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL",
     "FEEDBACK_TO_EMAIL",
     "FEEDBACK_FROM_EMAIL",
+    "EXPO_ACCESS_TOKEN",
     "EXPO_PUBLIC_API_URL",
     "EXPO_PUBLIC_POSTHOG_TOKEN"
   ],

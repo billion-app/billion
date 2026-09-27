@@ -1,8 +1,5 @@
-import type {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-} from "react-native";
-import { useCallback, useMemo, useRef, useState } from "react";
+import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -15,7 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import type { RouterOutputs } from "~/utils/api";
 import type { StateJurisdiction } from "~/utils/jurisdiction";
@@ -26,6 +23,7 @@ import { GoldFoilText } from "~/components/GoldBillionMark";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useLastVisit } from "~/hooks/useLastVisit";
 import { useOnboarding } from "~/hooks/useOnboarding";
+import { useReadContent } from "~/hooks/useReadContent";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
@@ -36,6 +34,7 @@ import {
   jurisdictionFromAddress,
   JURISDICTIONS,
 } from "~/utils/jurisdiction";
+import { visibleArticles } from "~/utils/read-content";
 import { BRIEF_MAX, changeConnection } from "~/utils/what-changed";
 
 const CANVAS = P.night;
@@ -52,6 +51,7 @@ const RAIL_CARD_HEIGHT = 350;
 const RAIL_GAP = 12;
 const RAIL_INSET = 16;
 const RAIL_SNAP = RAIL_CARD_WIDTH + RAIL_GAP;
+const ALSO_PAGE_SIZE = 12;
 
 /** Design-only cover art — not content fixtures. */
 const CAPITOL = CAPITOL_LINE;
@@ -123,11 +123,12 @@ export function DigestHome() {
   const { jurisdiction: browseJurisdiction } = useContentJurisdiction();
   const onboarding = useOnboarding();
   const { savedIds } = useSavedContent();
+  const { readHistory, isLoading: readHistoryLoading } = useReadContent();
   const lastVisitAt = useLastVisit();
   const savedIdSet = useMemo(() => new Set(savedIds), [savedIds]);
 
   // Local rail follows saved address → Browse state preference → CA fallback.
-  // Federal cover stays federal (Also Today).
+  // Also Today stays federal. Read articles remain for 24 hours.
   const localJurisdiction = useMemo((): StateJurisdiction => {
     const fromAddress = jurisdictionFromAddress(address ?? null);
     if (fromAddress) return fromAddress;
@@ -158,16 +159,26 @@ export function DigestHome() {
   const featuredFederal = useQuery(
     trpc.content.getFeaturedBills.queryOptions({ jurisdiction: "federal" }),
   );
-  const federalEmpty =
-    !featuredFederal.isLoading && (featuredFederal.data?.length ?? 0) === 0;
-  const federalFeed = useQuery({
-    ...trpc.content.getByType.queryOptions({
-      type: "bill",
-      limit: 3,
-      jurisdiction: "federal",
-    }),
-    enabled: federalEmpty || !!featuredFederal.error,
-  });
+  const {
+    data: federalFeed,
+    error: federalFeedError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: federalFeedLoading,
+  } = useInfiniteQuery(
+    trpc.content.getByType.infiniteQueryOptions(
+      {
+        type: "bill",
+        limit: ALSO_PAGE_SIZE,
+        jurisdiction: "federal",
+      },
+      {
+        initialCursor: 0,
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+      },
+    ),
+  );
 
   const localCards = useMemo((): DigestCard[] => {
     const featured = featuredLocal.data;
@@ -178,11 +189,11 @@ export function DigestHome() {
     return all.slice(0, BRIEF_MAX);
   }, [featuredLocal.data, localFeed.data]);
 
-  const coverItem = useMemo((): DigestCard | undefined => {
-    const featured = featuredFederal.data;
-    if (featured && featured.length > 0) return featured[0];
-    return federalFeed.data?.items[0];
-  }, [featuredFederal.data, federalFeed.data]);
+  const alsoCards = useMemo((): DigestCard[] => {
+    const featured = featuredFederal.data ?? [];
+    const articles = federalFeed?.pages.flatMap((page) => page.items) ?? [];
+    return visibleArticles<DigestCard>([...featured, ...articles], readHistory);
+  }, [featuredFederal.data, federalFeed?.pages, readHistory]);
 
   const changeContext = useMemo(
     () => ({
@@ -194,10 +205,6 @@ export function DigestHome() {
     [lastVisitAt, localPlace, onboarding.vectors, savedIdSet],
   );
 
-  const coverConnection = coverItem
-    ? changeConnection(asChangeItem(coverItem), changeContext)
-    : undefined;
-
   const localLoading =
     featuredLocal.isLoading || (featuredEmpty && localFeed.isLoading);
   const localError =
@@ -206,12 +213,33 @@ export function DigestHome() {
     !!localFeed.error &&
     (featuredEmpty || !!featuredLocal.error);
   const coverLoading =
-    featuredFederal.isLoading || (federalEmpty && federalFeed.isLoading);
+    readHistoryLoading || featuredFederal.isLoading || federalFeedLoading;
   const coverError =
     !coverLoading &&
-    !coverItem &&
-    !!federalFeed.error &&
-    (federalEmpty || !!featuredFederal.error);
+    alsoCards.length === 0 &&
+    !!federalFeedError &&
+    !!featuredFederal.error;
+
+  const loadMoreArticles = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  const onFeedScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      const distanceFromBottom =
+        contentSize.height - contentOffset.y - layoutMeasurement.height;
+      if (distanceFromBottom < 600) loadMoreArticles();
+    },
+    [loadMoreArticles],
+  );
+
+  // If a fetched page is entirely past the 24-hour read window, keep paging
+  // until there is something to render or the federal feed is exhausted.
+  useEffect(() => {
+    if (!coverLoading && alsoCards.length === 0) loadMoreArticles();
+  }, [alsoCards.length, coverLoading, loadMoreArticles]);
 
   const openArticle = (id: string) => {
     router.push(`/article-detail?id=${id}`);
@@ -260,12 +288,14 @@ export function DigestHome() {
 
   return (
     <View style={s.screen}>
-      <DigestGreetingBar />
+      <DigestGreetingBar stageReady={!localLoading} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={!railHeld}
         directionalLockEnabled
         scrollEnabled={!railHeld}
+        onScroll={onFeedScroll}
+        scrollEventThrottle={200}
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
       >
         <View style={s.sectionHead}>
@@ -397,61 +427,91 @@ export function DigestHome() {
             <ActivityIndicator
               color={MUTED}
               style={{ marginVertical: 28 }}
-              accessibilityLabel="Loading federal cover"
+              accessibilityLabel="Loading unread articles"
             />
           ) : coverError ? (
             <View style={s.emptyWrap}>
-              <Text style={s.emptyTitle}>Federal cover didn’t load</Text>
+              <Text style={s.emptyTitle}>Articles didn’t load</Text>
               <Text style={s.emptySub}>Try again in a moment.</Text>
             </View>
-          ) : !coverItem ? (
+          ) : alsoCards.length === 0 ? (
             <View style={s.emptyWrap}>
-              <Text style={s.emptyTitle}>No federal cover yet</Text>
+              <Text style={s.emptyTitle}>No new articles today</Text>
               <Text style={s.emptySub}>
                 Check Browse for the full federal feed.
               </Text>
             </View>
           ) : (
-            <Pressable
-              style={s.alsoCard}
-              onPress={() => openArticle(coverItem.id)}
-              accessibilityRole="button"
-              accessibilityLabel={`${coverMeta(coverItem)}. ${coverItem.title}`}
-            >
-              <View style={s.cover}>
-                <GoldFoilText text="COVER · CONGRESS" style={s.coverKicker} />
-                <View style={s.coverRule} />
-                <View style={s.coverGrid}>
-                  <View style={s.coverCopy}>
-                    <Text style={s.coverHeadline}>{coverItem.title}</Text>
-                    <Text style={s.coverMeta}>{coverMeta(coverItem)}</Text>
-                    {coverConnection ? (
-                      <Text style={s.coverConnection}>{coverConnection}</Text>
-                    ) : null}
-                  </View>
-                  {contentImageSource(
-                    coverItem.imageUri ?? coverItem.thumbnailUrl,
-                  ) ? (
-                    <Image
-                      source={contentImageSource(
+            alsoCards.map((coverItem) => {
+              const coverConnection = changeConnection(
+                asChangeItem(coverItem),
+                changeContext,
+              );
+              return (
+                <Pressable
+                  key={coverItem.id}
+                  style={s.alsoCard}
+                  onPress={() => openArticle(coverItem.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${coverMeta(coverItem)}. ${coverItem.title}`}
+                >
+                  <View style={s.cover}>
+                    <GoldFoilText
+                      text="COVER · CONGRESS"
+                      style={s.coverKicker}
+                    />
+                    <View style={s.coverRule} />
+                    <View style={s.coverGrid}>
+                      <View style={s.coverCopy}>
+                        <Text style={s.coverHeadline}>{coverItem.title}</Text>
+                        {cardDek(coverItem) ? (
+                          <Text
+                            style={s.coverDek}
+                            numberOfLines={3}
+                            ellipsizeMode="tail"
+                          >
+                            {cardDek(coverItem)}
+                          </Text>
+                        ) : null}
+                        <Text style={s.coverMeta}>{coverMeta(coverItem)}</Text>
+                        {coverConnection ? (
+                          <Text style={s.coverConnection}>
+                            {coverConnection}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {contentImageSource(
                         coverItem.imageUri ?? coverItem.thumbnailUrl,
+                      ) ? (
+                        <Image
+                          source={contentImageSource(
+                            coverItem.imageUri ?? coverItem.thumbnailUrl,
+                          )}
+                          style={s.coverArt}
+                          contentFit="cover"
+                          accessibilityLabel=""
+                        />
+                      ) : (
+                        <Image
+                          source={CAPITOL}
+                          style={s.coverArt}
+                          contentFit="contain"
+                          accessibilityLabel="U.S. Capitol line art"
+                        />
                       )}
-                      style={s.coverArt}
-                      contentFit="cover"
-                      accessibilityLabel=""
-                    />
-                  ) : (
-                    <Image
-                      source={CAPITOL}
-                      style={s.coverArt}
-                      contentFit="contain"
-                      accessibilityLabel="U.S. Capitol line art"
-                    />
-                  )}
-                </View>
-              </View>
-            </Pressable>
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })
           )}
+          {isFetchingNextPage ? (
+            <ActivityIndicator
+              color={MUTED}
+              style={s.alsoLoader}
+              accessibilityLabel="Loading more articles"
+            />
+          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -617,11 +677,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
   },
   alsoCard: {
+    marginBottom: 12,
     backgroundColor: CARD,
     borderRadius: 28,
     borderWidth: 1,
     borderColor: "rgba(247,244,238,0.10)",
     overflow: "hidden",
+  },
+  alsoLoader: {
+    marginVertical: 20,
   },
   cover: {
     backgroundColor: CARD,
@@ -663,6 +727,14 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 11,
     color: MUTED,
+  },
+  coverDek: {
+    marginTop: 4,
+    marginBottom: 8,
+    fontFamily: fontBody.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: INK,
   },
   coverConnection: {
     marginTop: 6,

@@ -231,3 +231,59 @@ void test("provider lookup links retain attribution without claiming office auth
     },
   ]);
 });
+
+void test("mail-only priority survives deduplication of a shared mail destination", () => {
+  const links = votingInformationLinks({
+    mailOnly: true,
+    state: [
+      {
+        name: "State",
+        electionAdministrationBody: {
+          absenteeVotingInfoUrl: "https://example.org/services",
+        },
+        localJurisdiction: {
+          name: "County",
+          electionAdministrationBody: {
+            votingLocationFinderUrl: "https://example.org/locations",
+            electionRegistrationUrl: "https://example.org/services",
+          },
+        },
+      },
+    ],
+  });
+  assert.deepEqual(links[0], {
+    label: "Voting information website",
+    office: "County",
+    url: "https://example.org/services",
+  });
+  assert.equal(links.length, 2);
+});
+
+void test("a supplied location finder leads local registration-only links", () => {
+  for (const mailOnly of [true, false, undefined]) {
+    const links = votingInformationLinks({
+      mailOnly,
+      state: [
+        {
+          name: "State",
+          electionAdministrationBody: {
+            votingLocationFinderUrl: "https://example.org/locations",
+            electionInfoUrl: "https://example.org/locations",
+          },
+          localJurisdiction: {
+            name: "County",
+            electionAdministrationBody: {
+              electionRegistrationUrl: "https://example.org/register",
+            },
+          },
+        },
+      ],
+    });
+    assert.deepEqual(links[0], {
+      label: "Voting information website",
+      office: "State",
+      url: "https://example.org/locations",
+    });
+    assert.equal(links[1]?.url, "https://example.org/register");
+  }
+});

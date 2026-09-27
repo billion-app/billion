@@ -34,15 +34,18 @@ export function Segmented<T extends string>({
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale > 1.3;
   return (
-    <View style={[s.wrap, stacked && { flexDirection: "column" }]}>
+    <View
+      accessibilityRole="tablist"
+      style={[s.wrap, stacked && { flexDirection: "column" }]}
+    >
       {options.map((o) => {
         const active = value === o.id;
         const fg = active ? P.canvas : P.inkOnNight;
         return (
           <TouchableOpacity
             key={o.id}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
+            accessibilityRole="tab"
+            aria-selected={active}
             onPress={() => onChange(o.id)}
             activeOpacity={0.8}
             style={[
