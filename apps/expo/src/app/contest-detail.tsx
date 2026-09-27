@@ -147,6 +147,9 @@ export default function ContestDetailScreen() {
     candidates: string;
     districtName: string;
     roleDescription: string;
+    state?: string;
+    electionDate?: string;
+    districtId?: string;
     citations?: string;
   }>();
 
@@ -486,6 +489,28 @@ export default function ContestDetailScreen() {
                   </TouchableOpacity>
                   {open && (
                     <View style={s.candBody}>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open ${cand.name} candidate page`}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/candidate-detail",
+                            params: {
+                              name: cand.name,
+                              office: params.office,
+                              state: params.state,
+                              electionDate: params.electionDate,
+                              districtId: params.districtId,
+                              district: params.districtName,
+                              candidate: JSON.stringify(cand),
+                            },
+                          })
+                        }
+                        style={s.contactRow}
+                      >
+                        <Text style={s.websiteTitle}>Open candidate page</Text>
+                        <Icon name="arrowRight" size={16} color={P.primary} />
+                      </TouchableOpacity>
                       <CandidateStatement cand={cand} />
                       {cand.biography ? (
                         <BallotBiography text={cand.biography} />

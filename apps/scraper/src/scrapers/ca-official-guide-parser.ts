@@ -153,6 +153,7 @@ export function parseGuideCandidates(
       throw new Error(`Unrecognized candidate heading: ${sourceUrl}`);
     const name = clean(heading.text()).split("|")[0]?.trim();
     if (!name) throw new Error(`Missing candidate name: ${sourceUrl}`);
+    const party = clean(heading.text()).split("|")[1]?.trim();
     // Candidate prose is contained in the heading's own column, not the next candidate or footer.
     const paragraphs = heading
       .nextUntil("h2")
@@ -191,6 +192,7 @@ export function parseGuideCandidates(
         : undefined;
     candidates.push({
       name,
+      party: party || undefined,
       officeSlug:
         officeSlug as OfficialGuidePayload["candidates"][number]["officeSlug"],
       statement,
