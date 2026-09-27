@@ -3,12 +3,14 @@ import test from "node:test";
 
 import type { BallotResponse } from "./ballot-lookup";
 import {
+  ballotContestRoute,
   ballotElectionDate,
   ballotElectionOptions,
   ballotModel,
   ballotOfficeUrl,
   contestBallotCitations,
   currentBallot,
+  isBallotMeasure,
   validateBallotAddress,
 } from "./ballot-lookup";
 
@@ -153,4 +155,73 @@ void test("cached ballot details are hidden during edits, refreshes, failures an
     currentBallot({ ...ready, requestedElectionId: data.election?.id }).data,
     data,
   );
+});
+
+void test("candidate navigation retains provider contact, withdrawal status and citations", () => {
+  const candidates = [
+    {
+      name: "Example candidate",
+      candidateUrl: "https://example.org/campaign",
+      ballotStatus: "withdrewStillOnBallot" as const,
+      statement: "Original statement",
+      citations: [
+        {
+          field: "statement",
+          sourceName: "Election office",
+          tier: "state_sos",
+          official: true,
+        },
+      ],
+    },
+  ];
+  const route = ballotContestRoute({
+    type: "candidate",
+    office: "Mayor",
+    candidates,
+    sources: [
+      { name: "Provider", official: false, url: "https://example.org/ballot" },
+    ],
+  });
+  assert.equal(route.pathname, "/contest-detail");
+  assert.deepEqual(JSON.parse(route.params.candidates), candidates);
+  assert.equal((JSON.parse(route.params.citations) as unknown[]).length, 1);
+});
+
+void test("measure navigation preserves summaries, original text, and source attribution", () => {
+  const route = ballotContestRoute({
+    type: "referendum",
+    referendumTitle: "Measure A",
+    summaryShort: "Short overview",
+    summary: "Provider overview",
+    summaryLong: "Extended overview",
+    referendumText: "Original ballot question",
+    summaryIsAiGenerated: true,
+    sources: [
+      { name: "Provider", official: false, url: "https://example.org/ballot" },
+    ],
+    citations: [
+      {
+        field: "summaryShort",
+        sourceName: "Generated",
+        official: false,
+        tier: "ai_generated",
+      },
+    ],
+  });
+  assert.equal(route.pathname, "/measure-detail");
+  assert.equal(route.params.summaryShort, "Short overview");
+  assert.equal(route.params.summaryLong, "Extended overview");
+  assert.equal(route.params.summary, "Provider overview");
+  assert.equal(route.params.referendumText, "Original ballot question");
+  assert.equal(route.params.summaryIsAiGenerated, "true");
+  assert.equal((JSON.parse(route.params.citations) as unknown[]).length, 2);
+});
+
+void test("a measure without a title still opens the measure reader", () => {
+  const contest = { type: "Referendum", referendumText: "Supplied question" };
+  assert.equal(isBallotMeasure(contest), true);
+  const route = ballotContestRoute(contest);
+  assert.equal(route.pathname, "/measure-detail");
+  assert.equal(route.params.referendumTitle, "Ballot measure");
+  assert.equal(isBallotMeasure({ type: "candidate", office: "Mayor" }), false);
 });

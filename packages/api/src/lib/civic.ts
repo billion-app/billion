@@ -31,6 +31,10 @@ import { getCachedCandidate, setCachedCandidate } from "./candidate-cache";
 import { crossValidateCandidate } from "./candidate-crossvalidate";
 import { generateRoleDescription } from "./civic-ai";
 import { getRoleDescription, saveRoleDescription } from "./civic-descriptions";
+import {
+  mergeCandidateEnrichment,
+  mergeMeasureCitations,
+} from "./civic-enrichment-merge";
 import { createCivicReadGuard } from "./civic-read-guard";
 import { createVoterInfoLoader } from "./civic-voter-info";
 import {
@@ -603,9 +607,7 @@ async function enrichContest(
       contest.conArguments = merged.conArguments.length
         ? merged.conArguments
         : undefined;
-      contest.citations = merged.citations.length
-        ? merged.citations
-        : undefined;
+      contest.citations = mergeMeasureCitations(contest, merged);
 
       // Back-fill the legacy single-field shape so existing UI keeps working.
       if (!contest.referendumText && merged.fullText) {
@@ -622,7 +624,7 @@ async function enrichContest(
       }
 
       // Expose each citation as a Source entry for attribution UIs.
-      contest.sources = merged.citations.map((c) => ({
+      contest.sources = contest.citations.map((c) => ({
         name: c.sourceName,
         official: c.official,
         url: c.sourceUrl,
@@ -680,60 +682,7 @@ async function enrichContest(
               );
             }
 
-            // Merge canonical fields back onto the candidate, preferring enriched
-            // values but never clobbering provider data with empties.
-            candidate.biography = merged.biography ?? candidate.biography;
-            candidate.statement = merged.statement ?? candidate.statement;
-            candidate.statementSummary =
-              merged.statementSummary ?? candidate.statementSummary;
-            candidate.statementSummaryIsAiGenerated =
-              merged.statementSummaryIsAiGenerated ??
-              candidate.statementSummaryIsAiGenerated;
-            candidate.incumbent = merged.incumbent ?? candidate.incumbent;
-            candidate.photoUrl = merged.photoUrl ?? candidate.photoUrl;
-            candidate.candidateUrl =
-              merged.candidateUrl ?? candidate.candidateUrl;
-            candidate.email = merged.email ?? candidate.email;
-            candidate.phone = merged.phone ?? candidate.phone;
-            candidate.channels = merged.channels ?? candidate.channels;
-
-            // Cite raw provider fields that survived onto the candidate but
-            // no higher-tier source claimed. Better a cited official-ish link
-            // than a blank card; each field is cited once (enriched citation
-            // wins; provider citations only fill the gaps).
-            const enrichedFields = new Set(
-              merged.citations.map((citation) => citation.field),
-            );
-            const citations: MeasureCitationRef[] = [
-              ...merged.citations,
-              ...(candidate.citations ?? []).filter(
-                (citation) => !enrichedFields.has(citation.field),
-              ),
-            ];
-            const cited = new Set(citations.map((c) => c.field));
-            const rawCivicFields: [string, unknown][] = [
-              ["candidateUrl", candidate.candidateUrl],
-              ["phone", candidate.phone],
-              ["email", candidate.email],
-              ["photoUrl", candidate.photoUrl],
-              [
-                "channels",
-                candidate.channels?.length ? candidate.channels : undefined,
-              ],
-            ];
-            for (const [field, value] of rawCivicFields) {
-              if (value && !cited.has(field)) {
-                citations.push({
-                  field,
-                  sourceName: contest.sources?.[0]?.name ?? "Ballot provider",
-                  sourceUrl: contest.sources?.[0]?.url,
-                  tier: contest.sources?.[0]?.tier ?? "ballotpedia",
-                  official: false,
-                });
-                cited.add(field);
-              }
-            }
-            candidate.citations = citations.length ? citations : undefined;
+            mergeCandidateEnrichment(candidate, merged);
           } catch {
             // Best-effort per candidate: one failure must not break the contest
             // or the other candidates — leave the raw provider data intact.

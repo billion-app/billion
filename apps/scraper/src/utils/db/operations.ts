@@ -9,8 +9,9 @@ import {
   CourtCase,
   GovernmentContent,
 } from "@acme/db/schema";
-import { isCurrentBillBrief } from "@acme/validators";
+import { isCurrentBillBrief, parseCourtBriefRecord } from "@acme/validators";
 
+import type { CourtBriefInput } from "../ai/court-brief.js";
 import type { NewItemLimiter } from "../new-item-limit.js";
 import type {
   BillData,
@@ -18,6 +19,7 @@ import type {
   GovernmentContentData,
 } from "../types.js";
 import { generateBillBrief } from "../ai/bill-brief.js";
+import { generateCourtBrief } from "../ai/court-brief.js";
 import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
@@ -37,6 +39,7 @@ import { createLogger } from "../log.js";
 import { tickProgress } from "../progress.js";
 import {
   governmentContentSourceDeferralReason,
+  isUsableExplanationSource,
   isUsableSourceText,
 } from "../reprocessing-policy.js";
 import {
@@ -152,6 +155,10 @@ function hashFields(input: ContentData): string {
         description: input.data.description,
         status: input.data.status,
         fullText: input.data.fullText,
+        url: input.data.url,
+        court: input.data.court,
+        caseNumber: input.data.caseNumber,
+        decisionDate: input.data.filedDate,
       });
   }
 }
@@ -201,7 +208,10 @@ export function billSourceUpdateFields(data: BillData) {
 
 export async function upsertContent(
   input: ContentData,
-  options?: { newItemLimiter?: NewItemLimiter },
+  options?: {
+    newItemLimiter?: NewItemLimiter;
+    courtBriefGenerator?: typeof generateCourtBrief;
+  },
 ): Promise<UpsertOutcome> {
   const newContentHash = createContentHash(hashFields(input));
   const label = contentLabel(input);
@@ -213,6 +223,10 @@ export async function upsertContent(
   const url = input.data.url;
   const sourceDescription = input.data.description;
 
+  if (input.type === "court_case" && !fullText?.trim()) {
+    return { status: "deferred", reason: "court source text unavailable" };
+  }
+
   if (input.type === "government_content") {
     const reason = governmentContentSourceDeferralReason(title, fullText);
     if (reason) {
@@ -222,8 +236,13 @@ export async function upsertContent(
   }
 
   const existing = await checkExisting(input);
+  const courtSourceChanged =
+    input.type === "court_case" &&
+    Boolean(existing) &&
+    existing?.contentHash !== newContentHash;
 
-  const hasUsableText = isUsableSourceText(fullText);
+  // A short published court order can be complete evidence, unlike a bill stub.
+  const hasUsableText = isUsableExplanationSource(fullText, input.type);
   if (!hasUsableText && fullText) {
     logger.debug(
       `${label} fullText failed usability check (too short or boilerplate-heavy) — AI article will be skipped`,
@@ -256,10 +275,8 @@ export async function upsertContent(
   // not — which is exactly the unreadable state this change removes. Generating
   // both means paying for a wall of prose that nothing displays.
   //
-  // The column and the `priorArticle` input stay: existing rows still hold
-  // articles worth using as framing context, and court cases and executive
-  // actions have no brief schema yet, so they still depend on it.
-  const generatesArticle = input.type !== "bill";
+  // Legacy articles remain a fallback; new court and bill explanations use briefs.
+  const generatesArticle = input.type === "government_content";
 
   let progressKind: "new" | "changed" | "unchanged";
   if (!existing) {
@@ -271,7 +288,7 @@ export async function upsertContent(
   } else if (existing.contentHash !== newContentHash) {
     shouldGenerateSummary = forceAIRegeneration
       ? !sourceDescription && hasSummarySource
-      : input.type === "bill"
+      : input.type === "bill" || input.type === "court_case"
         ? !sourceDescription && hasSummarySource
         : !hasPersistedSummary && !sourceDescription && hasSummarySource;
     shouldGenerateArticle =
@@ -335,8 +352,15 @@ export async function upsertContent(
     return false;
   };
 
+  // Court cards reuse the brief takeaway instead of paying for a separate summary.
+  if (input.type === "court_case") shouldGenerateSummary = false;
   const wantsUpfrontGeneration =
-    shouldGenerateSummary || shouldGenerateArticle || shouldGenerateImage;
+    shouldGenerateSummary ||
+    shouldGenerateArticle ||
+    shouldGenerateImage ||
+    (input.type === "court_case" &&
+      hasUsableText &&
+      !(await hasCurrentCourtBrief(existing?.id, newContentHash)));
   const budgetExhausted = wantsUpfrontGeneration && !claimBudget();
   if (budgetExhausted) {
     // An item we have never stored is held back entirely rather than written
@@ -483,29 +507,50 @@ export async function upsertContent(
     result = row;
   } else {
     const d = input.data;
-    const [row] = await db
-      .insert(CourtCase)
-      .values({
-        ...d,
-        contentHash: newContentHash,
-        versions: [],
-      })
-      .onConflictDoUpdate({
-        target: [CourtCase.caseNumber, CourtCase.court],
-        set: {
-          title: d.title,
-          court: d.court,
-          filedDate: d.filedDate,
-          description: d.description,
-          status: d.status,
-          fullText: d.fullText,
-          url: d.url,
+    result = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(CourtCase)
+        .values({
+          ...d,
+          ...(existing?.id ? { id: existing.id } : {}),
           contentHash: newContentHash,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    result = row;
+          versions: [],
+        })
+        .onConflictDoUpdate({
+          target: existing?.id
+            ? CourtCase.id
+            : [CourtCase.caseNumber, CourtCase.court],
+          set: {
+            title: d.title,
+            court: d.court,
+            filedDate: d.filedDate,
+            // Changed court text must not keep an explanation of the prior
+            // decision. Clearing it also makes a budget-deferred refresh retry.
+            description:
+              d.description ?? (courtSourceChanged ? null : undefined),
+            aiGeneratedArticle: courtSourceChanged ? null : undefined,
+            status: d.status,
+            fullText: d.fullText,
+            url: d.url,
+            contentHash: newContentHash,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      if (row && courtSourceChanged) {
+        // The API serves lenses by ID, so source refresh and invalidation must
+        // commit together even when the generation budget is exhausted.
+        await tx
+          .delete(ContentLens)
+          .where(
+            and(
+              eq(ContentLens.contentType, "court_case"),
+              eq(ContentLens.contentId, row.id),
+            ),
+          );
+      }
+      return row;
+    });
   }
 
   logger.debug(`${label} upserted (raw)`);
@@ -548,6 +593,34 @@ export async function upsertContent(
 
   // Phase 2: AI enrichment
   try {
+    let courtTakeaway: string | undefined;
+    if (input.type === "court_case" && hasUsableText && !budgetExhausted) {
+      const ready = await upsertCourtBrief(
+        {
+          contentId: rowId,
+          contentHash: newContentHash,
+          data: input.data,
+          claimBudget,
+        },
+        options?.courtBriefGenerator,
+      );
+      if (!ready)
+        throw new IncompleteEnrichmentError(
+          `Court brief generation failed for ${label}`,
+        );
+      const [stored] = await db
+        .select()
+        .from(ContentBrief)
+        .where(
+          and(
+            eq(ContentBrief.contentId, rowId),
+            eq(ContentBrief.contentType, "court_case"),
+          ),
+        )
+        .limit(1);
+      courtTakeaway = parseCourtBriefRecord(stored?.brief, newContentHash)
+        ?.takeaway.text;
+    }
     const existingDescription = sourceDescription || persistedDescription;
     const effectiveDescription = preGeneratedDescription || existingDescription;
     const articleType =
@@ -560,7 +633,9 @@ export async function upsertContent(
     const [description, aiGeneratedArticle, thumbnailUrl] = await Promise.all([
       // Summary generation
       (async (): Promise<string | undefined> => {
-        if (preGeneratedDescription) {
+        if (courtTakeaway) {
+          return courtTakeaway;
+        } else if (preGeneratedDescription) {
           return preGeneratedDescription;
         } else if (sourceDescription) {
           return sourceDescription;
@@ -602,8 +677,9 @@ export async function upsertContent(
           // For an item we are storing for the first time this is the whole
           // point of storing it, so treat an empty result as a failure rather
           // than shipping a bill with nothing to read. An item already in the
-          // database keeps its old behaviour: it is no worse off than before.
-          if (!existing) {
+          // database keeps its old behaviour, except court refreshes: their
+          // stale article has been invalidated and the job must retry.
+          if (!existing || input.type === "court_case") {
             throw new IncompleteEnrichmentError(
               `AI article generation returned an empty result for ${label}`,
             );
@@ -646,8 +722,13 @@ export async function upsertContent(
     ]);
 
     // Only UPDATE if something was generated
+    const courtDescriptionWasCleared =
+      input.type === "court_case" && courtSourceChanged && !sourceDescription;
+    const hasCurrentCourtTakeaway =
+      courtDescriptionWasCleared && courtTakeaway !== undefined;
     const hasNewDescription =
-      description !== undefined && description !== effectiveDescription;
+      description !== undefined &&
+      (hasCurrentCourtTakeaway || description !== effectiveDescription);
     if (
       hasNewDescription ||
       aiGeneratedArticle !== undefined ||
@@ -1143,5 +1224,65 @@ export async function upsertBillBrief(args: {
   await persistBillBrief(db, args.contentId, args.contentHash, record);
 
   logger.success(`Cached brief for ${args.billNumber}`);
+  return true;
+}
+
+async function hasCurrentCourtBrief(
+  contentId: string | undefined,
+  contentHash: string,
+): Promise<boolean> {
+  if (!contentId || forceAIRegeneration) return false;
+  const [row] = await db
+    .select()
+    .from(ContentBrief)
+    .where(
+      and(
+        eq(ContentBrief.contentType, "court_case"),
+        eq(ContentBrief.contentId, contentId),
+      ),
+    )
+    .limit(1);
+  return (
+    row?.contentHash === contentHash &&
+    Boolean(parseCourtBriefRecord(row.brief, contentHash))
+  );
+}
+
+/** The injectable writer is a deterministic fixture seam; production uses the real generator. */
+export async function upsertCourtBrief(
+  args: CourtBriefInput & {
+    contentId: string;
+    claimBudget?: () => boolean;
+    force?: boolean;
+  },
+  generate = generateCourtBrief,
+): Promise<boolean> {
+  if (
+    !args.force &&
+    (await hasCurrentCourtBrief(args.contentId, args.contentHash))
+  )
+    return true;
+  if (args.claimBudget && !args.claimBudget()) return false;
+  const generated = await generate(args);
+  const brief = parseCourtBriefRecord(generated, args.contentHash);
+  if (!brief) return false;
+  await db
+    .insert(ContentBrief)
+    .values({
+      contentId: args.contentId,
+      contentType: "court_case",
+      contentHash: args.contentHash,
+      brief,
+      modelVersion: brief.modelVersion,
+    })
+    .onConflictDoUpdate({
+      target: [ContentBrief.contentType, ContentBrief.contentId],
+      set: {
+        contentHash: args.contentHash,
+        brief,
+        modelVersion: brief.modelVersion,
+        updatedAt: new Date(),
+      },
+    });
   return true;
 }

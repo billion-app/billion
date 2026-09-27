@@ -106,6 +106,8 @@ export function votingLocationGroups(data: VotingLogisticsData) {
 /** Use supplied lookup URLs without inferring their authority from the container field. */
 export function votingInformationLinks(data: VotingLogisticsData) {
   const links: { label: string; office: string; url: string }[] = [];
+  let mailUrl: string | undefined;
+  let locationUrl: string | undefined;
   const fields = [
     ["votingLocationFinderUrl", "Find voting locations"],
     ["electionRegistrationUrl", "Registration information"],
@@ -133,6 +135,8 @@ export function votingInformationLinks(data: VotingLogisticsData) {
         (sourceNames ? `Via ${sourceNames}` : clean(region.name)) ??
         "Voting information";
       if (!url) continue;
+      if (field === "absenteeVotingInfoUrl") mailUrl ??= url;
+      if (field === "votingLocationFinderUrl") locationUrl ??= url;
       const existing = links.find((link) => link.url === url);
       if (existing) {
         // A single office page may serve several purposes. Keep one action and
@@ -145,12 +149,12 @@ export function votingInformationLinks(data: VotingLogisticsData) {
     }
   }
   data.state?.forEach(visit);
-  if (data.mailOnly) {
-    const mailIndex = links.findIndex(
-      (link) => link.label === "Absentee and mail voting information",
-    );
-    if (mailIndex > 0) links.unshift(...links.splice(mailIndex, 1));
-  }
+  // Keep priority tied to the supplied purpose even when deduplication broadens
+  // the label. A location finder also takes precedence over registration alone.
+  const preferredUrl =
+    (data.mailOnly === true ? mailUrl : undefined) ?? locationUrl;
+  const preferredIndex = links.findIndex((link) => link.url === preferredUrl);
+  if (preferredIndex > 0) links.unshift(...links.splice(preferredIndex, 1));
   return links;
 }
 

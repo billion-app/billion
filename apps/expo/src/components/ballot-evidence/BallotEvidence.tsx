@@ -110,7 +110,7 @@ function Disclosure({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={[title, detail].filter(Boolean).join(", ")}
-        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         onPress={() => setExpanded(!expanded)}
         style={s.row}
       >
@@ -330,7 +330,8 @@ export function BallotDetailEvidence({
         contentKind={contentKind}
         showRecovery={false}
       />
-      <BallotLanguages items={[]} showRecovery={showOfficeLink} />
+      <BallotLanguages items={[]} showRecovery={false} />
+      {showOfficeLink && <ElectionOfficeLink />}
     </View>
   );
 }

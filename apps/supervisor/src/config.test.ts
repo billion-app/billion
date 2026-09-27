@@ -62,7 +62,11 @@ void test("bill interest scoring runs before source refreshes", () => {
 });
 
 void test("image jobs keep suitability review enabled", () => {
-  for (const id of ["content-images-daily", "backfill-content-images"]) {
+  for (const id of [
+    "content-images-daily",
+    "court-image-smoke",
+    "backfill-content-images",
+  ]) {
     const job = findJob(id);
     assert.ok(job, `${id} is missing`);
     assert.ok(
@@ -70,6 +74,44 @@ void test("image jobs keep suitability review enabled", () => {
       `${id} bypasses image review`,
     );
   }
+});
+
+void test("court image smoke test is real, reviewed, and bounded", () => {
+  const job = findJob("court-image-smoke");
+  assert.ok(job, "court image smoke job is missing");
+  assert.deepEqual(job.args, [
+    "--type",
+    "court_case",
+    "--bill-limit",
+    "0",
+    "--other-limit",
+    "1",
+    "--concurrency",
+    "1",
+  ]);
+  assert.deepEqual(job.schedule, { kind: "manual" });
+  assert.ok(!job.args.includes("--dry-run"));
+  assert.ok(!job.args.includes("--skip-review"));
+});
+
+void test("court brief backfill is manual, bounded, and brief-only", () => {
+  const job = findJob("backfill-court-briefs");
+  assert.ok(job, "court brief backfill job is missing");
+  assert.deepEqual(job.args, [
+    "--type",
+    "court_case",
+    "--mode",
+    "missing",
+    "--limit",
+    "1000",
+    "--assets",
+    "briefs",
+    "--concurrency",
+    "2",
+    "--apply",
+    "--yes",
+  ]);
+  assert.deepEqual(job.schedule, { kind: "manual" });
 });
 
 void test("executive actions refresh daily", () => {
@@ -87,6 +129,20 @@ void test("executive actions refresh daily", () => {
   assert.deepEqual(job.args, ["federalregister", "--concurrency", "2"]);
   assert.deepEqual(job.schedule, { kind: "daily", hour: 1, minute: 30 });
   assert.ok(whiteHouseJob.priority < job.priority);
+});
+
+void test("Supreme Court rulings refresh daily with bounded source work and generation", () => {
+  const job = findJob("scotus-daily");
+  assert.ok(job, "daily Supreme Court job is missing");
+  assert.deepEqual(job.args, [
+    "scotus",
+    "--max-items",
+    "20",
+    "--concurrency",
+    "1",
+  ]);
+  assert.equal(job.schedule.kind, "daily");
+  assert.equal(job.env?.SCRAPER_MAX_NEW_ITEMS_PER_RUN, "5");
 });
 
 void test("San Jose decisions refresh daily through the Legistar scraper", () => {

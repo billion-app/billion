@@ -46,6 +46,7 @@ export default function MeasureDetailScreen() {
     referendumText: string;
     referendumUrl: string;
     summary: string;
+    summaryShort: string;
     summaryLong: string;
     summaryIsAiGenerated: string;
     fiscalImpact: string;
@@ -79,7 +80,10 @@ export default function MeasureDetailScreen() {
       ? [{ text: params.referendumConStatement, sourceName: "" }]
       : [];
   const summary =
-    params.summary || params.summaryLong || params.referendumSubtitle;
+    params.summaryShort ||
+    params.summary ||
+    params.summaryLong ||
+    params.referendumSubtitle;
   const sourceUrl = webUrl(params.referendumUrl);
   const summaryIsAi =
     params.summaryIsAiGenerated === "true" ||
@@ -157,7 +161,7 @@ export default function MeasureDetailScreen() {
                 icon={summaryIsAi ? "sparkle" : "book"}
                 accent
                 text={summary}
-                extendedText={params.summaryLong}
+                extendedText={params.summaryLong || params.summary}
                 label={summaryIsAi ? <BallotAiDisclosure /> : undefined}
               />
             ) : (
@@ -232,7 +236,7 @@ function ArgumentCard({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${title}, ${args.length} ${args.length === 1 ? "argument" : "arguments"}`}
-        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         onPress={() => setExpanded(!expanded)}
         style={s.argumentHeader}
       >

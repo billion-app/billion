@@ -83,6 +83,16 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 24,
   },
   {
+    id: "notify-followers-hourly",
+    description: "Send lock-screen alerts for bills a reader asked us to watch",
+    script: "notify-followers.js",
+    args: [],
+    schedule: { kind: "interval", everyMinutes: 60 },
+    priority: 8,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "content-images-daily",
     description: "Generate illustrated header art for recent retained content",
     script: "content-images.js",
@@ -100,7 +110,7 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 120,
     maxRuntimeHours: 12,
   },
-  // The other three registered scrapers. These used to ride along in a weekly
+  // The other registered scrapers. These used to ride along in a weekly
   // `main.js all` run; they are listed individually so that dropping the `all`
   // run does not silently stop them, and so each can be rescheduled or paused
   // without touching the others.
@@ -128,6 +138,18 @@ export const jobs: readonly JobDefinition[] = [
     priority: 5,
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
+  },
+  {
+    id: "scotus-daily",
+    description:
+      "Refresh Supreme Court opinions and emergency order opinions from the Court",
+    script: "main.js",
+    args: ["scotus", "--max-items", "20", "--concurrency", "1"],
+    env: { SCRAPER_MAX_NEW_ITEMS_PER_RUN: "5" },
+    schedule: { kind: "daily", hour: 1, minute: 45 },
+    priority: 5,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 12,
   },
   {
     id: "scc-cvig-weekly",
@@ -229,6 +251,25 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 24,
   },
   {
+    id: "court-image-smoke",
+    description: "Generate and review one real Supreme Court header image",
+    script: "content-images.js",
+    args: [
+      "--type",
+      "court_case",
+      "--bill-limit",
+      "0",
+      "--other-limit",
+      "1",
+      "--concurrency",
+      "1",
+    ],
+    schedule: { kind: "manual" },
+    priority: 17,
+    idleTimeoutMinutes: 120,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "backfill-content-images",
     description: "Generate illustrated header art for all retained content",
     script: "content-images.js",
@@ -259,6 +300,31 @@ export const jobs: readonly JobDefinition[] = [
     // which meant four manual triggers to finish one job — and no record of how
     // many passes were left.
     args: ["--limit", "1000", "--concurrency", "4"],
+    schedule: { kind: "manual" },
+    priority: 20,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 72,
+  },
+  {
+    id: "backfill-court-briefs",
+    description: "Generate structured briefs for historical court cases",
+    script: "reprocess-content.js",
+    // This is deliberately brief-only: court perspectives and header artwork
+    // have their own backfills and should not make a factual-brief repair fail.
+    args: [
+      "--type",
+      "court_case",
+      "--mode",
+      "missing",
+      "--limit",
+      "1000",
+      "--assets",
+      "briefs",
+      "--concurrency",
+      "2",
+      "--apply",
+      "--yes",
+    ],
     schedule: { kind: "manual" },
     priority: 20,
     idleTimeoutMinutes: 60,

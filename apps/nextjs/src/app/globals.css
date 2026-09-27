@@ -6,6 +6,36 @@
 
 @custom-variant dark (&:is(.dark, .dark *));
 
+/* Digest tokens for the web reader (/browse, /read). The values are emitted
+   at runtime from @acme/ui/digest-tokens by the (reader) layout, so these
+   names only point at them — there is no second copy of the palette here. */
+@theme inline {
+  --color-night: var(--digest-planes-navy);
+  --color-slate: var(--digest-planes-slate);
+  --color-surface: var(--digest-planes-surface);
+  --color-plane-hi: var(--digest-planes-hi);
+  --color-paper: var(--digest-planes-paper);
+  --color-ink-night: var(--digest-digest-ink-on-night);
+  --color-ink-paper: var(--digest-digest-ink-on-paper);
+  --color-quiet: var(--digest-digest-quiet);
+  --color-spark: var(--digest-digest-spark);
+  --color-primary-blue: var(--digest-digest-primary);
+  --color-chrome: var(--digest-digest-border);
+  --color-rule: var(--digest-hair-section-rule);
+  --color-card-border: var(--digest-hair-card-border);
+  --color-menu-border: var(--digest-hair-menu-border);
+  --color-hair-1: var(--digest-hair-1);
+  --color-hair-2: var(--digest-hair-2);
+  --color-hair-3: var(--digest-hair-3);
+  --color-pill-on: var(--digest-hair-tab-active-pill);
+  --color-type-bill: var(--digest-type-bill);
+  --color-type-exec: var(--digest-type-exec);
+  --color-type-court: var(--digest-type-court);
+  --color-type-news: var(--digest-type-news);
+  --radius-digest-card: var(--digest-radius-card);
+  --radius-cover-art: var(--digest-radius-cover-art);
+}
+
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;
@@ -14,6 +44,27 @@
   }
   @media (width >= 1400px) {
     max-width: 1400px;
+  }
+}
+
+/* The phone's GoldFoilText: the jurisdiction name in the Browse scope row. */
+@utility gold-foil {
+  background: linear-gradient(
+    100deg,
+    #b8912a 0%,
+    #f3d77a 45%,
+    #d4af37 70%,
+    #a8822a 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -60,4 +111,67 @@
     outline: 2px solid var(--ring);
     outline-offset: 3px;
   }
+}
+
+/* Long-form Markdown in the web reader (articles, deep dives). */
+.reader-prose {
+  font-family: var(--font-albert-sans), "Helvetica Neue", Arial, sans-serif;
+  font-size: 16.5px;
+  line-height: 1.68;
+  color: rgba(255, 255, 255, 0.86);
+}
+.reader-prose > * + * {
+  margin-top: 1em;
+}
+.reader-prose h1,
+.reader-prose h2,
+.reader-prose h3 {
+  font-family: var(--font-inria-serif), Georgia, serif;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+  margin-top: 1.8em;
+}
+.reader-prose h1 {
+  font-size: 1.6em;
+}
+.reader-prose h2 {
+  font-size: 1.35em;
+}
+.reader-prose h3 {
+  font-size: 1.15em;
+}
+.reader-prose a {
+  color: var(--digest-digest-primary);
+  text-underline-offset: 3px;
+}
+.reader-prose ul,
+.reader-prose ol {
+  padding-left: 1.3em;
+}
+.reader-prose ul {
+  list-style: disc;
+}
+.reader-prose ol {
+  list-style: decimal;
+}
+.reader-prose li + li {
+  margin-top: 0.35em;
+}
+.reader-prose blockquote {
+  border-left: 2px solid var(--digest-hair-3);
+  padding-left: 1em;
+  color: rgba(255, 255, 255, 0.72);
+  font-style: italic;
+}
+.reader-prose strong {
+  color: #fff;
+}
+.reader-prose img {
+  max-width: 100%;
+  border-radius: 12px;
+}
+.reader-prose code {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.88em;
 }

@@ -1,5 +1,5 @@
 import type { Href } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
@@ -7,6 +7,7 @@ import type { IconName } from "~/components/ui";
 import { SettingsCrest } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { Kicker, SettingsRow, TabScreen } from "~/components/ui";
+import { useOnboarding } from "~/hooks/useOnboarding";
 import {
   DigestSpace,
   fontBody,
@@ -24,6 +25,17 @@ interface Item {
 
 function buildGroups(): { title: string; items: Item[] }[] {
   return [
+    {
+      title: "Alerts",
+      items: [
+        {
+          icon: "bell",
+          label: "Notifications",
+          sub: "Stay informed without being overwhelmed.",
+          route: "/settings/notifications" as Href,
+        },
+      ],
+    },
     {
       title: "Library",
       items: [
@@ -67,6 +79,22 @@ function buildGroups(): { title: string; items: Item[] }[] {
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const onboarding = useOnboarding();
+
+  const confirmResetPreferences = () => {
+    Alert.alert(
+      "Reset preferences?",
+      "This clears your current topics, government choices, and alert preferences, then starts onboarding again.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: onboarding.reset,
+        },
+      ],
+    );
+  };
 
   return (
     <TabScreen title="Settings" contentStyle={{ gap: 8 }}>
@@ -99,6 +127,18 @@ export default function SettingsScreen() {
           ))}
         </View>
       ))}
+
+      <View style={s.section}>
+        <Kicker style={s.sectionKicker}>Preferences</Kicker>
+        <SettingsRow
+          icon="undo"
+          label="Reset preferences"
+          sub="Start onboarding again"
+          danger
+          last
+          onPress={confirmResetPreferences}
+        />
+      </View>
 
       <View style={{ height: 48 + insets.bottom }} />
     </TabScreen>

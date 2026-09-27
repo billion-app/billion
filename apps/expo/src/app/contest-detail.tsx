@@ -333,8 +333,8 @@ export default function ContestDetailScreen() {
               />
               <View style={s.filterOptions}>
                 <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: hasStatementOnly }}
+                  accessibilityRole="checkbox"
+                  aria-checked={hasStatementOnly}
                   style={[s.filterOption, hasStatementOnly && s.filterSelected]}
                   onPress={() => setHasStatementOnly((v) => !v)}
                 >
@@ -344,8 +344,8 @@ export default function ContestDetailScreen() {
                   partyOptions.map((p) => (
                     <Pressable
                       key={p}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: activeParty === p }}
+                      accessibilityRole="checkbox"
+                      aria-checked={activeParty === p}
                       style={[
                         s.filterOption,
                         activeParty === p && s.filterSelected,
@@ -445,7 +445,7 @@ export default function ContestDetailScreen() {
                     ]
                       .filter(Boolean)
                       .join(", ")}
-                    accessibilityState={{ expanded: open }}
+                    aria-expanded={open}
                     activeOpacity={0.7}
                     onPress={() => toggle(key)}
                   >

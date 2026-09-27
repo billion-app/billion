@@ -67,7 +67,7 @@ void test("provider failure is not retried, enriched or cached", async () => {
   let fetches = 0;
   const load = createVoterInfoLoader({
     getCached: async (_, endpoint) => {
-      assert.ok(endpoint.startsWith("democracy-works:v2:1:"));
+      assert.ok(endpoint.startsWith("democracy-works:v2:2:"));
       return null;
     },
     setCache: async () => {

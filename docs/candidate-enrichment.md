@@ -4,6 +4,10 @@ The [measure cross-validation pattern](./measure-enrichment.md) also applies to
 candidates. Democracy Works supplies the ballot roster and provider citations.
 `enrichContest` in `civic.ts` fetches supplementary sources concurrently and merges
 fields by trust tier. The highest-tier source holding a field wins and is cited.
+When supplementary fields are merged onto the ballot, an existing provider field
+and its citation survive unless the incoming field has a higher-trust citation.
+Equal-tier ties retain the ballot provider value; empty values never replace it.
+This rule also applies to cached candidate enrichment.
 Candidate eligibility comes from the ballot provider, not enrichment.
 
 ## Source adapters
