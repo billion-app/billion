@@ -37,11 +37,13 @@ import {
   planes,
 } from "~/styles";
 import {
+  ballotContestRoute,
   ballotElectionDate,
   ballotElectionOptions,
   ballotModel,
   ballotOfficeUrl,
   contestBallotCitations,
+  isBallotMeasure,
   validateBallotAddress,
 } from "~/utils/ballot-lookup";
 
@@ -90,6 +92,8 @@ function Disclosure({
 }
 
 function ContestCard({ contest }: { contest: Contest }) {
+  const router = useRouter();
+  const isMeasure = isBallotMeasure(contest);
   const citations = [
     ...contestBallotCitations(contest),
     ...(contest.candidates ?? []).flatMap((candidate) =>
@@ -102,10 +106,12 @@ function ContestCard({ contest }: { contest: Contest }) {
   return (
     <Card style={s.card}>
       <Text style={s.eyebrow}>
-        {contest.referendumTitle ? "Ballot measure" : "Candidate race"}
+        {isMeasure ? "Ballot measure" : "Candidate race"}
       </Text>
       <Text accessibilityRole="header" style={s.contestTitle}>
-        {contest.referendumTitle ?? contest.office ?? "Ballot contest"}
+        {contest.referendumTitle ??
+          contest.office ??
+          (isMeasure ? "Ballot measure" : "Candidate race")}
       </Text>
       {!!contest.district?.name && (
         <Text style={s.secondary}>{contest.district.name}</Text>
@@ -113,7 +119,7 @@ function ContestCard({ contest }: { contest: Contest }) {
       {!!contest.referendumSubtitle && (
         <Text style={s.body}>{contest.referendumSubtitle}</Text>
       )}
-      {!contest.referendumTitle && !contest.candidates?.length && (
+      {!isMeasure && !contest.candidates?.length && (
         <Text style={s.secondary}>
           Candidate information is unavailable to Billion.
         </Text>
@@ -136,6 +142,17 @@ function ContestCard({ contest }: { contest: Contest }) {
           </Text>
         </Disclosure>
       )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${isMeasure ? "Measure details" : "View candidates"}: ${contest.referendumTitle ?? contest.office ?? "Ballot contest"}`}
+        onPress={() => router.push(ballotContestRoute(contest))}
+        style={s.disclosure}
+      >
+        <Text style={s.linkText}>
+          {isMeasure ? "Measure details" : "View candidates"}
+        </Text>
+        <Icon name="chevR" size={18} color={P.primary} />
+      </Pressable>
       <BallotSources
         citations={citations}
         contentKind="citations"

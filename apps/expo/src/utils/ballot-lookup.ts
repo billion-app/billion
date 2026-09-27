@@ -112,3 +112,47 @@ export function ballotElectionDate(value: string) {
         timeZone: "UTC",
       });
 }
+
+/** The provider's contest type survives partial measure responses without a title. */
+export function isBallotMeasure(contest: Contest): boolean {
+  return (
+    contest.type.toLowerCase() === "referendum" || !!contest.referendumTitle
+  );
+}
+
+/** Pass supplied evidence to the existing readers without another ballot request. */
+export function ballotContestRoute(contest: Contest) {
+  if (isBallotMeasure(contest)) {
+    return {
+      pathname: "/measure-detail" as const,
+      params: {
+        referendumTitle:
+          contest.referendumTitle ?? contest.office ?? "Ballot measure",
+        referendumSubtitle: contest.referendumSubtitle ?? "",
+        referendumProStatement: contest.referendumProStatement ?? "",
+        referendumConStatement: contest.referendumConStatement ?? "",
+        referendumText: contest.referendumText ?? "",
+        referendumUrl: contest.referendumUrl ?? "",
+        summary: contest.summary ?? "",
+        summaryShort: contest.summaryShort ?? "",
+        summaryLong: contest.summaryLong ?? contest.summary ?? "",
+        summaryIsAiGenerated: contest.summaryIsAiGenerated ? "true" : "false",
+        fiscalImpact: contest.fiscalImpact ?? "",
+        proArguments: JSON.stringify(contest.proArguments ?? []),
+        conArguments: JSON.stringify(contest.conArguments ?? []),
+        citations: JSON.stringify(contestBallotCitations(contest)),
+      },
+    };
+  }
+  return {
+    pathname: "/contest-detail" as const,
+    params: {
+      office: contest.office ?? "Candidate race",
+      roles: JSON.stringify(contest.roles ?? []),
+      levels: JSON.stringify(contest.level ?? []),
+      candidates: JSON.stringify(contest.candidates ?? []),
+      districtName: contest.district?.name ?? "",
+      roleDescription: contest.roleDescription ?? "",
+    },
+  };
+}
