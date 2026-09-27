@@ -43,6 +43,14 @@ export function parseSantaCruzLocations(
       /^All centers will be open for voting on Election Day/.test(text),
     );
   if (!electionHours) throw new Error("Missing election-day hours");
+  // Early-voting hours are published separately from the election-day notice.
+  const regularHours = $("p")
+    .filter((_, el) => clean($(el).text()) === "Vote Center hours are:")
+    .next("ul")
+    .children("li")
+    .toArray()
+    .map((el) => clean($(el).text()))
+    .join("; ");
   $("h4").each((_, heading) => {
     const schedule = clean($(heading).text());
     const days = /^(29|11|4|1) Day Vote Centers\./.exec(schedule);
@@ -87,7 +95,9 @@ export function parseSantaCruzLocations(
         city,
         state: "CA",
         earlyVoting: days[1] !== "1",
-        schedule: `${schedule} ${electionHours}`,
+        schedule: [schedule, days[1] !== "1" ? regularHours : "", electionHours]
+          .filter(Boolean)
+          .join(" "),
         notes,
         sourceUrl,
       });

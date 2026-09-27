@@ -139,3 +139,49 @@ test("a same-year primary law link is not a general-election full text", () => {
   const html = measure.replaceAll("/2026/general/", "/2026/primary/");
   assert.equal(parseGuideMeasure(html, url, date)?.fullTextUrl, undefined);
 });
+
+test("nonpartisan superintendent headings yield statements without treating the office heading as a candidate", () => {
+  const html = readFileSync(
+    new URL(
+      "./__fixtures__/ca-official-guide/superintendent.html",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const parsed = parseGuideCandidates(
+    html,
+    `${GUIDE_BASE}/candidates/superintendent-candidate-statements.htm`,
+    date,
+  );
+  assert.deepEqual(
+    parsed.map((candidate) => candidate.name),
+    ["Richard Barrera", "Sonja Shaw"],
+  );
+  assert.match(parsed[0]!.statement, /^Democrat Richard Barrera led/);
+  assert.match(parsed[1]!.statement, /^California’s public schools/);
+  for (const candidate of parsed) {
+    assert.equal(candidate.officeSlug, "superintendent");
+    assert.doesNotMatch(
+      candidate.statement,
+      /Tel:|E-mail:|Nonpartisan Office|views and opinions/,
+    );
+  }
+});
+
+test("a candidate page with missing or unreadable content cannot replace the complete guide", async () => {
+  const candidateUrl = `${GUIDE_BASE}/candidates/governor-candidate-statements.htm`;
+  const index = `<div id="txtBnr">November 3, 2026</div><a href="${url}">Measure</a><a href="${candidateUrl}">Governor</a>`;
+  for (const broken of [
+    governor.replace('role="main"', 'role="missing"'),
+    governor.replace("No candidate statement&#46;", ""),
+  ]) {
+    await assert.rejects(
+      collectOfficialGuide(date, 40, (source) =>
+        Promise.resolve(
+          source === candidateUrl ? broken : source === url ? measure : index,
+        ),
+      ),
+      /candidate/i,
+    );
+  }
+});

@@ -28,12 +28,14 @@ import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
+import { contestBallotCitations } from "~/utils/ballot-lookup";
 import {
   groupContestsByLevel,
   isCaliforniaState,
   measureIsStatewide,
 } from "~/utils/elections";
 import { electionsAreLive } from "~/utils/elections-live";
+import { electionsTabModel } from "~/utils/elections-tab";
 
 type BallotTab = "candidates" | "measures";
 
@@ -54,13 +56,18 @@ function measureRoute(m: Contest) {
       fiscalImpact: m.fiscalImpact ?? "",
       proArguments: JSON.stringify(m.proArguments ?? []),
       conArguments: JSON.stringify(m.conArguments ?? []),
-      citations: JSON.stringify(m.citations ?? []),
+      citations: JSON.stringify(contestBallotCitations(m)),
     },
   };
 }
 
 /** Short label for the most authoritative source backing a measure. */
 function topSourceLabel(m: Contest): string | null {
+  const summarySource = m.citations?.find((item) => item.field === "summary");
+  if (summarySource)
+    return summarySource.official
+      ? `Official · ${summarySource.sourceName}`
+      : summarySource.sourceName;
   const official = m.sources?.find((src) => src.official);
   const src = official ?? m.sources?.[0];
   if (!src) return null;
@@ -222,11 +229,10 @@ function ElectionsLive({
   devControls,
 }: { previewAddress?: string; devControls?: ReactNode } = {}) {
   const router = useRouter();
-  const { address: savedAddress, setAddress } = useUserAddress();
-  const [previewEdit, setPreviewEdit] = useState<string>();
-  const storedAddress = previewAddress
-    ? (previewEdit ?? previewAddress)
-    : savedAddress;
+  const { address: savedAddress } = useUserAddress();
+  // Ballot lookup edits belong to this screen, not the saved home address.
+  const [lookupAddress, setLookupAddress] = useState<string>();
+  const storedAddress = lookupAddress ?? previewAddress ?? savedAddress;
   const isPreview = !!previewAddress;
   const [electionId, setElectionId] = useState<string>();
   const [editing, setEditing] = useState(false);
@@ -280,27 +286,25 @@ function ElectionsLive({
     retry: false,
   });
 
+  const ballot = electionsTabModel(voterInfoQuery, editing, electionId);
+  const voterInfo = ballot.data;
+
   // Legacy results remain California-only; the migrated provider supplies national ballots.
   const unsupportedState =
     hasAddress &&
-    !!voterInfoQuery.data &&
-    !isCaliforniaState(voterInfoQuery.data.normalizedInput.state) &&
-    voterInfoQuery.data.provider?.name !== "democracy_works";
+    !!voterInfo &&
+    !isCaliforniaState(voterInfo.normalizedInput.state) &&
+    voterInfo.provider?.name !== "democracy_works";
 
   const hasVerifiedCaliforniaAddress =
-    !!voterInfoQuery.data &&
-    isCaliforniaState(voterInfoQuery.data.normalizedInput.state);
+    !!voterInfo && isCaliforniaState(voterInfo.normalizedInput.state);
 
   // The address-specific election the ballot belongs to.
-  const selected = unsupportedState ? undefined : voterInfoQuery.data?.election;
+  const selected = unsupportedState ? undefined : voterInfo?.election;
 
-  const contests = unsupportedState
-    ? []
-    : (voterInfoQuery.data?.contests ?? []);
-  const measures = contests.filter((c: Contest) => c.referendumTitle);
-  const candidateContests = contests.filter(
-    (c: Contest) => c.candidates && c.candidates.length > 0,
-  );
+  const contests = unsupportedState ? [] : (voterInfo?.contests ?? []);
+  const measures = unsupportedState ? [] : ballot.measures;
+  const candidateContests = unsupportedState ? [] : ballot.candidates;
   const candidateGroups = groupContestsByLevel(candidateContests);
 
   return (
@@ -314,8 +318,7 @@ function ElectionsLive({
             <AddressAutocomplete
               initialValue={storedAddress ?? ""}
               onSubmit={(addr) => {
-                if (isPreview) setPreviewEdit(addr);
-                else void setAddress(addr);
+                setLookupAddress(addr);
                 setElectionId(undefined);
                 setEditing(false);
                 posthog.capture("voter_address_set", {
@@ -359,6 +362,22 @@ function ElectionsLive({
           />
         </View>
       )}
+      {ballot.mismatch && (
+        <View style={s.section}>
+          <Card>
+            <Text accessibilityRole="alert" style={s.empty}>
+              The provider returned a different election. Try again to load the
+              ballot you selected.
+            </Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => void voterInfoQuery.refetch()}
+            >
+              <Text style={s.readMoreText}>Try again</Text>
+            </TouchableOpacity>
+          </Card>
+        </View>
+      )}
       {unsupportedState && (
         <View style={s.section}>
           <Card>
@@ -389,14 +408,14 @@ function ElectionsLive({
         enabled={!isPreview && hasVerifiedCaliforniaAddress}
       />
 
-      {voterInfoQuery.isLoading && (
+      {voterInfoQuery.isFetching && (
         <ActivityIndicator color={colors.bill} style={{ marginVertical: 12 }} />
       )}
 
-      {!!voterInfoQuery.data?.otherElections?.length && (
+      {!!voterInfo?.otherElections?.length && (
         <View style={s.section}>
           <Kicker>Other elections</Kicker>
-          {voterInfoQuery.data.otherElections.map((election) => (
+          {voterInfo.otherElections.map((election) => (
             <TouchableOpacity
               key={election.id}
               onPress={() => setElectionId(election.id)}
@@ -406,12 +425,12 @@ function ElectionsLive({
           ))}
         </View>
       )}
-      {voterInfoQuery.data?.provider && (
+      {voterInfo?.provider && (
         <View style={s.section}>
           <Text style={s.empty}>
-            {voterInfoQuery.data.provider.addressScope === "statewide_only"
+            {voterInfo.provider.addressScope === "statewide_only"
               ? "Statewide contests only. Local races and measures may be missing."
-              : voterInfoQuery.data.provider.addressScope === "unknown"
+              : voterInfo.provider.addressScope === "unknown"
                 ? "Address coverage unconfirmed. These contests may not match your address."
                 : "Coverage may be incomplete."}
           </Text>
@@ -419,7 +438,7 @@ function ElectionsLive({
             label={
               isPreview ? "Synthetic development fixture" : "Democracy Works"
             }
-            url={voterInfoQuery.data.provider.sourceUrl}
+            url={voterInfo.provider.sourceUrl}
           />
         </View>
       )}
@@ -486,9 +505,11 @@ function ElectionsLive({
         </View>
       )}
       {hasAddress &&
+        !editing &&
+        !ballot.mismatch &&
         !unsupportedState &&
         contests.length === 0 &&
-        !voterInfoQuery.isLoading &&
+        !voterInfoQuery.isFetching &&
         !voterInfoQuery.isError && (
           <View style={s.section}>
             <Card>
@@ -502,15 +523,17 @@ function ElectionsLive({
 
       <View style={s.section}>
         <VotingLogisticsSection
-          data={voterInfoQuery.data}
+          data={voterInfo}
           status={
             !hasAddress
               ? "idle"
-              : voterInfoQuery.isLoading
+              : voterInfoQuery.isFetching
                 ? "loading"
                 : voterInfoQuery.isError
                   ? "error"
-                  : "ready"
+                  : !voterInfo
+                    ? "idle"
+                    : "ready"
           }
         />
       </View>

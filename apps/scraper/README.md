@@ -99,8 +99,9 @@ California Secretary of State guide. It preserves official summaries, fiscal
 impacts, published pro/con summaries, candidate statements and proposed-law PDF
 links. Set `CA_GUIDE_ELECTION_DATE` to the exact election date. Every source page
 must carry that date in its election banner. An incomplete bounded sample cannot
-replace the stored collection. The source may omit statements for candidates
-who did not submit one.
+replace the stored collection. An explicit “No candidate statement” entry is
+allowed; missing candidate markup or unreadable prose fails collection so a
+parser failure cannot erase the previous statements.
 
 `ca-election-logistics` discovers upcoming California election pages and reads
 their key-dates tables. It stores the published date wording and guidance with
@@ -136,8 +137,8 @@ checks source-cache expiry independently of the address lookup cache.
 
 `santa-cruz-locations` discovers the vote-center list linked from a configured
 Santa Cruz election page. It validates the visible election date, URL, and
-opening schedules before storing addresses, published hours, and local
-exceptions. The API attaches these countywide centers only when Democracy Works
+opening schedules before storing addresses, published weekday/weekend hours,
+Election Day hours, and local exceptions. The API attaches these countywide centers only when Democracy Works
 returns an address-matched ballot with one consistent Santa Cruz county division.
 Undated drop-box records are excluded.
 

@@ -14,6 +14,37 @@ const html = readFileSync(
 );
 const url =
   "https://votescount.santacruzcountyca.gov/Home/Elections/June2,2026CaliforniaPrimaryElection/VoteCenterDropBoxLocations.aspx";
+test("November centers retain published weekday/weekend hours and site exceptions", () => {
+  const general = readFileSync(
+    new URL(
+      "./__fixtures__/santa-cruz-locations/general-2026.html",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const result = parseSantaCruzLocations(
+    general,
+    url.replace(
+      "June2,2026CaliforniaPrimary",
+      "November3,2026CaliforniaGeneral",
+    ),
+    "2026-11-03",
+  );
+  assert.equal(result.locations.length, 24);
+  for (const location of result.locations.filter((item) => item.earlyVoting)) {
+    assert.match(location.schedule, /Monday through Friday, 8am to 5pm/);
+    assert.match(location.schedule, /Saturday, 9am to 5pm/);
+    assert.match(location.schedule, /Sunday, 9am to 5pm/);
+  }
+  assert.match(
+    result.locations.find((item) => item.name.includes("Soquel High"))!.notes,
+    /Closed on October 31/,
+  );
+  assert.match(
+    result.locations.find((item) => item.name.includes("John"))!.notes,
+    /1pm to 9pm/,
+  );
+});
 test("actual official primary extract yields 24 centers and preserves exception notes", () => {
   const result = parseSantaCruzLocations(html, url, "2026-06-02");
   assert.equal(result.locations.length, 24);

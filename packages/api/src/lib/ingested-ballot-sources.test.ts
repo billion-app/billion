@@ -4,6 +4,7 @@ import { test } from "node:test";
 import type { VoterInfoResponse } from "./civic";
 import type { OfficialGuidePayload } from "./official-guide-cache";
 import type { ElectionGuidance } from "./voting-logistics/ca-sos-cache";
+import { createVoterInfoLoader } from "./civic-voter-info";
 import { attachIngestedBallotSources } from "./ingested-ballot-sources";
 
 const ca = "ocd-division/country:us/state:ca";
@@ -103,6 +104,42 @@ void test("base ballot receives cited official fields and guidance without modif
   assert.equal(result.pollingLocations, undefined);
   assert.equal(result.mailOnly, undefined);
   assert.equal(ballot.contests?.[0]?.summary, "Provider summary");
+});
+
+void test("expired official evidence disappears while the provider ballot remains cached", async () => {
+  let cached: VoterInfoResponse | null = null;
+  let sourceIsFresh = true;
+  let fetches = 0;
+  const load = createVoterInfoLoader({
+    getCached: () => Promise.resolve(cached),
+    setCache: (_, __, ___, value) => {
+      cached = value;
+      return Promise.resolve();
+    },
+    fetch: () => {
+      fetches++;
+      return Promise.resolve(structuredClone(ballot));
+    },
+    enrich: () => {
+      assert.fail("Base reads must not enrich");
+    },
+    supplement: (value) =>
+      Promise.resolve(
+        attachIngestedBallotSources(
+          value,
+          sourceIsFresh ? guide : null,
+          sourceIsFresh ? guidance : null,
+        ),
+      ),
+  });
+  const fresh = await load("test", "dw:ca", { includeEnrichment: false });
+  assert.equal(fresh.contests?.[0]?.summary, "Official summary");
+  sourceIsFresh = false;
+  const expired = await load("test", "dw:ca", { includeEnrichment: false });
+  assert.equal(expired.contests?.[0]?.summary, "Provider summary");
+  assert.equal(expired.contests[1]?.candidates?.[0]?.statement, undefined);
+  assert.equal(expired.officialVotingGuidance, undefined);
+  assert.equal(fetches, 1);
 });
 void test("rejects wrong cycle, partial collection, malformed payload and wrong state", () => {
   for (const value of [
@@ -214,6 +251,31 @@ void test("county locations require an address-matched ballot and unique confirm
   assert.equal(result.pollingLocations?.[0]?.address.line1, "1 Test Street");
   assert.equal(result.earlyVoteSites?.length, 1);
   assert.equal(result.dropOffLocations, undefined);
+  const supplied = structuredClone(addressed);
+  supplied.pollingLocations = [
+    {
+      address: {
+        line1: "Provider polling place",
+        city: "Santa Cruz",
+        state: "CA",
+        zip: "95060",
+      },
+    },
+  ];
+  supplied.earlyVoteSites = [
+    {
+      address: {
+        line1: "Provider early site",
+        city: "Santa Cruz",
+        state: "CA",
+        zip: "95060",
+      },
+    },
+  ];
+  const preserved = attachIngestedBallotSources(supplied, null, null, value);
+  assert.deepEqual(preserved.pollingLocations, supplied.pollingLocations);
+  assert.deepEqual(preserved.earlyVoteSites, supplied.earlyVoteSites);
+  assert.equal(preserved.officialLocationSource, undefined);
   assert.equal(
     attachIngestedBallotSources(ballot, null, null, value).pollingLocations,
     undefined,

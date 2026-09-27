@@ -142,15 +142,21 @@ export function parseGuideCandidates(
     return [];
   const $ = load(html);
   const candidates: OfficialGuidePayload["candidates"] = [];
-  $("section[role=main] h2").each((_, el) => {
+  // Candidate columns identify entries. Nonpartisan offices omit the party
+  // separator, and the page also has an office-level h2 outside these columns.
+  const headings = $("section[role=main] .grid-70 > h2");
+  if (!headings.length)
+    throw new Error(`No candidate entries parsed: ${sourceUrl}`);
+  headings.each((_, el) => {
     const name = clean($(el).text()).split("|")[0]?.trim();
-    if (!name || !$(el).text().includes("|")) return;
+    if (!name) throw new Error(`Missing candidate name: ${sourceUrl}`);
     // Candidate prose is contained in the heading's own column, not the next candidate or footer.
     const paragraphs = $(el)
       .nextUntil("h2")
       .filter("p")
       .toArray()
       .map((p) => clean($(p).text()));
+    if (paragraphs.some((p) => /^No candidate statement\.?$/i.test(p))) return;
     const statement = paragraphs
       .filter(
         (p) =>
@@ -159,7 +165,10 @@ export function parseGuideCandidates(
           ) && !/\b(?:Tel:|E-mail:|Email:)\s*/i.test(p),
       )
       .join("\n\n");
-    if (statement.length < 40 || statement.length > 30_000) return;
+    if (statement.length < 40 || statement.length > 30_000)
+      throw new Error(
+        `Unreadable candidate statement for ${name}: ${sourceUrl}`,
+      );
     candidates.push({
       name,
       officeSlug:
