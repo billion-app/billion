@@ -1,6 +1,9 @@
 /** Editorially checked, source-bound facts for the California guide. */
 export const ELECTION_DATE = "2026-11-03";
 const CA_STATEWIDE_DISTRICT = "ocd-division/country:us/state:ca";
+/** California's roster describes the duties of all eight statewide offices. */
+export const OFFICE_CONTEXT_SOURCE =
+  "https://admin.cdn.sos.ca.gov/ca-roster/2025/constitutional-officers.pdf";
 
 export function canMatchCaliforniaGuide(
   state: string | undefined,

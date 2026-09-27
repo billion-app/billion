@@ -14,13 +14,21 @@ import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
-import { fontBody, fontDisplay, DigestPalette as P, planes } from "~/styles";
+import {
+  fontBody,
+  fontDisplay,
+  fontEditorial,
+  hair,
+  DigestPalette as P,
+  planes,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import {
   canMatchCaliforniaGuide,
   checkedCandidateRecord,
   ELECTION_DATE,
   findGuideCandidate,
+  OFFICE_CONTEXT_SOURCE,
   officeContext,
   parseBallotCandidate,
   statewideOfficeSlug,
@@ -39,6 +47,7 @@ export default function CandidateDetailScreen() {
   }>();
   const [photoFailed, setPhotoFailed] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
+  const [showOverviewSources, setShowOverviewSources] = useState(false);
   const fromBallot = parseBallotCandidate(params.candidate, params.name);
   const office = params.office ? statewideOfficeSlug(params.office) : undefined;
   const lookupGuide =
@@ -128,9 +137,7 @@ export default function CandidateDetailScreen() {
           <>
             <View style={s.hero}>
               <Text style={s.eyebrow}>
-                {guide
-                  ? "CALIFORNIA · 2026 GENERAL ELECTION"
-                  : "BALLOT CONTEST"}
+                {guide ? "CALIFORNIA · NOV 3, 2026" : "BALLOT CONTEST"}
               </Text>
               <View style={s.identity}>
                 {webUrl(candidate.photoUrl) && !photoFailed ? (
@@ -142,7 +149,7 @@ export default function CandidateDetailScreen() {
                   />
                 ) : (
                   <View style={s.portraitFallback}>
-                    <Icon name="user" size={32} color={P.quiet} />
+                    <Icon name="user" size={24} color={P.quiet} />
                   </View>
                 )}
                 <View style={s.identityText}>
@@ -154,66 +161,113 @@ export default function CandidateDetailScreen() {
                   </Text>
                 </View>
               </View>
-              <View style={s.pills}>
-                <Text style={s.pill}>
-                  {fromBallot
-                    ? params.district?.trim()
-                      ? params.district
-                      : "District unavailable"
-                    : "Statewide"}
-                </Text>
-                <Text style={s.pill}>
-                  {candidate.party ?? "Party not provided"}
+              <Text style={s.heroMeta}>
+                {fromBallot
+                  ? params.district?.trim()
+                    ? params.district.trim()
+                    : "District unavailable"
+                  : "Statewide"}
+                {candidate.party ? ` · ${candidate.party}` : ""}
+              </Text>
+              <View style={s.statusRow}>
+                <Icon name="info" size={14} color={P.quiet} />
+                <Text style={[s.muted, s.rowText]}>
+                  {fromBallot?.ballotStatus === "withdrewStillOnBallot"
+                    ? "Withdrawn; name remains on the ballot"
+                    : fromBallot?.ballotStatus === "onBallot"
+                      ? "Listed on your ballot"
+                      : guide
+                        ? "Statement guide entry · verify ballot status with your election office"
+                        : "Ballot status unavailable"}
                 </Text>
               </View>
-              <Text style={s.muted}>
-                {fromBallot?.ballotStatus === "withdrewStillOnBallot"
-                  ? "Withdrawn; name remains on the ballot"
-                  : fromBallot?.ballotStatus === "onBallot"
-                    ? "Listed on your ballot"
-                    : guide
-                      ? "Statement guide entry · verify ballot status with your election office"
-                      : "Ballot status unavailable"}
-              </Text>
-              {candidate.photoUrl && portraitSource ? (
-                <SourceLink
-                  label={
-                    fromBallot?.photoUrl
-                      ? "Portrait source: ballot provider"
-                      : "Portrait source: California official voter guide"
-                  }
-                  url={portraitSource}
-                />
-              ) : null}
             </View>
 
-            <Card style={s.lead}>
-              <Text style={s.cardEyebrow}>THE SHORT VERSION</Text>
-              <Text style={s.leadText}>
-                {context?.description ??
-                  "The office's responsibilities have not been checked for this race."}
+            <Card style={s.overview}>
+              <Text accessibilityRole="header" style={s.cardTitle}>
+                At a glance
               </Text>
-              <Text style={s.leadNote}>
-                This describes the office. It does not evaluate the candidate.
-              </Text>
-            </Card>
-            {context && guide ? (
-              <SourceLink
-                label="Office duties · California official voter guide"
-                url={guide.sourceUrl}
-              />
-            ) : null}
-
-            {record && guide ? (
-              <Card style={s.panel}>
-                <Text style={s.panelLabel}>WHAT THIS CANDIDATE SAYS</Text>
-                <Text style={s.body}>{record.says}</Text>
-                <SourceLink
-                  label="Source: candidate-supplied statement"
-                  url={guide.sourceUrl}
+              <View style={s.fact}>
+                <Text style={s.panelLabel}>THE OFFICE</Text>
+                <Text style={s.body}>
+                  {context?.description ??
+                    "The office's responsibilities have not been checked for this race."}
+                </Text>
+              </View>
+              <View style={s.fact}>
+                <Text style={s.panelLabel}>CANDIDATE'S STATED PRIORITIES</Text>
+                <Text style={s.body}>
+                  {record && guide
+                    ? record.says
+                    : candidate.statement
+                      ? "Read the candidate's statement below. Billion has not checked a summary of its claims."
+                      : "No candidate statement is available to Billion."}
+                </Text>
+              </View>
+              <View style={s.fact}>
+                <Text style={s.panelLabel}>CHECKED PUBLIC RECORD</Text>
+                <Text style={s.body}>
+                  {record?.text ??
+                    "Billion has not reviewed an independent record for this candidate."}
+                </Text>
+              </View>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showOverviewSources }}
+                onPress={() => setShowOverviewSources((value) => !value)}
+                style={s.sourceToggle}
+              >
+                <Icon name="shield" size={15} color={P.primary} />
+                <Text style={s.sourceToggleText}>
+                  Sources for this overview
+                </Text>
+                <Icon
+                  name={showOverviewSources ? "chevD" : "chevR"}
+                  size={15}
+                  color={P.primary}
                 />
-              </Card>
-            ) : null}
+              </TouchableOpacity>
+              {showOverviewSources ? (
+                <View style={s.sourceList}>
+                  {guide && context ? (
+                    <SourceLink
+                      label="Office duties · California Roster"
+                      url={OFFICE_CONTEXT_SOURCE}
+                    />
+                  ) : null}
+                  {record && guide ? (
+                    <SourceLink
+                      label="Candidate statement · California voter guide"
+                      url={guide.sourceUrl}
+                    />
+                  ) : null}
+                  {record ? (
+                    <SourceLink
+                      label={record.sourceName}
+                      url={record.sourceUrl}
+                    />
+                  ) : null}
+                  {candidate.photoUrl && portraitSource ? (
+                    <SourceLink
+                      label={
+                        fromBallot?.photoUrl
+                          ? "Portrait · ballot provider"
+                          : "Portrait · California voter guide"
+                      }
+                      url={portraitSource}
+                    />
+                  ) : null}
+                </View>
+              ) : null}
+            </Card>
+
+            <View style={s.analysisNote}>
+              <Icon name="info" size={17} color={P.quiet} />
+              <Text style={s.analysisText}>
+                Billion candidate analysis is not available yet. It will appear
+                only after editorial review and claim-level source checks.
+              </Text>
+            </View>
 
             <View style={s.section}>
               <Text accessibilityRole="header" style={s.sectionTitle}>
@@ -279,43 +333,6 @@ export default function CandidateDetailScreen() {
               )}
             </View>
 
-            <View style={s.section}>
-              <Text accessibilityRole="header" style={s.sectionTitle}>
-                What records establish
-              </Text>
-              {record ? (
-                <Card style={s.panel}>
-                  <Text style={s.body}>{record.text}</Text>
-                  <SourceLink
-                    label={record.sourceName}
-                    url={record.sourceUrl}
-                  />
-                  <Text style={s.muted}>Record checked {record.checkedAt}</Text>
-                </Card>
-              ) : (
-                <Card style={s.panel}>
-                  <Text style={s.body}>
-                    Billion has not reviewed an independent record for this
-                    candidate. Their statement is a claim, not a verified
-                    record.
-                  </Text>
-                </Card>
-              )}
-            </View>
-
-            <View style={s.section}>
-              <Text accessibilityRole="header" style={s.sectionTitle}>
-                Billion analysis
-              </Text>
-              <Card style={s.panel}>
-                <Text style={s.body}>
-                  No candidate-specific analysis has passed editorial review
-                  yet. We will add it only with claim-level sources and a
-                  correction path.
-                </Text>
-              </Card>
-            </View>
-
             <View style={s.footer}>
               <Text accessibilityRole="header" style={s.footerTitle}>
                 Sources & freshness
@@ -329,6 +346,11 @@ export default function CandidateDetailScreen() {
                   }
                   url={sourceUrl}
                 />
+              ) : null}
+              {record ? (
+                <Text style={s.muted}>
+                  Public record checked {record.checkedAt}
+                </Text>
               ) : null}
               {guide ? (
                 <SourceLink
@@ -373,98 +395,125 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: P.canvas },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 64,
-    gap: 26,
+    gap: 14,
   },
-  hero: { gap: 18 },
+  hero: { gap: 9 },
   eyebrow: {
-    color: P.spark,
-    fontFamily: fontBody.bold,
+    color: P.quiet,
+    fontFamily: fontBody.semibold,
     fontSize: 11,
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
-  identity: { flexDirection: "row", alignItems: "center", gap: 16 },
-  portrait: { width: 86, height: 100, borderRadius: 10 },
+  identity: { flexDirection: "row", alignItems: "center", gap: 12 },
+  portrait: { width: 64, height: 70, borderRadius: 10 },
   portraitFallback: {
-    width: 86,
-    height: 100,
+    width: 64,
+    height: 70,
     borderRadius: 10,
-    backgroundColor: P.card,
+    backgroundColor: planes.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  identityText: { flex: 1, gap: 8 },
+  identityText: { flex: 1, gap: 3 },
   name: {
     color: P.inkOnNight,
     fontFamily: fontDisplay.bold,
-    fontSize: 29,
-    lineHeight: 34,
+    fontSize: 25,
+    lineHeight: 29,
   },
-  office: { color: P.spark, fontFamily: fontBody.semibold, fontSize: 15 },
-  pills: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  pill: {
-    color: P.inkOnNight,
-    backgroundColor: P.card,
-    overflow: "hidden",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    fontFamily: fontBody.medium,
-    fontSize: 12,
-  },
+  office: { color: P.inkOnNight, fontFamily: fontEditorial.bold, fontSize: 16 },
+  heroMeta: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 12 },
+  statusRow: { flexDirection: "row", alignItems: "flex-start", gap: 7 },
   muted: {
     color: P.quiet,
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 18,
   },
-  lead: { backgroundColor: planes.paper, gap: 12, padding: 20 },
-  cardEyebrow: {
-    color: P.ink,
-    fontFamily: fontBody.bold,
-    fontSize: 11,
-    letterSpacing: 1.2,
+  overview: { gap: 0, padding: 16 },
+  cardTitle: {
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 18,
+    lineHeight: 22,
+    marginBottom: 4,
   },
-  leadText: {
-    color: P.ink,
-    fontFamily: fontDisplay.regular,
-    fontSize: 20,
-    lineHeight: 28,
+  fact: {
+    gap: 5,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: hair[2],
   },
-  leadNote: {
-    color: P.ink,
+  sourceToggle: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sourceToggleText: {
+    flex: 1,
+    color: P.inkOnNight,
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+  },
+  rowText: { flex: 1, flexShrink: 1 },
+  sourceList: {
+    gap: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: hair[2],
+  },
+  analysisNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: 13,
+    backgroundColor: planes.slate,
+    borderColor: hair[2],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+  },
+  analysisText: {
+    flex: 1,
+    color: P.inkOnNight,
     fontFamily: fontBody.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 19,
   },
-  section: { gap: 10 },
+  section: { gap: 10, paddingTop: 8 },
   sectionTitle: {
     color: P.inkOnNight,
-    fontFamily: fontDisplay.bold,
-    fontSize: 24,
+    fontFamily: fontEditorial.bold,
+    fontSize: 19,
   },
   sectionIntro: {
     color: P.quiet,
     fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 19,
   },
-  panel: { padding: 20, gap: 12 },
+  panel: { padding: 16, gap: 10 },
   panelLabel: {
-    color: P.spark,
-    fontFamily: fontBody.bold,
+    color: P.inkOnNight,
+    fontFamily: fontBody.semibold,
     fontSize: 10,
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   statementPreview: {
     color: P.inkOnNight,
-    fontFamily: fontDisplay.regular,
-    fontSize: 18,
-    lineHeight: 26,
+    fontFamily: fontEditorial.regular,
+    fontSize: 16,
+    lineHeight: 23,
   },
   action: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 },
-  actionText: { color: P.primary, fontFamily: fontBody.semibold, fontSize: 14 },
+  actionText: {
+    flexShrink: 1,
+    color: P.inkOnNight,
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+  },
   heading: { color: P.inkOnNight, fontFamily: fontDisplay.bold, fontSize: 22 },
   body: {
     color: P.inkOnNight,
@@ -472,10 +521,10 @@ const s = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
   },
-  footer: { gap: 12, paddingTop: 8 },
+  footer: { gap: 10, paddingTop: 8 },
   footerTitle: {
     color: P.inkOnNight,
-    fontFamily: fontDisplay.bold,
-    fontSize: 20,
+    fontFamily: fontEditorial.bold,
+    fontSize: 18,
   },
 });
