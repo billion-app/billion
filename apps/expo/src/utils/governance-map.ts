@@ -21,7 +21,7 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
     title: "California Governor",
     eyebrow: "2026 STATEWIDE OFFICE · FOUR-YEAR TERM",
     takeaway:
-      "Voters choose the state’s chief executive. The Governor proposes a budget, signs or vetoes bills, and makes appointments authorized by law.",
+      "Voters choose the state’s chief executive. Lawmakers check key powers.",
     caveat:
       "A candidate’s promises describe goals, not powers or guaranteed results. Election results depend on all votes cast and certified.",
     nodes: [
@@ -101,7 +101,7 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
     title: "Proposition 4",
     eyebrow: "NOVEMBER 2026 · STATEWIDE MEASURE",
     takeaway:
-      "This vote controls whether state and most local governments may create public campaign financing programs in the future.",
+      "A Yes result would lift a ban. Later officials would decide whether to create a public campaign financing program.",
     caveat:
       "Neither choice creates or funds a program on election night. Any program would require later decisions and must follow the measure’s limits.",
     nodes: [
@@ -131,7 +131,7 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
       },
       {
         id: "no",
-        label: "If No passes",
+        label: "If the measure fails",
         detail:
           "State and most local governments remain unable to create these programs under the existing rule.",
         kind: "check",
