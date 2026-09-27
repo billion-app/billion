@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -12,7 +12,6 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
-import type { PropositionExplainer } from "~/utils/proposition-explainers";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
@@ -21,8 +20,8 @@ import {
   fontBody,
   fontDisplay,
   fontEditorial,
+  lensColors,
   DigestPalette as P,
-  planes,
   sp,
 } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -34,13 +33,19 @@ import {
 
 export default function PropositionDetailScreen() {
   const router = useRouter();
+  const scroll = useRef<ScrollView>(null);
   const { fontScale } = useWindowDimensions();
   const headlineScale = Math.min(fontScale, 1.5);
   const headlineStyle = {
-    fontSize: 22 * headlineScale,
-    lineHeight: 28 * headlineScale,
+    fontSize: 28 * headlineScale,
+    lineHeight: 34 * headlineScale,
   };
   const { number } = useLocalSearchParams<{ number?: string }>();
+  const [modeState, setModeState] = useState<{
+    number: string | undefined;
+    mode: "explanation" | "official";
+  }>({ number, mode: "explanation" });
+  const mode = modeState.number === number ? modeState.mode : "explanation";
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const measure = query.data?.measures.find((item) => item.number === number);
   const explainer = measure
@@ -48,6 +53,16 @@ export default function PropositionDetailScreen() {
     : null;
   const proArguments = submittedGuideArguments(measure?.proArguments);
   const conArguments = submittedGuideArguments(measure?.conArguments);
+  const recordMode = !explainer || mode === "official";
+
+  useEffect(() => {
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [number]);
+
+  function switchMode(next: "explanation" | "official") {
+    setModeState({ number, mode: next });
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }
 
   return (
     <View style={s.screen}>
@@ -56,7 +71,7 @@ export default function PropositionDetailScreen() {
         tone="dark"
         onBack={() => router.back()}
       />
-      <ScrollView contentContainerStyle={s.content}>
+      <ScrollView ref={scroll} contentContainerStyle={s.content}>
         {query.isPending ? (
           <View style={s.surface}>
             <ActivityIndicator color={P.primary} />
@@ -87,8 +102,43 @@ export default function PropositionDetailScreen() {
                 {fontScale >= 1.8 ? `Proposition ${measure.number} · ` : ""}
                 California · November 3, 2026
               </Text>
-              {explainer ? (
-                <>
+              {explainer && (
+                <View style={s.modeRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: !recordMode }}
+                    onPress={() => switchMode("explanation")}
+                    style={[s.modeButton, !recordMode && s.modeSelected]}
+                  >
+                    <Text
+                      style={[s.modeText, !recordMode && s.modeTextSelected]}
+                    >
+                      Explanation
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: recordMode }}
+                    onPress={() => switchMode("official")}
+                    style={[s.modeButton, recordMode && s.modeSelected]}
+                  >
+                    <Text
+                      style={[s.modeText, recordMode && s.modeTextSelected]}
+                    >
+                      Official record
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+
+            {explainer && !recordMode ? (
+              <>
+                <View style={s.explainerLead}>
+                  <View style={s.aiRow}>
+                    <Icon name="sparkle" size={12} color={P.quiet} />
+                    <Text style={s.aiText}>{PROPOSITION_AI_LABEL}</Text>
+                  </View>
                   <Text
                     accessibilityRole="header"
                     allowFontScaling={false}
@@ -96,192 +146,144 @@ export default function PropositionDetailScreen() {
                   >
                     {explainer.headline}
                   </Text>
-                  <View style={s.quickVotes}>
-                    <View
-                      style={[
-                        s.quickVoteRow,
-                        fontScale >= 1.8 && s.quickVoteLarge,
-                      ]}
-                    >
-                      <Text style={s.quickChoice}>YES</Text>
-                      <Text
-                        style={[
-                          s.quickText,
-                          fontScale >= 1.8 && s.quickTextLarge,
-                        ]}
-                      >
-                        {explainer.voteBriefYes}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        s.quickVoteRow,
-                        s.quickVoteRule,
-                        fontScale >= 1.8 && s.quickVoteLarge,
-                      ]}
-                    >
-                      <Text style={s.quickChoice}>NO</Text>
-                      <Text
-                        style={[
-                          s.quickText,
-                          fontScale >= 1.8 && s.quickTextLarge,
-                        ]}
-                      >
-                        {explainer.voteBriefNo}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={s.aiRow}>
-                    <Icon name="sparkle" size={12} color={P.quiet} />
-                    <Text style={s.aiText}>{PROPOSITION_AI_LABEL}</Text>
-                  </View>
-                </>
-              ) : (
-                <Text
-                  accessibilityRole="header"
-                  allowFontScaling={false}
-                  style={[s.headline, headlineStyle]}
-                >
-                  Proposition {measure.number}
-                </Text>
-              )}
-              <View style={s.officialIdentity}>
-                <Text style={s.metaLabel}>
-                  Official ballot title · California SOS
-                </Text>
-                <Text style={s.officialTitle}>{measure.title}</Text>
-                <InlineSource
-                  label="Official proposition guide"
-                  url={measure.sourceUrl}
-                />
-              </View>
-            </View>
-
-            {explainer ? (
-              <>
-                <MechanismDiagram explainer={explainer} />
+                  <Text style={s.takeaway}>{explainer.takeaway}</Text>
+                </View>
+                <View style={s.outcomes}>
+                  <Outcome
+                    label="YES"
+                    title={explainer.voteTitleYes}
+                    body={explainer.voteBriefYes}
+                    color={lensColors.proponents}
+                  />
+                  <Outcome
+                    label="NO"
+                    title={explainer.voteTitleNo}
+                    body={explainer.voteBriefNo}
+                    color={lensColors.opponents}
+                  />
+                </View>
+                {explainer.caveat && (
+                  <Text style={s.caveat}>{explainer.caveat}</Text>
+                )}
                 <DetailDisclosure
-                  title="Full Yes and No outcomes"
-                  subtitle="More detail from the official guide"
+                  title={explainer.detailTitle}
+                  subtitle="What happens if Yes passes"
                 >
-                  <View style={s.voteRow}>
-                    <Text style={s.choice}>YES</Text>
-                    <Text style={[s.body, s.voteBody]}>{explainer.yes}</Text>
-                  </View>
-                  <View style={[s.voteRow, s.rule]}>
-                    <Text style={s.choice}>NO</Text>
-                    <Text style={[s.body, s.voteBody]}>{explainer.no}</Text>
-                  </View>
+                  {explainer.detailRows.map((row) => (
+                    <View key={row.label} style={s.detailRow}>
+                      <Text style={s.detailLabel}>{row.label}</Text>
+                      <Text style={s.body}>{row.text}</Text>
+                    </View>
+                  ))}
                   <InlineSource
-                    label="California SOS · What Your Vote Means"
-                    url={measure.sourceUrl}
+                    label="Legislative Analyst · Analysis"
+                    url={explainer.analysisUrl}
                   />
                 </DetailDisclosure>
-                <View style={s.surface}>
-                  <SectionHeading icon="trendingUp" title="Fiscal effect" />
+                <View style={s.fiscal}>
+                  <Text accessibilityRole="header" style={s.heading}>
+                    Fiscal effect
+                  </Text>
                   <Text style={s.body}>{explainer.fiscal}</Text>
                   <InlineSource
                     label="Legislative Analyst · Fiscal effects"
                     url={explainer.analysisUrl}
                   />
                 </View>
-                <DetailDisclosure
-                  title="How it would work"
-                  subtitle="Implementation and people affected"
-                >
-                  <Text style={s.body}>{explainer.implementation}</Text>
-                  <Text style={s.body}>{explainer.affected}</Text>
+                <View style={s.footer}>
+                  <Text style={s.metaLabel}>OFFICIAL SOURCES</Text>
                   <InlineSource
-                    label="Legislative Analyst · Analysis"
+                    label="California official proposition guide"
+                    url={measure.sourceUrl}
+                  />
+                  <InlineSource
+                    label="Legislative Analyst · Full analysis"
                     url={explainer.analysisUrl}
                   />
-                </DetailDisclosure>
+                </View>
               </>
             ) : (
-              <View style={s.surface}>
-                <SectionHeading icon="info" title="Explanation in review" />
-                <Text style={s.body}>
-                  Billion has not published a plain-language explanation for
-                  this proposition. The official material below is available
-                  now.
+              <View style={s.record}>
+                {!explainer && (
+                  <Text style={s.caption}>
+                    Billion has not published an explanation for this
+                    proposition. The official material is available below.
+                  </Text>
+                )}
+                <Text style={s.metaLabel}>
+                  OFFICIAL BALLOT TITLE · CALIFORNIA SOS
                 </Text>
+                <Text accessibilityRole="header" style={s.recordTitle}>
+                  {measure.title}
+                </Text>
+                <Text style={s.metaLabel}>OFFICIAL SUMMARY</Text>
+                <Text style={s.body}>
+                  {measure.officialSummary ??
+                    "Not available in Billion. Open the state guide."}
+                </Text>
+                <Text style={s.metaLabel}>OFFICIAL FISCAL IMPACT</Text>
+                <Text style={s.body}>
+                  {measure.fiscalImpact ??
+                    "Not available in Billion. Open the state guide."}
+                </Text>
+                <DetailDisclosure
+                  title="Submitted arguments"
+                  subtitle="Advocacy statements from the official guide"
+                >
+                  <Text style={s.caption}>
+                    Advocacy statements, not independent findings. Their
+                    presence does not indicate equal evidentiary support.
+                  </Text>
+                  <Text style={s.argumentLabel}>For</Text>
+                  {proArguments.length ? (
+                    proArguments.map((arg, i) => (
+                      <Text key={`pro-${i}`} style={s.body}>
+                        {arg.text}
+                      </Text>
+                    ))
+                  ) : (
+                    <Text style={s.caption}>
+                      No argument for was provided in this guide entry.
+                    </Text>
+                  )}
+                  <Text style={s.argumentLabel}>Against</Text>
+                  {conArguments.length ? (
+                    conArguments.map((arg, i) => (
+                      <Text key={`con-${i}`} style={s.body}>
+                        {arg.text}
+                      </Text>
+                    ))
+                  ) : (
+                    <Text style={s.caption}>
+                      No argument against was provided in this guide entry.
+                    </Text>
+                  )}
+                  <InlineSource
+                    label="California SOS · Arguments and rebuttals"
+                    url={`${measure.sourceUrl}arguments-rebuttals.htm`}
+                  />
+                </DetailDisclosure>
+                <Text style={s.metaLabel}>ORIGINAL SOURCES</Text>
+                <Text style={s.caption}>
+                  California Secretary of State Official Voter Information Guide
+                  · Retrieved {query.data.fetchedAt.slice(0, 10)} UTC.
+                </Text>
+                <InlineSource
+                  label="Official title and summary"
+                  url={`${measure.sourceUrl}title-summary.htm`}
+                />
+                {measure.fullTextUrl && (
+                  <InlineSource
+                    label="Text of proposed law (PDF)"
+                    url={measure.fullTextUrl}
+                  />
+                )}
+                <InlineSource
+                  label="Full official proposition page"
+                  url={measure.sourceUrl}
+                />
               </View>
             )}
-
-            <DetailDisclosure
-              title="Read the official record"
-              subtitle="Summary, fiscal statement, and submitted arguments"
-              initiallyOpen={!explainer}
-            >
-              <Text style={s.metaLabel}>OFFICIAL SUMMARY</Text>
-              <Text style={s.body}>
-                {measure.officialSummary ??
-                  "Not available in Billion. Open the state guide."}
-              </Text>
-              <Text style={s.metaLabel}>OFFICIAL FISCAL IMPACT</Text>
-              <Text style={s.body}>
-                {measure.fiscalImpact ??
-                  "Not available in Billion. Open the state guide."}
-              </Text>
-              <Text style={s.metaLabel}>ARGUMENTS SUBMITTED TO THE GUIDE</Text>
-              <Text style={s.caption}>
-                Advocacy statements, not independent findings. Their presence
-                does not indicate equal evidentiary support.
-              </Text>
-              <Text style={s.argumentLabel}>For</Text>
-              {proArguments.length ? (
-                proArguments.map((arg, i) => (
-                  <Text key={`pro-${i}`} style={s.body}>
-                    {arg.text}
-                  </Text>
-                ))
-              ) : (
-                <Text style={s.caption}>
-                  No argument for was provided in this guide entry.
-                </Text>
-              )}
-              <Text style={s.argumentLabel}>Against</Text>
-              {conArguments.length ? (
-                conArguments.map((arg, i) => (
-                  <Text key={`con-${i}`} style={s.body}>
-                    {arg.text}
-                  </Text>
-                ))
-              ) : (
-                <Text style={s.caption}>
-                  No argument against was provided in this guide entry.
-                </Text>
-              )}
-              <InlineSource
-                label="California SOS · Arguments and rebuttals"
-                url={`${measure.sourceUrl}arguments-rebuttals.htm`}
-              />
-            </DetailDisclosure>
-
-            <View style={s.footer}>
-              <Text style={s.metaLabel}>ORIGINAL SOURCES</Text>
-              <Text style={s.caption}>
-                California Secretary of State Official Voter Information Guide ·
-                Retrieved {query.data.fetchedAt.slice(0, 10)} UTC.
-                {explainer
-                  ? " Billion's AI explanation awaits editorial review."
-                  : ""}
-              </Text>
-              <InlineSource
-                label="Official title and summary"
-                url={`${measure.sourceUrl}title-summary.htm`}
-              />
-              {measure.fullTextUrl && (
-                <InlineSource
-                  label="Text of proposed law (PDF)"
-                  url={measure.fullTextUrl}
-                />
-              )}
-              <InlineSource
-                label="Full official proposition page"
-                url={measure.sourceUrl}
-              />
-            </View>
           </>
         )}
       </ScrollView>
@@ -289,60 +291,24 @@ export default function PropositionDetailScreen() {
   );
 }
 
-function MechanismDiagram({ explainer }: { explainer: PropositionExplainer }) {
-  const mechanism = explainer.mechanism;
-  return (
-    <View style={s.surface}>
-      <SectionHeading icon="scale" title="The change at a glance" />
-      <View style={s.flowBefore}>
-        <Text style={s.flowLabel}>{mechanism.beforeTitle}</Text>
-        <View style={s.flowNodes}>
-          {mechanism.before.map((node) => (
-            <View key={node} style={s.flowNode}>
-              <Text style={s.flowText}>{node}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-      <View style={s.connector}>
-        <View style={s.connectorLine} />
-        <Icon name="arrowDown" size={19} color={P.primary} />
-        <Text style={s.connectorLabel}>IF YES PASSES</Text>
-      </View>
-      <View style={s.flowAfter}>
-        <Text style={s.flowLabel}>{mechanism.afterTitle}</Text>
-        <View style={s.flowNodes}>
-          {mechanism.after.map((node) => (
-            <View key={node} style={s.flowNode}>
-              <View style={s.nodeDot} />
-              <Text style={s.flowText}>{node}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-      <InlineSource
-        label="Legislative Analyst · Background and proposal"
-        url={explainer.analysisUrl}
-      />
-    </View>
-  );
-}
-
-function SectionHeading({
-  icon,
+function Outcome({
+  label,
   title,
+  body,
+  color,
 }: {
-  icon: "scale" | "vote" | "trendingUp" | "info";
+  label: "YES" | "NO";
   title: string;
+  body: string;
+  color: string;
 }) {
   return (
-    <View style={s.sectionHeading}>
-      <View style={s.iconTile}>
-        <Icon name={icon} size={17} color={P.inkOnNight} />
-      </View>
-      <Text accessibilityRole="header" style={s.heading}>
+    <View style={[s.outcome, { borderLeftColor: color }]}>
+      <Text style={[s.outcomeLabel, { color }]}>{label}</Text>
+      <Text accessibilityRole="header" style={s.outcomeTitle}>
         {title}
       </Text>
+      <Text style={s.outcomeBody}>{body}</Text>
     </View>
   );
 }
@@ -438,102 +404,117 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: sp[4],
     paddingBottom: sp[12],
-    gap: 14,
+    gap: 24,
   },
-  lead: { gap: 8, paddingBottom: 3 },
+  lead: { gap: 14 },
   kicker: {
     fontFamily: fontBody.medium,
     fontSize: 12,
-    lineHeight: 17,
-    color: P.primary,
+    lineHeight: 18,
+    color: P.quiet,
   },
-  headline: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 22,
-    lineHeight: 28,
-    color: P.inkOnNight,
-  },
-  quickVotes: { gap: 10, marginTop: 2 },
-  quickVoteRow: {
+  modeRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: P.border,
   },
-  quickVoteLarge: { flexDirection: "column", gap: 2 },
-  quickVoteRule: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: P.border,
-    paddingTop: 10,
-  },
-  quickChoice: {
-    minWidth: 36,
-    fontFamily: fontBody.bold,
-    fontSize: 12,
-    lineHeight: 20,
-    color: P.primary,
-  },
-  quickText: {
+  modeButton: {
     flex: 1,
-    fontFamily: fontBody.regular,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  modeSelected: { borderBottomColor: P.primary },
+  modeText: {
+    color: P.quiet,
+    fontFamily: fontBody.semibold,
     fontSize: 14,
     lineHeight: 20,
+  },
+  modeTextSelected: { color: P.inkOnNight },
+  explainerLead: { gap: 6 },
+  headline: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 28,
+    lineHeight: 34,
     color: P.inkOnNight,
   },
-  quickTextLarge: { flex: 0 },
+  takeaway: {
+    fontFamily: fontBody.regular,
+    fontSize: 16,
+    lineHeight: 24,
+    color: P.inkOnNight,
+  },
   aiRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   aiText: {
     flex: 1,
     fontFamily: fontBody.regular,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 18,
     color: P.quiet,
   },
-  iconTile: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: planes.surface,
-    alignItems: "center",
-    justifyContent: "center",
+  outcomes: { gap: 22 },
+  outcome: {
+    borderLeftWidth: 3,
+    paddingLeft: 14,
+    gap: 5,
   },
-  officialIdentity: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: P.border,
-    paddingTop: 8,
-    gap: 4,
+  outcomeLabel: {
+    fontFamily: fontBody.bold,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  outcomeTitle: {
+    color: P.inkOnNight,
+    fontFamily: fontBody.semibold,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  outcomeBody: {
+    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  caveat: {
+    color: P.quiet,
+    fontFamily: fontBody.medium,
+    fontSize: 13,
+    lineHeight: 19,
   },
   metaLabel: {
     fontFamily: fontBody.medium,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 18,
     color: P.quiet,
   },
-  officialTitle: {
-    fontFamily: fontBody.regular,
-    fontSize: 11,
-    lineHeight: 16,
-    color: P.quiet,
+  record: { gap: 14 },
+  recordTitle: {
+    fontFamily: fontBody.medium,
+    fontSize: 16,
+    lineHeight: 24,
+    color: P.inkOnNight,
   },
   surface: {
     backgroundColor: P.card,
     borderColor: P.border,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 13,
+    borderRadius: 8,
     padding: 16,
     gap: 12,
   },
-  sectionHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
   heading: {
-    flex: 1,
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 20,
+    lineHeight: 26,
     color: P.inkOnNight,
   },
   body: {
     fontFamily: fontBody.regular,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
     color: P.inkOnNight,
   },
   caption: {
@@ -542,73 +523,14 @@ const s = StyleSheet.create({
     lineHeight: 18,
     color: P.quiet,
   },
-  flowBefore: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: P.border,
-    borderRadius: 10,
-    padding: 12,
-    gap: 8,
-  },
-  flowAfter: {
-    borderWidth: 1,
-    borderColor: P.primary,
-    backgroundColor: `${P.primary}12`,
-    borderRadius: 10,
-    padding: 12,
-    gap: 8,
-  },
-  flowLabel: {
-    fontFamily: fontBody.semibold,
-    fontSize: 11,
-    lineHeight: 16,
+  detailRow: { gap: 3 },
+  detailLabel: {
     color: P.inkOnNight,
-  },
-  flowNodes: { gap: 5 },
-  flowNode: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: P.border,
-    paddingTop: 6,
-  },
-  flowText: {
-    flex: 1,
-    fontFamily: fontBody.medium,
-    fontSize: 14,
-    lineHeight: 20,
-    color: P.inkOnNight,
-  },
-  nodeDot: {
-    marginTop: 7,
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: P.primary,
-  },
-  connector: { alignItems: "center", gap: 2, marginVertical: -3 },
-  connectorLine: { height: 9, width: 1, backgroundColor: P.primary },
-  connectorLabel: {
     fontFamily: fontBody.semibold,
-    fontSize: 10,
-    lineHeight: 15,
-    letterSpacing: 0.7,
-    color: P.primary,
+    fontSize: 15,
+    lineHeight: 21,
   },
-  voteRow: { flexDirection: "row", gap: 14 },
-  voteBody: { flex: 1 },
-  rule: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: P.border,
-    paddingTop: 12,
-  },
-  choice: {
-    minWidth: 36,
-    fontFamily: fontBody.bold,
-    fontSize: 12,
-    lineHeight: 22,
-    color: P.primary,
-  },
+  fiscal: { gap: 8 },
   disclosure: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,

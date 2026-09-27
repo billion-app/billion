@@ -24,8 +24,9 @@ test("only the matching 2026 official guide record receives a Billion AI draft",
   assert.match(one.voteBriefYes, /\$11\.25 billion/);
   assert.equal(one.officialTitle, prop1Title);
   assert.notEqual(one.headline, one.officialTitle);
-  assert.equal(one.mechanism.before.length, 2);
-  assert.equal(one.mechanism.after.length, 2);
+  assert.equal(one.detailRows.length, 2);
+  assert.equal(one.voteTitleYes, "Authorize new bonds");
+  assert.equal(one.voteTitleNo, "No new bond authorization");
   assert.equal(
     propositionExplainer(
       "1",
@@ -78,11 +79,10 @@ test("recall explainer preserves fiscal uncertainty and describes both vote path
     "https://voterguide.sos.ca.gov/propositions/5/",
   );
   assert.match(five?.fiscal ?? "", /net fiscal effect is unknown/);
-  assert.match(five?.yes ?? "", /vacancy/);
-  assert.match(five?.yes ?? "", /Lieutenant Governor/);
-  assert.equal(five?.mechanism.after.length, 2);
-  assert.match(five.voteBriefYes, /replacement is chosen afterward/);
-  assert.match(five.voteBriefNo, /same recall ballot/);
-  assert.match(five.no, /two-question/);
+  assert.match(five?.voteBriefYes ?? "", /Future recall ballots/);
+  assert.match(five?.voteBriefNo ?? "", /Future recall ballots/);
+  assert.match(five?.caveat ?? "", /does not recall anyone/);
+  assert.equal(five?.detailRows.length, 3);
+  assert.match(five.detailRows[2]?.text ?? "", /Lieutenant Governor/);
   assert.match(five.analysisUrl, /\/5\/analysis\.htm$/);
 });

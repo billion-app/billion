@@ -5,19 +5,14 @@
 export interface PropositionExplainer {
   officialTitle: string;
   headline: string;
+  takeaway: string;
+  voteTitleYes: string;
+  voteTitleNo: string;
   voteBriefYes: string;
   voteBriefNo: string;
-  statusQuo: string;
-  yes: string;
-  no: string;
-  mechanism: {
-    beforeTitle: string;
-    before: readonly string[];
-    afterTitle: string;
-    after: readonly string[];
-  };
-  implementation: string;
-  affected: string;
+  caveat?: string;
+  detailTitle: string;
+  detailRows: readonly { label: string; text: string }[];
   fiscal: string;
   analysisUrl: string;
 }
@@ -46,23 +41,23 @@ const explainers: Record<string, PropositionExplainer> = {
     officialTitle:
       "AUTHORIZES BONDS FOR HOUSING AFFORDABILITY PROGRAMS. LEGISLATIVE STATUTE.",
     headline: "Housing bonds",
+    takeaway: "Would authorize new bonds for housing and veterans' home loans.",
+    voteTitleYes: "Authorize new bonds",
+    voteTitleNo: "No new bond authorization",
     voteBriefYes:
       "Authorize $11.25 billion in bonds for housing programs and veterans' home loans.",
     voteBriefNo: "Keep current programs without this new bond authorization.",
-    statusQuo:
-      "California already helps fund some housing construction and home loans. The last statewide housing bond approved by voters was in 2024.",
-    yes: "The state could sell $11.25 billion in bonds for affordable housing programs and veterans' home loans.",
-    no: "This $11.25 billion bond authorization would not take effect. Existing housing programs would remain.",
-    mechanism: {
-      beforeTitle: "Today · existing programs",
-      before: ["Housing grants and loans", "Veterans' home loans"],
-      afterTitle: "New bond authority",
-      after: ["$10B → housing programs", "$1.25B → veterans' home loans"],
-    },
-    implementation:
-      "The state could sell $10 billion in bonds for housing programs and $1.25 billion for veterans' home loans. The General Fund would repay the housing-program bonds over time; participating veterans' loan payments would repay the veterans' bonds.",
-    affected:
-      "State housing programs, local governments, developers, tribes, eligible households, and veterans could use or administer the bond-funded programs. Funding would be allocated over multiple years.",
+    detailTitle: "Where would the money go?",
+    detailRows: [
+      {
+        label: "Housing programs",
+        text: "$10 billion for affordable housing programs. The state General Fund would repay these bonds over time.",
+      },
+      {
+        label: "Veterans' home loans",
+        text: "$1.25 billion for loans, repaid through participating veterans' loan payments.",
+      },
+    ],
     fiscal:
       "The Legislative Analyst estimates $500 million to $600 million in annual General Fund repayment costs for about 25 years for the $10 billion housing-program bond. Veterans' loan payments are expected to repay the separate $1.25 billion veterans' bond. These are estimates, not guaranteed housing outcomes.",
     analysisUrl: "https://voterguide.sos.ca.gov/propositions/1/analysis.htm",
@@ -70,28 +65,30 @@ const explainers: Record<string, PropositionExplainer> = {
   "5": {
     officialTitle:
       "CHANGES RECALL ELECTION PROCESS FOR STATEWIDE OFFICERS. LEGISLATIVE CONSTITUTIONAL AMENDMENT.",
-    headline: "Recalls of state officials",
+    headline: "State recall elections",
+    takeaway: "Changes how an official is replaced after a future recall.",
+    voteTitleYes: "Change the process",
+    voteTitleNo: "Keep the current process",
     voteBriefYes:
-      "Vote only on removal. If removal wins, a replacement is chosen afterward by election or appointment; for Governor, the Lieutenant Governor takes over.",
+      "Future recall ballots would ask only whether to remove the official. If removal passes, a separate process fills the vacancy.",
     voteBriefNo:
-      "Keep removal and a replacement vote on the same recall ballot.",
-    statusQuo:
-      "A state recall ballot now asks voters whether to remove an official and whom to elect as a replacement if the recall succeeds.",
-    yes: "A recall ballot would ask only whether to remove the official. A vacancy would then be filled by a special election, appointment, or Lieutenant Governor succession, depending on the office and timing.",
-    no: "The current two-question recall ballot would continue, including the replacement-candidate question.",
-    mechanism: {
-      beforeTitle: "Today · one recall ballot",
-      before: ["Remove the official?", "Choose a replacement?"],
-      afterTitle: "Removal first, replacement afterward",
-      after: [
-        "Recall ballot → removal vote only",
-        "If removed → separate replacement process",
-      ],
-    },
-    implementation:
-      "Legislative vacancies typically would go to a special election. Other offices generally would be filled by appointment. If the Governor is recalled before the next statewide election's nomination deadline during the first two years of the term, the Lieutenant Governor serves until voters elect a new Governor at a future statewide election. If recalled later, the Lieutenant Governor serves for the rest of the term.",
-    affected:
-      "Voters in future state recalls, candidates for replacement, the Governor, and state and county election officials would use the changed process. It matters only if a state recall occurs.",
+      "Future recall ballots would still ask both whether to remove the official and who should replace them.",
+    caveat: "This proposition does not recall anyone.",
+    detailTitle: "Who would fill the vacancy?",
+    detailRows: [
+      {
+        label: "Legislature",
+        text: "A special election would typically fill a recalled legislator's seat.",
+      },
+      {
+        label: "Other state offices",
+        text: "An appointment would generally fill the vacancy.",
+      },
+      {
+        label: "Governor",
+        text: "The Lieutenant Governor would take over. If the recall occurs in the first two years before the next statewide election's nomination deadline, voters would elect a new Governor at a future statewide election. Otherwise, the Lieutenant Governor would serve the rest of the term.",
+      },
+    ],
     fiscal:
       "The Legislative Analyst says the net fiscal effect is unknown. A separate special election could cost millions; a shorter recall ballot could save millions. The outcome depends on which offices are recalled and when.",
     analysisUrl: "https://voterguide.sos.ca.gov/propositions/5/analysis.htm",
