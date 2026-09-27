@@ -69,7 +69,7 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
         id: "confirmation",
         label: "Senate reviews some appointments",
         detail:
-          "Some Governor-appointed positions require Senate confirmation before the appointee can keep serving.",
+          "Some Governor-appointed positions are subject to Senate confirmation.",
         kind: "check",
         source: "confirmation",
       },
