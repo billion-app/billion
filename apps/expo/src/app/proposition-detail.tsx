@@ -3,6 +3,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -28,6 +29,7 @@ import {
 
 export default function PropositionDetailScreen() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const { number } = useLocalSearchParams<{ number?: string }>();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const measure = query.data?.measures.find((item) => item.number === number);
@@ -40,7 +42,7 @@ export default function PropositionDetailScreen() {
   return (
     <View style={s.screen}>
       <NavHeader
-        title="Statewide proposition"
+        title={fontScale >= 1.8 ? "" : "Statewide proposition"}
         tone="dark"
         onBack={() => router.back()}
       />
@@ -331,8 +333,8 @@ const s = StyleSheet.create({
   },
   title: {
     fontFamily: fontDisplay.bold,
-    fontSize: 27,
-    lineHeight: 34,
+    fontSize: 21,
+    lineHeight: 27,
     color: P.inkOnNight,
   },
   hero: { backgroundColor: P.paper, borderRadius: 16, padding: 20, gap: 12 },
