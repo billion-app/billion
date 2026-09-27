@@ -23,7 +23,8 @@ test("only the matching 2026 official guide record receives a Billion AI draft",
   assert.match(one.headline, /\$11\.25 billion/);
   assert.equal(one.officialTitle, prop1Title);
   assert.notEqual(one.headline, one.officialTitle);
-  assert.equal(one.steps.length, 3);
+  assert.equal(one.mechanism.before.length, 2);
+  assert.equal(one.mechanism.after.length, 2);
   assert.equal(
     propositionExplainer(
       "1",
@@ -78,6 +79,7 @@ test("recall explainer preserves fiscal uncertainty and describes both vote path
   assert.match(five?.fiscal ?? "", /net fiscal effect is unknown/);
   assert.match(five?.yes ?? "", /vacancy/);
   assert.match(five?.yes ?? "", /Lieutenant Governor/);
-  assert.match(five?.no ?? "", /two-question/);
-  assert.match(five?.analysisUrl ?? "", /\/5\/analysis\.htm$/);
+  assert.equal(five?.mechanism.after.length, 3);
+  assert.match(five.no, /two-question/);
+  assert.match(five.analysisUrl, /\/5\/analysis\.htm$/);
 });

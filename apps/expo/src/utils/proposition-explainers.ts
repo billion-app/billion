@@ -8,7 +8,13 @@ export interface PropositionExplainer {
   statusQuo: string;
   yes: string;
   no: string;
-  steps: readonly { label: string; detail: string }[];
+  mechanism: {
+    beforeTitle: string;
+    before: readonly string[];
+    afterTitle: string;
+    after: readonly string[];
+  };
+  implementation: string;
   affected: string;
   fiscal: string;
   analysisUrl: string;
@@ -37,28 +43,19 @@ const explainers: Record<string, PropositionExplainer> = {
   "1": {
     officialTitle:
       "AUTHORIZES BONDS FOR HOUSING AFFORDABILITY PROGRAMS. LEGISLATIVE STATUTE.",
-    headline: "Would let California borrow $11.25 billion for housing programs",
+    headline: "Would authorize $11.25 billion in housing bonds",
     statusQuo:
       "California already helps fund some housing construction and home loans. The last statewide housing bond approved by voters was in 2024.",
     yes: "The state could sell $11.25 billion in bonds for affordable housing programs and veterans' home loans.",
     no: "This $11.25 billion bond authorization would not take effect. Existing housing programs would remain.",
-    steps: [
-      {
-        label: "Today",
-        detail:
-          "Existing state programs provide grants and low-cost loans for some housing projects and eligible homebuyers.",
-      },
-      {
-        label: "If Yes passes",
-        detail:
-          "The state could sell bonds: $10 billion for housing programs and $1.25 billion for veterans' home loans.",
-      },
-      {
-        label: "How repayment works",
-        detail:
-          "The General Fund would repay the housing-program bonds over time; participating veterans' loan payments would repay the veterans' bonds.",
-      },
-    ],
+    mechanism: {
+      beforeTitle: "Today · existing programs",
+      before: ["Housing grants and loans", "Veterans' home loans"],
+      afterTitle: "New bond authority",
+      after: ["$10B → housing programs", "$1.25B → veterans' home loans"],
+    },
+    implementation:
+      "The state could sell $10 billion in bonds for housing programs and $1.25 billion for veterans' home loans. The General Fund would repay the housing-program bonds over time; participating veterans' loan payments would repay the veterans' bonds.",
     affected:
       "State housing programs, local governments, developers, tribes, eligible households, and veterans could use or administer the bond-funded programs. Funding would be allocated over multiple years.",
     fiscal:
@@ -68,29 +65,23 @@ const explainers: Record<string, PropositionExplainer> = {
   "5": {
     officialTitle:
       "CHANGES RECALL ELECTION PROCESS FOR STATEWIDE OFFICERS. LEGISLATIVE CONSTITUTIONAL AMENDMENT.",
-    headline:
-      "Would separate removal and replacement in state recall elections",
+    headline: "Would make state recall ballots about removal only",
     statusQuo:
       "A state recall ballot now asks voters whether to remove an official and whom to elect as a replacement if the recall succeeds.",
     yes: "A recall ballot would ask only whether to remove the official. A vacancy would then be filled by a special election, appointment, or Lieutenant Governor succession, depending on the office and timing.",
     no: "The current two-question recall ballot would continue, including the replacement-candidate question.",
-    steps: [
-      {
-        label: "Today",
-        detail:
-          "One recall election includes both the removal question and a replacement-candidate question.",
-      },
-      {
-        label: "If Yes passes",
-        detail:
-          "The recall election would decide removal only. A successful recall would create a vacancy.",
-      },
-      {
-        label: "Then",
-        detail:
-          "Legislative vacancies typically would go to a special election. Other offices generally would be filled by appointment. If the Governor is recalled before the next statewide election's nomination deadline during the first two years of the term, the Lieutenant Governor serves until voters elect a new Governor at a future statewide election. If recalled later, the Lieutenant Governor serves for the rest of the term.",
-      },
-    ],
+    mechanism: {
+      beforeTitle: "Today · one recall ballot",
+      before: ["Remove the official?", "Choose a replacement?"],
+      afterTitle: "Two-stage process",
+      after: [
+        "Recall ballot → removal only",
+        "If removed → vacancy",
+        "Vacancy → election, appointment, or Lt. Governor succession",
+      ],
+    },
+    implementation:
+      "Legislative vacancies typically would go to a special election. Other offices generally would be filled by appointment. If the Governor is recalled before the next statewide election's nomination deadline during the first two years of the term, the Lieutenant Governor serves until voters elect a new Governor at a future statewide election. If recalled later, the Lieutenant Governor serves for the rest of the term.",
     affected:
       "Voters in future state recalls, candidates for replacement, the Governor, and state and county election officials would use the changed process. It matters only if a state recall occurs.",
     fiscal:
