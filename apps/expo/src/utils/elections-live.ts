@@ -1,8 +1,4 @@
-/**
- * Civic / Places ballot UI is parked. The Elections tab is a coming-soon
- * placeholder until voter tools are ready to ship — this environment's
- * provider keys do not serve a working ballot.
- */
+/** Ballot tools are available in development builds pending production launch. */
 export function electionsAreLive(): boolean {
-  return false;
+  return __DEV__;
 }

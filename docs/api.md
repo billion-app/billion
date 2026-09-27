@@ -47,9 +47,26 @@ See [court briefs](article-generation.md#court-briefs) for generation and proven
 
 ## Civic lookups and caching
 
-The [civic integration](../packages/api/src/lib/civic.ts) calls Google Civic and caches responses in `civic_api_cache`. Keys include a hashed normalized address, endpoint, and parameters. Expiry varies by endpoint. Candidate and measure enrichment also use this cache; inspect their modules before assuming the normalized election tables hold a response.
+The [civic integration](../packages/api/src/lib/civic.ts) reads ballots through
+[Democracy Works v2](../packages/api/src/clients/democracy-works.ts).
+`getElections` accepts an optional address and returns an empty list without one;
+`getVoterInfo` accepts an address, optional namespaced election ID, and optional
+`includeEnrichment`. Ballot caches are scoped by provider and contract version.
+Missing provider access or failed reads return errors without a Google fallback.
+See [ballot read limits](ballot-read-hardening.md) for cache identity, metadata,
+selection and verification.
 
-Civic and Places provide mock responses when keys are absent, which helps local UI development. A populated mock ballot is not evidence that real provider access works. See [provider setup](civic-data-sources.md) and [the integration reference](data-sources-api.md) when testing live data.
+Base ballot reads also attach unexpired, election-date-scoped official guide
+records, California voting guidance and published Santa Cruz vote centers collected by the [ballot source
+scrapers](../apps/scraper/README.md#ballot-source-collection). This is a cache-only
+join and invokes no live enrichment or generation. The provider must still
+supply the election and address-specific contest selection. Missing source
+records leave those fields absent. Official guidance carries its own source and
+retrieval time; provider metadata continues to describe the provider alone.
+
+The separate elected-officials lookup uses Google Civic's `divisionsByAddress` to
+match Open States lawmakers. Its key is optional at startup and required for that
+feature. Places has development mocks when keys are absent; ballot reads do not.
 
 [Places](../packages/api/src/lib/places.ts) resolves predictions to a full address. Keep the session token stable across one address entry, including the closing details request, so the provider can group them into one session. When the provider refuses a request, autocomplete returns an empty list instead of an error so the user can still type a full address and look it up.
 

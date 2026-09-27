@@ -9,16 +9,10 @@ import { StyleSheet, View } from "react-native";
 
 import type { Election } from "@acme/api";
 
-import { EmptyBallotMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
-import {
-  DigestHair,
-  DigestPalette,
-  DigestSpace,
-  fontBody,
-  fontDisplay,
-} from "~/styles";
-import { daysUntil, monthDay, shiftDays } from "~/utils/dates";
+import { Icon } from "~/components/ui";
+import { colors, fontBody, hair, planes } from "~/styles";
+import { daysUntil, monthDay } from "~/utils/dates";
 import {
   electionExplainer,
   electionType,
@@ -28,53 +22,52 @@ import {
 interface ElectionHeroProps {
   /** The election the ballot belongs to, as resolved for the user's address. */
   election: Election;
-  /**
-   * Civic `earlyVoteSites[].startDate` when the voterinfo payload includes it.
-   * Registration close remains a CA 15-day offset from `election.electionDay`
-   * (Civic has no registration-deadline field).
-   */
-  earlyVoteStart?: string;
 }
 
-export function ElectionHero({ election, earlyVoteStart }: ElectionHeroProps) {
+export function ElectionHero({ election }: ElectionHeroProps) {
   const type = electionType(election.name);
   const days = daysUntil(election.electionDay);
 
+  // Show published dates only; registration and mail guidance is source-backed below.
   const dates = [
     {
-      label: "Register by",
-      value: monthDay(shiftDays(election.electionDay, -15)),
-    },
-    {
-      label: earlyVoteStart ? "Early voting" : "Ballots mailed",
-      value: monthDay(earlyVoteStart ?? shiftDays(election.electionDay, -8)),
-    },
-    {
+      icon: "flag" as const,
       label: "Election Day",
       value: monthDay(election.electionDay),
-      countdown: days > 0 ? `${days} day${days !== 1 ? "s" : ""}` : "Today",
+      accent: colors.green[500],
+      countdown:
+        days > 0
+          ? `${days} day${days !== 1 ? "s" : ""} left`
+          : days === 0
+            ? "Today"
+            : undefined,
     },
   ];
 
   return (
-    <View style={s.wrap}>
-      <EmptyBallotMark width={72} />
-      <Text style={s.kicker}>{electionTypeLabel(type)}</Text>
+    <View style={s.card}>
+      <View style={s.badge}>
+        <Text style={s.badgeText}>{electionTypeLabel(type)}</Text>
+      </View>
+
       <Text style={s.name}>{election.name}</Text>
       <Text style={s.date}>{monthDay(election.electionDay)}</Text>
-      <Text style={s.explainer}>{electionExplainer(type)}</Text>
+
+      <View style={s.divider} />
+
+      <Text style={s.explainer}>
+        {type === "primary"
+          ? "Voters choose candidates for the next stage of the election. Rules vary by state and office."
+          : electionExplainer(type)}
+      </Text>
 
       <View style={s.dates}>
-        {dates.map((d, i) => (
-          <View key={d.label}>
-            {i > 0 ? <View style={s.hair} /> : null}
-            <View style={s.dateRow}>
-              <Text style={s.dateLabel}>{d.label}</Text>
-              <Text style={s.dateValue}>
-                {d.value}
-                {d.countdown ? `  ·  ${d.countdown}` : ""}
-              </Text>
-            </View>
+        {dates.map((d) => (
+          <View key={d.label} style={s.dateRow}>
+            <Icon name={d.icon} size={14} color={d.accent} />
+            <Text style={s.dateLabel}>{d.label}</Text>
+            <Text style={[s.dateValue, { color: d.accent }]}>{d.value}</Text>
+            {d.countdown && <Text style={s.countdown}>· {d.countdown}</Text>}
           </View>
         ))}
       </View>
@@ -83,61 +76,74 @@ export function ElectionHero({ election, earlyVoteStart }: ElectionHeroProps) {
 }
 
 const s = StyleSheet.create({
-  wrap: {
-    paddingHorizontal: DigestSpace.screenPadX,
-    paddingTop: 8,
-    paddingBottom: 8,
-    gap: 6,
+  card: {
+    marginHorizontal: 20,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 16,
+    padding: 18,
   },
-  kicker: {
-    fontFamily: fontBody.bold,
+  badge: {
+    alignSelf: "flex-start",
+    backgroundColor: planes.surface,
+    borderRadius: 9999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  badgeText: {
+    fontFamily: fontBody.semibold,
     fontSize: 11,
-    letterSpacing: 1.8,
+    color: colors.bill,
+    letterSpacing: 0.4,
     textTransform: "uppercase",
-    color: DigestPalette.spark,
-    marginTop: 10,
   },
   name: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 32,
-    color: DigestPalette.inkOnNight,
-    lineHeight: 36,
-    letterSpacing: -0.8,
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 21,
+    color: colors.white,
+    marginTop: 10,
+    lineHeight: 27,
   },
   date: {
-    fontFamily: fontBody.medium,
-    fontSize: 15,
-    color: DigestPalette.quiet,
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: hair[2],
+    marginVertical: 14,
   },
   explainer: {
     fontFamily: fontBody.regular,
-    fontSize: 15,
-    color: DigestPalette.quiet,
-    lineHeight: 22,
-    marginTop: 8,
+    fontSize: 13.5,
+    color: "rgba(255,255,255,0.82)",
+    lineHeight: 20,
   },
   dates: {
     marginTop: 16,
-  },
-  hair: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: DigestHair.sectionRule,
+    gap: 10,
   },
   dateRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 12,
+    gap: 8,
   },
   dateLabel: {
     fontFamily: fontBody.medium,
-    fontSize: 14,
-    color: DigestPalette.quiet,
+    fontSize: 13,
+    color: colors.textSecondary,
+    flex: 1,
   },
   dateValue: {
     fontFamily: fontBody.semibold,
-    fontSize: 14,
-    color: DigestPalette.inkOnNight,
+    fontSize: 13.5,
+  },
+  countdown: {
+    fontFamily: fontBody.medium,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 });

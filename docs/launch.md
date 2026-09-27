@@ -84,17 +84,18 @@ need, and rotate any value that appears in logs or source control.
 These variables cover the website/API, a production mobile build, real civic
 data, email workflows, and the registered scraper suite:
 
-| Variable                | Requirement      | Runtime                                      | Why                                                                                                                     |
-| ----------------------- | ---------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `POSTGRES_URL`          | Startup required | Next.js, DB tooling; all DB-writing scrapers | Stores application, auth, civic-cache, and scraped-content data.                                                        |
-| `BETTER_AUTH_SECRET`    | Startup required | Next.js                                      | Signs/encrypts Better Auth data.                                                                                        |
-| `RESEND_API_KEY`        | Feature required | Next.js                                      | Waitlist contact management and feedback email use it.                                                                  |
-| `EXPO_PUBLIC_API_URL`   | Launch required  | Expo build                                   | Tells the installed app where the production Next.js/tRPC API lives.                                                    |
-| `GOOGLE_CIVIC_API_KEY`  | Launch required  | Next.js API                                  | Enables real voter information; otherwise civic endpoints can return development mock data.                             |
-| `GOOGLE_PLACES_API_KEY` | Launch required  | Next.js API                                  | Enables production address autocomplete and place details.                                                              |
-| `OPENROUTER_API_KEY`    | Feature required | Content-enriching scrapers                   | Used by content scrapers; a local endpoint or deprecated direct DeepSeek key also satisfies their environment contract. |
-| `CONGRESS_API_KEY`      | Feature required | `congress` scraper                           | Authenticates Congress.gov bill ingestion.                                                                              |
-| `EXPO_ACCESS_TOKEN`     | Optional         | Next.js test send; `notify-followers` job    | Raises Expo Push rate limits. Alerts still send without it.                                                             |
+| Variable                  | Requirement      | Runtime                                      | Why                                                                                                                     |
+| ------------------------- | ---------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_URL`            | Startup required | Next.js, DB tooling; all DB-writing scrapers | Stores application, auth, civic-cache, and scraped-content data.                                                        |
+| `BETTER_AUTH_SECRET`      | Startup required | Next.js                                      | Signs/encrypts Better Auth data.                                                                                        |
+| `RESEND_API_KEY`          | Feature required | Next.js                                      | Waitlist contact management and feedback email use it.                                                                  |
+| `EXPO_PUBLIC_API_URL`     | Launch required  | Expo build                                   | Tells the installed app where the production Next.js/tRPC API lives.                                                    |
+| `DEMOCRACY_WORKS_API_KEY` | Launch required  | Next.js API                                  | Enables address-scoped election and ballot reads through Democracy Works v2.                                            |
+| `GOOGLE_CIVIC_API_KEY`    | Feature required | Next.js API                                  | Resolves divisions for the separate elected-officials lookup.                                                           |
+| `GOOGLE_PLACES_API_KEY`   | Launch required  | Next.js API                                  | Enables production address autocomplete and place details.                                                              |
+| `OPENROUTER_API_KEY`      | Feature required | Content-enriching scrapers                   | Used by content scrapers; a local endpoint or deprecated direct DeepSeek key also satisfies their environment contract. |
+| `CONGRESS_API_KEY`        | Feature required | `congress` scraper                           | Authenticates Congress.gov bill ingestion.                                                                              |
+| `EXPO_ACCESS_TOKEN`       | Optional         | Next.js test send; `notify-followers` job    | Raises Expo Push rate limits. Alerts still send without it.                                                             |
 
 The local FLUX variables configure explicit image jobs. The scheduled header-art
 job is local-only; `BFL_API_KEY` remains available to the separate shared helper
@@ -146,12 +147,13 @@ The phone is the identity: Expo registers a push token, `notifications.sync` sto
 
 ### Civic and address data
 
-| Variable                | Requirement      | Used for                                                                                       | Default / missing behavior                                                                                              | Where to get it                                                                                                                                                                                                                             |
-| ----------------------- | ---------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GOOGLE_CIVIC_API_KEY`  | Launch required  | Elections, representatives, polling locations, and voter information                           | Some civic calls use mock development data; explicit live voter-info calls can report that the key is not configured.   | Create a server key in [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials), enable the [Civic Information API](https://developers.google.com/civic-information/docs/using_api), and restrict the key to that API. |
-| `GOOGLE_PLACES_API_KEY` | Launch required  | Address autocomplete and place details                                                         | Falls back to `GOOGLE_API_KEY`, then `GOOGLE_CIVIC_API_KEY`, then local mock suggestions.                               | Enable **Places API (New)** and create a restricted server key; see [Places setup](https://developers.google.com/maps/documentation/places/web-service/cloud-setup).                                                                        |
-| `OPEN_STATES_API_KEY`   | Feature required | California state bills, legislators, and voting records; required by the `open-states` scraper | Open States-backed enrichments are skipped or return no enrichment, and the `open-states` scraper fails env validation. | [Open States account/API keys](https://open.pluralpolicy.com/accounts/profile/).                                                                                                                                                            |
-| `VOTE_SMART_API_KEY`    | Feature required | Candidate and state-measure enrichment                                                         | Vote Smart-backed adapters skip enrichment.                                                                             | Request access from [Vote Smart](https://votesmart.org/share/api).                                                                                                                                                                          |
+| Variable                  | Requirement      | Used for                                                                                       | Default / missing behavior                                                                                              | Where to get it                                                                                                                                                                |
+| ------------------------- | ---------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DEMOCRACY_WORKS_API_KEY` | Launch required  | Address-scoped elections and ballots                                                           | Host startup succeeds without the key; ballot operations fail closed. Env doctor warns until configured.                | Obtain a Democracy Works API account/key with REST v2 `/elections` and `includeBallotData=true` entitlement; see [provider access](https://developers.democracy.works/api/v2). |
+| `GOOGLE_CIVIC_API_KEY`    | Feature required | Divisions for elected officials                                                                | Elected-officials lookup reports unavailable without the key.                                                           | Configure a server-side Google Civic key for `divisionsByAddress`.                                                                                                             |
+| `GOOGLE_PLACES_API_KEY`   | Launch required  | Address autocomplete and place details                                                         | Falls back to `GOOGLE_API_KEY`, then `GOOGLE_CIVIC_API_KEY`, then local mock suggestions.                               | Enable **Places API (New)** and create a restricted server key; see [Places setup](https://developers.google.com/maps/documentation/places/web-service/cloud-setup).           |
+| `OPEN_STATES_API_KEY`     | Feature required | California state bills, legislators, and voting records; required by the `open-states` scraper | Open States-backed enrichments are skipped or return no enrichment, and the `open-states` scraper fails env validation. | [Open States account/API keys](https://open.pluralpolicy.com/accounts/profile/).                                                                                               |
+| `VOTE_SMART_API_KEY`      | Feature required | Candidate and state-measure enrichment                                                         | Vote Smart-backed adapters skip enrichment.                                                                             | Request access from [Vote Smart](https://votesmart.org/share/api).                                                                                                             |
 
 Use a dedicated `GOOGLE_PLACES_API_KEY` in production even though the code has
 fallbacks. It allows tighter API restrictions and keeps Places usage separate
@@ -265,14 +267,14 @@ variable below. A once-daily schedule makes a per-run limit an effective daily
 limit; retries and additional invocations each receive a fresh allowance.
 
 | Variable                        | Default | Unit                                |
-| ------------------------------- | ------: | ----------------------------------- |
-| `FEDERALREGISTER_MAX_ITEMS`     |      20 | Federal Register documents          |
-| `CONGRESS_MAX_ITEMS`            |     100 | Congress.gov bills                  |
-| `SCOTUS_MAX_ITEMS`              |      20 | Recent Supreme Court decisions      |
-| `SCC_CVIG_MAX_ITEMS`            |      10 | Santa Clara voter-guide PDFs        |
-| `CA_SOS_MAX_ITEMS`              |       9 | California SOS office pages         |
-| `OPEN_STATES_MAX_ITEMS`         |     100 | Open States bills, per state        |
-| `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving AI/image work |
+| ------------------------------- | ------- | ----------------------------------- |
+| `FEDERALREGISTER_MAX_ITEMS`     | 20      | Federal Register documents          |
+| `CONGRESS_MAX_ITEMS`            | 100     | Congress.gov bills                  |
+| `SCOTUS_MAX_ITEMS`              | 20      | Recent Supreme Court decisions      |
+| `SCC_CVIG_MAX_ITEMS`            | 10      | Santa Clara voter-guide PDFs        |
+| `CA_SOS_MAX_ITEMS`              | 9       | California SOS office pages         |
+| `OPEN_STATES_MAX_ITEMS`         | 100     | Open States bills, per state        |
+| `SCRAPER_MAX_NEW_ITEMS_PER_RUN` | 10      | New records receiving AI/image work |
 
 The last setting is an enrichment budget, not a source-fetch limit. New content
 that cannot be enriched within the budget is deferred without publishing a raw
@@ -288,11 +290,11 @@ These do not alter provider billing; they only change the estimates printed by
 the scraper. Invalid, empty, or zero values fall back to the defaults shown.
 
 | Variable              | Default | Tracks                                                          |
-| --------------------- | ------: | --------------------------------------------------------------- |
-| `LLM_INPUT_PRICE`     |  `0.14` | DeepSeek V4 Flash input estimate ($/1M tokens, cache-miss rate) |
-| `LLM_OUTPUT_PRICE`    |  `0.28` | DeepSeek V4 Flash output estimate ($/1M tokens)                 |
-| `VISION_INPUT_PRICE`  |  `0.30` | Gemini 2.5 Flash vision input estimate ($/1M tokens)            |
-| `VISION_OUTPUT_PRICE` |  `2.50` | Gemini 2.5 Flash vision output estimate ($/1M tokens)           |
+| --------------------- | ------- | --------------------------------------------------------------- |
+| `LLM_INPUT_PRICE`     | `0.14`  | DeepSeek V4 Flash input estimate ($/1M tokens, cache-miss rate) |
+| `LLM_OUTPUT_PRICE`    | `0.28`  | DeepSeek V4 Flash output estimate ($/1M tokens)                 |
+| `VISION_INPUT_PRICE`  | `0.30`  | Gemini 2.5 Flash vision input estimate ($/1M tokens)            |
+| `VISION_OUTPUT_PRICE` | `2.50`  | Gemini 2.5 Flash vision output estimate ($/1M tokens)           |
 | `FLUX_IMAGE_PRICE`    | `0.015` | Cost estimate per generated BFL image                           |
 | `GOOGLE_SEARCH_PRICE` | `0.005` | Cost estimate per Custom Search request after the free quota    |
 
