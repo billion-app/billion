@@ -18,6 +18,7 @@ import {
   SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotContestCard } from "~/components/ballot/BallotContestCard";
+import { CaliforniaGuidePreview } from "~/components/ballot/CaliforniaGuidePreview";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
 import { RepsSection } from "~/components/RepsSection";
@@ -170,11 +171,19 @@ function MeasureCard({
 }
 
 export default function ElectionsScreen() {
-  const [exploring, setExploring] = useState(false);
-  if (!exploring)
-    return <CaliforniaElectionEntry onExplore={() => setExploring(true)} />;
-  if (__DEV__) return <DevelopmentElections />;
-  return <ElectionsLive />;
+  const [view, setView] = useState<"entry" | "guide" | "ballot" | "fixtures">(
+    "entry",
+  );
+  if (view === "entry")
+    return <CaliforniaElectionEntry onExplore={() => setView("guide")} />;
+  if (__DEV__ && view === "fixtures") return <DevelopmentElections />;
+  if (view === "ballot") return <ElectionsLive />;
+  return (
+    <CaliforniaGuidePreview
+      onOpenBallot={() => setView("ballot")}
+      onOpenFixtures={__DEV__ ? () => setView("fixtures") : undefined}
+    />
+  );
 }
 
 function DevelopmentElections() {
@@ -222,8 +231,8 @@ function CaliforniaElectionEntry({ onExplore }: { onExplore: () => void }) {
         <Text style={s.entryKicker}>NOVEMBER 3, 2026 · GENERAL ELECTION</Text>
         <Text style={s.entryTitle}>Voting in California?</Text>
         <Text style={s.entryBody}>
-          Get a first look at the candidates and measures on your ballot. Enter
-          your voting address to see what is available for your area.
+          Explore official candidate statements and statewide propositions.
+          Local races and measures depend on where you vote.
         </Text>
         <TouchableOpacity
           accessibilityRole="button"

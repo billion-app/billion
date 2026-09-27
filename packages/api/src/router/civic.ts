@@ -6,6 +6,7 @@ import { caSosResultsClient } from "../clients/ca-sos-results";
 import { BallotProviderError } from "../clients/democracy-works";
 import { getDevBallot } from "../lib/ballot-dev-mocks";
 import {
+  getCaliforniaGuide,
   getDistrictElectionResults,
   getElectionResults,
   getElections,
@@ -29,6 +30,7 @@ const DISTRICT_REF = z.object({
 });
 
 export const civicRouter = {
+  getCaliforniaGuide: publicProcedure.query(() => getCaliforniaGuide()),
   /**
    * Get a list of upcoming elections
    */

@@ -100,6 +100,6 @@ Push registration waits for onboarding to finish and notification preferences to
 
 ## Development ballot scenarios
 
-After the Elections invitation, development builds show a scenario picker above the ballot. `full` opens a synthetic ballot with candidate statements, a measure and voting locations. `partial` omits statements and locations; `empty` omits contests; `error` exercises retry handling. `live` uses the saved address and normal provider. Mock selection does not overwrite the saved address.
+The Elections invitation opens the live, statewide California official guide cached by the scraper. It includes source-linked candidate statements and propositions, and official candidate photos when available. It is not an address-matched ballot or complete candidate roster. Development builds expose a separate scenario picker beneath the guide: `full` opens a synthetic ballot with candidate statements, a measure and voting locations. `partial` omits statements and locations; `empty` omits contests; `error` exercises retry handling. `live` uses the saved address and normal provider. Mock selection does not overwrite the saved address.
 
 These screens call the local `civic.getVoterInfo` API with explicit `mock:full`, `mock:partial`, `mock:empty` or `mock:error` addresses. The server recognizes them only when `NODE_ENV=development`, before any provider or cache operation. Production never returns these fixtures. Names, instructions and schedules in the fixtures are fictional.

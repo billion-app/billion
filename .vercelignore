@@ -1,0 +1,4 @@
+# Native build products are not part of the Next.js deployment.
+apps/expo/ios/
+apps/expo/android/
+apps/expo/.expo/
