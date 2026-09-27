@@ -1,6 +1,6 @@
 /**
- * The welcome Capitol, turning slowly under the watch picks.
- * Neighboring yaw frames are lerped so the drum and dome read as 3D.
+ * The White House grows with each government and topic selection.
+ * Neighboring yaw frames are lerped to keep the architecture in 3D.
  * Extra strokes fade in as the reader marks more options.
  */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
@@ -13,6 +13,7 @@ import Animated, {
   interpolate,
   useAnimatedProps,
   useAnimatedStyle,
+  useDerivedValue,
   useReducedMotion,
   useSharedValue,
   withRepeat,
@@ -21,20 +22,13 @@ import Animated, {
 import Svg, { Path } from "react-native-svg";
 
 import { DigestPalette as P } from "~/styles";
-import { SPIN_AZ0, SPIN_BANDS, SPIN_N, SPIN_VIEW } from "./capitol3d";
+import { SPIN_AZ0, SPIN_BANDS, SPIN_N, SPIN_VIEW } from "./whiteHouse3d";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
-const TURN_MS = 16000;
-const DETAIL_MS = 560;
+const TURN_MS = 60000;
+const DETAIL_MS = 300;
 const VB = `0 0 ${SPIN_VIEW.w} ${SPIN_VIEW.h}`;
 const PULL = Easing.bezier(0.22, 1, 0.36, 1);
-const BAND_IN: [number, number][] = [
-  [-1, 0],
-  [0, 0.38],
-  [0.22, 0.55],
-  [0.42, 0.68],
-  [0.68, 1],
-];
 
 function pathFrom(flat: number[], breaks: number[]): string {
   "worklet";
@@ -63,11 +57,20 @@ function lerpLayer(az: number, frames: number[][], breaks: number[]): string {
   const u = x - Math.floor(x);
   const a = frames[i0]!;
   const b = frames[i1]!;
-  const mixed: number[] = [];
-  for (let i = 0; i < a.length; i++) {
-    mixed.push(a[i]! + (b[i]! - a[i]!) * u);
+  let d = "";
+  const nPts = a.length / 2;
+  for (let p = 0; p < breaks.length; p++) {
+    const start = breaks[p]!;
+    const end = p + 1 < breaks.length ? breaks[p + 1]! : nPts;
+    for (let i = start; i < end; i++) {
+      const x = Math.round((a[i * 2]! + (b[i * 2]! - a[i * 2]!) * u) * 10) / 10;
+      const y =
+        Math.round((a[i * 2 + 1]! + (b[i * 2 + 1]! - a[i * 2 + 1]!) * u) * 10) /
+        10;
+      d += (i === start ? "M" : "L") + x + " " + y;
+    }
   }
-  return pathFrom(mixed, breaks);
+  return d.length > 0 ? d : "M0 0";
 }
 
 function Band({
@@ -104,22 +107,26 @@ function Band({
   );
 }
 
-export function CapitolSpin({
+export function WhiteHouseSpin({
   active,
   width,
-  picks,
-  max = 4,
+  watch,
+  topics,
 }: {
   active: boolean;
   width: number;
-  picks: number;
-  max?: number;
+  watch: number;
+  topics: number;
 }) {
   const reduce = useReducedMotion();
   const az = useSharedValue(SPIN_AZ0);
+  // Quarter-degree steps preserve the slow turn while avoiding SVG path writes
+  // on most display frames (one step is about 42 ms at this rotation speed).
+  const sampledAz = useDerivedValue(() => Math.round(az.value * 4) / 4);
   const detail = useSharedValue(0);
   const [box, setBox] = useState(180);
-  const target = Math.max(0, Math.min(1, picks / Math.max(1, max)));
+  const target = Math.min(4, Math.max(0, watch));
+  const topicDetail = useSharedValue(0);
 
   useEffect(() => {
     if (!active || reduce) {
@@ -146,12 +153,19 @@ export function CapitolSpin({
     detail.value = withTiming(target, { duration: DETAIL_MS, easing: PULL });
   }, [detail, reduce, target]);
 
+  useEffect(() => {
+    topicDetail.value = withTiming(Math.min(6, Math.max(0, topics)), {
+      duration: reduce ? 0 : DETAIL_MS,
+      easing: PULL,
+    });
+  }, [topics, topicDetail, reduce]);
+
   const rig = useAnimatedStyle(() => ({
     transform: [
       {
         scale: interpolate(
           detail.value,
-          [0, 1],
+          [0, 4],
           [0.92, 1],
           Extrapolation.CLAMP,
         ),
@@ -168,20 +182,20 @@ export function CapitolSpin({
       <Animated.View style={[s.rig, rig]}>
         <Svg
           width={width}
-          height={Math.max(140, box)}
+          height={Math.max(1, box)}
           viewBox={VB}
           preserveAspectRatio="xMidYMax meet"
         >
           {SPIN_BANDS.map((band, i) => (
             <Band
               key={i}
-              az={az}
+              az={sampledAz}
               frames={band.frames}
               breaks={band.breaks}
-              detail={detail}
-              from={BAND_IN[i]![0]}
-              to={BAND_IN[i]![1]}
-              weight={i >= 3 ? 1.55 : 1.25}
+              detail={i > 4 ? topicDetail : detail}
+              from={i === 0 ? -1 : i > 4 ? i - 5 : i - 1}
+              to={i > 4 ? i - 4 : i}
+              weight={i > 4 ? 0.8 : 1.15}
             />
           ))}
         </Svg>

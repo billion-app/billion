@@ -54,7 +54,7 @@ function ReadingToggle({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ expanded }}
+      aria-expanded={expanded}
       onPress={onPress}
       style={s.action}
     >
@@ -143,7 +143,7 @@ export function BallotAiDisclosure({
     <View style={s.provenance}>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         onPress={() => setExpanded(!expanded)}
         style={s.provenanceRow}
       >
@@ -193,7 +193,7 @@ export function BallotBiography({ text }: { text: string }) {
     <View style={s.card}>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         onPress={() => setExpanded(!expanded)}
         style={s.contextHeader}
       >

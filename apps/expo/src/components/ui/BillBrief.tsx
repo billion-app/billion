@@ -73,6 +73,8 @@ export type BriefChangeKind =
 export interface BriefQuote {
   text: string;
   locator?: string;
+  /** Court briefs use this to disambiguate separately published documents. */
+  documentId?: string;
 }
 
 export interface BillBriefData {
