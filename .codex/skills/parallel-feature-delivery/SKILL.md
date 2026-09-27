@@ -15,13 +15,7 @@ Use this when the user asks to run multiple Billion features in parallel with Co
 
 ## Per-thread completion
 
-Each implementation thread should:
-
-- Verify the actual data path and user flow, including empty, error, and partial states. Never pass a fixture or generated image off as production data or an app screenshot.
-- Run focused tests and the applicable checks in `CONTRIBUTING.md`; for production-only Expo behavior, also verify a production bundle or runtime.
-- Capture screenshots from the running UI at useful mobile states. Record exact paths or attach them to the PR, with the source and any fixture status labeled. A design simulation may supplement but cannot replace a runtime capture.
-- Open and attach a PR. Request independent review with the user-requested model (Astra for this workflow) across code, UX, accessibility, source attribution, and tests. Resolve findings, then ask for a re-review of the changed diff. A self-review is not independent review.
-- Merge only after CI and review gates pass and the feature is safe to publish. Leave a blocked PR open with a precise blocker; do not force a merge merely to finish the batch.
+Each implementation thread follows [create-billion-pr](../create-billion-pr/SKILL.md) for verification, real UI screenshots, an independent Astra code and design review, and the PR handoff. Merge only after CI and review gates pass and the feature is safe to publish. Leave a blocked PR open with a precise blocker; do not force a merge merely to finish the batch.
 
 ## Integrate and report
 
