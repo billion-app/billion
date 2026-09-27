@@ -466,7 +466,7 @@ function PropositionArt({ activeStage }: { activeStage: number }) {
         anchor="start"
         tracking={1.2}
       >
-        02 · CAMPAIGN FINANCING RULE
+        02 · RESULT
       </Text>
       <Track d="M 196 415 C 196 459 99 449 99 493" />
       <Track d="M 196 415 C 196 459 294 449 294 493" />
