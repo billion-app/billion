@@ -38,7 +38,6 @@ import {
   isCaliforniaState,
   measureIsStatewide,
 } from "~/utils/elections";
-import { electionsAreLive } from "~/utils/elections-live";
 
 type BallotTab = "candidates" | "measures";
 
@@ -171,7 +170,9 @@ function MeasureCard({
 }
 
 export default function ElectionsScreen() {
-  if (!electionsAreLive()) return <ElectionsComingSoon />;
+  const [exploring, setExploring] = useState(false);
+  if (!exploring)
+    return <CaliforniaElectionEntry onExplore={() => setExploring(true)} />;
   if (__DEV__) return <DevelopmentElections />;
   return <ElectionsLive />;
 }
@@ -213,13 +214,34 @@ function DevelopmentElections() {
   );
 }
 
-function ElectionsComingSoon() {
+function CaliforniaElectionEntry({ onExplore }: { onExplore: () => void }) {
   return (
     <TabScreen title="Elections">
-      <View style={s.section}>
-        <Card>
-          <Text style={s.empty}>Elections page coming soon</Text>
-        </Card>
+      <View style={s.entry}>
+        <View style={s.entryRule} />
+        <Text style={s.entryKicker}>NOVEMBER 3, 2026 · GENERAL ELECTION</Text>
+        <Text style={s.entryTitle}>Voting in California?</Text>
+        <Text style={s.entryBody}>
+          Get a first look at the candidates and measures on your ballot. Enter
+          your voting address to see what is available for your area.
+        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Try the California ballot preview"
+          activeOpacity={0.85}
+          onPress={onExplore}
+          style={s.entryButton}
+        >
+          <Text style={s.entryButtonText}>Try it now</Text>
+          <Icon name="arrowRight" size={19} color={planes.navy} />
+        </TouchableOpacity>
+        <View style={s.entryNote}>
+          <Icon name="info" size={16} color={colors.textSecondary} />
+          <Text style={s.entryNoteText}>
+            Coverage is still growing. Confirm your ballot and voting options
+            with your election office.
+          </Text>
+        </View>
       </View>
     </TabScreen>
   );
@@ -446,7 +468,7 @@ function ElectionsLive({
         </View>
       )}
       {data?.provider && (
-        <View style={s.section}>
+        <View style={[s.section, { gap: 8 }]}>
           <Text style={s.empty}>
             {data.provider.addressScope === "statewide_only"
               ? "Statewide contests only. Local races and measures may be missing."
@@ -560,6 +582,59 @@ function ElectionsLive({
 }
 
 const s = StyleSheet.create({
+  entry: { paddingHorizontal: 20, paddingTop: 30 },
+  entryRule: { width: 44, height: 3, backgroundColor: colors.bill },
+  entryKicker: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11,
+    color: colors.bill,
+    marginTop: 28,
+  },
+  entryTitle: {
+    fontFamily: "InriaSerif-Bold",
+    fontSize: 32,
+    lineHeight: 39,
+    color: colors.white,
+    marginTop: 12,
+  },
+  entryBody: {
+    fontFamily: fontBody.regular,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.textSecondary,
+    marginTop: 14,
+  },
+  entryButton: {
+    minHeight: 56,
+    marginTop: 30,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: colors.bill,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  entryButtonText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    color: planes.navy,
+  },
+  entryNote: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: hair[2],
+    marginTop: 34,
+    paddingTop: 18,
+  },
+  entryNoteText: {
+    flex: 1,
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
+  },
   addrCard: {
     flexDirection: "row",
     alignItems: "center",
