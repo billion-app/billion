@@ -58,7 +58,7 @@ mailing and voting deadlines are not inferred from guidance phases or missing da
 
 ## Cache and request bounds
 
-Cache endpoints begin with `democracy-works:v2:1`, followed by `elections`, `base`
+Cache endpoints begin with `democracy-works:v2:2`, followed by `elections`, `base`
 or `enriched`. Address hashes and election parameters also distinguish entries.
 Old Google cache entries are excluded. Entries expire after 24 hours; expired data
 is not returned on failure. Discovery cache keys include the query date.
@@ -95,3 +95,15 @@ Live acceptance requires an authorized key and comparison with official sample
 ballots for the intended release jurisdictions.
 
 Default election selection uses a conservative UTC-12 date cutoff so an election does not disappear during election evening in western US time zones. Discovery and default ballot caches and in-flight reads use the same date function; explicit election IDs remain stable across the cutoff. An election may remain listed into the following local morning. This cutoff does not establish voting hours or infer the address timezone.
+
+## Release gate
+
+This adapter alone does not enable the mobile ballot flow. The
+[Elections feature flag](../apps/expo/src/utils/elections-live.ts) is still off,
+and the [parked screen](<../apps/expo/src/app/(tabs)/elections.tsx>) still uses
+`normalizedInput.state` to gate California coverage. This provider deliberately
+leaves that value empty, so the existing screen would hide every returned ballot.
+Before enabling it, update consumers to use provider jurisdiction and coverage
+metadata, surface unavailable ballot data and withdrawn-candidate status, and
+complete licensed live acceptance against official sample ballots. Keep the flag
+off until those integration checks pass.

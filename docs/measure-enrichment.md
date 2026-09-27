@@ -23,6 +23,10 @@ SPUR + AI (grounded fallback)─┘        └── flags discrepancies for rev
 
 The engine fetches all sources concurrently (`Promise.all`) and merges them **field-by-field by trust tier** — the highest-tier source holding a field wins it and is cited.
 
+The legacy `referendumText` retains the provider ballot question when present.
+Its provider citation survives even if enrichment selects another source for
+`fullText`; when text is backfilled, the citation follows that winning source.
+
 **Principles:** official sources win field conflicts; every surfaced field carries a citation; AI structures and reconciles but never invents.
 
 ## Trust tiers
