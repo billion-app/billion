@@ -248,11 +248,12 @@ export async function crossValidateMeasure(
       .join("\n\n");
 
     let groundingText = civicMaterial;
-    let groundingSources: { name: string; url: string }[] = input.url
+    const groundingUrl = input.url ?? input.source?.sourceUrl;
+    let groundingSources: { name: string; url: string }[] = groundingUrl
       ? [
           {
             name: input.source?.sourceName ?? "Google Civic Information API",
-            url: input.url,
+            url: groundingUrl,
           },
         ]
       : [];
