@@ -7,9 +7,17 @@
       "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
     },
+    "./content-jurisdiction": {
+      "types": "./dist/lib/content-jurisdiction.d.ts",
+      "default": "./src/lib/content-jurisdiction.ts"
+    },
     "./integrations/legistar": {
       "types": "./dist/integrations/legistar.d.ts",
       "default": "./src/integrations/legistar.ts"
+    },
+    "./lib/notifications": {
+      "types": "./dist/lib/notifications/index.d.ts",
+      "default": "./src/lib/notifications/index.ts"
     },
     "./lib/civic": {
       "types": "./dist/lib/civic.d.ts",
@@ -59,8 +67,8 @@
     "dev": "tsc",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
-    "test": "tsx --test src/**/*.test.ts",
-    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+    "test": "tsx --test \"src/**/*.test.ts\" \"test/*.test.ts\"",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false && tsc -p test/tsconfig.json"
   },
   "dependencies": {
     "@acme/auth": "workspace:*",

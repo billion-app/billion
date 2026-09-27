@@ -2,7 +2,7 @@
   "name": "billion",
   "slug": "billion",
   "scheme": "billion",
-  "version": "0.8.1",
+  "version": "0.8.3",
   "orientation": "portrait",
   "icon": "./assets/billion-logo.png",
   "userInterfaceStyle": "dark",
@@ -135,6 +135,7 @@
       }
     ],
     "expo-build-properties",
-    "expo-font"
+    "expo-font",
+    "expo-notifications"
   ]
 }

@@ -95,6 +95,7 @@ data, email workflows, and the registered scraper suite:
 | `GOOGLE_PLACES_API_KEY`   | Launch required  | Next.js API                                  | Enables production address autocomplete and place details.                                                              |
 | `OPENROUTER_API_KEY`      | Feature required | Content-enriching scrapers                   | Used by content scrapers; a local endpoint or deprecated direct DeepSeek key also satisfies their environment contract. |
 | `CONGRESS_API_KEY`        | Feature required | `congress` scraper                           | Authenticates Congress.gov bill ingestion.                                                                              |
+| `EXPO_ACCESS_TOKEN`       | Optional         | Next.js test send; `notify-followers` job    | Raises Expo Push rate limits. Alerts still send without it.                                                             |
 
 The local FLUX variables configure explicit image jobs. The scheduled header-art
 job is local-only; `BFL_API_KEY` remains available to the separate shared helper
@@ -135,6 +136,14 @@ string copied from the provider is normally already safe to paste.
 | `RESEND_GENERAL_UPDATES_SEGMENT_ID`           | Optional    | Adds mailing-list subscribers to the General updates segment | Contacts are still created globally, but are not assigned to the segment.                                                                                                     | Create/copy the segment in the Resend Audience dashboard; see [Segments](https://resend.com/docs/dashboard/segments/introduction).      |
 | `RESEND_GENERAL_UPDATES_TOPIC_ID`             | Optional    | Opts subscribers into the user-facing General updates topic  | Contacts are created without that topic subscription.                                                                                                                         | Create/copy the topic in Resend; see [Topics](https://resend.com/docs/knowledge-base/why-use-topics).                                   |
 | `RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL` | Optional    | Sends a one-time confirmation after a new subscription       | New subscribers are still stored if it is missing; no confirmation email is sent. Existing/repeated subscribers never receive it again.                                       | Verify a domain in [Resend Domains](https://resend.com/docs/dashboard/domains/introduction), then use `Billion <hello@yourdomain.com>`. |
+
+### Lock-screen alerts
+
+| Variable            | Requirement | Used for                                        | Default / missing behavior                                            | Where to get it                                                                  |
+| ------------------- | ----------- | ----------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `EXPO_ACCESS_TOKEN` | Optional    | Authenticates server sends to the Expo Push API | Alerts still send; Expo applies a lower rate limit without the token. | [Expo access tokens](https://expo.dev/accounts/[account]/settings/access-tokens) |
+
+The phone is the identity: Expo registers a push token, `notifications.sync` stores prefs and saved bill IDs, and `notify-followers` sends the lock-screen alert. Simulator builds have no Expo token, so Settings → Test falls back to a local OS notification.
 
 ### Civic and address data
 
@@ -201,9 +210,10 @@ from older source; current source uses `EXPO_PUBLIC_POSTHOG_TOKEN`.
 ## Scraper and scheduled data jobs
 
 The registered CLI scrapers are `whitehouse`, `federalregister`, `legistar`,
-`congress`, `open-states`, `scc-cvig`, and `ca-sos-statements`. The registry in
-`apps/scraper/src/scrapers.ts` is authoritative. `scotus.ts` is unregistered;
-files under `scrapers/disabled/` are also inactive. See the [scraper CLI
+`congress`, `scotus`, `open-states`, `scc-cvig`, and `ca-sos-statements`. The registry in
+`apps/scraper/src/scrapers.ts` is authoritative. SCOTUS reads official opinion
+and order-opinion PDFs without a CourtListener token. Files under
+`scrapers/disabled/` are inactive. See the [scraper CLI
 guide](../apps/scraper/README.md#active-sources) for destinations and examples.
 
 ### Shared scraper variables
@@ -257,20 +267,22 @@ variable below. A once-daily schedule makes a per-run limit an effective daily
 limit; retries and additional invocations each receive a fresh allowance.
 
 | Variable                        | Default | Unit                                |
-| ------------------------------- | ------: | ----------------------------------- |
-| `FEDERALREGISTER_MAX_ITEMS`     |      20 | Federal Register documents          |
-| `CONGRESS_MAX_ITEMS`            |     100 | Congress.gov bills                  |
-| `SCOTUS_MAX_ITEMS`              |      50 | CourtListener opinion clusters      |
-| `SCC_CVIG_MAX_ITEMS`            |      10 | Santa Clara voter-guide PDFs        |
-| `CA_SOS_MAX_ITEMS`              |       9 | California SOS office pages         |
-| `OPEN_STATES_MAX_ITEMS`         |     100 | Open States bills, per state        |
-| `SCRAPER_MAX_NEW_ITEMS_PER_RUN` |      10 | New records receiving AI/image work |
+| ------------------------------- | ------- | ----------------------------------- |
+| `FEDERALREGISTER_MAX_ITEMS`     | 20      | Federal Register documents          |
+| `CONGRESS_MAX_ITEMS`            | 100     | Congress.gov bills                  |
+| `SCOTUS_MAX_ITEMS`              | 20      | Recent Supreme Court decisions      |
+| `SCC_CVIG_MAX_ITEMS`            | 10      | Santa Clara voter-guide PDFs        |
+| `CA_SOS_MAX_ITEMS`              | 9       | California SOS office pages         |
+| `OPEN_STATES_MAX_ITEMS`         | 100     | Open States bills, per state        |
+| `SCRAPER_MAX_NEW_ITEMS_PER_RUN` | 10      | New records receiving AI/image work |
 
-The last setting is an enrichment budget, not a source-fetch limit. Raw records
-beyond that enrichment budget are still stored and can be enriched later.
+The last setting is an enrichment budget, not a source-fetch limit. New content
+that cannot be enriched within the budget is deferred without publishing a raw
+row. Existing records can receive source updates while enrichment is deferred.
 
 `COURTLISTENER_API_KEY` is an authentication token despite its historical
-`*_API_KEY` name. Send it only to CourtListener and store it as a secret.
+`*_API_KEY` name. It is retained as a legacy environment declaration; the active
+SCOTUS adapter does not use it. Store any retained token as a secret.
 
 ### Scraper cost-reporting overrides
 
@@ -278,11 +290,11 @@ These do not alter provider billing; they only change the estimates printed by
 the scraper. Invalid, empty, or zero values fall back to the defaults shown.
 
 | Variable              | Default | Tracks                                                          |
-| --------------------- | ------: | --------------------------------------------------------------- |
-| `LLM_INPUT_PRICE`     |  `0.14` | DeepSeek V4 Flash input estimate ($/1M tokens, cache-miss rate) |
-| `LLM_OUTPUT_PRICE`    |  `0.28` | DeepSeek V4 Flash output estimate ($/1M tokens)                 |
-| `VISION_INPUT_PRICE`  |  `0.30` | Gemini 2.5 Flash vision input estimate ($/1M tokens)            |
-| `VISION_OUTPUT_PRICE` |  `2.50` | Gemini 2.5 Flash vision output estimate ($/1M tokens)           |
+| --------------------- | ------- | --------------------------------------------------------------- |
+| `LLM_INPUT_PRICE`     | `0.14`  | DeepSeek V4 Flash input estimate ($/1M tokens, cache-miss rate) |
+| `LLM_OUTPUT_PRICE`    | `0.28`  | DeepSeek V4 Flash output estimate ($/1M tokens)                 |
+| `VISION_INPUT_PRICE`  | `0.30`  | Gemini 2.5 Flash vision input estimate ($/1M tokens)            |
+| `VISION_OUTPUT_PRICE` | `2.50`  | Gemini 2.5 Flash vision output estimate ($/1M tokens)           |
 | `FLUX_IMAGE_PRICE`    | `0.015` | Cost estimate per generated BFL image                           |
 | `GOOGLE_SEARCH_PRICE` | `0.005` | Cost estimate per Custom Search request after the free quota    |
 

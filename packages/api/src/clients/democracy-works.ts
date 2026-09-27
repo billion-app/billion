@@ -9,7 +9,7 @@ import type {
   VoterInfoResponse,
 } from "../lib/civic";
 
-export const BALLOT_CACHE_VERSION = "democracy-works:v2:1";
+export const BALLOT_CACHE_VERSION = "democracy-works:v2:2";
 const BASE = "https://api.democracy.works/v2";
 const text = z.string().nullish();
 const candidate = z.object({
