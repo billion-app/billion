@@ -32,6 +32,17 @@ const WHITE = P.inkOnNight;
 const QUIET = P.quiet;
 const FAINT = hair[2];
 
+function tint(base: string, accent: string, amount: number) {
+  const channel = (offset: number) =>
+    Math.round(
+      parseInt(base.slice(offset, offset + 2), 16) * (1 - amount) +
+        parseInt(accent.slice(offset, offset + 2), 16) * amount,
+    )
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(1)}${channel(3)}${channel(5)}`;
+}
+
 function Text({
   x,
   y,
@@ -218,7 +229,7 @@ function Gate({
         width={13}
         height={88}
         rx={3}
-        fill={planes.hi}
+        fill={tint(planes.hi, color, 0.25)}
         stroke={WHITE}
         strokeWidth={1.5}
       />
@@ -228,7 +239,7 @@ function Gate({
         width={13}
         height={88}
         rx={3}
-        fill={planes.hi}
+        fill={tint(planes.hi, color, 0.25)}
         stroke={WHITE}
         strokeWidth={1.5}
       />
@@ -277,7 +288,7 @@ function Institution({
     <G>
       <Polygon
         points={`${x - half},${y - 27} ${x},${y - 57} ${x + half},${y - 27}`}
-        fill={planes.surface}
+        fill={court ? planes.surface : tint(planes.surface, color, 0.18)}
         stroke={court ? QUIET : color}
         strokeWidth={2}
       />
@@ -505,7 +516,7 @@ function PropositionArt({ activeStage }: { activeStage: number }) {
         cx={99}
         cy={489}
         r={22}
-        fill={P.canvas}
+        fill={tint(P.canvas, YES, 0.3)}
         stroke={YES}
         strokeWidth={2.5}
       />
@@ -516,7 +527,7 @@ function PropositionArt({ activeStage }: { activeStage: number }) {
         cx={294}
         cy={489}
         r={22}
-        fill={P.canvas}
+        fill={tint(P.canvas, NO, 0.3)}
         stroke={NO}
         strokeWidth={2.5}
       />
@@ -561,7 +572,7 @@ function PropositionArt({ activeStage }: { activeStage: number }) {
       <Track d="M 196 966 L 196 1009" color={LATER} />
       <Polygon
         points="196,1018 242,1065 196,1112 150,1065"
-        fill={planes.surface}
+        fill={tint(planes.surface, DECISION, 0.19)}
         stroke={DECISION}
         strokeWidth={2.5}
       />
@@ -605,7 +616,7 @@ function Budget({
         width={62}
         height={75}
         rx={5}
-        fill={planes.surface}
+        fill={tint(planes.surface, color, 0.16)}
         stroke={color}
         strokeWidth={2}
       />
@@ -654,7 +665,7 @@ function Bill({
         width={64}
         height={71}
         rx={5}
-        fill={planes.surface}
+        fill={tint(planes.surface, color, 0.16)}
         stroke={color}
         strokeWidth={2}
       />
@@ -688,13 +699,13 @@ function Appointment({
         cx={x}
         cy={y - 17}
         r={15}
-        fill={planes.surface}
+        fill={tint(planes.surface, color, 0.16)}
         stroke={color}
         strokeWidth={2}
       />
       <Path
         d={`M ${x - 32} ${y + 34} Q ${x - 29} ${y + 4} ${x} ${y + 4} Q ${x + 29} ${y + 4} ${x + 32} ${y + 34}`}
-        fill={planes.surface}
+        fill={tint(planes.surface, color, 0.16)}
         stroke={color}
         strokeWidth={2}
       />
