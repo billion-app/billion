@@ -142,15 +142,26 @@ export function parseGuideCandidates(
     return [];
   const $ = load(html);
   const candidates: OfficialGuidePayload["candidates"] = [];
-  $("section[role=main] h2").each((_, el) => {
-    const name = clean($(el).text()).split("|")[0]?.trim();
-    if (!name || !$(el).text().includes("|")) return;
+  // Candidate columns include partisan and nonpartisan headings. A party
+  // separator is not required (e.g. Superintendent of Public Instruction).
+  const entries = $("section[role=main] .grid-70");
+  if (!entries.length)
+    throw new Error(`No candidate entries parsed: ${sourceUrl}`);
+  entries.each((_, entry) => {
+    const heading = $(entry).children("h2");
+    if (heading.length !== 1)
+      throw new Error(`Unrecognized candidate heading: ${sourceUrl}`);
+    const name = clean(heading.text()).split("|")[0]?.trim();
+    if (!name) throw new Error(`Missing candidate name: ${sourceUrl}`);
     // Candidate prose is contained in the heading's own column, not the next candidate or footer.
-    const paragraphs = $(el)
+    const paragraphs = heading
       .nextUntil("h2")
       .filter("p")
       .toArray()
       .map((p) => clean($(p).text()));
+    // An explicit absence is valid. Missing/unrecognized markup is not proof
+    // that a candidate declined to submit a statement; abort the cache refresh.
+    if (paragraphs.some((p) => /^No candidate statement\.?$/i.test(p))) return;
     const statement = paragraphs
       .filter(
         (p) =>
@@ -159,7 +170,10 @@ export function parseGuideCandidates(
           ) && !/\b(?:Tel:|E-mail:|Email:)\s*/i.test(p),
       )
       .join("\n\n");
-    if (statement.length < 40 || statement.length > 30_000) return;
+    if (statement.length < 40 || statement.length > 30_000)
+      throw new Error(
+        `Unrecognized candidate statement for ${name}: ${sourceUrl}`,
+      );
     candidates.push({
       name,
       officeSlug:

@@ -139,3 +139,45 @@ test("a same-year primary law link is not a general-election full text", () => {
   const html = measure.replaceAll("/2026/general/", "/2026/primary/");
   assert.equal(parseGuideMeasure(html, url, date)?.fullTextUrl, undefined);
 });
+
+test("collector rejects a date-matched candidate page whose statement markup is missing", async () => {
+  const candidateUrl = `${GUIDE_BASE}/candidates/governor-candidate-statements.htm`;
+  const index = `<div id="txtBnr">November 3, 2026</div>`;
+  for (const broken of [
+    index,
+    governor.replaceAll("No candidate statement&#46;", ""),
+    governor.replaceAll("<h2>", "<h3>").replaceAll("</h2>", "</h3>"),
+  ]) {
+    await assert.rejects(
+      collectOfficialGuide(date, 40, async (source) => {
+        if (source.endsWith("/propositions/"))
+          return `${index}<a href="/propositions/42/">42</a>`;
+        if (source.endsWith("/candidates/"))
+          return `${index}<a href="${candidateUrl}">Governor</a>`;
+        return source === candidateUrl ? broken : measure;
+      }),
+      /candidate/i,
+    );
+  }
+});
+
+test("nonpartisan candidate headings supply statements without treating the office label as a candidate", () => {
+  // Same column/heading structure as the official superintendent page.
+  const statement =
+    "I will serve students and families throughout California with accountable public schools.";
+  const html = `<div id="txtBnr">November 3, 2026</div>
+    <section role="main"><div id="mainCont"><h2>(Nonpartisan Office)</h2></div>
+      <div class="grid-parent"><div class="grid-70"><h2>Example Candidate</h2>
+        <p>${statement}</p><p>Tel: 555-0100</p>
+      </div></div>
+    </section>`;
+  const result = parseGuideCandidates(
+    html,
+    `${GUIDE_BASE}/candidates/superintendent-candidate-statements.htm`,
+    date,
+  );
+  assert.equal(result.length, 1);
+  assert.equal(result[0]?.name, "Example Candidate");
+  assert.equal(result[0]?.officeSlug, "superintendent");
+  assert.equal(result[0]?.statement, statement);
+});

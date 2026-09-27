@@ -99,8 +99,10 @@ California Secretary of State guide. It preserves official summaries, fiscal
 impacts, published pro/con summaries, candidate statements and proposed-law PDF
 links. Set `CA_GUIDE_ELECTION_DATE` to the exact election date. Every source page
 must carry that date in its election banner. An incomplete bounded sample cannot
-replace the stored collection. The source may omit statements for candidates
-who did not submit one.
+replace the stored collection. Candidate columns are parsed for both partisan
+and nonpartisan offices. An explicit “No candidate statement” notice is valid;
+missing or unrecognized candidate markup aborts the refresh so it cannot erase
+stored statements.
 
 `ca-election-logistics` discovers upcoming California election pages and reads
 their key-dates tables. It stores the published date wording and guidance with
