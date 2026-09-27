@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,255 +9,96 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import type {
-  GovernanceExample,
-  GovernanceMap,
-  GovernanceNode,
-} from "~/utils/governance-map";
+import type { GovernanceExample, GovernanceNode } from "~/utils/governance-map";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { GovernanceScene } from "~/components/GovernanceScene";
 import { NavHeader } from "~/components/ui";
 import { Icon } from "~/components/ui/Icon";
 import {
   fontBody,
   fontDisplay,
   fontEditorial,
+  hair,
   DigestPalette as P,
   planes,
 } from "~/styles";
 import { governanceMaps } from "~/utils/governance-map";
 
-function node(map: GovernanceMap, id: string) {
-  const found = map.nodes.find((item) => item.id === id);
-  if (!found) throw new Error(`Missing governance node: ${id}`);
-  return found;
-}
-
-function sourceLabel(map: GovernanceMap, item: GovernanceNode) {
-  return (
-    map.sources.find((source) => source.id === item.source)?.label ??
-    "Official source"
-  );
-}
-
-function Connector({ label }: { label?: string }) {
-  return (
-    <View style={s.connector} accessible={false}>
-      <View style={s.connectorLine} />
-      {label && <Text style={s.connectorLabel}>{label}</Text>}
-      <Icon name="arrowDown" size={14} color={P.quiet} />
-    </View>
-  );
-}
-
-function DiagramPoint({
-  label,
-  note,
-  kind,
-  active,
-  onPress,
-}: {
-  label: string;
-  note?: string;
-  kind: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${kind}. ${label}${note ? `. ${note}` : ""}. ${active ? "Hide" : "Show"} source detail`}
-      accessibilityState={{ expanded: active }}
-      onPress={onPress}
-      style={[s.point, active && s.pointActive]}
-    >
-      <Text style={s.pointKind}>{kind}</Text>
-      <Text style={s.pointTitle}>{label}</Text>
-      {note && <Text style={s.pointNote}>{note}</Text>}
-    </Pressable>
-  );
-}
-
-function OfficeDiagram({
-  map,
-  selected,
-  select,
-  stacked,
-}: {
-  map: GovernanceMap;
-  selected: string | null;
-  select: (id: string) => void;
-  stacked: boolean;
-}) {
-  const lanes = [
-    {
-      power: "budget",
-      check: "legislature",
-      action: "Proposes budget",
-      limit: "Legislature approves spending",
-    },
-    {
-      power: "law",
-      check: "legislature",
-      action: "Signs or vetoes bills",
-      limit: "Legislature passes bills or overrides veto",
-    },
-    {
-      power: "appointments",
-      check: "confirmation",
-      action: "Appoints officials",
-      limit: "Senate confirms some appointments",
-    },
-  ] as const;
-  return (
-    <View>
-      <View style={s.origin}>
-        <View style={s.iconTile}>
-          <Icon name="vote" size={17} color={P.primary} />
-        </View>
-        <Text style={s.originText}>Voters elect a Governor</Text>
-        <Text style={s.originMeta}>4-year term</Text>
-      </View>
-      <Connector label="OFFICE POWERS & CHECKS" />
-      <View style={s.diagram}>
-        {!stacked && (
-          <View style={s.officeHead}>
-            <Text style={s.columnHead}>GOVERNOR CAN</Text>
-            <Text style={s.columnHead}>OTHER INSTITUTIONS</Text>
-          </View>
-        )}
-        {lanes.map((lane, index) => (
-          <View
-            key={lane.power}
-            style={[
-              s.lane,
-              stacked && s.laneStacked,
-              index > 0 && s.laneBorder,
-            ]}
-          >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${lane.action}. ${node(map, lane.power).detail}. Show source detail`}
-              accessibilityState={{ expanded: selected === lane.power }}
-              onPress={() => select(lane.power)}
-              style={s.laneSide}
-            >
-              {stacked && (
-                <Text style={[s.columnHead, s.stackedColumnHead]}>
-                  GOVERNOR CAN
-                </Text>
-              )}
-              <Text style={s.laneAction}>{lane.action}</Text>
-            </Pressable>
-            <Icon
-              name={stacked ? "arrowDown" : "arrowRight"}
-              size={16}
-              color={P.primary}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${lane.limit}. ${node(map, lane.check).detail}. Show source detail`}
-              accessibilityState={{ expanded: selected === lane.check }}
-              onPress={() => select(lane.check)}
-              style={s.laneSide}
-            >
-              {stacked && (
-                <Text style={[s.columnHead, s.stackedColumnHead]}>
-                  OTHER INSTITUTIONS
-                </Text>
-              )}
-              <Text style={s.laneLimit}>{lane.limit}</Text>
-            </Pressable>
-          </View>
-        ))}
-      </View>
-      <Text style={s.diagramHint}>
-        Tap a power or check for its rule and source.
-      </Text>
-    </View>
-  );
-}
-
-function MeasureDiagram({
-  map,
-  selected,
-  select,
-  stacked,
-}: {
-  map: GovernanceMap;
-  selected: string | null;
-  select: (id: string) => void;
-  stacked: boolean;
-}) {
-  return (
-    <View>
-      <DiagramPoint
-        kind="CURRENT RULE"
-        label="Most public campaign funding is banned"
-        note="Some charter cities are exceptions"
-        active={selected === "current"}
-        onPress={() => select("current")}
-      />
-      <Connector label="IF THE MEASURE PASSES OR FAILS" />
-      <View style={[s.branches, stacked && s.branchesStacked]}>
-        <View style={s.branch}>
-          <DiagramPoint
-            kind="IF YES PASSES"
-            label="Ban lifts"
-            note="Programs become possible, within limits"
-            active={selected === "yes"}
-            onPress={() => select("yes")}
-          />
-          <View style={s.branchTail}>
-            <Icon name="arrowDown" size={14} color={P.primary} />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Later decision. ${node(map, "next").detail}. Show source detail`}
-              accessibilityState={{ expanded: selected === "next" }}
-              onPress={() => select("next")}
-            >
-              <Text style={s.tailTitle}>Later decision</Text>
-              <Text style={s.tailNote}>Any program needs later approval</Text>
-            </Pressable>
-          </View>
-        </View>
-        <View style={s.branch}>
-          <DiagramPoint
-            kind="IF MEASURE FAILS"
-            label="Ban stays"
-            note="Existing rule remains for most governments"
-            active={selected === "no"}
-            onPress={() => select("no")}
-          />
-        </View>
-      </View>
-      <Text style={s.diagramHint}>
-        A Yes result permits later action; it does not create a program.
-      </Text>
-    </View>
-  );
-}
+const STAGES = {
+  governor: [
+    { label: "Ballots", y: 0 },
+    { label: "Office", y: 410 },
+    { label: "Checks", y: 900 },
+  ],
+  "prop-4-2026": [
+    { label: "Ballots", y: 0 },
+    { label: "Result", y: 420 },
+    { label: "Later choice", y: 765 },
+  ],
+} as const;
 
 export default function GovernanceMapScreen() {
   const router = useRouter();
-  const { example, view } = useLocalSearchParams<{
+  const { example, view, stage } = useLocalSearchParams<{
     example?: string;
     view?: string;
+    stage?: string;
   }>();
   const selected: GovernanceExample =
     example === "prop-4-2026" ? "prop-4-2026" : "governor";
+  const map = governanceMaps[selected];
+  const { width, fontScale } = useWindowDimensions();
+  const textRequired = width < 370 || fontScale >= 1.3;
   const [modeState, setModeState] = useState({
     view,
     textMode: view === "text",
   });
   const textMode =
-    modeState.view === view ? modeState.textMode : view === "text";
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const { width, fontScale } = useWindowDimensions();
-  const map = governanceMaps[selected];
-  const activeNode = map.nodes.find((item) => item.id === selectedNode);
-  const selectNode = (id: string) =>
-    setSelectedNode((current) => (current === id ? null : id));
+    textRequired ||
+    (modeState.view === view ? modeState.textMode : view === "text");
+  const initialStage = stage === "3" ? 2 : stage === "2" ? 1 : 0;
+  const [activeStage, setActiveStage] = useState(initialStage);
+  const [activeNode, setActiveNode] = useState<GovernanceNode | null>(null);
+  const scroll = useRef<ScrollView>(null);
+  const artTop = useRef(0);
+  const didInitialScroll = useRef(false);
+  const stages = STAGES[selected];
+  const scale = width / 393;
+  const labels = Object.fromEntries(
+    map.nodes.map((item) => [item.id, item.label]),
+  );
+  const source = activeNode
+    ? map.sources.find((item) => item.id === activeNode.source)
+    : undefined;
+
+  useEffect(() => {
+    if (textMode) {
+      scroll.current?.scrollTo({ y: 0, animated: false });
+      return;
+    }
+    if (!artTop.current) return;
+    requestAnimationFrame(() => {
+      setActiveStage(initialStage);
+      scroll.current?.scrollTo({
+        y:
+          initialStage === 0
+            ? 0
+            : artTop.current + stages[initialStage].y * scale - 20,
+        animated: false,
+      });
+    });
+  }, [stage, selected, width, textMode, initialStage, scale, stages]);
+
+  function goToStage(index: number) {
+    setActiveStage(index);
+    scroll.current?.scrollTo({
+      y:
+        index === 0 ? 0 : artTop.current + (stages[index]?.y ?? 0) * scale - 20,
+      animated: false,
+    });
+  }
+
   return (
     <View style={s.screen}>
       <NavHeader
@@ -264,386 +106,267 @@ export default function GovernanceMapScreen() {
         tone="dark"
         onBack={() => router.back()}
       />
-      <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.eyebrow}>{map.eyebrow}</Text>
-        <Text accessibilityRole="header" style={s.title}>
-          {map.title}
-        </Text>
-        <Text style={s.takeaway}>{map.takeaway}</Text>
-        <View style={s.switchRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected: !textMode }}
-            onPress={() => setModeState({ view, textMode: false })}
-            style={[s.mode, !textMode && s.activeMode]}
-          >
-            <Text style={[s.modeText, !textMode && s.activeModeText]}>Map</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected: textMode }}
-            onPress={() => setModeState({ view, textMode: true })}
-            style={[s.mode, textMode && s.activeMode]}
-          >
-            <Text style={[s.modeText, textMode && s.activeModeText]}>
-              Text version
-            </Text>
-          </Pressable>
-        </View>
-        <View style={s.sectionRow}>
-          <Text accessibilityRole="header" style={s.sectionTitle}>
-            {selected === "governor"
-              ? "Who holds the power"
-              : "What each result changes"}
+      <ScrollView
+        ref={scroll}
+        scrollEventThrottle={32}
+        onScroll={(event) => {
+          if (textMode) return;
+          const y = event.nativeEvent.contentOffset.y - artTop.current;
+          const next =
+            y >= stages[2].y * scale - 160
+              ? 2
+              : y >= stages[1].y * scale - 140
+                ? 1
+                : 0;
+          setActiveStage((current) => (current === next ? current : next));
+        }}
+        contentContainerStyle={s.content}
+      >
+        <View style={s.intro}>
+          <Text style={s.eyebrow}>{map.eyebrow}</Text>
+          <Text accessibilityRole="header" style={s.title}>
+            {map.title}
           </Text>
-          <Text style={s.sectionMeta}>OFFICIAL RULES</Text>
+          <Text style={s.subtitle}>{map.takeaway}</Text>
+          <View style={s.modeRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{
+                selected: !textMode,
+                disabled: textRequired,
+              }}
+              disabled={textRequired}
+              onPress={() => setModeState({ view, textMode: false })}
+              style={[s.mode, !textMode && s.modeActive]}
+            >
+              <Text style={[s.modeLabel, !textMode && s.modeLabelActive]}>
+                Visual map
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: textMode }}
+              onPress={() => setModeState({ view, textMode: true })}
+              style={[s.mode, textMode && s.modeActive]}
+            >
+              <Text style={[s.modeLabel, textMode && s.modeLabelActive]}>
+                Text version
+              </Text>
+            </Pressable>
+          </View>
+          {!textMode && (
+            <Text style={s.tapHint}>
+              Tap a landmark to read its rule and official source.
+            </Text>
+          )}
+          {textRequired && (
+            <Text style={s.adaptiveNote}>
+              Text version is shown at this display size for legibility.
+            </Text>
+          )}
         </View>
         {textMode ? (
-          <View style={s.textCard}>
+          <View style={s.textVersion}>
+            <Text style={s.textIntro}>
+              Each step names its official source. These are conditional rules,
+              not a prediction.
+            </Text>
             {map.nodes.map((item, index) => (
               <View
                 key={item.id}
-                style={[s.textItem, index > 0 && s.textItemBorder]}
+                style={[s.textItem, index > 0 && s.textBorder]}
               >
                 <Text accessibilityRole="header" style={s.textHeading}>
                   {item.label}
                 </Text>
-                <Text style={s.detail}>{item.detail}</Text>
-                <Text style={s.source}>Source: {sourceLabel(map, item)}</Text>
+                <Text style={s.textBody}>{item.detail}</Text>
+                <Text style={s.attribution}>
+                  Source:{" "}
+                  {map.sources.find((entry) => entry.id === item.source)?.label}
+                </Text>
               </View>
             ))}
           </View>
         ) : (
           <>
-            {selected === "governor" ? (
-              <OfficeDiagram
-                map={map}
-                selected={selectedNode}
-                select={selectNode}
-                stacked={width < 370 || fontScale > 1.15}
+            <View
+              onLayout={(event) => {
+                artTop.current = event.nativeEvent.layout.y;
+                if (initialStage > 0 && !didInitialScroll.current) {
+                  didInitialScroll.current = true;
+                  requestAnimationFrame(() => goToStage(initialStage));
+                }
+              }}
+            >
+              <GovernanceScene
+                example={selected}
+                width={width}
+                activeStage={activeStage}
+                accessibilityLabels={labels}
+                onSelect={(id) =>
+                  setActiveNode(
+                    map.nodes.find((item) => item.id === id) ?? null,
+                  )
+                }
               />
-            ) : (
-              <MeasureDiagram
-                map={map}
-                selected={selectedNode}
-                select={selectNode}
-                stacked={width < 370 || fontScale > 1.15}
-              />
-            )}
-            {activeNode && (
-              <View style={s.disclosure}>
-                <Text style={s.disclosureTitle}>{activeNode.label}</Text>
-                <Text style={s.detail}>{activeNode.detail}</Text>
-                <Text style={s.source}>
-                  Source: {sourceLabel(map, activeNode)}
-                </Text>
-              </View>
-            )}
+            </View>
+            <View style={s.mapEnd}>
+              <Icon name="info" size={16} color={P.quiet} />
+              <Text style={s.limit}>{map.caveat}</Text>
+            </View>
           </>
         )}
-        <View style={s.note}>
-          <Icon name="info" size={16} color={P.quiet} />
-          <View style={s.noteContent}>
-            <Text accessibilityRole="header" style={s.noteTitle}>
-              What this does not promise
-            </Text>
-            <Text style={s.noteBody}>{map.caveat}</Text>
+        <View style={s.sources}>
+          <Text accessibilityRole="header" style={s.sourcesHeading}>
+            Official sources
+          </Text>
+          {map.sources.map((item) => (
+            <SourceLink key={item.id} label={item.label} url={item.url} />
+          ))}
+          <Text style={s.footer}>
+            Reviewed California 2026 teaching example. Formal rules do not
+            predict the result.
+          </Text>
+        </View>
+      </ScrollView>
+      {!textMode && (
+        <View style={s.stageDock} accessibilityLabel="Map stages">
+          {stages.map((item, index) => (
+            <Pressable
+              key={item.label}
+              accessibilityRole="button"
+              accessibilityLabel={`Stage ${index + 1}: ${item.label}`}
+              accessibilityState={{ selected: activeStage === index }}
+              onPress={() => goToStage(index)}
+              style={[
+                s.stageButton,
+                activeStage === index && s.stageButtonActive,
+              ]}
+            >
+              <Text
+                style={[
+                  s.stageNumber,
+                  activeStage === index && s.stageNumberActive,
+                ]}
+              >
+                {index + 1}
+              </Text>
+              <Text
+                style={[
+                  s.stageLabel,
+                  activeStage === index && s.stageLabelActive,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      <Modal
+        visible={Boolean(activeNode)}
+        transparent
+        animationType="none"
+        onRequestClose={() => setActiveNode(null)}
+      >
+        <View style={s.modalShade}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            accessible={false}
+            onPress={() => setActiveNode(null)}
+          />
+          <View style={s.detailSheet}>
+            <View style={s.detailTop}>
+              <Text style={s.detailKicker}>
+                OFFICIAL RULE · TAP POINT ON MAP
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close detail"
+                onPress={() => setActiveNode(null)}
+                style={s.closeButton}
+              >
+                <Icon name="close" size={19} color={P.inkOnNight} />
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={s.detailContents}>
+              <Text accessibilityRole="header" style={s.detailTitle}>
+                {activeNode?.label}
+              </Text>
+              <Text style={s.detailBody}>{activeNode?.detail}</Text>
+              {source && <SourceLink label={source.label} url={source.url} />}
+            </ScrollView>
           </View>
         </View>
-        <Text accessibilityRole="header" style={s.sourcesTitle}>
-          Official sources
-        </Text>
-        {map.sources.map((source) => (
-          <SourceLink key={source.id} label={source.label} url={source.url} />
-        ))}
-        <Text style={s.footer}>
-          Reviewed example for California’s November 2026 election. Formal rules
-          do not predict an outcome.
-        </Text>
-      </ScrollView>
+      </Modal>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: P.canvas },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 70,
-    gap: 12,
-  },
+  content: { paddingBottom: 32 },
+  intro: { paddingHorizontal: 20, paddingTop: 14, gap: 8 },
   eyebrow: {
     color: P.quiet,
     fontFamily: fontBody.bold,
     fontSize: 10,
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
   },
   title: {
     color: P.inkOnNight,
     fontFamily: fontDisplay.bold,
-    fontSize: 29,
-    lineHeight: 35,
+    fontSize: 27,
+    lineHeight: 34,
   },
-  takeaway: {
+  subtitle: {
     color: P.inkOnNight,
     fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  switchRow: {
-    flexDirection: "row",
-    padding: 3,
-    borderRadius: 11,
-    backgroundColor: P.stone,
-    borderWidth: 1,
-    borderColor: P.border,
-    marginTop: 2,
-  },
-  mode: {
-    flex: 1,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-  },
-  activeMode: {
-    backgroundColor: P.card,
-    borderWidth: 1,
-    borderColor: P.primary,
-  },
-  modeText: { color: P.quiet, fontFamily: fontBody.semibold, fontSize: 13 },
-  activeModeText: { color: P.inkOnNight },
-  sectionRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    marginTop: 4,
-    gap: 8,
-  },
-  sectionTitle: {
-    color: P.inkOnNight,
-    fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    flexShrink: 1,
-  },
-  sectionMeta: {
-    color: P.quiet,
-    fontFamily: fontBody.bold,
-    fontSize: 9,
-    letterSpacing: 0.8,
-  },
-  origin: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: P.border,
-    borderRadius: 12,
-    backgroundColor: P.card,
-  },
-  iconTile: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: planes.surface,
-    borderRadius: 8,
-  },
-  originText: {
-    flex: 1,
-    color: P.inkOnNight,
-    fontFamily: fontEditorial.bold,
-    fontSize: 16,
-  },
-  originMeta: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 11 },
-  connector: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 2,
-    paddingVertical: 4,
-  },
-  connectorLine: { height: 12, width: 1, backgroundColor: P.primary },
-  connectorLabel: {
-    color: P.quiet,
-    fontFamily: fontBody.bold,
-    fontSize: 9,
-    letterSpacing: 0.8,
-  },
-  diagram: {
-    backgroundColor: P.card,
-    borderWidth: 1,
-    borderColor: P.border,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  officeHead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: P.border,
-  },
-  columnHead: {
-    width: "45%",
-    color: P.quiet,
-    fontFamily: fontBody.bold,
-    fontSize: 9,
-    letterSpacing: 0.7,
-  },
-  stackedColumnHead: { width: "100%" },
-  lane: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    minHeight: 73,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  laneStacked: { flexDirection: "column", alignItems: "stretch", gap: 4 },
-  laneBorder: { borderTopWidth: 1, borderTopColor: P.border },
-  laneSide: { flex: 1, minHeight: 44, justifyContent: "center" },
-  laneAction: {
-    color: P.inkOnNight,
-    fontFamily: fontEditorial.bold,
-    fontSize: 15,
+    fontSize: 13,
     lineHeight: 19,
   },
-  laneLimit: {
-    color: P.inkOnNight,
-    fontFamily: fontBody.medium,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  diagramHint: {
-    color: P.quiet,
-    fontFamily: fontBody.regular,
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 7,
-  },
-  point: {
-    backgroundColor: P.card,
-    borderWidth: 1,
-    borderColor: P.border,
-    borderRadius: 12,
-    padding: 13,
-    minHeight: 82,
-  },
-  pointActive: { borderColor: P.primary },
-  pointKind: {
-    color: P.primary,
-    fontFamily: fontBody.bold,
-    fontSize: 10,
-    letterSpacing: 0.8,
-  },
-  pointTitle: {
-    color: P.inkOnNight,
-    fontFamily: fontEditorial.bold,
-    fontSize: 16,
-    lineHeight: 21,
-    marginTop: 4,
-  },
-  pointNote: {
-    color: P.quiet,
-    fontFamily: fontBody.regular,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 3,
-  },
-  branches: { flexDirection: "row", gap: 10 },
-  branchesStacked: { flexDirection: "column" },
-  branch: { flex: 1 },
-  branchTail: {
-    marginLeft: 12,
-    paddingLeft: 13,
-    paddingVertical: 6,
-    borderLeftWidth: 1,
-    borderLeftColor: P.primary,
-    flexDirection: "row",
+  modeRow: { flexDirection: "row", gap: 8, marginTop: 8, marginBottom: 2 },
+  mode: {
+    minHeight: 44,
+    borderBottomWidth: 1,
+    borderBottomColor: hair[2],
     alignItems: "center",
-    gap: 7,
+    justifyContent: "center",
+    flex: 1,
   },
-  tailTitle: {
-    color: P.inkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 12,
-  },
-  tailNote: {
+  modeActive: { borderBottomWidth: 3, borderBottomColor: P.primary },
+  modeLabel: { color: P.quiet, fontFamily: fontBody.semibold, fontSize: 13 },
+  modeLabelActive: { color: P.inkOnNight },
+  adaptiveNote: { color: P.quiet, fontFamily: fontBody.regular, fontSize: 12 },
+  tapHint: {
     color: P.quiet,
     fontFamily: fontBody.regular,
     fontSize: 11,
     lineHeight: 16,
   },
-  disclosure: {
-    backgroundColor: P.card,
-    borderWidth: 1,
-    borderColor: P.primary,
-    borderRadius: 12,
-    padding: 14,
-    gap: 7,
-  },
-  disclosureTitle: {
-    color: P.inkOnNight,
-    fontFamily: fontEditorial.bold,
-    fontSize: 16,
-  },
-  detail: {
-    color: P.inkOnNight,
-    fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  source: {
-    color: P.quiet,
-    fontFamily: fontBody.regular,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  textCard: {
-    backgroundColor: P.card,
-    borderWidth: 1,
-    borderColor: P.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-  },
-  textItem: { gap: 6, paddingVertical: 13 },
-  textItemBorder: { borderTopWidth: 1, borderTopColor: P.border },
-  textHeading: {
-    color: P.inkOnNight,
-    fontFamily: fontEditorial.bold,
-    fontSize: 16,
-  },
-  note: {
-    flexDirection: "row",
+  mapEnd: {
+    marginHorizontal: 20,
+    marginBottom: 18,
+    padding: 12,
     gap: 10,
-    padding: 14,
+    flexDirection: "row",
     borderWidth: 1,
-    borderColor: P.border,
-    borderRadius: 12,
-    backgroundColor: P.card,
+    borderColor: hair[2],
+    backgroundColor: planes.slate,
   },
-  noteContent: { flex: 1, gap: 4 },
-  noteTitle: {
-    color: P.inkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 13,
-  },
-  noteBody: {
+  limit: {
+    flex: 1,
     color: P.quiet,
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 18,
   },
-  sourcesTitle: {
+  sources: { paddingHorizontal: 20, gap: 8, paddingBottom: 18 },
+  sourcesHeading: {
     color: P.inkOnNight,
     fontFamily: fontEditorial.bold,
-    fontSize: 16,
-    marginTop: 4,
+    fontSize: 17,
+    marginBottom: 4,
   },
   footer: {
     color: P.quiet,
@@ -651,5 +374,105 @@ const s = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     marginTop: 6,
+  },
+  textVersion: {
+    marginHorizontal: 20,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    paddingHorizontal: 15,
+    marginTop: 18,
+  },
+  textIntro: {
+    color: P.quiet,
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    paddingTop: 14,
+    paddingBottom: 8,
+  },
+  textItem: { paddingVertical: 15, gap: 6 },
+  textBorder: { borderTopWidth: 1, borderTopColor: hair[2] },
+  textHeading: {
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 16,
+  },
+  textBody: {
+    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  attribution: {
+    color: P.quiet,
+    fontFamily: fontBody.regular,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  stageDock: {
+    flexDirection: "row",
+    backgroundColor: planes.slate,
+    borderTopWidth: 1,
+    borderTopColor: hair[2],
+    paddingHorizontal: 12,
+    paddingTop: 5,
+    paddingBottom: 8,
+  },
+  stageButton: {
+    flex: 1,
+    minHeight: 45,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 5,
+  },
+  stageButtonActive: { borderTopWidth: 2, borderTopColor: P.primary },
+  stageNumber: { color: P.quiet, fontFamily: fontBody.bold, fontSize: 11 },
+  stageNumberActive: { color: P.primary },
+  stageLabel: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 12 },
+  stageLabelActive: { color: P.inkOnNight },
+  modalShade: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.62)",
+  },
+  detailSheet: {
+    maxHeight: "85%",
+    backgroundColor: planes.slate,
+    borderTopWidth: 1,
+    borderTopColor: hair[3],
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 10,
+  },
+  detailContents: { gap: 11, paddingBottom: 28 },
+  detailTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  detailKicker: {
+    color: P.quiet,
+    fontFamily: fontBody.bold,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailTitle: {
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 21,
+  },
+  detailBody: {
+    color: P.inkOnNight,
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 21,
   },
 });

@@ -21,7 +21,7 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
     title: "California Governor",
     eyebrow: "2026 STATEWIDE OFFICE · FOUR-YEAR TERM",
     takeaway:
-      "Voters choose the state’s chief executive. Lawmakers check key powers.",
+      "Voters choose the next state chief executive. The new term begins January 4, 2027; lawmakers check key powers.",
     caveat:
       "A candidate’s promises describe goals, not powers or guaranteed results. Election results depend on all votes cast and certified.",
     nodes: [
@@ -29,8 +29,24 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
         id: "vote",
         label: "Voters elect a Governor",
         detail:
-          "The statewide election selects an officeholder for a four-year term, subject to the constitutional two-term limit.",
+          "Eligible ballots contribute to a statewide count. One ballot does not decide the result.",
         kind: "choice",
+        source: "results",
+      },
+      {
+        id: "result",
+        label: "Certified statewide result",
+        detail:
+          "County canvasses feed the official statewide result, which the Secretary of State certifies after counting is complete.",
+        kind: "condition",
+        source: "results",
+      },
+      {
+        id: "office",
+        label: "Winning candidate takes office January 4, 2027",
+        detail:
+          "The winning candidate's term begins the Monday after January 1 following the election: January 4, 2027. The Governor is the state's chief executive for a four-year term, subject to the constitutional two-term limit.",
+        kind: "power",
         source: "constitution",
       },
       {
@@ -73,12 +89,26 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
         kind: "check",
         source: "confirmation",
       },
+      {
+        id: "courts",
+        label: "Courts resolve legal disputes",
+        detail:
+          "California courts are a separate branch that interprets and applies law in cases brought before them. Court review is not automatic after each Governor decision.",
+        kind: "check",
+        source: "courts",
+      },
     ],
     sources: [
       {
+        id: "results",
+        label: "California Secretary of State: election results and canvass",
+        url: "https://voterguide.sos.ca.gov/voter-info/election-results.htm",
+      },
+      {
         id: "constitution",
-        label: "California Constitution, Articles IV and V",
-        url: "https://leginfo.legislature.ca.gov/faces/codesTOCSelected.xhtml?tocCode=CONS",
+        label:
+          "California Constitution, Articles IV and V (Governor term: Article V, Section 2)",
+        url: "https://clerk.assembly.ca.gov/sites/clerk.assembly.ca.gov/files/2023-24_Constitution_Final_wCover.pdf",
       },
       {
         id: "budget",
@@ -95,16 +125,29 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
         label: "California Government Code §1774",
         url: "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?sectionNum=1774.&lawCode=GOV",
       },
+      {
+        id: "courts",
+        label: "Judicial Branch of California: independence and accountability",
+        url: "https://courts.ca.gov/goal-ii-independence-and-accountability",
+      },
     ],
   },
   "prop-4-2026": {
     title: "Proposition 4",
     eyebrow: "NOVEMBER 2026 · STATEWIDE MEASURE",
     takeaway:
-      "A Yes result would lift a ban. Later officials would decide whether to create a public campaign financing program.",
+      "Proposition 4 concerns public funding of candidate campaigns. Yes would lift a ban; officials would still decide later whether to create a program.",
     caveat:
       "Neither choice creates or funds a program on election night. Any program would require later decisions and must follow the measure’s limits.",
     nodes: [
+      {
+        id: "vote",
+        label: "Ballots join the statewide count",
+        detail:
+          "Eligible ballots contribute to the statewide count. The result depends on all votes cast and the official canvass, not one reader's choice.",
+        kind: "choice",
+        source: "results",
+      },
       {
         id: "current",
         label: "Current rule",
@@ -112,6 +155,14 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
           "State law bans public funds for most state and local candidate campaigns. Some charter cities are exceptions.",
         kind: "choice",
         source: "lao",
+      },
+      {
+        id: "result",
+        label: "Certified statewide result",
+        detail:
+          "After counties canvass ballots, the Secretary of State certifies the statewide result. The map shows conditional paths, not a prediction.",
+        kind: "condition",
+        source: "results",
       },
       {
         id: "yes",
@@ -137,8 +188,29 @@ export const governanceMaps: Record<GovernanceExample, GovernanceMap> = {
         kind: "check",
         source: "lao",
       },
+      {
+        id: "adopt",
+        label: "Officials could adopt a program later",
+        detail:
+          "If the measure passes, a state or local government could later design and approve a qualifying public campaign financing program within the measure's limits.",
+        kind: "condition",
+        source: "lao",
+      },
+      {
+        id: "decline",
+        label: "Officials could decide not to adopt one",
+        detail:
+          "Lifting the ban would permit future programs but would not require a government to create or fund one.",
+        kind: "condition",
+        source: "lao",
+      },
     ],
     sources: [
+      {
+        id: "results",
+        label: "California Secretary of State: election results and canvass",
+        url: "https://voterguide.sos.ca.gov/voter-info/election-results.htm",
+      },
       {
         id: "lao",
         label: "Legislative Analyst’s Office: Proposition 4 analysis",
