@@ -165,6 +165,10 @@ export default function ContestDetailScreen() {
       ? new Set([`${candidates[0].name}-0`])
       : new Set(),
   );
+  const [failedContact, setFailedContact] = useState<{
+    candidateKey: string;
+    label: string;
+  } | null>(null);
   const [query, setQuery] = useState("");
   const [hasStatementOnly, setHasStatementOnly] = useState(false);
   const [activeParty, setActiveParty] = useState<string | null>(null);
@@ -290,8 +294,8 @@ export default function ContestDetailScreen() {
               />
               <View style={s.filterOptions}>
                 <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: hasStatementOnly }}
+                  accessibilityRole="checkbox"
+                  aria-checked={hasStatementOnly}
                   style={[s.filterOption, hasStatementOnly && s.filterSelected]}
                   onPress={() => setHasStatementOnly((v) => !v)}
                 >
@@ -301,8 +305,8 @@ export default function ContestDetailScreen() {
                   partyOptions.map((p) => (
                     <Pressable
                       key={p}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: activeParty === p }}
+                      accessibilityRole="checkbox"
+                      aria-checked={activeParty === p}
                       style={[
                         s.filterOption,
                         activeParty === p && s.filterSelected,
@@ -362,25 +366,25 @@ export default function ContestDetailScreen() {
                   icon: "globe" as const,
                   label: "Website",
                   value: candidateUrl,
-                  onPress: () => void Linking.openURL(candidateUrl),
+                  onPress: () => Linking.openURL(candidateUrl),
                 },
                 cand.phone && {
                   icon: "message" as const,
                   label: "Phone",
                   value: cand.phone,
-                  onPress: () => void Linking.openURL(`tel:${cand.phone}`),
+                  onPress: () => Linking.openURL(`tel:${cand.phone}`),
                 },
                 cand.email && {
                   icon: "edit" as const,
                   label: "Email",
                   value: cand.email,
-                  onPress: () => void Linking.openURL(`mailto:${cand.email}`),
+                  onPress: () => Linking.openURL(`mailto:${cand.email}`),
                 },
               ].filter(Boolean) as {
                 icon: "globe" | "message" | "edit";
                 label: string;
                 value: string;
-                onPress: () => void;
+                onPress: () => Promise<unknown>;
               }[];
 
               const sources = cand.citations ?? [];
@@ -402,7 +406,7 @@ export default function ContestDetailScreen() {
                     ]
                       .filter(Boolean)
                       .join(", ")}
-                    accessibilityState={{ expanded: open }}
+                    aria-expanded={open}
                     activeOpacity={0.7}
                     onPress={() => toggle(key)}
                   >
@@ -459,7 +463,16 @@ export default function ContestDetailScreen() {
                             accessibilityRole="link"
                             accessibilityLabel={`${row.label === "Website" ? "Candidate website" : row.label}: ${row.value}`}
                             style={[s.contactRow, s.contactAction]}
-                            onPress={row.onPress}
+                            onPress={() => {
+                              void row.onPress().then(
+                                () => setFailedContact(null),
+                                () =>
+                                  setFailedContact({
+                                    candidateKey: key,
+                                    label: row.label,
+                                  }),
+                              );
+                            }}
                             activeOpacity={0.7}
                           >
                             <Icon name={row.icon} size={16} color={P.primary} />
@@ -490,6 +503,12 @@ export default function ContestDetailScreen() {
                             <Icon name="external" size={13} color={P.primary} />
                           </TouchableOpacity>
                         ))}
+                      {failedContact?.candidateKey === key && (
+                        <Text accessibilityRole="alert" style={s.noContact}>
+                          Could not open {failedContact.label.toLowerCase()}.
+                          Tap the contact action to retry.
+                        </Text>
+                      )}
                       {cand.channels && cand.channels.length > 0 && (
                         <View style={s.channelsWrap}>
                           {cand.channels.map((ch) => (
@@ -521,7 +540,10 @@ export default function ContestDetailScreen() {
         {candidates.length === 0 ? (
           <BallotDetailEvidence citations={[]} showOfficeLink={false} />
         ) : (
-          <BallotLanguages items={[]} />
+          <>
+            <BallotLanguages items={[]} showRecovery={false} />
+            <ElectionOfficeLink />
+          </>
         )}
       </ScrollView>
     </View>
