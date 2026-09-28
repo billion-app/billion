@@ -137,19 +137,21 @@ export function DigestHome() {
   }, [address, browseJurisdiction]);
   const localPlace = JURISDICTIONS[localJurisdiction].name;
 
-  // Prefer featured for the local rail; fall back to typed state bills.
+  // Prefer featured state bills. Massachusetts uses the mixed recent feed so
+  // its court dockets remain visible alongside legislative measures.
   // Home has no digest.getToday — this is the featured/local set, not a
   // fabricated daily ranking.
-  const featuredLocal = useQuery(
-    trpc.content.getFeaturedBills.queryOptions({
+  const featuredLocal = useQuery({
+    ...trpc.content.getFeaturedBills.queryOptions({
       jurisdiction: localJurisdiction,
     }),
-  );
+    enabled: localJurisdiction !== "ma",
+  });
   const featuredEmpty =
     !featuredLocal.isLoading && (featuredLocal.data?.length ?? 0) === 0;
   const localFeed = useQuery({
     ...trpc.content.getByType.queryOptions({
-      type: "bill",
+      type: localJurisdiction === "ma" ? "all" : "bill",
       limit: BRIEF_MAX,
       jurisdiction: localJurisdiction,
     }),
@@ -308,16 +310,20 @@ export function DigestHome() {
           <ActivityIndicator
             color={MUTED}
             style={{ marginVertical: 36 }}
-            accessibilityLabel="Loading local bills"
+            accessibilityLabel="Loading local records"
           />
         ) : localError ? (
           <View style={s.emptyWrap}>
-            <Text style={s.emptyTitle}>Local bills didn’t load</Text>
+            <Text style={s.emptyTitle}>Local records didn’t load</Text>
             <Text style={s.emptySub}>Try again in a moment.</Text>
           </View>
         ) : localCards.length === 0 ? (
           <View style={s.emptyWrap}>
-            <Text style={s.emptyTitle}>No featured local bills yet</Text>
+            <Text style={s.emptyTitle}>
+              {localJurisdiction === "ma"
+                ? "No Massachusetts records yet"
+                : "No featured local bills yet"}
+            </Text>
             <Text style={s.emptySub}>
               Check Browse for the full {localPlace} record.
             </Text>

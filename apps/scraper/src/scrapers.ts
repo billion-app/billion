@@ -3,6 +3,7 @@ import { caElectionLogistics } from "./scrapers/ca-election-logistics.js";
 import { caOfficialGuide } from "./scrapers/ca-official-guide.js";
 import { caSosStatements } from "./scrapers/ca-sos-statements.js";
 import { congress } from "./scrapers/congress.js";
+import { ecourtRecords } from "./scrapers/ecourt-records.js";
 import { federalregister } from "./scrapers/federalregister.js";
 import { legistarScraper } from "./scrapers/legistar.js";
 import { openStates } from "./scrapers/open-states.js";
@@ -20,6 +21,7 @@ export const scrapers: readonly Scraper[] = [
   legistarScraper,
   congress,
   scotus,
+  ecourtRecords,
   openStates,
   sccCvig,
   caSosStatements,

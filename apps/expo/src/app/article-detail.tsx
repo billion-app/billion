@@ -105,7 +105,10 @@ export default function ArticleDetailScreen() {
     isLoading,
     error,
   } = useQuery({
-    ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
+    ...trpc.content.getById.queryOptions({
+      id: articleId ?? "__missing__",
+      supportsMassachusetts: true,
+    }),
     enabled: !!articleId,
   });
 
@@ -223,6 +226,9 @@ export default function ArticleDetailScreen() {
   const officialUrl =
     "officialUrl" in content ? content.officialUrl : undefined;
   const sourceUrl = officialUrl ?? content.url;
+  const independentCourtSource =
+    content.type === "court_case" &&
+    sourceUrl.startsWith("https://ecourtrecords.org/");
   const handleOpenOriginal = async () => {
     if (!sourceUrl) return;
     posthog.capture("original_source_opened", {
@@ -535,7 +541,7 @@ export default function ArticleDetailScreen() {
               </View>
               {provenanceOpen ? (
                 <Text style={s.disclaimerText}>
-                  Created from the official text.{" "}
+                  Created from the linked source text.{" "}
                   {hasBrief
                     ? "Quoted passages are checked against that source; everything else is AI analysis."
                     : "The plain-language explanation is AI analysis."}{" "}
@@ -543,7 +549,7 @@ export default function ArticleDetailScreen() {
                   {content.type === "court_case"
                     ? "Court record"
                     : "Original text"}{" "}
-                  or the linked official site to verify details.
+                  or the linked source site to verify details.
                 </Text>
               ) : null}
             </View>
@@ -554,7 +560,9 @@ export default function ArticleDetailScreen() {
           <PrimaryButton
             label={
               content.type === "court_case"
-                ? "Open official court record"
+                ? independentCourtSource
+                  ? "Open court record archive"
+                  : "Open official court record"
                 : officialUrl
                   ? "View Federal Register record"
                   : "View on Original Site"
@@ -729,13 +737,17 @@ export default function ArticleDetailScreen() {
             </Text>
             <Text style={s.exitSub}>
               {content.type === "court_case"
-                ? "Read the court's published documents and verify the procedural posture for yourself."
+                ? independentCourtSource
+                  ? "Read the archived docket and check the court for the latest status."
+                  : "Read the court's published documents and verify the procedural posture for yourself."
                 : "Read the full, unedited text and track every action on the official record."}
             </Text>
             <PrimaryButton
               label={
                 content.type === "court_case"
-                  ? "Open official court record"
+                  ? independentCourtSource
+                    ? "Open court record archive"
+                    : "Open official court record"
                   : "Open the source"
               }
               icon="external"

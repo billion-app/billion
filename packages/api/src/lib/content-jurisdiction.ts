@@ -1,9 +1,9 @@
-export const JURISDICTIONS = ["federal", "ca", "mo", "nc", "tx"] as const;
+export const JURISDICTIONS = ["federal", "ca", "ma", "mo", "nc", "tx"] as const;
 
 export type ContentJurisdiction = (typeof JURISDICTIONS)[number];
 export type StateJurisdiction = Exclude<ContentJurisdiction, "federal">;
 
-export const JURISDICTION_CODES = ["US", "CA", "MO", "NC", "TX"] as const;
+export const JURISDICTION_CODES = ["US", "CA", "MA", "MO", "NC", "TX"] as const;
 export type JurisdictionCode = (typeof JURISDICTION_CODES)[number];
 
 interface StateJurisdictionDefinition {
@@ -25,6 +25,14 @@ export const STATE_JURISDICTIONS: Record<
     legislature: "California Legislature",
     lowerChamber: "Assembly",
     currentSession: "2025-2026",
+    currentSessionLabel: "2025–2026 regular session",
+  },
+  ma: {
+    code: "MA",
+    name: "Massachusetts",
+    legislature: "Massachusetts General Court",
+    lowerChamber: "House",
+    currentSession: "194th",
     currentSessionLabel: "2025–2026 regular session",
   },
   // Kept for compatibility with installed app builds that can still send

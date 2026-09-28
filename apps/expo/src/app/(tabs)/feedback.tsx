@@ -183,7 +183,10 @@ export default function FeedbackScreen() {
                   style={[
                     s.catRow,
                     active
-                      ? { backgroundColor: `${tone}33`, borderColor: `${tone}66` }
+                      ? {
+                          backgroundColor: `${tone}33`,
+                          borderColor: `${tone}66`,
+                        }
                       : s.catRowOff,
                   ]}
                 >
@@ -236,7 +239,10 @@ export default function FeedbackScreen() {
           <TouchableOpacity
             style={[
               s.cta,
-              { backgroundColor: CAT_COLOR[cat], opacity: canSubmit ? 1 : 0.55 },
+              {
+                backgroundColor: CAT_COLOR[cat],
+                opacity: canSubmit ? 1 : 0.55,
+              },
             ]}
             onPress={submit}
             activeOpacity={0.85}

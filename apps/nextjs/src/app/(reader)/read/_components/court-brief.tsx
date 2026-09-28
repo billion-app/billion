@@ -58,7 +58,15 @@ export function CourtBriefBlocks({
   accent: string;
   dualLens?: ReactNode;
 }) {
-  const proceeding = PROCEEDING[brief.proceeding];
+  const proceeding = brief.criminalCaseStatus
+    ? {
+        badge: /^pending$/i.test(brief.criminalCaseStatus)
+          ? "PENDING CASE"
+          : "CRIMINAL CASE",
+        label: "Criminal docket",
+        detail: `Archive status: ${brief.criminalCaseStatus}. Read the docket for recorded court activity.`,
+      }
+    : PROCEEDING[brief.proceeding];
   return (
     <div className="flex flex-col gap-6" data-testid="court-brief">
       <section
@@ -98,9 +106,11 @@ export function CourtBriefBlocks({
           </p>
           <p className="text-quiet mt-1 font-sans text-[11px] leading-4">
             {brief.court} · {brief.docket}
-            {brief.decisionDate
-              ? ` · ${brief.decisionDate}`
-              : " · Date unknown"}
+            {brief.latestDocketDate
+              ? ` · Latest docket entry ${brief.latestDocketDate}`
+              : brief.decisionDate
+                ? ` · ${brief.decisionDate}`
+                : " · Date unknown"}
           </p>
         </div>
       </section>
@@ -114,7 +124,11 @@ export function CourtBriefBlocks({
         </p>
       ) : null}
 
-      <BlockTitle section="court-ruling">What the court did</BlockTitle>
+      <BlockTitle section="court-ruling">
+        {brief.criminalCaseStatus
+          ? "What the docket records"
+          : "What the court did"}
+      </BlockTitle>
       <section
         className="bg-slate border-hair-1 flex flex-col gap-3 rounded-[14px] border border-l-[3px] p-4"
         style={{ borderLeftColor: accent }}
@@ -123,7 +137,7 @@ export function CourtBriefBlocks({
           <span style={{ color: accent }}>
             <Icon name="check" size={15} />
           </span>{" "}
-          THE RULING
+          {brief.criminalCaseStatus ? "RECORDED ACTION" : "THE RULING"}
         </p>
         <CourtDefinedText
           text={brief.action.text}
@@ -133,7 +147,9 @@ export function CourtBriefBlocks({
         />
         <div className="bg-surface rounded-[10px] p-3">
           <p className="text-quiet mb-1 font-sans text-[9px] font-semibold tracking-[0.1em]">
-            WHAT THE COURT WAS DECIDING
+            {brief.criminalCaseStatus
+              ? "CASE POSTURE"
+              : "WHAT THE COURT WAS DECIDING"}
           </p>
           <CourtDefinedText
             text={brief.posture}
@@ -181,7 +197,9 @@ export function CourtBriefBlocks({
       {brief.reasoning.length ? (
         <>
           <BlockTitle section="court-reasoning">
-            How the court got there
+            {brief.criminalCaseStatus
+              ? "What the record says"
+              : "How the court got there"}
           </BlockTitle>
           <div className="flex flex-col gap-3">
             {brief.reasoning.map((reason, index) => (
@@ -414,8 +432,7 @@ function PointSources({
             rel="noopener noreferrer"
             className="bg-surface text-quiet border-hair-1 inline-flex items-center gap-1 rounded-full border px-2 py-[5px] font-sans text-[10.5px] no-underline hover:text-white"
           >
-            <Icon name="doc" size={11} /> Official source{" "}
-            {id.replace("document-", "")}
+            <Icon name="doc" size={11} /> Source {id.replace("document-", "")}
             <Icon name="external" size={10} />
           </a>
         );
@@ -469,7 +486,7 @@ function OfficialDocuments({ brief }: { brief: CourtBriefRecord }) {
   return (
     <section>
       <h2 className="font-editorial mb-3 text-[20px] font-bold">
-        Official documents
+        Source material
       </h2>
       <div className="flex flex-col gap-2">
         {brief.sources.map((source, index) => (
@@ -483,7 +500,7 @@ function OfficialDocuments({ brief }: { brief: CourtBriefRecord }) {
             <Icon name="doc" size={16} className="text-quiet" />
             <span className="min-w-0 flex-1">
               <span className="text-quiet block font-sans text-[9px] font-semibold tracking-[0.09em]">
-                OFFICIAL COURT RECORD
+                LINKED SOURCE
               </span>
               <span className="block font-sans text-[14px] font-semibold">
                 Document {index + 1}

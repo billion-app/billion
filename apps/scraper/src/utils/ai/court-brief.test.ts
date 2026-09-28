@@ -5,7 +5,11 @@ import { MockLanguageModelV3 } from "ai/test";
 
 import { parseCourtBriefRecord } from "@acme/validators";
 
-import { generateCourtBrief, validateCourtBrief } from "./court-brief.js";
+import {
+  courtProceeding,
+  generateCourtBrief,
+  validateCourtBrief,
+} from "./court-brief.js";
 import {
   emergency,
   emergencyOutput,
@@ -50,6 +54,38 @@ void test("26A305 stays interim; merits and separately published opinions valida
       ),
     /merits holding/,
   );
+});
+
+void test("pending criminal dockets are distinct from decided court opinions", () => {
+  const data = {
+    ...emergency.data,
+    caseNumber: "2626CR000731",
+    status: "Pending",
+    fullText: "Charges (allegations, not findings):\n- Charge 1",
+  };
+  assert.equal(courtProceeding(data), "unknown");
+  const brief = validateCourtBrief(
+    emergencyOutput,
+    {
+      ...emergency,
+      data,
+    },
+    "fixture",
+  );
+  assert.equal(brief.decisionDate, null);
+  assert.equal(brief.proceeding, "unknown");
+  assert.equal(brief.criminalCaseStatus, "Pending");
+  assert.equal(
+    brief.latestDocketDate,
+    emergency.data.filedDate?.toISOString().slice(0, 10),
+  );
+  const disposed = validateCourtBrief(
+    emergencyOutput,
+    { ...emergency, data: { ...data, status: "Disposed" } },
+    "fixture",
+  );
+  assert.equal(disposed.criminalCaseStatus, "Disposed");
+  assert.equal(disposed.decisionDate, null);
 });
 
 void test("unknown evidence remains sparse; unknown citations fail and unverifiable or wrong-document quotes are removed", () => {

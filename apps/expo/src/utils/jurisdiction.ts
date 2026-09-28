@@ -1,16 +1,23 @@
 export const CONTENT_JURISDICTIONS = [
   "federal",
   "ca",
+  "ma",
   "mo",
   "nc",
   "tx",
 ] as const;
 
-const SUPPORTED_CONTENT_JURISDICTIONS = ["federal", "ca", "nc", "tx"] as const;
+const SUPPORTED_CONTENT_JURISDICTIONS = [
+  "federal",
+  "ca",
+  "ma",
+  "nc",
+  "tx",
+] as const;
 
 export type ContentJurisdiction = (typeof CONTENT_JURISDICTIONS)[number];
 export type StateJurisdiction = Exclude<ContentJurisdiction, "federal">;
-export type JurisdictionCode = "US" | "CA" | "MO" | "NC" | "TX";
+export type JurisdictionCode = "US" | "CA" | "MA" | "MO" | "NC" | "TX";
 
 export interface JurisdictionDefinition {
   id: ContentJurisdiction;
@@ -25,6 +32,7 @@ export interface JurisdictionDefinition {
 
 export const SUPPORTED_STATE_JURISDICTIONS: StateJurisdiction[] = [
   "ca",
+  "ma",
   "nc",
   "tx",
 ];
@@ -52,6 +60,16 @@ export const JURISDICTIONS: Record<
     code: "CA",
     icon: "pin",
     subtitlePlace: "Sacramento",
+  },
+  ma: {
+    id: "ma",
+    name: "Massachusetts",
+    body: "Massachusetts General Court",
+    session: "2025–2026 regular session",
+    description: "Legislation and district court criminal dockets",
+    code: "MA",
+    icon: "pin",
+    subtitlePlace: "Massachusetts",
   },
   // Legacy API responses and saved navigation state may still contain `mo`.
   // Keep the display definition until those installed clients age out, but do
@@ -90,6 +108,7 @@ export const JURISDICTIONS: Record<
 
 const ADDRESS_PATTERNS: Record<StateJurisdiction, RegExp> = {
   ca: /(?:,|\s)(?:CA|California)(?:\s|,|\d|$)/i,
+  ma: /(?:,|\s)(?:MA|Massachusetts)(?:\s|,|\d|$)/i,
   mo: /(?:,|\s)(?:MO|Missouri)(?:\s|,|\d|$)/i,
   nc: /(?:,|\s)(?:NC|North Carolina)(?:\s|,|\d|$)/i,
   tx: /(?:,|\s)(?:TX|Texas)(?:\s|,|\d|$)/i,

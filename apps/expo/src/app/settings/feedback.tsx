@@ -138,11 +138,7 @@ export default function FeedbackScreen() {
                   : s.catRowOff,
               ]}
             >
-              <Icon
-                name={c.icon}
-                size={19}
-                color={active ? tone : P.quiet}
-              />
+              <Icon name={c.icon} size={19} color={active ? tone : P.quiet} />
               <Text
                 style={[
                   s.catLabel,

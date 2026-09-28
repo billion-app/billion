@@ -37,7 +37,7 @@ export const CourtBriefTermSchema = z.object({
 export const CourtBriefSchema = z.object({
   takeaway: CourtBriefPointSchema,
   action: CourtBriefPointSchema.describe(
-    "The specific relief granted or denied, distinct from the ultimate merits.",
+    "The recorded court or procedural action, distinct from any unresolved merits.",
   ),
   posture: text.describe(
     "What request the court is deciding; explicitly say when the record does not establish it.",
@@ -94,6 +94,11 @@ export const CourtBriefRecordSchema = CourtBriefSchema.extend({
   docket: text,
   decisionDate: z.iso.date().nullable(),
   proceeding: z.enum(["emergency_order", "order", "merits_opinion", "unknown"]),
+  // Optional for old installed clients: they understand `unknown` but not a
+  // new proceeding enum value. New readers use this source-reported status to
+  // identify criminal dockets without changing the existing wire enum.
+  criminalCaseStatus: text.optional(),
+  latestDocketDate: z.iso.date().optional(),
   generatedAt: z.iso.datetime(),
   modelVersion: text,
   verifiedQuotes: z.number().int().nonnegative(),

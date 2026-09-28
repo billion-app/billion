@@ -20,11 +20,15 @@ const config = withNativewind(getDefaultConfig(projectRoot));
  * through NativeWind so its metro-override setup probe keeps working.
  */
 const nativewindResolve = config.resolver.resolveRequest;
-const cssPassthrough = new Set(["react-native", "react-native-safe-area-context"]);
+const cssPassthrough = new Set([
+  "react-native",
+  "react-native-safe-area-context",
+]);
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const from = context.originModulePath ?? "";
   const fromCss =
-    from.includes("/react-native-css/") || from.includes("\\react-native-css\\");
+    from.includes("/react-native-css/") ||
+    from.includes("\\react-native-css\\");
   // Must still call NativeWind for everything else — it injects a setup
   // probe (`react-native-css-metro-override`) that Metro's default resolver
   // cannot see.

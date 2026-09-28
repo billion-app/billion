@@ -473,6 +473,51 @@ void test("California SB 243 normalizes with full jurisdiction metadata", () => 
   assert.match(normalized.textLink!.url, /billTextClient/);
 });
 
+void test("Massachusetts 194th Legislature bills keep their docket ID and official PDF text", () => {
+  const normalized = normalizeBill(
+    {
+      ...sb243,
+      id: "ocd-bill/ma-test",
+      identifier: "SD 3173",
+      title: "An Act prohibiting exorbitant energy delivery charges",
+      session: "194th",
+      from_organization: {
+        id: "ocd-organization/ma-senate",
+        name: "Senate",
+        classification: "upper",
+      },
+      jurisdiction: {
+        id: "ocd-jurisdiction/country:us/state:ma/government",
+        name: "Massachusetts",
+        classification: "state",
+      },
+      sources: [],
+      openstates_url: "https://openstates.org/ma/bills/194th/SD3173/",
+      versions: [
+        {
+          note: "Introduced",
+          date: "",
+          links: [
+            {
+              url: "https://malegislature.gov/Bills/194/SD3173.pdf",
+              media_type: "application/pdf",
+            },
+          ],
+        },
+      ],
+    },
+    { stateCode: "ma" },
+  );
+
+  assert.equal(normalized.billNumber, "MA SD 3173 (194th)");
+  assert.equal(normalized.chamber, "Senate");
+  assert.equal(normalized.url, "https://openstates.org/ma/bills/194th/SD3173/");
+  assert.equal(
+    normalized.textLink?.url,
+    "https://malegislature.gov/Bills/194/SD3173.pdf",
+  );
+});
+
 void test("a bill stripped of every optional field still normalizes", () => {
   const bare: OpenStatesBill = {
     id: "ocd-bill/bare",

@@ -60,6 +60,8 @@ export function ReaderBody({
   const [mode, setMode] = useState<Mode>("explainer");
   const [highlight, setHighlight] = useState<BriefQuote | null>(null);
   const [provenanceOpen, setProvenanceOpen] = useState(false);
+  const independentCourtSource =
+    isCourtCase && sourceUrl?.startsWith("https://ecourtrecords.org/");
   const top = useRef<HTMLDivElement>(null);
 
   const changeMode = (next: Mode) => {
@@ -155,11 +157,11 @@ export function ReaderBody({
             </button>
             {provenanceOpen ? (
               <p className="text-quiet mt-2 pl-[27px] font-sans text-[13px] leading-[19px]">
-                Created from the official text.{" "}
+                Created from the linked source text.{" "}
                 {hasBrief
                   ? "Quoted passages are checked against that source; everything else is AI analysis."
                   : "The plain-language explanation is AI analysis."}{" "}
-                Use Original text or the linked official site to verify details.
+                Use Original text or the linked source site to verify details.
               </p>
             ) : null}
           </div>
@@ -177,7 +179,9 @@ export function ReaderBody({
               {isFederalRegister
                 ? "View Federal Register record"
                 : isCourtCase
-                  ? "Open official court record"
+                  ? independentCourtSource
+                    ? "Open court record archive"
+                    : "Open official court record"
                   : "View on Original Site"}
               <Icon name="external" size={16} />
             </a>

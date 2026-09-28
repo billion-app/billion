@@ -33,7 +33,7 @@ export const getSharedContent = cache(
     if (!id) return null;
 
     try {
-      return await caller.content.getById({ id });
+      return await caller.content.getById({ id, supportsMassachusetts: true });
     } catch (error) {
       // `content.getById` throws for an id it cannot find, which is the
       // ordinary case for a mistyped or retired link rather than an error.

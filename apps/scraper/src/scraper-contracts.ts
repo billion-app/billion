@@ -4,6 +4,7 @@ import { caElectionLogisticsConfig } from "./scrapers/ca-election-logistics.conf
 import { caOfficialGuideConfig } from "./scrapers/ca-official-guide.config.js";
 import { caSosStatementsConfig } from "./scrapers/ca-sos-statements.config.js";
 import { congressConfig } from "./scrapers/congress.config.js";
+import { ecourtRecordsConfig } from "./scrapers/ecourt-records.config.js";
 import { federalregisterConfig } from "./scrapers/federalregister.config.js";
 import { legistarConfig } from "./scrapers/legistar.config.js";
 import { santaCruzLocationsConfig } from "./scrapers/santa-cruz-locations.config.js";
@@ -17,6 +18,7 @@ export const scraperContracts: readonly ScraperEnvContract[] = [
   legistarConfig,
   congressConfig,
   scotusConfig,
+  ecourtRecordsConfig,
   sccCvigConfig,
   caSosStatementsConfig,
   caOfficialGuideConfig,

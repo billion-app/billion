@@ -211,12 +211,12 @@ function SourcePills({ data, point }: { data: CourtBriefData; point: Point }) {
             style={s.sourcePill}
             activeOpacity={0.7}
             accessibilityRole="link"
-            accessibilityLabel={`Open official source ${id}`}
+            accessibilityLabel={`Open source ${id}`}
             onPress={() => void Linking.openURL(source.url)}
           >
             <Icon name="doc" size={11} color={colors.textSecondary} />
             <Text style={s.sourcePillText}>
-              Official source {id.replace("document-", "")}
+              Source {id.replace("document-", "")}
             </Text>
             <Icon name="external" size={10} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -346,7 +346,7 @@ function UnknownsCard({
 function OfficialDocuments({ data }: { data: CourtBriefData }) {
   return (
     <>
-      <BlockTitle>Official documents</BlockTitle>
+      <BlockTitle>Source material</BlockTitle>
       <View style={s.documentList} testID="court-brief-sources">
         {data.sources.map((source, index) => (
           <TouchableOpacity
@@ -354,14 +354,14 @@ function OfficialDocuments({ data }: { data: CourtBriefData }) {
             style={s.documentCard}
             activeOpacity={0.75}
             accessibilityRole="link"
-            accessibilityLabel={`Open full official document ${source.id}`}
+            accessibilityLabel={`Open source ${source.id}`}
             onPress={() => void Linking.openURL(source.url)}
           >
             <View style={s.documentIcon}>
               <Icon name="doc" size={15} color={colors.textSecondary} />
             </View>
             <View style={s.documentCopy}>
-              <Text style={s.documentEyebrow}>OFFICIAL COURT RECORD</Text>
+              <Text style={s.documentEyebrow}>LINKED SOURCE</Text>
               <Text style={s.documentTitle}>Document {index + 1}</Text>
               <Text style={s.documentUrl} numberOfLines={1}>
                 {source.url}
@@ -388,7 +388,15 @@ export function CourtBrief({
   onViewSource?: (quote: BriefQuote) => void;
   includeOpinions?: boolean;
 }) {
-  const proceeding = PROCEEDING[data.proceeding];
+  const proceeding = data.criminalCaseStatus
+    ? {
+        badge: /^pending$/i.test(data.criminalCaseStatus)
+          ? "PENDING CASE"
+          : "CRIMINAL CASE",
+        label: "Criminal docket",
+        detail: `Archive status: ${data.criminalCaseStatus}. Read the docket for recorded court activity.`,
+      }
+    : PROCEEDING[data.proceeding];
 
   return (
     <View testID="court-brief" style={s.root}>
@@ -430,7 +438,11 @@ export function CourtBrief({
           <Text style={s.scopeDetail}>{proceeding.detail}</Text>
           <Text style={s.scopeMeta}>
             {data.court} · {data.docket}
-            {data.decisionDate ? ` · ${data.decisionDate}` : " · Date unknown"}
+            {data.latestDocketDate
+              ? ` · Latest docket entry ${data.latestDocketDate}`
+              : data.decisionDate
+                ? ` · ${data.decisionDate}`
+                : " · Date unknown"}
           </Text>
         </View>
       </View>
@@ -444,13 +456,19 @@ export function CourtBrief({
         </View>
       ) : null}
 
-      <BlockTitle>What the court did</BlockTitle>
+      <BlockTitle>
+        {data.criminalCaseStatus
+          ? "What the docket records"
+          : "What the court did"}
+      </BlockTitle>
       <View style={[s.rulingCard, { borderLeftColor: accent }]}>
         <View style={s.rulingHead}>
           <View style={[s.rulingIcon, { backgroundColor: `${accent}28` }]}>
             <Icon name="check" size={15} color={accent} />
           </View>
-          <Text style={s.rulingLabel}>THE RULING</Text>
+          <Text style={s.rulingLabel}>
+            {data.criminalCaseStatus ? "RECORDED ACTION" : "THE RULING"}
+          </Text>
         </View>
         <DefinedText
           text={data.action.text}
@@ -459,7 +477,11 @@ export function CourtBrief({
           style={s.rulingText}
         />
         <View style={s.postureBlock}>
-          <Text style={s.postureLabel}>WHAT THE COURT WAS DECIDING</Text>
+          <Text style={s.postureLabel}>
+            {data.criminalCaseStatus
+              ? "CASE POSTURE"
+              : "WHAT THE COURT WAS DECIDING"}
+          </Text>
           <DefinedText
             text={data.posture}
             terms={data.terms}
@@ -501,7 +523,11 @@ export function CourtBrief({
 
       {data.reasoning.length ? (
         <>
-          <BlockTitle>How the court got there</BlockTitle>
+          <BlockTitle>
+            {data.criminalCaseStatus
+              ? "What the record says"
+              : "How the court got there"}
+          </BlockTitle>
           <View style={s.cardList} testID="court-brief-reasoning">
             {data.reasoning.map((reason, index) => (
               <PointCard

@@ -35,7 +35,7 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
-  ...(["ca", "nc", "tx"] as const).map(
+  ...(["ca", "ma", "nc", "tx"] as const).map(
     (stateCode, index): JobDefinition => ({
       id: `open-states-${stateCode}-daily`,
       description: `Refresh ${stateCode.toUpperCase()} measures and retain 90 active days plus category leaders`,
@@ -149,6 +149,18 @@ export const jobs: readonly JobDefinition[] = [
     schedule: { kind: "daily", hour: 1, minute: 45 },
     priority: 5,
     idleTimeoutMinutes: 60,
+    maxRuntimeHours: 12,
+  },
+  {
+    id: "ecourt-records-daily",
+    description:
+      "Refresh publicly indexed criminal case dockets from eCourt Records",
+    script: "main.js",
+    args: ["ecourt-records", "--max-items", "5", "--concurrency", "1"],
+    env: { SCRAPER_MAX_NEW_ITEMS_PER_RUN: "2" },
+    schedule: { kind: "daily", hour: 2, minute: 15 },
+    priority: 6,
+    idleTimeoutMinutes: 30,
     maxRuntimeHours: 12,
   },
   {

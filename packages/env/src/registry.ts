@@ -117,6 +117,11 @@ const scraperSourceLimitDefinitions = [
     "Recent Supreme Court published decisions per run.",
     "20",
   ],
+  [
+    "ECOURT_RECORDS_MAX_ITEMS",
+    "Indexed Massachusetts criminal docket pages per run (1–20).",
+    "5",
+  ],
   ["SCC_CVIG_MAX_ITEMS", "Santa Clara voter-guide PDFs per run.", "10"],
   ["CA_SOS_MAX_ITEMS", "California SOS office pages per run.", "9"],
   ["OPEN_STATES_MAX_ITEMS", "Open States bills per state per run.", "100"],
