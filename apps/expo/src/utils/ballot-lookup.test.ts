@@ -225,3 +225,18 @@ void test("a measure without a title still opens the measure reader", () => {
   assert.equal(route.params.referendumTitle, "Ballot measure");
   assert.equal(isBallotMeasure({ type: "candidate", office: "Mayor" }), false);
 });
+
+void test("candidate navigation carries vetted election context", () => {
+  const route = ballotContestRoute(
+    {
+      type: "candidate",
+      office: "Secretary of State",
+      district: { name: "California", id: "ocd-division/country:us/state:ca" },
+    },
+    { state: "CA", electionDate: "2026-11-03" },
+  );
+  assert.equal(route.pathname, "/contest-detail");
+  assert.equal(route.params.state, "CA");
+  assert.equal(route.params.electionDate, "2026-11-03");
+  assert.equal(route.params.districtId, "ocd-division/country:us/state:ca");
+});

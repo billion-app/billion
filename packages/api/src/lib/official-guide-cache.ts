@@ -44,6 +44,7 @@ export const officialGuidePayloadSchema = z.object({
     .array(
       z.object({
         name: text,
+        party: z.string().max(80).optional(),
         officeSlug: z.enum([
           "governor",
           "lt-governor",

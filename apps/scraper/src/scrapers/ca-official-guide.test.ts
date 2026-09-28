@@ -127,6 +127,7 @@ test("official candidate prose preserves complete statement and excludes contact
   );
   assert.equal(parsed.length, 2);
   assert.equal(parsed[0]!.name, "Fiona Ma");
+  assert.equal(parsed[0]!.party, "DEMOCRATIC");
   assert.equal(parsed[0]!.photoUrl, `${GUIDE_BASE}/img/lt-governor/ma.jpg`);
   assert.equal(parsed[0]!.statement.length, 1858);
   assert.doesNotMatch(
@@ -134,6 +135,7 @@ test("official candidate prose preserves complete statement and excludes contact
     /Tel:|The views and opinions expressed/,
   );
   assert.equal(parsed[1]!.name, "Gloria Romero");
+  assert.equal(parsed[1]!.party, "REPUBLICAN");
   assert.equal(parsed[1]!.photoUrl, `${GUIDE_BASE}/img/lt-governor/romero.jpg`);
 });
 

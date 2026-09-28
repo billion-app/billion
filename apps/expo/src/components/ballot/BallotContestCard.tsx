@@ -11,7 +11,15 @@ import { ballotContestRoute, isBallotMeasure } from "~/utils/ballot-lookup";
 import { contestListTitle } from "~/utils/elections";
 
 /** Compact ballot overview. Candidate names and evidence belong in the detail. */
-export function BallotContestCard({ contest }: { contest: Contest }) {
+export function BallotContestCard({
+  contest,
+  state,
+  electionDate,
+}: {
+  contest: Contest;
+  state?: string;
+  electionDate?: string;
+}) {
   const router = useRouter();
   const isMeasure = isBallotMeasure(contest);
   const title = isMeasure
@@ -30,7 +38,7 @@ export function BallotContestCard({ contest }: { contest: Contest }) {
             candidate_count: count,
           });
         }
-        router.push(ballotContestRoute(contest));
+        router.push(ballotContestRoute(contest, { state, electionDate }));
       }}
     >
       <Card style={s.card}>

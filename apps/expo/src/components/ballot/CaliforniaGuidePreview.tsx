@@ -15,6 +15,7 @@ import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
+import { guideCandidateRoute } from "~/utils/candidate-explainer";
 import { propositionDetailRoute } from "~/utils/proposition-explainers";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
@@ -34,16 +35,17 @@ const offices: Record<Candidate["officeSlug"], string> = {
 };
 
 function CandidateCard({ candidate }: { candidate: Candidate }) {
-  const [expanded, setExpanded] = useState(false);
+  const router = useRouter();
   const [photoFailed, setPhotoFailed] = useState(false);
   return (
     <Card style={s.card}>
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel={`${candidate.name}, ${offices[candidate.officeSlug]}`}
-        accessibilityState={{ expanded }}
         activeOpacity={0.8}
-        onPress={() => setExpanded(!expanded)}
+        onPress={() =>
+          router.push(guideCandidateRoute(candidate.name, candidate.officeSlug))
+        }
         style={s.cardHeader}
       >
         {candidate.photoUrl && !photoFailed ? (
@@ -59,23 +61,13 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
         )}
         <View style={s.cardIdentity}>
           <Text style={s.cardTitle}>{candidate.name}</Text>
-          <Text style={s.cardMeta}>{offices[candidate.officeSlug]}</Text>
+          <Text style={s.cardMeta}>
+            {offices[candidate.officeSlug]}
+            {candidate.party ? ` · ${candidate.party}` : ""}
+          </Text>
         </View>
-        <Icon
-          name={expanded ? "chevD" : "chevR"}
-          size={16}
-          color={colors.textSecondary}
-        />
+        <Icon name="chevR" size={16} color={colors.textSecondary} />
       </TouchableOpacity>
-      {expanded && (
-        <View style={s.cardBody}>
-          <Text style={s.statement}>{candidate.statement}</Text>
-          <SourceLink
-            label="Official candidate statement"
-            url={candidate.sourceUrl}
-          />
-        </View>
-      )}
     </Card>
   );
 }

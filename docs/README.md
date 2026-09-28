@@ -15,6 +15,7 @@ New to Billion? Read the [architecture tour](architecture.md) for the data flow,
 | [Article generation](article-generation.md)                   | Structured briefs, quote verification, and framing rules                       |
 | [Measure enrichment](measure-enrichment.md)                   | Evidence and trust tiers for ballot-measure summaries                          |
 | [Candidate enrichment](candidate-enrichment.md)               | Source-backed candidate biographies and other fields                           |
+| [Candidate explainer](candidate-explainer.md)                 | Individual candidate page sources, review, correction, and refresh path        |
 | [Local government and Legistar](local-government-legistar.md) | Implemented ingestion and read API, San José policy, and remaining work        |
 | [Sharing and saves](virality.md)                              | Public previews, generated share images, bookmarks, and screenshot detection   |
 
