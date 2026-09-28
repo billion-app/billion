@@ -23,6 +23,7 @@ import {
   planes,
 } from "~/styles";
 import { trpc } from "~/utils/api";
+import { ballotElectionDate } from "~/utils/ballot-lookup";
 import {
   canMatchCaliforniaGuide,
   ELECTION_DATE,
@@ -44,7 +45,7 @@ export default function CandidateDetailScreen() {
   }>();
   const [photoFailed, setPhotoFailed] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
-  const [showOverviewSources, setShowOverviewSources] = useState(false);
+  const [showOfficeDuties, setShowOfficeDuties] = useState(false);
   const fromBallot = parseBallotCandidate(params.candidate, params.name);
   const office = params.office ? statewideOfficeSlug(params.office) : undefined;
   const lookupGuide =
@@ -128,8 +129,8 @@ export default function CandidateDetailScreen() {
           <>
             <View style={s.hero}>
               <Text style={s.eyebrow}>
-                {guide
-                  ? `CALIFORNIA · ${query.data?.electionDate}`
+                {guide && query.data
+                  ? `CALIFORNIA · ${ballotElectionDate(query.data.electionDate)}`
                   : "BALLOT CONTEST"}
               </Text>
               <View style={s.identity}>
@@ -176,80 +177,50 @@ export default function CandidateDetailScreen() {
               </View>
             </View>
 
-            <Card style={s.overview}>
-              <Text accessibilityRole="header" style={s.cardTitle}>
-                At a glance
+            <View style={s.section}>
+              <Text accessibilityRole="header" style={s.sectionTitle}>
+                What this office does
               </Text>
-              <View style={s.fact}>
-                <Text style={s.panelLabel}>THE OFFICE</Text>
-                <Text style={s.body}>
-                  {guide?.officeDuties?.length
-                    ? guide.officeDuties.join(" ")
-                    : "Office duties are not available in Billion. Open the official guide for this office."}
+              {guide?.officeDuties?.length ? (
+                <>
+                  <Text style={s.body}>{guide.officeDuties[0]}</Text>
+                  {guide.officeDuties.length > 1 && (
+                    <>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: showOfficeDuties }}
+                        onPress={() => setShowOfficeDuties((value) => !value)}
+                        style={s.action}
+                      >
+                        <Text style={s.actionText}>
+                          {showOfficeDuties
+                            ? "Hide other responsibilities"
+                            : "Other responsibilities"}
+                        </Text>
+                        <Icon
+                          name={showOfficeDuties ? "chevD" : "chevR"}
+                          size={16}
+                          color={P.primary}
+                        />
+                      </TouchableOpacity>
+                      {showOfficeDuties &&
+                        guide.officeDuties.slice(1).map((duty, index) => (
+                          <Text key={`${index}:${duty}`} style={s.body}>
+                            {duty}
+                          </Text>
+                        ))}
+                    </>
+                  )}
+                  <SourceLink
+                    label="Office duties · California voter guide"
+                    url={guide.sourceUrl}
+                  />
+                </>
+              ) : (
+                <Text style={s.muted}>
+                  Office duties are not available in Billion for this race.
                 </Text>
-              </View>
-              <View style={s.fact}>
-                <Text style={s.panelLabel}>CANDIDATE'S STATED PRIORITIES</Text>
-                <Text style={s.body}>
-                  {candidate.statement
-                    ? "Read the candidate's own statement below. Billion has not independently checked its claims."
-                    : "No candidate statement is available to Billion."}
-                </Text>
-              </View>
-              <View style={s.fact}>
-                <Text style={s.panelLabel}>CHECKED PUBLIC RECORD</Text>
-                <Text style={s.body}>
-                  Billion has not reviewed an independent record for this
-                  candidate.
-                </Text>
-              </View>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityState={{ expanded: showOverviewSources }}
-                onPress={() => setShowOverviewSources((value) => !value)}
-                style={s.sourceToggle}
-              >
-                <Icon name="shield" size={15} color={P.primary} />
-                <Text style={s.sourceToggleText}>
-                  Sources for this overview
-                </Text>
-                <Icon
-                  name={showOverviewSources ? "chevD" : "chevR"}
-                  size={15}
-                  color={P.primary}
-                />
-              </TouchableOpacity>
-              {showOverviewSources ? (
-                <View style={s.sourceList}>
-                  {guide?.officeDuties?.length ? (
-                    <SourceLink
-                      label="Office duties · California voter guide"
-                      url={guide.sourceUrl}
-                    />
-                  ) : null}
-                  {sourceUrl ? (
-                    <SourceLink label="Candidate statement" url={sourceUrl} />
-                  ) : null}
-                  {candidate.photoUrl && portraitSource ? (
-                    <SourceLink
-                      label={
-                        fromBallot?.photoUrl
-                          ? "Portrait · ballot provider"
-                          : "Portrait · California voter guide"
-                      }
-                      url={portraitSource}
-                    />
-                  ) : null}
-                </View>
-              ) : null}
-            </Card>
-
-            <View style={s.analysisNote}>
-              <Icon name="info" size={17} color={P.quiet} />
-              <Text style={s.analysisText}>
-                Billion candidate analysis is not available yet. It will appear
-                only after editorial review and claim-level source checks.
-              </Text>
+              )}
             </View>
 
             <View style={s.section}>
@@ -316,6 +287,14 @@ export default function CandidateDetailScreen() {
               )}
             </View>
 
+            <View style={s.analysisNote}>
+              <Icon name="info" size={17} color={P.quiet} />
+              <Text style={s.analysisText}>
+                Billion has not independently reviewed this candidate's record
+                or statement claims.
+              </Text>
+            </View>
+
             <View style={s.footer}>
               <Text accessibilityRole="header" style={s.footerTitle}>
                 Sources & freshness
@@ -330,6 +309,16 @@ export default function CandidateDetailScreen() {
                   url={sourceUrl}
                 />
               ) : null}
+              {candidate.photoUrl && portraitSource ? (
+                <SourceLink
+                  label={
+                    fromBallot?.photoUrl
+                      ? "Portrait · ballot provider"
+                      : "Portrait · California voter guide"
+                  }
+                  url={portraitSource}
+                />
+              ) : null}
               {guide ? (
                 <SourceLink
                   label="About candidate statements"
@@ -339,7 +328,9 @@ export default function CandidateDetailScreen() {
               {fetchedAt ? (
                 <Text style={s.muted}>
                   {usingGuideStatement ? "Guide" : "Statement"} retrieved{" "}
-                  {new Date(fetchedAt).toLocaleDateString()}
+                  {new Date(fetchedAt).toLocaleDateString("en-US", {
+                    timeZone: "UTC",
+                  })}
                 </Text>
               ) : (
                 <Text style={s.muted}>Retrieval date unavailable</Text>
@@ -410,39 +401,7 @@ const s = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
-  overview: { gap: 0, padding: 16 },
-  cardTitle: {
-    color: P.inkOnNight,
-    fontFamily: fontEditorial.bold,
-    fontSize: 18,
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-  fact: {
-    gap: 5,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: hair[2],
-  },
-  sourceToggle: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  sourceToggleText: {
-    flex: 1,
-    color: P.inkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 14,
-  },
   rowText: { flex: 1, flexShrink: 1 },
-  sourceList: {
-    gap: 8,
-    paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: hair[2],
-  },
   analysisNote: {
     flexDirection: "row",
     alignItems: "flex-start",

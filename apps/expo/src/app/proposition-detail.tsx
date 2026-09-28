@@ -15,15 +15,13 @@ import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Icon, NavHeader } from "~/components/ui";
-import {
-  fontBody,
-  fontDisplay,
-  fontEditorial,
-  DigestPalette as P,
-  sp,
-} from "~/styles";
+import { fontBody, fontEditorial, DigestPalette as P, sp } from "~/styles";
 import { trpc } from "~/utils/api";
-import { submittedGuideArguments } from "~/utils/proposition-explainers";
+import { ballotElectionDate } from "~/utils/ballot-lookup";
+import {
+  officialVoteMeaning,
+  submittedGuideArguments,
+} from "~/utils/proposition-explainers";
 
 export default function PropositionDetailScreen() {
   const router = useRouter();
@@ -68,10 +66,7 @@ export default function PropositionDetailScreen() {
           <>
             <View style={s.lead}>
               <Text style={s.kicker}>
-                California · {query.data.electionDate}
-              </Text>
-              <Text accessibilityRole="header" style={s.heading}>
-                Proposition {measure.number}
+                California · {ballotElectionDate(query.data.electionDate)}
               </Text>
               <Text style={s.caption}>
                 Official California voter guide · Retrieved{" "}
@@ -87,9 +82,15 @@ export default function PropositionDetailScreen() {
                   From the official California voter guide
                 </Text>
                 <View style={s.voteCard}>
-                  <Outcome label="YES" body={measure.voteMeaningYes} />
+                  <Outcome
+                    label="YES"
+                    body={officialVoteMeaning(measure.voteMeaningYes, "YES")}
+                  />
                   <View style={s.voteDivider} />
-                  <Outcome label="NO" body={measure.voteMeaningNo} />
+                  <Outcome
+                    label="NO"
+                    body={officialVoteMeaning(measure.voteMeaningNo, "NO")}
+                  />
                 </View>
               </View>
             ) : (
@@ -290,72 +291,6 @@ const s = StyleSheet.create({
     lineHeight: 18,
     color: P.quiet,
   },
-  modeRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: P.border,
-  },
-  modeButton: {
-    flex: 1,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  modeSelected: { borderBottomColor: P.primary },
-  modeText: {
-    color: P.quiet,
-    fontFamily: fontBody.semibold,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  modeTextSelected: { color: P.inkOnNight },
-  explainerLead: { gap: 16 },
-  headline: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 28,
-    lineHeight: 34,
-    color: P.inkOnNight,
-  },
-  summaryCard: {
-    backgroundColor: P.card,
-    borderColor: P.border,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderLeftWidth: 3,
-    borderLeftColor: P.primary,
-    borderRadius: 8,
-    padding: 16,
-    gap: 12,
-  },
-  summaryHead: { flexDirection: "row", alignItems: "center", gap: 9 },
-  summaryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: `${P.primary}28`,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  summaryTitle: {
-    flex: 1,
-    fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 23,
-    color: P.inkOnNight,
-  },
-  takeaway: {
-    fontFamily: fontBody.regular,
-    fontSize: 15,
-    lineHeight: 23,
-    color: P.inkOnNight,
-  },
-  aiText: {
-    fontFamily: fontBody.regular,
-    fontSize: 11,
-    lineHeight: 16,
-    color: P.quiet,
-  },
   voteSection: { gap: 12 },
   voteCard: {
     backgroundColor: P.card,
@@ -381,24 +316,11 @@ const s = StyleSheet.create({
     lineHeight: 21,
     color: P.primary,
   },
-  outcomeTitle: {
-    flex: 1,
-    color: P.inkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 16,
-    lineHeight: 22,
-  },
   outcomeBody: {
     color: P.inkOnNight,
     fontFamily: fontBody.regular,
     fontSize: 15,
     lineHeight: 23,
-  },
-  caveat: {
-    color: P.quiet,
-    fontFamily: fontBody.medium,
-    fontSize: 13,
-    lineHeight: 19,
   },
   metaLabel: {
     fontFamily: fontBody.medium,
@@ -439,14 +361,6 @@ const s = StyleSheet.create({
     lineHeight: 18,
     color: P.quiet,
   },
-  detailRow: { gap: 3 },
-  detailLabel: {
-    color: P.inkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  fiscal: { gap: 8 },
   disclosure: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -466,7 +380,6 @@ const s = StyleSheet.create({
     lineHeight: 20,
     color: P.inkOnNight,
   },
-  footer: { gap: 8, paddingTop: 7 },
   sourceLink: {
     flexDirection: "row",
     alignItems: "center",
