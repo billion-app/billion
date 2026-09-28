@@ -20,7 +20,6 @@ import {
   fontBody,
   fontDisplay,
   fontEditorial,
-  lensColors,
   DigestPalette as P,
   sp,
 } from "~/styles";
@@ -135,10 +134,6 @@ export default function PropositionDetailScreen() {
             {explainer && !recordMode ? (
               <>
                 <View style={s.explainerLead}>
-                  <View style={s.aiRow}>
-                    <Icon name="sparkle" size={12} color={P.quiet} />
-                    <Text style={s.aiText}>{PROPOSITION_AI_LABEL}</Text>
-                  </View>
                   <Text
                     accessibilityRole="header"
                     allowFontScaling={false}
@@ -146,21 +141,34 @@ export default function PropositionDetailScreen() {
                   >
                     {explainer.headline}
                   </Text>
-                  <Text style={s.takeaway}>{explainer.takeaway}</Text>
+                  <View style={s.summaryCard}>
+                    <View style={s.summaryHead}>
+                      <View style={s.summaryIcon}>
+                        <Icon name="sparkle" size={16} color={P.primary} />
+                      </View>
+                      <Text style={s.summaryTitle}>The short version</Text>
+                    </View>
+                    <Text style={s.takeaway}>{explainer.takeaway}</Text>
+                    <Text style={s.aiText}>{PROPOSITION_AI_LABEL}</Text>
+                  </View>
                 </View>
-                <View style={s.outcomes}>
-                  <Outcome
-                    label="YES"
-                    title={explainer.voteTitleYes}
-                    body={explainer.voteBriefYes}
-                    color={lensColors.proponents}
-                  />
-                  <Outcome
-                    label="NO"
-                    title={explainer.voteTitleNo}
-                    body={explainer.voteBriefNo}
-                    color={lensColors.opponents}
-                  />
+                <View style={s.voteSection}>
+                  <Text accessibilityRole="header" style={s.heading}>
+                    What your vote means
+                  </Text>
+                  <View style={s.voteCard}>
+                    <Outcome
+                      label="YES"
+                      title={explainer.voteTitleYes}
+                      body={explainer.voteBriefYes}
+                    />
+                    <View style={s.voteDivider} />
+                    <Outcome
+                      label="NO"
+                      title={explainer.voteTitleNo}
+                      body={explainer.voteBriefNo}
+                    />
+                  </View>
                 </View>
                 {explainer.caveat && (
                   <Text style={s.caveat}>{explainer.caveat}</Text>
@@ -295,19 +303,19 @@ function Outcome({
   label,
   title,
   body,
-  color,
 }: {
   label: "YES" | "NO";
   title: string;
   body: string;
-  color: string;
 }) {
   return (
-    <View style={[s.outcome, { borderLeftColor: color }]}>
-      <Text style={[s.outcomeLabel, { color }]}>{label}</Text>
-      <Text accessibilityRole="header" style={s.outcomeTitle}>
-        {title}
-      </Text>
+    <View style={s.outcome}>
+      <View style={s.outcomeHead}>
+        <Text style={s.outcomeLabel}>{label}</Text>
+        <Text accessibilityRole="header" style={s.outcomeTitle}>
+          {title}
+        </Text>
+      </View>
       <Text style={s.outcomeBody}>{body}</Text>
     </View>
   );
@@ -434,49 +442,88 @@ const s = StyleSheet.create({
     lineHeight: 20,
   },
   modeTextSelected: { color: P.inkOnNight },
-  explainerLead: { gap: 6 },
+  explainerLead: { gap: 16 },
   headline: {
     fontFamily: fontDisplay.bold,
     fontSize: 28,
     lineHeight: 34,
     color: P.inkOnNight,
   },
-  takeaway: {
-    fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
+  summaryCard: {
+    backgroundColor: P.card,
+    borderColor: P.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderLeftWidth: 3,
+    borderLeftColor: P.primary,
+    borderRadius: 8,
+    padding: 16,
+    gap: 12,
+  },
+  summaryHead: { flexDirection: "row", alignItems: "center", gap: 9 },
+  summaryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: `${P.primary}28`,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summaryTitle: {
+    flex: 1,
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 23,
     color: P.inkOnNight,
   },
-  aiRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  aiText: {
-    flex: 1,
+  takeaway: {
     fontFamily: fontBody.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 23,
+    color: P.inkOnNight,
+  },
+  aiText: {
+    fontFamily: fontBody.regular,
+    fontSize: 11,
+    lineHeight: 16,
     color: P.quiet,
   },
-  outcomes: { gap: 22 },
-  outcome: {
-    borderLeftWidth: 3,
-    paddingLeft: 14,
-    gap: 5,
+  voteSection: { gap: 12 },
+  voteCard: {
+    backgroundColor: P.card,
+    borderColor: P.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    padding: 16,
+  },
+  voteDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: P.border,
+    marginVertical: 16,
+  },
+  outcome: { gap: 8 },
+  outcomeHead: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 12,
   },
   outcomeLabel: {
     fontFamily: fontBody.bold,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 21,
+    color: P.primary,
   },
   outcomeTitle: {
+    flex: 1,
     color: P.inkOnNight,
     fontFamily: fontBody.semibold,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 22,
   },
   outcomeBody: {
     color: P.inkOnNight,
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 23,
   },
   caveat: {
     color: P.quiet,
