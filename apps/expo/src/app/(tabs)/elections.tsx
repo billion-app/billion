@@ -30,6 +30,7 @@ import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
+  ballotElectionDate,
   ballotElectionOptions,
   contestBallotCitations,
   currentBallot,
@@ -224,11 +225,16 @@ function DevelopmentElections() {
 }
 
 function CaliforniaElectionEntry({ onExplore }: { onExplore: () => void }) {
+  const guide = useQuery(trpc.civic.getCaliforniaGuide.queryOptions()).data;
   return (
     <TabScreen title="Elections">
       <View style={s.entry}>
         <View style={s.entryRule} />
-        <Text style={s.entryKicker}>NOVEMBER 3, 2026 · GENERAL ELECTION</Text>
+        <Text style={s.entryKicker}>
+          {guide
+            ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
+            : "CALIFORNIA STATEWIDE GUIDE"}
+        </Text>
         <Text style={s.entryTitle}>Voting in California?</Text>
         <Text style={s.entryBody}>
           Explore official candidate statements and statewide propositions.
