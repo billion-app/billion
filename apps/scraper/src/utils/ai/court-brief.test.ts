@@ -63,7 +63,7 @@ void test("pending criminal dockets are distinct from decided court opinions", (
     status: "Pending",
     fullText: "Charges (allegations, not findings):\n- Charge 1",
   };
-  assert.equal(courtProceeding(data), "criminal_docket");
+  assert.equal(courtProceeding(data), "unknown");
   const brief = validateCourtBrief(
     emergencyOutput,
     {
@@ -73,7 +73,19 @@ void test("pending criminal dockets are distinct from decided court opinions", (
     "fixture",
   );
   assert.equal(brief.decisionDate, null);
-  assert.equal(brief.proceeding, "criminal_docket");
+  assert.equal(brief.proceeding, "unknown");
+  assert.equal(brief.criminalCaseStatus, "Pending");
+  assert.equal(
+    brief.latestDocketDate,
+    emergency.data.filedDate?.toISOString().slice(0, 10),
+  );
+  const disposed = validateCourtBrief(
+    emergencyOutput,
+    { ...emergency, data: { ...data, status: "Disposed" } },
+    "fixture",
+  );
+  assert.equal(disposed.criminalCaseStatus, "Disposed");
+  assert.equal(disposed.decisionDate, null);
 });
 
 void test("unknown evidence remains sparse; unknown citations fail and unverifiable or wrong-document quotes are removed", () => {

@@ -93,13 +93,12 @@ export const CourtBriefRecordSchema = CourtBriefSchema.extend({
   court: text,
   docket: text,
   decisionDate: z.iso.date().nullable(),
-  proceeding: z.enum([
-    "emergency_order",
-    "order",
-    "merits_opinion",
-    "criminal_docket",
-    "unknown",
-  ]),
+  proceeding: z.enum(["emergency_order", "order", "merits_opinion", "unknown"]),
+  // Optional for old installed clients: they understand `unknown` but not a
+  // new proceeding enum value. New readers use this source-reported status to
+  // identify criminal dockets without changing the existing wire enum.
+  criminalCaseStatus: text.optional(),
+  latestDocketDate: z.iso.date().optional(),
   generatedAt: z.iso.datetime(),
   modelVersion: text,
   verifiedQuotes: z.number().int().nonnegative(),

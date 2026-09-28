@@ -25,7 +25,7 @@ export const getReaderContent = cache(
   async (id: string): Promise<ReaderContent | null> => {
     if (!UUID.test(id)) return null;
     try {
-      return await caller.content.getById({ id });
+      return await caller.content.getById({ id, supportsMassachusetts: true });
     } catch (error) {
       if (error instanceof TRPCError && error.code === "NOT_FOUND") return null;
       throw error;

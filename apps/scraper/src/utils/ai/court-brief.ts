@@ -32,7 +32,7 @@ export function courtProceeding(
   data: CourtCaseData,
 ): CourtBriefRecord["proceeding"] {
   if (data.fullText?.includes("Charges (allegations, not findings):"))
-    return "criminal_docket";
+    return "unknown";
   if (/^\d{2}A\d+$/i.test(data.caseNumber)) return "emergency_order";
   if (data.status === "Published order opinion") return "order";
   if (data.status === "Published merits opinion") return "merits_opinion";
@@ -110,12 +110,22 @@ export function validateCourtBrief(
     })),
     court: input.data.court,
     docket: input.data.caseNumber,
-    decisionDate:
-      /pending/i.test(input.data.status ?? "") &&
-      input.data.fullText?.includes("Charges (allegations, not findings):")
-        ? null
-        : (input.data.filedDate?.toISOString().slice(0, 10) ?? null),
+    decisionDate: input.data.fullText?.includes(
+      "Charges (allegations, not findings):",
+    )
+      ? null
+      : (input.data.filedDate?.toISOString().slice(0, 10) ?? null),
     proceeding: courtProceeding(input.data),
+    criminalCaseStatus: input.data.fullText?.includes(
+      "Charges (allegations, not findings):",
+    )
+      ? (input.data.status ?? "Status not reported")
+      : undefined,
+    latestDocketDate: input.data.fullText?.includes(
+      "Charges (allegations, not findings):",
+    )
+      ? input.data.filedDate?.toISOString().slice(0, 10)
+      : undefined,
     generatedAt: new Date().toISOString(),
     modelVersion,
     verifiedQuotes,
@@ -149,9 +159,9 @@ export async function generateCourtBrief(
     })
     .join("\n\n");
   const allowedDocumentIds = documents.map((document) => document.id);
-  const pendingCriminalCase =
-    /pending/i.test(input.data.status ?? "") &&
-    input.data.fullText?.includes("Charges (allegations, not findings):");
+  const criminalCase = input.data.fullText?.includes(
+    "Charges (allegations, not findings):",
+  );
   const explicitModels = model
     ? Array.isArray(model)
       ? [...model]
@@ -175,8 +185,8 @@ export async function generateCourtBrief(
 Case: ${input.data.title}; docket: ${input.data.caseNumber}; court: ${input.data.court}.
 Source proceeding classification: ${courtProceeding(input.data)}. Source status: ${input.data.status ?? "unknown"}.
 ${
-  pendingCriminalCase
-    ? "This is a pending criminal docket, not a judicial opinion. Explain the procedural action recorded (charges, complaint, summons, hearing) in action and posture. Charges are allegations; probable cause is not guilt. Do not invent a ruling, requested relief, evidence from unavailable filings, or a hearing outcome. Use allegation for charges and court_reasoning only for reasoning actually present in the source. Say when no merits decision exists."
+  criminalCase
+    ? "This is a criminal docket, not a judicial opinion. Explain only the procedural actions and any disposition actually recorded. Charges are allegations unless a finding or outcome is explicitly documented; probable cause is not guilt. Do not invent a ruling, requested relief, evidence from unavailable filings, or a hearing outcome. Use allegation for charges and court_reasoning only for reasoning actually present in the source. State when the merits or outcome remain unresolved."
     : "Explain the specific request and relief granted or denied. A stay denial leaves the challenged action in place at this stage; it does not decide every merits question. For an emergency order, order, or unknown proceeding use court_reasoning, never holding. Even a merits opinion resolves only the issues it actually decides."
 }
 Keep the takeaway and action to one or two short sentences. The takeaway also appears as the article subtitle, so write it without legal shorthand whenever plain wording is accurate. Explain posture in everyday words. The only allowed document IDs are ${allowedDocumentIds.join(", ")}. Every documentIds entry and every quote.documentId must exactly match one of those IDs; never create another ID. Quotes must be exact contiguous source passages, attributed to the document containing them; otherwise use null. Include a page/section locator only when known, otherwise null.

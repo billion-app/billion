@@ -50,6 +50,19 @@ void test(
           (item) => item.id === id && item.type === "court_case",
         ),
       );
+      await assert.rejects(
+        api.content.getById({ id: billId }),
+        (error: unknown) =>
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "NOT_FOUND",
+      );
+      const billDetail = await api.content.getById({
+        id: billId,
+        supportsMassachusetts: true,
+      });
+      assert.equal(billDetail.type, "bill");
+      assert.equal(billDetail.jurisdiction, "ma");
       assert.ok(
         mixed.items.some(
           (item) =>

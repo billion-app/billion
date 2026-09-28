@@ -105,7 +105,10 @@ export default function ArticleDetailScreen() {
     isLoading,
     error,
   } = useQuery({
-    ...trpc.content.getById.queryOptions({ id: articleId ?? "__missing__" }),
+    ...trpc.content.getById.queryOptions({
+      id: articleId ?? "__missing__",
+      supportsMassachusetts: true,
+    }),
     enabled: !!articleId,
   });
 

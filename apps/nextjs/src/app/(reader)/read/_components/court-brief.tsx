@@ -27,11 +27,6 @@ const PROCEEDING = {
     label: "Full decision",
     detail: "The court decided the legal questions before it",
   },
-  criminal_docket: {
-    badge: "PENDING CASE",
-    label: "Criminal docket",
-    detail: "Charges are allegations; no verdict is recorded",
-  },
   unknown: {
     badge: "SCOPE UNCLEAR",
     label: "Court filing",
@@ -63,7 +58,15 @@ export function CourtBriefBlocks({
   accent: string;
   dualLens?: ReactNode;
 }) {
-  const proceeding = PROCEEDING[brief.proceeding];
+  const proceeding = brief.criminalCaseStatus
+    ? {
+        badge: /^pending$/i.test(brief.criminalCaseStatus)
+          ? "PENDING CASE"
+          : "CRIMINAL CASE",
+        label: "Criminal docket",
+        detail: `Archive status: ${brief.criminalCaseStatus}. Read the docket for recorded court activity.`,
+      }
+    : PROCEEDING[brief.proceeding];
   return (
     <div className="flex flex-col gap-6" data-testid="court-brief">
       <section
@@ -103,9 +106,11 @@ export function CourtBriefBlocks({
           </p>
           <p className="text-quiet mt-1 font-sans text-[11px] leading-4">
             {brief.court} · {brief.docket}
-            {brief.decisionDate
-              ? ` · ${brief.decisionDate}`
-              : " · Date unknown"}
+            {brief.latestDocketDate
+              ? ` · Latest docket entry ${brief.latestDocketDate}`
+              : brief.decisionDate
+                ? ` · ${brief.decisionDate}`
+                : " · Date unknown"}
           </p>
         </div>
       </section>
@@ -119,7 +124,11 @@ export function CourtBriefBlocks({
         </p>
       ) : null}
 
-      <BlockTitle section="court-ruling">What the court did</BlockTitle>
+      <BlockTitle section="court-ruling">
+        {brief.criminalCaseStatus
+          ? "What the docket records"
+          : "What the court did"}
+      </BlockTitle>
       <section
         className="bg-slate border-hair-1 flex flex-col gap-3 rounded-[14px] border border-l-[3px] p-4"
         style={{ borderLeftColor: accent }}
@@ -128,7 +137,7 @@ export function CourtBriefBlocks({
           <span style={{ color: accent }}>
             <Icon name="check" size={15} />
           </span>{" "}
-          THE RULING
+          {brief.criminalCaseStatus ? "RECORDED ACTION" : "THE RULING"}
         </p>
         <CourtDefinedText
           text={brief.action.text}
@@ -138,7 +147,9 @@ export function CourtBriefBlocks({
         />
         <div className="bg-surface rounded-[10px] p-3">
           <p className="text-quiet mb-1 font-sans text-[9px] font-semibold tracking-[0.1em]">
-            WHAT THE COURT WAS DECIDING
+            {brief.criminalCaseStatus
+              ? "CASE POSTURE"
+              : "WHAT THE COURT WAS DECIDING"}
           </p>
           <CourtDefinedText
             text={brief.posture}
@@ -186,7 +197,9 @@ export function CourtBriefBlocks({
       {brief.reasoning.length ? (
         <>
           <BlockTitle section="court-reasoning">
-            How the court got there
+            {brief.criminalCaseStatus
+              ? "What the record says"
+              : "How the court got there"}
           </BlockTitle>
           <div className="flex flex-col gap-3">
             {brief.reasoning.map((reason, index) => (

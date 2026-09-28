@@ -899,6 +899,9 @@ export const contentRouter = {
     .input(
       z.object({
         id: z.string(),
+        // Older installed clients cannot render Massachusetts bill detail.
+        // They omit this field; a direct link then gets a safe not-found state.
+        supportsMassachusetts: z.boolean().optional(),
       }),
     )
     .query(async ({ input }) => {
@@ -911,6 +914,8 @@ export const contentRouter = {
       if (bill[0]) {
         const b = bill[0];
         const jurisdiction = billJurisdiction(b.sourceWebsite, b.billNumber);
+        if (jurisdiction === "ma" && !input.supportsMassachusetts)
+          throw new TRPCError({ code: "NOT_FOUND" });
         const stateIdentity = parseStateBillNumber(b.billNumber);
         const sponsorIdentity = b.sponsor
           ? parseBillSponsor(b.sponsor, jurisdiction)

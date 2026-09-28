@@ -5,6 +5,7 @@ import {
   discoverCriminalCases,
   parseCriminalCase,
 } from "./ecourt-records-source.js";
+import { selectCriminalCases } from "./ecourt-records.js";
 
 const url =
   "https://ecourtrecords.org/us/massachusetts/barnstable-county/orleans/commonwealth-vs-peters-braden-e/2626cr000731/c09bb285/";
@@ -24,6 +25,60 @@ function casePage(lastEntry = "September 8, 2026", entries = "") {
 test("discovers the criminal docket without searching for a named person", () => {
   assert.deepEqual(discoverCriminalCases(index), [url]);
   assert.throws(() => discoverCriminalCases("<main></main>"), /no case links/);
+});
+
+test("bounded scans discover later cases and rotate through stored cases", () => {
+  const urls = ["a", "b", "c", "d", "e", "f"];
+  const checked = new Map<string, Date | null>();
+  const first = selectCriminalCases(urls, checked, 2);
+  assert.deepEqual(first, ["a", "b"]);
+  for (const value of first) checked.set(value, new Date("2026-09-27"));
+  const second = selectCriminalCases(urls, checked, 2);
+  assert.deepEqual(second, ["c", "d"]);
+  for (const value of second) checked.set(value, new Date("2026-09-28"));
+  const third = selectCriminalCases(urls, checked, 2);
+  assert.deepEqual(third, ["e", "f"]);
+  for (const value of third) checked.set(value, new Date("2026-09-29"));
+  assert.deepEqual(selectCriminalCases(urls, checked, 2), ["a", "b"]);
+});
+
+test("failed cases back off and do not pin healthy cases behind them", () => {
+  const urls = ["a", "b", "c", "d"];
+  const retries = new Map(
+    ["a", "b"].map(
+      (url) =>
+        [
+          url,
+          {
+            updatedAt: new Date("2026-09-28T00:00:00Z"),
+            nextAttemptAt: new Date("2026-09-28T00:15:00Z"),
+          },
+        ] as const,
+    ),
+  );
+  assert.deepEqual(
+    selectCriminalCases(
+      urls,
+      new Map(),
+      2,
+      retries,
+      new Date("2026-09-28T00:05:00Z"),
+    ),
+    ["c", "d"],
+  );
+  assert.deepEqual(
+    selectCriminalCases(
+      urls,
+      new Map([
+        ["c", new Date("2026-09-28T00:05:00Z")],
+        ["d", new Date("2026-09-28T00:05:00Z")],
+      ]),
+      2,
+      retries,
+      new Date("2026-09-29T00:00:00Z"),
+    ),
+    ["a", "b"],
+  );
 });
 
 test("keeps docket text and treats the latest entry as the browse date", () => {
