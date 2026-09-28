@@ -137,7 +137,7 @@ export function CourtBriefBlocks({
           <span style={{ color: accent }}>
             <Icon name="check" size={15} />
           </span>{" "}
-          {brief.criminalCaseStatus ? "RECORDED ACTION" : "THE RULING"}
+          {brief.criminalCaseStatus ? "CASE UPDATE" : "THE RULING"}
         </p>
         <CourtDefinedText
           text={brief.action.text}
@@ -432,7 +432,10 @@ function PointSources({
             rel="noopener noreferrer"
             className="bg-surface text-quiet border-hair-1 inline-flex items-center gap-1 rounded-full border px-2 py-[5px] font-sans text-[10.5px] no-underline hover:text-white"
           >
-            <Icon name="doc" size={11} /> Source {id.replace("document-", "")}
+            <Icon name="doc" size={11} />{" "}
+            {brief.criminalCaseStatus
+              ? "Docket source"
+              : `Source ${id.replace("document-", "")}`}
             <Icon name="external" size={10} />
           </a>
         );
@@ -457,7 +460,9 @@ function Unknowns({
       <div className="mb-3 flex items-center gap-2">
         <Icon name="help" size={15} className="text-quiet" />
         <h2 className="font-editorial text-[16px] font-bold">
-          What the ruling doesn&apos;t settle
+          {brief.criminalCaseStatus
+            ? "What the docket doesn’t show"
+            : "What the ruling doesn’t settle"}
         </h2>
       </div>
       <ol className="m-0 flex list-none flex-col gap-2 p-0">
@@ -486,8 +491,14 @@ function OfficialDocuments({ brief }: { brief: CourtBriefRecord }) {
   return (
     <section>
       <h2 className="font-editorial mb-3 text-[20px] font-bold">
-        Source material
+        {brief.criminalCaseStatus ? "Docket source" : "Source material"}
       </h2>
+      {brief.criminalCaseStatus ? (
+        <p className="text-quiet mb-3 font-sans text-[13px] leading-5">
+          A docket can list filings without providing their contents. This link
+          opens the archive’s docket snapshot.
+        </p>
+      ) : null}
       <div className="flex flex-col gap-2">
         {brief.sources.map((source, index) => (
           <a
@@ -500,10 +511,12 @@ function OfficialDocuments({ brief }: { brief: CourtBriefRecord }) {
             <Icon name="doc" size={16} className="text-quiet" />
             <span className="min-w-0 flex-1">
               <span className="text-quiet block font-sans text-[9px] font-semibold tracking-[0.09em]">
-                LINKED SOURCE
+                {brief.criminalCaseStatus ? "LINKED DOCKET" : "LINKED SOURCE"}
               </span>
               <span className="block font-sans text-[14px] font-semibold">
-                Document {index + 1}
+                {brief.criminalCaseStatus
+                  ? `Docket snapshot ${index + 1}`
+                  : `Document ${index + 1}`}
               </span>
               <span className="text-quiet block truncate font-sans text-[11px]">
                 {source.url}
