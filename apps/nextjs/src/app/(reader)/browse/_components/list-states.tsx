@@ -91,7 +91,7 @@ export function EmptyState({
       </p>
       <p className="text-quiet max-w-[360px] font-sans text-[14px] leading-5">
         {hasCourtRecords
-          ? "Check the court source for new docket activity."
+          ? "Check back for new bills and court docket activity."
           : isState
             ? `${scopeName} legislature only — courts and orders aren’t in yet.`
             : "Try a different search."}

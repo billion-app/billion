@@ -479,7 +479,7 @@ export function BrowseCatalog() {
               </Text>
               <Text style={s.emptySub}>
                 {jurisdiction === "ma"
-                  ? "Check the court source for new docket activity."
+                  ? "Check back for new bills and court docket activity."
                   : isState
                     ? `${jurisdictionInfo.name} legislature only — courts and orders aren’t in yet.`
                     : "Try a different search."}

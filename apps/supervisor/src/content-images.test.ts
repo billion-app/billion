@@ -112,6 +112,7 @@ void test("covers all feed import and repair jobs but excludes civic caches and 
   for (const id of [
     "congress-daily",
     "open-states-ca-daily",
+    "open-states-ma-daily",
     "open-states-nc-daily",
     "open-states-tx-daily",
     "legistar-daily",

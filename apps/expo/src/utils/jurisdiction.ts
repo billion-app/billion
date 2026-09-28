@@ -64,9 +64,9 @@ export const JURISDICTIONS: Record<
   ma: {
     id: "ma",
     name: "Massachusetts",
-    body: "Massachusetts courts",
-    session: "Current proceedings",
-    description: "District court criminal dockets",
+    body: "Massachusetts General Court",
+    session: "2025–2026 regular session",
+    description: "Legislation and district court criminal dockets",
     code: "MA",
     icon: "pin",
     subtitlePlace: "Massachusetts",

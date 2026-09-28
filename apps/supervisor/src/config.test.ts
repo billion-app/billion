@@ -16,7 +16,7 @@ void test("every job is reachable by id", () => {
 });
 
 void test("every supported state has an isolated daily refresh", () => {
-  const stateCodes = ["ca", "nc", "tx"];
+  const stateCodes = ["ca", "ma", "nc", "tx"];
   for (const stateCode of stateCodes) {
     const job = findJob(`open-states-${stateCode}-daily`);
     assert.ok(job, `${stateCode} has no daily Open States job`);

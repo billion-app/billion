@@ -38,12 +38,7 @@ export const JURISDICTIONS: Record<Scope, JurisdictionInfo> = {
     description: "Congress, the President, the Supreme Court",
   },
   ca: state("ca"),
-  ma: {
-    name: "Massachusetts",
-    body: "Massachusetts courts",
-    code: "MA",
-    description: "District court criminal dockets",
-  },
+  ma: state("ma"),
   nc: state("nc"),
   tx: state("tx"),
 };

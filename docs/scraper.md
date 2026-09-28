@@ -59,8 +59,8 @@ will still be present on the next run.
 
 `open-states.ts` ingests state-legislature bills into the same `Bill` table and
 the same AI pipeline as federal ones. Browse currently supports California,
-North Carolina, and Texas
-(`OPEN_STATES_STATES=ca,nc,tx`); each state walks its own cursor keyed
+Massachusetts, North Carolina, and Texas
+(`OPEN_STATES_STATES=ca,ma,nc,tx`); each state walks its own cursor keyed
 `open-states:{state}`.
 
 **Identity.** A state bill's `billNumber` is `"CA SB 243 (2025-2026)"` and its

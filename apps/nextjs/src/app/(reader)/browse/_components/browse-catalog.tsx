@@ -188,9 +188,13 @@ export function BrowseCatalog({ defaultScope }: { defaultScope: Scope }) {
           Browse
         </h1>
         <p className="text-quiet mt-1 mb-5 hidden font-sans text-[15px] md:block">
-          {info.body} — bills
-          {isState ? "" : ", executive actions and court cases"}, in plain
-          language.
+          {scope === "ma" ? info.name : info.body} — bills
+          {scope === "ma"
+            ? " and court cases"
+            : isState
+              ? ""
+              : ", executive actions and court cases"}
+          , in plain language.
         </p>
         <div className="mt-[18px] mb-2 md:mt-0">
           <SearchField value={query} onChange={changeQuery} />

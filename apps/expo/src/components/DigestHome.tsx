@@ -137,7 +137,8 @@ export function DigestHome() {
   }, [address, browseJurisdiction]);
   const localPlace = JURISDICTIONS[localJurisdiction].name;
 
-  // Prefer featured state bills; Massachusetts currently contributes court dockets.
+  // Prefer featured state bills. Massachusetts uses the mixed recent feed so
+  // its court dockets remain visible alongside legislative measures.
   // Home has no digest.getToday — this is the featured/local set, not a
   // fabricated daily ranking.
   const featuredLocal = useQuery({
@@ -150,7 +151,7 @@ export function DigestHome() {
     !featuredLocal.isLoading && (featuredLocal.data?.length ?? 0) === 0;
   const localFeed = useQuery({
     ...trpc.content.getByType.queryOptions({
-      type: localJurisdiction === "ma" ? "court_case" : "bill",
+      type: localJurisdiction === "ma" ? "all" : "bill",
       limit: BRIEF_MAX,
       jurisdiction: localJurisdiction,
     }),
@@ -320,7 +321,7 @@ export function DigestHome() {
           <View style={s.emptyWrap}>
             <Text style={s.emptyTitle}>
               {localJurisdiction === "ma"
-                ? "No Massachusetts court records yet"
+                ? "No Massachusetts records yet"
                 : "No featured local bills yet"}
             </Text>
             <Text style={s.emptySub}>

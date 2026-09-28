@@ -32,7 +32,7 @@ export const STATE_JURISDICTIONS: Record<
     name: "Massachusetts",
     legislature: "Massachusetts General Court",
     lowerChamber: "House",
-    currentSession: "2025-2026",
+    currentSession: "194th",
     currentSessionLabel: "2025–2026 regular session",
   },
   // Kept for compatibility with installed app builds that can still send
