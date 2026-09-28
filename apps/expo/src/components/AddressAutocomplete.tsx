@@ -129,9 +129,7 @@ export function AddressAutocomplete({
           activeOpacity={0.7}
           onPress={() => void pick(sug)}
         >
-          {inline ? null : (
-            <PinMark size={14} color={DigestPalette.quiet} />
-          )}
+          {inline ? null : <PinMark size={14} color={DigestPalette.quiet} />}
           <Text
             style={inline ? s.suggestionTextInline : s.suggestionText}
             numberOfLines={1}
@@ -143,9 +141,7 @@ export function AddressAutocomplete({
       {suggestions.length === 0 && suggestionsQuery.isFetching && (
         <View style={inline ? s.suggestionInline : s.suggestion}>
           <ActivityIndicator size="small" color={DigestPalette.quiet} />
-          {inline ? null : (
-            <Text style={s.suggestionText}>Searching…</Text>
-          )}
+          {inline ? null : <Text style={s.suggestionText}>Searching…</Text>}
         </View>
       )}
     </View>
@@ -172,7 +168,11 @@ export function AddressAutocomplete({
             if (next) commit(next);
           }}
         />
-        {detailsMutation.isPending ? pending : showDropdown ? suggestionList : null}
+        {detailsMutation.isPending
+          ? pending
+          : showDropdown
+            ? suggestionList
+            : null}
       </View>
     );
   }

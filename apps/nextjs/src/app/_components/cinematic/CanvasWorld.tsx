@@ -89,7 +89,10 @@ export function CanvasWorld() {
             h,
           );
           if (!a.visible && !b.visible) continue;
-          if (pixelOnPhone(a.x, a.y, w, h, foot) && pixelOnPhone(b.x, b.y, w, h, foot)) {
+          if (
+            pixelOnPhone(a.x, a.y, w, h, foot) &&
+            pixelOnPhone(b.x, b.y, w, h, foot)
+          ) {
             continue;
           }
           ctx.moveTo(a.x, a.y);

@@ -10,8 +10,8 @@
  *
  * No Skia / expo-gl — stays inside the current native fingerprint.
  */
-import { useId, useState } from "react";
 import type { StyleProp, TextStyle } from "react-native";
+import { useId, useState } from "react";
 import { Platform, Text, View } from "react-native";
 import Animated, {
   SensorType,
@@ -115,13 +115,15 @@ function useFoilSheets(boxW: number, boxH: number, enabled: boolean) {
   const shineClip = useAnimatedStyle(() => {
     const sx = boxWSv.value / VB;
     const gx = Math.max(-1, Math.min(1, gravity.sensor.value.x));
-    const x = (-12 - gx * 8) * sx + Math.sin(clock.value * 1.75 + 0.6) * 10 * sx;
+    const x =
+      (-12 - gx * 8) * sx + Math.sin(clock.value * 1.75 + 0.6) * 10 * sx;
     return { transform: [{ translateX: x }] };
   });
   const shineFill = useAnimatedStyle(() => {
     const sx = boxWSv.value / VB;
     const gx = Math.max(-1, Math.min(1, gravity.sensor.value.x));
-    const x = (-12 - gx * 8) * sx + Math.sin(clock.value * 1.75 + 0.6) * 10 * sx;
+    const x =
+      (-12 - gx * 8) * sx + Math.sin(clock.value * 1.75 + 0.6) * 10 * sx;
     return { transform: [{ translateX: -x }] };
   });
 
@@ -376,10 +378,7 @@ export function GoldFoilText({
       style={{ alignSelf: "flex-start", overflow: "hidden" }}
       onLayout={(e) => {
         const { width, height } = e.nativeEvent.layout;
-        if (
-          Math.abs(width - box.w) < 0.5 &&
-          Math.abs(height - box.h) < 0.5
-        ) {
+        if (Math.abs(width - box.w) < 0.5 && Math.abs(height - box.h) < 0.5) {
           return;
         }
         setBox({ w: width, h: height });
@@ -413,11 +412,7 @@ export function GoldFoilText({
             ]}
           >
             <Animated.Text
-              style={[
-                style,
-                { width: box.w, color: "#FFE9A8" },
-                foil.hotFill,
-              ]}
+              style={[style, { width: box.w, color: "#FFE9A8" }, foil.hotFill]}
               numberOfLines={numberOfLines}
             >
               {text}

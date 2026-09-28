@@ -37,21 +37,20 @@ function apiError(error: unknown, fallback: string): TRPCError {
   });
 }
 
-const listInput = z
-  .object({
-    jurisdiction: jurisdictionEnum.default("sanjose"),
-    timeline: z.enum(["upcoming", "recent", "all"]).default("upcoming"),
-    from: z.date().optional(),
-    to: z.date().optional(),
-    topic: z.string().max(80).optional(),
-    district: z.number().int().min(1).max(10).optional(),
-    query: z.string().trim().min(2).max(200).optional(),
-    limit: z.number().int().min(1).max(100).default(30),
-    offset: z.number().int().min(0).max(10_000).default(0),
-    // Alias of `offset` so tRPC's tanstack infinite-query helpers can drive
-    // keyset-free paging from the client.
-    cursor: z.number().int().min(0).max(10_000).optional(),
-  });
+const listInput = z.object({
+  jurisdiction: jurisdictionEnum.default("sanjose"),
+  timeline: z.enum(["upcoming", "recent", "all"]).default("upcoming"),
+  from: z.date().optional(),
+  to: z.date().optional(),
+  topic: z.string().max(80).optional(),
+  district: z.number().int().min(1).max(10).optional(),
+  query: z.string().trim().min(2).max(200).optional(),
+  limit: z.number().int().min(1).max(100).default(30),
+  offset: z.number().int().min(0).max(10_000).default(0),
+  // Alias of `offset` so tRPC's tanstack infinite-query helpers can drive
+  // keyset-free paging from the client.
+  cursor: z.number().int().min(0).max(10_000).optional(),
+});
 
 async function listDecisions(input: z.infer<typeof listInput>) {
   const options = input;
