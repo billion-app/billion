@@ -227,6 +227,7 @@ export function BrowseCatalog({ defaultScope }: { defaultScope: Scope }) {
           <EmptyState
             scopeName={info.name}
             isState={isState}
+            hasCourtRecords={scope === "ma"}
             type={type}
             query={isSearching ? searchText : undefined}
             onShowBills={() => setType("bill")}

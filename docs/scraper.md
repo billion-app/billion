@@ -8,7 +8,7 @@ For setup, bounded examples, active source names, and production builds, use the
 
 ## Scrapers
 
-[The registry](../apps/scraper/src/scrapers.ts) includes White House, Federal Register, Legistar, Congress, SCOTUS, Open States, Santa Clara County voter guides, and California candidate statements. SCOTUS reads official Supreme Court opinion and order-opinion indexes and their full PDFs, including published emergency order opinions. It does not depend on CourtListener indexing or authentication.
+[The registry](../apps/scraper/src/scrapers.ts) includes White House, Federal Register, Legistar, Congress, SCOTUS, eCourt Records, Open States, Santa Clara County voter guides, and California candidate statements. SCOTUS reads official Supreme Court opinion and order-opinion indexes and their full PDFs, including published emergency order opinions. It does not depend on CourtListener indexing or authentication. The eCourt Records adapter reads independently hosted Massachusetts criminal docket snapshots and does not treat them as an official live court feed.
 
 Congress and Open States normalize legislation into `bill`. White House and Federal Register documents share `government_content`; source identity and title normalization prevent duplicate presidential records. Legistar has its own normalized local-decision ingestion path, described in [Local government and Legistar](local-government-legistar.md).
 

@@ -27,6 +27,11 @@ const PROCEEDING = {
     label: "Full decision",
     detail: "The court decided the legal questions before it",
   },
+  criminal_docket: {
+    badge: "PENDING CASE",
+    label: "Criminal docket",
+    detail: "Charges are allegations; no verdict is recorded",
+  },
   unknown: {
     badge: "SCOPE UNCLEAR",
     label: "Court filing",
@@ -414,8 +419,7 @@ function PointSources({
             rel="noopener noreferrer"
             className="bg-surface text-quiet border-hair-1 inline-flex items-center gap-1 rounded-full border px-2 py-[5px] font-sans text-[10.5px] no-underline hover:text-white"
           >
-            <Icon name="doc" size={11} /> Official source{" "}
-            {id.replace("document-", "")}
+            <Icon name="doc" size={11} /> Source {id.replace("document-", "")}
             <Icon name="external" size={10} />
           </a>
         );
@@ -469,7 +473,7 @@ function OfficialDocuments({ brief }: { brief: CourtBriefRecord }) {
   return (
     <section>
       <h2 className="font-editorial mb-3 text-[20px] font-bold">
-        Official documents
+        Source material
       </h2>
       <div className="flex flex-col gap-2">
         {brief.sources.map((source, index) => (
@@ -483,7 +487,7 @@ function OfficialDocuments({ brief }: { brief: CourtBriefRecord }) {
             <Icon name="doc" size={16} className="text-quiet" />
             <span className="min-w-0 flex-1">
               <span className="text-quiet block font-sans text-[9px] font-semibold tracking-[0.09em]">
-                OFFICIAL COURT RECORD
+                LINKED SOURCE
               </span>
               <span className="block font-sans text-[14px] font-semibold">
                 Document {index + 1}

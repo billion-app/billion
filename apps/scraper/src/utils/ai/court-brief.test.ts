@@ -5,7 +5,11 @@ import { MockLanguageModelV3 } from "ai/test";
 
 import { parseCourtBriefRecord } from "@acme/validators";
 
-import { generateCourtBrief, validateCourtBrief } from "./court-brief.js";
+import {
+  courtProceeding,
+  generateCourtBrief,
+  validateCourtBrief,
+} from "./court-brief.js";
 import {
   emergency,
   emergencyOutput,
@@ -50,6 +54,26 @@ void test("26A305 stays interim; merits and separately published opinions valida
       ),
     /merits holding/,
   );
+});
+
+void test("pending criminal dockets are distinct from decided court opinions", () => {
+  const data = {
+    ...emergency.data,
+    caseNumber: "2626CR000731",
+    status: "Pending",
+    fullText: "Charges (allegations, not findings):\n- Charge 1",
+  };
+  assert.equal(courtProceeding(data), "criminal_docket");
+  const brief = validateCourtBrief(
+    emergencyOutput,
+    {
+      ...emergency,
+      data,
+    },
+    "fixture",
+  );
+  assert.equal(brief.decisionDate, null);
+  assert.equal(brief.proceeding, "criminal_docket");
 });
 
 void test("unknown evidence remains sparse; unknown citations fail and unverifiable or wrong-document quotes are removed", () => {

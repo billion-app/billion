@@ -2,8 +2,7 @@ import type { TypeFilter } from "~/lib/browse-params";
 
 /**
  * Loading, failure and empty states. The copy is the phone's, because each
- * one says something true about the data: a state has bills but no courts or
- * orders yet; a failed load has not changed your scope.
+ * one says something true about the data; a failed load has not changed your scope.
  */
 
 export function ListSkeleton() {
@@ -62,12 +61,14 @@ export function ErrorState({
 export function EmptyState({
   scopeName,
   isState,
+  hasCourtRecords = false,
   type,
   query,
   onShowBills,
 }: {
   scopeName: string;
   isState: boolean;
+  hasCourtRecords?: boolean;
   type: TypeFilter;
   query?: string;
   onShowBills: () => void;
@@ -75,11 +76,13 @@ export function EmptyState({
   const title =
     isState && type === "court_case"
       ? `No ${scopeName} court cases yet`
-      : isState
+      : isState && !hasCourtRecords
         ? `No ${scopeName} ${type === "all" ? "bills" : "records"} found`
-        : query
-          ? `No match for “${query}”`
-          : "Nothing found";
+        : hasCourtRecords
+          ? `No ${scopeName} ${type === "all" ? "records" : "matches"} found`
+          : query
+            ? `No match for “${query}”`
+            : "Nothing found";
   return (
     <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
       <EmptyMark />
@@ -87,11 +90,13 @@ export function EmptyState({
         {title}
       </p>
       <p className="text-quiet max-w-[360px] font-sans text-[14px] leading-5">
-        {isState
-          ? `${scopeName} legislature only — courts and orders aren’t in yet.`
-          : "Try a different search."}
+        {hasCourtRecords
+          ? "Check the court source for new docket activity."
+          : isState
+            ? `${scopeName} legislature only — courts and orders aren’t in yet.`
+            : "Try a different search."}
       </p>
-      {isState && type !== "bill" && type !== "all" ? (
+      {isState && !hasCourtRecords && type !== "bill" && type !== "all" ? (
         <ActionPill onClick={onShowBills}>Show {scopeName} bills</ActionPill>
       ) : null}
     </div>

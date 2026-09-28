@@ -37,7 +37,7 @@ export const CourtBriefTermSchema = z.object({
 export const CourtBriefSchema = z.object({
   takeaway: CourtBriefPointSchema,
   action: CourtBriefPointSchema.describe(
-    "The specific relief granted or denied, distinct from the ultimate merits.",
+    "The recorded court or procedural action, distinct from any unresolved merits.",
   ),
   posture: text.describe(
     "What request the court is deciding; explicitly say when the record does not establish it.",
@@ -93,7 +93,13 @@ export const CourtBriefRecordSchema = CourtBriefSchema.extend({
   court: text,
   docket: text,
   decisionDate: z.iso.date().nullable(),
-  proceeding: z.enum(["emergency_order", "order", "merits_opinion", "unknown"]),
+  proceeding: z.enum([
+    "emergency_order",
+    "order",
+    "merits_opinion",
+    "criminal_docket",
+    "unknown",
+  ]),
   generatedAt: z.iso.datetime(),
   modelVersion: text,
   verifiedQuotes: z.number().int().nonnegative(),

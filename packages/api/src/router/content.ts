@@ -333,6 +333,18 @@ const billJurisdictionCondition = (jurisdiction: ContentJurisdiction) =>
     ? sql`${Bill.sourceWebsite} <> 'openstates.org'`
     : sql`${Bill.sourceWebsite} = 'openstates.org' and ${Bill.billNumber} like ${`${jurisdiction.toUpperCase()} %`}`;
 
+const MASSACHUSETTS_CASE_URL = "https://ecourtrecords.org/us/massachusetts/%";
+const courtJurisdiction = (url: string): ContentJurisdiction =>
+  url.startsWith("https://ecourtrecords.org/us/massachusetts/")
+    ? "ma"
+    : "federal";
+const courtJurisdictionCondition = (jurisdiction: ContentJurisdiction) =>
+  jurisdiction === "ma"
+    ? sql`${CourtCase.url} like ${MASSACHUSETTS_CASE_URL}`
+    : jurisdiction === "federal"
+      ? sql`${CourtCase.url} not like ${MASSACHUSETTS_CASE_URL}`
+      : sql`false`;
+
 // Schema for detailed content
 const _ContentDetailSchema = ContentCardSchema.extend({
   articleContent: z.string(),
@@ -579,7 +591,7 @@ export const contentRouter = {
               activityAt: COURT_CASE_ACTIVITY_AT.as("activity_at"),
             })
             .from(CourtCase)
-            .where(sql`${jurisdiction} = 'federal'`),
+            .where(courtJurisdictionCondition(jurisdiction)),
         )
           .orderBy(sql`"activity_at" desc nulls last`)
           .limit(limit + 1)
@@ -602,8 +614,12 @@ export const contentRouter = {
                 type: row.type as ContentCard["type"],
                 isAIGenerated: false,
                 thumbnailUrl: row.thumbnailUrl ?? undefined,
-                jurisdiction: "federal",
-                jurisdictionCode: "US",
+                jurisdiction:
+                  row.type === "court_case" ? jurisdiction : "federal",
+                jurisdictionCode:
+                  row.type === "court_case"
+                    ? jurisdictionCode(jurisdiction)
+                    : "US",
               },
         );
 
@@ -659,12 +675,13 @@ export const contentRouter = {
       }
 
       // input.type === "court_case" — only remaining branch
-      if (jurisdiction !== "federal") {
+      if (jurisdiction !== "federal" && jurisdiction !== "ma") {
         return { items: [] as ContentCard[], nextCursor: undefined };
       }
       const courtCases = await db
         .select()
         .from(CourtCase)
+        .where(courtJurisdictionCondition(jurisdiction))
         .orderBy(desc(COURT_CASE_ACTIVITY_AT))
         .limit(limit + 1)
         .offset(cursor);
@@ -677,6 +694,8 @@ export const contentRouter = {
         type: "court_case" as const,
         isAIGenerated: false,
         thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
+        jurisdiction,
+        jurisdictionCode: jurisdictionCode(jurisdiction),
       }));
       return {
         items: await attachContentImages(items),
@@ -756,11 +775,11 @@ export const contentRouter = {
       }
 
       if (type === "court_case") {
-        if (jurisdiction !== "federal") return [];
+        if (jurisdiction !== "federal" && jurisdiction !== "ma") return [];
         const courtCases = await db
           .select()
           .from(CourtCase)
-          .where(caseMatch)
+          .where(and(caseMatch, courtJurisdictionCondition(jurisdiction)))
           .orderBy(desc(caseRank))
           .limit(limit);
         const items: ContentCard[] = courtCases.map((courtCase) => ({
@@ -770,6 +789,8 @@ export const contentRouter = {
           type: "court_case" as const,
           isAIGenerated: false,
           thumbnailUrl: courtCase.thumbnailUrl ?? undefined,
+          jurisdiction,
+          jurisdictionCode: jurisdictionCode(jurisdiction),
         }));
         return await attachContentImages(items);
       }
@@ -843,7 +864,7 @@ export const contentRouter = {
             rank: caseRank.as("rank"),
           })
           .from(CourtCase)
-          .where(and(caseMatch, sql`${jurisdiction} = 'federal'`)),
+          .where(and(caseMatch, courtJurisdictionCondition(jurisdiction))),
       )
         .orderBy(sql`"rank" desc`)
         .limit(limit);
@@ -862,8 +883,12 @@ export const contentRouter = {
               type: row.type as ContentCard["type"],
               isAIGenerated: false,
               thumbnailUrl: row.thumbnailUrl ?? undefined,
-              jurisdiction: "federal",
-              jurisdictionCode: "US",
+              jurisdiction:
+                row.type === "court_case" ? jurisdiction : "federal",
+              jurisdictionCode:
+                row.type === "court_case"
+                  ? jurisdictionCode(jurisdiction)
+                  : "US",
             },
       );
       return await attachContentImages(items);
@@ -1014,6 +1039,8 @@ export const contentRouter = {
             url: c.url,
             courtBrief,
             lensData,
+            jurisdiction: courtJurisdiction(c.url),
+            jurisdictionCode: jurisdictionCode(courtJurisdiction(c.url)),
           },
         ]);
         if (!result) throw new Error(`Failed to decorate court case ${c.id}`);
@@ -1144,6 +1171,7 @@ export const contentRouter = {
             title: CourtCase.title,
             description: CourtCase.description,
             thumbnailUrl: CourtCase.thumbnailUrl,
+            url: CourtCase.url,
           })
           .from(CourtCase)
           .where(inArray(CourtCase.id, input.ids)),
@@ -1169,8 +1197,8 @@ export const contentRouter = {
           isAIGenerated: false,
           description: row.description ?? "",
           thumbnailUrl: row.thumbnailUrl ?? undefined,
-          jurisdiction: "federal" as const,
-          jurisdictionCode: "US" as const,
+          jurisdiction: courtJurisdiction(row.url),
+          jurisdictionCode: jurisdictionCode(courtJurisdiction(row.url)),
         });
       }
 
@@ -1258,6 +1286,7 @@ export const contentRouter = {
                 title: CourtCase.title,
                 description: CourtCase.description,
                 thumbnailUrl: CourtCase.thumbnailUrl,
+                url: CourtCase.url,
               })
               .from(CourtCase)
               .where(eq(CourtCase.id, s.contentId))
@@ -1277,8 +1306,14 @@ export const contentRouter = {
                   ...item,
                   description: item.description ?? "",
                   thumbnailUrl: item.thumbnailUrl ?? undefined,
-                  jurisdiction: "federal" as const,
-                  jurisdictionCode: "US" as const,
+                  jurisdiction:
+                    item.type === "court_case"
+                      ? courtJurisdiction(item.url)
+                      : ("federal" as const),
+                  jurisdictionCode:
+                    item.type === "court_case"
+                      ? jurisdictionCode(courtJurisdiction(item.url))
+                      : ("US" as const),
                 },
           );
         return {

@@ -40,6 +40,11 @@ const PROCEEDING = {
     label: "Full decision",
     detail: "The court decided the legal questions before it",
   },
+  criminal_docket: {
+    badge: "PENDING CASE",
+    label: "Criminal docket",
+    detail: "Charges are allegations; no verdict is recorded",
+  },
   unknown: {
     badge: "SCOPE UNCLEAR",
     label: "Court filing",
@@ -211,12 +216,12 @@ function SourcePills({ data, point }: { data: CourtBriefData; point: Point }) {
             style={s.sourcePill}
             activeOpacity={0.7}
             accessibilityRole="link"
-            accessibilityLabel={`Open official source ${id}`}
+            accessibilityLabel={`Open source ${id}`}
             onPress={() => void Linking.openURL(source.url)}
           >
             <Icon name="doc" size={11} color={colors.textSecondary} />
             <Text style={s.sourcePillText}>
-              Official source {id.replace("document-", "")}
+              Source {id.replace("document-", "")}
             </Text>
             <Icon name="external" size={10} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -346,7 +351,7 @@ function UnknownsCard({
 function OfficialDocuments({ data }: { data: CourtBriefData }) {
   return (
     <>
-      <BlockTitle>Official documents</BlockTitle>
+      <BlockTitle>Source material</BlockTitle>
       <View style={s.documentList} testID="court-brief-sources">
         {data.sources.map((source, index) => (
           <TouchableOpacity
@@ -354,14 +359,14 @@ function OfficialDocuments({ data }: { data: CourtBriefData }) {
             style={s.documentCard}
             activeOpacity={0.75}
             accessibilityRole="link"
-            accessibilityLabel={`Open full official document ${source.id}`}
+            accessibilityLabel={`Open source ${source.id}`}
             onPress={() => void Linking.openURL(source.url)}
           >
             <View style={s.documentIcon}>
               <Icon name="doc" size={15} color={colors.textSecondary} />
             </View>
             <View style={s.documentCopy}>
-              <Text style={s.documentEyebrow}>OFFICIAL COURT RECORD</Text>
+              <Text style={s.documentEyebrow}>LINKED SOURCE</Text>
               <Text style={s.documentTitle}>Document {index + 1}</Text>
               <Text style={s.documentUrl} numberOfLines={1}>
                 {source.url}

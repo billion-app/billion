@@ -64,6 +64,7 @@ supervisor job uses it.
 | `whitehouse-daily`             | daily 01:00 local | Reads presidential actions directly from the White House RSS feed                         |
 | `federalregister-daily`        | daily 01:30 local | Refreshes executive orders and presidential documents                                     |
 | `scotus-daily`                 | daily 01:45 local | Reads 20 recent official Court decisions, including order opinions; five generation slots |
+| `ecourt-records-daily`         | daily 02:15 local | Refreshes up to five indexed Massachusetts criminal dockets; two generation slots         |
 | `content-images-daily`         | daily 04:15 local | Generates illustrated Storage-backed header art for recent retained content               |
 | `notify-followers-hourly`      | every 60 minutes  | Sends lock-screen alerts for bills a reader asked us to watch                             |
 | `court-image-smoke`            | manual            | Generates and reviews at most one real court-case image for production verification       |

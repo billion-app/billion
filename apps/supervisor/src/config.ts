@@ -152,6 +152,18 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 12,
   },
   {
+    id: "ecourt-records-daily",
+    description:
+      "Refresh publicly indexed criminal case dockets from eCourt Records",
+    script: "main.js",
+    args: ["ecourt-records", "--max-items", "5", "--concurrency", "1"],
+    env: { SCRAPER_MAX_NEW_ITEMS_PER_RUN: "2" },
+    schedule: { kind: "daily", hour: 2, minute: 15 },
+    priority: 6,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "scc-cvig-weekly",
     description: "Santa Clara County voter information guide",
     script: "main.js",

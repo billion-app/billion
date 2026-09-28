@@ -9,7 +9,7 @@ import { STATE_JURISDICTIONS } from "@acme/api/content-jurisdiction";
  * jurisdictions are *offered* is a client choice, as on the phone: Missouri
  * stays in the API for old app installs but is not browsable here.
  */
-export const SCOPES = ["federal", "ca", "nc", "tx"] as const;
+export const SCOPES = ["federal", "ca", "ma", "nc", "tx"] as const;
 
 export type Scope = (typeof SCOPES)[number];
 
@@ -38,6 +38,12 @@ export const JURISDICTIONS: Record<Scope, JurisdictionInfo> = {
     description: "Congress, the President, the Supreme Court",
   },
   ca: state("ca"),
+  ma: {
+    name: "Massachusetts",
+    body: "Massachusetts courts",
+    code: "MA",
+    description: "District court criminal dockets",
+  },
   nc: state("nc"),
   tx: state("tx"),
 };

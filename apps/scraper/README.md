@@ -39,8 +39,11 @@ Source limits and generation budgets are different. `--max-items` limits source 
 | `ca-election-logistics` | California SOS election-specific key dates                  | Statewide voting guidance in `civic_api_cache` |
 | `ca-sos-statements`     | California candidate-statement pages and PDF fallback       | Candidate statements in `civic_api_cache`      |
 | `scotus`                | Supreme Court opinion and order-opinion indexes/PDFs        | `court_case`                                   |
+| `ecourt-records`        | Publicly indexed Massachusetts criminal docket snapshots    | `court_case`                                   |
 
 `all` starts registered scrapers concurrently and validates the whole set's environment first. It is broader than a production scheduled refresh. The supervisor names jobs separately so it can control timing, retention, and budgets.
+
+`ecourt-records` discovers criminal cases from the independent [eCourt Records archive](https://ecourtrecords.org/), then refreshes the indexed case pages. The current index includes Orleans District Court case `2626CR000731` (Commonwealth v. Peters). It preserves charges as allegations, docket text, scheduled events, the source URL, and the date of the latest docket entry. The supervisor checks up to five indexed criminal cases daily with two generation slots. Run a bounded manual refresh with `pnpm --filter @acme/scraper run start ecourt-records --max-items 1 --concurrency 1` after checking the selected database. The archive says its snapshots may omit later activity, so a successful job only confirms what the archive currently publishes; check the court for an authoritative status. The official MassCourts case portal disallows crawling in its robots policy and is not scraped.
 
 The `scotus` source reads the Court's current and previous October-term indexes,
 combines entries for the same docket and publication date, and processes the
