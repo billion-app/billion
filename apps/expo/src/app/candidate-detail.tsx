@@ -25,11 +25,8 @@ import {
 import { trpc } from "~/utils/api";
 import {
   canMatchCaliforniaGuide,
-  checkedCandidateRecord,
   ELECTION_DATE,
   findGuideCandidate,
-  OFFICE_CONTEXT_SOURCE,
-  officeContext,
   parseBallotCandidate,
   statewideOfficeSlug,
 } from "~/utils/candidate-explainer";
@@ -87,12 +84,6 @@ export default function CandidateDetailScreen() {
   const sourceUrl = usingGuideStatement
     ? guide.sourceUrl
     : statementCitation?.sourceUrl;
-  const date = guide ? query.data?.electionDate : params.electionDate;
-  const context = guide && office ? officeContext[office] : undefined;
-  const record =
-    guide && office && date
-      ? checkedCandidateRecord(guide.name, office, date)
-      : undefined;
   const fetchedAt = usingGuideStatement
     ? query.data?.fetchedAt
     : statementCitation?.fetchedAt;
@@ -137,7 +128,9 @@ export default function CandidateDetailScreen() {
           <>
             <View style={s.hero}>
               <Text style={s.eyebrow}>
-                {guide ? "CALIFORNIA · NOV 3, 2026" : "BALLOT CONTEST"}
+                {guide
+                  ? `CALIFORNIA · ${query.data?.electionDate}`
+                  : "BALLOT CONTEST"}
               </Text>
               <View style={s.identity}>
                 {webUrl(candidate.photoUrl) && !photoFailed ? (
@@ -157,7 +150,7 @@ export default function CandidateDetailScreen() {
                     {candidate.name}
                   </Text>
                   <Text style={s.office}>
-                    {context?.name ?? params.office ?? "Office unavailable"}
+                    {guide?.officeName ?? params.office ?? "Office unavailable"}
                   </Text>
                 </View>
               </View>
@@ -190,25 +183,24 @@ export default function CandidateDetailScreen() {
               <View style={s.fact}>
                 <Text style={s.panelLabel}>THE OFFICE</Text>
                 <Text style={s.body}>
-                  {context?.description ??
-                    "The office's responsibilities have not been checked for this race."}
+                  {guide?.officeDuties?.length
+                    ? guide.officeDuties.join(" ")
+                    : "Office duties are not available in Billion. Open the official guide for this office."}
                 </Text>
               </View>
               <View style={s.fact}>
                 <Text style={s.panelLabel}>CANDIDATE'S STATED PRIORITIES</Text>
                 <Text style={s.body}>
-                  {record && guide
-                    ? record.says
-                    : candidate.statement
-                      ? "Read the candidate's statement below. Billion has not checked a summary of its claims."
-                      : "No candidate statement is available to Billion."}
+                  {candidate.statement
+                    ? "Read the candidate's own statement below. Billion has not independently checked its claims."
+                    : "No candidate statement is available to Billion."}
                 </Text>
               </View>
               <View style={s.fact}>
                 <Text style={s.panelLabel}>CHECKED PUBLIC RECORD</Text>
                 <Text style={s.body}>
-                  {record?.text ??
-                    "Billion has not reviewed an independent record for this candidate."}
+                  Billion has not reviewed an independent record for this
+                  candidate.
                 </Text>
               </View>
               <TouchableOpacity
@@ -229,23 +221,14 @@ export default function CandidateDetailScreen() {
               </TouchableOpacity>
               {showOverviewSources ? (
                 <View style={s.sourceList}>
-                  {guide && context ? (
+                  {guide?.officeDuties?.length ? (
                     <SourceLink
-                      label="Office duties · California Roster"
-                      url={OFFICE_CONTEXT_SOURCE}
-                    />
-                  ) : null}
-                  {record && guide ? (
-                    <SourceLink
-                      label="Candidate statement · California voter guide"
+                      label="Office duties · California voter guide"
                       url={guide.sourceUrl}
                     />
                   ) : null}
-                  {record ? (
-                    <SourceLink
-                      label={record.sourceName}
-                      url={record.sourceUrl}
-                    />
+                  {sourceUrl ? (
+                    <SourceLink label="Candidate statement" url={sourceUrl} />
                   ) : null}
                   {candidate.photoUrl && portraitSource ? (
                     <SourceLink
@@ -346,11 +329,6 @@ export default function CandidateDetailScreen() {
                   }
                   url={sourceUrl}
                 />
-              ) : null}
-              {record ? (
-                <Text style={s.muted}>
-                  Public record checked {record.checkedAt}
-                </Text>
               ) : null}
               {guide ? (
                 <SourceLink

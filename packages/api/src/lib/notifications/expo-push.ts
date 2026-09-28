@@ -2,6 +2,10 @@ import { SIGNAL_CATEGORY } from "./copy";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const TOKEN_RE = /^(ExponentPushToken|ExpoPushToken)\[[\w-]+\]$/;
+const requestTimeout = (milliseconds: number): AbortSignal =>
+  (
+    AbortSignal as typeof AbortSignal & { timeout(ms: number): AbortSignal }
+  ).timeout(milliseconds);
 
 export function isExpoPushToken(value: string): boolean {
   return TOKEN_RE.test(value.trim());
@@ -65,7 +69,7 @@ export async function sendExpoPush(
       method: "POST",
       headers,
       body: JSON.stringify(chunk),
-      signal: AbortSignal.timeout(15_000),
+      signal: requestTimeout(15_000),
     });
     if (!response.ok) {
       const text = await response.text();
@@ -104,7 +108,7 @@ export async function getExpoPushReceipts(
     method: "POST",
     headers,
     body: JSON.stringify({ ids }),
-    signal: AbortSignal.timeout(15_000),
+    signal: requestTimeout(15_000),
   });
   if (!response.ok) throw new Error(`Expo receipts HTTP ${response.status}`);
   const json = (await response.json()) as {

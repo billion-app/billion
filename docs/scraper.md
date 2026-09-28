@@ -14,6 +14,8 @@ Congress and Open States normalize legislation into `bill`. White House and Fede
 
 The candidate-statement scrapers write `civic_api_cache` for request-time enrichment. They do not run the article pipeline. The `scrapers/disabled/` folder contains inactive adapters and its [README](../apps/scraper/src/scrapers/disabled/README.md) explains the requirements for reactivation.
 
+The California official-guide scraper collects the current statewide proposition and candidate-statement pages as one dated cache payload. It stores the state's Yes/No descriptions alongside each measure and the office name and duty bullets alongside each submitted candidate statement. These are source text, not Billion explanations or verified candidate claims. If a page loses its expected vote or office-description markup, the refresh fails instead of replacing the previous complete cache with partial content. The app reads this payload through `civic.getCaliforniaGuide`.
+
 Shared source HTTP requests use [fetchWithRetry](../apps/scraper/src/utils/fetch.ts), with timeouts, retry backoff, and per-host throttling. Inspect source-specific transport for integrations with separate clients.
 
 ## Incremental discovery (congress.gov)

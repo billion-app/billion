@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Linking,
   Pressable,
   ScrollView,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -24,53 +23,24 @@ import {
   sp,
 } from "~/styles";
 import { trpc } from "~/utils/api";
-import {
-  PROPOSITION_AI_LABEL,
-  propositionExplainer,
-  submittedGuideArguments,
-} from "~/utils/proposition-explainers";
+import { submittedGuideArguments } from "~/utils/proposition-explainers";
 
 export default function PropositionDetailScreen() {
   const router = useRouter();
-  const scroll = useRef<ScrollView>(null);
-  const { fontScale } = useWindowDimensions();
-  const headlineScale = Math.min(fontScale, 1.5);
-  const headlineStyle = {
-    fontSize: 28 * headlineScale,
-    lineHeight: 34 * headlineScale,
-  };
   const { number } = useLocalSearchParams<{ number?: string }>();
-  const [modeState, setModeState] = useState<{
-    number: string | undefined;
-    mode: "explanation" | "official";
-  }>({ number, mode: "explanation" });
-  const mode = modeState.number === number ? modeState.mode : "explanation";
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const measure = query.data?.measures.find((item) => item.number === number);
-  const explainer = measure
-    ? propositionExplainer(measure.number, measure.title, measure.sourceUrl)
-    : null;
   const proArguments = submittedGuideArguments(measure?.proArguments);
   const conArguments = submittedGuideArguments(measure?.conArguments);
-  const recordMode = !explainer || mode === "official";
-
-  useEffect(() => {
-    scroll.current?.scrollTo({ y: 0, animated: false });
-  }, [number]);
-
-  function switchMode(next: "explanation" | "official") {
-    setModeState({ number, mode: next });
-    scroll.current?.scrollTo({ y: 0, animated: false });
-  }
 
   return (
     <View style={s.screen}>
       <NavHeader
-        title={fontScale >= 1.8 ? "" : `Proposition ${number ?? ""}`}
+        title={`Proposition ${number ?? ""}`}
         tone="dark"
         onBack={() => router.back()}
       />
-      <ScrollView ref={scroll} contentContainerStyle={s.content}>
+      <ScrollView contentContainerStyle={s.content}>
         {query.isPending ? (
           <View style={s.surface}>
             <ActivityIndicator color={P.primary} />
@@ -98,200 +68,110 @@ export default function PropositionDetailScreen() {
           <>
             <View style={s.lead}>
               <Text style={s.kicker}>
-                {fontScale >= 1.8 ? `Proposition ${measure.number} · ` : ""}
-                California · November 3, 2026
+                California · {query.data.electionDate}
               </Text>
-              {explainer && (
-                <View style={s.modeRow}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: !recordMode }}
-                    onPress={() => switchMode("explanation")}
-                    style={[s.modeButton, !recordMode && s.modeSelected]}
-                  >
-                    <Text
-                      style={[s.modeText, !recordMode && s.modeTextSelected]}
-                    >
-                      Explanation
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: recordMode }}
-                    onPress={() => switchMode("official")}
-                    style={[s.modeButton, recordMode && s.modeSelected]}
-                  >
-                    <Text
-                      style={[s.modeText, recordMode && s.modeTextSelected]}
-                    >
-                      Official record
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
+              <Text accessibilityRole="header" style={s.heading}>
+                Proposition {measure.number}
+              </Text>
+              <Text style={s.caption}>
+                Official California voter guide · Retrieved{" "}
+                {query.data.fetchedAt.slice(0, 10)} UTC
+              </Text>
             </View>
-
-            {explainer && !recordMode ? (
-              <>
-                <View style={s.explainerLead}>
-                  <Text
-                    accessibilityRole="header"
-                    allowFontScaling={false}
-                    style={[s.headline, headlineStyle]}
-                  >
-                    {explainer.headline}
-                  </Text>
-                  <View style={s.summaryCard}>
-                    <View style={s.summaryHead}>
-                      <View style={s.summaryIcon}>
-                        <Icon name="sparkle" size={16} color={P.primary} />
-                      </View>
-                      <Text style={s.summaryTitle}>The short version</Text>
-                    </View>
-                    <Text style={s.takeaway}>{explainer.takeaway}</Text>
-                    <Text style={s.aiText}>{PROPOSITION_AI_LABEL}</Text>
-                  </View>
-                </View>
-                <View style={s.voteSection}>
-                  <Text accessibilityRole="header" style={s.heading}>
-                    What your vote means
-                  </Text>
-                  <View style={s.voteCard}>
-                    <Outcome
-                      label="YES"
-                      title={explainer.voteTitleYes}
-                      body={explainer.voteBriefYes}
-                    />
-                    <View style={s.voteDivider} />
-                    <Outcome
-                      label="NO"
-                      title={explainer.voteTitleNo}
-                      body={explainer.voteBriefNo}
-                    />
-                  </View>
-                </View>
-                {explainer.caveat && (
-                  <Text style={s.caveat}>{explainer.caveat}</Text>
-                )}
-                <DetailDisclosure
-                  title={explainer.detailTitle}
-                  subtitle="What happens if Yes passes"
-                >
-                  {explainer.detailRows.map((row) => (
-                    <View key={row.label} style={s.detailRow}>
-                      <Text style={s.detailLabel}>{row.label}</Text>
-                      <Text style={s.body}>{row.text}</Text>
-                    </View>
-                  ))}
-                  <InlineSource
-                    label="Legislative Analyst · Analysis"
-                    url={explainer.analysisUrl}
-                  />
-                </DetailDisclosure>
-                <View style={s.fiscal}>
-                  <Text accessibilityRole="header" style={s.heading}>
-                    Fiscal effect
-                  </Text>
-                  <Text style={s.body}>{explainer.fiscal}</Text>
-                  <InlineSource
-                    label="Legislative Analyst · Fiscal effects"
-                    url={explainer.analysisUrl}
-                  />
-                </View>
-                <View style={s.footer}>
-                  <Text style={s.metaLabel}>OFFICIAL SOURCES</Text>
-                  <InlineSource
-                    label="California official proposition guide"
-                    url={measure.sourceUrl}
-                  />
-                  <InlineSource
-                    label="Legislative Analyst · Full analysis"
-                    url={explainer.analysisUrl}
-                  />
-                </View>
-              </>
-            ) : (
-              <View style={s.record}>
-                {!explainer && (
-                  <Text style={s.caption}>
-                    Billion has not published an explanation for this
-                    proposition. The official material is available below.
-                  </Text>
-                )}
-                <Text style={s.metaLabel}>
-                  OFFICIAL BALLOT TITLE · CALIFORNIA SOS
+            {measure.voteMeaningYes && measure.voteMeaningNo ? (
+              <View style={s.voteSection}>
+                <Text accessibilityRole="header" style={s.heading}>
+                  What your vote means
                 </Text>
-                <Text accessibilityRole="header" style={s.recordTitle}>
-                  {measure.title}
-                </Text>
-                <Text style={s.metaLabel}>OFFICIAL SUMMARY</Text>
-                <Text style={s.body}>
-                  {measure.officialSummary ??
-                    "Not available in Billion. Open the state guide."}
-                </Text>
-                <Text style={s.metaLabel}>OFFICIAL FISCAL IMPACT</Text>
-                <Text style={s.body}>
-                  {measure.fiscalImpact ??
-                    "Not available in Billion. Open the state guide."}
-                </Text>
-                <DetailDisclosure
-                  title="Submitted arguments"
-                  subtitle="Advocacy statements from the official guide"
-                >
-                  <Text style={s.caption}>
-                    Advocacy statements, not independent findings. Their
-                    presence does not indicate equal evidentiary support.
-                  </Text>
-                  <Text style={s.argumentLabel}>For</Text>
-                  {proArguments.length ? (
-                    proArguments.map((arg, i) => (
-                      <Text key={`pro-${i}`} style={s.body}>
-                        {arg.text}
-                      </Text>
-                    ))
-                  ) : (
-                    <Text style={s.caption}>
-                      No argument for was provided in this guide entry.
-                    </Text>
-                  )}
-                  <Text style={s.argumentLabel}>Against</Text>
-                  {conArguments.length ? (
-                    conArguments.map((arg, i) => (
-                      <Text key={`con-${i}`} style={s.body}>
-                        {arg.text}
-                      </Text>
-                    ))
-                  ) : (
-                    <Text style={s.caption}>
-                      No argument against was provided in this guide entry.
-                    </Text>
-                  )}
-                  <InlineSource
-                    label="California SOS · Arguments and rebuttals"
-                    url={`${measure.sourceUrl}arguments-rebuttals.htm`}
-                  />
-                </DetailDisclosure>
-                <Text style={s.metaLabel}>ORIGINAL SOURCES</Text>
                 <Text style={s.caption}>
-                  California Secretary of State Official Voter Information Guide
-                  · Retrieved {query.data.fetchedAt.slice(0, 10)} UTC.
+                  From the official California voter guide
                 </Text>
-                <InlineSource
-                  label="Official title and summary"
-                  url={`${measure.sourceUrl}title-summary.htm`}
-                />
-                {measure.fullTextUrl && (
-                  <InlineSource
-                    label="Text of proposed law (PDF)"
-                    url={measure.fullTextUrl}
-                  />
+                <View style={s.voteCard}>
+                  <Outcome label="YES" body={measure.voteMeaningYes} />
+                  <View style={s.voteDivider} />
+                  <Outcome label="NO" body={measure.voteMeaningNo} />
+                </View>
+              </View>
+            ) : (
+              <Text style={s.caption}>
+                The official Yes/No descriptions are not available in Billion
+                yet. Open the state guide below.
+              </Text>
+            )}
+            <View style={s.record}>
+              <Text style={s.metaLabel}>
+                OFFICIAL BALLOT TITLE · CALIFORNIA SOS
+              </Text>
+              <Text accessibilityRole="header" style={s.recordTitle}>
+                {measure.title}
+              </Text>
+              <Text style={s.metaLabel}>OFFICIAL SUMMARY</Text>
+              <Text style={s.body}>
+                {measure.officialSummary ??
+                  "Not available in Billion. Open the state guide."}
+              </Text>
+              <Text style={s.metaLabel}>OFFICIAL FISCAL IMPACT</Text>
+              <Text style={s.body}>
+                {measure.fiscalImpact ??
+                  "Not available in Billion. Open the state guide."}
+              </Text>
+              <DetailDisclosure
+                title="Submitted arguments"
+                subtitle="Advocacy statements from the official guide"
+              >
+                <Text style={s.caption}>
+                  Advocacy statements, not independent findings. Their presence
+                  does not indicate equal evidentiary support.
+                </Text>
+                <Text style={s.argumentLabel}>For</Text>
+                {proArguments.length ? (
+                  proArguments.map((arg, i) => (
+                    <Text key={`pro-${i}`} style={s.body}>
+                      {arg.text}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={s.caption}>
+                    No argument for was provided in this guide entry.
+                  </Text>
+                )}
+                <Text style={s.argumentLabel}>Against</Text>
+                {conArguments.length ? (
+                  conArguments.map((arg, i) => (
+                    <Text key={`con-${i}`} style={s.body}>
+                      {arg.text}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={s.caption}>
+                    No argument against was provided in this guide entry.
+                  </Text>
                 )}
                 <InlineSource
-                  label="Full official proposition page"
-                  url={measure.sourceUrl}
+                  label="California SOS · Arguments and rebuttals"
+                  url={`${measure.sourceUrl}arguments-rebuttals.htm`}
                 />
-              </View>
-            )}
+              </DetailDisclosure>
+              <Text style={s.metaLabel}>ORIGINAL SOURCES</Text>
+              <Text style={s.caption}>
+                California Secretary of State Official Voter Information Guide ·
+                Retrieved {query.data.fetchedAt.slice(0, 10)} UTC.
+              </Text>
+              <InlineSource
+                label="Official title and summary"
+                url={`${measure.sourceUrl}title-summary.htm`}
+              />
+              {measure.fullTextUrl && (
+                <InlineSource
+                  label="Text of proposed law (PDF)"
+                  url={measure.fullTextUrl}
+                />
+              )}
+              <InlineSource
+                label="Full official proposition page"
+                url={measure.sourceUrl}
+              />
+            </View>
           </>
         )}
       </ScrollView>
@@ -299,22 +179,11 @@ export default function PropositionDetailScreen() {
   );
 }
 
-function Outcome({
-  label,
-  title,
-  body,
-}: {
-  label: "YES" | "NO";
-  title: string;
-  body: string;
-}) {
+function Outcome({ label, body }: { label: "YES" | "NO"; body: string }) {
   return (
     <View style={s.outcome}>
       <View style={s.outcomeHead}>
         <Text style={s.outcomeLabel}>{label}</Text>
-        <Text accessibilityRole="header" style={s.outcomeTitle}>
-          {title}
-        </Text>
       </View>
       <Text style={s.outcomeBody}>{body}</Text>
     </View>

@@ -1,9 +1,5 @@
-/** Editorially checked, source-bound facts for the California guide. */
 export const ELECTION_DATE = "2026-11-03";
 const CA_STATEWIDE_DISTRICT = "ocd-division/country:us/state:ca";
-/** California's roster describes the duties of all eight statewide offices. */
-export const OFFICE_CONTEXT_SOURCE =
-  "https://admin.cdn.sos.ca.gov/ca-roster/2025/constitutional-officers.pdf";
 
 export function canMatchCaliforniaGuide(
   state: string | undefined,
@@ -17,53 +13,21 @@ export function canMatchCaliforniaGuide(
   );
 }
 
-export const officeContext = {
-  governor: {
-    name: "Governor",
-    description:
-      "Leads most state agencies, proposes a budget, signs or vetoes bills, and directs the state response to emergencies.",
-  },
-  "lt-governor": {
-    name: "Lieutenant Governor",
-    description:
-      "Takes over when the governor cannot serve, presides over the State Senate, and serves on state lands and higher education boards.",
-  },
-  sos: {
-    name: "Secretary of State",
-    description:
-      "Oversees statewide elections, makes campaign finance records public, and maintains business filings and state archives.",
-  },
-  controller: {
-    name: "Controller",
-    description:
-      "Tracks the state's money, audits public spending, and issues payments from the state treasury.",
-  },
-  treasurer: {
-    name: "Treasurer",
-    description:
-      "Manages state investments and borrowing and helps finance public projects.",
-  },
-  "attorney-general": {
-    name: "Attorney General",
-    description:
-      "Leads the state Department of Justice, represents California in court, and enforces state laws.",
-  },
-  "insurance-commissioner": {
-    name: "Insurance Commissioner",
-    description:
-      "Regulates insurers in California, reviews rates, and enforces insurance laws.",
-  },
-  superintendent: {
-    name: "Superintendent of Public Instruction",
-    description:
-      "Serves as California's elected voice for public education and sits on state education boards.",
-  },
+const officeNames = {
+  governor: "Governor",
+  "lt-governor": "Lieutenant Governor",
+  sos: "Secretary of State",
+  controller: "Controller",
+  treasurer: "Treasurer",
+  "attorney-general": "Attorney General",
+  "insurance-commissioner": "Insurance Commissioner",
+  superintendent: "Superintendent of Public Instruction",
 } as const;
 
-export type OfficeSlug = keyof typeof officeContext;
+export type OfficeSlug = keyof typeof officeNames;
 
 export function isOfficeSlug(value: string): value is OfficeSlug {
-  return Object.prototype.hasOwnProperty.call(officeContext, value);
+  return Object.prototype.hasOwnProperty.call(officeNames, value);
 }
 
 export function statewideOfficeSlug(value: string): OfficeSlug | undefined {
@@ -72,10 +36,9 @@ export function statewideOfficeSlug(value: string): OfficeSlug | undefined {
     .toLowerCase()
     .replace(/^california /, "")
     .replace(/ of california$/, "");
-  return (Object.keys(officeContext) as OfficeSlug[]).find(
+  return (Object.keys(officeNames) as OfficeSlug[]).find(
     (slug) =>
-      slug === normalized ||
-      officeContext[slug].name.toLowerCase() === normalized,
+      slug === normalized || officeNames[slug].toLowerCase() === normalized,
   );
 }
 
@@ -85,41 +48,6 @@ export function candidateKey(name: string, office: string): string {
 
 export function guideCandidateRoute(name: string, office: OfficeSlug) {
   return { pathname: "/candidate-detail" as const, params: { name, office } };
-}
-
-export interface RecordFact {
-  text: string;
-  says: string;
-  sourceName: string;
-  sourceUrl: string;
-  checkedAt: string;
-}
-
-/** Exact identity and election gates keep these facts off namesakes and future cycles. */
-const checkedRecords: Record<string, RecordFact> = {
-  [candidateKey("Shirley N. Weber", "sos")]: {
-    text: "Weber has served as California Secretary of State since January 2021.",
-    says: "Weber says she would keep protecting access to voting and make sure eligible Californians can register and vote.",
-    sourceName: "California Secretary of State, About Us",
-    sourceUrl: "https://www.sos.ca.gov/administration",
-    checkedAt: "2026-09-27",
-  },
-  [candidateKey("Donald P. (Don) Wagner", "sos")]: {
-    text: "Wagner currently serves as Orange County's Third District supervisor. This is a different office from California Secretary of State.",
-    says: "Wagner says he would focus on election trust and faster vote counting.",
-    sourceName: "Orange County, Elected Officials",
-    sourceUrl: "https://www.ocgov.com/about-county/info-oc/elected-officials",
-    checkedAt: "2026-09-27",
-  },
-};
-
-export function checkedCandidateRecord(
-  name: string,
-  office: string,
-  electionDate: string,
-): RecordFact | undefined {
-  if (electionDate !== ELECTION_DATE) return undefined;
-  return checkedRecords[candidateKey(name, office)];
 }
 
 export function findGuideCandidate<

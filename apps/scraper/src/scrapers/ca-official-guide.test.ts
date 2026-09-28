@@ -40,6 +40,8 @@ test("official overview separates summary, fiscal impact, arguments and proposed
   assert.match(parsed.conArguments![0]!.text, /billionaire-funded/);
   assert.match(parsed.fullTextUrl!, /^https:\/\/vig.cdn.sos.ca.gov\/2026\//);
   assert.equal(parsed.sourceUrl, url);
+  assert.match(parsed.voteMeaningYes!, /state could not establish new taxes/);
+  assert.match(parsed.voteMeaningNo!, /continue to have the option/);
 });
 test("primary/general and proposition identity mismatches cannot produce data", () => {
   assert.equal(guideElectionDate(measure), date);
@@ -128,6 +130,8 @@ test("official candidate prose preserves complete statement and excludes contact
   assert.equal(parsed.length, 2);
   assert.equal(parsed[0]!.name, "Fiona Ma");
   assert.equal(parsed[0]!.party, "DEMOCRATIC");
+  assert.equal(parsed[0]!.officeName, "Lieutenant Governor");
+  assert.ok(parsed[0]!.officeDuties?.length);
   assert.equal(parsed[0]!.photoUrl, `${GUIDE_BASE}/img/lt-governor/ma.jpg`);
   assert.equal(parsed[0]!.statement.length, 1858);
   assert.doesNotMatch(
@@ -137,6 +141,17 @@ test("official candidate prose preserves complete statement and excludes contact
   assert.equal(parsed[1]!.name, "Gloria Romero");
   assert.equal(parsed[1]!.party, "REPUBLICAN");
   assert.equal(parsed[1]!.photoUrl, `${GUIDE_BASE}/img/lt-governor/romero.jpg`);
+});
+
+test("missing official vote meaning aborts the refresh", () => {
+  const broken = measure.replace(
+    'class="yesNoProCon">NO',
+    'class="missing">NO',
+  );
+  assert.throws(
+    () => parseGuideMeasure(broken, url, date),
+    /Missing official Yes\/No/,
+  );
 });
 
 test("a same-year primary law link is not a general-election full text", () => {
@@ -170,7 +185,9 @@ test("nonpartisan candidate headings supply statements without treating the offi
   const statement =
     "I will serve students and families throughout California with accountable public schools.";
   const html = `<div id="txtBnr">November 3, 2026</div>
-    <section role="main"><div id="mainCont"><h2>(Nonpartisan Office)</h2></div>
+    <section role="main"><div id="mainCont"><h1>Superintendent of Public Instruction Candidate Statements</h1>
+      <ul class="candidate-description; blts"><li>Oversees statewide public instruction.</li></ul>
+      <h2>(Nonpartisan Office)</h2></div>
       <div class="grid-parent"><div class="grid-70"><h2>Example Candidate</h2>
         <p>${statement}</p><p>Tel: 555-0100</p>
       </div></div>
