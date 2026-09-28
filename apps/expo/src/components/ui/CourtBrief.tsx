@@ -216,7 +216,9 @@ function SourcePills({ data, point }: { data: CourtBriefData; point: Point }) {
           >
             <Icon name="doc" size={11} color={colors.textSecondary} />
             <Text style={s.sourcePillText}>
-              Source {id.replace("document-", "")}
+              {data.criminalCaseStatus
+                ? "Docket source"
+                : `Source ${id.replace("document-", "")}`}
             </Text>
             <Icon name="external" size={10} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -322,7 +324,11 @@ function UnknownsCard({
     <View style={s.unknownCard} testID="court-brief-unknowns">
       <View style={s.unknownHead}>
         <Icon name="help" size={15} color={colors.textSecondary} />
-        <Text style={s.unknownTitle}>What the ruling doesn&apos;t settle</Text>
+        <Text style={s.unknownTitle}>
+          {data.criminalCaseStatus
+            ? "What the docket doesn’t show"
+            : "What the ruling doesn’t settle"}
+        </Text>
       </View>
       <View style={s.unknownList}>
         {data.unknowns.map((unknown, index) => (
@@ -346,7 +352,15 @@ function UnknownsCard({
 function OfficialDocuments({ data }: { data: CourtBriefData }) {
   return (
     <>
-      <BlockTitle>Source material</BlockTitle>
+      <BlockTitle>
+        {data.criminalCaseStatus ? "Docket source" : "Source material"}
+      </BlockTitle>
+      {data.criminalCaseStatus ? (
+        <Text style={s.scopeDetail}>
+          A docket can list filings without providing their contents. This link
+          opens the archive’s docket snapshot.
+        </Text>
+      ) : null}
       <View style={s.documentList} testID="court-brief-sources">
         {data.sources.map((source, index) => (
           <TouchableOpacity
@@ -361,8 +375,14 @@ function OfficialDocuments({ data }: { data: CourtBriefData }) {
               <Icon name="doc" size={15} color={colors.textSecondary} />
             </View>
             <View style={s.documentCopy}>
-              <Text style={s.documentEyebrow}>LINKED SOURCE</Text>
-              <Text style={s.documentTitle}>Document {index + 1}</Text>
+              <Text style={s.documentEyebrow}>
+                {data.criminalCaseStatus ? "LINKED DOCKET" : "LINKED SOURCE"}
+              </Text>
+              <Text style={s.documentTitle}>
+                {data.criminalCaseStatus
+                  ? `Docket snapshot ${index + 1}`
+                  : `Document ${index + 1}`}
+              </Text>
               <Text style={s.documentUrl} numberOfLines={1}>
                 {source.url}
               </Text>
@@ -467,7 +487,7 @@ export function CourtBrief({
             <Icon name="check" size={15} color={accent} />
           </View>
           <Text style={s.rulingLabel}>
-            {data.criminalCaseStatus ? "RECORDED ACTION" : "THE RULING"}
+            {data.criminalCaseStatus ? "CASE UPDATE" : "THE RULING"}
           </Text>
         </View>
         <DefinedText
