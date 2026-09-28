@@ -42,6 +42,7 @@ export {
   DigestRadii,
   DigestSpace,
   hair,
+  lensColors,
   planes,
 } from "@acme/ui/digest-tokens";
 
