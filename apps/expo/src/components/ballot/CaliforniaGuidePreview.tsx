@@ -15,6 +15,7 @@ import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
+import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
 import { propositionDetailRoute } from "~/utils/proposition-explainers";
 
@@ -23,17 +24,6 @@ type Candidate = Guide["candidates"][number];
 type Measure = Guide["measures"][number];
 type GuideTab = "candidates" | "measures";
 
-const offices: Record<Candidate["officeSlug"], string> = {
-  governor: "Governor",
-  "lt-governor": "Lieutenant Governor",
-  sos: "Secretary of State",
-  controller: "Controller",
-  treasurer: "Treasurer",
-  "attorney-general": "Attorney General",
-  "insurance-commissioner": "Insurance Commissioner",
-  superintendent: "Superintendent of Public Instruction",
-};
-
 function CandidateCard({ candidate }: { candidate: Candidate }) {
   const router = useRouter();
   const [photoFailed, setPhotoFailed] = useState(false);
@@ -41,7 +31,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
     <Card style={s.card}>
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel={`${candidate.name}, ${offices[candidate.officeSlug]}`}
+        accessibilityLabel={`${candidate.name}, ${candidate.officeName ?? "statewide office"}`}
         activeOpacity={0.8}
         onPress={() =>
           router.push(guideCandidateRoute(candidate.name, candidate.officeSlug))
@@ -62,7 +52,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
         <View style={s.cardIdentity}>
           <Text style={s.cardTitle}>{candidate.name}</Text>
           <Text style={s.cardMeta}>
-            {offices[candidate.officeSlug]}
+            {candidate.officeName ?? "Statewide office"}
             {candidate.party ? ` · ${candidate.party}` : ""}
           </Text>
         </View>
@@ -144,9 +134,18 @@ export function CaliforniaGuidePreview({
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.data;
   return (
-    <TabScreen title="California 2026" contentStyle={s.screen}>
+    <TabScreen
+      title={
+        guide ? `California ${guide.electionDate.slice(0, 4)}` : "California"
+      }
+      contentStyle={s.screen}
+    >
       <View style={s.intro}>
-        <Text style={s.kicker}>NOVEMBER 3 · GENERAL ELECTION</Text>
+        <Text style={s.kicker}>
+          {guide
+            ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
+            : "OFFICIAL VOTER GUIDE"}
+        </Text>
         <Text style={s.headline}>The statewide guide</Text>
         <Text style={s.introText}>
           Official candidate statements and propositions, directly from

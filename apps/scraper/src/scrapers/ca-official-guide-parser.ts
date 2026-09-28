@@ -78,6 +78,23 @@ export function parseGuideMeasure(
   const officialSummary = summary
     .split(/Fiscal Impact\s*:|Supporters\s*:|Opponents\s*:/i)[0]
     ?.trim();
+  const voteSection = $("h3.blackUnderline")
+    .filter((_, el) => clean($(el).text()) === "WHAT YOUR VOTE MEANS")
+    .first()
+    .next(".grdGrp");
+  const voteMeaning = (label: "YES" | "NO") => {
+    const markers = voteSection
+      .find(".yesNoProCon")
+      .filter((_, el) => clean($(el).text()) === label);
+    if (markers.length !== 1) return undefined;
+    const paragraph = markers.first().closest("p").clone();
+    paragraph.find(".yesNoProCon").remove();
+    return clean(paragraph.text()) || undefined;
+  };
+  const voteMeaningYes = voteMeaning("YES");
+  const voteMeaningNo = voteMeaning("NO");
+  if (!voteMeaningYes || !voteMeaningNo)
+    throw new Error(`Missing official Yes/No meaning: ${sourceUrl}`);
   const getArgument = (label: string) => {
     const marker = $(".yesNoProCon")
       .filter((_, el) => clean($(el).text()) === label)
@@ -113,6 +130,8 @@ export function parseGuideMeasure(
     title,
     sourceUrl,
     officialSummary,
+    voteMeaningYes,
+    voteMeaningNo,
     fiscalImpact: fiscalMatch?.[1]?.trim(),
     proArguments: getArgument("PRO"),
     conArguments: getArgument("CON"),
@@ -141,6 +160,18 @@ export function parseGuideCandidates(
   )
     return [];
   const $ = load(html);
+  const officeName = clean($("section[role=main] h1").first().text()).replace(
+    / Candidate Statements$/,
+    "",
+  );
+  const officeDuties = $(
+    "section[role=main] ul[class*='candidate-description'] li",
+  )
+    .toArray()
+    .map((item) => clean($(item).text()))
+    .filter(Boolean);
+  if (!officeName || !officeDuties.length)
+    throw new Error(`Missing official office description: ${sourceUrl}`);
   const candidates: OfficialGuidePayload["candidates"] = [];
   // Candidate columns include partisan and nonpartisan headings. A party
   // separator is not required (e.g. Superintendent of Public Instruction).
@@ -195,6 +226,8 @@ export function parseGuideCandidates(
       party: party || undefined,
       officeSlug:
         officeSlug as OfficialGuidePayload["candidates"][number]["officeSlug"],
+      officeName,
+      officeDuties,
       statement,
       sourceUrl,
       photoUrl,

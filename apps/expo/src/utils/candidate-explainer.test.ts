@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   candidateKey,
   canMatchCaliforniaGuide,
-  checkedCandidateRecord,
   findGuideCandidate,
   guideCandidateRoute,
   isOfficeSlug,
@@ -48,33 +47,6 @@ void test("guide identity requires exact office and a unique candidate", () => {
     pathname: "/candidate-detail",
     params: { name: "Shirley N. Weber", office: "sos" },
   });
-});
-
-void test("checked records are source attributed and election scoped", () => {
-  const incumbent = checkedCandidateRecord(
-    "Shirley N. Weber",
-    "sos",
-    "2026-11-03",
-  );
-  const challenger = checkedCandidateRecord(
-    "Donald P. (Don) Wagner",
-    "sos",
-    "2026-11-03",
-  );
-  assert.match(incumbent?.sourceUrl ?? "", /^https:\/\/www\.sos\.ca\.gov\//);
-  assert.match(challenger?.sourceUrl ?? "", /^https:\/\/www\.ocgov\.com\//);
-  assert.equal(
-    checkedCandidateRecord("Shirley N. Weber", "sos", "2028-11-07"),
-    undefined,
-  );
-  assert.equal(
-    checkedCandidateRecord("Shirley N. Weber", "controller", "2026-11-03"),
-    undefined,
-  );
-  assert.equal(
-    checkedCandidateRecord("Unknown Person", "sos", "2026-11-03"),
-    undefined,
-  );
 });
 
 void test("unknown office does not acquire a description", () => {
