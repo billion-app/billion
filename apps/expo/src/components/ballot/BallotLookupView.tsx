@@ -489,6 +489,8 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                     <BallotContestCard
                       key={`${model.election?.id ?? "unknown"}:${index}`}
                       contest={contest}
+                      state={model.isCalifornia ? "CA" : undefined}
+                      electionDate={model.election?.electionDay}
                     />
                   ))}
               </>

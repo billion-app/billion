@@ -148,7 +148,10 @@ export function isBallotMeasure(contest: Contest): boolean {
 }
 
 /** Pass supplied evidence to the existing readers without another ballot request. */
-export function ballotContestRoute(contest: Contest) {
+export function ballotContestRoute(
+  contest: Contest,
+  context?: { state?: string; electionDate?: string },
+) {
   if (isBallotMeasure(contest)) {
     return {
       pathname: "/measure-detail" as const,
@@ -175,6 +178,9 @@ export function ballotContestRoute(contest: Contest) {
     pathname: "/contest-detail" as const,
     params: {
       office: contest.office ?? "Candidate race",
+      state: context?.state ?? "",
+      electionDate: context?.electionDate ?? "",
+      districtId: contest.district?.id ?? "",
       citations: JSON.stringify(contestBallotCitations(contest)),
       roles: JSON.stringify(contest.roles ?? []),
       levels: JSON.stringify(contest.level ?? []),
