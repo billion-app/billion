@@ -262,13 +262,23 @@ check that the subject remains recognizable, the framing stays neutral and
 professional, and the pixels contain no invented consequences, caricature,
 readable text, logos, watermarks, or generation defects.
 
-The review response is validated against a fixed decision and reason schema. A
+The local review request constrains its response to the decision and reason JSON
+schema. This prevents invented reason labels from unnecessarily depending on the
+hosted fallback. The returned response is still validated for decision and reason
+consistency before publication. Government artwork also receives a bounded
+Section 1 excerpt from the official text when available, so a short feed summary
+is not its only factual context. A
 rejection gives the visual planner one chance to regenerate with corrective
 feedback. A second rejection is recorded in `content_image_review` with its
 reasons and no new `content_image` row is written; any existing row is left
 untouched. `--drain` counts that terminal rejection as completed and excludes
 the same source hash and style version on later runs, so a recurring job cannot
 spend forever on one unsuitable image.
+For a bounded manual repair, `--type government_content --government-id <UUID>`
+retries a selected missing or stale image even after a terminal rejection. It
+keeps suitability review enabled, respects `--other-limit`, and cannot use
+`--drain`; ordinary jobs still skip terminal rejections.
+
 Network errors, malformed responses, and storage failures remain failed work;
 they publish no new image and let the supervisor retry with its normal backoff.
 

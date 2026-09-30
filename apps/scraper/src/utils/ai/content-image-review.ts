@@ -340,7 +340,44 @@ export async function reviewContentImage(
           timeoutMs: 120_000,
           trackUsage: false,
           allowUnknownRejectionReasons: true,
-          body: { think: false, reasoning_effort: "none" },
+          body: {
+            think: false,
+            reasoning_effort: "none",
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "content_image_review",
+                strict: true,
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: [
+                    "decision",
+                    "description",
+                    "rejectionReasons",
+                    "feedback",
+                  ],
+                  properties: {
+                    decision: { type: "string", enum: ["accept", "reject"] },
+                    description: {
+                      type: "string",
+                      minLength: 12,
+                      maxLength: 600,
+                    },
+                    rejectionReasons: {
+                      type: "array",
+                      maxItems: 6,
+                      items: {
+                        type: "string",
+                        enum: [...CONTENT_IMAGE_REVIEW_REASONS],
+                      },
+                    },
+                    feedback: { type: "string", maxLength: 600 },
+                  },
+                },
+              },
+            },
+          },
         },
         imageDataUrls,
         source,

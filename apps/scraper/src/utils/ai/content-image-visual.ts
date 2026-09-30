@@ -32,6 +32,18 @@ type VisualPlanner = (
 const WRITTEN_MATERIAL =
   /\b(?:banner|caption|document|headline|label|letter|logo|numeral|poster|reading|screen|sign|text|title|watermark|word|written)\b/i;
 
+/** Add policy specifics without copying source-page navigation into the prompt. */
+export function governmentImageDescription(
+  description: string,
+  fullText: string | null,
+): string {
+  const summary = description.trim();
+  if (!summary || !fullText) return summary;
+  const policyStart = fullText.search(/\bSection\s+1\b/i);
+  if (policyStart < 0) return summary;
+  return `${summary.slice(0, 250)}\nOfficial source excerpt:\n${fullText.slice(policyStart, policyStart + 900)}`;
+}
+
 export function contentVisualPlanningPrompt(
   source: ContentVisualSource,
   revisionFeedback?: string,

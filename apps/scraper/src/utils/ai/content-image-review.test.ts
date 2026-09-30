@@ -4,6 +4,7 @@ import sharp from "sharp";
 
 import type { GeneratedImage } from "./image-generation.js";
 import {
+  CONTENT_IMAGE_REVIEW_REASONS,
   contentImageReviewPrompt,
   generateContentImage,
   generateReviewedContentImage,
@@ -220,7 +221,18 @@ test("image review prefers the configured local model without hidden reasoning",
   const generated = await image();
   const requests: Array<{
     url: string;
-    body: { model?: string; reasoning_effort?: string };
+    body: {
+      model?: string;
+      reasoning_effort?: string;
+      response_format?: {
+        type: string;
+        json_schema?: {
+          schema: {
+            properties: { rejectionReasons: { items: { enum: string[] } } };
+          };
+        };
+      };
+    };
   }> = [];
   const response = await reviewContentImage(generated, source, {
     apiKey: "deepseek-test-key",
@@ -260,6 +272,12 @@ test("image review prefers the configured local model without hidden reasoning",
   assert.equal(requests[0]?.url, "http://local.test/v1/chat/completions");
   assert.equal(requests[0]?.body.model, "local-vision");
   assert.equal(requests[0]?.body.reasoning_effort, "none");
+  assert.equal(requests[0]?.body.response_format?.type, "json_schema");
+  assert.deepEqual(
+    requests[0]?.body.response_format?.json_schema?.schema.properties
+      .rejectionReasons.items.enum,
+    [...CONTENT_IMAGE_REVIEW_REASONS],
+  );
   assert.deepEqual(response.rejectionReasons, []);
   assert.equal(response.reviewModelVersion, "local:local-vision");
 });
