@@ -19,6 +19,8 @@ export interface NotificationPrefs {
   breaking: boolean;
   /** Bills, elections, courts, topics the reader asked us to watch. */
   following: boolean;
+  /** New executive orders, explicitly selected during onboarding or Settings. */
+  executiveOrders: boolean;
   /** Opt-in morning summary. Default off. */
   brief: boolean;
   /** Opt-in evening recap. Default off until onboarding says otherwise. */
@@ -38,6 +40,7 @@ export interface NotificationPrefs {
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   breaking: true,
   following: true,
+  executiveOrders: false,
   brief: false,
   recap: false,
   quietHours: true,
@@ -132,6 +135,7 @@ export function parseNotificationPrefs(raw: string | null): NotificationPrefs {
     return {
       breaking: parsed.breaking !== false,
       following: parsed.following !== false,
+      executiveOrders: parsed.executiveOrders === true,
       brief: parsed.brief === true,
       recap: parsed.recap === true,
       quietHours: parsed.quietHours !== false,
@@ -164,4 +168,17 @@ export async function saveNotificationPrefs(
   } catch {
     /* a dropped preference is not worth interrupting settings for */
   }
+}
+
+/** New onboarding explicitly offers source alerts; legacy saved-item consent does not. */
+export function notificationChoicesForOnboarding(
+  vectors: readonly string[],
+  instant: boolean,
+  digest: boolean,
+) {
+  return {
+    following: instant,
+    executiveOrders: instant && vectors.includes("executive"),
+    recap: digest,
+  };
 }
