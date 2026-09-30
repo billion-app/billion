@@ -251,6 +251,13 @@ Each new/changed item runs through:
 
 The retired video feed no longer generates marketing cards or stores a `video` row.
 
+Executive-order cards and article headers use the official White House
+presidential-actions share image when both a source thumbnail and accepted
+artwork are absent. The API selects this fallback by the stored `Executive Order`
+subtype; other content keeps its existing behavior. Accepted artwork replaces
+this generic fallback automatically. The fallback is official source branding,
+not a depiction of the order’s policy.
+
 ### Header-art suitability review
 
 `content-images.ts` generates a candidate with FLUX and sends centered crops to
