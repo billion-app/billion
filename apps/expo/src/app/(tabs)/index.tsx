@@ -77,7 +77,7 @@ const FILTERS: { id: ContentFilter; label: string }[] = [
 export function BrowseCatalog() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [filter, setFilter] = useState<ContentFilter>("all");
+  const [selectedFilter, setFilter] = useState<ContentFilter>("all");
   const [query, setQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [jurisdictionPickerOpen, setJurisdictionPickerOpen] = useState(false);
@@ -86,6 +86,12 @@ export function BrowseCatalog() {
   const { jurisdiction, setJurisdiction } = useContentJurisdiction();
   const jurisdictionInfo = JURISDICTIONS[jurisdiction];
   const isState = isStateJurisdiction(jurisdiction);
+  const filters = isState
+    ? FILTERS.filter((item) => item.id !== "government_content")
+    : FILTERS;
+  // A federal Executive selection must not issue an unsupported state query.
+  const filter =
+    isState && selectedFilter === "government_content" ? "all" : selectedFilter;
   const otherJurisdiction = jurisdiction === "federal" ? "ca" : "federal";
   const featuredViews = useRef(new Set<string>());
 
@@ -318,7 +324,7 @@ export function BrowseCatalog() {
               onTouchCancel={() => setRailHeld(false)}
             >
               <Pills layout="scroll">
-                {FILTERS.map((f) => (
+                {filters.map((f) => (
                   <Pill
                     key={f.id}
                     label={f.label}
