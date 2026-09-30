@@ -3,7 +3,7 @@ import sharp from "sharp";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-import { and, desc, eq, isNull, or, sql } from "@acme/db";
+import { and, desc, eq, inArray, isNull, or, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -22,6 +22,7 @@ import {
 } from "./utils/ai/content-image-review.js";
 import {
   CONTENT_IMAGE_STYLE_VERSION,
+  governmentImageDescription,
   planRenderedContentImagePrompt,
   versionContentImageHash,
 } from "./utils/ai/content-image-visual.js";
@@ -99,13 +100,17 @@ async function billCandidates(limit: number): Promise<Candidate[]> {
   return rows.map((row) => ({ ...row, type: "bill" }));
 }
 
-async function governmentCandidates(limit: number): Promise<Candidate[]> {
+async function governmentCandidates(
+  limit: number,
+  ids: string[] = [],
+): Promise<Candidate[]> {
   const rows = await db
     .select({
       id: GovernmentContent.id,
       title: GovernmentContent.title,
       description: sql<string>`coalesce(${GovernmentContent.description}, '')`,
       contentHash: GovernmentContent.contentHash,
+      fullText: GovernmentContent.fullText,
     })
     .from(GovernmentContent)
     .leftJoin(
@@ -128,7 +133,9 @@ async function governmentCandidates(limit: number): Promise<Candidate[]> {
           isNull(ContentImage.id),
           sql`${ContentImage.contentHash} <> md5(${`${CONTENT_IMAGE_STYLE_VERSION}:`} || ${GovernmentContent.contentHash})`,
         ),
-        sql`(
+        ids.length > 0
+          ? inArray(GovernmentContent.id, ids)
+          : sql`(
           ${ContentImageReviewRow.id} is null
           or ${ContentImageReviewRow.status} <> 'rejected'
           or ${ContentImageReviewRow.contentHash} <> ${GovernmentContent.contentHash}
@@ -144,7 +151,11 @@ async function governmentCandidates(limit: number): Promise<Candidate[]> {
     )
     .orderBy(desc(GovernmentContent.publishedDate))
     .limit(limit);
-  return rows.map((row) => ({ ...row, type: "government_content" }));
+  return rows.map(({ fullText, ...row }) => ({
+    ...row,
+    description: governmentImageDescription(row.description, fullText),
+    type: "government_content",
+  }));
 }
 
 async function courtCandidates(limit: number): Promise<Candidate[]> {
@@ -344,6 +355,14 @@ const argv = await yargs(hideBin(process.argv))
     default: 20,
     describe: "Maximum government and court items per type",
   })
+  .option("government-id", {
+    type: "string",
+    array: true,
+    requiresArg: true,
+    default: [],
+    describe:
+      "Retry missing government artwork for these IDs, including previously rejected candidates",
+  })
   .option("concurrency", { type: "number", default: 1 })
   .option("dry-run", { type: "boolean", default: false })
   .option("skip-review", {
@@ -359,6 +378,21 @@ const argv = await yargs(hideBin(process.argv))
   })
   .strict()
   .parseAsync();
+
+if (argv.governmentId.length > 0) {
+  if (argv.type !== "government_content" || argv.drain) {
+    throw new Error(
+      "--government-id requires --type government_content and cannot be combined with --drain",
+    );
+  }
+  if (
+    argv.governmentId.some(
+      (id) => !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id),
+    )
+  ) {
+    throw new Error("--government-id must contain UUIDs");
+  }
+}
 
 if (argv.billLimit < 0 || argv.billLimit > 1000) {
   throw new Error("--bill-limit must be between 0 and 1000");
@@ -376,7 +410,7 @@ await runImageBatches(async () => {
   const candidates = [
     ...(includes("bill") ? await billCandidates(argv.billLimit) : []),
     ...(includes("government_content")
-      ? await governmentCandidates(argv.otherLimit)
+      ? await governmentCandidates(argv.otherLimit, argv.governmentId)
       : []),
     ...(includes("court_case") ? await courtCandidates(argv.otherLimit) : []),
   ];

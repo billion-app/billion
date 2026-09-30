@@ -6,7 +6,10 @@ import type { BillLifecycleAction } from "@acme/validators";
 import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
 import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
-import { resolveContentImageUrl } from "@acme/db/content-images";
+import {
+  EXECUTIVE_ORDER_FALLBACK_IMAGE_URL,
+  resolveContentImageUrl,
+} from "@acme/db/content-images";
 import {
   Bill,
   BillInterest,
@@ -109,19 +112,36 @@ export async function attachContentImages<T extends ContentImageRef>(
 ): Promise<(T & { imageUri?: string })[]> {
   if (items.length === 0) return [];
 
-  const rows = await db
-    .select({
-      contentType: ContentImage.contentType,
-      contentId: ContentImage.contentId,
-      storagePath: ContentImage.storagePath,
-    })
-    .from(ContentImage)
-    .where(
-      inArray(
-        ContentImage.contentId,
-        items.map((item) => item.id),
+  const governmentIds = items
+    .filter((item) => item.type === "government_content")
+    .map((item) => item.id);
+  const [rows, executiveOrders] = await Promise.all([
+    db
+      .select({
+        contentType: ContentImage.contentType,
+        contentId: ContentImage.contentId,
+        storagePath: ContentImage.storagePath,
+      })
+      .from(ContentImage)
+      .where(
+        inArray(
+          ContentImage.contentId,
+          items.map((item) => item.id),
+        ),
       ),
-    );
+    governmentIds.length > 0
+      ? db
+          .select({ id: GovernmentContent.id })
+          .from(GovernmentContent)
+          .where(
+            and(
+              inArray(GovernmentContent.id, governmentIds),
+              eq(GovernmentContent.type, "Executive Order"),
+            ),
+          )
+      : Promise.resolve([]),
+  ]);
+  const executiveOrderIds = new Set(executiveOrders.map((item) => item.id));
   const pathByContent = new Map(
     rows.map((row) => [`${row.contentType}:${row.contentId}`, row.storagePath]),
   );
@@ -131,6 +151,10 @@ export async function attachContentImages<T extends ContentImageRef>(
     imageUri: resolveContentImageUrl(
       item.thumbnailUrl,
       pathByContent.get(`${item.type}:${item.id}`),
+      undefined,
+      item.type === "government_content" && executiveOrderIds.has(item.id)
+        ? EXECUTIVE_ORDER_FALLBACK_IMAGE_URL
+        : undefined,
     ),
   }));
 }

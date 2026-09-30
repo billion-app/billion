@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   contentImagePublicUrl,
+  EXECUTIVE_ORDER_FALLBACK_IMAGE_URL,
   resolveContentImageUrl,
   supabaseStorageOrigin,
 } from "./content-images.js";
@@ -51,5 +52,39 @@ void test("derives the Storage origin from direct and pooled Supabase database U
       "postgresql://postgres.abc123:secret@aws-0-us-west-1.pooler.supabase.com:6543/postgres",
     ),
     "https://abc123.supabase.co",
+  );
+});
+
+void test("executive orders have an official image while artwork is missing", () => {
+  assert.equal(
+    resolveContentImageUrl(
+      null,
+      null,
+      "https://example.supabase.co",
+      EXECUTIVE_ORDER_FALLBACK_IMAGE_URL,
+    ),
+    EXECUTIVE_ORDER_FALLBACK_IMAGE_URL,
+  );
+  assert.equal(
+    resolveContentImageUrl(
+      null,
+      "content/order/art.jpg",
+      "https://example.supabase.co",
+      EXECUTIVE_ORDER_FALLBACK_IMAGE_URL,
+    ),
+    "https://example.supabase.co/storage/v1/object/public/content-images/content/order/art.jpg",
+  );
+  assert.equal(
+    resolveContentImageUrl(
+      "https://source.example/photo.jpg",
+      null,
+      "https://example.supabase.co",
+      EXECUTIVE_ORDER_FALLBACK_IMAGE_URL,
+    ),
+    "https://source.example/photo.jpg",
+  );
+  assert.equal(
+    resolveContentImageUrl(null, null, "https://example.supabase.co"),
+    undefined,
   );
 });

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CONTENT_IMAGE_STYLE_VERSION,
   contentVisualPlanningPrompt,
+  governmentImageDescription,
   planRenderedContentImagePrompt,
   renderContentImagePrompt,
   versionContentImageHash,
@@ -88,4 +89,31 @@ test("the style version makes old documentary rows stale", () => {
   assert.notEqual(versioned, "bill-hash");
   assert.equal(versioned, versionContentImageHash("bill-hash"));
   assert.notEqual(versioned, versionContentImageHash("different-bill-hash"));
+});
+
+test("government artwork uses bounded policy text rather than page navigation", () => {
+  const result = governmentImageDescription(
+    "Fight invasive pests.",
+    "Search All Presidential Actions\nSection 1. Purpose. Control disease-carrying ticks and mosquitoes. " +
+      "policy ".repeat(1000),
+  );
+  assert.match(result, /Fight invasive pests/);
+  assert.match(result, /ticks and mosquitoes/);
+  assert.doesNotMatch(result, /Search All Presidential Actions/);
+  assert.ok(result.length < 1200);
+});
+
+test("source excerpts cannot replace a missing neutral summary", () => {
+  assert.equal(
+    governmentImageDescription(" ", "Section 1. Purpose. Policy text."),
+    "",
+  );
+  assert.equal(
+    governmentImageDescription("A neutral summary.", null),
+    "A neutral summary.",
+  );
+  assert.equal(
+    governmentImageDescription("A neutral summary.", "Search navigation"),
+    "A neutral summary.",
+  );
 });
