@@ -135,6 +135,12 @@ export default function NotificationsScreen() {
           onChange={(next) => setPref({ following: next })}
         />
         <PrefRow
+          label="Executive orders"
+          sub="When a new executive order is published"
+          on={prefs.executiveOrders}
+          onChange={(next) => setPref({ executiveOrders: next })}
+        />
+        <PrefRow
           label="Daily Brief"
           sub="A concise summary each morning"
           on={prefs.brief}

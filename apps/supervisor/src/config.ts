@@ -84,7 +84,7 @@ export const jobs: readonly JobDefinition[] = [
   },
   {
     id: "notify-followers-hourly",
-    description: "Send lock-screen alerts for bills a reader asked us to watch",
+    description: "Send opted-in bill updates and new executive-order alerts",
     script: "notify-followers.js",
     args: [],
     schedule: { kind: "interval", everyMinutes: 60 },

@@ -26,6 +26,7 @@ export function PushSync() {
     const payload = {
       breaking: prefs.breaking,
       following: prefs.following,
+      executiveOrders: prefs.executiveOrders,
       brief: prefs.brief,
       recap: prefs.recap,
       quietHours: prefs.quietHours,
@@ -42,6 +43,7 @@ export function PushSync() {
     ready,
     prefs.breaking,
     prefs.following,
+    prefs.executiveOrders,
     prefs.brief,
     prefs.recap,
     prefs.quietHours,
@@ -57,6 +59,7 @@ export function PushSync() {
         {
           breaking: prefs.breaking,
           following: prefs.following,
+          executiveOrders: prefs.executiveOrders,
           brief: prefs.brief,
           recap: prefs.recap,
           quietHours: prefs.quietHours,
@@ -71,6 +74,7 @@ export function PushSync() {
     ready,
     prefs.breaking,
     prefs.following,
+    prefs.executiveOrders,
     prefs.brief,
     prefs.recap,
     prefs.quietHours,
