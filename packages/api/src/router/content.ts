@@ -969,6 +969,8 @@ export const contentRouter = {
           {
             id: b.id,
             title: b.title,
+            createdAt: b.createdAt,
+            updatedAt: b.updatedAt ?? b.createdAt,
             description: billDescription(b.description, b.summary),
             type: "bill" as const,
             isAIGenerated: !!b.aiGeneratedArticle,
@@ -1008,6 +1010,8 @@ export const contentRouter = {
           {
             id: c.id,
             title: c.title,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt ?? c.createdAt,
             description: c.description ?? "",
             type: "government_content" as const,
             isAIGenerated: !!c.aiGeneratedArticle,
@@ -1057,6 +1061,8 @@ export const contentRouter = {
           {
             id: c.id,
             title: c.title,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt ?? c.createdAt,
             description: c.description ?? "",
             type: "court_case" as const,
             isAIGenerated: !!courtBrief || !!c.aiGeneratedArticle,
