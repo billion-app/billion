@@ -3,6 +3,7 @@ import { projectBillStatus } from "../bill-status";
 export const SIGNAL_CATEGORY = "billionSignal";
 
 export type NotificationKind =
+  | "executive"
   | "follow"
   | "breaking"
   | "brief"
@@ -51,3 +52,13 @@ export const TEST_ALERT_COPY = {
   body: "Open it for what changed.",
   href: "/settings/notifications",
 };
+
+/** Source title only; a new order is not automatically a breaking story. */
+export function executiveOrderAlertCopy(order: { id: string; title: string }) {
+  return {
+    kind: "executive" as const,
+    title: "New executive order",
+    body: clipTitle(order.title),
+    href: `/article-detail?id=${order.id}`,
+  };
+}

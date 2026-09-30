@@ -7,6 +7,7 @@ import {
   pgTable,
   primaryKey,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -654,6 +655,9 @@ export const PushDevice = pgTable(
     userId: t.text("user_id"),
     breaking: t.boolean().notNull().default(true),
     following: t.boolean().notNull().default(true),
+    executiveOrdersSubscribedAt: t.timestamp("executive_orders_subscribed_at", {
+      withTimezone: true,
+    }),
     brief: t.boolean().notNull().default(false),
     recap: t.boolean().notNull().default(false),
     quietHours: t.boolean("quiet_hours").notNull().default(true),
@@ -748,6 +752,9 @@ export const NotificationOutbox = pgTable(
       table.notBefore,
     ),
     deviceIdx: index("notification_outbox_device_id_idx").on(table.deviceId),
+    executiveUnique: uniqueIndex("notification_outbox_executive_unique")
+      .on(table.deviceId, table.contentId)
+      .where(sql`${table.kind} = 'executive'`),
   }),
 );
 

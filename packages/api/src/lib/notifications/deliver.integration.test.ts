@@ -8,6 +8,7 @@ import { db } from "@acme/db/client";
 import {
   Bill,
   DeviceFollow,
+  GovernmentContent,
   NotificationOutbox,
   PushDevice,
 } from "@acme/db/schema";
@@ -19,8 +20,10 @@ import {
   checkPushReceipts,
   drainOutbox,
   drainTestAlert,
+  enqueueExecutiveOrders,
   enqueueFollowMoves,
   enqueueTestAlert,
+  runFollowNotifications,
 } from "./deliver";
 
 // Run only against an explicitly selected, migrated, disposable local database.
@@ -42,6 +45,7 @@ void test(
     );
     const messages: ExpoPushMessage[] = [];
     let reject = false;
+    let rejectError = "DeviceNotRegistered";
     let beforeSend: (() => Promise<void>) | undefined;
     let receiptHttpError = false;
     let receiptRequests = 0;
@@ -76,7 +80,7 @@ void test(
                   ? {
                       status: "error",
                       message: "Device not registered",
-                      details: { error: "DeviceNotRegistered" },
+                      details: { error: rejectError },
                     }
                   : { status: "ok", id: randomUUID() },
               ),
@@ -86,6 +90,7 @@ void test(
     });
     const billId = randomUUID();
     const deviceIds: string[] = [];
+    const orderIds: string[] = [];
     const caller = createTRPCRouter(notificationsRouter).createCaller({
       session: null,
       db,
@@ -131,6 +136,229 @@ void test(
           notBefore,
         });
       };
+      await t.test(
+        "executive orders honor subscription, quiet hours, deduplication, opt-out and history",
+        async () => {
+          const execToken = `ExpoPushToken[${randomUUID()}]`;
+          const execSync = (executiveOrders?: boolean) =>
+            caller.sync({
+              token: execToken,
+              platform: "ios",
+              timezone: "UTC",
+              prefs: {
+                ...prefs,
+                following: false,
+                executiveOrders,
+                quietHours: true,
+              },
+              followIds: [],
+            });
+          const { deviceId: execDevice } = await execSync(true);
+          deviceIds.push(execDevice);
+          const [subscribed] = await db
+            .select()
+            .from(PushDevice)
+            .where(eq(PushDevice.id, execDevice));
+          assert.ok(subscribed?.executiveOrdersSubscribedAt);
+          const start = subscribed.executiveOrdersSubscribedAt;
+          const day = new Date(
+            Date.UTC(
+              start.getUTCFullYear(),
+              start.getUTCMonth(),
+              start.getUTCDate(),
+            ),
+          );
+          const insertOrder = async (
+            type: string,
+            createdAt: Date,
+            publishedDate = day,
+          ) => {
+            const id = randomUUID();
+            orderIds.push(id);
+            await db.insert(GovernmentContent).values({
+              id,
+              type,
+              title: "Synthetic executive order",
+              url: `https://example.com/${id}`,
+              createdAt,
+              publishedDate,
+            });
+            return id;
+          };
+          await insertOrder(
+            "Executive Order",
+            new Date(start.getTime() - 1000),
+          );
+          await insertOrder(
+            "Executive Order",
+            new Date(start.getTime() + 1000),
+            new Date(day.getTime() - 86400000),
+          );
+          await insertOrder("Proclamation", new Date(start.getTime() + 1000));
+          const id = await insertOrder(
+            "Executive Order",
+            new Date(start.getTime() + 1000),
+          );
+          // A UTC 23:00 run must hold delivery until 07:00 the next day.
+          const now = new Date(day.getTime() + 23 * 3600000);
+          const runs = await Promise.all([
+            enqueueExecutiveOrders(now),
+            enqueueExecutiveOrders(now),
+          ]);
+          assert.equal(
+            runs.reduce((n, r) => n + r.enqueued, 0),
+            1,
+          );
+          assert.equal((await enqueueExecutiveOrders(now)).enqueued, 0);
+          assert.equal((await drainOutbox(now)).sent, 0);
+          const [queued] = await db
+            .select()
+            .from(NotificationOutbox)
+            .where(eq(NotificationOutbox.deviceId, execDevice));
+          assert.equal(queued?.contentId, id);
+          assert.equal(
+            queued.notBefore.toISOString(),
+            new Date(day.getTime() + 31 * 3600000).toISOString(),
+          );
+          await execSync(); // An old app's sync cannot erase an established opt-in.
+          const [preserved] = await db
+            .select()
+            .from(PushDevice)
+            .where(eq(PushDevice.id, execDevice));
+          assert.equal(
+            preserved?.executiveOrdersSubscribedAt?.getTime(),
+            start.getTime(),
+          );
+          assert.equal(
+            (await drainOutbox(new Date(day.getTime() + 31 * 3600000))).sent,
+            1,
+          );
+          const history = await caller.history({ token: execToken });
+          assert.equal(history.length, 1);
+          assert.equal(history[0]?.kind, "executive");
+          assert.equal(history[0].href, `/article-detail?id=${id}`);
+          assert.equal(messages.at(-1)?.body, "Synthetic executive order");
+          // Existing-source updates (including Federal Register reconciliation) cannot resend.
+          await db
+            .update(GovernmentContent)
+            .set({ title: "Updated source title" })
+            .where(eq(GovernmentContent.id, id));
+          assert.equal((await enqueueExecutiveOrders(now)).enqueued, 0);
+          await insertOrder(
+            "Executive Order",
+            new Date(start.getTime() + 2000),
+          );
+          assert.equal((await enqueueExecutiveOrders(now)).enqueued, 1);
+          await execSync(false);
+          assert.equal((await enqueueExecutiveOrders(now)).enqueued, 0);
+          assert.equal(
+            (await drainOutbox(new Date(day.getTime() + 31 * 3600000))).sent,
+            0,
+          );
+          // Also reject a stale row at delivery, even if queued after cancellation.
+          await db.insert(NotificationOutbox).values({
+            deviceId: execDevice,
+            contentId: randomUUID(),
+            kind: "executive",
+            title: "Stale",
+            body: "Stale",
+            href: "/",
+            notBefore: now,
+          });
+          assert.equal(
+            (await drainOutbox(new Date(day.getTime() + 31 * 3600000))).sent,
+            0,
+          );
+          await execSync(false);
+          // Resubscription starts from now, and does not replay archive records.
+          await db
+            .update(GovernmentContent)
+            .set({ createdAt: new Date(start.getTime() - 1000) })
+            .where(inArray(GovernmentContent.id, orderIds));
+          await execSync(true);
+          assert.equal((await enqueueExecutiveOrders(now)).enqueued, 0);
+          await execSync(false);
+        },
+      );
+      await t.test(
+        "one worker run drains broadcasts across multiple Expo batches",
+        async () => {
+          const start = new Date();
+          const day = new Date(
+            Date.UTC(
+              start.getUTCFullYear(),
+              start.getUTCMonth(),
+              start.getUTCDate(),
+            ),
+          );
+          const ids = Array.from({ length: 105 }, () => randomUUID());
+          deviceIds.push(...ids);
+          await db.insert(PushDevice).values(
+            ids.map((id) => ({
+              id,
+              expoPushToken: `ExpoPushToken[${id}]`,
+              platform: "ios",
+              timezone: "UTC",
+              following: false,
+              executiveOrdersSubscribedAt: start,
+              quietHours: false,
+            })),
+          );
+          const orderId = randomUUID();
+          orderIds.push(orderId);
+          await db.insert(GovernmentContent).values({
+            id: orderId,
+            title: "Broadcast order",
+            type: "Executive Order",
+            publishedDate: day,
+            createdAt: new Date(),
+            url: `https://example.com/${orderId}`,
+          });
+          const run = await runFollowNotifications();
+          assert.equal(run.enqueued, 105);
+          assert.equal(run.sent, 105);
+          assert.equal((await runFollowNotifications()).sent, 0);
+          await db
+            .update(PushDevice)
+            .set({ executiveOrdersSubscribedAt: null })
+            .where(inArray(PushDevice.id, ids));
+        },
+      );
+      await t.test(
+        "rejected batches defer retries and cannot spin within a worker run",
+        async () => {
+          const id = randomUUID();
+          deviceIds.push(id);
+          await db.insert(PushDevice).values({
+            id,
+            expoPushToken: `ExpoPushToken[${id}]`,
+            platform: "ios",
+            timezone: "UTC",
+            following: false,
+            quietHours: false,
+          });
+          await db.insert(NotificationOutbox).values(
+            Array.from({ length: 105 }, () => ({
+              deviceId: id,
+              kind: "test",
+              title: "Rejected batch",
+              body: "Synthetic",
+              href: "/settings/notifications",
+              notBefore: new Date(0),
+            })),
+          );
+          reject = true;
+          rejectError = "MessageRateExceeded";
+          const before = messages.length;
+          const run = await runFollowNotifications();
+          assert.equal(run.failed, 105);
+          assert.equal(messages.length - before, 105);
+          assert.equal((await runFollowNotifications()).failed, 0);
+          reject = false;
+          rejectError = "DeviceNotRegistered";
+          await db.delete(PushDevice).where(eq(PushDevice.id, id));
+        },
+      );
       await t.test(
         "a new bill action sends once and appears in server history",
         async () => {
@@ -399,6 +627,10 @@ void test(
       if (deviceIds.length)
         await db.delete(PushDevice).where(inArray(PushDevice.id, deviceIds));
       await db.delete(Bill).where(eq(Bill.id, billId));
+      if (orderIds.length)
+        await db
+          .delete(GovernmentContent)
+          .where(inArray(GovernmentContent.id, orderIds));
       await (db as typeof db & { $client: Pool }).$client.end();
     }
   },
