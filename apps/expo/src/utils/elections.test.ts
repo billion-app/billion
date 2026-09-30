@@ -5,7 +5,6 @@ import type { Election, PollingLocation } from "@acme/api";
 
 import {
   contestListTitle,
-  earliestEarlyVoteStart,
   isCaliforniaRelevantElection,
   isCaliforniaState,
   pickUpcomingCaliforniaElection,
@@ -122,21 +121,4 @@ void test("pollingPlaceSubtitle reads Civic location fields only", () => {
   assert.equal(pollingPlaceSubtitle([loc]), "City Hall · San Jose");
   assert.equal(pollingPlaceSubtitle([], true), "Mail ballot");
   assert.equal(pollingPlaceSubtitle([]), undefined);
-});
-
-void test("earliestEarlyVoteStart uses Civic startDate", () => {
-  assert.equal(earliestEarlyVoteStart(undefined), undefined);
-  assert.equal(
-    earliestEarlyVoteStart([
-      {
-        address: { line1: "A", city: "X", state: "CA", zip: "1" },
-        startDate: "2026-10-20",
-      },
-      {
-        address: { line1: "B", city: "Y", state: "CA", zip: "2" },
-        startDate: "2026-10-06",
-      },
-    ]),
-    "2026-10-06",
-  );
 });

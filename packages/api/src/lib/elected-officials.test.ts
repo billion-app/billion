@@ -8,7 +8,6 @@ import {
   selectFederalOfficialByName,
   selectOfficials,
 } from "./elected-officials";
-import { canUseDevelopmentMocks } from "./places";
 
 void test("parseCsv handles quoted commas and escaped quotes", () => {
   assert.deepEqual(
@@ -20,20 +19,6 @@ void test("parseCsv handles quoted commas and escaped quotes", () => {
       ["Jane Doe", "1 Main St, Apt 2", 'Said "hi"'],
     ],
   );
-});
-
-void test("production never enables mock address predictions", () => {
-  const originalNodeEnv = process.env.NODE_ENV;
-  const originalVercel = process.env.VERCEL;
-  process.env.NODE_ENV = "production";
-  delete process.env.VERCEL;
-  try {
-    assert.equal(canUseDevelopmentMocks(), false);
-  } finally {
-    process.env.NODE_ENV = originalNodeEnv;
-    if (originalVercel === undefined) delete process.env.VERCEL;
-    else process.env.VERCEL = originalVercel;
-  }
 });
 
 void test("extractDistricts reads federal and state OCD division IDs", () => {

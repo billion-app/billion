@@ -19,8 +19,11 @@ import {
 } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotContestCard } from "~/components/ballot/BallotContestCard";
 import { CaliforniaGuidePreview } from "~/components/ballot/CaliforniaGuidePreview";
+import { PinMark } from "~/components/digest/CraftMarks";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { HowToVoteEntryCard } from "~/components/HowToVoteEntryCard";
+import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
 import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
@@ -35,11 +38,13 @@ import {
   contestBallotCitations,
   currentBallot,
 } from "~/utils/ballot-lookup";
+import { daysUntil, monthDay } from "~/utils/dates";
 import {
   groupContestsByLevel,
   isCaliforniaState,
   measureIsStatewide,
 } from "~/utils/elections";
+import { buildVotingPlan, electionPhase } from "~/utils/voting";
 
 type BallotTab = "candidates" | "measures";
 
@@ -352,6 +357,8 @@ function ElectionsLive({
   const selected = unsupportedState ? undefined : data?.election;
 
   const contests = unsupportedState ? [] : (data?.contests ?? []);
+  const votingPlan = buildVotingPlan(unsupportedState ? undefined : data);
+  const phase = electionPhase(selected?.electionDay);
   const measures = contests.filter((c: Contest) => c.referendumTitle);
   const candidateContests = contests.filter((c: Contest) => !c.referendumTitle);
   const candidateGroups = groupContestsByLevel(candidateContests);
@@ -443,6 +450,27 @@ function ElectionsLive({
 
       {/* election hero — what election is happening, what it means */}
       {selected && <ElectionHero election={selected} />}
+
+      {/* How to Vote — the logistics half of the tab. Sits right under the
+          hero so "how do I vote in it" follows "which election is it", and
+          lands above the ballot list for anyone who only came for logistics. */}
+      <View style={s.section}>
+        <HowToVoteEntryCard
+          hasAddress={hasAddress}
+          plan={unsupportedState ? undefined : votingPlan}
+          phase={phase}
+          onPress={() => {
+            posthog.capture("how_to_vote_opened", {
+              entry_point: "elections_hero",
+              days_until_election: selected
+                ? daysUntil(selected.electionDay)
+                : null,
+              available_methods: votingPlan.availableCount,
+            });
+            router.push("/how-to-vote");
+          }}
+        />
+      </View>
 
       {/* live results (CA SOS feed): statewide + the voter's district races,
           scoped from their ballot. Self-hides when off-season. Only
@@ -577,21 +605,6 @@ function ElectionsLive({
             </Card>
           </View>
         )}
-
-      <View style={s.section}>
-        <VotingLogisticsSection
-          data={data}
-          status={
-            !hasAddress || editing
-              ? "idle"
-              : voterInfoQuery.isFetching
-                ? "loading"
-                : voterInfoQuery.isError || mismatch
-                  ? "error"
-                  : "ready"
-          }
-        />
-      </View>
     </TabScreen>
   );
 }
