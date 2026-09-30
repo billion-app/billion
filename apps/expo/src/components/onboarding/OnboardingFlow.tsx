@@ -3,9 +3,12 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -28,6 +31,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { Sector, TrackingVector } from "~/utils/onboarding-store";
 import { requestGreetingPlay } from "~/components/DigestGreetingBar";
 import { posthog } from "~/config/posthog";
+import { useNotificationPrefs } from "~/hooks/useNotificationPrefs";
 import { useOnboarding } from "~/hooks/useOnboarding";
 import {
   DigestRadii,
@@ -37,6 +41,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
+import { getBaseUrl } from "~/utils/base-url";
 import { MIN_SECTORS, SECTOR_SHORT, toggleIn } from "~/utils/onboarding-store";
 import { ArriveStage } from "./ArriveStage";
 import { Orb } from "./Orb";
@@ -46,7 +51,7 @@ import { WhiteHouseSpin } from "./WhiteHouseSpin";
 
 const PAGES = 4;
 const SLIDE = Easing.bezier(0.22, 1, 0.36, 1);
-const SLIDE_MS = 540;
+const SLIDE_MS = 320;
 
 const WATCH: { id: TrackingVector; label: string }[] = [
   { id: "congress", label: "Congress" },
@@ -76,6 +81,7 @@ function watchLine(ids: TrackingVector[]) {
 }
 
 export function OnboardingFlow() {
+  const { update: updateNotificationPrefs } = useNotificationPrefs();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const reduce = useReducedMotion();
@@ -162,6 +168,7 @@ export function OnboardingFlow() {
       const sec = next?.sectors ?? sectors;
       const inst = next?.instant ?? instant;
       const eve = next?.evening ?? evening;
+      updateNotificationPrefs({ following: inst, recap: eve });
       onboarding.update({
         completed: true,
         deferredClaim: deferred,
@@ -191,6 +198,7 @@ export function OnboardingFlow() {
       });
     },
     [
+      updateNotificationPrefs,
       evening,
       instant,
       onboarding,
@@ -390,7 +398,66 @@ function ExploreSheet({
 }) {
   const insets = useSafeAreaInsets();
   const reduce = useReducedMotion();
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "already" | "error"
+  >("idle");
+  const [error, setError] = useState("");
   const t = useSharedValue(0);
+
+  const subscribe = async () => {
+    if (status === "loading") return;
+    const address = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+      setStatus("error");
+      setError("Enter a valid email address.");
+      return;
+    }
+
+    setStatus("loading");
+    setError("");
+    posthog.capture("mailing_list_form_submitted", {
+      form_location: "onboarding",
+    });
+
+    try {
+      const response = await fetch(`${getBaseUrl()}/api/waitlist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: address }),
+      });
+      const data = (await response.json().catch(() => null)) as {
+        result?: "joined" | "already_joined";
+        error?: string;
+      } | null;
+      if (!response.ok || !data?.result) {
+        const message =
+          data?.error ?? "Something went wrong. Please try again.";
+        setStatus("error");
+        setError(message);
+        posthog.capture("mailing_list_signup_error", {
+          form_location: "onboarding",
+          error: data?.error ?? "unknown",
+        });
+        return;
+      }
+
+      const alreadyJoined = data.result === "already_joined";
+      setStatus(alreadyJoined ? "already" : "success");
+      setEmail("");
+      posthog.capture(
+        alreadyJoined ? "mailing_list_already_joined" : "mailing_list_joined",
+        { form_location: "onboarding" },
+      );
+    } catch {
+      setStatus("error");
+      setError("Something went wrong. Please try again.");
+      posthog.capture("mailing_list_signup_error", {
+        form_location: "onboarding",
+        error: "network_error",
+      });
+    }
+  };
 
   useEffect(() => {
     t.value = withTiming(visible ? 1 : 0, {
@@ -409,7 +476,11 @@ function ExploreSheet({
   if (!visible) return null;
 
   return (
-    <View style={s.sheetRoot} pointerEvents="auto">
+    <KeyboardAvoidingView
+      style={s.sheetRoot}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      pointerEvents="auto"
+    >
       <Animated.View style={[s.sheetFill, backdrop]} pointerEvents="none">
         <BlurView intensity={22} tint="dark" style={s.sheetFill} />
         <View style={s.sheetScrim} />
@@ -419,6 +490,53 @@ function ExploreSheet({
       >
         <View style={s.grabber} />
         <Text style={s.sheetKicker}>Accounts are coming soon</Text>
+        <Text style={s.sheetDescription}>
+          Join our mailing list for feature releases and civic updates.
+        </Text>
+        {status === "success" || status === "already" ? (
+          <Text style={s.signupSuccess} accessibilityRole="text">
+            {status === "already"
+              ? "You're already on the list — you're all set."
+              : "You're on the list — we'll be in touch!"}
+          </Text>
+        ) : (
+          <View>
+            <TextInput
+              value={email}
+              onChangeText={(value) => {
+                setEmail(value);
+                if (status === "error") setStatus("idle");
+              }}
+              onSubmitEditing={() => void subscribe()}
+              editable={status !== "loading"}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="done"
+              placeholder="Enter your email"
+              placeholderTextColor={P.quiet}
+              accessibilityLabel="Email address"
+              style={s.emailInput}
+            />
+            <Pressable
+              onPress={() => void subscribe()}
+              disabled={status === "loading"}
+              accessibilityRole="button"
+              style={[s.subscribeBtn, status === "loading" && s.ctaOff]}
+            >
+              <Text style={s.subscribeText}>
+                {status === "loading" ? "Submitting…" : "Subscribe"}
+              </Text>
+            </Pressable>
+            {status === "error" ? (
+              <Text style={s.signupError} accessibilityRole="alert">
+                {error}
+              </Text>
+            ) : null}
+          </View>
+        )}
         <Pressable
           onPress={onExplore}
           accessibilityRole="button"
@@ -429,7 +547,7 @@ function ExploreSheet({
           <Text style={s.exploreArrow}>→</Text>
         </Pressable>
       </Animated.View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -565,8 +683,54 @@ const s = StyleSheet.create({
     letterSpacing: -0.5,
     color: P.ink,
   },
+  sheetDescription: {
+    marginTop: 10,
+    marginBottom: 18,
+    fontFamily: fontBody.regular,
+    fontSize: 15,
+    lineHeight: 21,
+    color: P.stone,
+  },
+  emailInput: {
+    height: 52,
+    borderRadius: DigestRadii.menu,
+    borderWidth: 1,
+    borderColor: P.border,
+    paddingHorizontal: 18,
+    fontFamily: fontBody.regular,
+    fontSize: 16,
+    color: P.ink,
+  },
+  subscribeBtn: {
+    marginTop: 10,
+    height: 52,
+    borderRadius: DigestRadii.menu,
+    backgroundColor: P.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  subscribeText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    color: P.paper,
+  },
+  signupSuccess: {
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: DigestRadii.menu,
+    backgroundColor: "rgba(74,124,255,0.12)",
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+    color: P.primary,
+  },
+  signupError: {
+    marginTop: 8,
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    color: "#B42318",
+  },
   exploreBtn: {
-    marginTop: 28,
+    marginTop: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

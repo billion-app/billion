@@ -16,7 +16,7 @@ void test("every job is reachable by id", () => {
 });
 
 void test("every supported state has an isolated daily refresh", () => {
-  const stateCodes = ["ca", "nc", "tx"];
+  const stateCodes = ["ca", "ma", "nc", "tx"];
   for (const stateCode of stateCodes) {
     const job = findJob(`open-states-${stateCode}-daily`);
     assert.ok(job, `${stateCode} has no daily Open States job`);
@@ -62,7 +62,11 @@ void test("bill interest scoring runs before source refreshes", () => {
 });
 
 void test("image jobs keep suitability review enabled", () => {
-  for (const id of ["content-images-daily", "backfill-content-images"]) {
+  for (const id of [
+    "content-images-daily",
+    "court-image-smoke",
+    "backfill-content-images",
+  ]) {
     const job = findJob(id);
     assert.ok(job, `${id} is missing`);
     assert.ok(
@@ -70,6 +74,44 @@ void test("image jobs keep suitability review enabled", () => {
       `${id} bypasses image review`,
     );
   }
+});
+
+void test("court image smoke test is real, reviewed, and bounded", () => {
+  const job = findJob("court-image-smoke");
+  assert.ok(job, "court image smoke job is missing");
+  assert.deepEqual(job.args, [
+    "--type",
+    "court_case",
+    "--bill-limit",
+    "0",
+    "--other-limit",
+    "1",
+    "--concurrency",
+    "1",
+  ]);
+  assert.deepEqual(job.schedule, { kind: "manual" });
+  assert.ok(!job.args.includes("--dry-run"));
+  assert.ok(!job.args.includes("--skip-review"));
+});
+
+void test("court brief backfill is manual, bounded, and brief-only", () => {
+  const job = findJob("backfill-court-briefs");
+  assert.ok(job, "court brief backfill job is missing");
+  assert.deepEqual(job.args, [
+    "--type",
+    "court_case",
+    "--mode",
+    "missing",
+    "--limit",
+    "1000",
+    "--assets",
+    "briefs",
+    "--concurrency",
+    "2",
+    "--apply",
+    "--yes",
+  ]);
+  assert.deepEqual(job.schedule, { kind: "manual" });
 });
 
 void test("executive actions refresh daily", () => {

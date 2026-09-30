@@ -356,7 +356,8 @@ export function BrowseCatalog() {
             {!listIsLoading && !listError && items.length > 0 && (
               <View style={s.resultsCountWrap}>
                 <Text style={s.resultsCount}>
-                  {items.length} {isState ? "bill" : "result"}
+                  {items.length}{" "}
+                  {isState && jurisdiction !== "ma" ? "bill" : "result"}
                   {items.length === 1 ? "" : "s"}
                 </Text>
               </View>
@@ -468,18 +469,25 @@ export function BrowseCatalog() {
               <Text style={s.emptyTitle}>
                 {isState && filter === "court_case"
                   ? `No ${jurisdictionInfo.name} court cases yet`
-                  : isState
+                  : isState && jurisdiction !== "ma"
                     ? `No ${jurisdictionInfo.name} ${filter === "all" ? "bills" : "records"} found`
-                    : isSearching
-                      ? `No match for “${query.trim()}”`
-                      : "Nothing found"}
+                    : jurisdiction === "ma"
+                      ? `No Massachusetts ${filter === "all" ? "records" : "matches"} found`
+                      : isSearching
+                        ? `No match for “${query.trim()}”`
+                        : "Nothing found"}
               </Text>
               <Text style={s.emptySub}>
-                {isState
-                  ? `${jurisdictionInfo.name} legislature only — courts and orders aren’t in yet.`
-                  : "Try a different search."}
+                {jurisdiction === "ma"
+                  ? "Check back for new bills and court docket activity."
+                  : isState
+                    ? `${jurisdictionInfo.name} legislature only — courts and orders aren’t in yet.`
+                    : "Try a different search."}
               </Text>
-              {isState && filter !== "bill" && filter !== "all" ? (
+              {isState &&
+              jurisdiction !== "ma" &&
+              filter !== "bill" &&
+              filter !== "all" ? (
                 <TouchableOpacity
                   style={s.emptyAction}
                   onPress={() => handleFilterChange("bill")}

@@ -1,9 +1,13 @@
 import type { Scraper } from "./utils/types.js";
+import { caElectionLogistics } from "./scrapers/ca-election-logistics.js";
+import { caOfficialGuide } from "./scrapers/ca-official-guide.js";
 import { caSosStatements } from "./scrapers/ca-sos-statements.js";
 import { congress } from "./scrapers/congress.js";
+import { ecourtRecords } from "./scrapers/ecourt-records.js";
 import { federalregister } from "./scrapers/federalregister.js";
 import { legistarScraper } from "./scrapers/legistar.js";
 import { openStates } from "./scrapers/open-states.js";
+import { santaCruzLocations } from "./scrapers/santa-cruz-locations.js";
 import { sccCvig } from "./scrapers/scc-cvig.js";
 import { scotus } from "./scrapers/scotus.js";
 import { whitehouse } from "./scrapers/whitehouse.js";
@@ -17,7 +21,11 @@ export const scrapers: readonly Scraper[] = [
   legistarScraper,
   congress,
   scotus,
+  ecourtRecords,
   openStates,
   sccCvig,
   caSosStatements,
+  caOfficialGuide,
+  caElectionLogistics,
+  santaCruzLocations,
 ];

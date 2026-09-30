@@ -8,11 +8,13 @@ For setup, bounded examples, active source names, and production builds, use the
 
 ## Scrapers
 
-[The registry](../apps/scraper/src/scrapers.ts) includes White House, Federal Register, Legistar, Congress, SCOTUS, Open States, Santa Clara County voter guides, and California candidate statements. SCOTUS reads official Supreme Court opinion and order-opinion indexes and their full PDFs, including published emergency order opinions. It does not depend on CourtListener indexing or authentication.
+[The registry](../apps/scraper/src/scrapers.ts) includes White House, Federal Register, Legistar, Congress, SCOTUS, eCourt Records, Open States, Santa Clara County voter guides, and California candidate statements. SCOTUS reads official Supreme Court opinion and order-opinion indexes and their full PDFs, including published emergency order opinions. It does not depend on CourtListener indexing or authentication. The eCourt Records adapter reads independently hosted Massachusetts criminal docket snapshots and does not treat them as an official live court feed.
 
 Congress and Open States normalize legislation into `bill`. White House and Federal Register documents share `government_content`; source identity and title normalization prevent duplicate presidential records. Legistar has its own normalized local-decision ingestion path, described in [Local government and Legistar](local-government-legistar.md).
 
 The candidate-statement scrapers write `civic_api_cache` for request-time enrichment. They do not run the article pipeline. The `scrapers/disabled/` folder contains inactive adapters and its [README](../apps/scraper/src/scrapers/disabled/README.md) explains the requirements for reactivation.
+
+The California official-guide scraper collects the current statewide proposition and candidate-statement pages as one dated cache payload. It stores the state's Yes/No descriptions alongside each measure and the office name and duty bullets alongside each submitted candidate statement. These are source text, not Billion explanations or verified candidate claims. If a page loses its expected vote or office-description markup, the refresh fails instead of replacing the previous complete cache with partial content. The app reads this payload through `civic.getCaliforniaGuide`.
 
 Shared source HTTP requests use [fetchWithRetry](../apps/scraper/src/utils/fetch.ts), with timeouts, retry backoff, and per-host throttling. Inspect source-specific transport for integrations with separate clients.
 
@@ -57,8 +59,8 @@ will still be present on the next run.
 
 `open-states.ts` ingests state-legislature bills into the same `Bill` table and
 the same AI pipeline as federal ones. Browse currently supports California,
-North Carolina, and Texas
-(`OPEN_STATES_STATES=ca,nc,tx`); each state walks its own cursor keyed
+Massachusetts, North Carolina, and Texas
+(`OPEN_STATES_STATES=ca,ma,nc,tx`); each state walks its own cursor keyed
 `open-states:{state}`.
 
 **Identity.** A state bill's `billNumber` is `"CA SB 243 (2025-2026)"` and its
@@ -400,7 +402,8 @@ pnpm --filter @acme/scraper repair-bill-descriptions --apply --manifest /tmp/bil
   no usable source text, no valid article, or no structured bill brief);
   **`--mode replace`** (the default) regenerates every derived asset.
 - **`--assets images`** limits work to source/search thumbnails;
-  `--assets all` (default) also regenerates long-form text and dual lenses.
+  **`--assets briefs`** limits work to structured bill or court briefs; and
+  `--assets all` (default) regenerates long-form text and dual lenses too.
 - Selection can be scoped with `--type`, `--limit`, `--id`, and `--after-id`
   (resume-after-UUID, single-type only), at `--concurrency` 1–5.
 - **Missing source text is re-fetched, not skipped.** When a row's `full_text`

@@ -13,6 +13,7 @@ import Animated, {
   interpolate,
   useAnimatedProps,
   useAnimatedStyle,
+  useDerivedValue,
   useReducedMotion,
   useSharedValue,
   withRepeat,
@@ -25,7 +26,7 @@ import { SPIN_AZ0, SPIN_BANDS, SPIN_N, SPIN_VIEW } from "./whiteHouse3d";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const TURN_MS = 60000;
-const DETAIL_MS = 560;
+const DETAIL_MS = 300;
 const VB = `0 0 ${SPIN_VIEW.w} ${SPIN_VIEW.h}`;
 const PULL = Easing.bezier(0.22, 1, 0.36, 1);
 
@@ -56,11 +57,20 @@ function lerpLayer(az: number, frames: number[][], breaks: number[]): string {
   const u = x - Math.floor(x);
   const a = frames[i0]!;
   const b = frames[i1]!;
-  const mixed: number[] = [];
-  for (let i = 0; i < a.length; i++) {
-    mixed.push(a[i]! + (b[i]! - a[i]!) * u);
+  let d = "";
+  const nPts = a.length / 2;
+  for (let p = 0; p < breaks.length; p++) {
+    const start = breaks[p]!;
+    const end = p + 1 < breaks.length ? breaks[p + 1]! : nPts;
+    for (let i = start; i < end; i++) {
+      const x = Math.round((a[i * 2]! + (b[i * 2]! - a[i * 2]!) * u) * 10) / 10;
+      const y =
+        Math.round((a[i * 2 + 1]! + (b[i * 2 + 1]! - a[i * 2 + 1]!) * u) * 10) /
+        10;
+      d += (i === start ? "M" : "L") + x + " " + y;
+    }
   }
-  return pathFrom(mixed, breaks);
+  return d.length > 0 ? d : "M0 0";
 }
 
 function Band({
@@ -110,6 +120,9 @@ export function WhiteHouseSpin({
 }) {
   const reduce = useReducedMotion();
   const az = useSharedValue(SPIN_AZ0);
+  // Quarter-degree steps preserve the slow turn while avoiding SVG path writes
+  // on most display frames (one step is about 42 ms at this rotation speed).
+  const sampledAz = useDerivedValue(() => Math.round(az.value * 4) / 4);
   const detail = useSharedValue(0);
   const [box, setBox] = useState(180);
   const target = Math.min(4, Math.max(0, watch));
@@ -176,7 +189,7 @@ export function WhiteHouseSpin({
           {SPIN_BANDS.map((band, i) => (
             <Band
               key={i}
-              az={az}
+              az={sampledAz}
               frames={band.frames}
               breaks={band.breaks}
               detail={i > 4 ? topicDetail : detail}

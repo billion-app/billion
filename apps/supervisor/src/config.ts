@@ -35,7 +35,7 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
-  ...(["ca", "nc", "tx"] as const).map(
+  ...(["ca", "ma", "nc", "tx"] as const).map(
     (stateCode, index): JobDefinition => ({
       id: `open-states-${stateCode}-daily`,
       description: `Refresh ${stateCode.toUpperCase()} measures and retain 90 active days plus category leaders`,
@@ -81,6 +81,16 @@ export const jobs: readonly JobDefinition[] = [
     priority: 0,
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
+  },
+  {
+    id: "notify-followers-hourly",
+    description: "Send lock-screen alerts for bills a reader asked us to watch",
+    script: "notify-followers.js",
+    args: [],
+    schedule: { kind: "interval", everyMinutes: 60 },
+    priority: 8,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
   },
   {
     id: "content-images-daily",
@@ -142,6 +152,18 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 12,
   },
   {
+    id: "ecourt-records-daily",
+    description:
+      "Refresh publicly indexed criminal case dockets from eCourt Records",
+    script: "main.js",
+    args: ["ecourt-records", "--max-items", "5", "--concurrency", "1"],
+    env: { SCRAPER_MAX_NEW_ITEMS_PER_RUN: "2" },
+    schedule: { kind: "daily", hour: 2, minute: 15 },
+    priority: 6,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "scc-cvig-weekly",
     description: "Santa Clara County voter information guide",
     script: "main.js",
@@ -161,8 +183,43 @@ export const jobs: readonly JobDefinition[] = [
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
   },
-  // Everything below is manual: it runs only when someone drops a request file,
-  // never on a schedule.
+  {
+    id: "ca-official-guide-daily",
+    description: "Refresh the November 2026 official California ballot guide",
+    script: "main.js",
+    args: ["ca-official-guide"],
+    env: { CA_GUIDE_ELECTION_DATE: "2026-11-03" },
+    schedule: { kind: "daily", hour: 4, minute: 30 },
+    priority: 13,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
+    id: "ca-election-logistics-daily",
+    description:
+      "Refresh official California election dates and voting guidance",
+    script: "main.js",
+    args: ["ca-election-logistics", "--max-items", "4"],
+    schedule: { kind: "daily", hour: 4, minute: 45 },
+    priority: 14,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
+    id: "santa-cruz-locations-daily",
+    description: "Refresh published Santa Cruz November 2026 vote centers",
+    script: "main.js",
+    args: ["santa-cruz-locations", "--max-items", "1"],
+    env: {
+      SANTA_CRUZ_ELECTION_DATE: "2026-11-03",
+      SANTA_CRUZ_ELECTION_PAGE_URL:
+        "https://votescount.santacruzcountyca.gov/Home/Elections/November3,2026CaliforniaGeneralElection.aspx",
+    },
+    schedule: { kind: "daily", hour: 5, minute: 0 },
+    priority: 15,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
   {
     id: "open-states-targeted",
     description:
@@ -206,6 +263,25 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 24,
   },
   {
+    id: "court-image-smoke",
+    description: "Generate and review one real Supreme Court header image",
+    script: "content-images.js",
+    args: [
+      "--type",
+      "court_case",
+      "--bill-limit",
+      "0",
+      "--other-limit",
+      "1",
+      "--concurrency",
+      "1",
+    ],
+    schedule: { kind: "manual" },
+    priority: 17,
+    idleTimeoutMinutes: 120,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "backfill-content-images",
     description: "Generate illustrated header art for all retained content",
     script: "content-images.js",
@@ -236,6 +312,31 @@ export const jobs: readonly JobDefinition[] = [
     // which meant four manual triggers to finish one job — and no record of how
     // many passes were left.
     args: ["--limit", "1000", "--concurrency", "4"],
+    schedule: { kind: "manual" },
+    priority: 20,
+    idleTimeoutMinutes: 60,
+    maxRuntimeHours: 72,
+  },
+  {
+    id: "backfill-court-briefs",
+    description: "Generate structured briefs for historical court cases",
+    script: "reprocess-content.js",
+    // This is deliberately brief-only: court perspectives and header artwork
+    // have their own backfills and should not make a factual-brief repair fail.
+    args: [
+      "--type",
+      "court_case",
+      "--mode",
+      "missing",
+      "--limit",
+      "1000",
+      "--assets",
+      "briefs",
+      "--concurrency",
+      "2",
+      "--apply",
+      "--yes",
+    ],
     schedule: { kind: "manual" },
     priority: 20,
     idleTimeoutMinutes: 60,

@@ -1,0 +1,14 @@
+# Candidate explainer editorial path
+
+The individual page opens from the California statement guide and from a ballot contest when one is available. The guide is a list of submitted statements, not a certified candidate roster. The page resolves guide identity with name plus statewide office and the November 3, 2026 election date. A ballot candidate receives guide context only when the address resolves to California, the election date matches, the provider identifies California's statewide district, and a unique name and office match exists. It never infers ballot eligibility, withdrawal, write-in status, or incumbency from a statement. A ballot contest keeps its provider status and attribution; the page does not call a non-California contest a California race.
+
+The California Secretary of State's [candidate-statement notice](https://voterguide.sos.ca.gov/voter-info/info-about-candidate-statements.htm) says candidates supply and pay for statements and that the state does not check their accuracy. The page therefore shows source text as a candidate claim. The scraper also captures the office name and duty bullets from each official statement page, with a link back to that page. No candidate-specific priority summary or independent public-record claim is embedded in the app. All candidates show the missing-record state until independent analysis passes review; no record is inferred from a biography or statement.
+
+## Review before adding candidate analysis
+
+1. Record the exact guide identity (name, office, election date) and verify candidate status against a current election-office roster. Keep candidate-supplied claims separate from public records.
+2. Write each plain-language claim with a primary source URL, source publisher, document date or retrieval date, and precise section or locator. Review the source against the claim and check identity collisions. Do not publish generated prose directly from a request-time enrichment adapter.
+3. Obtain editorial signoff under [issue #344](https://github.com/billion-app/billion/issues/344) before enabling candidate-specific analysis or a two-sided comparison. Keep the analysis section in its current unavailable state until then. Review both an incumbent and a non-incumbent, plus a missing-evidence case.
+4. For corrections, use the [public support path](https://billion-news.app/support). On a credible report, hide or correct the affected claim, document the old and new sources and reviewer, and refresh the page. For a stale source, repeat the source check before re-enabling the claim. The guide cache has its own source retrieval time; any future reviewed claim needs a separate check date.
+
+A future generation pipeline will need versioned structured output, deterministic source checks, stored review state, a publication gate, and re-review when source data changes. Those are proposed work, not implemented behavior.

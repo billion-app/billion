@@ -48,12 +48,7 @@ const DEFAULT_HINT = "Enter your address to see what's on your ballot.";
 function formatPlacemark(p: Location.LocationGeocodedAddress): string | null {
   const street = [p.streetNumber, p.street].filter(Boolean).join(" ");
   const city = p.city ?? p.district ?? p.subregion;
-  const parts = [
-    street,
-    city,
-    p.region,
-    p.postalCode,
-  ].filter(Boolean);
+  const parts = [street, city, p.region, p.postalCode].filter(Boolean);
   // A fix without a street or a city is a coordinate, not a usable
   // registered address — let the caller fall back to manual entry.
   if (!street || !city) return null;
@@ -68,8 +63,11 @@ export function AddressAutocomplete({
   inline = false,
 }: AddressAutocompleteProps) {
   const [input, setInput] = useState(initialValue);
-  const { request: locate, locating, error: locationError } =
-    useDeviceLocation();
+  const {
+    request: locate,
+    locating,
+    error: locationError,
+  } = useDeviceLocation();
   // The committed address while the post-GPS lookup is still resolving.
   const [resolving, setResolving] = useState(false);
 
@@ -92,7 +90,10 @@ export function AddressAutocomplete({
       const formatted = placemarks[0] ? formatPlacemark(placemarks[0]) : null;
       // Without a usable placemark, hand the coordinates to Civic anyway —
       // Civic accepts "latitude,longitude" and resolves the jurisdiction.
-      commit(formatted ?? `${fix.coords.latitude.toFixed(5)},${fix.coords.longitude.toFixed(5)}`);
+      commit(
+        formatted ??
+          `${fix.coords.latitude.toFixed(5)},${fix.coords.longitude.toFixed(5)}`,
+      );
     } catch {
       // Reverse geocode failed but the fix itself was good — coordinates
       // still beat nothing, and Civic can resolve them.

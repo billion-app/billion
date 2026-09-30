@@ -26,6 +26,17 @@ interface Item {
 function buildGroups(): { title: string; items: Item[] }[] {
   return [
     {
+      title: "Alerts",
+      items: [
+        {
+          icon: "bell",
+          label: "Notifications",
+          sub: "Stay informed without being overwhelmed.",
+          route: "/settings/notifications" as Href,
+        },
+      ],
+    },
+    {
       title: "Library",
       items: [
         {

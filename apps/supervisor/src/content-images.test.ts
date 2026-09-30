@@ -112,6 +112,7 @@ void test("covers all feed import and repair jobs but excludes civic caches and 
   for (const id of [
     "congress-daily",
     "open-states-ca-daily",
+    "open-states-ma-daily",
     "open-states-nc-daily",
     "open-states-tx-daily",
     "legistar-daily",
@@ -134,6 +135,7 @@ void test("covers all feed import and repair jobs but excludes civic caches and 
     "backfill-content-images",
     "change-images",
     "bill-interest-daily",
+    "notify-followers-hourly",
   ]) {
     assert.equal(
       producesContent(definitions.find((j) => j.id === id)!),

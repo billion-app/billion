@@ -27,7 +27,12 @@
       "outputs": [".cache/tsbuildinfo.json"]
     },
     "test": {
-      "dependsOn": ["^topo", "^build"]
+      "dependsOn": ["^topo", "^build"],
+      "env": [
+        "NOTIFICATIONS_TEST_DATABASE_URL",
+        "SCOTUS_TEST_POSTGRES_URL",
+        "COURT_BRIEF_TEST_ARTIFACT_DIR"
+      ]
     },
     "clean": {
       "cache": false
@@ -71,6 +76,7 @@
     "AUTH_REDIRECT_PROXY_URL",
     "BETTER_AUTH_SECRET",
     "PORT",
+    "DEMOCRACY_WORKS_API_KEY",
     "GOOGLE_CIVIC_API_KEY",
     "GOOGLE_API_KEY",
     "GOOGLE_PLACES_API_KEY",
@@ -88,6 +94,7 @@
     "RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL",
     "FEEDBACK_TO_EMAIL",
     "FEEDBACK_FROM_EMAIL",
+    "EXPO_ACCESS_TOKEN",
     "EXPO_PUBLIC_API_URL",
     "EXPO_PUBLIC_POSTHOG_TOKEN"
   ],

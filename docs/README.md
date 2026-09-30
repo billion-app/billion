@@ -8,12 +8,14 @@ New to Billion? Read the [architecture tour](architecture.md) for the data flow,
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | [Architecture and code tour](architecture.md)                 | How the processes fit together, project terms, and a bill's path to the screen |
 | [Frontend apps](frontend.md)                                  | Mobile routes, API clients, styling, auth, and public web pages                |
+| [Content-detail design](content-detail-design.md)             | Required design language and workflow for every new content type               |
 | [API](api.md)                                                 | Request handling, router responsibilities, validation, and user access         |
 | [Data layer](data-layer.md)                                   | Source records versus derived content, database relationships, and migrations  |
 | [Scraper pipeline](scraper.md)                                | Source discovery, hashes, retry queues, enrichment, and repair jobs            |
 | [Article generation](article-generation.md)                   | Structured briefs, quote verification, and framing rules                       |
 | [Measure enrichment](measure-enrichment.md)                   | Evidence and trust tiers for ballot-measure summaries                          |
 | [Candidate enrichment](candidate-enrichment.md)               | Source-backed candidate biographies and other fields                           |
+| [Candidate explainer](candidate-explainer.md)                 | Individual candidate page sources, review, correction, and refresh path        |
 | [Local government and Legistar](local-government-legistar.md) | Implemented ingestion and read API, San José policy, and remaining work        |
 | [Sharing and saves](virality.md)                              | Public previews, generated share images, bookmarks, and screenshot detection   |
 

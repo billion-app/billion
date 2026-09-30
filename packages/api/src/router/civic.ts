@@ -3,12 +3,16 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { caSosResultsClient } from "../clients/ca-sos-results";
+import { BallotProviderError } from "../clients/democracy-works";
+import { getDevBallot } from "../lib/ballot-dev-mocks";
 import {
+  getCaliforniaGuide,
   getDistrictElectionResults,
   getElectionResults,
   getElections,
   getVoterInfo,
 } from "../lib/civic";
+import { CivicReadUnavailableError } from "../lib/civic-read-guard";
 import { getElectedOfficials } from "../lib/elected-officials";
 import { publicProcedure } from "../trpc";
 
@@ -26,21 +30,26 @@ const DISTRICT_REF = z.object({
 });
 
 export const civicRouter = {
+  getCaliforniaGuide: publicProcedure.query(() => getCaliforniaGuide()),
   /**
    * Get a list of upcoming elections
    */
-  getElections: publicProcedure.query(async () => {
-    try {
-      return await getElections();
-    } catch (error) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message:
-          error instanceof Error ? error.message : "Failed to fetch elections",
-        cause: error,
-      });
-    }
-  }),
+  getElections: publicProcedure
+    .input(z.object({ address: z.string().trim().min(1).max(300) }).optional())
+    .query(async ({ input }) => {
+      try {
+        return await getElections(input?.address);
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch elections",
+          cause: error,
+        });
+      }
+    }),
 
   /**
    * Get live California statewide election results (Secretary of State feed).
@@ -104,20 +113,27 @@ export const civicRouter = {
   getVoterInfo: publicProcedure
     .input(
       z.object({
-        address: z.string().min(1, "Address is required"),
-        electionId: z.string().optional(),
+        address: z.string().trim().min(1, "Address is required").max(300),
+        electionId: z.string().max(100).optional(),
+        includeEnrichment: z.boolean().optional(),
       }),
     )
     .query(async ({ input }) => {
       try {
-        return await getVoterInfo(input.address, input.electionId);
+        const mock = getDevBallot(input.address);
+        if (mock) return mock;
+        return await getVoterInfo(input.address, input.electionId, {
+          includeEnrichment: input.includeEnrichment,
+        });
       } catch (error) {
         throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
+          code:
+            error instanceof CivicReadUnavailableError ||
+            error instanceof BallotProviderError
+              ? "SERVICE_UNAVAILABLE"
+              : "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch voter info",
+            "Ballot information is temporarily unavailable. Please try again.",
           cause: error,
         });
       }

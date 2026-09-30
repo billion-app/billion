@@ -18,7 +18,9 @@ export const env = createEnv({
    */
   server: {
     POSTGRES_URL: envSchemas.POSTGRES_URL!,
-    GOOGLE_CIVIC_API_KEY: envSchemas.GOOGLE_CIVIC_API_KEY!,
+    DEMOCRACY_WORKS_API_KEY: envSchemas.DEMOCRACY_WORKS_API_KEY!.optional(),
+    GOOGLE_CIVIC_API_KEY: envSchemas.GOOGLE_CIVIC_API_KEY!.optional(),
+    GOOGLE_PLACES_API_KEY: envSchemas.GOOGLE_PLACES_API_KEY!.optional(),
     RESEND_API_KEY: envSchemas.RESEND_API_KEY!.optional(),
     RESEND_GENERAL_UPDATES_SEGMENT_ID:
       envSchemas.RESEND_GENERAL_UPDATES_SEGMENT_ID!.optional(),
@@ -26,6 +28,7 @@ export const env = createEnv({
       envSchemas.RESEND_GENERAL_UPDATES_TOPIC_ID!.optional(),
     RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL:
       envSchemas.RESEND_MAILING_LIST_CONFIRMATION_FROM_EMAIL!.optional(),
+    EXPO_ACCESS_TOKEN: envSchemas.EXPO_ACCESS_TOKEN!.optional(),
   },
 
   /**

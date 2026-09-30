@@ -29,7 +29,7 @@ Local government uses the `local_*` tables. A `local_decision` represents a matt
 
 ## User data and relationships
 
-Better Auth owns `user`, `session`, `account`, and `verification`. Application tables store preferences, settings, blocked content, and saved articles. `post` remains a legacy example from the original template.
+Better Auth owns `user`, `session`, `account`, and `verification`. Application tables store preferences, settings, blocked content, saved articles, and lock-screen alert state. `push_device` is keyed by the Expo push token so a phone can receive alerts without an account. `device_follow` is the server copy of that phone's saved bills. `notification_outbox` queues and records what we sent. `post` remains a legacy example from the original template.
 
 `user_preference` has at most one row per authenticated user. Its `topics` and `content_types` columns are JSONB string arrays. The protected `user.getPreferences` and `user.setPreferences` procedures derive the owner from the session and read or upsert that row. These server preferences are separate from Expo's account-free onboarding record in AsyncStorage. Finishing onboarding copies topics and content types to PostgreSQL only when a session already exists; it does not synchronize the rest of the device record, including alert choices.
 

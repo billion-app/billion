@@ -106,9 +106,7 @@ export default function SavedArticlesScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             list.length > 0 ? (
-              <Text style={s.intro}>
-                {list.length} saved
-              </Text>
+              <Text style={s.intro}>{list.length} saved</Text>
             ) : null
           }
           ItemSeparatorComponent={() => (
@@ -137,8 +135,8 @@ export default function SavedArticlesScreen() {
               <EmptySearchMark width={88} />
               <Text style={s.emptyTitle}>Nothing saved yet</Text>
               <Text style={s.emptySub}>
-                Tap the bookmark on a bill, a case, or an order to come back
-                to it.
+                Tap the bookmark on a bill, a case, or an order to come back to
+                it.
               </Text>
             </View>
           }
