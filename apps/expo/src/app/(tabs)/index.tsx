@@ -403,7 +403,10 @@ export function BrowseCatalog() {
                 </Text>
                 <TouchableOpacity
                   style={s.switchButton}
-                  onPress={() => void setJurisdiction(otherJurisdiction)}
+                  onPress={() => {
+                    setFilter(filter);
+                    void setJurisdiction(otherJurisdiction);
+                  }}
                 >
                   <Text style={s.switchText}>Switch</Text>
                   <Icon
