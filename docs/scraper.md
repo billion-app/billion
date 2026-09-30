@@ -267,8 +267,7 @@ schema. This prevents invented reason labels from unnecessarily depending on the
 hosted fallback. The returned response is still validated for decision and reason
 consistency before publication. Government artwork also receives a bounded
 Section 1 excerpt from the official text when available, so a short feed summary
-is not its only factual context. A
-rejection gives the visual planner one chance to regenerate with corrective
+is not its only factual context. A rejection gives the visual planner one chance to regenerate with corrective
 feedback. A second rejection is recorded in `content_image_review` with its
 reasons and no new `content_image` row is written; any existing row is left
 untouched. `--drain` counts that terminal rejection as completed and excludes
