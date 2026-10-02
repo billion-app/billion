@@ -172,16 +172,22 @@ function MeasureCard({
 }
 
 export default function ElectionsScreen() {
+  const router = useRouter();
   const [view, setView] = useState<"entry" | "guide" | "ballot" | "fixtures">(
     "entry",
   );
   if (view === "entry")
-    return <CaliforniaElectionEntry onExplore={() => setView("guide")} />;
+    return (
+      <CaliforniaElectionEntry
+        onExplore={() => setView("guide")}
+        onLookup={() => router.push("/ballot")}
+      />
+    );
   if (__DEV__ && view === "fixtures") return <DevelopmentElections />;
   if (view === "ballot") return <ElectionsLive />;
   return (
     <CaliforniaGuidePreview
-      onOpenBallot={__DEV__ ? () => setView("ballot") : undefined}
+      onOpenBallot={() => router.push("/ballot")}
       onOpenFixtures={__DEV__ ? () => setView("fixtures") : undefined}
     />
   );
@@ -224,7 +230,13 @@ function DevelopmentElections() {
   );
 }
 
-function CaliforniaElectionEntry({ onExplore }: { onExplore: () => void }) {
+function CaliforniaElectionEntry({
+  onExplore,
+  onLookup,
+}: {
+  onExplore: () => void;
+  onLookup: () => void;
+}) {
   const guide = useQuery(trpc.civic.getCaliforniaGuide.queryOptions()).data;
   return (
     <TabScreen title="Elections">
@@ -242,19 +254,28 @@ function CaliforniaElectionEntry({ onExplore }: { onExplore: () => void }) {
         </Text>
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Try the California ballot preview"
+          accessibilityLabel="Explore the California statewide guide"
           activeOpacity={0.85}
           onPress={onExplore}
           style={s.entryButton}
         >
-          <Text style={s.entryButtonText}>Try it now</Text>
+          <Text style={s.entryButtonText}>Explore the guide</Text>
           <Icon name="arrowRight" size={19} color={planes.navy} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={onLookup}
+          style={{ minHeight: 48, justifyContent: "center" }}
+        >
+          <Text style={[s.entryBody, { fontFamily: fontBody.bold }]}>
+            Address-specific ballot lookup
+          </Text>
         </TouchableOpacity>
         <View style={s.entryNote}>
           <Icon name="info" size={16} color={colors.textSecondary} />
           <Text style={s.entryNoteText}>
-            Coverage is still growing. Confirm your ballot and voting options
-            with your election office.
+            This statewide guide is not your address-specific ballot. Confirm
+            local races and voting options with your election office.
           </Text>
         </View>
       </View>

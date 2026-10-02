@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 import { caSosResultsClient } from "../clients/ca-sos-results";
 import { BallotProviderError } from "../clients/democracy-works";
 import { getDevBallot } from "../lib/ballot-dev-mocks";
+import { getBallotAvailability } from "../lib/ballot-launch";
 import {
   getCaliforniaGuide,
   getDistrictElectionResults,
@@ -30,6 +31,8 @@ const DISTRICT_REF = z.object({
 });
 
 export const civicRouter = {
+  /** Public release state; does not expose credentials or infer provider coverage. */
+  getBallotAvailability: publicProcedure.query(() => getBallotAvailability()),
   getCaliforniaGuide: publicProcedure.query(() => getCaliforniaGuide()),
   /**
    * Get a list of upcoming elections

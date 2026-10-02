@@ -240,7 +240,9 @@ export function CaliforniaGuidePreview({
                 onPress={onOpenBallot}
                 style={s.addressAction}
               >
-                <Text style={s.addressActionText}>Test ballot lookup</Text>
+                <Text style={s.addressActionText}>
+                  Address-specific ballot lookup
+                </Text>
                 <Icon name="arrowRight" size={17} color={colors.bill} />
               </TouchableOpacity>
             )}
