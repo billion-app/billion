@@ -13,7 +13,13 @@ import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
-import { colors, fontBody, fontDisplay, planes } from "~/styles";
+import {
+  colors,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+  planes,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
@@ -31,7 +37,13 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
     <Card style={s.card}>
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel={`${candidate.name}, ${candidate.officeName ?? "statewide office"}`}
+        accessibilityLabel={[
+          candidate.name,
+          candidate.officeName ?? "statewide office",
+          candidate.party,
+        ]
+          .filter(Boolean)
+          .join(", ")}
         activeOpacity={0.8}
         onPress={() =>
           router.push(guideCandidateRoute(candidate.name, candidate.officeSlug))
@@ -166,7 +178,9 @@ export function CaliforniaGuidePreview({
       {query.isPending && <ActivityIndicator color={colors.bill} />}
       {query.isError && (
         <Card>
-          <Text style={s.introText}>The official guide could not load.</Text>
+          <Text style={[s.introText, { color: P.inkOnNight }]}>
+            The official guide could not load.
+          </Text>
           <TouchableOpacity
             accessibilityRole="button"
             style={{ minHeight: 48, justifyContent: "center" }}
@@ -178,7 +192,7 @@ export function CaliforniaGuidePreview({
       )}
       {!query.isPending && !query.isError && !guide && (
         <Card>
-          <Text style={s.introText}>
+          <Text style={[s.introText, { color: P.inkOnNight }]}>
             The official guide is being refreshed. Check back soon.
           </Text>
         </Card>
@@ -331,7 +345,7 @@ const s = StyleSheet.create({
     lineHeight: 21,
   },
   cardMeta: {
-    color: colors.textSecondary,
+    color: P.inkOnNight,
     fontFamily: fontBody.regular,
     fontSize: 13,
   },
@@ -356,14 +370,14 @@ const s = StyleSheet.create({
     fontSize: 24,
   },
   detailBlock: { gap: 4 },
-  detailLabel: { color: colors.textSecondary, fontFamily: fontBody.semibold },
+  detailLabel: { color: P.inkOnNight, fontFamily: fontBody.semibold },
   detailText: {
     color: "#FFFFFF",
     fontFamily: fontBody.regular,
     lineHeight: 21,
   },
   footer: { gap: 12, paddingBottom: 18 },
-  retry: { color: colors.bill, fontFamily: fontBody.semibold, marginTop: 14 },
+  retry: { color: P.inkOnNight, fontFamily: fontBody.semibold, marginTop: 14 },
   fixtureLink: { color: colors.textSecondary, paddingVertical: 16 },
   addressAction: {
     minHeight: 48,
@@ -385,7 +399,7 @@ const s = StyleSheet.create({
     borderTopColor: colors.textSecondary,
   },
   detailActionText: {
-    color: colors.bill,
+    color: P.inkOnNight,
     flexShrink: 1,
     fontFamily: fontBody.semibold,
     fontSize: 15,

@@ -67,7 +67,7 @@ The profile avoids an existing first-run onboarding SVG error on web. No claim
 about the first-run journey is made.
 
 - [Resource screen](assets/428/resources.png)
-- [Accessible resource section](assets/428/resources-bottom.png)
+- [Supporting resource details](assets/428/resources-bottom.png)
 - [200% browser text](assets/428/resources-large.png): no horizontal page overflow;
   CSS font/line-height enlargement is **not** native Dynamic Type verification.
 - [Forced guide error](assets/428/guide-error.png): resource button still opens.
@@ -80,3 +80,18 @@ Checks: Expo typecheck passed; Expo tests passed (184 pass, 1 skip, 0 failures);
 production iOS bundle export passed. Full-screen native VoiceOver/enlarged-text
 verification and unfamiliar-reader testing remain required before completion of
 #428. This PR implements focused improvements and records the remaining audit.
+
+## Concrete audit follow-ups
+
+The legacy address lookup in `(tabs)/elections.tsx` calls
+`LayoutAnimation.configureNext` during disclosure changes without a reduced-motion
+guard, and its older measure toggle lacks a button role/expanded state. #418 should
+resolve these when replacing/integrating that path; the statewide preview changed
+here introduces no layout animation. Do not treat the static audit as a pass.
+
+Computed token contrast for quiet text (`#8A8FA0`) on slate (`#272D3C`) is
+4.27:1, below the 4.5:1 normal-text threshold. This PR uses `inkOnNight` for
+preview card metadata, supporting labels, and recovery copy (12.53:1 on slate).
+SourceLink blue on its navy button surface is 4.81:1. Other streams should inspect
+muted card text using the actual composited surface. Candidate card accessibility
+labels now include the supplied party instead of dropping visible information.
