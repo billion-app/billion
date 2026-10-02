@@ -21,6 +21,7 @@ import {
 } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
+import { PrivatePreparation } from "~/components/preparation/PrivatePreparation";
 import { Segmented } from "~/components/ui";
 import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
@@ -219,6 +220,14 @@ export function BallotLookupView(props: BallotLookupViewProps) {
         <Text accessibilityRole="header" style={s.pageTitle}>
           Your ballot
         </Text>
+        <Pressable
+          {...{ "ph-no-capture": true }}
+          accessibilityRole="button"
+          onPress={() => router.push("/ballot-preparation")}
+          style={{ paddingVertical: 12, minHeight: 44 }}
+        >
+          <Text style={s.body}>Saved private preparation</Text>
+        </Pressable>
         {mismatch && (
           <Card style={s.card}>
             <Text accessibilityRole="header" style={s.contestTitle}>
@@ -443,6 +452,19 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                 <Icon name="chevR" size={18} color={P.inkOnNight} />
               </Pressable>
             )}
+            {model.election?.id &&
+              model.election.electionDay &&
+              (data.provider !== undefined || data.kind === "fixture") && (
+                <PrivatePreparation
+                  key={JSON.stringify([
+                    data.provider?.name ?? data.kind,
+                    model.election,
+                  ])}
+                  election={model.election}
+                  provider={data.provider?.name ?? data.kind}
+                  contests={model.contests}
+                />
+              )}
             {!!model.contests.length && (
               <>
                 <Text style={s.coverage}>
