@@ -33,8 +33,8 @@ icons. Existing shared SourceLink handles failed external opens and provides
 | How to vote           | Date rows announce dates and expanded state; postmark requirement is text; location categories and missing details are explicit.             | Back restores context; disclosure focus; long addresses/hours; failed link recovery; no stale election response.                            |
 | Language resources    | Statewide official help is separate from unverified local availability.                                                                      | Open hotline page, choose an advertised language, confirm resource works; translated November PDFs must be checked again after publication. |
 
-No native VoiceOver, native enlarged-text, translated-resource end-to-end task,
-or unfamiliar-reader comprehension pass is claimed by this audit. Keep the PR
+No native production VoiceOver or enlarged-text task, non-English-reader
+comprehension, or unfamiliar-reader usability pass is claimed by this audit. Keep the PR
 in draft until the required production mobile checks and editorial source review
 have been recorded. Web screenshots and browser enlargement are supplemental.
 
@@ -68,6 +68,7 @@ about the first-run journey is made.
 
 - [Resource screen](assets/428/resources.png)
 - [Supporting resource details](assets/428/resources-bottom.png)
+- [County checklist expanded](assets/428/resources-expanded.png)
 - [200% browser text](assets/428/resources-large.png): no horizontal page overflow;
   CSS font/line-height enlargement is **not** native Dynamic Type verification.
 - [Forced guide error](assets/428/guide-error.png): resource button still opens.
@@ -95,3 +96,35 @@ preview card metadata, supporting labels, and recovery copy (12.53:1 on slate).
 SourceLink blue on its navy button surface is 4.81:1. Other streams should inspect
 muted card text using the actual composited surface. Candidate card accessibility
 labels now include the supplied party instead of dropping visible information.
+
+## Rigorous design follow-up
+
+A fresh independent Astra reviewer inspected the running screenshots before
+implementation rationale. Its first critique found that the multilingual hotline
+was buried beneath county caveats, the large-text preamble delayed every action,
+and the guide status required reading a publication narrative. The independent
+four-PR audit's #438 findings agreed: organize around help tasks, shorten local
+guidance, disclose the checklist, and put dated availability before metadata.
+
+The revised screen leads with the hotline, accessible-voting destination and
+county discovery. The short editorial title leaves the first hotline action
+visible at 200% browser text. Languages, the county checklist and source details
+expand on demand, while local availability remains visibly unverified. The
+translated guide shows its dated status and statewide scope before any expanded
+background explanation. Retry is now a bounded action. Development scenario
+controls remain excluded from production by the existing `__DEV__` gate.
+
+The same reviewer found the first revision serviceable but wanted visible native
+language cues and practical county guidance. Those became a compact multilingual
+preview, an explicit “All 10 hotline languages” disclosure, an action-led county
+summary and a clearly named elections-office link. Its final screenshot review
+described the screen as polished and compelling through clear routes and trust,
+with no further visual redesign required for this scope. The subsequent diff
+review approved the disclosure behavior and preservation of material limitations.
+The optional wording precision “voting at home” was also applied.
+
+Runtime verification exercised both disclosure states, confirmed content and
+expanded semantics, followed the Spanish link to the real official page, and
+navigated from the forced guide-error state to Voting help. These results are
+browser evidence. A compelling Astra design review does not replace the native,
+editorial, other-stream integration or real-reader gates above.

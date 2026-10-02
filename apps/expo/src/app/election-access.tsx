@@ -1,99 +1,157 @@
-import { ScrollView, StyleSheet, View } from "react-native";
+import type { ReactNode } from "react";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
-import { NavHeader } from "~/components/ui";
-import { fontBody, fontEditorial, DigestPalette as P, sp } from "~/styles";
+import { Icon, NavHeader } from "~/components/ui";
+import {
+  DigestHair,
+  fontBody,
+  fontEditorial,
+  DigestPalette as P,
+  sp,
+} from "~/styles";
 
 const office =
   "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices";
 const hotlines =
   "https://www.sos.ca.gov/elections/voting-resources/voting-california/voter-hotlines";
 
+function Details({ title, children }: { title: string; children: ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
+        onPress={() => setExpanded(!expanded)}
+        style={s.disclosure}
+      >
+        <Text style={s.detailLabel}>{title}</Text>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <Icon
+            name={expanded ? "chevD" : "chevR"}
+            size={16}
+            color={P.inkOnNight}
+          />
+        </View>
+      </Pressable>
+      {expanded && <View style={s.details}>{children}</View>}
+    </View>
+  );
+}
+
 /** Statewide official resource discovery; never a claim about a particular location. */
 export default function ElectionAccessScreen() {
   const router = useRouter();
   return (
     <View style={s.screen}>
-      <NavHeader
-        title="Voting support"
-        tone="dark"
-        onBack={() => router.back()}
-      />
+      <NavHeader title="California" tone="dark" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={s.content}>
         <Text accessibilityRole="header" style={s.title}>
-          California voting support
+          Voting help
         </Text>
-        <Text style={s.body}>
-          Official language and accessibility resources. Links open California’s
-          websites; they do not translate Billion.
-        </Text>
-        <SourceLink
-          label="Español · Derechos del votante / Voter rights"
-          url="https://www.sos.ca.gov/es/elections/voter-bill-rights"
-          prominence="primary"
-        />
-        <SourceLink
-          label="Accessible formats and voting help"
-          url="https://www.sos.ca.gov/elections/voting-resources/voters-disabilities"
-          prominence="primary"
-        />
-        <View style={s.card}>
-          <Text accessibilityRole="header" style={s.heading}>
-            Confirm local support
-          </Text>
-          <Text style={s.body}>
-            Billion has not verified your local ballot’s languages or access at
-            your voting location. Ask your county office about translated
-            materials, entrances, parking, equipment, curbside voting and how to
-            request assistance before travelling.
-          </Text>
-          <SourceLink
-            label="Find your California county elections office"
-            url={office}
-          />
-        </View>
+        <Text style={s.caption}>Official resources · Opens state websites</Text>
         <View style={s.card}>
           <Text accessibilityRole="header" style={s.heading}>
             Help in your language
           </Text>
-          <Text style={s.body}>
-            California lists phone help in English, Español, 中文, हिन्दी,
-            日本語, ខ្មែរ, 한국어, Tagalog, ภาษาไทย and Việt ngữ. Choose your
-            language on the official page for voting questions or mailed
-            materials.
+          <SourceLink
+            label="Voter hotlines"
+            url={hotlines}
+            prominence="primary"
+          />
+          <SourceLink
+            label="Español · Derechos del votante / Voter rights"
+            url="https://www.sos.ca.gov/es/elections/voter-bill-rights"
+          />
+          <Text style={s.caption}>Español · 中文 · हिन्दी · +7 languages</Text>
+          <Details title="All 10 hotline languages">
+            <Text style={s.body}>
+              English, Español, 中文, हिन्दी, 日本語, ខ្មែរ, 한국어, Tagalog,
+              ภาษาไทย and Việt ngữ.
+            </Text>
+            <Text style={s.body}>
+              Ask voting questions or request mailed materials. California also
+              lists 711 for TTY/TDD (text telephone) help.
+            </Text>
+            <Text style={s.body}>
+              Hotline languages may differ from your local ballot. These
+              resources do not change the app language.
+            </Text>
+          </Details>
+        </View>
+        <View style={s.card}>
+          <Text accessibilityRole="header" style={s.heading}>
+            Accessible voting
           </Text>
           <SourceLink
-            label="Find your language’s voter hotline"
-            url={hotlines}
+            label="Accessible voting resources"
+            url="https://www.sos.ca.gov/elections/voting-resources/voters-disabilities"
+            prominence="primary"
           />
-          <Text style={s.body}>
-            California also lists 711 for TTY/TDD (text telephone) help. Hotline
-            languages do not establish local ballot language coverage.
+          <Text style={s.caption}>
+            Audio, large print, voting equipment and voting at home.
           </Text>
         </View>
         <View style={s.card}>
           <Text accessibilityRole="header" style={s.heading}>
-            Translated statewide guide
+            Help at your voting place
           </Text>
           <Text style={s.body}>
-            At our October 2 check, the November 2026 guide’s translated PDFs
-            were announced for October but had no download links. Check the
-            official page for newly published editions.
+            Ask your county about ballot languages and access before travelling.
+          </Text>
+          <Text style={s.caption}>
+            Local availability is unverified in Billion.
+          </Text>
+          <SourceLink label="Find my county elections office" url={office} />
+          <Details title="What to ask about">
+            <Text style={s.body}>
+              Ask about translated materials, entrances, parking, accessible
+              equipment, curbside voting and how to request assistance.
+            </Text>
+            <Text style={s.body}>
+              Availability varies by location. A statewide resource does not
+              confirm services at your voting place.
+            </Text>
+          </Details>
+        </View>
+        <View style={s.card}>
+          <Text accessibilityRole="header" style={s.heading}>
+            Translated voter guide
+          </Text>
+          <Text style={s.body}>
+            Translated guide downloads were not linked at our last check.
+          </Text>
+          <Text style={s.caption}>
+            Checked October 2, 2026 · November election
           </Text>
           <SourceLink
-            label="Check official guide language editions"
+            label="Check official guide"
             url="https://voterguide.sos.ca.gov/"
           />
-          <Text style={s.body}>
-            This statewide guide does not cover every local race or measure.
+          <Text style={s.caption}>
+            Statewide guide only; local ballot materials may differ.
           </Text>
         </View>
-        <Text style={s.caption}>
-          Official sources checked October 2, 2026. Coverage beyond these linked
-          resources remains unverified.
-        </Text>
+        <Details title="About these resources">
+          <Text style={s.body}>
+            Official sources checked October 2, 2026. The November 2026 guide
+            announced translated PDFs for October but had no download links at
+            that check. Check the official page for newly published editions.
+          </Text>
+          <Text style={s.body}>
+            Billion has not verified coverage beyond these linked resources.
+            Opening a translated page does not translate Billion.
+          </Text>
+        </Details>
       </ScrollView>
     </View>
   );
@@ -101,7 +159,7 @@ export default function ElectionAccessScreen() {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: P.canvas },
-  content: { padding: sp[5], paddingBottom: sp[8], gap: sp[4] },
+  content: { padding: sp[5], paddingBottom: sp[8], gap: sp[3] },
   title: { fontFamily: fontEditorial.bold, fontSize: 30, color: P.inkOnNight },
   heading: {
     fontFamily: fontEditorial.bold,
@@ -124,6 +182,21 @@ const s = StyleSheet.create({
     backgroundColor: P.card,
     borderRadius: 14,
     padding: sp[4],
-    gap: sp[3],
+    gap: sp[2],
   },
+  disclosure: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: sp[2],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.sectionRule,
+  },
+  detailLabel: {
+    flex: 1,
+    fontFamily: fontBody.medium,
+    fontSize: 16,
+    color: P.inkOnNight,
+  },
+  details: { gap: sp[3], paddingBottom: sp[2] },
 });

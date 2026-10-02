@@ -183,7 +183,7 @@ export function CaliforniaGuidePreview({
           </Text>
           <TouchableOpacity
             accessibilityRole="button"
-            style={{ minHeight: 48, justifyContent: "center" }}
+            style={s.retryButton}
             onPress={() => void query.refetch()}
           >
             <Text style={s.retry}>Try again</Text>
@@ -377,7 +377,15 @@ const s = StyleSheet.create({
     lineHeight: 21,
   },
   footer: { gap: 12, paddingBottom: 18 },
-  retry: { color: P.inkOnNight, fontFamily: fontBody.semibold, marginTop: 14 },
+  retryButton: {
+    minHeight: 48,
+    marginTop: 14,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    backgroundColor: P.canvas,
+    borderRadius: 10,
+  },
+  retry: { color: P.inkOnNight, fontFamily: fontBody.semibold },
   fixtureLink: { color: colors.textSecondary, paddingVertical: 16 },
   addressAction: {
     minHeight: 48,
