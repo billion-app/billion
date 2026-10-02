@@ -13,13 +13,42 @@ gate, not an authorization barrier around the underlying public provider API.
 
 ## Implementation evidence
 
-The screenshots render the actual `BallotLookupGate` component through React Native
-Web with Billion's real fonts and tokens, at 390×844. The gate props are controlled:
-`closed.png` is verification pending; `error.png` is a failed availability check.
-The browser retry action was exercised from error to closed. `large-text.png` uses
-a 320px browser viewport and 150% enlarged text. It is a browser layout check,
-**not native Dynamic Type or production runtime evidence**. No ballot/provider data
-was requested for these screenshots.
+The final screenshots run the full **production-mode Expo web export**, including
+app layout, loaded Billion fonts, tabs, Expo Router and the real tRPC client.
+They replace the earlier isolated gate-component captures. API responses are
+controlled: guide null/error, a minimal guide-available entry fixture, and ballot
+release availability false/error. They establish integration and UI behavior,
+**not live guide/provider coverage or native production mobile acceptance**.
+
+- `entry.png`: sparse-aware Elections entry, offering the real official California
+  guide instead of advertising an unavailable in-app preview.
+- `entry-with-guide.png`: preview-available entry (synthetic date/empty collections).
+- `entry-loading.png`: pending preview; no active CTA changes its destination while
+  the reader is about to tap it.
+- `guide-sparse.png` / `guide-error.png`: missing/failed preview retains the official
+  statewide guide, county-office help and a working Back action. Errors hide stale
+  preview data.
+- `closed.png` / `error.png`: useful official-ballot fallback, retry only on failure.
+- `large-text.png` / `entry-large.png`: actual app at 320px with browser text enlarged
+  150%; no horizontal overflow. This is not native Dynamic Type verification.
+
+Playwright exercised entry → gate → Back to Elections, entry → sparse/failed guide,
+failed tRPC availability → retry → closed recovery, and pending entry → official-guide
+fallback. External destinations were blocked during captures; the official California
+URL was separately verified at <https://voterguide.sos.ca.gov/> on October 2, 2026.
+
+## Independent design iteration
+
+A fresh `gpt-6-astra` reviewer viewed actual screenshots before code or rationale.
+Its initial critique and the independent four-PR Astra audit identified technical
+copy, redundant notices, retry for a known-closed feature, and an unavailable journey.
+The second iteration addressed the deeper sparse-state issue with direct useful
+source links, clearer hierarchy, readable spacing/contrast and unmistakable controls.
+Astra was concretely impressed by the disciplined reduction and useful official
+content destination within this pre-launch scope. Its reservation remains valid:
+this fallback alone does not establish Billion's personalized election value.
+Final polish addresses initial-loading CTA changes, wording precision and repeated
+headings. An expert design verdict does not replace real-reader/native/live gates.
 
 ## Remaining launch gates
 

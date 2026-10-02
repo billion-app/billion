@@ -25,7 +25,7 @@ export default function BallotRoute() {
         onBack={() =>
           router.canGoBack() ? router.back() : router.replace("/")
         }
-        onHome={() => router.replace("/")}
+        onHome={() => router.replace("/elections")}
       />
     );
   }

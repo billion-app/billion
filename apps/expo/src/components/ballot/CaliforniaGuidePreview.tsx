@@ -126,47 +126,96 @@ function MeasureCard({ measure }: { measure: Measure }) {
 export function CaliforniaGuidePreview({
   onOpenBallot,
   onOpenFixtures,
+  onBack,
 }: {
   onOpenBallot?: () => void;
   onOpenFixtures?: () => void;
+  onBack?: () => void;
 }) {
   const [tab, setTab] = useState<GuideTab>("candidates");
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
-  const guide = query.data;
+  const guide = query.isError ? undefined : query.data;
   return (
     <TabScreen
       title={
         guide ? `California ${guide.electionDate.slice(0, 4)}` : "California"
       }
+      action={
+        onBack ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Back to Elections"
+            onPress={onBack}
+            style={{
+              minHeight: 48,
+              minWidth: 48,
+              padding: 12,
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: fontBody.semibold,
+                fontSize: 16,
+                color: colors.white,
+              }}
+            >
+              Back
+            </Text>
+          </TouchableOpacity>
+        ) : undefined
+      }
       contentStyle={s.screen}
     >
-      <View style={s.intro}>
-        <Text style={s.kicker}>
-          {guide
-            ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
-            : "OFFICIAL VOTER GUIDE"}
-        </Text>
-        <Text style={s.headline}>The statewide guide</Text>
-        <Text style={s.introText}>
-          Official candidate statements and propositions, directly from
-          California's voter guide.
-        </Text>
-      </View>
+      {guide ? (
+        <View style={s.intro}>
+          <Text style={s.kicker}>
+            {`${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`}
+          </Text>
+          <Text style={s.headline}>The statewide guide</Text>
+          <Text style={s.introText}>
+            Official candidate statements and propositions, directly from
+            California's voter guide.
+          </Text>
+        </View>
+      ) : (
+        <View style={s.intro}>
+          <Text style={s.headline}>The statewide guide</Text>
+          <Text style={[s.introText, { color: colors.white }]}>
+            {query.isPending
+              ? "Checking the statewide preview…"
+              : query.isError
+                ? "The preview couldn’t load."
+                : "The preview isn’t available in Billion."}
+          </Text>
+        </View>
+      )}
 
       {query.isPending && <ActivityIndicator color={colors.bill} />}
-      {query.isError && (
-        <Card>
-          <Text style={s.introText}>The official guide could not load.</Text>
-          <TouchableOpacity onPress={() => void query.refetch()}>
-            <Text style={s.retry}>Try again</Text>
-          </TouchableOpacity>
-        </Card>
-      )}
-      {!query.isPending && !query.isError && !guide && (
-        <Card>
-          <Text style={s.introText}>
-            The official guide is being refreshed. Check back soon.
+      {!query.isPending && !guide && (
+        <Card style={{ gap: 16 }}>
+          <Text style={[s.introText, { color: colors.white, marginTop: 0 }]}>
+            Read California’s candidate statements and propositions on the
+            official guide website.
           </Text>
+          <SourceLink
+            label="Read the official guide"
+            url="https://voterguide.sos.ca.gov/"
+            prominence="primary"
+          />
+          <SourceLink
+            label="Find your county elections office"
+            url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
+          />
+          {query.isError && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => void query.refetch()}
+              style={{ minHeight: 48, justifyContent: "center" }}
+            >
+              <Text style={s.retry}>Try again</Text>
+            </TouchableOpacity>
+          )}
         </Card>
       )}
       {guide && (
@@ -222,8 +271,8 @@ export function CaliforniaGuidePreview({
               url={guide.sourceUrl}
             />
             <Text style={s.caption}>
-              Billion's address-specific ballot lookup is unavailable. Your
-              county voter guide contains your sample ballot.
+              Confirm local races and voting options with your county elections
+              office.
             </Text>
             <SourceLink
               label="Check voting information with California"
@@ -240,9 +289,7 @@ export function CaliforniaGuidePreview({
                 onPress={onOpenBallot}
                 style={s.addressAction}
               >
-                <Text style={s.addressActionText}>
-                  Address-specific ballot lookup
-                </Text>
+                <Text style={s.addressActionText}>Find my official ballot</Text>
                 <Icon name="arrowRight" size={17} color={colors.bill} />
               </TouchableOpacity>
             )}

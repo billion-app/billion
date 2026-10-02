@@ -5,12 +5,7 @@ import { ElectionOfficeLink } from "~/components/ballot-evidence/BallotEvidence"
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
-import {
-  fontBody,
-  fontDisplay,
-  fontEditorial,
-  DigestPalette as P,
-} from "~/styles";
+import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
 
 /** Unavailable lookup never describes the address as having no election. */
 export function BallotLookupGate({
@@ -47,20 +42,9 @@ export function BallotLookupGate({
             color: P.inkOnNight,
           }}
         >
-          Your ballot
+          Find your ballot
         </Text>
         <Card style={{ padding: 16, gap: 16, borderRadius: 14 }}>
-          <Text
-            accessibilityRole="header"
-            style={{
-              fontFamily: fontEditorial.bold,
-              fontSize: 16,
-              lineHeight: 19,
-              color: P.inkOnNight,
-            }}
-          >
-            Address-specific ballots
-          </Text>
           <Text
             accessibilityLiveRegion="polite"
             accessibilityRole={failed ? "alert" : undefined}
@@ -72,38 +56,37 @@ export function BallotLookupGate({
             }}
           >
             {checking
-              ? "Checking ballot lookup availability…"
+              ? "Checking ballot lookup…"
               : failed
-                ? "We couldn’t check lookup availability. Use your election office for your official ballot and voting options."
-                : "Address-specific lookup is not available in Billion yet. We’re verifying ballot coverage against official records before opening lookup."}
-          </Text>
-          <Text
-            style={{
-              fontFamily: fontBody.regular,
-              fontSize: 16,
-              lineHeight: 24,
-              color: P.inkOnNight,
-            }}
-          >
-            The California guide is a statewide preview, not your ballot.
+                ? "We couldn’t check ballot lookup. Your election office can help you find your official ballot."
+                : "Ballot lookup isn’t available yet. Your election office can help you find your official ballot."}
           </Text>
           <ElectionOfficeLink prominence="primary" />
-          <Pressable
-            accessibilityRole="button"
-            disabled={checking}
-            onPress={onRetry}
-            style={{ minHeight: 48, justifyContent: "center" }}
-          >
-            <Text
+          {failed && (
+            <Pressable
+              accessibilityRole="button"
+              disabled={checking}
+              onPress={onRetry}
               style={{
-                fontFamily: fontBody.bold,
-                fontSize: 16,
-                color: P.inkOnNight,
+                minHeight: 48,
+                padding: 12,
+                borderRadius: 12,
+                backgroundColor: P.canvas,
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
-              Check availability again
-            </Text>
-          </Pressable>
+              <Text
+                style={{
+                  fontFamily: fontBody.bold,
+                  fontSize: 16,
+                  color: P.inkOnNight,
+                }}
+              >
+                Try again
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={onHome}
             accessibilityRole="button"
@@ -123,7 +106,7 @@ export function BallotLookupGate({
                 color: P.inkOnNight,
               }}
             >
-              Back home
+              Back to Elections
             </Text>
           </Pressable>
         </Card>

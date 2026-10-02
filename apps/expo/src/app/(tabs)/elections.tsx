@@ -188,6 +188,7 @@ export default function ElectionsScreen() {
   return (
     <CaliforniaGuidePreview
       onOpenBallot={() => router.push("/ballot")}
+      onBack={() => setView("entry")}
       onOpenFixtures={__DEV__ ? () => setView("fixtures") : undefined}
     />
   );
@@ -237,7 +238,8 @@ function CaliforniaElectionEntry({
   onExplore: () => void;
   onLookup: () => void;
 }) {
-  const guide = useQuery(trpc.civic.getCaliforniaGuide.queryOptions()).data;
+  const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
+  const guide = query.isError ? undefined : query.data;
   return (
     <TabScreen title="Elections">
       <View style={s.entry}>
@@ -249,35 +251,88 @@ function CaliforniaElectionEntry({
         </Text>
         <Text style={s.entryTitle}>Voting in California?</Text>
         <Text style={s.entryBody}>
-          Explore official candidate statements and statewide propositions.
-          Local races and measures depend on where you vote.
+          Read official candidate statements and statewide propositions.
         </Text>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Explore the California statewide guide"
-          activeOpacity={0.85}
-          onPress={onExplore}
-          style={s.entryButton}
-        >
-          <Text style={s.entryButtonText}>Explore the guide</Text>
-          <Icon name="arrowRight" size={19} color={planes.navy} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityRole="button"
-          onPress={onLookup}
-          style={{ minHeight: 48, justifyContent: "center" }}
-        >
-          <Text style={[s.entryBody, { fontFamily: fontBody.bold }]}>
-            Address-specific ballot lookup
-          </Text>
-        </TouchableOpacity>
+        {query.isPending ? (
+          <View style={[s.entryButton, { backgroundColor: planes.slate }]}>
+            <Text
+              accessibilityLiveRegion="polite"
+              style={{
+                fontFamily: fontBody.regular,
+                fontSize: 16,
+                color: colors.white,
+              }}
+            >
+              Loading statewide preview…
+            </Text>
+            <ActivityIndicator color={colors.white} />
+          </View>
+        ) : guide ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Explore the California statewide guide"
+            activeOpacity={0.85}
+            onPress={onExplore}
+            style={s.entryButton}
+          >
+            <Text style={s.entryButtonText}>Explore the guide</Text>
+            <Icon name="arrowRight" size={19} color={planes.navy} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ marginTop: 30 }}>
+            <SourceLink
+              label="Read California’s official guide"
+              url="https://voterguide.sos.ca.gov/"
+              prominence="primary"
+            />
+          </View>
+        )}
         <View style={s.entryNote}>
           <Icon name="info" size={16} color={colors.textSecondary} />
           <Text style={s.entryNoteText}>
-            This statewide guide is not your address-specific ballot. Confirm
-            local races and voting options with your election office.
+            Statewide information, not your personal ballot.
           </Text>
         </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={onLookup}
+          accessibilityLabel="Find my official ballot through my election office"
+          style={{
+            minHeight: 56,
+            marginTop: 16,
+            padding: 14,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: hair[2],
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontFamily: fontBody.bold,
+                fontSize: 16,
+                color: colors.white,
+              }}
+            >
+              Find my official ballot
+            </Text>
+            <Text
+              style={{
+                fontFamily: fontBody.regular,
+                fontSize: 13,
+                lineHeight: 19,
+                color: colors.textSecondary,
+                marginTop: 4,
+              }}
+            >
+              Through your election office
+            </Text>
+          </View>
+          <Icon name="arrowRight" size={19} color={colors.white} />
+        </TouchableOpacity>
       </View>
     </TabScreen>
   );
