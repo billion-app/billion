@@ -13,7 +13,7 @@ void test("guide inclusion and declared candidacy do not imply ballot eligibilit
     /ballot status unverified/,
   );
   assert.match(candidateStatusLabel("declared"), /unknown/);
-  assert.match(candidateStatusLabel("onBallot"), /Provider/);
+  assert.match(candidateStatusLabel("onBallot"), /ballot source/);
   assert.match(candidateStatusLabel("withdrewStillOnBallot"), /Withdrawn/);
 });
 void test("partial and missing coverage explain absence", () => {

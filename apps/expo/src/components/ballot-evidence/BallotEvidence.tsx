@@ -96,7 +96,7 @@ function Retry({
   );
 }
 
-function Disclosure({
+export function BallotDisclosure({
   title,
   detail,
   children,
@@ -122,6 +122,38 @@ function Disclosure({
         <Icon name={expanded ? "chevD" : "chevR"} size={16} color={P.quiet} />
       </Pressable>
       {expanded && <View style={s.disclosureBody}>{children}</View>}
+    </View>
+  );
+}
+
+/** Routine provenance belongs behind a named disclosure; consequential warnings stay visible. */
+export function BallotProvenanceRows({
+  sourceName,
+  sourceUrl,
+  fetchedAt,
+}: {
+  sourceName?: string;
+  sourceUrl?: string;
+  fetchedAt?: string;
+}) {
+  return (
+    <View style={s.citation}>
+      <Text style={s.secondary}>
+        Ballot source: {sourceName?.trim() ? sourceName.trim() : "unavailable"}
+      </Text>
+      {!!sourceUrl && (
+        <SourceLink label="View ballot data source" url={sourceUrl} />
+      )}
+      <Text style={s.secondary}>
+        {fetchedAt && Number.isFinite(Date.parse(fetchedAt))
+          ? `Retrieved ${new Date(fetchedAt).toLocaleDateString("en-US", { timeZone: "UTC" })}`
+          : "Retrieval date unavailable"}
+      </Text>
+      <Text style={s.secondary}>Human verification date unavailable</Text>
+      <Text style={s.secondary}>
+        Provider listing does not verify eligibility for your address. Confirm
+        your official ballot with your election office.
+      </Text>
     </View>
   );
 }
@@ -223,7 +255,7 @@ export function BallotSources({
           Content source information unavailable
         </Text>
       ) : (
-        <Disclosure
+        <BallotDisclosure
           title="Content sources"
           detail={`${citations.length} reference${citations.length === 1 ? "" : "s"}`}
         >
@@ -256,7 +288,7 @@ export function BallotSources({
               )}
             </View>
           ))}
-        </Disclosure>
+        </BallotDisclosure>
       )}
       {showRecovery &&
         (missing || citations.length === 0) &&
@@ -283,12 +315,12 @@ export function BallotLanguages({
   const verified = verifiedLanguages(items);
   return (
     <View>
-      <Disclosure
+      <BallotDisclosure
         title="Language help"
         detail={
           verified.length
             ? `${verified.length} verified material${verified.length === 1 ? "" : "s"}`
-            : "Availability unknown"
+            : "Materials and assistance"
         }
       >
         <Text style={s.secondary}>
@@ -318,7 +350,7 @@ export function BallotLanguages({
               <ElectionOfficeLink />
             )
           ) : null)}
-      </Disclosure>
+      </BallotDisclosure>
     </View>
   );
 }

@@ -78,21 +78,6 @@ export function BallotContestCard({
         <View style={s.content}>
           <Text style={s.title}>{title}</Text>
           <Text style={s.meta}>
-            {electionDate
-              ? ballotElectionDate(electionDate)
-              : "Election date unavailable"}
-            {contest.district?.name
-              ? ` · ${contest.district.name}`
-              : " · District unavailable"}
-          </Text>
-          <Text style={s.meta}>
-            {electionStage?.trim()
-              ? electionStage.trim()
-              : "Election stage unavailable"}
-          </Text>
-          <Text style={s.meta}>{electionCoverageLabel("partial")}</Text>
-          <Text style={s.meta}>Source: {sourceLabel}</Text>
-          <Text style={s.meta}>
             {isMeasure
               ? "Read measure details"
               : count

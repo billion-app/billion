@@ -4,11 +4,11 @@ export function candidateStatusLabel(
   inStatementGuide = false,
 ): string {
   if (status === "withdrewStillOnBallot")
-    return "Withdrawn; provider lists name on ballot";
-  if (status === "onBallot") return "Provider lists name on ballot";
+    return "Withdrawn; name remains listed by the ballot source";
+  if (status === "onBallot") return "Listed by the ballot source";
   if (inStatementGuide)
     return "Statement guide entry · ballot status unverified";
-  return "Ballot status unknown · confirm with your election office";
+  return "Ballot status unknown";
 }
 
 export type ElectionCoverage =

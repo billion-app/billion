@@ -13,7 +13,13 @@ import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
-import { colors, fontBody, fontDisplay, planes } from "~/styles";
+import {
+  colors,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+  planes,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
@@ -157,15 +163,21 @@ export function CaliforniaGuidePreview({
       {query.isPending && <ActivityIndicator color={colors.bill} />}
       {query.isError && (
         <Card>
-          <Text style={s.introText}>The official guide could not load.</Text>
-          <TouchableOpacity onPress={() => void query.refetch()}>
+          <Text style={[s.introText, { color: P.inkOnNight }]}>
+            The official guide could not load.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={s.retryButton}
+            onPress={() => void query.refetch()}
+          >
             <Text style={s.retry}>Try again</Text>
           </TouchableOpacity>
         </Card>
       )}
       {!query.isPending && !query.isError && !guide && (
         <Card>
-          <Text style={s.introText}>
+          <Text style={[s.introText, { color: P.inkOnNight }]}>
             Guide data is unavailable to Billion. Check the official guide or
             your election office.
           </Text>
@@ -175,6 +187,7 @@ export function CaliforniaGuidePreview({
         <View style={s.intro}>
           <SourceLink
             label="California official voter guide"
+            prominence="primary"
             url="https://voterguide.sos.ca.gov/"
           />
           <SourceLink
@@ -363,7 +376,16 @@ const s = StyleSheet.create({
     lineHeight: 21,
   },
   footer: { gap: 12, paddingBottom: 18 },
-  retry: { color: colors.bill, fontFamily: fontBody.semibold, marginTop: 14 },
+  retryButton: {
+    minHeight: 48,
+    padding: 12,
+    marginTop: 12,
+    borderRadius: 10,
+    backgroundColor: P.inkOnNight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  retry: { color: P.canvas, fontFamily: fontBody.semibold, fontSize: 16 },
   fixtureLink: { color: colors.textSecondary, paddingVertical: 16 },
   addressAction: {
     minHeight: 48,

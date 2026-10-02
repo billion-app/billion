@@ -16,7 +16,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Fuse from "fuse.js";
 
 import {
-  BallotDetailEvidence,
+  BallotDisclosure,
+  BallotLanguages,
+  BallotProvenanceRows,
   BallotSources,
   ElectionOfficeLink,
   SourceLink,
@@ -28,10 +30,7 @@ import {
   BallotReadingMode,
 } from "~/components/ballot-evidence/BallotReadingCard";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
-import {
-  candidateStatusLabel,
-  electionCoverageLabel,
-} from "~/components/ballot-evidence/election-status";
+import { candidateStatusLabel } from "~/components/ballot-evidence/election-status";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Card, Icon, Kicker, NavHeader } from "~/components/ui";
 import {
@@ -307,43 +306,30 @@ export default function ContestDetailScreen() {
         <Text accessibilityRole="header" style={s.office}>
           {params.office}
         </Text>
-        {params.districtName ? (
-          <Text style={s.district}>{params.districtName}</Text>
-        ) : null}
-
         <Text style={s.district}>
-          {params.electionDate
-            ? ballotElectionDate(params.electionDate)
-            : "Election date unavailable"}
+          {[
+            params.districtName,
+            params.electionDate
+              ? ballotElectionDate(params.electionDate)
+              : "Election date unavailable",
+            params.electionStage?.trim()
+              ? params.electionStage.trim()
+              : "Election stage unavailable",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </Text>
-        <Text style={s.district}>
-          {params.electionStage?.trim()
-            ? params.electionStage.trim()
-            : "Election stage unavailable"}
-        </Text>
-        <Text style={s.district}>{electionCoverageLabel("partial")}</Text>
-
-        <Text style={s.district}>
-          Provider listing does not verify eligibility for your address.
-        </Text>
-        <Text style={s.district}>
-          Ballot source:{" "}
-          {params.ballotSourceName?.trim()
-            ? params.ballotSourceName.trim()
-            : "unavailable"}
-        </Text>
-        <Text style={s.district}>
-          {params.ballotFetchedAt &&
-          Number.isFinite(Date.parse(params.ballotFetchedAt))
-            ? `Retrieved ${new Date(params.ballotFetchedAt).toLocaleDateString("en-US", { timeZone: "UTC" })}`
-            : "Retrieval date unavailable"}{" "}
-          · Human verification date unavailable
-        </Text>
-        {!!params.ballotSourceUrl && (
-          <SourceLink
-            label="View ballot data source"
-            url={params.ballotSourceUrl}
-          />
+        {candidates.length > 0 && (
+          <View style={{ marginTop: 12, gap: 4 }}>
+            <Text style={s.district}>
+              This list may be incomplete. Confirm whether this race is on your
+              ballot with your election office.
+            </Text>
+            <SourceLink
+              label="Find your election office"
+              url="https://www.usa.gov/state-election-office"
+            />
+          </View>
         )}
         {description ? (
           <View style={s.section}>
@@ -635,10 +621,22 @@ export default function ContestDetailScreen() {
             {contactError}
           </Text>
         )}
-        <BallotDetailEvidence
-          citations={raceCitations}
-          showOfficeLink={candidates.length > 0}
-        />
+        <BallotDisclosure
+          title="Sources & updates"
+          detail="Ballot source and retrieval date"
+        >
+          <BallotProvenanceRows
+            sourceName={params.ballotSourceName}
+            sourceUrl={params.ballotSourceUrl}
+            fetchedAt={params.ballotFetchedAt}
+          />
+          <BallotSources
+            citations={raceCitations}
+            contentKind="citations"
+            showRecovery={false}
+          />
+        </BallotDisclosure>
+        <BallotLanguages items={[]} showRecovery={false} />
       </ScrollView>
     </View>
   );
