@@ -106,6 +106,7 @@ void test("broken citations, mismatched review revision, duplicate sources and p
   const draft = revision();
   for (const changed of [
     { yes: { text: "Unsupported", sourceIds: ["missing"] } },
+    { decisionNote: { text: "Unsupported qualifier", sourceIds: ["missing"] } },
     { sources: [...draft.sources, ...draft.sources] },
     { review: { ...draft.review, revision: "old" } },
     { review: { ...draft.review, reviewedAt: "2025-01-01T00:00:00Z" } },
@@ -175,4 +176,17 @@ void test("captured guide snapshot must match and rollback cannot bypass a chang
     ),
     null,
   );
+});
+
+void test("a reviewed decision qualifier retains its citation in the public response", () => {
+  const draft = {
+    ...revision(),
+    decisionNote: claim(
+      "If bonds are issued, property owners repay them through a tax.",
+    ),
+  };
+  const published = publicPropositionConsequences(
+    publishedPropositionConsequences(date, measure, [draft]),
+  );
+  assert.deepEqual(published?.decisionNote, draft.decisionNote);
 });

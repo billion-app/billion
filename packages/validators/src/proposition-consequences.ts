@@ -35,6 +35,7 @@ export const propositionConsequencesSchema = z.object({
   currentRule: claim,
   yes: claim,
   no: claim,
+  decisionNote: claim.optional(),
   implementation: z.array(claim).min(1).max(8),
   affected: z.array(claim).min(1).max(8),
   costsAndFunding: claim,

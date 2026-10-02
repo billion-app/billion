@@ -46,9 +46,12 @@ const analysis = {
   no: claim(
     "Does not authorize this borrowing. It does not cancel other existing school funding.",
   ),
+  decisionNote: claim(
+    "If bonds are issued, property owners repay them through a tax.",
+  ),
   implementation: [
     claim(
-      "The district decides when to sell authorized bonds and allocates proceeds to eligible projects.",
+      "The district decides when to borrow and which allowed projects receive the money.",
     ),
   ],
   affected: [
@@ -57,10 +60,10 @@ const analysis = {
     ),
   ],
   costsAndFunding: claim(
-    "Borrowed money pays for facilities; the tax repays principal and interest. Total repayment depends on bond sales and interest rates.",
+    "Borrowed money pays for facilities; the tax repays the loan and interest. Total repayment depends on how much is borrowed and interest rates.",
   ),
   uncertainty: claim(
-    "The net fiscal effect is unknown. Approval does not guarantee which projects will be completed or when.",
+    "The overall effect on public budgets is unknown. Approval does not guarantee which projects will be completed or when.",
   ),
   review: {
     state: "approved",
@@ -80,8 +83,9 @@ const guide = {
   candidates: [],
   measures: [{ ...measure, consequences: analysis }],
 };
+let browser;
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 1,
@@ -100,6 +104,7 @@ const guide = {
     ),
   );
   let response = guide;
+  let failGuide = false;
   await context.route("**/api/trpc/**", async (route) => {
     const procedures = new URL(route.request().url()).pathname
       .split("/api/trpc/")[1]
@@ -108,14 +113,35 @@ const guide = {
       contentType: "application/json",
       body: JSON.stringify(
         procedures.map((p) => ({
-          result: {
-            data: { json: p === "civic.getCaliforniaGuide" ? response : null },
-          },
+          ...(failGuide && p === "civic.getCaliforniaGuide"
+            ? {
+                error: {
+                  json: {
+                    message: "Synthetic guide failure",
+                    code: -32603,
+                    data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 },
+                  },
+                },
+              }
+            : {
+                result: {
+                  data: {
+                    json: p === "civic.getCaliforniaGuide" ? response : null,
+                  },
+                },
+              }),
         })),
       ),
     });
   });
   const page = await context.newPage();
+  const resetScroll = async () => {
+    await page.evaluate(() => {
+      for (const element of document.querySelectorAll("*"))
+        if (element.scrollTop) element.scrollTop = 0;
+      window.scrollTo(0, 0);
+    });
+  };
   page.on("pageerror", (e) => console.log("PAGE_ERROR", e.message));
   await page.goto("http://localhost:8096/proposition-detail?number=5", {
     waitUntil: "networkidle",
@@ -124,6 +150,11 @@ const guide = {
   await page
     .getByText("The rule today", { exact: true })
     .waitFor({ timeout: 120000 });
+  const noBounds = await page
+    .getByText(analysis.no.text, { exact: true })
+    .boundingBox();
+  if (!noBounds || noBounds.y + noBounds.height > 844)
+    throw new Error("Full No outcome is outside the initial viewport");
   await page.screenshot({
     path: "docs/screenshots/issue-426/bond-outcomes.png",
     fullPage: true,
@@ -135,14 +166,29 @@ const guide = {
     path: "docs/screenshots/issue-426/bond-both-outcomes.png",
     fullPage: true,
   });
+  await page
+    .getByRole("button", { name: "Official ballot title", exact: true })
+    .click();
+  await page.getByText(measure.title, { exact: true }).waitFor();
+  await page
+    .getByRole("button", { name: "Official ballot title", exact: true })
+    .click();
   const body = await page.locator("body").innerText();
   for (const text of [
     "If you vote Yes",
     "If you vote No",
-    "Conditions and unknowns",
+    "Limits and unknowns",
     "Official record",
   ])
     if (!body.includes(text)) throw new Error("Missing " + text);
+  response = { ...guide, measures: [{ ...measure, consequences: null }] };
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByText("What your vote means", { exact: true }).waitFor();
+  await resetScroll();
+  await page.screenshot({
+    path: "docs/screenshots/issue-426/official-fallback.png",
+    fullPage: true,
+  });
   response = {
     ...guide,
     measures: [
@@ -158,7 +204,10 @@ const guide = {
   };
   await page.reload({ waitUntil: "networkidle" });
   await page
-    .getByText("Start with the official record", { exact: true })
+    .getByText(
+      "Billion’s explanation and a complete official Yes/No comparison aren’t available here yet.",
+      { exact: true },
+    )
     .waitFor();
   if (
     (await page.locator("body").innerText()).includes(
@@ -166,6 +215,14 @@ const guide = {
     )
   )
     throw new Error("Sparse fallback promises missing evidence");
+  await resetScroll();
+  const guideAction = page.getByRole("link", {
+    name: "Open official voter guide",
+    exact: true,
+  });
+  const actionBounds = await guideAction.boundingBox();
+  if (!actionBounds || actionBounds.y + actionBounds.height > 844)
+    throw new Error("Sparse official guide action is offscreen");
   await page.screenshot({
     path: "docs/screenshots/issue-426/missing-evidence.png",
     fullPage: true,
@@ -179,40 +236,54 @@ const guide = {
         officialSummary:
           "Synthetic fixture: changes the temporary officer during the specified vacancy to an elected deputy. This is not a real proposition.",
         voteMeaningYes:
-          "A YES vote on this measure means: An elected deputy serves during the specified vacancy.",
+          "A YES vote on this measure means: An elected deputy serves if the Governor leaves office before the term ends.",
         voteMeaningNo:
-          "A NO vote on this measure means: The temporary appointment rule remains in place.",
+          "A NO vote on this measure means: An appointed official would continue to serve temporarily.",
         fiscalImpact:
           "Synthetic fixture: net fiscal effect is unknown and depends on whether a vacancy occurs.",
         consequences: {
           ...analysis,
+          decisionNote: undefined,
+          sources: [
+            ...analysis.sources,
+            {
+              id: "law",
+              name: "Synthetic succession law",
+              url: "https://voterguide.sos.ca.gov/propositions/5/title-summary.htm",
+              retrievedAt: "2026-10-01T00:00:00Z",
+            },
+          ],
           officialTitle:
             "FICTIONAL DEMONSTRATION MEASURE. GOVERNOR SUCCESSION RULE.",
           headline: claim("Change who serves during a vacancy"),
           currentRule: claim(
-            "In this fictional example, an appointed temporary officer serves during the specified vacancy.",
+            "An appointed official temporarily serves if the Governor leaves office before the term ends.",
           ),
           yes: claim(
-            "An elected deputy would serve if the specified vacancy occurs. It does not create a vacancy.",
+            "An elected deputy would serve if the Governor leaves office before the term ends.",
           ),
           no: claim(
-            "The existing temporary appointment rule remains in place.",
+            "An appointed official would continue to serve temporarily.",
           ),
           implementation: [
             claim(
-              "The replacement rule applies only when the vacancy condition occurs.",
+              "If the Governor leaves office before the term ends, the elected deputy takes over under the new rule.",
             ),
           ],
           affected: [
             claim(
-              "The Governor, elected deputy and appointing institution would follow the changed succession rule.",
+              "The office responsible for appointing a temporary replacement would no longer choose who serves.",
             ),
+            {
+              text: "The elected deputy would have to take over the Governor’s duties.",
+              sourceIds: ["law"],
+            },
           ],
           costsAndFunding: claim(
-            "Net fiscal effect is unknown. Costs depend on whether a vacancy occurs.",
+            "The overall effect on public budgets is unknown. Costs depend on whether the Governor leaves office early.",
           ),
           uncertainty: claim(
-            "The measure does not predict whether or when the vacancy condition will occur.",
+            "This changes the replacement rule. It does not remove the Governor from office or predict an early departure.",
           ),
         },
       },
@@ -220,6 +291,7 @@ const guide = {
   };
   await page.reload({ waitUntil: "networkidle" });
   await page.getByText("The rule today", { exact: true }).waitFor();
+  await resetScroll();
   await page.screenshot({
     path: "docs/screenshots/issue-426/succession-outcomes.png",
     fullPage: true,
@@ -232,26 +304,102 @@ const guide = {
     fullPage: true,
   });
   await page
-    .getByText("Conditions and unknowns", { exact: true })
+    .getByText("Limits and unknowns", { exact: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({
     path: "docs/screenshots/issue-426/succession-costs-uncertainty.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: /Official voting outcomes/ }).click();
+  await page.getByRole("button", { name: /Sources and review/ }).click();
   await page
-    .getByText("An elected deputy serves during the specified vacancy.", {
+    .getByRole("button", {
+      name: "Cited statements from Synthetic guide evidence",
       exact: true,
     })
+    .click();
+  const guideEvidence = page.getByTestId("proposition-source-guide");
+  if (
+    await guideEvidence
+      .getByText(
+        "The elected deputy would have to take over the Governor’s duties.",
+        { exact: true },
+      )
+      .count()
+  )
+    throw new Error("Guide source claimed an unsupported statement");
+  await guideEvidence
+    .getByText(
+      "The office responsible for appointing a temporary replacement would no longer choose who serves.",
+      { exact: true },
+    )
     .waitFor();
   await page
-    .getByText("The temporary appointment rule remains in place.", {
+    .getByRole("button", {
+      name: "Cited statements from Synthetic guide evidence",
       exact: true,
     })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Cited statements from Synthetic succession law",
+      exact: true,
+    })
+    .click();
+  const lawEvidence = page.getByTestId("proposition-source-law");
+  await lawEvidence
+    .getByText(
+      "The elected deputy would have to take over the Governor’s duties.",
+      { exact: true },
+    )
+    .waitFor();
+  if (
+    await lawEvidence
+      .getByText(
+        "The office responsible for appointing a temporary replacement would no longer choose who serves.",
+        { exact: true },
+      )
+      .count()
+  )
+    throw new Error("Law source claimed an unsupported statement");
+  await lawEvidence.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: "docs/screenshots/issue-426/source-review.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", {
+      name: "Cited statements from Synthetic succession law",
+      exact: true,
+    })
+    .click();
+  await page.getByRole("button", { name: /Sources and review/ }).click();
+  await page.getByRole("button", { name: /How this would work/ }).click();
+  await page
+    .getByText("How the change takes effect", { exact: true })
+    .waitFor();
+  await page.getByRole("button", { name: /How this would work/ }).click();
+  await page
+    .getByRole("button", { name: /Official Yes\/No descriptions/ })
+    .click();
+  await page
+    .getByText(
+      "An elected deputy serves if the Governor leaves office before the term ends.",
+      {
+        exact: true,
+      },
+    )
+    .waitFor();
+  await page
+    .getByText("An appointed official would continue to serve temporarily.", {
+      exact: true,
+    })
+    .last()
     .waitFor();
   if ((await page.locator("body").innerText()).includes("school facilities"))
     throw new Error("Succession fixture inherited bond evidence");
-  await page.getByRole("button", { name: /Official voting outcomes/ }).click();
+  await page
+    .getByRole("button", { name: /Official Yes\/No descriptions/ })
+    .click();
   await page.addStyleTag({
     content:
       '[dir="auto"] {font-size: 150% !important; line-height: 1.6 !important;}',
@@ -263,6 +411,19 @@ const guide = {
     path: "docs/screenshots/issue-426/succession-enlarged-web-text.png",
     fullPage: true,
   });
+  await page.addStyleTag({
+    content:
+      '[dir="auto"] {font-size: revert !important; line-height: revert !important;}',
+  });
+  failGuide = true;
+  await page.reload({ waitUntil: "networkidle" });
+  await page
+    .getByText("Could not load the guide", { exact: true })
+    .waitFor({ timeout: 60000 });
+  await page.screenshot({
+    path: "docs/screenshots/issue-426/guide-error.png",
+    fullPage: true,
+  });
   fs.writeFileSync(
     "/tmp/billion-426-rendered.txt",
     await page.locator("body").innerText(),
@@ -271,7 +432,8 @@ const guide = {
     "Screens captured; bond, succession, sparse fallback and enlarged web text assertions passed.",
   );
   await browser.close();
-})().catch((e) => {
+})().catch(async (e) => {
+  await browser?.close();
   console.error(e);
   process.exitCode = 1;
 });
