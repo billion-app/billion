@@ -273,3 +273,14 @@ plus published Santa Cruz vote centers. Santa Clara locations and other states
 remain outside these collectors. The Santa Clara CVIG scraper has only 2024
 PDF discovery configured. Its year-scoped cache and the separate
 `ca-sos-statements` cache are not used by this date-scoped ballot path.
+
+### Proposition review dry-run
+
+Consequence analysis is gated by [the reviewed revision contract](../../docs/proposition-consequences.md). Capture an official guide payload using the existing bounded guide collector; do not run ingestion against an unchecked database target. The following review commands only read local files and select one proposition:
+
+```bash
+pnpm --filter @acme/api exec tsx src/tools/review-proposition.ts /absolute/path/guide.json 5
+pnpm --filter @acme/api exec tsx src/tools/review-proposition.ts /absolute/path/guide.json 5 /absolute/path/revision.json
+```
+
+The first prints the source snapshot and hash for review. The second prints the candidate revision and whether the publication gate accepts it, exiting nonzero if blocked. It never calls a model, approves a revision, or writes data. Do not put credentials in captured payloads. An editor must review claim support and uncertainty under #334 before an approved revision is committed; see the remaining pipeline gates in the contract above.

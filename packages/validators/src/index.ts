@@ -10,3 +10,5 @@ export const unused = z.string().describe(
    with back and frontend, you can put them in here
   `,
 );
+
+export * from "./proposition-consequences";

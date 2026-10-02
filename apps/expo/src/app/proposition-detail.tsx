@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
+import { PropositionConsequences } from "~/components/ballot-evidence/PropositionConsequences";
 import { Icon, NavHeader } from "~/components/ui";
 import { fontBody, fontEditorial, DigestPalette as P, sp } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -73,7 +74,32 @@ export default function PropositionDetailScreen() {
                 {query.data.fetchedAt.slice(0, 10)} UTC
               </Text>
             </View>
-            {measure.voteMeaningYes && measure.voteMeaningNo ? (
+            <View style={s.lead}>
+              <Text style={s.metaLabel}>
+                OFFICIAL BALLOT TITLE · CALIFORNIA SOS
+              </Text>
+              <Text accessibilityRole="header" style={s.recordTitle}>
+                {measure.title}
+              </Text>
+            </View>
+            {measure.consequences ? (
+              <PropositionConsequences analysis={measure.consequences} />
+            ) : (
+              <View style={s.surface}>
+                <Text accessibilityRole="header" style={s.heading}>
+                  Start with the official record
+                </Text>
+                <Text style={s.body}>
+                  A reviewed Billion explanation of the current rule,
+                  implementation and affected groups is not available for this
+                  proposition. The state’s voting outcomes and fiscal analysis
+                  are below.
+                </Text>
+              </View>
+            )}
+            {!measure.consequences &&
+            measure.voteMeaningYes &&
+            measure.voteMeaningNo ? (
               <View style={s.voteSection}>
                 <Text accessibilityRole="header" style={s.heading}>
                   What your vote means
@@ -93,19 +119,34 @@ export default function PropositionDetailScreen() {
                   />
                 </View>
               </View>
-            ) : (
+            ) : !measure.consequences &&
+              !(measure.voteMeaningYes && measure.voteMeaningNo) ? (
               <Text style={s.caption}>
                 The official Yes/No descriptions are not available in Billion
                 yet. Open the state guide below.
               </Text>
-            )}
+            ) : null}
             <View style={s.record}>
-              <Text style={s.metaLabel}>
-                OFFICIAL BALLOT TITLE · CALIFORNIA SOS
+              <Text accessibilityRole="header" style={s.heading}>
+                Official record
               </Text>
-              <Text accessibilityRole="header" style={s.recordTitle}>
-                {measure.title}
-              </Text>
+              {measure.consequences &&
+                measure.voteMeaningYes &&
+                measure.voteMeaningNo && (
+                  <DetailDisclosure
+                    title="Official voting outcomes"
+                    subtitle="California SOS wording"
+                  >
+                    <Outcome
+                      label="YES"
+                      body={officialVoteMeaning(measure.voteMeaningYes, "YES")}
+                    />
+                    <Outcome
+                      label="NO"
+                      body={officialVoteMeaning(measure.voteMeaningNo, "NO")}
+                    />
+                  </DetailDisclosure>
+                )}
               <Text style={s.metaLabel}>OFFICIAL SUMMARY</Text>
               <Text style={s.body}>
                 {measure.officialSummary ??

@@ -14,6 +14,10 @@ import {
 } from "../lib/civic";
 import { CivicReadUnavailableError } from "../lib/civic-read-guard";
 import { getElectedOfficials } from "../lib/elected-officials";
+import {
+  publicPropositionConsequences,
+  publishedPropositionConsequences,
+} from "../lib/proposition-consequences";
 import { publicProcedure } from "../trpc";
 
 const STATEWIDE_OFFICE = z.enum(
@@ -30,7 +34,19 @@ const DISTRICT_REF = z.object({
 });
 
 export const civicRouter = {
-  getCaliforniaGuide: publicProcedure.query(() => getCaliforniaGuide()),
+  getCaliforniaGuide: publicProcedure.query(async () => {
+    const guide = await getCaliforniaGuide();
+    if (!guide) return null;
+    return {
+      ...guide,
+      measures: guide.measures.map((measure) => ({
+        ...measure,
+        consequences: publicPropositionConsequences(
+          publishedPropositionConsequences(guide.electionDate, measure),
+        ),
+      })),
+    };
+  }),
   /**
    * Get a list of upcoming elections
    */
