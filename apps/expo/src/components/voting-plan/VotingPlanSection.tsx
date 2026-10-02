@@ -1,31 +1,59 @@
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { VotingLogisticsData } from "~/utils/voting-logistics";
 import type { PlanMethod } from "~/utils/voting-plan";
-import {
-  ElectionOfficeLink,
-  SourceLink,
-} from "~/components/ballot-evidence/BallotEvidence";
+import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
-import { Card, Segmented } from "~/components/ui";
-import { fontBody, fontEditorial, sp, useTheme } from "~/styles";
+import { Card, Icon, Segmented } from "~/components/ui";
+import { fontBody, fontEditorial, hair, sp, useTheme } from "~/styles";
+import { votingInformationLinks } from "~/utils/voting-logistics";
 import {
+  hasVotingPlanLogistics,
   planStorageKey,
   readPlanMethod,
   registrationCheck,
+  votingPlanAction,
 } from "~/utils/voting-plan";
 
 const ca = "https://www.sos.ca.gov/elections";
 
-/** Routing and personal intent only. Sourced dates/locations stay in VotingLogisticsSection. */
+function Detail({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const { theme } = useTheme();
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen(!open)}
+        style={s.disclosure}
+      >
+        <Text style={[s.action, s.flex, { color: theme.foreground }]}>
+          {label}
+        </Text>
+        <Icon
+          name={open ? "chevD" : "chevR"}
+          size={16}
+          color={theme.foreground}
+        />
+      </Pressable>
+      {open && <View style={s.details}>{children}</View>}
+    </View>
+  );
+}
+
+/** The provider has no election-type metadata: primary help is optional, never inferred from a name/date. */
 export function VotingPlanSection({
   election,
   data,
   california = false,
   returnLabel = "Hide voting steps",
   onReturn,
+  onViewLogistics,
 }: {
   election?: {
     id: string;
@@ -37,42 +65,44 @@ export function VotingPlanSection({
   california?: boolean;
   returnLabel?: string;
   onReturn?: () => void;
+  onViewLogistics?: () => void;
 }) {
   const key = election ? planStorageKey(election) : undefined;
-  // Remount state when the election changes; an old storage read cannot leak into it.
   return (
     <Plan
       key={key ?? "unknown"}
       storageKey={key}
-      electionName={election?.name}
       data={data}
       california={california}
       returnLabel={returnLabel}
       onReturn={onReturn}
+      onViewLogistics={onViewLogistics}
     />
   );
 }
 
 function Plan({
   storageKey,
-  electionName,
   data,
   california,
   returnLabel,
   onReturn,
+  onViewLogistics,
 }: {
   storageKey?: string;
-  electionName?: string;
   data?: VotingLogisticsData;
   california: boolean;
   returnLabel: string;
   onReturn?: () => void;
+  onViewLogistics?: () => void;
 }) {
   const { theme } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const [method, setMethod] = useState<PlanMethod>("undecided");
   const [loaded, setLoaded] = useState(!storageKey);
   const [storageFailed, setStorageFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const lastWrite = useRef(0);
   useEffect(() => {
     if (!storageKey) return;
     let active = true;
@@ -97,93 +127,146 @@ function Plan({
   const writeQueue = useRef(Promise.resolve());
   function choose(value: PlanMethod) {
     setMethod(value);
-    if (storageKey)
-      writeQueue.current = writeQueue.current
-        .then(() => AsyncStorage.setItem(storageKey, value))
-        .then(
-          () => setStorageFailed(false),
-          () => setStorageFailed(true),
-        );
+    if (!storageKey) return;
+    setSaving(true);
+    const version = ++lastWrite.current;
+    writeQueue.current = writeQueue.current
+      .then(() => AsyncStorage.setItem(storageKey, value))
+      .then(
+        () => {
+          if (version === lastWrite.current) {
+            setStorageFailed(false);
+            setSaving(false);
+          }
+        },
+        () => {
+          if (version === lastWrite.current) {
+            setStorageFailed(true);
+            setSaving(false);
+          }
+        },
+      );
   }
   const body = [s.body, { color: theme.foreground }];
   const heading = [s.heading, { color: theme.foreground }];
-  const check = registrationCheck(data);
+  const caption = [s.caption, { color: theme.foreground }];
+  const check =
+    registrationCheck(data) ??
+    (california
+      ? {
+          name: "California Secretary of State",
+          url: "https://voterstatus.sos.ca.gov/EN/Authenticate",
+        }
+      : undefined);
+  const fallback = votingPlanAction(data, "electionInfoUrl") ?? {
+    name: california
+      ? "California county elections offices"
+      : "USA.gov · State election offices",
+    url: california
+      ? `${ca}/voting-resources/county-elections-offices`
+      : "https://www.usa.gov/state-election-office",
+  };
+  const suppliedMethod =
+    method === "mail"
+      ? votingPlanAction(data, "absenteeVotingInfoUrl")
+      : method === "in-person"
+        ? votingPlanAction(data, "votingLocationFinderUrl")
+        : undefined;
+  const methodAction =
+    suppliedMethod ??
+    (california && method !== "in-person"
+      ? {
+          name: "California Secretary of State",
+          url: `${ca}/voting-resources/voting-california`,
+        }
+      : fallback);
+  const officeAction = methodAction.url === fallback.url && !suppliedMethod;
+  const actionLabel = officeAction
+    ? california
+      ? "Find my county election office"
+      : "Visit your election office"
+    : method === "mail"
+      ? "See mail voting instructions"
+      : method === "in-person"
+        ? "Find voting locations"
+        : "Compare ways to vote";
+  const actionContext =
+    method === "mail"
+      ? "Confirm mail voting and return instructions"
+      : method === "in-person"
+        ? "Ask about voting locations and hours"
+        : "Confirm available methods for your election";
+  const resources = votingInformationLinks(data ?? {});
   return (
     <Card>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel="Make your voting plan"
         accessibilityState={{ expanded }}
         onPress={() => setExpanded(!expanded)}
         style={s.open}
       >
         <Text style={heading}>Make your voting plan</Text>
-        <Text style={body}>
-          {expanded ? "Hide steps" : "Registration → voting method → deadlines"}
-        </Text>
+        <View style={s.row}>
+          <Text style={[...caption, s.flex]}>
+            {expanded ? "Hide plan" : "Check registration. Choose how to vote."}
+          </Text>
+          <Icon
+            name={expanded ? "chevD" : "chevR"}
+            size={16}
+            color={theme.foreground}
+          />
+        </View>
       </Pressable>
       {expanded && (
         <View style={s.steps}>
-          <Text style={body}>
-            {electionName ??
-              "Election details are unavailable here. Use the election office link below to confirm your election."}{" "}
-            This plan is a personal reminder, not verification of registration
-            or eligibility.
-          </Text>
+          {!storageKey && (
+            <Text style={body}>
+              Election details aren’t available. You can still use these voting
+              services.
+            </Text>
+          )}
           <View style={s.step}>
             <Text accessibilityRole="header" style={heading}>
               1. Check registration
             </Text>
-            <Text style={body}>
-              First time voting, already registered, or unsure? Check with the
-              official service before making your plan.
-            </Text>
             {check ? (
               <>
-                <Text style={body}>{check.name}</Text>
-                <SourceLink label="Check registration" url={check.url} />
+                <SourceLink
+                  label="Check registration"
+                  url={check.url}
+                  prominence="primary"
+                />
+                <Text style={caption}>
+                  {check.name} · Opens registration service
+                </Text>
               </>
-            ) : california ? (
-              <SourceLink
-                label="Check registration · California Secretary of State"
-                url="https://voterstatus.sos.ca.gov/EN/Authenticate"
-              />
             ) : (
-              <ElectionOfficeLink />
+              <>
+                <SourceLink
+                  label="Find your election office"
+                  url={fallback.url}
+                  prominence="primary"
+                />
+                <Text style={caption}>{fallback.name}</Text>
+                <Text style={caption}>
+                  For registration and available voting methods
+                </Text>
+              </>
             )}
             {california && (
-              <SourceLink
-                label="Registration application and requirements · California"
-                url={`${ca}/voter-registration`}
-              />
+              <Detail label="Need to register or update details?">
+                <SourceLink
+                  label="Registration application & requirements"
+                  url={`${ca}/voter-registration`}
+                />
+                <Text style={caption}>California Secretary of State</Text>
+              </Detail>
             )}
           </View>
           <View style={s.step}>
             <Text accessibilityRole="header" style={heading}>
-              2. For a primary: check eligibility
-            </Text>
-            <Text style={body}>
-              For a primary, ask the election office which contests you can vote
-              in, whether party enrollment matters, and whether you need to
-              request a different ballot. Confirm any party enrollment or ballot
-              request deadline separately.
-            </Text>
-            {california ? (
-              <SourceLink
-                label="Primary voting rules · California Secretary of State"
-                url={`${ca}/primary-elections-california`}
-              />
-            ) : (
-              <ElectionOfficeLink />
-            )}
-          </View>
-          <View style={s.step}>
-            <Text accessibilityRole="header" style={heading}>
-              3. Choose how you want to vote
-            </Text>
-            <Text style={body}>
-              Confirm that your election office offers your preferred method for
-              this election. Missing locations do not mean a method is
-              unavailable.
+              2. How would you like to vote?
             </Text>
             {loaded ? (
               <Segmented<PlanMethod>
@@ -196,75 +279,155 @@ function Plan({
                 ]}
               />
             ) : (
-              <Text style={body}>Loading your saved choice…</Text>
+              <Text style={body}>Loading your choice…</Text>
             )}
-            <Text accessibilityLiveRegion="polite" style={body}>
-              {storageFailed
-                ? "Couldn’t save on this device. Your choice may be lost when you leave."
-                : storageKey
-                  ? "Your method preference stays on this device for this election only."
-                  : "No election loaded: this preference will not be saved."}
-            </Text>
-            {method === "mail" && (
-              <Text style={body}>
-                Confirm ballot request, postmark and receipt deadlines
-                separately, plus return instructions.
+            {(storageFailed ||
+              !storageKey ||
+              saving ||
+              method !== "undecided") && (
+              <Text accessibilityLiveRegion="polite" style={caption}>
+                {storageFailed
+                  ? "Couldn’t save. Your choice may be lost when you leave."
+                  : !storageKey
+                    ? "This choice is temporary while election details are unavailable."
+                    : saving
+                      ? "Saving…"
+                      : "Saved on this device"}
               </Text>
+            )}
+            {!check && officeAction ? (
+              <Text style={caption}>
+                {method === "mail"
+                  ? "Ask the office above about ballot requests and returns."
+                  : method === "in-person"
+                    ? "Ask the office above about locations and hours."
+                    : "The office above can explain your voting options."}
+              </Text>
+            ) : (
+              <>
+                <SourceLink
+                  label={actionLabel}
+                  url={methodAction.url}
+                  prominence="primary"
+                />
+                <Text style={caption}>{methodAction.name}</Text>
+                <Text style={caption}>{actionContext}</Text>
+              </>
+            )}
+            {data && hasVotingPlanLogistics(data) && onViewLogistics && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="View voting dates and locations"
+                onPress={onViewLogistics}
+                style={s.disclosure}
+              >
+                <Text style={[s.action, s.flex, { color: theme.foreground }]}>
+                  View dates & locations
+                </Text>
+                <Icon name="chevR" size={16} color={theme.foreground} />
+              </Pressable>
+            )}
+            {method === "mail" && (
+              <Detail label="Mail deadlines & tracking">
+                <Text style={body}>
+                  Check these separately with your election office:
+                </Text>
+                <Text style={body}>
+                  Request — whether you need to request a ballot, and by when.
+                </Text>
+                <Text style={body}>
+                  Postmark — when the postal service must mark your return
+                  envelope.
+                </Text>
+                <Text style={body}>
+                  Receipt — when the election office must receive your ballot.
+                </Text>
+                {california && (
+                  <SourceLink
+                    label="Track my ballot"
+                    url={`${ca}/ballot-status/wheres-my-ballot`}
+                  />
+                )}
+                {california && (
+                  <Text style={caption}>
+                    California Secretary of State · Opens its tracking service
+                  </Text>
+                )}
+              </Detail>
             )}
             {method === "in-person" && (
+              <Detail label="Before you go">
+                <Text style={body}>
+                  Confirm the location, early-voting dates or Election Day
+                  hours, and what to bring. Missing location details here don’t
+                  mean in-person voting is unavailable.
+                </Text>
+                {california && (
+                  <SourceLink
+                    label="Voting requirements"
+                    url={`${ca}/voting-resources/voting-california`}
+                  />
+                )}
+              </Detail>
+            )}
+          </View>
+          <Detail label="More voting help & privacy">
+            <Detail label="Voting in a primary?">
               <Text style={body}>
-                Confirm your voting location, early-voting dates or Election Day
-                hours, and what to bring.
+                Check which contests you can vote in, whether party enrollment
+                matters, and whether to request a different ballot. Confirm
+                party enrollment and ballot request deadlines separately.
               </Text>
-            )}
-            {california ? (
               <SourceLink
-                label="Voting methods and requirements · California Secretary of State"
-                url={`${ca}/voting-resources/voting-california`}
+                label="Check primary voting rules"
+                url={
+                  california
+                    ? `${ca}/primary-elections-california`
+                    : fallback.url
+                }
               />
-            ) : (
-              <ElectionOfficeLink />
-            )}
-          </View>
-          <View style={s.step}>
-            <Text accessibilityRole="header" style={heading}>
-              4. Confirm dates and locations
-            </Text>
+              <Text style={caption}>
+                {california ? "California Secretary of State" : fallback.name}
+              </Text>
+            </Detail>
+            <Text style={heading}>Official confirmation</Text>
             <Text style={body}>
-              Use sourced dates and locations when available in your ballot
-              lookup. Ask your election office about any missing registration,
-              party enrollment, ballot request, postmark, receipt, early-voting
-              or Election Day details.
+              Billion doesn’t verify registration, eligibility or ballot status.
+              Links open the authority’s service; return here to continue your
+              ballot.
             </Text>
-            {california ? (
-              <SourceLink
-                label="Find your county elections office · California"
-                url={`${ca}/voting-resources/county-elections-offices`}
-              />
-            ) : (
-              <ElectionOfficeLink />
-            )}
-            {california && method === "mail" && (
-              <SourceLink
-                label="Track a mail ballot · California Secretary of State"
-                url={`${ca}/ballot-status/wheres-my-ballot`}
-              />
-            )}
+            <Text style={heading}>On this device</Text>
             <Text style={body}>
-              Billion cannot check registration or track a ballot. These links
-              open the authority’s service. Return to Billion to continue here
-              with the same election and ballot view.
+              {storageKey
+                ? "Only your method preference is saved, for this election."
+                : "Your temporary choice isn’t saved while election details are unavailable."}{" "}
+              No address, party or registration status is stored in this plan.
             </Text>
-          </View>
+            <Text style={heading}>Dates and locations</Text>
+            <Text style={body}>
+              Ask your election office about details missing here. A missing
+              location listing doesn’t mean voting is unavailable.
+            </Text>
+            {resources.map((link) => (
+              <View key={link.url}>
+                <SourceLink label={link.label} url={link.url} />
+                <Text style={caption}>{link.office}</Text>
+              </View>
+            ))}
+          </Detail>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={returnLabel}
             onPress={() => {
               setExpanded(false);
               onReturn?.();
             }}
-            style={s.open}
+            style={s.return}
           >
-            <Text style={heading}>{returnLabel}</Text>
+            <Text style={[s.caption, s.flex, { color: theme.foreground }]}>
+              {returnLabel}
+            </Text>
+            <Icon name="chevL" size={14} color={theme.foreground} />
           </Pressable>
         </View>
       )}
@@ -272,9 +435,29 @@ function Plan({
   );
 }
 const s = StyleSheet.create({
-  open: { minHeight: 44, gap: sp[2], paddingVertical: sp[2] },
-  steps: { gap: sp[5], paddingTop: sp[3] },
-  step: { gap: sp[3] },
+  open: { minHeight: 48, gap: sp[2], paddingVertical: sp[2] },
+  steps: { gap: sp[3], paddingTop: sp[3] },
+  step: { gap: sp[2] },
+  row: { flexDirection: "row", alignItems: "center", gap: sp[2] },
+  disclosure: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: sp[2],
+    paddingVertical: sp[2],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: hair[2],
+  },
+  return: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: sp[2],
+  },
+  details: { gap: sp[2], paddingBottom: sp[3] },
+  flex: { flex: 1 },
+  action: { fontFamily: fontBody.semibold, fontSize: 15, lineHeight: 22 },
   heading: { fontFamily: fontEditorial.bold, fontSize: 19, lineHeight: 26 },
   body: { fontFamily: fontBody.regular, fontSize: 15, lineHeight: 23 },
+  caption: { fontFamily: fontBody.regular, fontSize: 13, lineHeight: 19 },
 });
