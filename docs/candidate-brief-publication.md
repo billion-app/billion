@@ -67,3 +67,21 @@ national matching tests do not establish roster completeness or review readiness
 
 These are exact blockers to live analysis, not a claim that the editorial review
 or deployment has happened. The existing statement citations remain independent.
+
+## Reader-facing prototype
+
+The candidate screen keeps one visible missing-coverage message and an immediate
+link to the election office. It shows available statements and office duties;
+it does not create separate empty sections for absent fields. The qualification
+limit stays visible. Coverage policy and source/review metadata use disclosures.
+A populated brief leads with the existing potential-effects claim, keeps all
+claim text and specific evidence gaps visible, and puts only supporting source
+excerpts and revision metadata behind controls. This changes reading order, not
+evidence or publication eligibility.
+
+Development builds can show bounded fictional populated and mixed examples on
+the same candidate-detail route: `briefPreview=reviewed` or `briefPreview=mixed`
+requires the serialized candidate name `Morgan Lee (fictional)`. The page labels
+these examples “Fictional preview · not published.” Production ignores the
+preview modes. These fixtures exercise the renderer; they do not exercise a
+published race, editorial approval, or a source-to-production data flow.
