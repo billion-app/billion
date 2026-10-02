@@ -73,10 +73,13 @@ test("election/provider/date and roster/withdrawal changes do not reuse identity
     electionDay: "2026-11-03",
     ocdDivisionId: "us",
   };
-  assert.notEqual(electionKey(election, "one"), electionKey(election, "two"));
   assert.notEqual(
-    electionKey(election, "one"),
-    electionKey({ ...election, electionDay: "2028-11-07" }, "one"),
+    electionKey(election, "one", "lookup-a"),
+    electionKey(election, "two", "lookup-a"),
+  );
+  assert.notEqual(
+    electionKey(election, "one", "lookup-a"),
+    electionKey({ ...election, electionDay: "2028-11-07" }, "one", "lookup-a"),
   );
   const contest = {
     type: "General",
@@ -132,4 +135,62 @@ test("explicit deletion recovers malformed storage", async () => {
   await assert.rejects(store.read());
   await store.clear();
   assert.deepEqual(await store.read(), []);
+});
+
+test("store subscribers observe deletion; failed writes do not notify", async () => {
+  let disk: string | null = null;
+  let fail = false;
+  const store = createPreparationStore({
+    getItem: () => Promise.resolve(disk),
+    setItem: (_key, value) => {
+      if (fail) return Promise.reject(Error("disk"));
+      disk = value;
+      return Promise.resolve();
+    },
+  });
+  let ballot: Preparation[] = [];
+  let archive: Preparation[] = [];
+  let draft: Preparation | undefined;
+  const unsubscribe = store.subscribe((items, removed, reset) => {
+    ballot = items;
+    if (
+      reset ||
+      removed.some(
+        (p) => p.snapshot === draft?.snapshot && p.election === draft.election,
+      )
+    )
+      draft = undefined;
+  });
+  store.subscribe((items) => {
+    archive = items;
+  });
+  await store.save(entry);
+  draft = entry;
+  assert.deepEqual(ballot, archive);
+  fail = true;
+  await assert.rejects(store.remove(entry));
+  assert.deepEqual(ballot, [entry]);
+  assert.equal(draft, entry);
+  fail = false;
+  await store.remove(entry);
+  assert.deepEqual(ballot, []);
+  assert.deepEqual(archive, []);
+  assert.equal(draft, undefined);
+  unsubscribe();
+  await store.save(entry);
+  assert.deepEqual(ballot, []);
+  assert.deepEqual(archive, [entry]);
+});
+
+test("same election and roster in different lookup scopes do not share choices", () => {
+  const election = {
+    id: "1",
+    name: "General",
+    electionDay: "2026-11-03",
+    ocdDivisionId: "us",
+  };
+  assert.notEqual(
+    electionKey(election, "provider", "address-a"),
+    electionKey(election, "provider", "address-b"),
+  );
 });

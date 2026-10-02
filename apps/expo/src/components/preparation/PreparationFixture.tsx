@@ -12,8 +12,9 @@ export function PreparationFixture({
   hideControls?: boolean;
 }) {
   const [scenario, setScenario] = useState<
-    "ballot" | "changed" | "other" | "archive"
+    "ballot" | "changed" | "other" | "archive" | "paired"
   >("ballot");
+  const [showArchive, setShowArchive] = useState(false);
   const election = {
     id: scenario === "other" ? "fixture-special-2099" : "fixture-2099",
     name:
@@ -30,54 +31,79 @@ export function PreparationFixture({
     >
       {!hideControls && (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: sp[3] }}>
-          {(["ballot", "changed", "other", "archive"] as const).map((value) => (
-            <Pressable
-              key={value}
-              accessibilityRole="button"
-              onPress={() => setScenario(value)}
-              style={{ padding: sp[3] }}
-            >
-              <Text style={[typography.body, { color: P.inkOnNight }]}>
-                {value} fixture
-              </Text>
-            </Pressable>
-          ))}
+          {(["ballot", "changed", "other", "archive", "paired"] as const).map(
+            (value) => (
+              <Pressable
+                key={value}
+                accessibilityRole="button"
+                onPress={() => setScenario(value)}
+                style={{ padding: sp[3] }}
+              >
+                <Text style={[typography.body, { color: P.inkOnNight }]}>
+                  {value} fixture
+                </Text>
+              </Pressable>
+            ),
+          )}
         </View>
       )}
-      <PrivatePreparation
-        key={scenario}
-        election={scenario === "archive" ? undefined : election}
-        initiallyOpen={scenario === "archive"}
-        provider="fixture"
-        contests={
-          scenario === "archive"
-            ? []
-            : [
-                {
-                  type: "General",
-                  office: "City Council, District 2",
-                  candidates: [
-                    {
-                      name: "Alexandra Example-Sullivan",
-                      ballotStatus:
-                        scenario === "changed"
-                          ? "withdrewStillOnBallot"
-                          : "onBallot",
-                    },
-                    {
-                      name: "Jordan Sample",
-                      ballotStatus: "withdrewStillOnBallot",
-                    },
-                  ],
-                },
-                {
-                  type: "Referendum",
-                  referendumTitle: "Measure A: Parks and libraries",
-                  referendumText: "Synthetic proposal",
-                },
-              ]
+      {scenario === "paired" && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setShowArchive(!showArchive)}
+          style={{ padding: sp[3] }}
+        >
+          <Text style={[typography.body, { color: P.inkOnNight }]}>
+            {showArchive ? "Back to fixture ballot" : "Open fixture archive"}
+          </Text>
+        </Pressable>
+      )}
+      <View
+        style={
+          scenario === "paired" && showArchive ? { display: "none" } : undefined
         }
-      />
+      >
+        <PrivatePreparation
+          key={scenario}
+          election={scenario === "archive" ? undefined : election}
+          initiallyOpen={scenario === "archive" || scenario === "paired"}
+          provider="fixture"
+          lookupScope="fixture-example-address"
+          contests={
+            scenario === "archive"
+              ? []
+              : [
+                  {
+                    type: "General",
+                    office: "City Council, District 2",
+                    candidates: [
+                      {
+                        name: "Alexandra Example-Sullivan",
+                        ballotStatus:
+                          scenario === "changed"
+                            ? "withdrewStillOnBallot"
+                            : "onBallot",
+                      },
+                      {
+                        name: "Jordan Sample",
+                        ballotStatus: "withdrewStillOnBallot",
+                      },
+                    ],
+                  },
+                  {
+                    type: "Referendum",
+                    referendumTitle: "Measure A: Parks and libraries",
+                    referendumText: "Synthetic proposal",
+                  },
+                ]
+          }
+        />
+      </View>
+      {scenario === "paired" && (
+        <View style={showArchive ? undefined : { display: "none" }}>
+          <PrivatePreparation provider="fixture" initiallyOpen />
+        </View>
+      )}
     </ScrollView>
   );
 }

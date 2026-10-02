@@ -28,15 +28,21 @@ const store = createPreparationStore(AsyncStorage);
 export function PrivatePreparation({
   election,
   provider,
+  lookupScope,
   contests = [],
   initiallyOpen = false,
 }: {
   election?: Election;
   provider: string;
+  /** Exact lookup input stays local; never bind preparation across addresses. */
+  lookupScope?: string;
   contests?: Contest[];
   initiallyOpen?: boolean;
 }) {
-  const identity = election ? electionKey(election, provider) : undefined;
+  const identity =
+    election && lookupScope
+      ? electionKey(election, provider, lookupScope)
+      : undefined;
   const [items, setItems] = useState<Preparation[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
@@ -47,23 +53,43 @@ export function PrivatePreparation({
   const [draft, setDraft] = useState<Preparation>();
   useEffect(() => {
     let active = true;
+    let changed = false;
+    const unsubscribe = store.subscribe((value, removed, reset) => {
+      changed = true;
+      setItems(value);
+      setReady(true);
+      setError(false);
+      const deleted = (item: Preparation) =>
+        reset ||
+        removed.some(
+          (old) =>
+            old.election === item.election && old.snapshot === item.snapshot,
+        );
+      setDraft((current) =>
+        current && deleted(current) ? undefined : current,
+      );
+      setPendingDraft((current) =>
+        current && deleted(current) ? undefined : current,
+      );
+    });
     setReady(false);
     setDraft(undefined);
     setPendingDraft(undefined);
     void store.read().then(
       (value) => {
-        if (active) {
+        if (active && !changed) {
           setItems(value);
           setReady(true);
           setError(false);
         }
       },
       () => {
-        if (active) setError(true);
+        if (active && !changed) setError(true);
       },
     );
     return () => {
       active = false;
+      unsubscribe();
     };
   }, [identity]);
   async function commit(
@@ -142,6 +168,11 @@ export function PrivatePreparation({
             Reminders are unavailable until verified deadlines for your election
             and voting method are supplied.
           </Text>
+          {ready && election && !lookupScope && (
+            <Text>
+              Saving is unavailable until this lookup is explicitly identified.
+            </Text>
+          )}
           {ready && !election && !items.length && (
             <Text>
               No preparation saved on this device. When a supplied ballot
@@ -170,6 +201,7 @@ export function PrivatePreparation({
           )}
           {ready &&
             election &&
+            lookupScope &&
             contests.map((c, index) => {
               const snapshot = contestSnapshot(c);
               const item = current.find((p) => p.snapshot === snapshot);
@@ -187,7 +219,11 @@ export function PrivatePreparation({
                         ? setPendingDraft
                         : setDraft)(
                         item ?? {
-                          election: electionKey(election, provider),
+                          election: electionKey(
+                            election,
+                            provider,
+                            lookupScope,
+                          ),
                           snapshot,
                           title,
                           electionName: election.name,
@@ -353,12 +389,12 @@ export function PrivatePreparation({
                   {item.progress === "undecided"
                     ? "Not reviewed"
                     : item.progress}{" "}
-                  · Previous election
+                  · Saved election
                 </Text>
                 <Text>{item.notes}</Text>
-                <Text>Previous tentative choice: {item.choice ?? "None"}</Text>
+                <Text>Saved tentative choice: {item.choice ?? "None"}</Text>
                 {button(
-                  "Delete this previous election item",
+                  "Delete saved item",
                   () => void commit(() => store.remove(item), false),
                 )}
               </View>

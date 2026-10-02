@@ -462,6 +462,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   ])}
                   election={model.election}
                   provider={data.provider?.name ?? data.kind}
+                  lookupScope={props.address}
                   contests={model.contests}
                 />
               )}

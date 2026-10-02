@@ -11,6 +11,7 @@ They do not establish native production behavior or live provider correctness.
 - [Restored item](restored.png): saved reviewed state, tentative choice and notes after browser reload.
 - [Changed roster](changed-roster.png): withdrawn candidate changes the snapshot; the old choice is not applied to the new roster.
 - [Archive](archive.png): reads the previous election's preparation with no supplied ballot.
+- [Archive deletion and return](archive-deletion-return.png): two actual component instances stay mounted while the fixture switches visibility; deleting from the archive clears the ballot list and the matching open draft. This models stack preservation without claiming a native navigation run.
 - [Narrow archive](archive-narrow.png): 320 × 844 viewport wrapping; not a native Dynamic Type test.
 - [Storage error](storage-error.png): a deliberately incompatible earlier fixture record fails validation and remains available for explicit delete-all recovery.
 

@@ -16,12 +16,17 @@ export interface PreparationStorage {
   setItem(key: string, value: string): Promise<void>;
 }
 export const PREPARATION_KEY = "billion.private-preparation.v1";
-export function electionKey(election: Election, provider: string) {
+export function electionKey(
+  election: Election,
+  provider: string,
+  lookupScope: string,
+) {
   return JSON.stringify([
     provider,
     election.id,
     election.electionDay,
     election.ocdDivisionId,
+    lookupScope,
   ]);
 }
 // Exact identity until the provider supplies durable IDs. A changed roster,
@@ -74,6 +79,9 @@ export function parsePreparation(raw: string | null): Preparation[] {
 }
 export function createPreparationStore(storage: PreparationStorage) {
   let queue = Promise.resolve();
+  const listeners = new Set<
+    (items: Preparation[], removed: Preparation[], reset: boolean) => void
+  >();
   const readDisk = async () =>
     parsePreparation(await storage.getItem(PREPARATION_KEY));
   function update(
@@ -81,10 +89,20 @@ export function createPreparationStore(storage: PreparationStorage) {
     reset = false,
   ) {
     const result = queue.then(async () => {
-      const next = transform(reset ? [] : await readDisk());
+      const current = reset ? [] : await readDisk();
+      const next = transform(current);
       parsePreparation(JSON.stringify(next));
       if (next.length > 200) throw new Error("Preparation is full");
       await storage.setItem(PREPARATION_KEY, JSON.stringify(next));
+      const removed = current.filter(
+        (item) =>
+          !next.some(
+            (other) =>
+              other.election === item.election &&
+              other.snapshot === item.snapshot,
+          ),
+      );
+      for (const listener of listeners) listener(next, removed, reset);
       return next;
     });
     queue = result.then(
@@ -94,6 +112,18 @@ export function createPreparationStore(storage: PreparationStorage) {
     return result;
   }
   return {
+    subscribe: (
+      listener: (
+        items: Preparation[],
+        removed: Preparation[],
+        reset: boolean,
+      ) => void,
+    ) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
     read: async () => {
       await queue;
       return readDisk();

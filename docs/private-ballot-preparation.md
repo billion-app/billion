@@ -21,7 +21,8 @@ invitation and validate the real ballot flow.
 The versioned AsyncStorage record `billion.private-preparation.v1` holds at most
 200 saved contest snapshots across elections. Each note is limited to 1,000
 characters. Writes are serialized, and successful saving is reported only after
-storage accepts the write. Unreadable data stays untouched until explicit deletion;
+storage accepts the write. Mounted editors subscribe to committed changes, so
+deleting in the archive also clears matching ballot drafts before returning. Unreadable data stays untouched until explicit deletion;
 read/save failures preserve edits. Delete-all requires a second confirmation and
 also works when the stored record is malformed.
 
@@ -30,9 +31,12 @@ Operating-system/device backups may include it. The feature sends no notes,
 choices, or progress through tRPC, analytics, or sharing. Its controls and containing
 card exclude PostHog touch capture. Sharing #340 and offline content caching #317
 remain separate features; the archive contains preparation, not cached official
-ballot content. No address is stored in preparation.
+ballot content. The exact lookup input is stored only in the private identity key
+to prevent choices transferring between addresses; it is not rendered or shared.
 
-The election key contains provider, election ID, date and division. Until durable
+The election key contains provider, election ID, date, division and exact lookup
+input. Missing lookup scope disables saving. Changed lookup input conservatively
+starts new preparation, leaving prior records in the archive. Until durable
 provider contest/candidate IDs exist, the contest key is a conservative exact
 snapshot of ballot-defining fields and the named candidate roster, including
 withdrawal status. Ordering the candidate list does not change identity. A changed
@@ -67,7 +71,7 @@ verification.
 
 [Store tests](../apps/expo/src/utils/preparation.test.ts) cover restoration,
 concurrent writes, failed persistence, election/roster/withdrawal/rule changes,
-and deletion. [Reminder prototype tests](../apps/expo/src/utils/preparation-reminders.test.ts)
+and deletion across subscribed views. [Reminder prototype tests](../apps/expo/src/utils/preparation-reminders.test.ts)
 cover stale data, election changes, opt-out, denied permission and revision
 replacement. [The controlled fixture](../apps/expo/src/components/preparation/PreparationFixture.tsx)
 is not an app route. [Screenshot evidence](evidence/427/README.md) comes from its
