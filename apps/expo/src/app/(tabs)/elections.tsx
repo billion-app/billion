@@ -254,12 +254,19 @@ function CaliforniaElectionEntry({
           Read official candidate statements and statewide propositions.
         </Text>
         {query.isPending ? (
-          <View style={[s.entryButton, { backgroundColor: planes.slate }]}>
+          <View
+            style={[
+              s.entryButton,
+              { backgroundColor: planes.slate, gap: 12, paddingVertical: 14 },
+            ]}
+          >
             <Text
               accessibilityLiveRegion="polite"
               style={{
                 fontFamily: fontBody.regular,
                 fontSize: 16,
+                lineHeight: 24,
+                flex: 1,
                 color: colors.white,
               }}
             >

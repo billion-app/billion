@@ -29,8 +29,11 @@ release availability false/error. They establish integration and UI behavior,
   statewide guide, county-office help and a working Back action. Errors hide stale
   preview data.
 - `closed.png` / `error.png`: useful official-ballot fallback, retry only on failure.
-- `large-text.png` / `entry-large.png`: actual app at 320px with browser text enlarged
-  150%; no horizontal overflow. This is not native Dynamic Type verification.
+- `large-text.png` / `entry-large.png` / `entry-loading-large.png`: actual app at
+  320px with browser text enlarged 150%; no horizontal overflow. The official-guide
+  nodes are enlarged after query settlement. `entry-large-bottom.png` verifies that
+  scrolling reveals the full official-ballot action above the tab bar. This is not
+  native Dynamic Type verification.
 
 Playwright exercised entry → gate → Back to Elections, entry → sparse/failed guide,
 failed tRPC availability → retry → closed recovery, and pending entry → official-guide
