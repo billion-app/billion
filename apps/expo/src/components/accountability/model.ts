@@ -29,12 +29,14 @@ export interface OfficeEntry {
 }
 export interface Priority {
   id: string;
+  topic: string;
   candidateId: string;
   date: string;
   text: string;
   evidence: Evidence;
 }
 export interface ActionRecord {
+  topic: string;
   personId: string;
   officeId: string;
   districtId: string;
@@ -51,6 +53,24 @@ export function sameContest(a: ContestIdentity, b: ContestIdentity) {
     a.officeId === b.officeId &&
     a.contestId === b.contestId
   );
+}
+/** A result summary has its own evidence/identity gate, independent of term entry. */
+export function confirmedResultCandidate(
+  contest: ContestIdentity,
+  candidates: readonly { id: string; name: string }[],
+  result: ResultRecord,
+) {
+  if (
+    !sameContest(contest, result.identity) ||
+    result.disputed ||
+    result.stage !== "certified" ||
+    !result.evidence
+  )
+    return undefined;
+  const matches = candidates.filter(
+    (candidate) => candidate.id === result.candidateId,
+  );
+  return matches.length === 1 ? matches[0] : undefined;
 }
 export function resolveOfficeholder(
   contest: ContestIdentity,

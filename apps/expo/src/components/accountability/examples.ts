@@ -66,7 +66,24 @@ export const historical: AccountabilityExample = {
   },
   extraEvidence: [certification],
   priorities: [],
-  actions: [],
+  actions: [
+    {
+      topic: "Housing approvals",
+      personId: "ca-newsom",
+      officeId: identity.officeId,
+      districtId: identity.districtId,
+      date: "2023-10-11",
+      kind: "decision",
+      text: "Signed SB 423 to extend a faster approval process for qualifying housing projects.",
+      context: "A faster approval process is not a count of homes built.",
+      evidence: {
+        publisher: "Office of the Governor",
+        published: "2023-10-11",
+        url: "https://www.gov.ca.gov/2023/10/11/governor-newsom-signs-package-to-streamline-housing-and-expand-tenant-protections-in-california/",
+        locator: "SB 423 signing · Senator Wiener · housing approvals",
+      },
+    },
+  ],
 };
 const demoIdentity: ContestIdentity = {
   electionId: "fictional-2026",
@@ -103,14 +120,16 @@ export const synthetic: AccountabilityExample = {
   priorities: [
     {
       id: "demo-priority-1",
+      topic: "Evening bus service",
       candidateId: "demo-candidate-1",
       date: "2026-09-01",
-      text: "Campaign priority: expand evening bus service.",
+      text: "Expand evening bus service.",
       evidence: { ...demoEvidence, published: "2026-09-01" },
     },
   ],
   actions: [
     {
+      topic: "Evening bus service",
       personId: "demo-person-1",
       officeId: demoIdentity.officeId,
       districtId: demoIdentity.districtId,
@@ -118,13 +137,16 @@ export const synthetic: AccountabilityExample = {
       kind: "sponsorship",
       text: "Introduced a proposal to fund evening buses.",
       context:
-        "Sponsorship is not passage. This record does not establish new service or funding. The council and transit agency would also need to act.",
+        "This record does not show that funding passed or service began. The council and transit agency would also need to act.",
       evidence: { ...demoEvidence, published: "2027-02-10" },
     },
   ],
 };
 export function exampleFor(scenario: string): AccountabilityExample {
   if (scenario === "historical") return historical;
+  if (scenario === "priorities-only") return { ...synthetic, actions: [] };
+  if (scenario === "sparse")
+    return { ...synthetic, priorities: [], actions: [] };
   if (scenario === "disputed")
     return { ...synthetic, result: { ...synthetic.result, disputed: true } };
   if (scenario === "missing")

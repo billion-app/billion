@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { historical, synthetic } from "./examples";
-import { actionsFor, resolveOfficeholder } from "./model";
+import {
+  actionsFor,
+  confirmedResultCandidate,
+  resolveOfficeholder,
+} from "./model";
 
 const historicalEntry = historical.entry;
 const syntheticEntry = synthetic.entry;
@@ -123,4 +127,40 @@ test("invalid and out-of-term action dates are withheld", () => {
   const action = syntheticAction;
   for (const date of ["2027-02-30", "2028-01-01", "2029-01-01", "unknown"])
     assert.deepEqual(actionsFor(entry, [{ ...action, date }]), []);
+});
+
+test("result summaries independently require one matching candidate and certified source evidence", () => {
+  assert.equal(
+    confirmedResultCandidate(
+      historical.identity,
+      historical.candidates,
+      historical.result,
+    )?.name,
+    "Gavin Newsom",
+  );
+  for (const result of [
+    { ...historical.result, disputed: true },
+    { ...historical.result, stage: "projected" as const },
+    { ...historical.result, evidence: undefined },
+    {
+      ...historical.result,
+      identity: { ...historical.identity, electionId: "other" },
+    },
+  ])
+    assert.equal(
+      confirmedResultCandidate(
+        historical.identity,
+        historical.candidates,
+        result,
+      ),
+      undefined,
+    );
+  assert.equal(
+    confirmedResultCandidate(
+      historical.identity,
+      [...historical.candidates, historicalCandidate],
+      historical.result,
+    ),
+    undefined,
+  );
 });

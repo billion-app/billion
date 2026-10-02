@@ -7,6 +7,7 @@ import type { Evidence } from "~/components/accountability/model";
 import { exampleFor } from "~/components/accountability/examples";
 import {
   actionsFor,
+  confirmedResultCandidate,
   resolveOfficeholder,
   stageCopy,
 } from "~/components/accountability/model";
@@ -18,9 +19,6 @@ import { fontBody, fontEditorial, DigestPalette as P, sp } from "~/styles";
 export default function AccountabilityPreview() {
   const router = useRouter();
   const [scenario, setScenario] = useState("historical");
-  const [showScenarios, setShowScenarios] = useState(false);
-  const [following, setFollowing] = useState(false);
-  const [linkError, setLinkError] = useState(false);
   if (!__DEV__)
     return (
       <View style={s.screen}>
@@ -42,32 +40,25 @@ export default function AccountabilityPreview() {
     example.entry,
   );
   const actions = holder ? actionsFor(holder, example.actions) : [];
-  function source(evidence: Evidence) {
-    return (
-      <View key={evidence.url + evidence.locator} style={s.source}>
-        <Text style={s.caption}>
-          {evidence.publisher} · Published {evidence.published}
-          {"\n"}
-          {evidence.locator}
-        </Text>
-        {evidence.url ? (
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={`Open source record — ${evidence.publisher}: ${evidence.locator}`}
-            onPress={() => {
-              setLinkError(false);
-              void Linking.openURL(evidence.url).catch(() =>
-                setLinkError(true),
-              );
-            }}
-            style={s.button}
-          >
-            <Text style={s.link}>Open source record</Text>
-          </Pressable>
-        ) : null}
-      </View>
-    );
-  }
+  const priorities = holder
+    ? example.priorities.filter(
+        (priority) => priority.candidateId === holder.candidateId,
+      )
+    : [];
+  const resultCandidate = confirmedResultCandidate(
+    example.identity,
+    example.candidates,
+    example.result,
+  );
+  const resultSummary = example.result.disputed
+    ? "The result is disputed. We can’t confirm who took office while the dispute remains unresolved."
+    : example.result.stage === "missing"
+      ? "Results are unavailable in this preview. Missing records do not mean nobody won."
+      : example.result.stage === "certified" && resultCandidate
+        ? `${resultCandidate.name} won this election. The result is certified; taking office has its own record.`
+        : example.result.stage === "certified"
+          ? "We can’t verify a result for this contest."
+          : stageCopy[example.result.stage];
   return (
     <View style={s.screen}>
       <NavHeader
@@ -76,27 +67,175 @@ export default function AccountabilityPreview() {
         onBack={() => router.back()}
       />
       <ScrollView contentContainerStyle={s.content}>
-        <Text style={s.kicker}>DEVELOPMENT PROTOTYPE · NO LIVE UPDATES</Text>
-        <Text style={s.title}>From your choice to governing power</Text>
-        <Text style={s.body}>
-          See who took office, then revisit campaign priorities alongside
-          documented actions.
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded: showScenarios }}
-          onPress={() => setShowScenarios(!showScenarios)}
-          style={s.button}
-        >
-          <Text style={s.link}>
-            {showScenarios ? "Hide test scenarios" : "Test scenarios"}
+        <View style={s.lead}>
+          <Text style={s.kicker}>
+            {example.synthetic ? "FICTIONAL EXAMPLE" : "HISTORICAL PREVIEW"} ·
+            NO LIVE UPDATES
           </Text>
-        </Pressable>
-        {showScenarios && (
+          <Text style={s.contest}>{example.label}</Text>
+          <Text accessibilityRole="header" style={s.title}>
+            {holder
+              ? `${holder.name} took office`
+              : "We can’t confirm who took office"}
+          </Text>
+          {holder ? (
+            <>
+              <Text style={s.body}>
+                Took office {formatDate(holder.tookOffice)}. Election result
+                certified.
+              </Text>
+              <Text style={s.caption}>
+                {example.synthetic
+                  ? "The people, dates and records on this page are fictional."
+                  : "Historical term entry, not a current officeholder lookup."}
+              </Text>
+              <Source
+                evidence={holder.evidence}
+                label="Read inauguration record"
+              />
+            </>
+          ) : (
+            <>
+              <Text style={s.body}>{resultSummary}</Text>
+              {example.synthetic && (
+                <Text style={s.caption}>
+                  The people, dates and records on this page are fictional.
+                </Text>
+              )}
+              {example.result.evidence && (
+                <Source
+                  evidence={example.result.evidence}
+                  label="Read election result"
+                />
+              )}
+            </>
+          )}
+        </View>
+        <Card
+          title={
+            actions.length || priorities.length
+              ? (priorities[0]?.topic ??
+                actions[0]?.topic ??
+                "Priorities and actions")
+              : "Action history unavailable"
+          }
+        >
+          {!holder ? (
+            <Text style={s.body}>
+              We can’t connect actions to an officeholder until their identity
+              is confirmed.
+            </Text>
+          ) : actions.length || priorities.length ? (
+            <>
+              {priorities.map((priority) => (
+                <View key={priority.id} style={s.block}>
+                  <Text style={s.label}>Campaign priority</Text>
+                  <Text style={s.body}>
+                    {priority.text.replace(/^Campaign priority: /, "")}
+                  </Text>
+                  <Text style={s.caption}>
+                    {formatDate(priority.date)} · Candidate statement
+                  </Text>
+                  <Source
+                    evidence={priority.evidence}
+                    label="Read campaign statement"
+                  />
+                </View>
+              ))}
+              {!actions.length && (
+                <Text style={s.body}>
+                  No action records are included yet. That doesn’t mean no
+                  action was taken.
+                </Text>
+              )}
+              {actions.map((action, index) => (
+                <View key={action.date + action.text} style={s.block}>
+                  <Text style={s.label}>Recorded action</Text>
+                  <Text style={s.body}>{action.text}</Text>
+                  <Text style={s.caption}>
+                    {formatDate(action.date)} ·{" "}
+                    {action.kind === "sponsorship"
+                      ? "Proposal introduced"
+                      : action.kind === "vote"
+                        ? "Individual vote"
+                        : "Documented decision"}
+                  </Text>
+                  <Text style={s.label}>What this tells us</Text>
+                  <Text style={s.body}>{action.context}</Text>
+                  {!priorities.length && index === 0 && (
+                    <Text style={s.caption}>
+                      No campaign statement is included, so a promise comparison
+                      is unavailable.
+                    </Text>
+                  )}
+                  <Source
+                    evidence={action.evidence}
+                    label="Read action record"
+                  />
+                </View>
+              ))}
+            </>
+          ) : (
+            <Text style={s.body}>
+              This preview has no campaign statements or action records for this
+              term. That doesn’t tell us what this officeholder did.
+            </Text>
+          )}
+        </Card>
+        {holder && (
+          <View style={s.result}>
+            <Text style={s.body}>{resultSummary}</Text>
+            {example.result.evidence && (
+              <Source
+                evidence={example.result.evidence}
+                label="Read election result"
+              />
+            )}
+          </View>
+        )}
+
+        <Disclosure
+          key={`results-${scenario}`}
+          title="Result details and sources"
+        >
+          <Text style={s.body}>
+            {holder
+              ? "Certification confirms the election result. The separate inauguration record above confirms taking office."
+              : "A final result and a separate taking-office record are needed before we can connect this contest to an officeholder."}
+          </Text>
+          <Text style={s.caption}>
+            Candidates:{" "}
+            {example.candidates.map((candidate) => candidate.name).join(" · ")}.
+          </Text>
+          {example.result.evidence && (
+            <EvidenceDetails evidence={example.result.evidence} />
+          )}
+          {example.extraEvidence.map((evidence) => (
+            <EvidenceDetails key={evidence.url} evidence={evidence} />
+          ))}
+        </Disclosure>
+        <Disclosure title="About this preview">
+          <Text style={s.body}>
+            One historical California governor contest and fictional examples.
+            Records were checked October 2, 2026. There are no alerts, saved
+            follows or automatic updates. Check linked official records for
+            changes or corrections.
+          </Text>
+          {actions.length > 0 && (
+            <Text style={s.body}>
+              An individual vote is not the whole outcome. Policy effects can be
+              uncertain and shared across institutions. This preview does not
+              score whether a promise was kept.
+            </Text>
+          )}
+        </Disclosure>
+        <Disclosure key={`scenarios-${scenario}`} title="Test scenarios">
           <View style={s.options}>
             {[
               "historical",
               "full",
+              "sparse",
+              "priorities-only",
               "preliminary",
               "projected",
               "disputed",
@@ -107,139 +246,120 @@ export default function AccountabilityPreview() {
                 accessibilityRole="button"
                 accessibilityState={{ selected: scenario === value }}
                 style={[s.option, scenario === value && s.selected]}
-                onPress={() => {
-                  setScenario(value);
-                  setFollowing(false);
-                  setLinkError(false);
-                }}
+                onPress={() => setScenario(value)}
               >
                 <Text style={[s.link, scenario === value && s.selectedText]}>
                   {value === "full"
-                    ? "Synthetic actions"
-                    : value.charAt(0).toUpperCase() + value.slice(1)}
+                    ? "Fictional actions"
+                    : value === "sparse"
+                      ? "No action records"
+                      : value === "priorities-only"
+                        ? "Priority only"
+                        : value.charAt(0).toUpperCase() + value.slice(1)}
                 </Text>
               </Pressable>
             ))}
           </View>
-        )}
-        <Text style={s.heading}>{example.label}</Text>
-        <Text style={s.caption}>
-          {example.synthetic
-            ? "All people, dates, results and actions below are fictional test records."
-            : "Historical source example checked October 2, 2026. This is not your ballot or a current officeholder directory."}
-        </Text>
-        <Card
-          title={
-            holder
-              ? `${holder.name} took office`
-              : "Officeholder not established here"
-          }
-        >
-          <Text style={s.body}>
-            {holder
-              ? `Term entry documented ${holder.tookOffice}. This evidence is separate from the election count.`
-              : "A certified result, matching candidate identity and a separate taking-office record are required before actions can be attributed here."}
-          </Text>
-          {holder && source(holder.evidence)}
-          {holder && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: following }}
-              onPress={() => setFollowing(!following)}
-              style={s.button}
-            >
-              <Text style={s.link}>
-                {following
-                  ? "Stop following in this preview"
-                  : "Follow in this preview"}
-              </Text>
-            </Pressable>
-          )}
-          {holder && (
-            <Text style={s.caption}>
-              {following ? "Following for this open preview only. " : ""}No
-              alerts, background refresh or saved subscription. Open the source
-              records to check for changes.
-            </Text>
-          )}
-        </Card>
-        <Card title="What the result establishes">
-          <Text style={s.body}>
-            {example.result.disputed
-              ? "Result disputed. This preview does not establish an officeholder while the dispute is unresolved."
-              : stageCopy[example.result.stage]}
-          </Text>
-          {example.result.evidence && source(example.result.evidence)}
-          {example.extraEvidence.map(source)}
-          <Text style={s.caption}>
-            Candidate roster:{" "}
-            {example.candidates.map((candidate) => candidate.name).join(" · ")}.
-            Missing candidates never imply a winner.
-          </Text>
-        </Card>
-        <Card title="Campaign priorities and actions">
-          {!holder ? (
-            <Text style={s.body}>
-              Actions withheld until officeholder identity is established.
-            </Text>
-          ) : (
-            <>
-              {example.priorities
-                .filter(
-                  (priority) => priority.candidateId === holder.candidateId,
-                )
-                .map((priority) => (
-                  <View key={priority.id}>
-                    <Text style={s.body}>
-                      {priority.date} · {priority.text}
-                    </Text>
-                    {source(priority.evidence)}
-                  </View>
-                ))}
-              {!example.priorities.length && (
-                <Text style={s.body}>
-                  No dated campaign priorities loaded. No promise comparison is
-                  available.
-                </Text>
-              )}
-              {actions.map((action) => (
-                <View key={action.date + action.text} style={s.action}>
-                  <Text style={s.kicker}>
-                    {action.date} · {action.kind}
-                  </Text>
-                  <Text style={s.body}>{action.text}</Text>
-                  <Text style={s.body}>{action.context}</Text>
-                  {source(action.evidence)}
-                </View>
-              ))}
-              {!actions.length && (
-                <Text style={s.body}>
-                  No action records loaded. That does not mean this officeholder
-                  took no action.
-                </Text>
-              )}
-            </>
-          )}
-          <Text style={s.caption}>
-            A vote is one person’s recorded position, not the whole outcome.
-            Policy effects can be uncertain and shared across institutions.
-            These records do not score whether a promise was kept.
-          </Text>
-        </Card>
-        {linkError && (
-          <Text accessibilityRole="alert" style={s.body}>
-            Could not open the source. Try again from its source record button.
-          </Text>
-        )}
-        <Card title="Coverage and corrections">
-          <Text style={s.body}>
-            This static preview covers one historical California governor
-            contest and fictional test states. No automatic refresh. Check the
-            linked official records for updates or corrections. If a record
-            changes, this preview will not update automatically.
-          </Text>
-        </Card>
+        </Disclosure>
       </ScrollView>
+    </View>
+  );
+}
+function Source({ evidence, label }: { evidence: Evidence; label: string }) {
+  const [failed, setFailed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  if (!evidence.url) return null;
+  return (
+    <View style={s.block}>
+      <View style={s.sourceRow}>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={`${label} — ${evidence.publisher}: ${evidence.locator}`}
+          style={[s.button, s.sourceLink]}
+          onPress={() => {
+            setFailed(false);
+            void Linking.openURL(evidence.url).catch(() => setFailed(true));
+          }}
+        >
+          <Text style={s.link}>{label}</Text>
+          <Text style={s.caption}>{evidence.publisher}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Details — ${label}`}
+          accessibilityState={{ expanded }}
+          style={s.sourceToggle}
+          onPress={() => setExpanded(!expanded)}
+        >
+          <Text style={s.disclosureLabel}>Details {expanded ? "−" : "+"}</Text>
+        </Pressable>
+      </View>
+      {failed && (
+        <Text accessibilityRole="alert" style={s.body}>
+          Could not open the record. Try its link again.
+        </Text>
+      )}
+      {expanded && <EvidenceDetails evidence={evidence} showLink={false} />}
+    </View>
+  );
+}
+function EvidenceDetails({
+  evidence,
+  showLink = true,
+}: {
+  evidence: Evidence;
+  showLink?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <View style={s.block}>
+      <Text style={s.caption}>
+        {evidence.publisher} · Published {formatDate(evidence.published)}
+        {"\n"}
+        {evidence.locator}
+      </Text>
+      {showLink && evidence.url && (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={`Open source record — ${evidence.publisher}: ${evidence.locator}`}
+          style={s.button}
+          onPress={() => {
+            setFailed(false);
+            void Linking.openURL(evidence.url).catch(() => setFailed(true));
+          }}
+        >
+          <Text style={s.link}>Open source record</Text>
+        </Pressable>
+      )}
+      {failed && (
+        <Text accessibilityRole="alert" style={s.body}>
+          Could not open the record. Try its link again.
+        </Text>
+      )}
+    </View>
+  );
+}
+function Disclosure({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View style={s.disclosure}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded(!expanded)}
+        style={s.button}
+      >
+        <Text style={s.disclosureLabel}>
+          {title} {expanded ? "−" : "+"}
+        </Text>
+      </Pressable>
+      {expanded && <View style={s.block}>{children}</View>}
     </View>
   );
 }
@@ -253,17 +373,40 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
     </View>
   );
 }
+function formatDate(date: string) {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: P.canvas },
   content: {
     padding: sp[5],
-    gap: sp[4],
+    gap: sp[5],
     paddingBottom: sp[10],
     maxWidth: 720,
     width: "100%",
     alignSelf: "center",
   },
+  lead: { gap: sp[3] },
+  sourceRow: { flexDirection: "row", alignItems: "center", gap: sp[2] },
+  sourceLink: { flex: 1 },
+  sourceToggle: {
+    minHeight: 48,
+    minWidth: 80,
+    justifyContent: "center",
+    paddingHorizontal: sp[2],
+  },
   title: { fontFamily: fontEditorial.regular, fontSize: 30, color: P.paper },
+  contest: {
+    fontFamily: fontBody.medium,
+    fontSize: 16,
+    lineHeight: 24,
+    color: P.paper,
+  },
   heading: { fontFamily: fontEditorial.regular, fontSize: 23, color: P.paper },
   body: {
     fontFamily: fontBody.regular,
@@ -278,24 +421,37 @@ const s = StyleSheet.create({
     color: P.paper,
   },
   kicker: {
-    fontFamily: fontBody.regular,
+    fontFamily: fontBody.medium,
     fontSize: 12,
     lineHeight: 19,
+    color: P.paper,
+  },
+  label: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    lineHeight: 21,
     color: P.paper,
   },
   card: {
     backgroundColor: P.card,
     borderRadius: 16,
     padding: sp[4],
-    gap: sp[3],
+    gap: sp[4],
   },
-  source: {
-    gap: sp[2],
+  block: { gap: sp[3] },
+  result: {
     borderTopWidth: 1,
     borderTopColor: P.border,
-    paddingTop: sp[3],
+    paddingTop: sp[4],
+    gap: sp[2],
   },
-  action: { gap: sp[3], paddingTop: sp[4] },
+  disclosure: { borderTopWidth: 1, borderTopColor: P.border },
+  disclosureLabel: {
+    fontFamily: fontBody.medium,
+    fontSize: 15,
+    lineHeight: 23,
+    color: P.paper,
+  },
   options: { flexDirection: "row", flexWrap: "wrap", gap: sp[2] },
   option: {
     padding: sp[3],
