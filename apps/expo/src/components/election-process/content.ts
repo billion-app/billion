@@ -2,27 +2,28 @@
 export const processExamples = {
   president: {
     label: "President",
-    context: "2028 presidential nomination · U.S. example",
+    title: "Choosing a president",
+    year: "2028",
     choosing:
-      "A nomination chooses a party’s candidate. It does not elect the president.",
+      "Voters help parties choose their candidates. Then the general election decides who becomes president.",
     participation:
-      "Your state and party set participation rules. Check registration, party affiliation and the published rules for that election; an address alone cannot establish eligibility.",
+      "Your state and party decide who can take part. Check your registration and whether you need to be registered with a party for that election.",
     steps: [
       [
         "Primary or caucus",
-        "A primary is a ballot vote; a caucus is a party-run meeting. Voter preferences help determine delegates under state and party rules.",
+        "A primary is a ballot vote; a caucus is a party meeting. Voters help award delegates — people who vote for the party’s nominee.",
       ],
       [
         "Delegates and convention",
-        "Delegates represent states in a party’s nomination process. The convention selects the presidential nominee under party rules.",
+        "At a convention, delegates choose the nominee: the party’s candidate in the general election. State and party rules govern their votes.",
       ],
       [
         "General election",
-        "Voters choose among presidential tickets. The Electoral College, rather than a nationwide popular-vote total, determines the presidency.",
+        "Your vote helps choose your state’s or D.C.’s electors. In the Electoral College, they vote for president and vice president; the nationwide popular-vote total does not elect the president.",
       ],
     ],
     deeper:
-      "Discussion by others is speculation. A public declaration says someone intends to run. An FEC filing records federal campaign registration; it does not establish state ballot access. Verified ballot access needs the election authority’s dated record. Nomination needs the party’s dated official record. Billion has no verified 2028 roster, stage or schedule here.",
+      "If no presidential candidate wins a majority of electoral votes, the House of Representatives chooses the president. Discussion by others is speculation. A public declaration says someone intends to run. An FEC filing records federal campaign registration; it does not establish state ballot access. Verified ballot access needs the election authority’s dated record. Nomination needs the party’s dated official record. Billion has no verified 2028 roster, stage or schedule here.",
     sources: [
       [
         "USAGov · primaries and caucuses",
@@ -41,12 +42,13 @@ export const processExamples = {
     ],
   },
   california: {
-    label: "California",
-    context: "2026 U.S. House · California regular-election example",
+    label: "House: CA",
+    title: "California · U.S. House",
+    year: "2026",
     choosing:
       "The primary narrows the field to two candidates. The general election chooses your district’s representative in Congress.",
     participation:
-      "Registered voters can choose any candidate for this voter-nominated office, regardless of party preference. Check your registration and district with California; this example is not your ballot.",
+      "In this primary, registered voters can choose any candidate, regardless of party preference. Check your registration and district with California.",
     steps: [
       [
         "Top-two primary",
@@ -79,8 +81,9 @@ export const processExamples = {
     ],
   },
   texas: {
-    label: "Texas",
-    context: "2026 U.S. House · Texas party-primary example",
+    label: "House: TX",
+    title: "Texas · U.S. House",
+    year: "2026",
     choosing:
       "A party primary selects that party’s nominee. The general election chooses the district’s representative from the candidates on its ballot.",
     participation:
@@ -88,15 +91,15 @@ export const processExamples = {
     steps: [
       [
         "Party primary",
-        "Voters participate in one party’s primary to choose its nominee. This differs from California’s shared top-two ballot.",
+        "Voters in one party’s primary choose that party’s candidate for the general election.",
       ],
       [
         "Runoff, if needed",
-        "A majority means more than half the votes. If no candidate wins a majority in a Texas party primary, the top two compete in a runoff — another vote to decide the nominee.",
+        "If no candidate gets more than half the votes, the top two compete in a runoff — another vote to choose the party’s candidate.",
       ],
       [
         "General election",
-        "Voters choose who will hold office. Nomination and election are separate decisions.",
+        "Voters choose which candidate will represent their district in Congress.",
       ],
     ],
     deeper:
