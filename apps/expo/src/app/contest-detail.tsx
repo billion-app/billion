@@ -28,6 +28,7 @@ import {
 } from "~/components/ballot-evidence/BallotReadingCard";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
+import { ContestMarking } from "~/components/ballot-marking/ContestMarking";
 import { Card, Icon, Kicker, NavHeader } from "~/components/ui";
 import {
   DigestHair,
@@ -300,6 +301,14 @@ export default function ContestDetailScreen() {
         {params.districtName ? (
           <Text style={s.district}>{params.districtName}</Text>
         ) : null}
+
+        <ContestMarking
+          scope={{
+            contestId: "",
+            electionDate: params.electionDate ?? "",
+            jurisdiction: params.state ?? "",
+          }}
+        />
 
         {description ? (
           <View style={s.section}>
