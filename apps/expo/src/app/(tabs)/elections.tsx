@@ -225,6 +225,7 @@ function DevelopmentElections() {
 }
 
 function CaliforniaElectionEntry({ onExplore }: { onExplore: () => void }) {
+  const router = useRouter();
   const guide = useQuery(trpc.civic.getCaliforniaGuide.queryOptions()).data;
   return (
     <TabScreen title="Elections">
@@ -249,6 +250,15 @@ function CaliforniaElectionEntry({ onExplore }: { onExplore: () => void }) {
         >
           <Text style={s.entryButtonText}>Try it now</Text>
           <Icon name="arrowRight" size={19} color={planes.navy} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => router.push("/election-process")}
+          style={{ minHeight: 48, justifyContent: "center" }}
+        >
+          <Text style={s.entryBody}>
+            New to elections? Learn how the process works →
+          </Text>
         </TouchableOpacity>
         <View style={s.entryNote}>
           <Icon name="info" size={16} color={colors.textSecondary} />
