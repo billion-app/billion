@@ -8,12 +8,14 @@ import { PrivatePreparation } from "./PrivatePreparation";
 
 export function PreparationFixture({
   hideControls = false,
+  initialScenario = "ballot",
 }: {
   hideControls?: boolean;
+  initialScenario?: "ballot" | "changed" | "other" | "archive" | "paired";
 }) {
   const [scenario, setScenario] = useState<
     "ballot" | "changed" | "other" | "archive" | "paired"
-  >("ballot");
+  >(initialScenario);
   const [showArchive, setShowArchive] = useState(false);
   const election = {
     id: scenario === "other" ? "fixture-special-2099" : "fixture-2099",
@@ -66,7 +68,10 @@ export function PreparationFixture({
         <PrivatePreparation
           key={scenario}
           election={scenario === "archive" ? undefined : election}
-          initiallyOpen={scenario === "archive" || scenario === "paired"}
+          initiallyOpen={
+            hideControls || scenario === "archive" || scenario === "paired"
+          }
+          onOpenBallot={() => setScenario("ballot")}
           provider="fixture"
           lookupScope="fixture-example-address"
           contests={

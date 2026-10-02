@@ -1,6 +1,13 @@
 import type { TextProps } from "react-native";
 import { useEffect, useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  TextInput,
+  View,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { Contest, Election } from "@acme/api";
@@ -8,7 +15,14 @@ import type { Contest, Election } from "@acme/api";
 import type { Preparation, Progress } from "~/utils/preparation";
 import { BallotText as BaseText } from "~/components/ballot-evidence/BallotText";
 import { Card } from "~/components/ui/layout";
-import { fontBody, DigestPalette as P, sp, typography } from "~/styles";
+import { Segmented } from "~/components/ui/Segmented";
+import {
+  DigestHair,
+  fontBody,
+  DigestPalette as P,
+  sp,
+  typography,
+} from "~/styles";
 import {
   contestSnapshot,
   createPreparationStore,
@@ -19,7 +33,11 @@ function Text({ style, ...props }: TextProps) {
   return (
     <BaseText
       {...props}
-      style={[typography.body, { color: P.inkOnNight }, style]}
+      style={[
+        typography.bodySmall,
+        { color: P.inkOnNight, fontFamily: fontBody.regular },
+        style,
+      ]}
     />
   );
 }
@@ -31,6 +49,7 @@ export function PrivatePreparation({
   lookupScope,
   contests = [],
   initiallyOpen = false,
+  onOpenBallot,
 }: {
   election?: Election;
   provider: string;
@@ -38,6 +57,7 @@ export function PrivatePreparation({
   lookupScope?: string;
   contests?: Contest[];
   initiallyOpen?: boolean;
+  onOpenBallot?: () => void;
 }) {
   const identity =
     election && lookupScope
@@ -46,10 +66,17 @@ export function PrivatePreparation({
   const [items, setItems] = useState<Preparation[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
+  const [retry, setRetry] = useState<{
+    action: () => Promise<Preparation[]>;
+    closeDraft: boolean;
+    kind: "save" | "update";
+  }>();
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [open, setOpen] = useState(initiallyOpen);
-  const [pendingDraft, setPendingDraft] = useState<Preparation>();
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [choiceOpen, setChoiceOpen] = useState(false);
   const [draft, setDraft] = useState<Preparation>();
   useEffect(() => {
     let active = true;
@@ -68,13 +95,11 @@ export function PrivatePreparation({
       setDraft((current) =>
         current && deleted(current) ? undefined : current,
       );
-      setPendingDraft((current) =>
-        current && deleted(current) ? undefined : current,
-      );
     });
     setReady(false);
+    setError(false);
+    setRetry(undefined);
     setDraft(undefined);
-    setPendingDraft(undefined);
     void store.read().then(
       (value) => {
         if (active && !changed) {
@@ -95,17 +120,19 @@ export function PrivatePreparation({
   async function commit(
     action: () => Promise<Preparation[]>,
     closeDraft = true,
+    kind: "save" | "update" = "update",
   ) {
     setBusy(true);
     try {
       setItems(await action());
       if (closeDraft) {
         setDraft(undefined);
-        setPendingDraft(undefined);
       }
       setError(false);
+      setRetry(undefined);
       setReady(true);
     } catch {
+      setRetry({ action, closeDraft, kind });
       setError(true);
     } finally {
       setBusy(false);
@@ -133,12 +160,23 @@ export function PrivatePreparation({
         opacity: disabled || busy ? 0.5 : 1,
       }}
     >
-      <Text style={[typography.body, { color: P.inkOnNight }]}>
+      <Text
+        style={[
+          typography.bodySmall,
+          { color: P.inkOnNight, fontFamily: fontBody.regular },
+        ]}
+      >
         {selected ? "✓ " : ""}
         {label}
       </Text>
     </Pressable>
   );
+  const closeEditor = () => {
+    if (busy) return;
+    setDraft(undefined);
+    setRetry(undefined);
+    setError(false);
+  };
   const current = items.filter((p) => p.election === identity);
   const stale = current.filter(
     (p) => !contests.some((c) => contestSnapshot(c) === p.snapshot),
@@ -146,191 +184,231 @@ export function PrivatePreparation({
   const selectedContest = draft
     ? contests.find((c) => contestSnapshot(c) === draft.snapshot)
     : undefined;
-  return (
-    <Card {...{ "ph-no-capture": true }} style={{ padding: sp[4], gap: sp[3] }}>
+  const status = (progress: Progress) =>
+    ({ undecided: "To read", reviewed: "Read", skipped: "Skipped" })[progress];
+  const date = (value: string) => {
+    const parsed = new Date(`${value}T12:00:00Z`);
+    return Number.isNaN(parsed.getTime())
+      ? value
+      : parsed.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+          timeZone: "UTC",
+        });
+  };
+  const record = (item: Preparation, previous = false) => (
+    <View
+      key={`${item.election}${item.snapshot}`}
+      style={{
+        borderWidth: 1,
+        borderColor: DigestHair.cardBorder,
+        borderRadius: 12,
+        padding: sp[4],
+        gap: sp[2],
+      }}
+    >
+      <Text style={typography.h3}>{item.title}</Text>
+      {item.choice && <Text>Possible choice: {item.choice}</Text>}
+      {!!item.notes && <Text>{item.notes}</Text>}
+      <Text style={{ color: P.quiet }}>
+        {item.electionName} · {date(item.electionDay)}
+      </Text>
+      {previous && <Text style={{ color: P.quiet }}>Previous ballot</Text>}
+      <View
+        style={{
+          alignSelf: "flex-start",
+          borderRadius: 6,
+          backgroundColor: P.canvas,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+        }}
+      >
+        <Text style={{ fontSize: 13, color: P.quiet }}>
+          {status(item.progress)}
+        </Text>
+      </View>
       {button(
-        open ? "Close private preparation" : "Private ballot preparation",
-        () => setOpen(!open),
+        "Delete note",
+        () => void commit(() => store.remove(item), false),
       )}
+    </View>
+  );
+  const content = (
+    <Card {...{ "ph-no-capture": true }} style={{ padding: sp[4], gap: sp[4] }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: sp[2],
+        }}
+      >
+        <Text accessibilityRole="header" style={[typography.h3, { flex: 1 }]}>
+          {draft
+            ? draft.title
+            : election
+              ? "Your ballot notes"
+              : "Your saved notes"}
+        </Text>
+        {!draft &&
+          election &&
+          button(open ? "Hide" : "Open", () => setOpen(!open))}
+      </View>
       {open && (
         <>
-          <Text style={typography.h3}>
-            {election
-              ? `${election.name} · ${election.electionDay}`
-              : "Saved private preparation"}
-          </Text>
-          <Text style={typography.body}>
-            Saved only in this app on this device. Notes and tentative choices
-            are not sent to Billion or included in sharing. Device backups may
-            include this data. Saving does not register you or cast a vote.
-          </Text>
-          <Text style={typography.bodySmall}>
-            Reminders are unavailable until verified deadlines for your election
-            and voting method are supplied.
-          </Text>
-          {ready && election && !lookupScope && (
-            <Text>
-              Saving is unavailable until this lookup is explicitly identified.
-            </Text>
-          )}
-          {ready && !election && !items.length && (
-            <Text>
-              No preparation saved on this device. When a supplied ballot
-              identifies your election, you can save races and measures there.
+          {election && (
+            <Text style={{ color: P.inkOnNight }}>
+              {election.name} · {date(election.electionDay)}
             </Text>
           )}
           {error && (
-            <Text accessibilityLiveRegion="polite" style={typography.body}>
-              Could not read or save preparation. Retry, or delete all
-              preparation if stored data is unreadable. Unsaved edits remain
-              here.
-            </Text>
-          )}
-          {error &&
-            !ready &&
-            button(
-              "Retry loading preparation",
-              () => void commit(() => store.read()),
-            )}
-          {!ready && !error && <Text>Loading private preparation…</Text>}
-          {ready && !!election && !current.length && (
-            <Text style={typography.body}>
-              Nothing saved for this election. Save a race or measure to return
-              to it later.
-            </Text>
-          )}
-          {ready &&
-            election &&
-            lookupScope &&
-            contests.map((c, index) => {
-              const snapshot = contestSnapshot(c);
-              const item = current.find((p) => p.snapshot === snapshot);
-              const title = c.referendumTitle ?? c.office ?? "Unnamed contest";
-              const duplicate =
-                contests.filter((other) => contestSnapshot(other) === snapshot)
-                  .length > 1;
-              return (
-                <View key={index}>
-                  {button(
-                    `${title} · ${item ? (item.progress === "undecided" ? "Not reviewed" : item.progress) : "Not saved"}`,
-                    () => {
-                      if (draft?.snapshot === snapshot) return;
-                      (draft && draft.snapshot !== snapshot
-                        ? setPendingDraft
-                        : setDraft)(
-                        item ?? {
-                          election: electionKey(
-                            election,
-                            provider,
-                            lookupScope,
-                          ),
-                          snapshot,
-                          title,
-                          electionName: election.name,
-                          electionDay: election.electionDay,
-                          notes: "",
-                          progress: "undecided",
-                        },
-                      );
-                    },
-                    false,
-                    duplicate,
-                  )}
-                  {duplicate && (
-                    <Text>
-                      Preparation unavailable: this contest has no unique
-                      identity.
-                    </Text>
-                  )}
-                </View>
-              );
-            })}
-          {pendingDraft && (
-            <View>
-              <Text>
-                Save your current edit before switching, or discard it.
+            <View style={{ gap: sp[2] }}>
+              <Text accessibilityLiveRegion="polite">
+                {!ready
+                  ? "Your saved notes couldn’t be opened. Try again to load them."
+                  : draft
+                    ? "We couldn’t save your changes. Your edit is still here."
+                    : "We couldn’t update your saved notes. Try again."}
               </Text>
-              {button("Keep editing", () => setPendingDraft(undefined))}
-              {button("Discard edit and switch", () => {
-                setDraft(pendingDraft);
-                setPendingDraft(undefined);
-              })}
+              {button(
+                "Retry",
+                () =>
+                  void commit(
+                    retry?.kind === "save" && draft
+                      ? () => store.save(draft)
+                      : (retry?.action ?? (() => store.read())),
+                    retry?.closeDraft ?? false,
+                    retry?.kind,
+                  ),
+                false,
+                false,
+                true,
+              )}
             </View>
           )}
-          {draft && (
-            <View style={{ gap: sp[3] }}>
-              <Text accessibilityRole="header" style={typography.h3}>
-                {draft.title}
-              </Text>
-              <Text>
-                {election
-                  ? `${election.name} · ${election.electionDay}`
-                  : "Saved private preparation"}
-              </Text>
-              <Text style={typography.bodySmall}>
-                Private on this device. Saving does not register you or cast a
-                vote.
-              </Text>
-              <Text style={typography.bodySmall}>
-                Save edits before leaving or changing elections.
-              </Text>
-              <Text>Review progress</Text>
-              <Text style={typography.bodySmall}>
-                Reviewed means you have read about this item. It does not mean
-                you have decided how to vote.
-              </Text>
-              <View
-                style={{ flexDirection: "row", flexWrap: "wrap", gap: sp[3] }}
-              >
-                {(["undecided", "reviewed", "skipped"] as Progress[]).map(
-                  (progress) => (
-                    <View key={progress}>
-                      {button(
-                        progress === "undecided" ? "Not reviewed" : progress,
-                        () => setDraft({ ...draft, progress }),
-                        draft.progress === progress,
+          {!ready && !error && <Text>Loading your notes…</Text>}
+          {draft ? (
+            <View style={{ gap: sp[4] }}>
+              <Text>Reading status</Text>
+              <View pointerEvents={busy ? "none" : "auto"}>
+                <Segmented<Progress>
+                  value={draft.progress}
+                  options={[
+                    { id: "undecided", label: "To read" },
+                    { id: "reviewed", label: "Read" },
+                    { id: "skipped", label: "Skip" },
+                  ]}
+                  onChange={(progress) => {
+                    if (!busy) setDraft({ ...draft, progress });
+                  }}
+                />
+              </View>
+              {!selectedContest?.referendumTitle && (
+                <View>
+                  {button(
+                    `${choiceOpen ? "Possible choice (optional)" : draft.choice ? `Possible choice: ${draft.choice}` : "Add a possible choice (optional)"} ${choiceOpen ? "−" : "+"}`,
+                    () => setChoiceOpen(!choiceOpen),
+                  )}
+                  {choiceOpen && (
+                    <View style={{ gap: sp[2] }}>
+                      {selectedContest?.referendumTitle ? (
+                        <Text>
+                          Write your possible measure choice in notes. Marking
+                          options haven’t been supplied for this measure.
+                        </Text>
+                      ) : (
+                        [
+                          undefined,
+                          ...(selectedContest?.candidates ?? []).map(
+                            (candidate) => candidate.name,
+                          ),
+                        ].map((name, index) => {
+                          const candidates = selectedContest?.candidates ?? [];
+                          const withdrawn =
+                            name !== undefined &&
+                            candidates[index - 1]?.ballotStatus ===
+                              "withdrewStillOnBallot";
+                          const disabled =
+                            busy ||
+                            withdrawn ||
+                            (name !== undefined &&
+                              candidates.filter(
+                                (candidate) => candidate.name === name,
+                              ).length > 1);
+                          const selected = draft.choice === name;
+                          return (
+                            <Pressable
+                              key={index}
+                              accessibilityRole="radio"
+                              aria-checked={selected}
+                              accessibilityState={{
+                                checked: selected,
+                                disabled,
+                              }}
+                              disabled={disabled}
+                              onPress={() =>
+                                setDraft({ ...draft, choice: name })
+                              }
+                              style={{
+                                minHeight: 48,
+                                padding: 12,
+                                borderWidth: 1,
+                                borderColor: selected
+                                  ? P.primary
+                                  : DigestHair.cardBorder,
+                                borderRadius: 10,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 12,
+                                opacity: disabled ? 0.5 : 1,
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: 10,
+                                  borderWidth: 2,
+                                  borderColor: selected
+                                    ? P.primary
+                                    : P.inkOnNight,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                {selected && (
+                                  <View
+                                    style={{
+                                      width: 10,
+                                      height: 10,
+                                      borderRadius: 5,
+                                      backgroundColor: P.primary,
+                                    }}
+                                  />
+                                )}
+                              </View>
+                              <Text style={{ flex: 1 }}>
+                                {name ?? "No choice yet"}
+                                {withdrawn ? " · Withdrawn" : ""}
+                              </Text>
+                            </Pressable>
+                          );
+                        })
                       )}
                     </View>
-                  ),
-                )}
-              </View>
-              <Text>Tentative choice (optional)</Text>
-              {button(
-                "No tentative choice",
-                () => setDraft({ ...draft, choice: undefined }),
-                !draft.choice,
+                  )}
+                </View>
               )}
-              {(selectedContest?.referendumTitle
-                ? []
-                : (selectedContest?.candidates ?? []).map((c) => c.name)
-              ).map((name, index) => {
-                const candidates = selectedContest?.candidates ?? [];
-                const withdrawn =
-                  candidates[index]?.ballotStatus === "withdrewStillOnBallot";
-                const ambiguous =
-                  !selectedContest?.referendumTitle &&
-                  candidates.filter((c) => c.name === name).length > 1;
-                return (
-                  <View key={index}>
-                    {button(
-                      `${name}${withdrawn ? " · Withdrawn, still listed" : ""}`,
-                      () => setDraft({ ...draft, choice: name }),
-                      draft.choice === name,
-                      withdrawn || ambiguous,
-                    )}
-                  </View>
-                );
-              })}
+              <Text>Notes</Text>
               {selectedContest?.referendumTitle && (
-                <Text>
-                  Use private notes for your tentative measure choice. Verified
-                  marking options are not supplied.
-                </Text>
+                <Text>You can write your possible measure choice here.</Text>
               )}
-              <Text>Private notes</Text>
               <TextInput
                 {...{ "ph-no-capture": true }}
                 accessibilityLabel="Private notes"
+                placeholder="What do you want to remember?"
+                placeholderTextColor={P.inkOnNight}
                 multiline
                 editable={!busy}
                 maxLength={1000}
@@ -341,80 +419,236 @@ export function PrivatePreparation({
                   fontFamily: fontBody.regular,
                   fontSize: 16,
                   padding: 12,
-                  minHeight: 100,
+                  minHeight: 120,
                   borderWidth: 1,
-                  borderColor: P.spark,
+                  borderColor: DigestHair.cardBorder,
+                  borderRadius: 10,
                 }}
               />
               {button(
-                busy ? "Saving…" : "Save preparation on this device",
-                () => void commit(() => store.save(draft)),
+                busy ? "Saving…" : "Save",
+                () => void commit(() => store.save(draft), true, "save"),
                 false,
                 !selectedContest,
                 true,
               )}
-              {button("Cancel edit", () => setDraft(undefined))}
-              {button(
-                "Delete this item",
-                () => void commit(() => store.remove(draft)),
-              )}
-            </View>
-          )}
-          {!!stale.length && (
-            <Text style={typography.body}>
-              The roster or contest changed. {stale.length} saved item(s) need
-              fresh review; old choices have not been applied.
-            </Text>
-          )}
-          {stale.map((item, index) => (
-            <View key={index}>
-              <Text>{item.title} · Previous snapshot</Text>
-              <Text>{item.notes}</Text>
-              <Text>Previous tentative choice: {item.choice ?? "None"}</Text>
-              {button(
-                "Delete previous preparation",
-                () => void commit(() => store.remove(item), false),
-              )}
-            </View>
-          ))}
-          {items
-            .filter((item) => item.election !== identity)
-            .map((item, index) => (
-              <View key={index}>
-                <Text accessibilityRole="header">
-                  {item.electionName} · {item.electionDay}
-                </Text>
-                <Text>
-                  {item.title} ·{" "}
-                  {item.progress === "undecided"
-                    ? "Not reviewed"
-                    : item.progress}{" "}
-                  · Saved election
-                </Text>
-                <Text>{item.notes}</Text>
-                <Text>Saved tentative choice: {item.choice ?? "None"}</Text>
-                {button(
-                  "Delete saved item",
-                  () => void commit(() => store.remove(item), false),
+              {button("Cancel", closeEditor)}
+              {current.some((item) => item.snapshot === draft.snapshot) &&
+                button(
+                  "Delete this note",
+                  () => void commit(() => store.remove(draft)),
                 )}
-              </View>
-            ))}
-          {(items.length > 0 || error) &&
-            button(
-              confirmDelete
-                ? "Confirm: delete notes and choices for every election"
-                : "Delete all preparation on this device",
-              () => {
-                if (confirmDelete) {
-                  void commit(() => store.clear());
-                  setConfirmDelete(false);
-                } else setConfirmDelete(true);
-              },
+            </View>
+          ) : (
+            <>
+              {ready && election && !lookupScope && (
+                <Text>
+                  Notes are unavailable for this ballot. We need enough
+                  information to match them to the right election and ballot.
+                </Text>
+              )}
+              {ready && election && lookupScope && (
+                <>
+                  <Text>
+                    {!contests.length
+                      ? "No races or measures are available for this ballot yet. Check the ballot’s source or try the lookup again."
+                      : current.length
+                        ? "Pick an item to review or update your notes."
+                        : "Choose a race or measure to add notes."}
+                  </Text>
+                  {[...contests]
+                    .sort(
+                      (a, b) =>
+                        Number(
+                          current.some(
+                            (item) => item.snapshot === contestSnapshot(b),
+                          ),
+                        ) -
+                        Number(
+                          current.some(
+                            (item) => item.snapshot === contestSnapshot(a),
+                          ),
+                        ),
+                    )
+                    .map((contest, index) => {
+                      const snapshot = contestSnapshot(contest);
+                      const item = current.find(
+                        (entry) => entry.snapshot === snapshot,
+                      );
+                      const duplicate =
+                        contests.filter(
+                          (other) => contestSnapshot(other) === snapshot,
+                        ).length > 1;
+                      const title =
+                        contest.referendumTitle ??
+                        contest.office ??
+                        "Unnamed contest";
+                      return (
+                        <Pressable
+                          key={index}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${title}, ${item ? status(item.progress) : "Add notes"}`}
+                          disabled={duplicate || busy}
+                          onPress={() => {
+                            setChoiceOpen(false);
+                            setRetry(undefined);
+                            setError(false);
+                            setDraft(
+                              item ?? {
+                                election: electionKey(
+                                  election,
+                                  provider,
+                                  lookupScope,
+                                ),
+                                snapshot,
+                                title,
+                                electionName: election.name,
+                                electionDay: election.electionDay,
+                                notes: "",
+                                progress: "undecided",
+                              },
+                            );
+                          }}
+                          style={{
+                            borderWidth: 1,
+                            borderColor: DigestHair.cardBorder,
+                            borderRadius: 12,
+                            padding: sp[4],
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: sp[3],
+                            opacity: duplicate ? 0.5 : 1,
+                          }}
+                        >
+                          <View style={{ flex: 1, gap: sp[2] }}>
+                            <Text style={typography.body}>{title}</Text>
+                            {item ? (
+                              <View
+                                style={{
+                                  alignSelf: "flex-start",
+                                  borderRadius: 6,
+                                  backgroundColor: P.canvas,
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 4,
+                                }}
+                              >
+                                <Text style={{ fontSize: 13, color: P.quiet }}>
+                                  {status(item.progress)}
+                                </Text>
+                              </View>
+                            ) : (
+                              <Text style={{ color: P.quiet }}>
+                                {duplicate
+                                  ? "Notes unavailable for this item"
+                                  : "Add notes"}
+                              </Text>
+                            )}
+                            {item?.choice && (
+                              <Text>Possible choice: {item.choice}</Text>
+                            )}
+                          </View>
+                          <Text style={{ fontSize: 24 }}>›</Text>
+                        </Pressable>
+                      );
+                    })}
+                </>
+              )}
+              {ready && !election && !items.length && (
+                <View style={{ gap: sp[2], paddingVertical: sp[4] }}>
+                  <Text style={typography.h3}>A place to remember</Text>
+                  <Text>
+                    Open your ballot and choose a race or measure to save your
+                    first note.
+                  </Text>
+                  {onOpenBallot &&
+                    button("Open my ballot", onOpenBallot, false, false, true)}
+                </View>
+              )}
+              {!!stale.length && (
+                <>
+                  <Text>
+                    Ballot changed. Previous choices weren’t applied to this
+                    ballot.
+                  </Text>
+                  {stale.map((item) => record(item, true))}
+                </>
+              )}
+              {!election && items.map((item) => record(item))}
+            </>
+          )}
+          <View
+            style={{
+              borderTopWidth: 1,
+              borderTopColor: DigestHair.cardBorder,
+              paddingTop: sp[3],
+              gap: sp[1],
+            }}
+          >
+            <Text style={{ color: P.inkOnNight }}>
+              Private on this device · Does not cast a vote
+            </Text>
+            {button(`Privacy details ${privacyOpen ? "−" : "+"}`, () =>
+              setPrivacyOpen(!privacyOpen),
             )}
-          {confirmDelete &&
-            button("Keep preparation", () => setConfirmDelete(false))}
+            {privacyOpen && (
+              <Text>
+                Notes and possible choices stay in this app on this device. They
+                aren’t sent to Billion, captured in analytics, or included in
+                sharing. The app doesn’t encrypt these notes; device backups may
+                include them. Saving doesn’t register you or cast a vote.
+                Reminders aren’t available until verified deadlines for your
+                election and voting method are supplied.
+              </Text>
+            )}
+            {!draft && (items.length > 0 || error) && (
+              <>
+                {button(`Manage saved notes ${manageOpen ? "−" : "+"}`, () =>
+                  setManageOpen(!manageOpen),
+                )}
+                {manageOpen && (
+                  <>
+                    <Text>
+                      Delete every saved note and possible choice on this
+                      device, across all elections. This can also clear
+                      unreadable stored data.
+                    </Text>
+                    {button(
+                      confirmDelete
+                        ? "Confirm: delete all saved notes"
+                        : "Delete all saved notes",
+                      () => {
+                        if (confirmDelete) {
+                          void commit(() => store.clear());
+                          setConfirmDelete(false);
+                        } else setConfirmDelete(true);
+                      },
+                    )}
+                    {confirmDelete &&
+                      button("Keep my notes", () => setConfirmDelete(false))}
+                  </>
+                )}
+              </>
+            )}
+          </View>
         </>
       )}
     </Card>
+  );
+  return draft ? (
+    <Modal visible animationType="slide" onRequestClose={closeEditor}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: P.canvas }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ padding: sp[4], paddingBottom: sp[6] }}
+        >
+          <Text style={{ marginBottom: sp[3], color: P.quiet }}>
+            Your ballot notes
+          </Text>
+          {content}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  ) : (
+    content
   );
 }

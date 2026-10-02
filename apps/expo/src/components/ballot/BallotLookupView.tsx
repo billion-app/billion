@@ -226,7 +226,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           onPress={() => router.push("/ballot-preparation")}
           style={{ paddingVertical: 12, minHeight: 44 }}
         >
-          <Text style={s.body}>Saved private preparation</Text>
+          <Text style={s.body}>Saved ballot notes</Text>
         </Pressable>
         {mismatch && (
           <Card style={s.card}>

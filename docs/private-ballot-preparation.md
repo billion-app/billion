@@ -46,9 +46,10 @@ candidates and ambiguous duplicate names cannot be selected. Indistinguishable
 same-named candidates remain a provider identity gate, rather than a claim that
 these snapshots replace durable IDs.
 
-Explicitly save edits before leaving the screen or changing elections. Switching
-items inside the editor offers a keep-editing/discard boundary; notes cannot be
-edited during a pending save. The production navigation owner must validate the
+Explicitly save edits before leaving the screen or changing elections. The focused
+editor offers Save and Cancel; Cancel or system Back abandons unsaved edits and
+invalidates that editor’s failed-operation retry. Notes cannot be edited or
+dismissed during a pending write. The production navigation owner must validate the
 leaving/changed-election flow as part of #418 integration.
 
 ## Reminder gate and verification
@@ -77,3 +78,7 @@ replacement. [The controlled fixture](../apps/expo/src/components/preparation/Pr
 is not an app route. [Screenshot evidence](evidence/427/README.md) comes from its
 actual Expo web rendering. Production native flow, Dynamic Type, VoiceOver,
 real-reader comprehension and reminder delivery remain unverified gates.
+
+## Notes interface
+
+The ballot panel leads with race and measure rows, showing saved reading status and an explicitly labeled possible choice. Selecting one opens a focused sheet at its top; reading status, optional candidate choice, notes, and Save stay together. Measures use notes because verified marking options are not supplied. Privacy facts remain in a disclosure below a compact local/no-vote summary. The device archive leads with saved content and offers an Open my ballot action when empty. Failed operations retain data and edits; Retry repeats the failed operation (saving the current edit), while clearing unreadable data requires an explicit confirmation in Manage saved notes.

@@ -24,7 +24,11 @@ export default function BallotPreparationRoute() {
           paddingBottom: insets.bottom + sp[6],
         }}
       >
-        <PrivatePreparation provider="archive" initiallyOpen />
+        <PrivatePreparation
+          provider="archive"
+          initiallyOpen
+          onOpenBallot={() => router.push("/ballot")}
+        />
       </ScrollView>
     </View>
   );
