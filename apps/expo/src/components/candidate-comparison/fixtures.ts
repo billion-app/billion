@@ -19,6 +19,12 @@ export function comparisonFixture(scenario: string): RaceComparison {
     office: "Example City Council",
     election: "Fictional election · November 2028",
     fixture: true,
+    questions: {
+      priorities: "Where would they put city funds?",
+      record: "What does the documented record show?",
+      effects: "How could their plans work?",
+      questionnaire: "What did they say in the questionnaire?",
+    },
     sources: [
       {
         id: "rivera",
@@ -57,10 +63,9 @@ export function comparisonFixture(scenario: string): RaceComparison {
                 status: "available",
                 claims: [
                   {
-                    text:
-                      index === 0
-                        ? "Rivera proposes more frequent buses, using city funds."
-                        : "Chen proposes prioritizing street repairs, using city funds.",
+                    headline:
+                      index === 0 ? "More frequent buses" : "Street repairs",
+                    text: "Would seek council approval to use city funds.",
                     attribution: "Candidate statement",
                     sourceIds: [index === 0 ? "rivera" : "chen"],
                   },
@@ -73,7 +78,8 @@ export function comparisonFixture(scenario: string): RaceComparison {
                 status: "available",
                 claims: [
                   {
-                    text: "Rivera voted for a bus-service budget increase.",
+                    headline: "Voted to increase the bus-service budget",
+                    text: "Supported a city bus-service budget increase.",
                     attribution: "Documented record",
                     sourceIds: ["minutes"],
                   },

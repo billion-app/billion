@@ -58,3 +58,10 @@ test("missing cells remain evidence gaps rather than questionnaire non-response"
     "unavailable-analysis",
   );
 });
+test("a comparison needs an explicit shared question for every topic", () => {
+  const race = comparisonFixture("multi");
+  race.questions.priorities = " ";
+  assert.ok(validateComparison(race).includes("Shared question missing"));
+  Reflect.deleteProperty(race.questions, "record");
+  assert.ok(validateComparison(race).includes("Shared question missing"));
+});

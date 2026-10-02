@@ -7,7 +7,7 @@ export type ComparisonTopic =
 export const comparisonTopics: { id: ComparisonTopic; label: string }[] = [
   { id: "priorities", label: "Priorities" },
   { id: "record", label: "Record" },
-  { id: "effects", label: "Mechanisms & tradeoffs" },
+  { id: "effects", label: "How plans could work" },
   { id: "questionnaire", label: "Questionnaire" },
 ];
 export interface ComparisonSource {
@@ -18,6 +18,8 @@ export interface ComparisonSource {
   fixtureText?: string;
 }
 export interface ComparisonClaim {
+  /** Optional reviewed short answer, supported by the same source references. */
+  headline?: string;
   text: string;
   attribution:
     | "Candidate statement"
@@ -46,16 +48,14 @@ export interface RaceComparison {
   office: string;
   election: string;
   fixture: boolean;
+  questions: Record<ComparisonTopic, string>;
   candidates: ComparisonCandidate[];
   sources: ComparisonSource[];
 }
 export const gapCopy = {
-  "missing-evidence":
-    "Evidence missing for this topic. This does not establish the candidate’s position or record.",
-  "unavailable-analysis":
-    "Reviewed analysis unavailable. No conclusion about this candidate can be drawn here.",
-  "unanswered-questionnaire":
-    "Questionnaire unanswered. This is separate from other evidence and does not establish a position.",
+  "missing-evidence": "No evidence available",
+  "unavailable-analysis": "Reviewed analysis unavailable",
+  "unanswered-questionnaire": "No questionnaire response",
 } as const;
 
 function safeUrl(value?: string) {
@@ -71,6 +71,13 @@ export function validateComparison(race: RaceComparison): string[] {
   const errors: string[] = [];
   if (!race.raceId.trim() || !race.office.trim() || !race.election.trim())
     errors.push("Race identity missing");
+  for (const topic of comparisonTopics) {
+    const question = (
+      race.questions as Partial<Record<ComparisonTopic, string>> | undefined
+    )?.[topic.id];
+    if (typeof question !== "string" || !question.trim())
+      errors.push("Shared question missing");
+  }
   const ids = new Set<string>();
   const sources = new Map<string, ComparisonSource>();
   for (const source of race.sources) {
@@ -98,6 +105,8 @@ export function validateComparison(race: RaceComparison): string[] {
       if (cell?.status !== "available") continue;
       if (!cell.claims.length) errors.push("Available topic has no claims");
       for (const claim of cell.claims) {
+        if (claim.headline !== undefined && !claim.headline.trim())
+          errors.push("Claim headline empty");
         if (
           !claim.text.trim() ||
           !claim.sourceIds.length ||

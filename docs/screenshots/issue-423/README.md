@@ -2,17 +2,22 @@
 
 Captured October 2, 2026 from the actual Expo web application at a 390 × 844 viewport. All candidates, elections, statements and records are synthetic; no live ballot, generation or database write was used. The browser session has a local completed-onboarding fixture.
 
-- `multi.png`: initial three-candidate screen and the topic control.
+- `multi.png`: initial three-candidate screen, shared question and both sourced priorities.
 - `multi-cards.png`: candidate rows, distinct priorities and withdrawn status.
-- `source-open.png`: attributed claim and inspectable, explicitly labeled fictional source excerpt.
+- `source-open.png`: attributed claim and inspectable, explicitly labeled fictional source excerpt with its name and locator.
 - `two-source.png`: two-candidate race with an opened source.
 - `sparse.png`: missing evidence, including a withdrawn candidate.
 - `analysis-unavailable.png`: reviewed analysis explicitly unavailable, without substituting promises for effects.
 - `questionnaire.png`: explicit questionnaire non-response, separate from evidence gaps.
 - `long-roster.png`: end of the eight-candidate roster; all eight identities are also checked in model tests and the browser accessibility tree.
-- `browser-200-percent.png`: actual browser CSS zoom at 200%, showing topic labels reflowing to one column. This does **not** verify native Dynamic Type or a screen reader.
+- `browser-200-percent.png`: actual browser CSS zoom at 200%, showing section labels reflowing to one column. This does **not** verify native Dynamic Type or a screen reader.
+- `mixed-record.png`: one sourced budget vote alongside compact missing-evidence cards.
+- `section-recovery.png`: empty-state action opens section choices where the reader is.
+- `about.png`: publication and evidence explanations revealed on request.
 - `production-gate.png`: production web export served locally; the route renders only its unpublished notice, without fictional claims or controls.
 
-Independent Astra review identified crowded topics, excessive introductory copy, unclear source excerpt hierarchy and dim links. Those were fixed. Its re-review identified overlap at 200% zoom; opt-in wrapping in the existing segmented control fixed it. Final re-review found no remaining actionable defect within the prototype scope and confirmed comprehension of the sourced priority difference and evidence gaps.
+The initial independent Astra review resolved overflow and basic comprehension defects. A fresh, screenshot-first Astra design review then found the answer buried beneath process copy, weak comparison hierarchy, repeated empty-state caveats, jargon and visually dominant source links. The same fresh reviewer assessed each subsequent iteration. Its second review found the surface readable but not yet compelling. The third found it a compelling, polished presentation it would willingly read: the shared question and sourced answer headlines lead, provenance is quieter, and empty-state recovery is directly available.
+
+The final code pass also caught a missing-question exception and an overbroad budget-vote headline. Both were fixed, the five focused tests passed, and the same reviewer verified the fixes and refreshed screenshots. This verdict covers the narrow synthetic web surface. It does not establish performance with complex real evidence or satisfy the release gates below. The PR screenshot comment pins the reviewed commit and build/data labels.
 
 Editorial approval, reviewed live evidence through tRPC, native Dynamic Type/VoiceOver/TalkBack, human comprehension testing, and the production mobile ballot flow remain publication gates. Browser screenshots and automated review do not substitute for them.
