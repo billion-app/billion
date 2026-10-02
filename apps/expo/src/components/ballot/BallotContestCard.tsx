@@ -39,7 +39,8 @@ export function BallotContestCard({
     ?.map((source) => source.name)
     .filter(Boolean)
     .join(", ");
-  const sourceLabel = (sourceNames?.length ?? 0) > 0 ? sourceNames : "unavailable";
+  const sourceLabel =
+    (sourceNames?.length ?? 0) > 0 ? sourceNames : "unavailable";
   return (
     <Pressable
       accessibilityRole="button"
@@ -48,7 +49,7 @@ export function BallotContestCard({
         electionDate
           ? ballotElectionDate(electionDate)
           : "Election date unavailable",
-        contest.district?.name ? contest.district.name : "District unavailable",
+        contest.district?.name ?? "District unavailable",
         electionStage?.trim()
           ? electionStage.trim()
           : "Election stage unavailable",
