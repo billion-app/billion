@@ -54,7 +54,7 @@ export function CandidateIndependentBrief({
           </Text>
           <Text
             style={{
-              color: P.quiet,
+              color: P.inkOnNight,
               fontFamily: fontBody.regular,
               fontSize: 13,
               lineHeight: 20,
@@ -66,7 +66,7 @@ export function CandidateIndependentBrief({
         </Card>
       ) : (
         <>
-          <Text style={{ color: P.quiet }}>
+          <Text style={{ color: P.inkOnNight }}>
             {brief.authorship.kind === "generated"
               ? "AI-assisted Billion explanation · "
               : "Billion explanation · "}
@@ -92,7 +92,10 @@ export function CandidateIndependentBrief({
               {section.claims.map((claim) => (
                 <View key={claim.id} style={{ gap: sp[2] }}>
                   <Text
-                    style={{ color: P.quiet, fontFamily: fontBody.semibold }}
+                    style={{
+                      color: P.inkOnNight,
+                      fontFamily: fontBody.semibold,
+                    }}
                   >
                     {kinds[claim.kind]}
                   </Text>
@@ -122,7 +125,7 @@ export function CandidateIndependentBrief({
               {section.missingEvidence ? (
                 <Text
                   style={{
-                    color: P.quiet,
+                    color: P.inkOnNight,
                     fontFamily: fontBody.regular,
                     fontSize: 14,
                     lineHeight: 22,

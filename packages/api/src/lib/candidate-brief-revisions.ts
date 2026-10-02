@@ -54,9 +54,11 @@ export async function recordCandidateBriefReview(input: {
     .where(eq(CandidateBriefRevision.id, input.revisionId));
   if (!revision) throw new Error("Unknown revision");
   const brief = candidateBriefSchema.parse(revision.document);
-  if (input.action === "approve" && input.actorId === brief.authorId)
+  if (input.action === "approve" && input.actorId.trim() === brief.authorId)
     throw new Error("Author cannot approve their own revision");
   const id = randomUUID();
-  await db.insert(CandidateBriefReviewEvent).values({ ...input, id });
+  await db
+    .insert(CandidateBriefReviewEvent)
+    .values({ ...input, actorId: input.actorId.trim(), id });
   return { eventId: id, revisionDigest: revision.revisionDigest };
 }

@@ -11,6 +11,12 @@ export function briefIdentityKey(identity: CandidateBriefIdentity): string {
     identity.candidateId,
   ]);
 }
+export function evidenceHashKey(
+  identity: CandidateBriefIdentity,
+  evidenceId: string,
+): string {
+  return JSON.stringify([briefIdentityKey(identity), evidenceId]);
+}
 export function briefDigest(value: unknown): string {
   // Validated schema fixes object-key order; the approval binds every claim and source.
   return createHash("sha256")
@@ -19,7 +25,13 @@ export function briefDigest(value: unknown): string {
 }
 export interface PublicationContext {
   policy: { approved: boolean; version: string };
-  roster: { verified: boolean; candidateIds: string[] };
+  roster: {
+    verified: boolean;
+    candidateIds: string[];
+    contestId: string;
+    electionDate: string;
+    jurisdiction: string;
+  };
   reviews: {
     candidateId: string;
     revisionDigest: string;
@@ -51,6 +63,9 @@ export function publishableRace(
   if (
     !first ||
     !context.roster.verified ||
+    context.roster.contestId !== first.identity.contestId ||
+    context.roster.electionDate !== first.identity.electionDate ||
+    context.roster.jurisdiction !== first.identity.jurisdiction ||
     keys.size !== briefs.length ||
     new Set(context.roster.candidateIds).size !==
       context.roster.candidateIds.length ||
@@ -70,7 +85,8 @@ export function publishableRace(
     if (
       brief.evidence.some(
         (e) =>
-          context.currentHashes[e.id] !== e.contentHash ||
+          context.currentHashes[evidenceHashKey(brief.identity, e.id)] !==
+            e.contentHash ||
           Date.parse(e.retrievedAt) > Date.parse(context.now),
       )
     )
@@ -82,8 +98,8 @@ export function publishableRace(
         r.policyVersion === context.policy.version,
     );
     if (
-      !review ||
-      review.reviewerId === brief.authorId ||
+      !review?.reviewerId.trim() ||
+      review.reviewerId.trim() === brief.authorId ||
       !Number.isFinite(Date.parse(review.reviewedAt)) ||
       Date.parse(review.reviewedAt) < Date.parse(brief.createdAt) ||
       Date.parse(review.reviewedAt) > Date.parse(context.now)

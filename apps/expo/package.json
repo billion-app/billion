@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@acme/ui": "workspace:*",
+    "@acme/validators": "workspace:*",
     "@better-auth/expo": "catalog:",
     "@expo-google-fonts/albert-sans": "^0.4.2",
     "@expo-google-fonts/ibm-plex-serif": "^0.4.1",
@@ -72,8 +73,7 @@
     "react-native-web": "~0.21.2",
     "react-native-worklets": "0.10.1",
     "superjson": "2.2.6",
-    "use-latest-callback": "^0.3.4",
-    "@acme/validators": "workspace:*"
+    "use-latest-callback": "^0.3.4"
   },
   "devDependencies": {
     "@acme/api": "workspace:*",

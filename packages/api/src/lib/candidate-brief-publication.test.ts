@@ -7,6 +7,7 @@ import type { PublicationContext } from "./candidate-brief-publication";
 import {
   briefDigest,
   briefIdentityKey,
+  evidenceHashKey,
   publishableRace,
 } from "./candidate-brief-publication";
 
@@ -78,7 +79,13 @@ const briefs = [fixture(), fixture("challenger")];
 function context(): PublicationContext {
   return {
     policy: { approved: true, version: "proposal-v1" },
-    roster: { verified: true, candidateIds: ["incumbent", "challenger"] },
+    roster: {
+      verified: true,
+      candidateIds: ["incumbent", "challenger"],
+      contestId: "fixture-race",
+      electionDate: "2026-11-03",
+      jurisdiction: "fixture:ca",
+    },
     reviews: briefs.map((b) => ({
       candidateId: b.identity.candidateId,
       revisionDigest: briefDigest(b),
@@ -86,7 +93,9 @@ function context(): PublicationContext {
       reviewedAt: "2026-10-02T00:00:00Z",
       policyVersion: "proposal-v1",
     })),
-    currentHashes: { record: "a".repeat(64) },
+    currentHashes: {
+      [evidenceHashKey(required(briefs[0]).identity, "record")]: "a".repeat(64),
+    },
     withdrawnRevisionIds: [],
     now: "2026-10-02T12:00:00Z",
   };
@@ -103,9 +112,11 @@ void test("policy, source refresh and withdrawal fail closed", () => {
   c.policy.approved = false;
   assert.equal(publishableRace(briefs, c).status, "policy_pending");
   c.policy.approved = true;
-  c.currentHashes.record = "b".repeat(64);
+  c.currentHashes[evidenceHashKey(required(briefs[0]).identity, "record")] =
+    "b".repeat(64);
   assert.equal(publishableRace(briefs, c).status, "stale");
-  c.currentHashes.record = "a".repeat(64);
+  c.currentHashes[evidenceHashKey(required(briefs[0]).identity, "record")] =
+    "a".repeat(64);
   c.withdrawnRevisionIds = [required(briefs[0]).revisionId];
   assert.equal(publishableRace(briefs, c).status, "withdrawn");
 });
@@ -147,4 +158,32 @@ void test("correction identifies prior revision; old approval does not approve s
   b.revisionId = "00000000-0000-4000-8000-000000000003";
   assert.equal(candidateBriefSchema.safeParse(b).success, true);
   assert.equal(publishableRace(corrected, context()).status, "review_pending");
+});
+
+void test("verified roster must belong to the same race, election and jurisdiction", () => {
+  for (const field of ["contestId", "electionDate", "jurisdiction"] as const) {
+    const c = context();
+    c.roster[field] = "unrelated";
+    assert.equal(publishableRace(briefs, c).status, "incomplete_race");
+  }
+});
+
+void test("empty and whitespace-padded self-review cannot approve", () => {
+  for (const reviewerId of ["", "   ", " writer "]) {
+    const c = context();
+    required(c.reviews[0]).reviewerId = reviewerId;
+    assert.equal(publishableRace(briefs, c).status, "review_pending");
+  }
+});
+
+void test("same local evidence ID across candidates retains separate current hashes", () => {
+  const race = structuredClone(briefs);
+  const second = required(race[1]);
+  second.evidence = [
+    { ...required(required(race[0]).evidence[0]), contentHash: "b".repeat(64) },
+  ];
+  const c = context();
+  c.currentHashes[evidenceHashKey(second.identity, "record")] = "b".repeat(64);
+  required(c.reviews[1]).revisionDigest = briefDigest(second);
+  assert.equal(publishableRace(race, c).status, "published");
 });
