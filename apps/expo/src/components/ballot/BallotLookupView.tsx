@@ -97,7 +97,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const [ballotOffset, setBallotOffset] = useState(0);
   useFocusEffect(
     useCallback(() => {
-      if (!votingExpanded) return;
+      if (!votingExpanded || Platform.OS === "web") return;
       const subscription = BackHandler.addEventListener(
         "hardwareBackPress",
         () => {
