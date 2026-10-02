@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { webUrl } from "~/components/ballot-evidence/model";
+import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
 import {
@@ -176,6 +177,14 @@ export default function CandidateDetailScreen() {
                 </Text>
               </View>
             </View>
+
+            <OfficeRole
+              office={guide?.officeName ?? params.office}
+              state={guide ? "CA" : params.state}
+              districtId={
+                guide ? "ocd-division/country:us/state:ca" : params.districtId
+              }
+            />
 
             <View style={s.section}>
               <Text accessibilityRole="header" style={s.sectionTitle}>
