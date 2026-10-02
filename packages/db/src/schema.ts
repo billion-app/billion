@@ -12,7 +12,11 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-import type { BillBriefRecord, CourtBriefRecord } from "@acme/validators";
+import type {
+  BillBriefRecord,
+  CandidateBrief,
+  CourtBriefRecord,
+} from "@acme/validators";
 
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
@@ -1336,3 +1340,31 @@ export const BriefChangeImage = pgTable(
 );
 
 export * from "./auth-schema";
+
+/** Append-only editorial revisions; identity does not depend on normalized ballots. */
+export const CandidateBriefRevision = pgTable(
+  "candidate_brief_revision",
+  (t) => ({
+    id: t.uuid().primaryKey(),
+    identityKey: t.text().notNull(),
+    revisionDigest: t.text().notNull().unique(),
+    document: t.jsonb().$type<CandidateBrief>().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+);
+/** Append-only review/withdrawal audit events. No public mutation procedure. */
+export const CandidateBriefReviewEvent = pgTable(
+  "candidate_brief_review_event",
+  (t) => ({
+    id: t.uuid().primaryKey().defaultRandom(),
+    revisionId: t
+      .uuid()
+      .notNull()
+      .references(() => CandidateBriefRevision.id),
+    actorId: t.text().notNull(),
+    action: t.text().notNull(),
+    policyVersion: t.text().notNull(),
+    reason: t.text().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+);

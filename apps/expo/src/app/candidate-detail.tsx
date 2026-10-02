@@ -11,6 +11,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
+import { CandidateIndependentBrief } from "~/components/ballot-evidence/CandidateBrief";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
@@ -18,7 +19,6 @@ import {
   fontBody,
   fontDisplay,
   fontEditorial,
-  hair,
   DigestPalette as P,
   planes,
 } from "~/styles";
@@ -228,9 +228,11 @@ export default function CandidateDetailScreen() {
                 What they say
               </Text>
               <Text style={s.sectionIntro}>
-                {usingGuideStatement
-                  ? "This statement was supplied by the candidate. California does not check these claims for accuracy."
-                  : "This statement was supplied by a ballot provider. Its claims have not been independently checked by Billion."}
+                {!candidate.statement
+                  ? "Billion has no statement for this candidate."
+                  : usingGuideStatement
+                    ? "This statement was supplied by the candidate. California does not check these claims for accuracy."
+                    : "This statement was supplied by a ballot provider. Its claims have not been independently checked by Billion."}
               </Text>
               {candidate.statement ? (
                 <Card style={s.panel}>
@@ -287,13 +289,7 @@ export default function CandidateDetailScreen() {
               )}
             </View>
 
-            <View style={s.analysisNote}>
-              <Icon name="info" size={17} color={P.quiet} />
-              <Text style={s.analysisText}>
-                Billion has not independently reviewed this candidate's record
-                or statement claims.
-              </Text>
-            </View>
+            <CandidateIndependentBrief />
 
             <View style={s.footer}>
               <Text accessibilityRole="header" style={s.footerTitle}>
@@ -402,23 +398,6 @@ const s = StyleSheet.create({
     lineHeight: 18,
   },
   rowText: { flex: 1, flexShrink: 1 },
-  analysisNote: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    padding: 13,
-    backgroundColor: planes.slate,
-    borderColor: hair[2],
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-  },
-  analysisText: {
-    flex: 1,
-    color: P.inkOnNight,
-    fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-  },
   section: { gap: 10, paddingTop: 8 },
   sectionTitle: {
     color: P.inkOnNight,

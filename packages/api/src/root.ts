@@ -1,4 +1,5 @@
 import { authRouter } from "./router/auth";
+import { candidateBriefsRouter } from "./router/candidate-briefs";
 import { civicRouter } from "./router/civic";
 import { contentRouter } from "./router/content";
 import { feedbackRouter } from "./router/feedback";
@@ -14,6 +15,7 @@ import { createCallerFactory, createTRPCRouter } from "./trpc";
 export const appRouter = createTRPCRouter({
   auth: authRouter,
   civic: civicRouter,
+  candidateBriefs: candidateBriefsRouter,
   legistar: legistarRouter,
   openStates: openStatesRouter,
   places: placesRouter,
