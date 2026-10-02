@@ -7,6 +7,7 @@ Captured October 2, 2026 from the running Expo development web route `/accountab
 - [Synthetic sponsorship and institutional limits](429-synthetic-bottom.png)
 - [Missing results](429-missing.png)
 - [Missing holder and withheld actions](429-missing-bottom.png)
+- [Expanded test controls and selected-label contrast](429-scenario-controls.png)
 - [150% web text stress](429-large-text-web.png)
 
-No live results, notifications, provider requests or ingestion ran for this prototype. Native running UI, production-flow checks, editorial approval and real-reader comprehension remain publication gates.
+Runtime interaction checks also verified the session Follow/Stop following toggle and that missing officeholder identity hides Follow and withholds actions. No live results, notifications, provider requests or ingestion ran for this prototype. Native running UI, production-flow checks, editorial approval and real-reader comprehension remain publication gates.

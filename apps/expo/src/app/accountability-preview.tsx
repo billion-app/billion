@@ -53,7 +53,7 @@ export default function AccountabilityPreview() {
         {evidence.url ? (
           <Pressable
             accessibilityRole="link"
-            accessibilityLabel={`Open ${evidence.publisher}: ${evidence.locator}`}
+            accessibilityLabel={`Open source record — ${evidence.publisher}: ${evidence.locator}`}
             onPress={() => {
               setLinkError(false);
               void Linking.openURL(evidence.url).catch(() =>
