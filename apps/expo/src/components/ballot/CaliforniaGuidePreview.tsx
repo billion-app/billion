@@ -1,7 +1,12 @@
-import { useState } from "react";
+import type { ScrollView } from "react-native";
+import { useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  findNodeHandle,
   Image,
+  Text as NativeText,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -131,6 +136,18 @@ export function CaliforniaGuidePreview({
   onOpenBallot?: () => void;
   onOpenFixtures?: () => void;
 }) {
+  const guideScroll = useRef<ScrollView>(null);
+  const guideHeading = useRef<NativeText>(null);
+  const returnToGuide = () => {
+    requestAnimationFrame(() => {
+      guideScroll.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === "web") guideHeading.current?.focus();
+      else {
+        const handle = findNodeHandle(guideHeading.current);
+        if (handle) AccessibilityInfo.setAccessibilityFocus(handle);
+      }
+    });
+  };
   const [tab, setTab] = useState<GuideTab>("candidates");
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.data;
@@ -140,6 +157,7 @@ export function CaliforniaGuidePreview({
         guide ? `California ${guide.electionDate.slice(0, 4)}` : "California"
       }
       contentStyle={s.screen}
+      scrollRef={guideScroll}
     >
       <View style={s.intro}>
         <Text style={s.kicker}>
@@ -147,7 +165,15 @@ export function CaliforniaGuidePreview({
             ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
             : "OFFICIAL VOTER GUIDE"}
         </Text>
-        <Text style={s.headline}>The statewide guide</Text>
+        <NativeText
+          ref={guideHeading}
+          tabIndex={-1}
+          accessible
+          accessibilityRole="header"
+          style={s.headline}
+        >
+          The statewide guide
+        </NativeText>
         <Text style={s.introText}>
           Official candidate statements and propositions, directly from
           California's voter guide.
@@ -172,6 +198,8 @@ export function CaliforniaGuidePreview({
       )}
       <VotingPlanSection
         california
+        returnLabel="Return to statewide guide"
+        onReturn={returnToGuide}
         election={
           guide
             ? {

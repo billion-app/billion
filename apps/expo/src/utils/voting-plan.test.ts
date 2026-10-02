@@ -41,7 +41,9 @@ void test("registration action uses the local confirmation service and rejects u
     name: "County office",
     url: "https://example.org/check",
   });
-  state[0]!.localJurisdiction.electionAdministrationBody.electionRegistrationConfirmationUrl =
+  const region = state[0];
+  assert.ok(region);
+  region.localJurisdiction.electionAdministrationBody.electionRegistrationConfirmationUrl =
     "javascript:alert(1)";
   assert.equal(registrationCheck({ state })?.url, "https://example.org/state");
   assert.equal(registrationCheck({}), undefined);

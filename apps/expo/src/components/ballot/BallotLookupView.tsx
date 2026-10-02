@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   BackHandler,
+  findNodeHandle,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +29,7 @@ import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
+import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import {
   DigestHair,
   fontBody,
@@ -70,6 +74,24 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const [invalid, setInvalid] = useState(false);
   const [choosingElection, setChoosingElection] = useState(false);
   const [votingExpanded, setVotingExpanded] = useState(false);
+  const votingEntry = useRef<View>(null);
+  const returnFocusPending = useRef(false);
+  const returnToBallot = () => {
+    returnFocusPending.current = true;
+    setVotingExpanded(false);
+  };
+  useEffect(() => {
+    if (votingExpanded || !returnFocusPending.current) return;
+    returnFocusPending.current = false;
+    const frame = requestAnimationFrame(() => {
+      if (Platform.OS === "web") votingEntry.current?.focus();
+      else {
+        const handle = findNodeHandle(votingEntry.current);
+        if (handle) AccessibilityInfo.setAccessibilityFocus(handle);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [votingExpanded]);
   const addressInput = useRef<TextInput>(null);
   const ballotScroll = useRef(0);
   const [ballotOffset, setBallotOffset] = useState(0);
@@ -167,7 +189,16 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               onRetry={props.onRetry}
             />
           ) : data ? (
-            <VotingLogisticsSection status="ready" data={data} />
+            <>
+              <VotingPlanSection
+                election={model?.election}
+                data={data}
+                california={model?.isCalifornia}
+                returnLabel="Return to ballot"
+                onReturn={returnToBallot}
+              />
+              <VotingLogisticsSection status="ready" data={data} />
+            </>
           ) : null}
         </ScrollView>
       </View>
@@ -421,6 +452,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             {hasSupport && (
               <Pressable
                 accessibilityRole="button"
+                ref={votingEntry}
                 accessibilityLabel="How to vote"
                 accessibilityHint="Opens voting information"
                 onPress={() => {

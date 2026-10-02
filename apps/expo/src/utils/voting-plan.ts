@@ -24,7 +24,8 @@ export function registrationCheck(data?: VotingLogisticsData) {
     if (local) return local;
     const body = region.electionAdministrationBody;
     const url = votingWebUrl(body?.electionRegistrationConfirmationUrl);
-    return url ? { url, name: body?.name?.trim() || region.name } : undefined;
+    const name = body?.name?.trim();
+    return url ? { url, name: name?.length ? name : region.name } : undefined;
   }
   return data?.state?.map(visit).find(Boolean);
 }

@@ -24,6 +24,8 @@ export function VotingPlanSection({
   election,
   data,
   california = false,
+  returnLabel = "Hide voting steps",
+  onReturn,
 }: {
   election?: {
     id: string;
@@ -33,6 +35,8 @@ export function VotingPlanSection({
   };
   data?: VotingLogisticsData;
   california?: boolean;
+  returnLabel?: string;
+  onReturn?: () => void;
 }) {
   const key = election ? planStorageKey(election) : undefined;
   // Remount state when the election changes; an old storage read cannot leak into it.
@@ -43,6 +47,8 @@ export function VotingPlanSection({
       electionName={election?.name}
       data={data}
       california={california}
+      returnLabel={returnLabel}
+      onReturn={onReturn}
     />
   );
 }
@@ -52,11 +58,15 @@ function Plan({
   electionName,
   data,
   california,
+  returnLabel,
+  onReturn,
 }: {
   storageKey?: string;
   electionName?: string;
   data?: VotingLogisticsData;
   california: boolean;
+  returnLabel: string;
+  onReturn?: () => void;
 }) {
   const { theme } = useTheme();
   const [expanded, setExpanded] = useState(false);
@@ -95,7 +105,7 @@ function Plan({
           () => setStorageFailed(true),
         );
   }
-  const body = [s.body, { color: theme.textSecondary }];
+  const body = [s.body, { color: theme.foreground }];
   const heading = [s.heading, { color: theme.foreground }];
   const check = registrationCheck(data);
   return (
@@ -114,9 +124,10 @@ function Plan({
       {expanded && (
         <View style={s.steps}>
           <Text style={body}>
-            {electionName ?? "Choose an election to save a plan."} This plan is
-            a personal reminder, not verification of registration or
-            eligibility.
+            {electionName ??
+              "Election details are unavailable here. Use the election office link below to confirm your election."}{" "}
+            This plan is a personal reminder, not verification of registration
+            or eligibility.
           </Text>
           <View style={s.step}>
             <Text accessibilityRole="header" style={heading}>
@@ -148,7 +159,7 @@ function Plan({
           </View>
           <View style={s.step}>
             <Text accessibilityRole="header" style={heading}>
-              2. Check primary eligibility
+              2. For a primary: check eligibility
             </Text>
             <Text style={body}>
               For a primary, ask the election office which contests you can vote
@@ -192,7 +203,7 @@ function Plan({
                 ? "Couldn’t save on this device. Your choice may be lost when you leave."
                 : storageKey
                   ? "Your method preference stays on this device for this election only."
-                  : "Choose an election before saving a method preference."}
+                  : "No election loaded: this preference will not be saved."}
             </Text>
             {method === "mail" && (
               <Text style={body}>
@@ -245,6 +256,16 @@ function Plan({
               with the same election and ballot view.
             </Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setExpanded(false);
+              onReturn?.();
+            }}
+            style={s.open}
+          >
+            <Text style={heading}>{returnLabel}</Text>
+          </Pressable>
         </View>
       )}
     </Card>
