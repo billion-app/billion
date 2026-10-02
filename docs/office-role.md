@@ -1,6 +1,6 @@
 # Office powers and everyday impact
 
-The race and candidate screens share `OfficeRole`, a text-first explanation placed before candidate statements. The same jurisdiction and office context resolves to the same content: candidate identity never changes the office's authority. Existing official duty text remains separate. This adds to, rather than replaces, the governance-map prototype in PR #405.
+The race and candidate screens share `OfficeRole`, a text-first explanation leading the race and following the candidate’s own statement on individual pages. The same jurisdiction and office context resolves to the same content: candidate identity never changes the office's authority. The initial view keeps a concise power and material limit visible. Responsibilities, term, people served, everyday consequences and citations open together under Responsibilities and limits. Existing official duty text remains separate, collapsed by default. This adds to, rather than replaces, the governance-map prototype in PR #405.
 
 The manually authored catalog in [office-role.ts](../apps/expo/src/utils/office-role.ts) currently covers the U.S. House, California Governor and Boston Council. Each entry pairs a power with a visible institutional limit, the people served, term and an illustrative consequence. Section-level official links support the claims. These are Billion paraphrases, not quotations, generated candidate analysis or predictions.
 
