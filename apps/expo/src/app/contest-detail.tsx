@@ -19,6 +19,7 @@ import {
   BallotDetailEvidence,
   BallotSources,
   ElectionOfficeLink,
+  SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
 import {
   BallotAiDisclosure,
@@ -27,6 +28,10 @@ import {
   BallotReadingMode,
 } from "~/components/ballot-evidence/BallotReadingCard";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import {
+  candidateStatusLabel,
+  electionCoverageLabel,
+} from "~/components/ballot-evidence/election-status";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Card, Icon, Kicker, NavHeader } from "~/components/ui";
 import {
@@ -38,6 +43,7 @@ import {
   DigestPalette as P,
   planes,
 } from "~/styles";
+import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { parseRouteArray } from "~/utils/route-array";
 
 const cardChrome = {
@@ -149,6 +155,10 @@ export default function ContestDetailScreen() {
     roleDescription: string;
     state?: string;
     electionDate?: string;
+    electionStage?: string;
+    ballotSourceName?: string;
+    ballotSourceUrl?: string;
+    ballotFetchedAt?: string;
     districtId?: string;
     citations?: string;
   }>();
@@ -301,6 +311,40 @@ export default function ContestDetailScreen() {
           <Text style={s.district}>{params.districtName}</Text>
         ) : null}
 
+        <Text style={s.district}>
+          {params.electionDate
+            ? ballotElectionDate(params.electionDate)
+            : "Election date unavailable"}
+        </Text>
+        <Text style={s.district}>
+          {params.electionStage?.trim()
+            ? params.electionStage.trim()
+            : "Election stage unavailable"}
+        </Text>
+        <Text style={s.district}>{electionCoverageLabel("partial")}</Text>
+
+        <Text style={s.district}>
+          Provider listing does not verify eligibility for your address.
+        </Text>
+        <Text style={s.district}>
+          Ballot source:{" "}
+          {params.ballotSourceName?.trim()
+            ? params.ballotSourceName.trim()
+            : "unavailable"}
+        </Text>
+        <Text style={s.district}>
+          {params.ballotFetchedAt &&
+          Number.isFinite(Date.parse(params.ballotFetchedAt))
+            ? `Retrieved ${new Date(params.ballotFetchedAt).toLocaleDateString("en-US", { timeZone: "UTC" })}`
+            : "Retrieval date unavailable"}{" "}
+          · Human verification date unavailable
+        </Text>
+        {!!params.ballotSourceUrl && (
+          <SourceLink
+            label="View ballot data source"
+            url={params.ballotSourceUrl}
+          />
+        )}
         {description ? (
           <View style={s.section}>
             <Kicker style={s.kicker}>About this office</Kicker>
@@ -442,9 +486,7 @@ export default function ContestDetailScreen() {
                       cand.name,
                       cand.party,
                       cand.incumbent ? "Incumbent" : undefined,
-                      cand.ballotStatus === "withdrewStillOnBallot"
-                        ? "Withdrawn; still on ballot"
-                        : undefined,
+                      candidateStatusLabel(cand.ballotStatus),
                     ]
                       .filter(Boolean)
                       .join(", ")}
@@ -475,11 +517,9 @@ export default function ContestDetailScreen() {
                       {cand.party ? (
                         <Text style={s.candParty}>{cand.party}</Text>
                       ) : null}
-                      {cand.ballotStatus === "withdrewStillOnBallot" && (
-                        <Text style={s.withdrawn}>
-                          Withdrawn; still on ballot
-                        </Text>
-                      )}
+                      <Text style={s.withdrawn}>
+                        {candidateStatusLabel(cand.ballotStatus)}
+                      </Text>
                     </View>
                     <Icon
                       name={open ? "chevD" : "chevR"}
@@ -500,6 +540,10 @@ export default function ContestDetailScreen() {
                               office: params.office,
                               state: params.state,
                               electionDate: params.electionDate,
+                              electionStage: params.electionStage,
+                              ballotSourceName: params.ballotSourceName,
+                              ballotSourceUrl: params.ballotSourceUrl,
+                              ballotFetchedAt: params.ballotFetchedAt,
                               districtId: params.districtId,
                               district: params.districtName,
                               candidate: JSON.stringify(cand),

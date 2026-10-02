@@ -7,18 +7,27 @@ import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
 import { posthog } from "~/config/posthog";
 import { colors, fontBody } from "~/styles";
-import { ballotContestRoute, isBallotMeasure } from "~/utils/ballot-lookup";
+import {
+  ballotContestRoute,
+  ballotElectionDate,
+  isBallotMeasure,
+} from "~/utils/ballot-lookup";
 import { contestListTitle } from "~/utils/elections";
+import { electionCoverageLabel } from "../ballot-evidence/election-status";
 
 /** Compact ballot overview. Candidate names and evidence belong in the detail. */
 export function BallotContestCard({
   contest,
   state,
   electionDate,
+  electionStage,
+  provider,
 }: {
   contest: Contest;
   state?: string;
   electionDate?: string;
+  electionStage?: string;
+  provider?: { name: string; sourceUrl?: string; fetchedAt?: string };
 }) {
   const router = useRouter();
   const isMeasure = isBallotMeasure(contest);
@@ -26,10 +35,26 @@ export function BallotContestCard({
     ? (contest.referendumTitle ?? contest.office ?? "Ballot measure")
     : contestListTitle(contest);
   const count = contest.candidates?.length ?? 0;
+  const sourceNames = contest.sources
+    ?.map((source) => source.name)
+    .filter(Boolean)
+    .join(", ");
+  const sourceLabel = (sourceNames?.length ?? 0) > 0 ? sourceNames : "unavailable";
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open ${title}`}
+      accessibilityLabel={[
+        `Open ${title}`,
+        electionDate
+          ? ballotElectionDate(electionDate)
+          : "Election date unavailable",
+        contest.district?.name ? contest.district.name : "District unavailable",
+        electionStage?.trim()
+          ? electionStage.trim()
+          : "Election stage unavailable",
+        electionCoverageLabel("partial"),
+        `Source: ${sourceLabel}`,
+      ].join(". ")}
       onPress={() => {
         if (!isMeasure) {
           posthog.capture("contest_detail_opened", {
@@ -38,12 +63,34 @@ export function BallotContestCard({
             candidate_count: count,
           });
         }
-        router.push(ballotContestRoute(contest, { state, electionDate }));
+        router.push(
+          ballotContestRoute(contest, {
+            state,
+            electionDate,
+            electionStage,
+            provider,
+          }),
+        );
       }}
     >
       <Card style={s.card}>
         <View style={s.content}>
           <Text style={s.title}>{title}</Text>
+          <Text style={s.meta}>
+            {electionDate
+              ? ballotElectionDate(electionDate)
+              : "Election date unavailable"}
+            {contest.district?.name
+              ? ` · ${contest.district.name}`
+              : " · District unavailable"}
+          </Text>
+          <Text style={s.meta}>
+            {electionStage?.trim()
+              ? electionStage.trim()
+              : "Election stage unavailable"}
+          </Text>
+          <Text style={s.meta}>{electionCoverageLabel("partial")}</Text>
+          <Text style={s.meta}>Source: {sourceLabel}</Text>
           <Text style={s.meta}>
             {isMeasure
               ? "Read measure details"

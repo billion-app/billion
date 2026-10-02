@@ -41,6 +41,8 @@ import {
   ballotOfficeUrl,
   validateBallotAddress,
 } from "~/utils/ballot-lookup";
+import { electionType, electionTypeLabel } from "~/utils/elections";
+import { electionCoverageLabel } from "../ballot-evidence/election-status";
 import { BallotContestCard } from "./BallotContestCard";
 
 export interface BallotLookupViewProps {
@@ -418,6 +420,28 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                 </Text>
               </View>
             )}
+            {data.provider && (
+              <View style={s.coverageNotice}>
+                <Text style={s.secondary}>
+                  {data.kind === "development-fixture"
+                    ? "Synthetic fixture"
+                    : "Democracy Works"}{" "}
+                  · Partial provider data
+                </Text>
+                <Text style={s.secondary}>
+                  Retrieved{" "}
+                  {Number.isFinite(Date.parse(data.provider.fetchedAt))
+                    ? new Date(data.provider.fetchedAt).toLocaleDateString(
+                        "en-US",
+                        { timeZone: "UTC" },
+                      )
+                    : "date unavailable"}
+                </Text>
+                <Text style={s.secondary}>
+                  Human verification date unavailable
+                </Text>
+              </View>
+            )}
             {hasSupport && (
               <Pressable
                 accessibilityRole="button"
@@ -448,7 +472,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                 <Text style={s.coverage}>
                   {model.contests.length}{" "}
                   {model.contests.length === 1 ? "contest" : "contests"} ·
-                  Coverage may be incomplete
+                  {electionCoverageLabel("partial")}
                 </Text>
                 <Segmented
                   value={ballotTab}
@@ -489,8 +513,18 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                     <BallotContestCard
                       key={`${model.election?.id ?? "unknown"}:${index}`}
                       contest={contest}
-                      state={model.isCalifornia ? "CA" : undefined}
+                      state={
+                        model.isCalifornia ? "CA" : data.normalizedInput?.state
+                      }
                       electionDate={model.election?.electionDay}
+                      electionStage={
+                        electionType(model.election?.name) === "other"
+                          ? undefined
+                          : electionTypeLabel(
+                              electionType(model.election?.name),
+                            )
+                      }
+                      provider={data.provider}
                     />
                   ))}
               </>

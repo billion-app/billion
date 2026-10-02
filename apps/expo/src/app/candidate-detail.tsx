@@ -11,6 +11,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
+import { candidateStatusLabel } from "~/components/ballot-evidence/election-status";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
@@ -39,6 +40,10 @@ export default function CandidateDetailScreen() {
     office?: string;
     state?: string;
     electionDate?: string;
+    electionStage?: string;
+    ballotSourceName?: string;
+    ballotSourceUrl?: string;
+    ballotFetchedAt?: string;
     district?: string;
     districtId?: string;
     candidate?: string;
@@ -129,9 +134,11 @@ export default function CandidateDetailScreen() {
           <>
             <View style={s.hero}>
               <Text style={s.eyebrow}>
-                {guide && query.data
-                  ? `CALIFORNIA · ${ballotElectionDate(query.data.electionDate)}`
-                  : "BALLOT CONTEST"}
+                {fromBallot
+                  ? `${params.state?.trim() ? params.state.trim() : "State unavailable"} · ${params.electionDate ? ballotElectionDate(params.electionDate) : "Election date unavailable"}`
+                  : guide && query.data
+                    ? `CALIFORNIA · ${ballotElectionDate(query.data.electionDate)}`
+                    : "Election context unavailable"}
               </Text>
               <View style={s.identity}>
                 {webUrl(candidate.photoUrl) && !photoFailed ? (
@@ -163,16 +170,44 @@ export default function CandidateDetailScreen() {
                   : "Statewide"}
                 {candidate.party ? ` · ${candidate.party}` : ""}
               </Text>
+              <Text style={s.muted}>
+                {fromBallot
+                  ? params.electionStage?.trim()
+                    ? params.electionStage.trim()
+                    : "Election stage unavailable"
+                  : "General election · statement guide"}
+              </Text>
+              {fromBallot && (
+                <>
+                  <Text style={s.muted}>
+                    Provider listing does not verify eligibility for your
+                    address.
+                  </Text>
+                  <Text style={s.muted}>
+                    Ballot source:{" "}
+                    {params.ballotSourceName?.trim()
+                      ? params.ballotSourceName.trim()
+                      : "unavailable"}
+                  </Text>
+                  <Text style={s.muted}>
+                    {params.ballotFetchedAt &&
+                    Number.isFinite(Date.parse(params.ballotFetchedAt))
+                      ? `Retrieved ${new Date(params.ballotFetchedAt).toLocaleDateString("en-US", { timeZone: "UTC" })}`
+                      : "Retrieval date unavailable"}{" "}
+                    · Human verification date unavailable
+                  </Text>
+                </>
+              )}
+              {fromBallot && !!params.ballotSourceUrl && (
+                <SourceLink
+                  label="View ballot data source"
+                  url={params.ballotSourceUrl}
+                />
+              )}
               <View style={s.statusRow}>
                 <Icon name="info" size={14} color={P.quiet} />
                 <Text style={[s.muted, s.rowText]}>
-                  {fromBallot?.ballotStatus === "withdrewStillOnBallot"
-                    ? "Withdrawn; name remains on the ballot"
-                    : fromBallot?.ballotStatus === "onBallot"
-                      ? "Listed on your ballot"
-                      : guide
-                        ? "Statement guide entry · verify ballot status with your election office"
-                        : "Ballot status unavailable"}
+                  {candidateStatusLabel(fromBallot?.ballotStatus, !!guide)}
                 </Text>
               </View>
             </View>
@@ -333,7 +368,9 @@ export default function CandidateDetailScreen() {
                   })}
                 </Text>
               ) : (
-                <Text style={s.muted}>Retrieval date unavailable</Text>
+                <Text style={s.muted}>
+                  Statement retrieval date unavailable
+                </Text>
               )}
               <Text style={s.muted}>
                 {guide
@@ -341,7 +378,11 @@ export default function CandidateDetailScreen() {
                   : "Check your election office for eligibility, write-in, or withdrawal updates."}
               </Text>
               <SourceLink
-                label="Find your county elections office"
+                label={
+                  guide
+                    ? "Find your county elections office"
+                    : "Find your election office"
+                }
                 url={
                   guide
                     ? "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"

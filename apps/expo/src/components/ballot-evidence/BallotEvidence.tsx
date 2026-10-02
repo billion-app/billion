@@ -12,6 +12,7 @@ import {
   sp,
 } from "~/styles";
 import { BallotText as Text } from "./BallotText";
+import { freshnessLabel } from "./election-status";
 import {
   ballotStatus,
   citationFieldLabel,
@@ -219,11 +220,11 @@ export function BallotSources({
       {contentKind === "ai-summary" && <AiSummaryLabel />}
       {citations.length === 0 ? (
         <Text style={[s.secondary, s.unavailable]}>
-          Source information unavailable
+          Content source information unavailable
         </Text>
       ) : (
         <Disclosure
-          title="Sources"
+          title="Content sources"
           detail={`${citations.length} reference${citations.length === 1 ? "" : "s"}`}
         >
           {citations.map((citation, index) => (
@@ -241,6 +242,15 @@ export function BallotSources({
                 url={citation.sourceUrl}
               />
               <Text style={s.secondary}>{verificationLabel(citation)}</Text>
+              {freshnessLabel(citation) && (
+                <View>
+                  <Text style={s.secondary}>{freshnessLabel(citation)}</Text>
+                  {(citation.conflicting === true ||
+                    citation.staleAfter !== undefined) && (
+                    <ElectionOfficeLink />
+                  )}
+                </View>
+              )}
               {citation.fetchedAt && (
                 <Text style={s.secondary}>Retrieved {citation.fetchedAt}</Text>
               )}

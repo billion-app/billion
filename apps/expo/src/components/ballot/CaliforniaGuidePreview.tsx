@@ -18,6 +18,7 @@ import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
 import { propositionDetailRoute } from "~/utils/proposition-explainers";
+import { electionCoverageLabel } from "../ballot-evidence/election-status";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
@@ -165,17 +166,30 @@ export function CaliforniaGuidePreview({
       {!query.isPending && !query.isError && !guide && (
         <Card>
           <Text style={s.introText}>
-            The official guide is being refreshed. Check back soon.
+            Guide data is unavailable to Billion. Check the official guide or
+            your election office.
           </Text>
         </Card>
+      )}
+      {!query.isPending && (query.isError || !guide) && (
+        <View style={s.intro}>
+          <SourceLink
+            label="California official voter guide"
+            url="https://voterguide.sos.ca.gov/"
+          />
+          <SourceLink
+            label="Find your county elections office"
+            url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
+          />
+        </View>
       )}
       {guide && (
         <>
           <View style={s.scope}>
             <Icon name="info" size={16} color={colors.textSecondary} />
             <Text style={s.scopeText}>
-              Statewide preview, not your address-specific ballot. Local races
-              and measures are not shown.
+              {electionCoverageLabel("statement-guide")}. Statewide preview;
+              local races and measures are not shown.
             </Text>
           </View>
           <Segmented<GuideTab>
