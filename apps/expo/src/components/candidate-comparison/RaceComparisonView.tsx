@@ -30,7 +30,7 @@ function SourceLink({ source }: { source: ComparisonSource }) {
     <View style={{ gap: 8 }}>
       <Pressable
         accessibilityRole={source.fixtureText ? "button" : "link"}
-        accessibilityLabel={`Read source: ${source.name}, ${source.locator}`}
+        accessibilityLabel={`${source.fixtureText ? (open ? "Hide" : "Show") : "Read"} source: ${source.name}, ${source.locator}`}
         accessibilityState={source.fixtureText ? { expanded: open } : undefined}
         style={s.action}
         onPress={() => {
@@ -43,14 +43,22 @@ function SourceLink({ source }: { source: ComparisonSource }) {
         }}
       >
         <Text style={s.link}>
-          Source: {source.name} · {source.locator}
+          {source.fixtureText
+            ? open
+              ? "Hide source"
+              : "Show source"
+            : "Read source"}
+          : {source.name} · {source.locator}
           {source.fixtureText ? " · Fictional record" : ""}
         </Text>
       </Pressable>
       {open && (
-        <Text selectable style={s.body}>
-          {source.fixtureText}
-        </Text>
+        <View style={s.excerpt}>
+          <Text style={s.status}>Source excerpt · Fictional record</Text>
+          <Text selectable style={s.body}>
+            {source.fixtureText}
+          </Text>
+        </View>
       )}
       {failed && (
         <Text accessibilityRole="alert" style={s.body}>
@@ -85,30 +93,30 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
       </Text>
       <Text style={s.body}>{race.election}</Text>
       <View style={s.notice}>
-        <Text accessibilityRole="header" style={s.heading}>
-          Fictional candidates · Unpublished prototype
+        <Text style={s.status}>
+          Unpublished fictional example · Not voting advice
         </Text>
-        <Text style={s.body}>
-          Not voting advice. Candidate comparisons are unpublished pending
-          editorial policy (#344) and reviewed evidence (#421).
-        </Text>
+        <Text style={s.body}>Publication requires editorial approval.</Text>
       </View>
       <Text style={s.body}>
-        Compare the same topic for every candidate. Similar card layouts do not
-        mean equally strong evidence. Missing evidence is not a negative
-        finding.
+        Same topic, every candidate. Evidence varies; gaps are not negative
+        findings.
       </Text>
       <Text style={s.body}>
         {race.candidates.length} candidates · Full example roster
       </Text>
-      <Segmented options={comparisonTopics} value={topic} onChange={setTopic} />
+      <Segmented
+        options={comparisonTopics}
+        value={topic}
+        onChange={setTopic}
+        wrap
+      />
       <Text accessibilityRole="header" style={s.heading}>
         {comparisonTopics.find((item) => item.id === topic)?.label}
       </Text>
       {topic === "priorities" && (
         <Text style={s.body}>
-          Different stated priorities do not by themselves establish
-          disagreement. Read the sources before drawing a conclusion.
+          Different priorities do not establish disagreement. Check each source.
         </Text>
       )}
       {topic === "effects" && (
@@ -149,12 +157,12 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
                 <Text selectable style={s.body}>
                   {claim.text}
                 </Text>
-                {claim.sourceIds.map((id) => (
-                  <SourceLink
-                    key={id}
-                    source={race.sources.find((source) => source.id === id)!}
-                  />
-                ))}
+                {claim.sourceIds.map((id) => {
+                  const source = race.sources.find((item) => item.id === id);
+                  return source ? (
+                    <SourceLink key={id} source={source} />
+                  ) : null;
+                })}
               </View>
             ))
           )}
@@ -211,12 +219,20 @@ const s = StyleSheet.create({
     padding: 18,
     gap: 12,
   },
+  excerpt: {
+    backgroundColor: P.canvas,
+    borderRadius: DigestRadii.menuRow,
+    padding: 14,
+    gap: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: P.inkOnNight,
+  },
   action: { minHeight: 44, justifyContent: "center", paddingVertical: 8 },
   link: {
     fontFamily: fontBody.medium,
     fontSize: 14,
     lineHeight: 22,
-    color: P.primary,
+    color: P.inkOnNight,
     textDecorationLine: "underline",
   },
 });

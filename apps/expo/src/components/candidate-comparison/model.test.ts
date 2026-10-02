@@ -37,14 +37,18 @@ test("reject unsupported claims, duplicate identities, and synthetic production 
   race.fixture = false;
   assert.ok(validateComparison(race).includes("Source evidence unavailable"));
   race.fixture = true;
-  race.candidates[1]!.id = race.candidates[0]!.id;
+  const [first, second] = race.candidates;
+  assert.ok(first && second);
+  second.id = first.id;
   race.sources = [];
   assert.ok(validateComparison(race).includes("Candidate identity invalid"));
   assert.ok(validateComparison(race).includes("Claim evidence missing"));
 });
 test("missing cells remain evidence gaps rather than questionnaire non-response", () => {
   const race = comparisonFixture("two");
-  race.candidates[0]!.cells = {};
+  const first = race.candidates[0];
+  assert.ok(first);
+  first.cells = {};
   assert.equal(
     comparisonRows(race, "questionnaire")[0]?.cell.status,
     "missing-evidence",

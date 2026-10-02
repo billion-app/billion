@@ -26,17 +26,24 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  wrap = false,
 }: {
   options: SegmentOption<T>[];
   value: T;
   onChange: (id: T) => void;
+  /** Reflow long topic labels with available width, including browser zoom. */
+  wrap?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale > 1.3;
   return (
     <View
       accessibilityRole="tablist"
-      style={[s.wrap, stacked && { flexDirection: "column" }]}
+      style={[
+        s.wrap,
+        wrap && { flexWrap: "wrap" },
+        stacked && { flexDirection: "column" },
+      ]}
     >
       {options.map((o) => {
         const active = value === o.id;
@@ -50,6 +57,8 @@ export function Segmented<T extends string>({
             activeOpacity={0.8}
             style={[
               s.seg,
+              wrap &&
+                !stacked && { flexBasis: 140, flexGrow: 1, flexShrink: 0 },
               stacked && { flex: 0 },
               active ? s.segActive : undefined,
             ]}

@@ -13,3 +13,7 @@ This is a UI projection, not a competing persistence or analysis contract. [#421
 Before publication, #344 must approve permitted comparisons, evidence standards, correction rules and unequal-evidence treatment. An explicit disagreement must be established by reviewed source-backed claims, never inferred from missing evidence or party labels. [#343](https://github.com/billion-app/billion/issues/343) owns questionnaire invitation, authentication and equal treatment; this screen does not collect responses and comparison does not depend on receiving them. [#420](https://github.com/billion-app/billion/issues/420) owns office powers. The fictional fixture illustrates budget proposals but does not supply live office analysis.
 
 Release still requires editorial signoff, real-reader testing that identifies a sourced difference, native large-text and screen-reader testing, and verification of the production ballot → race → reviewed comparison flow. A fixture render and automated review do not satisfy those gates. The production route shows only an unpublished notice, and the renderer also rejects production use.
+
+## Implementation evidence
+
+[Running UI captures and review outcomes](screenshots/issue-423/README.md) document the fictional scenarios, source reading, 200% browser zoom and production publication gate. These are browser checks; native accessibility and reader testing remain open.

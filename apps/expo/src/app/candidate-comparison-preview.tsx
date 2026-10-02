@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
@@ -12,6 +12,7 @@ import { fontBody, DigestPalette as P } from "~/styles";
 export default function CandidateComparisonPreview() {
   const router = useRouter();
   const [scenario, setScenario] = useState("multi");
+  const [showScenarios, setShowScenarios] = useState(false);
   return (
     <View style={s.screen}>
       <NavHeader
@@ -22,23 +23,42 @@ export default function CandidateComparisonPreview() {
       <ScrollView contentContainerStyle={s.content}>
         {__DEV__ ? (
           <>
-            <Text style={s.body}>
-              Synthetic scenarios · No live ballot data
-            </Text>
-            <Segmented
-              value={scenario}
-              onChange={setScenario}
-              options={[
-                { id: "two", label: "Two" },
-                { id: "multi", label: "Three" },
-                { id: "long", label: "Eight" },
-                { id: "sparse", label: "Sparse" },
-              ]}
-            />
             <RaceComparisonView
               key={scenario}
               race={comparisonFixture(scenario)}
             />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showScenarios }}
+              style={{ minHeight: 44, justifyContent: "center" }}
+              onPress={() => setShowScenarios(!showScenarios)}
+            >
+              <Text style={s.body}>
+                Change fictional example ·{" "}
+                {scenario === "long"
+                  ? "8 candidates"
+                  : scenario === "two"
+                    ? "2 candidates"
+                    : scenario === "sparse"
+                      ? "Sparse evidence"
+                      : "3 candidates"}
+              </Text>
+            </Pressable>
+            {showScenarios && (
+              <Segmented
+                value={scenario}
+                onChange={(next) => {
+                  setScenario(next);
+                  setShowScenarios(false);
+                }}
+                options={[
+                  { id: "two", label: "Two" },
+                  { id: "multi", label: "Three" },
+                  { id: "long", label: "Eight" },
+                  { id: "sparse", label: "Sparse" },
+                ]}
+              />
+            )}
           </>
         ) : (
           <Text style={s.body}>
