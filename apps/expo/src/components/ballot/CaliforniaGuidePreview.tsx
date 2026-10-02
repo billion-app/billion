@@ -13,6 +13,7 @@ import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
+import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
@@ -169,6 +170,19 @@ export function CaliforniaGuidePreview({
           </Text>
         </Card>
       )}
+      <VotingPlanSection
+        california
+        election={
+          guide
+            ? {
+                id: `ca-guide:${guide.electionDate}`,
+                name: `California statewide election · ${ballotElectionDate(guide.electionDate)}`,
+                electionDay: guide.electionDate,
+                ocdDivisionId: "ocd-division/country:us/state:ca",
+              }
+            : undefined
+        }
+      />
       {guide && (
         <>
           <View style={s.scope}>

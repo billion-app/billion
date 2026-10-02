@@ -107,3 +107,14 @@ The Elections invitation opens the live, statewide California official guide cac
 These screens call the local `civic.getVoterInfo` API with explicit `mock:full`, `mock:partial`, `mock:empty` or `mock:error` addresses. The server recognizes them only when `NODE_ENV=development`, before any provider or cache operation. Production never returns these fixtures. Names, instructions and schedules in the fixtures are fictional.
 
 Article detail on mobile, the web reader, and shared article pages shows Created and Last updated beneath the title. These come from the stored record’s `createdAt` and `updatedAt` through `content.getById`, rather than the official publication or action date. If no update timestamp exists, Last updated uses the creation timestamp.
+
+The voting plan opens inline in the statewide guide and the address ballot, so
+readers keep their election, tab and ballot position while checking official
+services. `VotingPlanSection` routes registration, primary eligibility, voting
+methods and missing logistics to authorities. It does not determine personal
+status or infer deadlines. Only a method preference is saved on the device,
+scoped by election ID, date and jurisdiction; addresses and party choices are
+not stored in the plan. The statewide guide remains a routing experience until
+personalized logistics are available. The address ballot keeps supplied dates
+and locations in `VotingLogisticsSection`. Issue #422 remains gated on the
+production personalized-ballot path and real-reader flow verification.
