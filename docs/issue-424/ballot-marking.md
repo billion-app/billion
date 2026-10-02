@@ -32,12 +32,55 @@ multiple, ranked, unknown, failed link, and enlarged text in the production mobi
 flow. Fixture tests and automated review do not satisfy editorial or reader
 comprehension validation. Keep the PR draft until these gates are resolved.
 
-## Running renderer evidence
+## Reading structure and examples
 
-The committed screenshots show the actual Expo web renderer harness at 390×844,
-with the same Albert Sans and Inria Serif fonts loaded by the app. Records are
-synthetic and explicitly labeled. `single`, `multiple`, `ranked`, and `unknown`
-cover the four presentation states. The `large-text` captures use 200% browser
-zoom and scroll the component's content; they are web layout checks, not native
-Dynamic Type or production mobile evidence. The temporary harness entry point
-was restored to Expo Router before production export and final checks.
+The count is the editorial headline, followed by the official marking action.
+Optional write-in, overvote, and blank-contest passages have plainly named
+expansion controls. Source identity stays visible in “Sources & details”; opening
+it reveals the direct official link, system, election stage, and review date.
+Essential marking restrictions must stay in the primary `marking` passage, not
+be hidden in supporting detail. The voting boundary stays visible throughout.
+
+A reviewed record may include `exampleDiagram` with oval targets, named columns,
+and rows of reviewed marks. These are never inferred from candidate names or seat
+counts. `example` must be the human-reviewed accessible equivalent of the diagram.
+Unsupported target types or invalid positions retain the textual example. At high
+font scaling or narrow multi-column layouts, the renderer uses that same reviewed
+text rather than crowding the illustration. Official layouts and equivalence need
+editorial review before a live record can be displayed.
+
+## Final integrated runtime evidence
+
+The committed screenshots show the actual running Expo web `contest-detail`
+route at 390×844, with the app’s normal root, fonts, header, and candidate rows.
+All records are synthetic and explicitly labeled. A temporary local capture patch
+supplied the controlled instructions to the real component and bypassed onboarding;
+that patch and Expo’s regenerated declaration were restored before final checks.
+No fixture route or instruction query parameter ships in production.
+
+`single`, `multiple`, `ranked`, and `unknown` show the integrated default states;
+`example` and `sources` show real disclosure interactions. `link-error` uses a
+controlled `Linking.openURL` rejection and shows the actual announced retry state.
+The `large-*` captures use 200% browser zoom, including the narrow ranked example’s
+text alternative and the reachable source action. They are web layout checks,
+not native Dynamic Type or a production mobile accessibility pass. The existing
+navigation title ellipsizes at this browser zoom; native navigation remains a gate.
+
+The fresh screenshot-first Astra review initially rejected the dense equal-weight
+instruction sheet. Iteration one established a dominant count and marking action,
+optional examples, and a noninteractive diagram. Iteration two consolidated
+sourcing and removed the default external button’s visual dominance. Astra then
+independently found the local guidance impressive for its clarity and restraint,
+with the answer available in seconds and optional explanation chosen by the reader.
+The single-choice headline was further shortened to avoid making the simplest
+mechanic visually heavier. This does not substitute for real-reader testing.
+
+## Integration dependency exposed by review
+
+The pre-existing contest/candidate footer says “Source information unavailable”
+without naming its field scope. Beside a sourced marking card, that could appear
+to contradict the instruction authority. Coordinate the field-specific footer
+copy with #425 before integrated release; this stream does not overwrite shared
+provenance components or another stream’s contest changes. Long real contest and
+source names, native accessibility, official-record mapping, editorial review,
+and real-reader comprehension remain unverified draft gates.

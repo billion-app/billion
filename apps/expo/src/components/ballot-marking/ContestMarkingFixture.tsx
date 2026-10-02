@@ -5,13 +5,14 @@ import type { ContestInstructions } from "./model";
 import { DigestPalette as P, sp } from "~/styles";
 import { ContestMarking } from "./ContestMarking";
 
-const scope = {
+export type MarkingFixtureKind = "single" | "multiple" | "ranked" | "unknown";
+export const markingFixtureScope = {
   contestId: "fixture-council",
   electionDate: "2026-11-03",
   jurisdiction: "Synthetic jurisdiction",
 };
 const base: ContestInstructions = {
-  scope,
+  scope: markingFixtureScope,
   source: {
     authority: "Synthetic election office (fixture)",
     url: "https://example.org/fixture",
@@ -25,39 +26,62 @@ const base: ContestInstructions = {
   example:
     "Candidate A: filled oval. Candidate B: empty oval. One choice marked.",
 };
+export function markingFixtureInstructions(
+  kind: MarkingFixtureKind,
+): ContestInstructions | undefined {
+  if (kind === "unknown") return;
+  return {
+    ...base,
+    mechanics: kind === "single" ? { kind, maximum: 1 } : { kind, maximum: 3 },
+    system: kind === "ranked" ? "Synthetic ranked-choice example" : base.system,
+    marking:
+      kind === "ranked"
+        ? "Fixture only: mark a different candidate in each rank column."
+        : kind === "multiple"
+          ? "Fixture only: fill ovals beside up to three different candidates."
+          : base.marking,
+    example:
+      kind === "ranked"
+        ? "First choice: Candidate A. Second choice: Candidate B. Third choice: Candidate C."
+        : kind === "multiple"
+          ? "Candidate A and Candidate B: filled ovals. Candidate C: empty oval. Two choices marked; limit three."
+          : base.example,
+    exampleDiagram: {
+      target: "oval",
+      columns: kind === "ranked" ? ["1st", "2nd", "3rd"] : ["Mark"],
+      rows: (kind === "single"
+        ? ["Candidate A", "Candidate B"]
+        : ["Candidate A", "Candidate B", "Candidate C"]
+      ).map((label, index) => ({
+        label,
+        filledColumns:
+          kind === "ranked"
+            ? [index]
+            : kind === "multiple"
+              ? index < 2
+                ? [0]
+                : []
+              : index === 0
+                ? [0]
+                : [],
+      })),
+    },
+  };
+}
 export function ContestMarkingFixture({
   kind = "single",
 }: {
-  kind?: "single" | "multiple" | "ranked" | "unknown";
+  kind?: MarkingFixtureKind;
 }) {
-  const instructions: ContestInstructions | undefined =
-    kind === "unknown"
-      ? undefined
-      : {
-          ...base,
-          mechanics:
-            kind === "single" ? { kind, maximum: 1 } : { kind, maximum: 3 },
-          system:
-            kind === "ranked" ? "Synthetic ranked-choice example" : base.system,
-          marking:
-            kind === "ranked"
-              ? "Fixture only: mark a different candidate in each rank column."
-              : kind === "multiple"
-                ? "Fixture only: fill ovals beside up to three different candidates."
-                : base.marking,
-          example:
-            kind === "ranked"
-              ? "First choice: Candidate A. Second choice: Candidate B. Third choice: Candidate C."
-              : kind === "multiple"
-                ? "Candidate A and Candidate B: filled ovals. Candidate C: empty oval. Two choices marked; limit three."
-                : base.example,
-        };
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: P.canvas }}
       contentContainerStyle={s.screen}
     >
-      <ContestMarking instructions={instructions} scope={scope} />
+      <ContestMarking
+        instructions={markingFixtureInstructions(kind)}
+        scope={markingFixtureScope}
+      />
     </ScrollView>
   );
 }

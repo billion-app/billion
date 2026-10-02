@@ -9,6 +9,12 @@ export interface ContestInstructions {
     | { kind: "ranked"; maximum: number };
   marking: string;
   example: string;
+  /** Optional source-reviewed oval diagram; example text is its accessible equivalent. */
+  exampleDiagram?: {
+    target: string;
+    columns: string[];
+    rows: { label: string; filledColumns: number[] }[];
+  };
   writeIns?: string;
   overvotes?: string;
   blankContest?: string;
@@ -61,7 +67,47 @@ export function applicableInstructions(
 
 export function selectionLabel(instructions: ContestInstructions): string {
   const { kind, maximum } = instructions.mechanics;
+  if (kind === "single") return "Choose no more than 1";
   return kind === "ranked"
-    ? `Rank up to ${maximum} choices`
-    : `Select up to ${maximum} candidate${maximum === 1 ? "" : "s"}`;
+    ? `Rank up to ${maximum} candidates`
+    : `Choose up to ${maximum} candidate${maximum === 1 ? "" : "s"}`;
+}
+
+/** Missing or invalid illustrations retain the reviewed textual example. */
+export function instructionDiagram(
+  instructions: ContestInstructions,
+): ContestInstructions["exampleDiagram"] {
+  const diagram = instructions.exampleDiagram;
+  if (
+    diagram?.target !== "oval" ||
+    diagram.columns.length < 1 ||
+    diagram.columns.length > 3 ||
+    diagram.rows.length < 1 ||
+    diagram.rows.length > 4
+  )
+    return;
+  if (
+    new Set(diagram.columns).size !== diagram.columns.length ||
+    diagram.columns.some((column) => !column.trim())
+  )
+    return;
+  if (
+    new Set(diagram.rows.map((row) => row.label)).size !== diagram.rows.length
+  )
+    return;
+  if (
+    diagram.rows.some(
+      (row) =>
+        !row.label.trim() ||
+        new Set(row.filledColumns).size !== row.filledColumns.length ||
+        row.filledColumns.some(
+          (index) =>
+            !Number.isInteger(index) ||
+            index < 0 ||
+            index >= diagram.columns.length,
+        ),
+    )
+  )
+    return;
+  return diagram;
 }

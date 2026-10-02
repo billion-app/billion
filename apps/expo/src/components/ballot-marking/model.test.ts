@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ContestInstructions } from "./model";
-import { applicableInstructions, selectionLabel } from "./model";
+import {
+  applicableInstructions,
+  instructionDiagram,
+  selectionLabel,
+} from "./model";
 
 // Synthetic mechanics exercise the contract, never published jurisdiction rules.
 const scope = {
@@ -23,9 +27,9 @@ const base: ContestInstructions = {
   example: "Fixture: Candidate A has one filled target; Candidate B has none.",
 };
 for (const [mechanics, label] of [
-  [{ kind: "single", maximum: 1 }, "Select up to 1 candidate"],
-  [{ kind: "multiple", maximum: 3 }, "Select up to 3 candidates"],
-  [{ kind: "ranked", maximum: 5 }, "Rank up to 5 choices"],
+  [{ kind: "single", maximum: 1 }, "Choose no more than 1"],
+  [{ kind: "multiple", maximum: 3 }, "Choose up to 3 candidates"],
+  [{ kind: "ranked", maximum: 5 }, "Rank up to 5 candidates"],
 ] as const)
   test(label, () => {
     const input = { ...base, mechanics };
@@ -65,6 +69,26 @@ test("reject invalid limits and missing evidence", () => {
       { ...base, source: { ...base.source, reviewedAt: "unknown" } },
       scope,
     ),
+    undefined,
+  );
+});
+
+test("diagram requires reviewed text and valid target positions", () => {
+  const exampleDiagram = {
+    target: "oval" as const,
+    columns: ["Mark"],
+    rows: [{ label: "Candidate A", filledColumns: [0] }],
+  };
+  assert.equal(instructionDiagram({ ...base, exampleDiagram }), exampleDiagram);
+  assert.equal(instructionDiagram(base), undefined);
+  assert.equal(
+    instructionDiagram({
+      ...base,
+      exampleDiagram: {
+        ...exampleDiagram,
+        rows: [{ label: "Candidate A", filledColumns: [1] }],
+      },
+    }),
     undefined,
   );
 });
