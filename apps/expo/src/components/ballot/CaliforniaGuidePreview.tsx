@@ -79,12 +79,7 @@ function MeasureCard({ measure }: { measure: Measure }) {
           <Text style={s.measureNumberText}>{measure.number}</Text>
         </View>
         <View style={s.cardIdentity}>
-          <Text
-            style={[s.cardTitle, s.measureTitle]}
-            numberOfLines={expanded ? undefined : 3}
-          >
-            {measure.title}
-          </Text>
+          <Text style={[s.cardTitle, s.measureTitle]}>{measure.title}</Text>
           <Text style={s.cardMeta}>Statewide proposition</Text>
         </View>
         <Icon
@@ -130,6 +125,7 @@ export function CaliforniaGuidePreview({
   onOpenBallot?: () => void;
   onOpenFixtures?: () => void;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<GuideTab>("candidates");
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.data;
@@ -146,18 +142,36 @@ export function CaliforniaGuidePreview({
             ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
             : "OFFICIAL VOTER GUIDE"}
         </Text>
-        <Text style={s.headline}>The statewide guide</Text>
+        <Text accessibilityRole="header" style={s.headline}>
+          The statewide guide
+        </Text>
         <Text style={s.introText}>
           Official candidate statements and propositions, directly from
           California's voter guide.
         </Text>
       </View>
 
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="California language and accessible voting resources"
+        accessibilityHint="Opens official resources and coverage limits"
+        style={s.addressAction}
+        onPress={() => router.push("/election-access")}
+      >
+        <Text style={[s.addressActionText, { flex: 1 }]}>
+          Language and accessible voting resources
+        </Text>
+        <Icon name="arrowRight" size={17} color={colors.bill} />
+      </TouchableOpacity>
       {query.isPending && <ActivityIndicator color={colors.bill} />}
       {query.isError && (
         <Card>
           <Text style={s.introText}>The official guide could not load.</Text>
-          <TouchableOpacity onPress={() => void query.refetch()}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={{ minHeight: 48, justifyContent: "center" }}
+            onPress={() => void query.refetch()}
+          >
             <Text style={s.retry}>Try again</Text>
           </TouchableOpacity>
         </Card>
@@ -298,7 +312,7 @@ const s = StyleSheet.create({
   portrait: { width: 62, height: 62, borderRadius: 4 },
   portraitFallback: {
     width: 62,
-    height: 62,
+    minHeight: 62,
     borderRadius: 4,
     alignItems: "center",
     justifyContent: "center",
@@ -330,7 +344,7 @@ const s = StyleSheet.create({
   },
   measureNumber: {
     width: 62,
-    height: 62,
+    minHeight: 62,
     borderRadius: 4,
     alignItems: "center",
     justifyContent: "center",
@@ -372,6 +386,7 @@ const s = StyleSheet.create({
   },
   detailActionText: {
     color: colors.bill,
+    flexShrink: 1,
     fontFamily: fontBody.semibold,
     fontSize: 15,
   },
