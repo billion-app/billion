@@ -58,11 +58,19 @@ export const processExamples = {
       ],
     ],
     deeper:
-      "California calls congressional offices voter-nominated offices. This top-two path does not apply to president, county central committees or local offices. A special election fills a vacancy and can have a different schedule and qualifying rules; consult its specific official notice.",
+      "California calls congressional offices voter-nominated offices. This top-two path does not apply to president, county central committees or local offices. A special election fills a vacancy. In a California congressional special primary, a candidate who wins a majority (more than half the votes) can be elected without a special general election. Otherwise, the top two advance. Check the specific official notice for dates and rules.",
     sources: [
       [
         "California SOS · primary systems",
         "https://www.sos.ca.gov/elections/primary-elections-california",
+      ],
+      [
+        "California Election Code · special election majority (10705)",
+        "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=ELEC&sectionNum=10705.",
+      ],
+      [
+        "California Election Code · special election advancement (10706)",
+        "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=ELEC&sectionNum=10706.",
       ],
     ],
     action: [
@@ -84,7 +92,7 @@ export const processExamples = {
       ],
       [
         "Runoff, if needed",
-        "A runoff is another vote when no primary candidate receives a majority. It decides the party’s nominee.",
+        "A majority means more than half the votes. If no candidate wins a majority in a Texas party primary, the top two compete in a runoff — another vote to decide the nominee.",
       ],
       [
         "General election",
@@ -92,15 +100,15 @@ export const processExamples = {
       ],
     ],
     deeper:
-      "Other parties may nominate by convention, and independent candidates have separate ballot-access requirements. A special election fills a vacancy; do not assume this regular party-primary path or its dates apply.",
+      "Primary affiliation does not restrict your choice in the general election. Eligible voters who skipped the primary may still choose a party’s runoff. Other parties may nominate by convention, and independent candidates have separate ballot-access requirements. A special election fills a vacancy; do not assume this regular party-primary path or its dates apply.",
     sources: [
       [
         "Texas SOS · 2026 candidacy and party affiliation FAQs",
         "https://www.sos.texas.gov/elections/candidates/guide/2026/faqs.shtml",
       ],
       [
-        "Texas Election Code · primary nomination and runoff (172.003–004)",
-        "https://statutes.capitol.texas.gov/Docs/EL/htm/EL.172.htm",
+        "Texas SOS · runoff explanation (May 22, 2026)",
+        "https://www.sos.state.tx.us/about/newsreleases/2026/052226.shtml",
       ],
     ],
     action: [

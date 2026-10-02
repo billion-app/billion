@@ -137,7 +137,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 20,
-    color: P.quiet,
+    color: P.inkOnNight,
   },
   card: {
     backgroundColor: P.card,
