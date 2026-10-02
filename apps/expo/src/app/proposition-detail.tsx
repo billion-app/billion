@@ -92,8 +92,8 @@ export default function PropositionDetailScreen() {
                 <Text style={s.body}>
                   A reviewed Billion explanation of the current rule,
                   implementation and affected groups is not available for this
-                  proposition. The state’s voting outcomes and fiscal analysis
-                  are below.
+                  proposition. Read the available official information below, or
+                  open the state guide for more detail.
                 </Text>
               </View>
             )}

@@ -160,6 +160,12 @@ const guide = {
   await page
     .getByText("Start with the official record", { exact: true })
     .waitFor();
+  if (
+    (await page.locator("body").innerText()).includes(
+      "The state’s voting outcomes and fiscal analysis are below",
+    )
+  )
+    throw new Error("Sparse fallback promises missing evidence");
   await page.screenshot({
     path: "docs/screenshots/issue-426/missing-evidence.png",
     fullPage: true,
@@ -170,8 +176,18 @@ const guide = {
       {
         ...measure,
         title: "FICTIONAL DEMONSTRATION MEASURE. GOVERNOR SUCCESSION RULE.",
+        officialSummary:
+          "Synthetic fixture: changes the temporary officer during the specified vacancy to an elected deputy. This is not a real proposition.",
+        voteMeaningYes:
+          "A YES vote on this measure means: An elected deputy serves during the specified vacancy.",
+        voteMeaningNo:
+          "A NO vote on this measure means: The temporary appointment rule remains in place.",
+        fiscalImpact:
+          "Synthetic fixture: net fiscal effect is unknown and depends on whether a vacancy occurs.",
         consequences: {
           ...analysis,
+          officialTitle:
+            "FICTIONAL DEMONSTRATION MEASURE. GOVERNOR SUCCESSION RULE.",
           headline: claim("Change who serves during a vacancy"),
           currentRule: claim(
             "In this fictional example, an appointed temporary officer serves during the specified vacancy.",
@@ -215,6 +231,27 @@ const guide = {
     path: "docs/screenshots/issue-426/succession-both-outcomes.png",
     fullPage: true,
   });
+  await page
+    .getByText("Conditions and unknowns", { exact: true })
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: "docs/screenshots/issue-426/succession-costs-uncertainty.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: /Official voting outcomes/ }).click();
+  await page
+    .getByText("An elected deputy serves during the specified vacancy.", {
+      exact: true,
+    })
+    .waitFor();
+  await page
+    .getByText("The temporary appointment rule remains in place.", {
+      exact: true,
+    })
+    .waitFor();
+  if ((await page.locator("body").innerText()).includes("school facilities"))
+    throw new Error("Succession fixture inherited bond evidence");
+  await page.getByRole("button", { name: /Official voting outcomes/ }).click();
   await page.addStyleTag({
     content:
       '[dir="auto"] {font-size: 150% !important; line-height: 1.6 !important;}',
