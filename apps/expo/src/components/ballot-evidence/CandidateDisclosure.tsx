@@ -90,3 +90,6 @@ export const candidateDetailText = {
   fontSize: 14,
   lineHeight: 22,
 } as const;
+
+// Candidate sources use the shared Bills-aligned evidence action.
+export { SourceLink as CandidateSourceLink } from "./BallotEvidence";
