@@ -2,6 +2,16 @@
 export const processExamples = {
   president: {
     label: "President",
+    stageActors: [
+      "VOTERS → DELEGATES",
+      "DELEGATES → NOMINEE",
+      "VOTERS → ELECTORS",
+    ],
+    stageSummaries: [
+      "Voters help award delegates — party representatives.",
+      "Delegates choose the nominee: the party’s candidate.",
+      "Your vote helps choose electors. Their votes, not the nationwide vote total, elect the president.",
+    ],
     title: "Choosing a president",
     year: "2028",
     choosing:
@@ -43,6 +53,11 @@ export const processExamples = {
   },
   california: {
     label: "House: CA",
+    stageActors: ["ALL CANDIDATES → TOP TWO", "TOP TWO → REPRESENTATIVE"],
+    stageSummaries: [
+      "The top two advance, even if they prefer the same party.",
+      "Voters choose their district’s representative.",
+    ],
     title: "California · U.S. House",
     year: "2026",
     choosing:
@@ -82,6 +97,16 @@ export const processExamples = {
   },
   texas: {
     label: "House: TX",
+    stageActors: [
+      "PARTY CANDIDATES → NOMINEE",
+      "OPTIONAL RUNOFF",
+      "CANDIDATES → REPRESENTATIVE",
+    ],
+    stageSummaries: [
+      "Voters choose their party’s candidate.",
+      "The top two candidates face another vote if no one gets more than half.",
+      "Voters choose their district’s representative.",
+    ],
     title: "Texas · U.S. House",
     year: "2026",
     choosing:
