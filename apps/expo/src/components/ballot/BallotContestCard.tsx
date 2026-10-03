@@ -6,7 +6,7 @@ import type { Contest } from "@acme/api";
 import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
 import { posthog } from "~/config/posthog";
-import { colors, fontBody } from "~/styles";
+import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import {
   ballotContestRoute,
   ballotElectionDate,
@@ -91,12 +91,21 @@ export function BallotContestCard({
   );
 }
 const s = StyleSheet.create({
-  card: { flexDirection: "row", alignItems: "center", gap: 12, padding: 18 },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[1],
+    backgroundColor: planes.slate,
+  },
   content: { flex: 1, gap: 4 },
   title: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 18,
-    lineHeight: 23,
+    fontFamily: fontEditorial.bold,
+    fontSize: 16,
+    lineHeight: 21,
     color: "#FFFFFF",
   },
   meta: {

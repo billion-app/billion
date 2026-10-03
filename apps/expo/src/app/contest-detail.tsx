@@ -40,7 +40,6 @@ import {
   DigestHair,
   DigestRadii,
   fontBody,
-  fontDisplay,
   fontEditorial,
   hair,
   DigestPalette as P,
@@ -386,8 +385,11 @@ export default function ContestDetailScreen() {
           {(candidates.length > 0 || filtering) && (
             <Text accessibilityRole="header" style={s.readingLabel}>
               {filtering
-                ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
+                ? `${filtered.length} of ${candidates.length} names shown`
                 : `Candidates · ${candidates.length}`}
+||||||| 6e9cc18f
+                ? `${filtered.length} of ${candidates.length} names shown`
+                : `${candidates.length} names shown`}
             </Text>
           )}
 
@@ -726,9 +728,9 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   office: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 30,
-    lineHeight: 34,
+    fontFamily: fontEditorial.bold,
+    fontSize: 22,
+    lineHeight: 28,
     color: P.inkOnNight,
     marginBottom: 4,
     letterSpacing: -0.55,
@@ -781,9 +783,9 @@ const s = StyleSheet.create({
     gap: 12,
   },
   identityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     backgroundColor: planes.surface,
     alignItems: "center",
     justifyContent: "center",
@@ -797,8 +799,8 @@ const s = StyleSheet.create({
   },
   candName: {
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     letterSpacing: -0.2,
     color: P.inkOnNight,
   },
@@ -817,18 +819,18 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  emptyState: { ...cardChrome, gap: 12, padding: 20 },
+  emptyState: { ...cardChrome, gap: 11, padding: 15 },
   emptyTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     color: P.inkOnNight,
   },
   candidateSection: { gap: 18 },
   readingLabel: {
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     color: P.inkOnNight,
     marginBottom: 8,
   },

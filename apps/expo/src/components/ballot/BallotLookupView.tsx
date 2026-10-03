@@ -37,7 +37,6 @@ import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import {
   DigestHair,
   fontBody,
-  fontDisplay,
   fontEditorial,
   DigestPalette as P,
   planes,
@@ -569,7 +568,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   options={[
                     {
                       id: "candidates",
-                      label: `Candidates ${model.contests.filter((c) => !c.referendumTitle).length}`,
+                      label: `Races ${model.contests.filter((c) => !c.referendumTitle).length}`,
                       icon: "vote",
                     },
                     {
@@ -686,11 +685,11 @@ const s = StyleSheet.create({
     paddingLeft: 12,
     gap: 6,
   },
-  form: { gap: 16, padding: 16, borderRadius: 16 },
+  form: { gap: 16, padding: 16, borderRadius: 14 },
   pageTitle: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 34,
-    lineHeight: 38,
+    fontFamily: fontEditorial.bold,
+    fontSize: 24,
+    lineHeight: 30,
     color: P.inkOnNight,
   },
   electionTitle: {
@@ -710,7 +709,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: P.card,
     borderWidth: 1,
     borderColor: DigestHair.cardBorder,
@@ -845,7 +844,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  primaryText: { fontFamily: fontBody.bold, fontSize: 16, color: P.canvas },
+  primaryText: { fontFamily: fontBody.semibold, fontSize: 13, color: P.canvas },
   input: {
     minHeight: 48,
     padding: 12,
