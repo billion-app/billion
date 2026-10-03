@@ -5,10 +5,13 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 import type { BallotCitation, BallotEvidence, LanguageEvidence } from "./model";
 import { Icon } from "~/components/ui/Icon";
 import {
+  colors,
   DigestHair,
   fontBody,
   fontEditorial,
+  hair,
   DigestPalette as P,
+  planes,
   sp,
 } from "~/styles";
 import { BallotText as Text } from "./BallotText";
@@ -24,7 +27,9 @@ export function SourceLink({
   label,
   url,
   prominence = "secondary",
+  reader = false,
 }: {
+  reader?: boolean;
   label: string;
   url?: string;
   prominence?: "primary" | "secondary";
@@ -37,7 +42,11 @@ export function SourceLink({
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={label}
-        style={[s.link, prominence === "primary" && s.primary]}
+        style={[
+          s.link,
+          prominence === "primary" && s.primary,
+          reader && s.readerLink,
+        ]}
         onPress={() => {
           void Linking.openURL(href).then(
             () => setFailed(false),
@@ -45,13 +54,25 @@ export function SourceLink({
           );
         }}
       >
-        <Text style={[s.linkText, prominence === "primary" && s.primaryText]}>
+        <Text
+          style={[
+            s.linkText,
+            prominence === "primary" && s.primaryText,
+            reader && s.readerLinkText,
+          ]}
+        >
           {label}
         </Text>
         <Icon
           name="external"
           size={16}
-          color={prominence === "primary" ? P.canvas : P.primary}
+          color={
+            reader
+              ? colors.textSecondary
+              : prominence === "primary"
+                ? P.canvas
+                : P.primary
+          }
         />
       </Pressable>
       {failed && (
@@ -65,10 +86,12 @@ export function SourceLink({
 
 export function ElectionOfficeLink({
   prominence = "secondary",
-}: { prominence?: "primary" | "secondary" } = {}) {
+  reader = false,
+}: { prominence?: "primary" | "secondary"; reader?: boolean } = {}) {
   return (
     <SourceLink
       label="Find your election office"
+      reader={reader}
       prominence={prominence}
       url="https://www.usa.gov/state-election-office"
     />
@@ -337,6 +360,19 @@ export function BallotDetailEvidence({
 }
 
 const s = StyleSheet.create({
+  readerLink: {
+    minHeight: 48,
+    paddingHorizontal: 13,
+    backgroundColor: planes.surface,
+    borderColor: hair[1],
+    borderRadius: 10,
+  },
+  readerLinkText: {
+    fontFamily: fontBody.medium,
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: colors.white,
+  },
   footer: { marginTop: sp[3] },
   unavailable: { paddingVertical: sp[3] },
   actions: { gap: sp[3], marginTop: sp[3] },

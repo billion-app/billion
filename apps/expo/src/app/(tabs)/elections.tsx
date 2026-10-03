@@ -27,7 +27,7 @@ import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
 import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, hair, planes } from "~/styles";
+import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
   ballotElectionDate,
@@ -249,15 +249,15 @@ function CaliforniaElectionEntry({
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              backgroundColor: planes.slate,
+              width: 32,
+              height: 32,
+              borderRadius: 9,
+              backgroundColor: planes.surface,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Icon name="book" size={23} color={colors.bill} />
+            <Icon name="book" size={18} color={colors.textSecondary} />
           </View>
           <Text style={[s.entryKicker, { marginTop: 0, flex: 1 }]}>
             {guide
@@ -299,11 +299,12 @@ function CaliforniaElectionEntry({
             style={s.entryButton}
           >
             <Text style={s.entryButtonText}>Explore the guide</Text>
-            <Icon name="arrowRight" size={19} color={planes.navy} />
+            <Icon name="arrowRight" size={19} color={colors.textSecondary} />
           </TouchableOpacity>
         ) : (
-          <View style={{ marginTop: 30 }}>
+          <View style={{ marginTop: 18 }}>
             <SourceLink
+              reader
               label="Read California’s official guide"
               url="https://voterguide.sos.ca.gov/"
               prominence="primary"
@@ -321,8 +322,9 @@ function CaliforniaElectionEntry({
           onPress={onLookup}
           accessibilityLabel="Find my official ballot through my election office"
           style={{
-            minHeight: 56,
+            minHeight: 48,
             marginTop: 16,
+            backgroundColor: planes.slate,
             padding: 14,
             borderRadius: 12,
             borderWidth: 1,
@@ -337,21 +339,21 @@ function CaliforniaElectionEntry({
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              backgroundColor: planes.slate,
+              width: 32,
+              height: 32,
+              borderRadius: 9,
+              backgroundColor: planes.surface,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Icon name="pin" size={20} color={colors.white} />
+            <Icon name="pin" size={18} color={colors.white} />
           </View>
           <View style={{ flex: 1 }}>
             <Text
               style={{
-                fontFamily: fontBody.bold,
-                fontSize: 16,
+                fontFamily: fontEditorial.bold,
+                fontSize: 17,
                 color: colors.white,
               }}
             >
@@ -711,41 +713,43 @@ function ElectionsLive({
 }
 
 const s = StyleSheet.create({
-  entry: { paddingHorizontal: 20, paddingTop: 30 },
+  entry: { paddingHorizontal: 20, paddingTop: 18 },
   entryKicker: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
-    color: colors.bill,
+    color: colors.textSecondary,
     marginTop: 28,
   },
   entryTitle: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 32,
-    lineHeight: 39,
+    fontFamily: fontEditorial.bold,
+    fontSize: 24,
+    lineHeight: 29,
     color: colors.white,
     marginTop: 12,
   },
   entryBody: {
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 23,
     color: colors.textSecondary,
-    marginTop: 14,
+    marginTop: 10,
   },
   entryButton: {
-    minHeight: 56,
-    marginTop: 30,
-    paddingHorizontal: 20,
+    minHeight: 48,
+    marginTop: 18,
+    paddingHorizontal: 13,
     borderRadius: 8,
-    backgroundColor: colors.bill,
+    backgroundColor: planes.surface,
+    borderWidth: 1,
+    borderColor: hair[1],
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   entryButtonText: {
     fontFamily: fontBody.semibold,
-    fontSize: 16,
-    color: planes.navy,
+    fontSize: 13.5,
+    color: colors.white,
   },
   entryNote: {
     flexDirection: "row",
@@ -753,7 +757,7 @@ const s = StyleSheet.create({
     alignItems: "flex-start",
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: hair[2],
-    marginTop: 34,
+    marginTop: 22,
     paddingTop: 18,
   },
   entryNoteText: {

@@ -28,6 +28,9 @@ release availability false/error. They establish integration and UI behavior,
 - `guide-sparse.png` / `guide-error.png`: missing/failed preview retains the official
   statewide guide, county-office help and a working Back action. Errors hide stale
   preview data.
+- `guide-candidates.png` / `guide-proposition-expanded.png`: populated guide
+  with explicitly synthetic candidate/proposition content, including expanded
+  summary, fiscal detail and official-source controls.
 - `closed.png` / `error.png`: useful official-ballot fallback, retry only on failure.
 - `large-text.png` / `entry-large.png` / `entry-loading-large.png`: actual app at
   320px with browser text enlarged 150%; no horizontal overflow. The official-guide
@@ -58,7 +61,7 @@ headings. An expert design verdict does not replace real-reader/native/live gate
 The entry replaces its decorative rule with a book beside the statewide-guide
 label and pairs the official-ballot action with a location pin. These distinguish
 reading statewide material from finding information tied to where the reader votes;
-they do not establish address matching or coverage. Existing blue/cream accents
+they do not establish address matching or coverage. Shared muted accents
 reinforce the labels without representing candidate quality or partisan judgment.
 
 The fallback replaces its opening status sentence with a compact info-icon status
@@ -67,6 +70,28 @@ signal. The body now explains only the useful election-office next step. Decorat
 scope/status icons are hidden from assistive technology; visible text and button
 labels retain the meaning. No maps, ballot checkmarks or certification seals imply
 unsupported readiness.
+
+## Bills design-language comparison
+
+The current entry, fallback and guide use `fontEditorial` / `fontBody`, the
+BillBrief 15px/23px reading scale, 14px slate cards and subtle `hair` borders.
+Book, pin and status tiles follow its compact 32px/9px geometry. Official links
+use an opt-in reader appearance in the existing ballot SourceLink; URL validation
+and failure handling remain shared, and other callers keep their existing look.
+No shared tab/header or generic UI styles changed.
+
+`bills-reference.png` and `bills-brief-reference.png` render the actual
+`article-detail` route and BillBrief in the same exported app at 390×844. The
+record is explicitly synthetic visual-reference content, not a live bill or
+evidence about legislation. The dark Bills reader uses slate surfaces; paper
+is retained where the existing app uses it rather than added to election cards.
+
+A fresh independent `gpt-6-astra` reviewer compared the actual Bills and election
+screenshots before code, then checked the four-file UI delta. A second screenshot
+pass confirmed populated candidate and expanded proposition states and the scrolled
+Bills reference. It found no required design or code fixes, and was independently
+impressed by consistent execution and useful recovery within this closed-launch
+scope. Native accessibility and live personalized-ballot acceptance remain open.
 
 ## Remaining launch gates
 

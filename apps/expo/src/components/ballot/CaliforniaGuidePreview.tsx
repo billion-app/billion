@@ -13,7 +13,7 @@ import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
-import { colors, fontBody, fontDisplay, planes } from "~/styles";
+import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
@@ -105,6 +105,7 @@ function MeasureCard({ measure }: { measure: Measure }) {
             </View>
           )}
           <SourceLink
+            reader
             label="Official proposition guide"
             url={measure.sourceUrl}
           />
@@ -193,17 +194,19 @@ export function CaliforniaGuidePreview({
 
       {query.isPending && <ActivityIndicator color={colors.bill} />}
       {!query.isPending && !guide && (
-        <Card style={{ gap: 16 }}>
+        <Card style={[s.card, { padding: 16, gap: 13 }]}>
           <Text style={[s.introText, { color: colors.white, marginTop: 0 }]}>
             Read California’s candidate statements and propositions on the
             official guide website.
           </Text>
           <SourceLink
+            reader
             label="Read the official guide"
             url="https://voterguide.sos.ca.gov/"
             prominence="primary"
           />
           <SourceLink
+            reader
             label="Find your county elections office"
             url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
           />
@@ -267,6 +270,7 @@ export function CaliforniaGuidePreview({
           )}
           <View style={s.footer}>
             <SourceLink
+              reader
               label="California official voter guide"
               url={guide.sourceUrl}
             />
@@ -275,11 +279,13 @@ export function CaliforniaGuidePreview({
               office.
             </Text>
             <SourceLink
+              reader
               label="Check voting information with California"
               url="https://voterstatus.sos.ca.gov/EN/Authenticate"
               prominence="primary"
             />
             <SourceLink
+              reader
               label="Find your county elections office"
               url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
             />
@@ -308,18 +314,22 @@ export function CaliforniaGuidePreview({
 const s = StyleSheet.create({
   screen: { paddingHorizontal: 20, gap: 22 },
   intro: { paddingTop: 20, gap: 12 },
-  kicker: { color: colors.bill, fontFamily: fontBody.semibold, fontSize: 12 },
+  kicker: {
+    color: colors.textSecondary,
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+  },
   headline: {
     color: "#FFFFFF",
-    fontFamily: fontDisplay.bold,
-    fontSize: 30,
-    lineHeight: 36,
+    fontFamily: fontEditorial.bold,
+    fontSize: 24,
+    lineHeight: 29,
   },
   introText: {
     color: colors.textSecondary,
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 23,
   },
   scope: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   scopeText: {
@@ -336,7 +346,14 @@ const s = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  card: { padding: 0, overflow: "hidden" },
+  card: {
+    padding: 0,
+    overflow: "hidden",
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+  },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -356,9 +373,9 @@ const s = StyleSheet.create({
   cardIdentity: { flex: 1, gap: 5 },
   cardTitle: {
     color: "#FFFFFF",
-    fontFamily: fontDisplay.bold,
-    fontSize: 19,
-    lineHeight: 24,
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 22,
   },
   measureTitle: {
     fontFamily: fontBody.semibold,
@@ -383,11 +400,11 @@ const s = StyleSheet.create({
     borderRadius: 4,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.bill,
+    backgroundColor: planes.surface,
   },
   measureNumberText: {
-    color: planes.navy,
-    fontFamily: fontDisplay.bold,
+    color: colors.white,
+    fontFamily: fontEditorial.bold,
     fontSize: 24,
   },
   detailBlock: { gap: 4 },
