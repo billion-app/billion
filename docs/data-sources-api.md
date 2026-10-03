@@ -243,9 +243,13 @@ import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 **Auth:** none — OS permission prompt instead of an API key
 
 The Google Places autocomplete and place-details endpoints were removed. The
-client asks for a one-shot foreground location fix, reverse-geocodes it on
-device, and still lets the voter type a registered address — GPS locates the
-person, not necessarily their registration.
+client asks for a one-shot foreground location fix and hands the coordinate to
+the operating system's geocoder (iOS `CLGeocoder`, Android `Geocoder`) to get a
+street address, so the coordinate reaches the platform's geocoding service but
+not Billion's servers. Typed entry stays an equal path, because GPS locates the
+person, not necessarily their registration. When the geocoder returns nothing
+usable, the client submits the coordinate itself (`lat,lng`) as the lookup
+address.
 
 ---
 
