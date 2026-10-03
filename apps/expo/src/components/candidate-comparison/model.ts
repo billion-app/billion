@@ -20,6 +20,8 @@ export interface ComparisonSource {
 export interface ComparisonClaim {
   /** Optional reviewed short answer, supported by the same source references. */
   headline?: string;
+  /** Reviewed subject pictogram; conveys no outcome or candidate rating. */
+  pictogram?: "bus" | "roadworks";
   text: string;
   attribution:
     | "Candidate statement"

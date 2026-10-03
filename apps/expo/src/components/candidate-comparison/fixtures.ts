@@ -65,7 +65,8 @@ export function comparisonFixture(scenario: string): RaceComparison {
                   {
                     headline:
                       index === 0 ? "More frequent buses" : "Street repairs",
-                    text: "Would seek council approval to use city funds.",
+                    pictogram: index === 0 ? "bus" : "roadworks",
+                    text: "City funds · Would seek council approval",
                     attribution: "Candidate statement",
                     sourceIds: [index === 0 ? "rivera" : "chen"],
                   },

@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import type {
   ComparisonSource,
@@ -7,6 +13,7 @@ import type {
   RaceComparison,
 } from "./model";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { Icon } from "~/components/ui/Icon";
 import { Segmented } from "~/components/ui/Segmented";
 import {
   DigestHair,
@@ -40,7 +47,7 @@ function SourceLink({
         accessibilityRole={source.fixtureText ? "button" : "link"}
         accessibilityLabel={`${source.fixtureText ? (open ? "Hide" : "View") : "Read"} source: ${source.name}, ${source.locator}`}
         accessibilityState={source.fixtureText ? { expanded: open } : undefined}
-        style={s.action}
+        style={[s.action, s.iconAction]}
         onPress={() => {
           if (source.fixtureText) setOpen(!open);
           else if (source.url)
@@ -50,6 +57,9 @@ function SourceLink({
             );
         }}
       >
+        <View accessible={false} aria-hidden>
+          <Icon name="doc" size={16} color={P.inkOnNight} />
+        </View>
         <Text style={s.link}>
           {source.fixtureText
             ? open
@@ -81,6 +91,7 @@ function SourceLink({
 
 /** One shared question, then directly attributed answers in roster order. */
 export function RaceComparisonView({ race }: { race: RaceComparison }) {
+  const { fontScale } = useWindowDimensions();
   const [topic, setTopic] = useState<ComparisonTopic>("priorities");
   const [choosingSection, setChoosingSection] = useState(false);
   const [choosingFromEmpty, setChoosingFromEmpty] = useState(false);
@@ -212,13 +223,49 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
               cell.claims.map((claim, index) => (
                 <View key={index} style={{ gap: 6 }}>
                   {claim.headline && (
-                    <Text selectable style={s.answer}>
-                      {claim.headline}
+                    <View style={s.answerRow}>
+                      {claim.pictogram && (
+                        <View
+                          style={s.pictogram}
+                          accessible={false}
+                          aria-hidden
+                        >
+                          <Icon
+                            name={claim.pictogram}
+                            size={26}
+                            color={P.inkOnNight}
+                          />
+                        </View>
+                      )}
+                      <Text
+                        selectable
+                        style={[
+                          s.answer,
+                          {
+                            flexBasis: 140 * fontScale,
+                            flexGrow: 1,
+                            flexShrink: 1,
+                          },
+                        ]}
+                      >
+                        {claim.headline}
+                      </Text>
+                    </View>
+                  )}
+                  {claim.pictogram ? (
+                    <View style={s.proposalContext}>
+                      <View accessible={false} aria-hidden>
+                        <Icon name="users" size={18} color={P.inkOnNight} />
+                      </View>
+                      <Text selectable style={[s.metadata, { flex: 1 }]}>
+                        {claim.text}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text selectable style={claim.headline ? s.body : s.answer}>
+                      {claim.text}
                     </Text>
                   )}
-                  <Text selectable style={claim.headline ? s.body : s.answer}>
-                    {claim.text}
-                  </Text>
                   <Text style={s.attribution}>{claim.attribution}</Text>
                   {claim.sourceIds.map((id, sourceIndex) => {
                     const source = race.sources.find((item) => item.id === id);
@@ -306,6 +353,31 @@ const s = StyleSheet.create({
     lineHeight: 30,
     color: P.inkOnNight,
   },
+  answerRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 12,
+  },
+  pictogram: {
+    backgroundColor: P.canvas,
+    borderColor: P.primary,
+    borderWidth: 1,
+    borderRadius: DigestRadii.menuRow,
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  proposalContext: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    borderTopColor: DigestHair.cardBorder,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  iconAction: { flexDirection: "row", alignItems: "center", gap: 8 },
   attribution: {
     fontFamily: fontBody.regular,
     fontSize: 12,

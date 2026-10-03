@@ -14,10 +14,13 @@ Captured October 2, 2026 from the actual Expo web application at a 390 × 844 vi
 - `mixed-record.png`: one sourced budget vote alongside compact missing-evidence cards.
 - `section-recovery.png`: empty-state action opens section choices where the reader is.
 - `about.png`: publication and evidence explanations revealed on request.
+- `visual-200-percent.png`: enlarged proposal pictogram, council-request row and source action, with text wrapping. Browser stress check only.
 - `production-gate.png`: production web export served locally; the route renders only its unpublished notice, without fictional claims or controls.
 
 The initial independent Astra review resolved overflow and basic comprehension defects. A fresh, screenshot-first Astra design review then found the answer buried beneath process copy, weak comparison hierarchy, repeated empty-state caveats, jargon and visually dominant source links. The same fresh reviewer assessed each subsequent iteration. Its second review found the surface readable but not yet compelling. The third found it a compelling, polished presentation it would willingly read: the shared question and sourced answer headlines lead, provenance is quieter, and empty-state recovery is directly available.
 
 The final code pass also caught a missing-question exception and an overbroad budget-vote headline. Both were fixed, the five focused tests passed, and the same reviewer verified the fixes and refreshed screenshots. This verdict covers the narrow synthetic web surface. It does not establish performance with complex real evidence or satisfy the release gates below. The PR screenshot comment pins the reviewed commit and build/data labels.
+
+A subsequent visual iteration added matching outlined bus/roadworks pictograms, common council-request rows and document source actions. The same independent Astra reviewer found these reduced rereading and made the shared proposal mechanism visible. It flagged unequal icon weight; the solid road glyph was replaced with an outlined roadworks glyph. An enlarged-browser pass exposed long-headline overflow beside the pictogram; wrapping the pair with a text basis adjusted for native font scale fixed the demonstrated web case, and Astra re-reviewed the actual capture and diff. The visuals do not rate candidates or assert outcomes, and unknown positions receive no invented pictograms.
 
 Editorial approval, reviewed live evidence through tRPC, native Dynamic Type/VoiceOver/TalkBack, human comprehension testing, and the production mobile ballot flow remain publication gates. Browser screenshots and automated review do not substitute for them.
