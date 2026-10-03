@@ -226,7 +226,7 @@ function OfficialLink({
           );
         }}
       >
-        <Text style={[s.link, { flex: 1 }, primary && { color: colors.bill }]}>
+        <Text style={[s.link, { flex: 1 }, primary && { color: P.inkOnNight }]}>
           {label}
         </Text>
         <Icon
