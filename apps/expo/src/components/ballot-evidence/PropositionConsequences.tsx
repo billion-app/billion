@@ -5,7 +5,14 @@ import type { RouterOutputs } from "@acme/api";
 
 import type { IconName } from "~/components/ui/Icon";
 import { Icon } from "~/components/ui";
-import { fontBody, fontEditorial, DigestPalette as P, sp } from "~/styles";
+import {
+  fontBody,
+  fontEditorial,
+  hair,
+  DigestPalette as P,
+  planes,
+  sp,
+} from "~/styles";
 import { BallotText as Text } from "./BallotText";
 import { webUrl } from "./model";
 
@@ -15,8 +22,19 @@ type Claim = Analysis["yes"];
 
 export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
   const [titleOpen, setTitleOpen] = useState(false);
-  const section = (title: string, claims: Claim[], icon?: IconName) => (
-    <View style={s.section}>
+  const section = (
+    title: string,
+    claims: Claim[],
+    icon?: IconName,
+    card = false,
+  ) => (
+    <View
+      style={[
+        s.section,
+        card && s.sectionCard,
+        title === "Limits and unknowns" && s.unknownCard,
+      ]}
+    >
       <View style={s.sectionHeading}>
         {icon && (
           <View
@@ -67,9 +85,20 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
       <Text style={s.caption}>
         Billion plain-language analysis · AI-assisted
       </Text>
-      <Text accessibilityRole="header" style={s.headline}>
-        {analysis.headline.text}
-      </Text>
+      <View style={s.summaryCard}>
+        <View style={s.sectionHeading}>
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon name="sparkle" size={16} color={P.badgeBlue} />
+          </View>
+          <Text accessibilityRole="header" style={s.summaryTitle}>
+            The short version
+          </Text>
+        </View>
+        <Text style={s.headline}>{analysis.headline.text}</Text>
+      </View>
       <View style={s.officialTitle}>
         <Pressable
           accessibilityRole="button"
@@ -129,9 +158,14 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
           </View>
         </>
       )}
-      {section("Who is affected", analysis.affected, "users")}
-      {section("Costs and funding", [analysis.costsAndFunding])}
-      {section("Limits and unknowns", [analysis.uncertainty], "help")}
+      {section("Who is affected", analysis.affected, "users", true)}
+      {section(
+        "Costs and funding",
+        [analysis.costsAndFunding],
+        undefined,
+        true,
+      )}
+      {section("Limits and unknowns", [analysis.uncertainty], "help", true)}
       <AnalysisDisclosure
         title="How this would work"
         subtitle="What happens next"
@@ -233,7 +267,7 @@ function AnalysisDisclosure({
         style={s.disclosureTrigger}
       >
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={s.heading}>{title}</Text>
+          <Text style={s.disclosureHeading}>{title}</Text>
           <Text style={s.caption}>{subtitle}</Text>
         </View>
         <Icon name={open ? "chevD" : "chevR"} size={16} color={P.inkOnNight} />
@@ -277,26 +311,64 @@ function ClaimSource({
 }
 const s = StyleSheet.create({
   sectionHeading: { flexDirection: "row", alignItems: "center", gap: 9 },
-  decisionMap: { gap: 12 },
-  mapToday: { backgroundColor: P.paper, padding: 14, borderRadius: 8, gap: 5 },
+  summaryCard: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderLeftWidth: 3,
+    borderLeftColor: P.badgeBlue,
+    borderRadius: 14,
+    padding: 16,
+    gap: 13,
+  },
+  summaryTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: P.inkOnNight,
+  },
+  sectionCard: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    padding: 14,
+  },
+  unknownCard: { backgroundColor: planes.surface, borderColor: hair[2] },
+  decisionMap: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    padding: 15,
+    gap: 11,
+  },
+  mapToday: {
+    backgroundColor: planes.surface,
+    padding: 12,
+    borderRadius: 10,
+    gap: 5,
+  },
   todayLabel: {
     fontFamily: fontBody.medium,
-    fontSize: 13,
-    lineHeight: 20,
-    color: P.ink,
+    fontSize: 11,
+    lineHeight: 16,
+    color: P.inkOnNight,
   },
   todayText: {
-    fontFamily: fontEditorial.bold,
-    fontSize: 20,
-    lineHeight: 27,
-    color: P.ink,
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: P.inkOnNight,
   },
-  mapBranches: { flexDirection: "row", gap: 0, marginLeft: 16 },
-  mapSpine: { width: 12, borderLeftWidth: 1, borderColor: P.quiet },
+  mapBranches: { flexDirection: "row", gap: 0, marginLeft: 8 },
+  mapSpine: { width: 12, borderLeftWidth: 1, borderColor: hair[2] },
   mapChoices: { flex: 1, gap: 10 },
   mapOutcome: {
     backgroundColor: P.card,
-    borderRadius: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: hair[1],
     borderLeftWidth: 3,
     padding: 12,
     gap: 5,
@@ -305,14 +377,14 @@ const s = StyleSheet.create({
   mapLabel: {
     flex: 1,
     fontFamily: fontBody.medium,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 11,
+    lineHeight: 16,
     color: P.inkOnNight,
   },
   mapConsequence: {
-    fontFamily: fontEditorial.bold,
-    fontSize: 20,
-    lineHeight: 27,
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
     color: P.inkOnNight,
   },
   officialTitle: { gap: 3 },
@@ -329,15 +401,21 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
   },
   disclosure: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: P.border,
+    borderTopWidth: 1,
+    borderColor: hair[1],
   },
   disclosureTrigger: {
-    minHeight: 56,
-    paddingVertical: 12,
+    minHeight: 44,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  disclosureHeading: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 16,
+    lineHeight: 21,
+    color: P.inkOnNight,
   },
   disclosureBody: { paddingBottom: 16, gap: 12 },
   sourceLink: { minHeight: 44, justifyContent: "center" },
@@ -348,38 +426,39 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
     textDecorationLine: "underline",
   },
-  analysis: { gap: sp[4] },
+  analysis: { gap: 18 },
   section: { gap: sp[2] },
   claim: { gap: sp[1] },
   headline: {
-    fontFamily: fontEditorial.bold,
-    fontSize: 27,
-    lineHeight: 34,
+    fontFamily: fontBody.regular,
+    fontSize: 15,
+    lineHeight: 23,
     color: P.inkOnNight,
   },
   heading: {
+    flexShrink: 1,
     fontFamily: fontEditorial.bold,
-    fontSize: 20,
-    lineHeight: 27,
+    fontSize: 18,
+    lineHeight: 24,
     color: P.inkOnNight,
   },
   body: {
     fontFamily: fontBody.regular,
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 15,
+    lineHeight: 23,
     color: P.inkOnNight,
   },
   caption: {
     fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 11.5,
+    lineHeight: 17,
     color: P.quiet,
   },
   flow: {
     backgroundColor: P.card,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: P.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[1],
     padding: sp[4],
     gap: sp[4],
   },

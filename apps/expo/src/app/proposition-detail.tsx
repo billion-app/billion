@@ -11,12 +11,18 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
-import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { PropositionConsequences } from "~/components/ballot-evidence/PropositionConsequences";
 import { Icon, NavHeader } from "~/components/ui";
-import { fontBody, fontEditorial, DigestPalette as P, sp } from "~/styles";
+import {
+  fontBody,
+  fontEditorial,
+  hair,
+  DigestPalette as P,
+  planes,
+  sp,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import {
@@ -42,7 +48,7 @@ export default function PropositionDetailScreen() {
       <ScrollView contentContainerStyle={s.content}>
         {query.isPending ? (
           <View style={s.surface}>
-            <ActivityIndicator color={P.primary} />
+            <ActivityIndicator color={P.quiet} />
             <Text style={s.body}>Loading the official proposition guide…</Text>
           </View>
         ) : query.isError ? (
@@ -90,10 +96,9 @@ export default function PropositionDetailScreen() {
                       Billion’s explanation and a complete official Yes/No
                       comparison aren’t available here yet.
                     </Text>
-                    <SourceLink
+                    <InlineSource
                       label="Open official voter guide"
                       url={measure.sourceUrl}
-                      prominence="primary"
                     />
                   </>
                 )}
@@ -125,7 +130,7 @@ export default function PropositionDetailScreen() {
             {!measure.consequences &&
               measure.voteMeaningYes &&
               measure.voteMeaningNo && (
-                <SourceLink
+                <InlineSource
                   label="Open official voter guide"
                   url={measure.sourceUrl}
                 />
@@ -275,7 +280,7 @@ function DetailDisclosure({
         style={s.disclosureTrigger}
       >
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={s.heading}>{title}</Text>
+          <Text style={s.disclosureHeading}>{title}</Text>
           <Text style={s.caption}>{subtitle}</Text>
         </View>
         <Icon name={open ? "chevD" : "chevR"} size={16} color={P.quiet} />
@@ -293,6 +298,7 @@ function InlineSource({ label, url }: { label: string; url?: string }) {
     <View>
       <Pressable
         accessibilityRole="link"
+        accessibilityLabel={label}
         onPress={() => {
           void Linking.openURL(href).then(
             () => setFailed(false),
@@ -302,7 +308,7 @@ function InlineSource({ label, url }: { label: string; url?: string }) {
         style={s.sourceLink}
       >
         <Text style={s.sourceText}>{label}</Text>
-        <Icon name="external" size={14} color={P.primary} />
+        <Icon name="external" size={14} color={P.quiet} />
       </Pressable>
       {failed && (
         <Text accessibilityRole="alert" style={s.caption}>
@@ -331,7 +337,7 @@ function StateCard({
       <Pressable accessibilityRole="button" onPress={onRetry} style={s.retry}>
         <Text style={s.retryText}>Try again</Text>
       </Pressable>
-      <SourceLink
+      <InlineSource
         label="Open official voter guide"
         url="https://voterguide.sos.ca.gov/propositions/"
       />
@@ -345,7 +351,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: sp[4],
     paddingBottom: sp[12],
-    gap: 24,
+    gap: 18,
   },
   lead: { gap: 14 },
   kicker: {
@@ -357,9 +363,9 @@ const s = StyleSheet.create({
   voteSection: { gap: 12 },
   voteCard: {
     backgroundColor: P.card,
-    borderColor: P.border,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
+    borderColor: hair[1],
+    borderWidth: 1,
+    borderRadius: 14,
     padding: 16,
   },
   voteDivider: {
@@ -377,7 +383,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.bold,
     fontSize: 11,
     lineHeight: 21,
-    color: P.primary,
+    color: P.inkOnNight,
   },
   outcomeBody: {
     color: P.inkOnNight,
@@ -394,28 +400,29 @@ const s = StyleSheet.create({
   record: { gap: 14 },
   recordTitle: {
     fontFamily: fontBody.medium,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 23,
     color: P.inkOnNight,
   },
   surface: {
     backgroundColor: P.card,
-    borderColor: P.border,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
+    borderColor: hair[1],
+    borderWidth: 1,
+    borderRadius: 14,
     padding: 16,
     gap: 12,
   },
   heading: {
+    flexShrink: 1,
     fontFamily: fontEditorial.bold,
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 18,
+    lineHeight: 24,
     color: P.inkOnNight,
   },
   body: {
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 23,
     color: P.inkOnNight,
   },
   caption: {
@@ -425,16 +432,21 @@ const s = StyleSheet.create({
     color: P.quiet,
   },
   disclosure: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: P.border,
+    borderTopWidth: 1,
+    borderColor: hair[1],
   },
   disclosureTrigger: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 58,
+    minHeight: 44,
     paddingVertical: 10,
     gap: 12,
+  },
+  disclosureHeading: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 16,
+    lineHeight: 21,
+    color: P.inkOnNight,
   },
   disclosureBody: { paddingBottom: 16, gap: 12 },
   argumentLabel: {
@@ -448,7 +460,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     alignSelf: "stretch",
     gap: 5,
-    minHeight: 40,
+    minHeight: 44,
     paddingVertical: 6,
   },
   sourceText: {
@@ -456,14 +468,20 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 13,
     lineHeight: 18,
-    color: P.primary,
+    color: P.inkOnNight,
   },
   retry: {
     minHeight: 44,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 9,
-    backgroundColor: P.primary,
+    backgroundColor: planes.surface,
+    borderWidth: 1,
+    borderColor: hair[2],
   },
-  retryText: { fontFamily: fontBody.semibold, fontSize: 15, color: P.canvas },
+  retryText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 15,
+    color: P.inkOnNight,
+  },
 });
