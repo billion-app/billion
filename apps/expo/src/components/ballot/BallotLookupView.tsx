@@ -456,6 +456,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               model.election.electionDay &&
               (data.provider !== undefined || data.kind === "fixture") && (
                 <PrivatePreparation
+                  showElectionContext={false}
                   key={JSON.stringify([
                     data.provider?.name ?? data.kind,
                     model.election,

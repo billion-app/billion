@@ -14,6 +14,7 @@ import type { Contest, Election } from "@acme/api";
 
 import type { Preparation, Progress } from "~/utils/preparation";
 import { BallotText as BaseText } from "~/components/ballot-evidence/BallotText";
+import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
 import { Segmented } from "~/components/ui/Segmented";
 import {
@@ -50,6 +51,7 @@ export function PrivatePreparation({
   contests = [],
   initiallyOpen = false,
   onOpenBallot,
+  showElectionContext = true,
 }: {
   election?: Election;
   provider: string;
@@ -58,6 +60,7 @@ export function PrivatePreparation({
   contests?: Contest[];
   initiallyOpen?: boolean;
   onOpenBallot?: () => void;
+  showElectionContext?: boolean;
 }) {
   const identity =
     election && lookupScope
@@ -163,7 +166,10 @@ export function PrivatePreparation({
       <Text
         style={[
           typography.bodySmall,
-          { color: P.inkOnNight, fontFamily: fontBody.regular },
+          {
+            color: primary ? P.canvas : P.inkOnNight,
+            fontFamily: fontBody.regular,
+          },
         ]}
       >
         {selected ? "✓ " : ""}
@@ -186,6 +192,54 @@ export function PrivatePreparation({
     : undefined;
   const status = (progress: Progress) =>
     ({ undecided: "To read", reviewed: "Read", skipped: "Skipped" })[progress];
+  const readingBadge = (progress: Progress) => (
+    <View
+      style={{
+        alignSelf: "flex-start",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        borderRadius: 6,
+        backgroundColor: P.canvas,
+        paddingHorizontal: 8,
+        paddingVertical: 5,
+      }}
+    >
+      <View
+        accessible={false}
+        aria-hidden={true}
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Icon
+          name={
+            progress === "reviewed"
+              ? "book"
+              : progress === "skipped"
+                ? "minus"
+                : "clock"
+          }
+          size={14}
+          color={progress === "reviewed" ? P.primary : P.quiet}
+        />
+      </View>
+      <Text style={{ fontSize: 13, color: P.inkOnNight }}>
+        {status(progress)}
+      </Text>
+    </View>
+  );
+  const matched = contests.map((contest) => {
+    const snapshot = contestSnapshot(contest);
+    return contests.filter((other) => contestSnapshot(other) === snapshot)
+      .length === 1
+      ? current.find((item) => item.snapshot === snapshot)
+      : undefined;
+  });
+  const readCount = matched.filter(
+    (item) => item?.progress === "reviewed",
+  ).length;
+  const skipCount = matched.filter(
+    (item) => item?.progress === "skipped",
+  ).length;
   const date = (value: string) => {
     const parsed = new Date(`${value}T12:00:00Z`);
     return Number.isNaN(parsed.getTime())
@@ -215,19 +269,7 @@ export function PrivatePreparation({
         {item.electionName} · {date(item.electionDay)}
       </Text>
       {previous && <Text style={{ color: P.quiet }}>Previous ballot</Text>}
-      <View
-        style={{
-          alignSelf: "flex-start",
-          borderRadius: 6,
-          backgroundColor: P.canvas,
-          paddingHorizontal: 8,
-          paddingVertical: 4,
-        }}
-      >
-        <Text style={{ fontSize: 13, color: P.quiet }}>
-          {status(item.progress)}
-        </Text>
-      </View>
+      {readingBadge(item.progress)}
       {button(
         "Delete note",
         () => void commit(() => store.remove(item), false),
@@ -257,7 +299,7 @@ export function PrivatePreparation({
       </View>
       {open && (
         <>
-          {election && (
+          {election && (draft !== undefined || showElectionContext) && (
             <Text style={{ color: P.inkOnNight }}>
               {election.name} · {date(election.electionDay)}
             </Text>
@@ -449,13 +491,59 @@ export function PrivatePreparation({
               )}
               {ready && election && lookupScope && (
                 <>
-                  <Text>
-                    {!contests.length
-                      ? "No races or measures are available for this ballot yet. Check the ballot’s source or try the lookup again."
-                      : current.length
-                        ? "Pick an item to review or update your notes."
-                        : "Choose a race or measure to add notes."}
-                  </Text>
+                  {!matched.some(Boolean) && (
+                    <Text>
+                      {!contests.length
+                        ? "No races or measures are available for this ballot yet. Check the ballot’s source or try the lookup again."
+                        : current.length
+                          ? "Pick an item to review or update your notes."
+                          : "Choose a race or measure to add notes."}
+                    </Text>
+                  )}
+                  {!!contests.length && matched.some(Boolean) && (
+                    <View
+                      accessibilityLabel={`Reading progress: ${readCount} of ${contests.length} read, ${skipCount} skipped`}
+                      accessible
+                      style={{ gap: sp[2] }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <View
+                          aria-hidden={true}
+                          accessible={false}
+                          importantForAccessibility="no-hide-descendants"
+                        >
+                          <Icon name="book" size={18} color={P.primary} />
+                        </View>
+                        <Text>
+                          {readCount} of {contests.length} read
+                          {skipCount ? ` · ${skipCount} skipped` : ""}
+                        </Text>
+                      </View>
+                      <View
+                        accessible={false}
+                        style={{
+                          height: 6,
+                          backgroundColor: P.canvas,
+                          borderRadius: 3,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <View
+                          style={{
+                            height: 6,
+                            width: `${(100 * readCount) / contests.length}%`,
+                            backgroundColor: P.primary,
+                          }}
+                        />
+                      </View>
+                    </View>
+                  )}
                   {[...contests]
                     .sort(
                       (a, b) =>
@@ -472,13 +560,14 @@ export function PrivatePreparation({
                     )
                     .map((contest, index) => {
                       const snapshot = contestSnapshot(contest);
-                      const item = current.find(
+                      const saved = current.find(
                         (entry) => entry.snapshot === snapshot,
                       );
                       const duplicate =
                         contests.filter(
                           (other) => contestSnapshot(other) === snapshot,
                         ).length > 1;
+                      const item = duplicate ? undefined : saved;
                       const title =
                         contest.referendumTitle ??
                         contest.office ??
@@ -487,7 +576,8 @@ export function PrivatePreparation({
                         <Pressable
                           key={index}
                           accessibilityRole="button"
-                          accessibilityLabel={`${title}, ${item ? status(item.progress) : "Add notes"}`}
+                          accessibilityLabel={`${title}, ${duplicate ? "Notes unavailable for this item" : item ? status(item.progress) : "Add notes"}${item?.choice ? `, Possible choice: ${item.choice}` : item?.notes ? `, Your note preview: ${item.notes.slice(0, 120)}` : ""}`}
+                          accessibilityState={{ disabled: duplicate || busy }}
                           disabled={duplicate || busy}
                           onPress={() => {
                             setChoiceOpen(false);
@@ -513,31 +603,36 @@ export function PrivatePreparation({
                             borderWidth: 1,
                             borderColor: DigestHair.cardBorder,
                             borderRadius: 12,
-                            padding: sp[4],
+                            padding: sp[3],
                             flexDirection: "row",
                             alignItems: "center",
                             gap: sp[3],
                             opacity: duplicate ? 0.5 : 1,
                           }}
                         >
+                          <View
+                            accessible={false}
+                            aria-hidden={true}
+                            importantForAccessibility="no-hide-descendants"
+                            style={{
+                              alignSelf: "flex-start",
+                              padding: 8,
+                              borderRadius: 10,
+                              backgroundColor: P.canvas,
+                            }}
+                          >
+                            <Icon
+                              name={contest.referendumTitle ? "doc" : "users"}
+                              size={20}
+                              color={P.primary}
+                            />
+                          </View>
                           <View style={{ flex: 1, gap: sp[2] }}>
                             <Text style={typography.body}>{title}</Text>
                             {item ? (
-                              <View
-                                style={{
-                                  alignSelf: "flex-start",
-                                  borderRadius: 6,
-                                  backgroundColor: P.canvas,
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 4,
-                                }}
-                              >
-                                <Text style={{ fontSize: 13, color: P.quiet }}>
-                                  {status(item.progress)}
-                                </Text>
-                              </View>
+                              readingBadge(item.progress)
                             ) : (
-                              <Text style={{ color: P.quiet }}>
+                              <Text style={{ color: P.inkOnNight }}>
                                 {duplicate
                                   ? "Notes unavailable for this item"
                                   : "Add notes"}
@@ -546,8 +641,19 @@ export function PrivatePreparation({
                             {item?.choice && (
                               <Text>Possible choice: {item.choice}</Text>
                             )}
+                            {!item?.choice && !!item?.notes && (
+                              <Text numberOfLines={2}>
+                                Your note: {item.notes.slice(0, 120)}
+                              </Text>
+                            )}
                           </View>
-                          <Text style={{ fontSize: 24 }}>›</Text>
+                          <View
+                            accessible={false}
+                            aria-hidden={true}
+                            importantForAccessibility="no-hide-descendants"
+                          >
+                            <Icon name="chevR" size={18} color={P.quiet} />
+                          </View>
                         </Pressable>
                       );
                     })}

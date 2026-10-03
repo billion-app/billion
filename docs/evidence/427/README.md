@@ -1,5 +1,13 @@
 # Issue #427 rendering evidence
 
+## Meaningful visual cues revision
+
+The latest `visual-*.png` captures supersede the design screenshots below. They show actual Expo web components, synthetic 2099 ballots, registered Billion fonts and Icon primitives. [Integrated empty](visual-integrated.png), [integrated saved](visual-integrated-saved.png), [editor](visual-editor.png), [saved overview](visual-saved.png), [empty](visual-empty.png), [note-only preview](visual-note-preview.png), [narrow empty](visual-narrow.png), and [injected read error](visual-error.png) cover the revision. Normal captures are 390 × 844; narrow is 320 × 844 and does not establish Dynamic Type behavior. The early `visual-saved.png` capture shows the first graphics iteration; the integrated saved and note-preview captures show final compact hierarchy.
+
+People/document icons distinguish races and measures; book/clock/minus badges pair with reading labels. The blue rail shows only the fraction of current, uniquely matched contests marked Read. It excludes stale and ambiguous snapshots, does not count possible choices, and does not imply a complete official ballot or a vote. Empty records omit an unhelpful zero rail; the integrated overview avoids repeating surrounding election context. Notes without a choice expose a short local preview, including its screen-reader equivalent. Primary buttons use the existing dark-on-blue selection colors for contrast. Decorative glyphs are hidden from accessibility.
+
+A fresh independent GPT-6-Astra screenshot-first review requested contrast, density and accessible-summary fixes. After iteration and 320px review, it found no meaningful visual blockers and confirmed a polished, useful Billion experience. It did not claim visual spectacle or real-reader validation. Native, Dynamic Type/VoiceOver, production integration and real-reader gates remain open.
+
 ## Design revision, October 2, 2026
 
 The `design-*.png` captures supersede the initial screenshots below. They show the actual running Expo web components with synthetic 2099 ballots, using Billion’s registered fonts. Normal captures are 390 × 844; none establishes native Dynamic Type behavior.
