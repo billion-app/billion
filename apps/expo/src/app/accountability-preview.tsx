@@ -12,8 +12,14 @@ import {
   stageCopy,
 } from "~/components/accountability/model";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
-import { NavHeader } from "~/components/ui";
-import { fontBody, fontEditorial, DigestPalette as P, sp } from "~/styles";
+import { Icon, NavHeader } from "~/components/ui";
+import {
+  DigestHair,
+  fontBody,
+  fontEditorial,
+  DigestPalette as P,
+  sp,
+} from "~/styles";
 
 /** Isolated development route: never a live results or notification service. */
 export default function AccountabilityPreview() {
@@ -69,90 +75,95 @@ export default function AccountabilityPreview() {
       <ScrollView contentContainerStyle={s.content}>
         <View style={s.lead}>
           <Text style={s.kicker}>
-            {example.synthetic ? "FICTIONAL EXAMPLE" : "HISTORICAL PREVIEW"} ·
-            NO LIVE UPDATES
+            {example.synthetic ? "FICTIONAL EXAMPLE" : "HISTORICAL TERM"} · NO
+            LIVE UPDATES
           </Text>
-          <Text style={s.contest}>{example.label}</Text>
-          <Text accessibilityRole="header" style={s.title}>
-            {holder
-              ? `${holder.name} took office`
-              : "We can’t confirm who took office"}
+          <Text accessibilityRole="header" style={s.identity}>
+            {holder ? holder.name : "Officeholder unconfirmed"}
           </Text>
+          <Text style={s.caption}>{example.label}</Text>
           {holder ? (
-            <>
-              <Text style={s.body}>
-                Took office {formatDate(holder.tookOffice)}. Election result
-                certified.
-              </Text>
-              <Text style={s.caption}>
-                {example.synthetic
-                  ? "The people, dates and records on this page are fictional."
-                  : "Historical term entry, not a current officeholder lookup."}
-              </Text>
-              <Source
-                evidence={holder.evidence}
-                label="Read inauguration record"
-              />
-            </>
+            <View style={s.statuses}>
+              <View style={s.status}>
+                <View
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <Icon name="vote" size={18} color={P.spark} />
+                </View>
+                <View style={s.statusText}>
+                  <Text style={s.label}>Election certified</Text>
+                </View>
+              </View>
+              <View style={s.status}>
+                <View
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <Icon name="calendar" size={18} color={P.spark} />
+                </View>
+                <View style={s.statusText}>
+                  <Text style={s.label}>Term began</Text>
+                  <Text style={s.caption}>{formatDate(holder.tookOffice)}</Text>
+                </View>
+              </View>
+            </View>
           ) : (
-            <>
-              <Text style={s.body}>{resultSummary}</Text>
-              {example.synthetic && (
-                <Text style={s.caption}>
-                  The people, dates and records on this page are fictional.
-                </Text>
-              )}
-              {example.result.evidence && (
-                <Source
-                  evidence={example.result.evidence}
-                  label="Read election result"
-                />
-              )}
-            </>
+            <View style={s.unconfirmed}>
+              <View
+                accessible={false}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <Icon name="help" size={20} color={P.paper} />
+              </View>
+              <Text style={[s.body, { flex: 1 }]}>{resultSummary}</Text>
+            </View>
           )}
         </View>
-        <Card
-          title={
-            actions.length || priorities.length
-              ? (priorities[0]?.topic ??
-                actions[0]?.topic ??
-                "Priorities and actions")
-              : "Action history unavailable"
-          }
-        >
-          {!holder ? (
-            <Text style={s.body}>
-              We can’t connect actions to an officeholder until their identity
-              is confirmed.
-            </Text>
-          ) : actions.length || priorities.length ? (
-            <>
-              {priorities.map((priority) => (
-                <View key={priority.id} style={s.block}>
+        {holder && (actions.length || priorities.length) ? (
+          <>
+            {priorities.map((priority) => (
+              <View key={priority.id} style={s.priorityRow}>
+                <View
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <Icon name="flag" size={18} color={P.spark} />
+                </View>
+                <View style={s.statusText}>
                   <Text style={s.label}>Campaign priority</Text>
-                  <Text style={s.body}>
-                    {priority.text.replace(/^Campaign priority: /, "")}
-                  </Text>
-                  <Text style={s.caption}>
-                    {formatDate(priority.date)} · Candidate statement
-                  </Text>
+                  <Text style={s.body}>{priority.text}</Text>
+                  <Text style={s.caption}>{formatDate(priority.date)}</Text>
                   <Source
                     evidence={priority.evidence}
                     label="Read campaign statement"
                   />
                 </View>
-              ))}
-              {!actions.length && (
-                <Text style={s.body}>
-                  No action records are included yet. That doesn’t mean no
-                  action was taken.
-                </Text>
-              )}
-              {actions.map((action, index) => (
-                <View key={action.date + action.text} style={s.block}>
-                  <Text style={s.label}>Recorded action</Text>
-                  <Text style={s.body}>{action.text}</Text>
-                  <Text style={s.caption}>
+              </View>
+            ))}
+            {actions.map((action) => (
+              <View key={action.date + action.text} style={s.block}>
+                <View style={s.paperBrief}>
+                  <View style={s.actionMeta}>
+                    <View
+                      accessible={false}
+                      accessibilityElementsHidden
+                      importantForAccessibility="no-hide-descendants"
+                    >
+                      <Icon name="doc" size={18} color={P.ink} />
+                    </View>
+                    <Text style={s.paperLabel}>
+                      {action.topic.toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text accessibilityRole="header" style={s.actionTitle}>
+                    {action.reading?.headline ?? action.text}
+                  </Text>
+                  <Text style={s.paperCaption}>
                     {formatDate(action.date)} ·{" "}
                     {action.kind === "sponsorship"
                       ? "Proposal introduced"
@@ -160,47 +171,96 @@ export default function AccountabilityPreview() {
                         ? "Individual vote"
                         : "Documented decision"}
                   </Text>
-                  <Text style={s.label}>What this tells us</Text>
-                  <Text style={s.body}>{action.context}</Text>
-                  {!priorities.length && index === 0 && (
-                    <Text style={s.caption}>
-                      No campaign statement is included, so a promise comparison
-                      is unavailable.
-                    </Text>
+                  <View style={s.mechanismRow}>
+                    <View
+                      accessible={false}
+                      accessibilityElementsHidden
+                      importantForAccessibility="no-hide-descendants"
+                      style={[s.stepIcon, s.changeIcon]}
+                    >
+                      <Icon
+                        name={action.kind === "sponsorship" ? "doc" : "clock"}
+                        size={21}
+                        color={P.ink}
+                      />
+                    </View>
+                    <View style={s.stepText}>
+                      <Text style={s.paperLabel}>WHAT CHANGED</Text>
+                      <Text style={s.mechanismAnswer}>
+                        {action.reading?.change ?? action.text}
+                      </Text>
+                      {action.reading?.scope && (
+                        <Text style={s.paperCaption}>
+                          {action.reading.scope}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={[s.mechanismRow, s.unknownRow]}>
+                    <View
+                      accessible={false}
+                      accessibilityElementsHidden
+                      importantForAccessibility="no-hide-descendants"
+                      style={s.stepIcon}
+                    >
+                      <Icon name="help" size={21} color={P.ink} />
+                    </View>
+                    <View style={s.stepText}>
+                      <Text style={s.paperLabel}>STILL UNKNOWN</Text>
+                      <Text style={s.mechanismAnswer}>
+                        {action.reading?.unknown ?? action.context}
+                      </Text>
+                      <Text style={s.paperCaption}>
+                        Not shown by this record
+                      </Text>
+                    </View>
+                  </View>
+                  {!priorities.length && (
+                    <View style={s.comparisonRow}>
+                      <View
+                        accessible={false}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                      >
+                        <Icon name="message" size={16} color={P.ink} />
+                      </View>
+                      <Text style={[s.paperCaption, { flex: 1 }]}>
+                        Campaign comparison unavailable · No statement included
+                      </Text>
+                    </View>
                   )}
-                  <Source
-                    evidence={action.evidence}
-                    label="Read action record"
-                  />
                 </View>
-              ))}
-            </>
-          ) : (
-            <Text style={s.body}>
-              This preview has no campaign statements or action records for this
-              term. That doesn’t tell us what this officeholder did.
-            </Text>
-          )}
-        </Card>
-        {holder && (
-          <View style={s.result}>
-            <Text style={s.body}>{resultSummary}</Text>
-            {example.result.evidence && (
-              <Source
-                evidence={example.result.evidence}
-                label="Read election result"
-              />
+                <Source
+                  evidence={action.evidence}
+                  label={
+                    action.kind === "decision"
+                      ? "Read signing record"
+                      : "Read action record"
+                  }
+                />
+              </View>
+            ))}
+            {!actions.length && (
+              <Card title="Action records not included">
+                <Text style={s.body}>
+                  That does not mean no action was taken.
+                </Text>
+              </Card>
             )}
-          </View>
+          </>
+        ) : (
+          <Card title="Action history unavailable">
+            <Text style={s.body}>
+              {holder
+                ? "No priorities or actions included for this term. Coverage is unknown."
+                : "We can’t connect actions until the officeholder is confirmed."}
+            </Text>
+          </Card>
         )}
-
-        <Disclosure
-          key={`results-${scenario}`}
-          title="Result details and sources"
-        >
+        <Disclosure key={`results-${scenario}`} title="Election & term records">
           <Text style={s.body}>
             {holder
-              ? "Certification confirms the election result. The separate inauguration record above confirms taking office."
+              ? "Certification confirms the election result. The separate inauguration record confirms taking office."
               : "A final result and a separate taking-office record are needed before we can connect this contest to an officeholder."}
           </Text>
           <Text style={s.caption}>
@@ -209,6 +269,12 @@ export default function AccountabilityPreview() {
           </Text>
           {example.result.evidence && (
             <EvidenceDetails evidence={example.result.evidence} />
+          )}
+          {holder && (
+            <Source
+              evidence={holder.evidence}
+              label="Read inauguration record"
+            />
           )}
           {example.extraEvidence.map((evidence) => (
             <EvidenceDetails key={evidence.url} evidence={evidence} />
@@ -385,13 +451,95 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: P.canvas },
   content: {
     padding: sp[5],
-    gap: sp[5],
+    gap: sp[4],
     paddingBottom: sp[10],
     maxWidth: 720,
     width: "100%",
     alignSelf: "center",
   },
-  lead: { gap: sp[3] },
+  lead: { gap: sp[2] },
+  identity: { fontFamily: fontEditorial.regular, fontSize: 25, color: P.paper },
+  statuses: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: sp[3],
+    marginTop: sp[2],
+  },
+  status: {
+    flexDirection: "row",
+    gap: sp[2],
+    flexGrow: 1,
+    flexBasis: 145,
+    alignItems: "center",
+  },
+  statusText: { flex: 1, gap: 3 },
+  unconfirmed: {
+    flexDirection: "row",
+    gap: sp[3],
+    alignItems: "flex-start",
+    marginTop: sp[2],
+  },
+  priorityRow: { flexDirection: "row", gap: sp[3], paddingTop: sp[2] },
+  paperBrief: {
+    backgroundColor: P.paper,
+    borderRadius: 16,
+    padding: sp[4],
+    gap: sp[2],
+  },
+  actionMeta: { flexDirection: "row", alignItems: "center", gap: sp[2] },
+  actionTitle: {
+    fontFamily: fontEditorial.regular,
+    fontSize: 27,
+    color: P.ink,
+  },
+  paperLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+    lineHeight: 19,
+    color: P.ink,
+  },
+  paperCaption: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 21,
+    color: P.ink,
+  },
+  mechanismRow: {
+    flexDirection: "row",
+    gap: sp[3],
+    paddingTop: sp[4],
+    paddingBottom: sp[2],
+  },
+  unknownRow: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DigestHair.inkHair,
+  },
+  changeIcon: { backgroundColor: P.spark, borderColor: P.spark },
+  stepIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: P.paper,
+    borderWidth: 1,
+    borderColor: P.ink,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stepText: { flex: 1, gap: 4 },
+  mechanismAnswer: {
+    fontFamily: fontBody.semibold,
+    fontSize: 18,
+    lineHeight: 25,
+    color: P.ink,
+  },
+  comparisonRow: {
+    flexDirection: "row",
+    gap: sp[2],
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: DigestHair.inkHair,
+    paddingTop: sp[3],
+  },
   sourceRow: { flexDirection: "row", alignItems: "center", gap: sp[2] },
   sourceLink: { flex: 1 },
   sourceToggle: {

@@ -36,6 +36,13 @@ export interface Priority {
   evidence: Evidence;
 }
 export interface ActionRecord {
+  /** Manually source-checked reading structure, never an inferred outcome. */
+  reading?: {
+    headline: string;
+    change: string;
+    scope?: string;
+    unknown: string;
+  };
   topic: string;
   personId: string;
   officeId: string;

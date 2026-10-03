@@ -69,6 +69,12 @@ export const historical: AccountabilityExample = {
   actions: [
     {
       topic: "Housing approvals",
+      reading: {
+        headline: "Signed SB 423",
+        change: "Faster approvals extended",
+        scope: "For qualifying housing projects",
+        unknown: "How many homes were built",
+      },
       personId: "ca-newsom",
       officeId: identity.officeId,
       districtId: identity.districtId,
@@ -130,6 +136,12 @@ export const synthetic: AccountabilityExample = {
   actions: [
     {
       topic: "Evening bus service",
+      reading: {
+        headline: "Proposed evening-bus funding",
+        change: "A funding proposal introduced",
+        scope: "Council and transit agency still need to act",
+        unknown: "Whether funding passed or service began",
+      },
       personId: "demo-person-1",
       officeId: demoIdentity.officeId,
       districtId: demoIdentity.districtId,
