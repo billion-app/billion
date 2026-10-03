@@ -1,6 +1,6 @@
 # Elections aligned with the Bills reader
 
-Implemented in the integration branch after the 0.8.4 (40) build. These changes have not been built or submitted to TestFlight.
+Implemented in the integration branch after the 0.8.4 (40) build, then successfully built as [0.8.4 (41)](https://expo.dev/accounts/thatxliner/projects/billion/builds/2ab8c92e-5395-4028-a54b-e728b37a0dc0) from commit `6665e468245797fefc747e478877d49e9e725f3f`. The TestFlight submission errored; Apple separately reported an unsigned or expired required agreement. Tester availability and native runtime remain unverified.
 
 The reference is the running Bills reader for S. 1055, Indian Health Service Emergency Claims Parity Act. `bill-header.png` and `bill-brief.png` show its actual production content. All screenshots use the same verified integration Metro server, dark theme, 390 × 844 CSS-pixel viewport and 2× image scale, except `candidate-narrow.png` (320 × 700).
 
