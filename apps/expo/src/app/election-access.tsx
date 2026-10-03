@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
+import type { IconName } from "~/components/ui";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon, NavHeader } from "~/components/ui";
@@ -18,6 +19,31 @@ const office =
   "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices";
 const hotlines =
   "https://www.sos.ca.gov/elections/voting-resources/voting-california/voter-hotlines";
+
+/** Category symbols repeat the visible label; they never certify services. */
+function TopicHeading({
+  icon,
+  children,
+}: {
+  icon: IconName;
+  children: ReactNode;
+}) {
+  return (
+    <View style={s.topicHeading}>
+      <View
+        style={s.topicIcon}
+        aria-hidden
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Icon name={icon} size={20} color={P.primary} />
+      </View>
+      <Text accessibilityRole="header" style={[s.heading, { flex: 1 }]}>
+        {children}
+      </Text>
+    </View>
+  );
+}
 
 function Details({ title, children }: { title: string; children: ReactNode }) {
   const [expanded, setExpanded] = useState(false);
@@ -60,9 +86,7 @@ export default function ElectionAccessScreen() {
         </Text>
         <Text style={s.caption}>Official resources · Opens state websites</Text>
         <View style={s.card}>
-          <Text accessibilityRole="header" style={s.heading}>
-            Help in your language
-          </Text>
+          <TopicHeading icon="globe">Help in your language</TopicHeading>
           <SourceLink
             label="Voter hotlines"
             url={hotlines}
@@ -89,9 +113,7 @@ export default function ElectionAccessScreen() {
           </Details>
         </View>
         <View style={s.card}>
-          <Text accessibilityRole="header" style={s.heading}>
-            Accessible voting
-          </Text>
+          <TopicHeading icon="accessibility">Accessible voting</TopicHeading>
           <SourceLink
             label="Accessible voting resources"
             url="https://www.sos.ca.gov/elections/voting-resources/voters-disabilities"
@@ -102,9 +124,7 @@ export default function ElectionAccessScreen() {
           </Text>
         </View>
         <View style={s.card}>
-          <Text accessibilityRole="header" style={s.heading}>
-            Help at your voting place
-          </Text>
+          <TopicHeading icon="pin">Help at your voting place</TopicHeading>
           <Text style={s.body}>
             Ask your county about ballot languages and access before travelling.
           </Text>
@@ -124,9 +144,7 @@ export default function ElectionAccessScreen() {
           </Details>
         </View>
         <View style={s.card}>
-          <Text accessibilityRole="header" style={s.heading}>
-            Translated voter guide
-          </Text>
+          <TopicHeading icon="book">Translated voter guide</TopicHeading>
           <Text style={s.body}>
             Translated guide downloads were not linked at our last check.
           </Text>
@@ -183,6 +201,15 @@ const s = StyleSheet.create({
     borderRadius: 14,
     padding: sp[4],
     gap: sp[2],
+  },
+  topicHeading: { flexDirection: "row", alignItems: "center", gap: sp[2] },
+  topicIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: P.canvas,
+    alignItems: "center",
+    justifyContent: "center",
   },
   disclosure: {
     minHeight: 44,

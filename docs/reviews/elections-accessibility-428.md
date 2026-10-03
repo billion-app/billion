@@ -128,3 +128,22 @@ expanded semantics, followed the Spanish link to the real official page, and
 navigated from the forced guide-error state to Voting help. These results are
 browser evidence. A compelling Astra design review does not replace the native,
 editorial, other-stream integration or real-reader gates above.
+
+## Visual recognition follow-up
+
+The four resource categories now pair their heading with a globe, accessibility
+symbol, location pin or book. These use the existing primary-blue accent on navy
+and the shared Icon primitive; the only shared addition is the verified local
+Ionicons `accessibility-outline` mapping. The symbols help readers recognize a
+route without adding another paragraph. They repeat the text meaning, carry no
+service-availability claim, and are hidden from web/iOS/Android accessibility
+APIs. Headings remain the complete screen-reader equivalent.
+
+The same independent Astra reviewer inspected the running captures before the
+iconography diff. It found the recognition improvement modest but meaningful,
+and said the prior polished and compelling assessment still holds. No new source,
+clarity or code/accessibility blockers were found. At 200% browser reading text,
+the first hotline remains visible; the capture keeps decorative vector glyphs at
+their fixed size, matching the library's `allowFontScaling: false` default. This
+refines the synthetic browser check, not native Dynamic Type evidence. All native,
+reader, editorial and integrated-journey gates remain outstanding.
