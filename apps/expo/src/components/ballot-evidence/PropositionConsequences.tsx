@@ -38,13 +38,22 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
     </View>
   );
   const outcome = (vote: "Yes" | "No", claim: Claim) => (
-    <View style={s.mapOutcome}>
+    <View
+      style={[
+        s.mapOutcome,
+        { borderLeftColor: vote === "Yes" ? P.badgeBlue : P.badgeIndigo },
+      ]}
+    >
       <View style={s.mapHeading}>
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >
-          <Icon name="arrowRight" size={18} color={P.inkOnNight} />
+          <Icon
+            name="arrowRight"
+            size={18}
+            color={vote === "Yes" ? P.badgeBlue : P.badgeIndigo}
+          />
         </View>
         <Text accessibilityRole="header" style={s.mapLabel}>
           If you vote {vote}
@@ -285,7 +294,13 @@ const s = StyleSheet.create({
   mapBranches: { flexDirection: "row", gap: 0, marginLeft: 16 },
   mapSpine: { width: 12, borderLeftWidth: 1, borderColor: P.quiet },
   mapChoices: { flex: 1, gap: 10 },
-  mapOutcome: { backgroundColor: P.card, borderRadius: 8, padding: 12, gap: 5 },
+  mapOutcome: {
+    backgroundColor: P.card,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    padding: 12,
+    gap: 5,
+  },
   mapHeading: { flexDirection: "row", gap: 8, alignItems: "center" },
   mapLabel: {
     flex: 1,
