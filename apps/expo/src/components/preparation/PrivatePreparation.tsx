@@ -353,7 +353,7 @@ export function PrivatePreparation({
                     )}
                     {choiceOpen && (
                       <View style={{ gap: sp[2] }}>
-                        {selectedContest?.referendumTitle ? (
+                        {selectedContest.referendumTitle ? (
                           <Text>
                             Write your possible measure choice in notes. Marking
                             options haven’t been supplied for this measure.
@@ -361,12 +361,11 @@ export function PrivatePreparation({
                         ) : (
                           [
                             undefined,
-                            ...(selectedContest?.candidates ?? []).map(
+                            ...selectedContest.candidates.map(
                               (candidate) => candidate.name,
                             ),
                           ].map((name, index) => {
-                            const candidates =
-                              selectedContest?.candidates ?? [];
+                            const candidates = selectedContest.candidates ?? [];
                             const withdrawn =
                               name !== undefined &&
                               candidates[index - 1]?.ballotStatus ===

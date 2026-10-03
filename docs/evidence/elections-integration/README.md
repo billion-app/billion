@@ -36,3 +36,9 @@ Final checks passed: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format`, 
 Actual interaction check saved a private note for the real guide’s Lieutenant Governor race, aborted all API requests, reloaded the guide notes route and confirmed the local archive still shows that note with its election identity and deletion action. `offline-notes.png` records this recovery state. No production write occurred.
 
 Expo Doctor completed 20/21 checks. The remaining check reports eight Expo SDK patch-version mismatches against SDK57 recommendations. Release owner will address these before building; no compatibility exclusion was added.
+
+## Release preflight
+
+The isolated `elections-review` store profile uses production API/environment with a separate update channel. The standard tag workflow hardcodes the production profile and cannot target this review channel, so this release uses one manual EAS build with the existing production submission profile. No version tag is pushed to trigger a second build.
+
+Expo SDK 57 patch dependencies were aligned with Expo Doctor recommendations. Doctor passes all 21 checks; native iOS prebuild, mobile lint/typecheck, workspace tests, and production iOS export pass. Marketing version is 0.8.4; EAS assigns the remote build number. Astra reviewed the dependency/profile follow-up and found no blockers.
