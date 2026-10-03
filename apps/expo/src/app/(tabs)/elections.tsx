@@ -767,7 +767,7 @@ const s = StyleSheet.create({
   entryButtonText: {
     fontFamily: fontBody.semibold,
     fontSize: 12,
-    color: colors.bill,
+    color: colors.white,
   },
   entryNoteText: {
     fontFamily: fontBody.regular,
@@ -811,7 +811,11 @@ const s = StyleSheet.create({
     color: colors.white,
     marginTop: 1,
   },
-  addrEdit: { fontFamily: fontBody.semibold, fontSize: 13, color: colors.bill },
+  addrEdit: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    color: colors.white,
+  },
   section: { paddingHorizontal: 20 },
   contestOffice: {
     fontFamily: "InriaSerif-Bold",
@@ -870,7 +874,7 @@ const s = StyleSheet.create({
   readMoreText: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: colors.bill,
+    color: colors.white,
   },
   aiChip: {
     flexDirection: "row",

@@ -424,7 +424,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     minHeight: 44,
   },
-  primaryText: { fontFamily: fontBody.semibold, color: colors.bill },
+  primaryText: { fontFamily: fontBody.semibold, color: colors.white },
   disclosure: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: DigestHair.sectionRule,
@@ -467,7 +467,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.semibold,
     fontSize: 12,
     lineHeight: 18,
-    color: colors.bill,
+    color: colors.white,
   },
   recoveryCard: {
     backgroundColor: P.card,

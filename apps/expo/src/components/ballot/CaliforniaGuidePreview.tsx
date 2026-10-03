@@ -445,7 +445,7 @@ const s = StyleSheet.create({
     backgroundColor: `${colors.bill}28`,
   },
   measureNumberText: {
-    color: colors.bill,
+    color: colors.white,
     fontFamily: fontBody.semibold,
     fontSize: 17,
   },

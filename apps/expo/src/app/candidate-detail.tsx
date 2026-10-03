@@ -150,7 +150,7 @@ export default function CandidateDetailScreen() {
               onPress={() => void query.refetch()}
               style={[s.action, s.retryAction]}
             >
-              <Text style={[s.actionText, { color: colors.bill }]}>
+              <Text style={[s.actionText, { color: colors.white }]}>
                 Try again
               </Text>
             </TouchableOpacity>
@@ -469,7 +469,7 @@ const s = StyleSheet.create({
   },
   actionText: {
     flexShrink: 1,
-    color: colors.bill,
+    color: colors.white,
     fontFamily: fontBody.semibold,
     fontSize: 12,
   },

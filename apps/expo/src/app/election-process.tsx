@@ -226,7 +226,7 @@ function OfficialLink({
           );
         }}
       >
-        <Text style={[s.link, { flex: 1 }, primary && { color: colors.bill }]}>
+        <Text style={[s.link, { flex: 1 }, primary && { color: colors.white }]}>
           {label}
         </Text>
         <Icon
@@ -297,7 +297,7 @@ const s = StyleSheet.create({
   exampleText: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: colors.textSecondary,
+    color: colors.white,
     textAlign: "center",
     flexShrink: 1,
   },

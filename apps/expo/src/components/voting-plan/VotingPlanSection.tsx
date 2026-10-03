@@ -308,7 +308,7 @@ function Plan({
       >
         <Text style={heading}>Make your voting plan</Text>
         <View style={s.row}>
-          <Text style={[...caption, s.flex]}>
+          <Text style={[...caption, s.flex, { color: colors.white }]}>
             {expanded ? "Hide plan" : "Check registration. Choose how to vote."}
           </Text>
           <Icon
