@@ -30,6 +30,7 @@ import {
   BallotReadingMode,
 } from "~/components/ballot-evidence/BallotReadingCard";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { CandidateBallotStatus } from "~/components/ballot-evidence/CandidateBallotStatus";
 import { candidateStatusLabel } from "~/components/ballot-evidence/election-status";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Card, Icon, Kicker, NavHeader } from "~/components/ui";
@@ -503,9 +504,10 @@ export default function ContestDetailScreen() {
                       {cand.party ? (
                         <Text style={s.candParty}>{cand.party}</Text>
                       ) : null}
-                      <Text style={s.withdrawn}>
-                        {candidateStatusLabel(cand.ballotStatus)}
-                      </Text>
+                      <CandidateBallotStatus
+                        status={cand.ballotStatus}
+                        compact
+                      />
                     </View>
                     <Icon
                       name={open ? "chevD" : "chevR"}
@@ -786,12 +788,6 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
     lineHeight: 26,
     marginBottom: 4,
-  },
-  withdrawn: {
-    fontFamily: fontBody.medium,
-    fontSize: 14,
-    color: P.inkOnNight,
-    marginTop: 8,
   },
   candParty: {
     fontFamily: fontBody.medium,

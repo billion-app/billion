@@ -15,7 +15,7 @@ import {
   BallotProvenanceRows,
   SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
-import { candidateStatusLabel } from "~/components/ballot-evidence/election-status";
+import { CandidateBallotStatus } from "~/components/ballot-evidence/CandidateBallotStatus";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
@@ -177,19 +177,10 @@ export default function CandidateDetailScreen() {
                   .filter(Boolean)
                   .join(" · ")}
               </Text>
-              <View style={s.statusRow}>
-                <Icon name="info" size={14} color={P.quiet} />
-                <Text style={[s.ballotStatus, s.rowText]}>
-                  {fromBallot?.ballotStatus === "withdrewStillOnBallot"
-                    ? "Withdrawn"
-                    : candidateStatusLabel(fromBallot?.ballotStatus, !!guide)}
-                </Text>
-              </View>
-              {fromBallot?.ballotStatus === "withdrewStillOnBallot" && (
-                <Text style={s.body}>
-                  The ballot source still lists this name.
-                </Text>
-              )}
+              <CandidateBallotStatus
+                status={fromBallot?.ballotStatus}
+                inStatementGuide={!!guide}
+              />
               {fromBallot && (
                 <Text style={s.muted}>
                   Confirm whether this race is on your ballot with your election
@@ -431,20 +422,12 @@ const s = StyleSheet.create({
   },
   office: { color: P.inkOnNight, fontFamily: fontEditorial.bold, fontSize: 16 },
   heroMeta: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 12 },
-  ballotStatus: {
-    color: P.inkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  statusRow: { flexDirection: "row", alignItems: "flex-start", gap: 7 },
   muted: {
     color: P.quiet,
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 18,
   },
-  rowText: { flex: 1, flexShrink: 1 },
   section: { gap: 10, paddingTop: 8 },
   sectionTitle: {
     color: P.inkOnNight,

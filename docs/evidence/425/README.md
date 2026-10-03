@@ -47,3 +47,15 @@ errors remain outside this change; no database writes or ingestion occurred.
 Native large text and screen readers, production provider ballots, real coverage,
 editorial requirements and unfamiliar-reader comprehension remain separate gates.
 The positive Astra design assessment does not replace them.
+
+## Status icon refinement
+
+A fresh screenshot-first Astra review found that the listed, withdrawn and unknown
+labels required reading every sentence to distinguish them. The revised race and
+candidate captures above use neutral document, circle-minus and question-mark
+icons beside explicit text. Withdrawal's source explanation remains subordinate.
+Decorative icons are hidden from assistive technology; text carries the meaning.
+The reviewer found the revised race list easier to scan and the candidate screens
+consistent and polished, with no further material visual change needed. Journey,
+provider, mismatch and guide captures retain the preceding review's evidence;
+those flows were unchanged by this status refinement.
