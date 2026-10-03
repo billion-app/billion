@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { IconName } from "~/components/ui/Icon";
 import type { VotingLogisticsData } from "~/utils/voting-logistics";
 import type { PlanMethod } from "~/utils/voting-plan";
-import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Card, Icon, Segmented } from "~/components/ui";
 import { colors, fontBody, fontEditorial, hair, sp } from "~/styles";
@@ -29,6 +28,37 @@ function Cue({ name, size = 18 }: { name: IconName; size?: number }) {
       aria-hidden
     >
       <Icon name={name} size={size} color={colors.bill} />
+    </View>
+  );
+}
+
+/** Compact evidence actions, scoped to the plan rather than changing shared UI. */
+function SourceLink({ label, url }: { label: string; url: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={label}
+        style={s.serviceLink}
+        onPress={() => {
+          void Linking.openURL(url).then(
+            () => setFailed(false),
+            () => setFailed(true),
+          );
+        }}
+      >
+        <Text style={[s.action, s.flex, { color: colors.white }]}>{label}</Text>
+        <Cue name="external" size={14} />
+      </Pressable>
+      {failed && (
+        <Text
+          accessibilityRole="alert"
+          style={[s.caption, { color: colors.white }]}
+        >
+          Could not open the link. Tap to retry.
+        </Text>
+      )}
     </View>
   );
 }
@@ -300,11 +330,7 @@ function Plan({
             <StepHeading icon="user">1. Check registration</StepHeading>
             {check ? (
               <>
-                <SourceLink
-                  label="Check registration"
-                  url={check.url}
-                  prominence="primary"
-                />
+                <SourceLink label="Check registration" url={check.url} />
                 <Text style={caption}>
                   {check.name} · Opens registration service
                 </Text>
@@ -314,7 +340,6 @@ function Plan({
                 <SourceLink
                   label="Find your election office"
                   url={fallback.url}
-                  prominence="primary"
                 />
                 <Text style={caption}>{fallback.name}</Text>
                 <Text style={caption}>
@@ -380,11 +405,7 @@ function Plan({
               </Text>
             ) : (
               <>
-                <SourceLink
-                  label={actionLabel}
-                  url={methodAction.url}
-                  prominence="primary"
-                />
+                <SourceLink label={actionLabel} url={methodAction.url} />
                 <Text style={caption}>{methodAction.name}</Text>
                 <Text style={caption}>{actionContext}</Text>
               </>
@@ -509,6 +530,18 @@ function Plan({
   );
 }
 const s = StyleSheet.create({
+  serviceLink: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: hair[2],
+    backgroundColor: planes.surface,
+  },
   stepIcon: {
     width: 32,
     height: 32,

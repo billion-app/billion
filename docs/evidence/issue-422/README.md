@@ -32,22 +32,31 @@ reload, a different election starts at Unsure, return restores the guide heading
 and keyboard focus, and the sparse How to Vote returns focus to its ballot entry.
 No page exceptions occurred in these sessions.
 
-## Visual cues revision
+## Bills design-language alignment
 
-The final visual revision uses blue task badges for registration and method choice,
-plus labeled help/envelope/location icons in the existing selected control. A lock
-pairs with the explicit device-only preference status. Mail guidance uses three
-separate icon-led rows—request document, postmark clock, receipt destination—so
-readers can distinguish the questions without reading a paragraph first. Icons
-and color do not convey completion, eligibility, or verified registration. All
-meaning has text equivalents; decorative glyphs are hidden from accessibility.
+`bills-brand-reference.png` captures the actual article-detail/BillBrief renderer
+in the same Expo web app, 390 × 844 viewport and navy theme. The record and brief
+are explicitly synthetic fixture content, with no image or fabricated quotation.
+This verifies the renderer and visual conventions, not a live legislative record.
 
-The actual integrated screenshots include these changes across selected, missing,
-error and enlarged-text states. The fresh independent Astra visual-cues reviewer
-found the next action clear, deadline distinctions comprehensible, and icon density
-restrained. Its follow-up review confirmed that icons above method labels resolve
-the cramped enlarged selector, with no remaining actionable screenshot or semantic
-blocker. Exact commit confirmation is recorded in the PR screenshot comment. Existing native/live/reader/editorial gates apply.
+Capture integrity: port 8422's listener was PID 69750; `lsof -a -p 69750
+-d cwd -Fn` confirmed `/Users/me/.codex/worktrees/de1c/billion/apps/expo`.
+Bills and election captures were repeated against this same owned Metro instance
+at source revision `e2c39ad8746cf878aecda1616c3d090aa387b3a0`, with the same
+viewport/theme and no UI changes after independent review. Port 8099 was not used.
+
+The voting plan now matches BillBrief's slate cards, 14px radius, fine borders,
+17px editorial section headings, 14px/21px body and compact source/action rows.
+Task icon backgrounds use restrained existing category tints. The voting preference
+uses the same shared Segmented active state as Bills' reading mode; the supplied
+service destinations remain concise outlined rows with external-link cues.
+Deadline icon rows, saved-device status and progressive disclosures remain intact.
+No shared generic UI component changes are needed for this alignment revision.
+
+Fresh independent Astra reviews compare the Bills and election captures explicitly
+before inspecting implementation, then separately review code. Findings, final
+commit confirmation, checks and remaining limits are recorded in the PR comment.
+All native/live/reader/editorial gates remain open.
 
 ## Design review iteration
 
