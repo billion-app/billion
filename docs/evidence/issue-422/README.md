@@ -39,6 +39,12 @@ in the same Expo web app, 390 × 844 viewport and navy theme. The record and bri
 are explicitly synthetic fixture content, with no image or fabricated quotation.
 This verifies the renderer and visual conventions, not a live legislative record.
 
+Capture integrity: port 8422's listener was PID 69750; `lsof -a -p 69750
+-d cwd -Fn` confirmed `/Users/me/.codex/worktrees/de1c/billion/apps/expo`.
+Bills and election captures were repeated against this same owned Metro instance
+at source revision `e2c39ad8746cf878aecda1616c3d090aa387b3a0`, with the same
+viewport/theme and no UI changes after independent review. Port 8099 was not used.
+
 The voting plan now matches BillBrief's slate cards, 14px radius, fine borders,
 17px editorial section headings, 14px/21px body and compact source/action rows.
 Task icon backgrounds use restrained existing category tints. The voting preference
