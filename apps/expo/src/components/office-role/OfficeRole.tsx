@@ -43,7 +43,30 @@ export function OfficeRole(context: OfficeRoleContext) {
           The job
         </Text>
         <>
-          <Text style={s.body}>{role.summary}</Text>
+          <View style={s.relationship}>
+            {[
+              { label: "Power", text: role.action, icon: "doc" as const },
+              { label: "Check", text: role.check, icon: "users" as const },
+            ].map((step) => (
+              <View key={step.label} style={s.relationshipRow}>
+                <View
+                  style={s.iconColumn}
+                  aria-hidden={true}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  {step.label === "Power" && <View style={s.rail} />}
+                  <View style={s.node}>
+                    <Icon name={step.icon} size={18} color={P.spark} />
+                  </View>
+                </View>
+                <View style={s.relationshipText}>
+                  <Text style={s.relationshipLabel}>{step.label}</Text>
+                  <Text style={s.relationshipBody}>{step.text}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ expanded: detailsOpen }}
@@ -139,6 +162,44 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: sp[2],
+  },
+  relationship: { gap: sp[3], position: "relative" },
+  relationshipRow: {
+    flexDirection: "row",
+    gap: sp[3],
+    alignItems: "flex-start",
+  },
+  relationshipText: { flex: 1, gap: 2 },
+  iconColumn: { width: 33, alignSelf: "stretch" },
+  rail: {
+    position: "absolute",
+    left: 16,
+    top: 33,
+    bottom: -sp[3],
+    width: 1,
+    backgroundColor: P.spark,
+  },
+  node: {
+    width: 33,
+    height: 33,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: P.spark,
+    backgroundColor: P.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  relationshipLabel: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    lineHeight: 18,
+    color: P.spark,
+  },
+  relationshipBody: {
+    fontFamily: fontBody.regular,
+    fontSize: 15,
+    lineHeight: 21,
+    color: P.inkOnNight,
   },
   details: { gap: sp[3] },
   heading: {

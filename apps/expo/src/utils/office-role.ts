@@ -4,7 +4,8 @@ export interface OfficeRoleContent {
   title: string;
   serves: string;
   term: string;
-  summary: string;
+  action: string;
+  check: string;
   power: string;
   limit: string;
   example: string;
@@ -17,8 +18,9 @@ const ca = (article: string) =>
 export const officeRoles: readonly OfficeRoleContent[] = [
   {
     id: "us-house",
-    summary:
-      "Votes on federal laws and spending. Bills must also pass the Senate and go to the President; Congress can override a veto.",
+    action: "Votes on federal laws and spending",
+    check:
+      "Bills need the Senate and go to the President; Congress can override a veto",
     title: "U.S. House representative",
     serves: "People in a congressional district",
     term: "2 years",
@@ -37,8 +39,9 @@ export const officeRoles: readonly OfficeRoleContent[] = [
   },
   {
     id: "ca-governor",
-    summary:
-      "Proposes the state budget and signs or vetoes bills. Laws and budgets need the Legislature.",
+    action: "Proposes the budget; signs or vetoes bills",
+    check:
+      "The Legislature passes bills and the budget; it can override a veto",
     title: "California Governor",
     serves: "People throughout California",
     term: "4 years; maximum 2 terms",
@@ -61,8 +64,8 @@ export const officeRoles: readonly OfficeRoleContent[] = [
   },
   {
     id: "boston-council",
-    summary:
-      "Votes on local laws and the city budget. One councilor cannot pass a law alone.",
+    action: "Votes on local laws and the city budget",
+    check: "The council decides together; one member cannot pass a law",
     title: "Boston City Councilor",
     serves:
       "Boston residents: district councilors serve a district; at-large councilors serve the whole city",
