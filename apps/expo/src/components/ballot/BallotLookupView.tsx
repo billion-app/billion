@@ -305,9 +305,32 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           {...{ "ph-no-capture": true }}
           accessibilityRole="button"
           onPress={() => router.push("/ballot-preparation")}
-          style={{ paddingVertical: 12, minHeight: 44 }}
+          style={{
+            paddingVertical: 12,
+            minHeight: 44,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            alignSelf: "flex-start",
+          }}
         >
-          <Text style={s.body}>Saved ballot notes</Text>
+          <Text
+            style={{
+              fontFamily: fontBody.semibold,
+              fontSize: 12,
+              color: P.inkOnNight,
+              textDecorationLine: "underline",
+            }}
+          >
+            Saved ballot notes
+          </Text>
+          <View
+            accessible={false}
+            aria-hidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon name="chevR" size={13} color={P.quiet} />
+          </View>
         </Pressable>
         {mismatch && (
           <Card style={s.card}>

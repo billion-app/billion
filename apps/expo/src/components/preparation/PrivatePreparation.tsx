@@ -5,6 +5,7 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  StyleSheet,
   TextInput,
   View,
 } from "react-native";
@@ -16,16 +17,14 @@ import type { Preparation, Progress } from "~/utils/preparation";
 import { BallotText as BaseText } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
-import { Segmented } from "~/components/ui/Segmented";
 import {
   colors,
-  DigestHair,
   fontBody,
   fontEditorial,
   hair,
   DigestPalette as P,
+  planes,
   sp,
-  typography,
 } from "~/styles";
 import {
   contestSnapshot,
@@ -38,12 +37,8 @@ function Text({ style, ...props }: TextProps) {
     <BaseText
       {...props}
       style={[
-        {
-          color: P.inkOnNight,
-          fontFamily: fontBody.regular,
-          fontSize: 14,
-          lineHeight: 21,
-        },
+        s.body,
+        { color: P.inkOnNight, fontFamily: fontBody.regular },
         style,
       ]}
     />
@@ -59,7 +54,6 @@ export function PrivatePreparation({
   initiallyOpen = false,
   onOpenBallot,
   showElectionContext = true,
-  heading = "Your ballot notes",
 }: {
   election?: Election;
   provider: string;
@@ -69,7 +63,6 @@ export function PrivatePreparation({
   initiallyOpen?: boolean;
   onOpenBallot?: () => void;
   showElectionContext?: boolean;
-  heading?: string;
 }) {
   const identity =
     election && lookupScope
@@ -167,17 +160,20 @@ export function PrivatePreparation({
         paddingVertical: 12,
         paddingHorizontal: primary ? 16 : 4,
         minHeight: 44,
-        backgroundColor: primary ? `${colors.bill}28` : undefined,
-        borderRadius: 10,
+        backgroundColor: primary ? planes.surface : undefined,
+        borderWidth: primary ? 1 : 0,
+        borderColor: hair[2],
+        alignSelf: primary ? "flex-start" : undefined,
+        borderRadius: 999,
         opacity: disabled || busy ? 0.5 : 1,
       }}
     >
       <Text
         style={[
-          typography.bodySmall,
+          s.action,
           {
-            color: primary ? colors.bill : P.inkOnNight,
-            fontFamily: fontBody.regular,
+            color: P.inkOnNight,
+            fontFamily: fontBody.semibold,
           },
         ]}
       >
@@ -209,9 +205,7 @@ export function PrivatePreparation({
         alignItems: "center",
         gap: 6,
         borderRadius: 6,
-        backgroundColor: P.canvas,
-        paddingHorizontal: 8,
-        paddingVertical: 5,
+        paddingVertical: 2,
       }}
     >
       <View
@@ -228,10 +222,10 @@ export function PrivatePreparation({
                 : "clock"
           }
           size={14}
-          color={progress === "reviewed" ? P.primary : P.quiet}
+          color={colors.textSecondary}
         />
       </View>
-      <Text style={{ fontSize: 13, color: P.inkOnNight }}>
+      <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>
         {status(progress)}
       </Text>
     </View>
@@ -265,17 +259,13 @@ export function PrivatePreparation({
       key={`${item.election}${item.snapshot}`}
       style={{
         borderWidth: 1,
-        borderColor: DigestHair.cardBorder,
-        borderRadius: 12,
+        borderColor: hair[1],
+        borderRadius: 14,
         padding: sp[4],
         gap: sp[2],
       }}
     >
-      <Text
-        style={{ fontFamily: fontEditorial.bold, fontSize: 17, lineHeight: 23 }}
-      >
-        {item.title}
-      </Text>
+      <Text style={s.heading}>{item.title}</Text>
       {item.choice && <Text>Possible choice: {item.choice}</Text>}
       {!!item.notes && <Text>{item.notes}</Text>}
       <Text style={{ color: P.quiet }}>
@@ -290,16 +280,7 @@ export function PrivatePreparation({
     </View>
   );
   const content = (
-    <Card
-      {...{ "ph-no-capture": true }}
-      style={{
-        padding: 16,
-        gap: 18,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: hair[1],
-      }}
-    >
+    <Card {...{ "ph-no-capture": true }} style={s.card}>
       <View
         style={{
           flexDirection: "row",
@@ -308,16 +289,12 @@ export function PrivatePreparation({
           gap: sp[2],
         }}
       >
-        <Text
-          accessibilityRole="header"
-          style={{
-            fontFamily: fontEditorial.bold,
-            fontSize: 17,
-            lineHeight: 23,
-            flex: 1,
-          }}
-        >
-          {draft ? draft.title : election ? heading : "Your saved notes"}
+        <Text accessibilityRole="header" style={[s.heading, { flex: 1 }]}>
+          {draft
+            ? draft.title
+            : election
+              ? "Your ballot notes"
+              : "Your saved notes"}
         </Text>
         {!draft &&
           election &&
@@ -359,116 +336,131 @@ export function PrivatePreparation({
           {draft ? (
             <View style={{ gap: sp[4] }}>
               <Text>Reading status</Text>
-              <View pointerEvents={busy ? "none" : "auto"}>
-                <Segmented<Progress>
-                  value={draft.progress}
-                  options={[
-                    { id: "undecided", label: "To read" },
-                    { id: "reviewed", label: "Read" },
-                    { id: "skipped", label: "Skip" },
-                  ]}
-                  onChange={(progress) => {
-                    if (!busy) setDraft({ ...draft, progress });
-                  }}
-                />
+              <View
+                accessibilityRole="radiogroup"
+                accessibilityLabel="Reading status"
+                style={s.statusOptions}
+              >
+                {(["undecided", "reviewed", "skipped"] as const).map(
+                  (progress) => (
+                    <Pressable
+                      key={progress}
+                      accessibilityRole="radio"
+                      accessibilityLabel={status(progress)}
+                      aria-checked={draft.progress === progress}
+                      accessibilityState={{
+                        checked: draft.progress === progress,
+                        disabled: busy,
+                      }}
+                      disabled={busy}
+                      onPress={() => setDraft({ ...draft, progress })}
+                      style={[
+                        s.statusOption,
+                        draft.progress === progress && s.statusSelected,
+                      ]}
+                    >
+                      <Text style={s.action}>
+                        {draft.progress === progress ? "✓ " : ""}
+                        {status(progress)}
+                      </Text>
+                    </Pressable>
+                  ),
+                )}
               </View>
-              {!selectedContest?.referendumTitle &&
-                !!selectedContest?.candidates?.length && (
-                  <View>
-                    {button(
-                      `${choiceOpen ? "Possible choice (optional)" : draft.choice ? `Possible choice: ${draft.choice}` : "Add a possible choice (optional)"} ${choiceOpen ? "−" : "+"}`,
-                      () => setChoiceOpen(!choiceOpen),
-                    )}
-                    {choiceOpen && (
-                      <View style={{ gap: sp[2] }}>
-                        {selectedContest.referendumTitle ? (
-                          <Text>
-                            Write your possible measure choice in notes. Marking
-                            options haven’t been supplied for this measure.
-                          </Text>
-                        ) : (
-                          [
-                            undefined,
-                            ...selectedContest.candidates.map(
-                              (candidate) => candidate.name,
-                            ),
-                          ].map((name, index) => {
-                            const candidates = selectedContest.candidates ?? [];
-                            const withdrawn =
-                              name !== undefined &&
-                              candidates[index - 1]?.ballotStatus ===
-                                "withdrewStillOnBallot";
-                            const disabled =
-                              busy ||
-                              withdrawn ||
-                              (name !== undefined &&
-                                candidates.filter(
-                                  (candidate) => candidate.name === name,
-                                ).length > 1);
-                            const selected = draft.choice === name;
-                            return (
-                              <Pressable
-                                key={index}
-                                accessibilityRole="radio"
-                                aria-checked={selected}
-                                accessibilityState={{
-                                  checked: selected,
-                                  disabled,
-                                }}
-                                disabled={disabled}
-                                onPress={() =>
-                                  setDraft({ ...draft, choice: name })
-                                }
+              {!selectedContest?.referendumTitle && (
+                <View>
+                  {button(
+                    `${choiceOpen ? "Possible choice (optional)" : draft.choice ? `Possible choice: ${draft.choice}` : "Add a possible choice (optional)"} ${choiceOpen ? "−" : "+"}`,
+                    () => setChoiceOpen(!choiceOpen),
+                  )}
+                  {choiceOpen && (
+                    <View style={{ gap: sp[2] }}>
+                      {selectedContest?.referendumTitle ? (
+                        <Text>
+                          Write your possible measure choice in notes. Marking
+                          options haven’t been supplied for this measure.
+                        </Text>
+                      ) : (
+                        [
+                          undefined,
+                          ...(selectedContest?.candidates ?? []).map(
+                            (candidate) => candidate.name,
+                          ),
+                        ].map((name, index) => {
+                          const candidates = selectedContest?.candidates ?? [];
+                          const withdrawn =
+                            name !== undefined &&
+                            candidates[index - 1]?.ballotStatus ===
+                              "withdrewStillOnBallot";
+                          const disabled =
+                            busy ||
+                            withdrawn ||
+                            (name !== undefined &&
+                              candidates.filter(
+                                (candidate) => candidate.name === name,
+                              ).length > 1);
+                          const selected = draft.choice === name;
+                          return (
+                            <Pressable
+                              key={index}
+                              accessibilityRole="radio"
+                              aria-checked={selected}
+                              accessibilityState={{
+                                checked: selected,
+                                disabled,
+                              }}
+                              disabled={disabled}
+                              onPress={() =>
+                                setDraft({ ...draft, choice: name })
+                              }
+                              style={{
+                                minHeight: 48,
+                                padding: 12,
+                                borderWidth: 1,
+                                borderColor: selected ? P.quiet : hair[1],
+                                borderRadius: 10,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 12,
+                                opacity: disabled ? 0.5 : 1,
+                              }}
+                            >
+                              <View
                                 style={{
-                                  minHeight: 48,
-                                  padding: 12,
-                                  borderWidth: 1,
-                                  borderColor: selected
-                                    ? P.primary
-                                    : DigestHair.cardBorder,
+                                  width: 20,
+                                  height: 20,
                                   borderRadius: 10,
-                                  flexDirection: "row",
+                                  borderWidth: 2,
+                                  borderColor: selected
+                                    ? P.quiet
+                                    : P.inkOnNight,
                                   alignItems: "center",
-                                  gap: 12,
-                                  opacity: disabled ? 0.5 : 1,
+                                  justifyContent: "center",
                                 }}
                               >
-                                <View
-                                  style={{
-                                    width: 20,
-                                    height: 20,
-                                    borderRadius: 10,
-                                    borderWidth: 2,
-                                    borderColor: selected
-                                      ? P.primary
-                                      : P.inkOnNight,
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                  }}
-                                >
-                                  {selected && (
-                                    <View
-                                      style={{
-                                        width: 10,
-                                        height: 10,
-                                        borderRadius: 5,
-                                        backgroundColor: P.primary,
-                                      }}
-                                    />
-                                  )}
-                                </View>
-                                <Text style={{ flex: 1 }}>
-                                  {name ?? "No choice yet"}
-                                  {withdrawn ? " · Withdrawn" : ""}
-                                </Text>
-                              </Pressable>
-                            );
-                          })
-                        )}
-                      </View>
-                    )}
-                  </View>
-                )}
+                                {selected && (
+                                  <View
+                                    style={{
+                                      width: 10,
+                                      height: 10,
+                                      borderRadius: 5,
+                                      backgroundColor: P.quiet,
+                                    }}
+                                  />
+                                )}
+                              </View>
+                              <Text style={{ flex: 1 }}>
+                                {name ?? "No choice yet"}
+                                {withdrawn ? " · Withdrawn" : ""}
+                              </Text>
+                            </Pressable>
+                          );
+                        })
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
               <Text>Notes</Text>
               {selectedContest?.referendumTitle && (
                 <Text>You can write your possible measure choice here.</Text>
@@ -477,7 +469,7 @@ export function PrivatePreparation({
                 {...{ "ph-no-capture": true }}
                 accessibilityLabel="Private notes"
                 placeholder="What do you want to remember?"
-                placeholderTextColor={P.inkOnNight}
+                placeholderTextColor={colors.textSecondary}
                 multiline
                 editable={!busy}
                 maxLength={1000}
@@ -489,8 +481,9 @@ export function PrivatePreparation({
                   fontSize: 16,
                   padding: 12,
                   minHeight: 120,
+                  backgroundColor: planes.surface,
                   borderWidth: 1,
-                  borderColor: DigestHair.cardBorder,
+                  borderColor: hair[1],
                   borderRadius: 10,
                 }}
               />
@@ -545,7 +538,7 @@ export function PrivatePreparation({
                           accessible={false}
                           importantForAccessibility="no-hide-descendants"
                         >
-                          <Icon name="book" size={18} color={P.primary} />
+                          <Icon name="book" size={18} color={P.quiet} />
                         </View>
                         <Text>
                           {readCount} of {contests.length} read
@@ -555,17 +548,17 @@ export function PrivatePreparation({
                       <View
                         accessible={false}
                         style={{
-                          height: 6,
+                          height: 3,
                           backgroundColor: P.canvas,
-                          borderRadius: 3,
+                          borderRadius: 2,
                           overflow: "hidden",
                         }}
                       >
                         <View
                           style={{
-                            height: 6,
+                            height: 3,
                             width: `${(100 * readCount) / contests.length}%`,
-                            backgroundColor: P.primary,
+                            backgroundColor: P.quiet,
                           }}
                         />
                       </View>
@@ -628,8 +621,8 @@ export function PrivatePreparation({
                           }}
                           style={{
                             borderWidth: 1,
-                            borderColor: DigestHair.cardBorder,
-                            borderRadius: 12,
+                            borderColor: hair[1],
+                            borderRadius: 14,
                             padding: sp[3],
                             flexDirection: "row",
                             alignItems: "center",
@@ -643,27 +636,19 @@ export function PrivatePreparation({
                             importantForAccessibility="no-hide-descendants"
                             style={{
                               alignSelf: "flex-start",
-                              padding: 8,
-                              borderRadius: 10,
-                              backgroundColor: `${colors.bill}28`,
+                              padding: 7,
+                              borderRadius: 9,
+                              backgroundColor: planes.surface,
                             }}
                           >
                             <Icon
                               name={contest.referendumTitle ? "doc" : "users"}
-                              size={20}
-                              color={P.primary}
+                              size={16}
+                              color={colors.textSecondary}
                             />
                           </View>
                           <View style={{ flex: 1, gap: sp[2] }}>
-                            <Text
-                              style={{
-                                fontFamily: fontBody.semibold,
-                                fontSize: 15,
-                                lineHeight: 21,
-                              }}
-                            >
-                              {title}
-                            </Text>
+                            <Text style={s.rowTitle}>{title}</Text>
                             {item ? (
                               readingBadge(item.progress)
                             ) : (
@@ -696,15 +681,7 @@ export function PrivatePreparation({
               )}
               {ready && !election && !items.length && (
                 <View style={{ gap: sp[2], paddingVertical: sp[4] }}>
-                  <Text
-                    style={{
-                      fontFamily: fontEditorial.bold,
-                      fontSize: 17,
-                      lineHeight: 23,
-                    }}
-                  >
-                    A place to remember
-                  </Text>
+                  <Text style={s.heading}>A place to remember</Text>
                   <Text>
                     Open your ballot and choose a race or measure to save your
                     first note.
@@ -728,12 +705,12 @@ export function PrivatePreparation({
           <View
             style={{
               borderTopWidth: 1,
-              borderTopColor: DigestHair.cardBorder,
+              borderTopColor: hair[1],
               paddingTop: sp[3],
               gap: sp[1],
             }}
           >
-            <Text style={{ color: P.inkOnNight }}>
+            <Text style={s.meta}>
               Private on this device · Does not cast a vote
             </Text>
             {button(`Privacy details ${privacyOpen ? "−" : "+"}`, () =>
@@ -790,7 +767,9 @@ export function PrivatePreparation({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: sp[4], paddingBottom: sp[6] }}
         >
-          <Text style={{ marginBottom: sp[3], color: P.quiet }}>{heading}</Text>
+          <Text style={{ marginBottom: sp[3], color: P.quiet }}>
+            Your ballot notes
+          </Text>
           {content}
         </ScrollView>
       </SafeAreaView>
@@ -799,3 +778,49 @@ export function PrivatePreparation({
     content
   );
 }
+
+const s = StyleSheet.create({
+  card: {
+    backgroundColor: planes.slate,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[1],
+    padding: 16,
+    gap: 13,
+  },
+  heading: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.white,
+  },
+  body: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: P.inkOnNight,
+  },
+  rowTitle: {
+    fontFamily: fontBody.semibold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.white,
+  },
+  action: { fontFamily: fontBody.semibold, fontSize: 12, lineHeight: 18 },
+  meta: {
+    fontFamily: fontBody.medium,
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: colors.textSecondary,
+  },
+  statusOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  statusOption: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    justifyContent: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: hair[2],
+  },
+  statusSelected: { backgroundColor: planes.surface, borderColor: hair[3] },
+});
