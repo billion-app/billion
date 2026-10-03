@@ -3,7 +3,7 @@ import { View } from "react-native";
 import type { CandidateBrief } from "@acme/validators";
 
 import { Text } from "~/components/Themed";
-import { Card } from "~/components/ui";
+import { Card, Icon } from "~/components/ui";
 import {
   fontBody,
   fontEditorial,
@@ -31,6 +31,51 @@ const kinds = {
   disputed: "Disputed claim",
   analysis: "Billion analysis",
 };
+/** Visual categories describe evidence origin, never candidate merit. */
+function ClaimKindLabel({ kind }: { kind: keyof typeof kinds | "missing" }) {
+  const icon = {
+    promise: "quote",
+    fact: "doc",
+    disputed: "help",
+    analysis: "layers",
+    missing: "help",
+  } as const;
+  const accent =
+    kind === "analysis"
+      ? P.spark
+      : kind === "promise"
+        ? P.primary
+        : P.inkOnNight;
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: sp[2],
+        alignSelf: "stretch",
+      }}
+    >
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        aria-hidden
+      >
+        <Icon name={icon[kind]} size={14} color={accent} />
+      </View>
+      <Text
+        style={{
+          color: P.inkOnNight,
+          fontFamily: fontBody.semibold,
+          fontSize: 12,
+          flex: 1,
+        }}
+      >
+        {kind === "missing" ? "Information missing" : kinds[kind]}
+      </Text>
+    </View>
+  );
+}
+
 export function CandidateCoverage({
   hasStatement,
   officeUrl,
@@ -40,18 +85,28 @@ export function CandidateCoverage({
 }) {
   return (
     <View style={{ gap: sp[3] }}>
-      <Text
-        accessibilityRole="header"
-        style={{
-          color: P.inkOnNight,
-          fontFamily: fontEditorial.bold,
-          fontSize: 19,
-        }}
-      >
-        {hasStatement
-          ? "No independent analysis yet"
-          : "Information is limited"}
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: sp[3] }}>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          aria-hidden
+        >
+          <Icon name="book" size={22} color={P.inkOnNight} />
+        </View>
+        <Text
+          accessibilityRole="header"
+          style={{
+            color: P.inkOnNight,
+            fontFamily: fontEditorial.bold,
+            fontSize: 19,
+            flex: 1,
+          }}
+        >
+          {hasStatement
+            ? "No independent analysis yet"
+            : "Information is limited"}
+        </Text>
+      </View>
       <Text style={candidateDetailText}>
         {hasStatement
           ? "Billion hasn’t published independent analysis for this race."
@@ -108,10 +163,10 @@ export function CandidateIndependentBrief({
         </Text>
       ) : null}
       {[
-        "effects",
         "priorities",
         "record",
         "mechanisms",
+        "effects",
         "tradeoffs",
         "unknowns",
       ].map((topic) => {
@@ -159,15 +214,7 @@ export function CandidateIndependentBrief({
             </Text>
             {section.claims.map((claim, index) => (
               <View key={claim.id} style={{ gap: sp[2] }}>
-                <Text
-                  style={{
-                    color: P.inkOnNight,
-                    fontFamily: fontBody.semibold,
-                    fontSize: 12,
-                  }}
-                >
-                  {kinds[claim.kind]}
-                </Text>
+                <ClaimKindLabel kind={claim.kind} />
                 <Text
                   selectable
                   style={{
@@ -179,7 +226,15 @@ export function CandidateIndependentBrief({
                   {claim.text}
                 </Text>
                 <CandidateDisclosure
-                  title="Sources"
+                  title={
+                    claim.kind === "analysis"
+                      ? "Sources for this analysis"
+                      : claim.kind === "promise"
+                        ? "Source for this promise"
+                        : claim.kind === "fact"
+                          ? "Sources for this fact"
+                          : "Sources for this disputed claim"
+                  }
                   label={`Sources for ${labels[section.topic]}${section.claims.length > 1 ? `, point ${index + 1}` : ""}`}
                 >
                   {sources(claim)}
@@ -187,7 +242,12 @@ export function CandidateIndependentBrief({
               </View>
             ))}
             {section.missingEvidence ? (
-              <Text style={candidateDetailText}>{section.missingEvidence}</Text>
+              <View style={{ gap: sp[2] }}>
+                <ClaimKindLabel kind="missing" />
+                <Text style={candidateDetailText}>
+                  {section.missingEvidence}
+                </Text>
+              </View>
             ) : null}
           </>
         );

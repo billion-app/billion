@@ -74,10 +74,13 @@ The candidate screen keeps one visible missing-coverage message and an immediate
 link to the election office. It shows available statements and office duties;
 it does not create separate empty sections for absent fields. The qualification
 limit stays visible. Coverage policy and source/review metadata use disclosures.
-A populated brief leads with the existing potential-effects claim, keeps all
-claim text and specific evidence gaps visible, and puts only supporting source
-excerpts and revision metadata behind controls. This changes reading order, not
-evidence or publication eligibility.
+A populated brief presents candidate priorities and documented record before
+governing mechanisms and potential effects. Quote, document, layers and question
+icons accompany explicit promise, fact, analysis and missing-information labels;
+blue and gold distinguish attribution, never candidate merit. All claim text and
+specific evidence gaps remain visible. Only supporting source excerpts and
+revision metadata sit behind controls. This changes presentation, not evidence
+or publication eligibility.
 
 Development builds can show bounded fictional populated and mixed examples on
 the same candidate-detail route: `briefPreview=reviewed` or `briefPreview=mixed`

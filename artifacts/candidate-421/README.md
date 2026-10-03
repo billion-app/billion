@@ -30,8 +30,8 @@ actual candidate-detail route, not a separate renderer harness:
 - `sparse-redesign.png`: consolidated coverage + immediate official action.
 - `sparse-coverage.png`: optional publication explanation opened.
 - `large-text-redesign.png`: sparse coverage/action at 150% browser zoom.
-- `reviewed-redesign.png`: fictional populated brief with visible effects,
-  attributed promises and record; source excerpts remain secondary.
+- `reviewed-redesign.png`: fictional populated brief with attributed promises
+  and record preceding mechanisms and effects; source excerpts remain secondary.
 - `reviewed-record-source.png`: documented fact with opened source excerpt,
   locator, retrieval date and original link.
 - `mixed-redesign.png` and `mixed-record.png`: fictional brief with a missing
@@ -51,3 +51,18 @@ all claims now remain visible, short statements do not offer pointless expansion
 and retry is the primary recovery action. The final reviewed commit and
 screenshot-first re-review are recorded in the PR's refreshed evidence comment.
 Editorial, native accessibility and real-reader gates remain unrun.
+
+## Meaningful visual communication follow-up
+
+The redesign captures were refreshed after a further screenshot-first Astra
+review. Promise, fact, analysis and missing-information rows pair distinct icons
+with explicit text. Blue identifies candidate promises and gold identifies
+Billion interpretation; neither is a merit score. Priorities and documented
+record precede interpretation. Source controls name the claim type they support.
+Icons are hidden from assistive technology because adjacent text supplies their
+meaning. No chart or decorative graphic was added to imply measured evidence.
+
+Independent Astra re-review approved the final implementation with no material
+visual reservations after flexible text constraints addressed the native-layout
+risk beside icons. It judged the result polished and credible, with meaningful
+comprehension gains, while noting that more elaborate graphics would add little.
