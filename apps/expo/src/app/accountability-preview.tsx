@@ -14,10 +14,12 @@ import {
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon, NavHeader } from "~/components/ui";
 import {
-  DigestHair,
+  colors,
   fontBody,
   fontEditorial,
+  hair,
   DigestPalette as P,
+  planes,
   sp,
 } from "~/styles";
 
@@ -90,7 +92,7 @@ export default function AccountabilityPreview() {
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
                 >
-                  <Icon name="vote" size={18} color={P.spark} />
+                  <Icon name="vote" size={18} color={P.badgeIndigo} />
                 </View>
                 <View style={s.statusText}>
                   <Text style={s.label}>Election certified</Text>
@@ -102,7 +104,7 @@ export default function AccountabilityPreview() {
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
                 >
-                  <Icon name="calendar" size={18} color={P.spark} />
+                  <Icon name="calendar" size={18} color={P.badgeIndigo} />
                 </View>
                 <View style={s.statusText}>
                   <Text style={s.label}>Term began</Text>
@@ -132,7 +134,7 @@ export default function AccountabilityPreview() {
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
                 >
-                  <Icon name="flag" size={18} color={P.spark} />
+                  <Icon name="flag" size={18} color={P.badgeIndigo} />
                 </View>
                 <View style={s.statusText}>
                   <Text style={s.label}>Campaign priority</Text>
@@ -147,23 +149,23 @@ export default function AccountabilityPreview() {
             ))}
             {actions.map((action) => (
               <View key={action.date + action.text} style={s.block}>
-                <View style={s.paperBrief}>
+                <View style={s.actionBrief}>
                   <View style={s.actionMeta}>
                     <View
                       accessible={false}
                       accessibilityElementsHidden
                       importantForAccessibility="no-hide-descendants"
                     >
-                      <Icon name="doc" size={18} color={P.ink} />
+                      <Icon name="doc" size={18} color={colors.white} />
                     </View>
-                    <Text style={s.paperLabel}>
+                    <Text style={s.actionLabel}>
                       {action.topic.toUpperCase()}
                     </Text>
                   </View>
                   <Text accessibilityRole="header" style={s.actionTitle}>
                     {action.reading?.headline ?? action.text}
                   </Text>
-                  <Text style={s.paperCaption}>
+                  <Text style={s.actionCaption}>
                     {formatDate(action.date)} ·{" "}
                     {action.kind === "sponsorship"
                       ? "Proposal introduced"
@@ -181,16 +183,16 @@ export default function AccountabilityPreview() {
                       <Icon
                         name={action.kind === "sponsorship" ? "doc" : "clock"}
                         size={21}
-                        color={P.ink}
+                        color={colors.white}
                       />
                     </View>
                     <View style={s.stepText}>
-                      <Text style={s.paperLabel}>WHAT CHANGED</Text>
+                      <Text style={s.actionLabel}>WHAT CHANGED</Text>
                       <Text style={s.mechanismAnswer}>
                         {action.reading?.change ?? action.text}
                       </Text>
                       {action.reading?.scope && (
-                        <Text style={s.paperCaption}>
+                        <Text style={s.actionCaption}>
                           {action.reading.scope}
                         </Text>
                       )}
@@ -203,14 +205,14 @@ export default function AccountabilityPreview() {
                       importantForAccessibility="no-hide-descendants"
                       style={s.stepIcon}
                     >
-                      <Icon name="help" size={21} color={P.ink} />
+                      <Icon name="help" size={21} color={colors.white} />
                     </View>
                     <View style={s.stepText}>
-                      <Text style={s.paperLabel}>STILL UNKNOWN</Text>
+                      <Text style={s.actionLabel}>STILL UNKNOWN</Text>
                       <Text style={s.mechanismAnswer}>
                         {action.reading?.unknown ?? action.context}
                       </Text>
-                      <Text style={s.paperCaption}>
+                      <Text style={s.actionCaption}>
                         Not shown by this record
                       </Text>
                     </View>
@@ -222,9 +224,9 @@ export default function AccountabilityPreview() {
                         accessibilityElementsHidden
                         importantForAccessibility="no-hide-descendants"
                       >
-                        <Icon name="message" size={16} color={P.ink} />
+                        <Icon name="message" size={16} color={colors.white} />
                       </View>
-                      <Text style={[s.paperCaption, { flex: 1 }]}>
+                      <Text style={[s.actionCaption, { flex: 1 }]}>
                         Campaign comparison unavailable · No statement included
                       </Text>
                     </View>
@@ -314,7 +316,9 @@ export default function AccountabilityPreview() {
                 style={[s.option, scenario === value && s.selected]}
                 onPress={() => setScenario(value)}
               >
-                <Text style={[s.link, scenario === value && s.selectedText]}>
+                <Text
+                  style={[s.optionLabel, scenario === value && s.selectedText]}
+                >
                   {value === "full"
                     ? "Fictional actions"
                     : value === "sparse"
@@ -347,7 +351,10 @@ function Source({ evidence, label }: { evidence: Evidence; label: string }) {
             void Linking.openURL(evidence.url).catch(() => setFailed(true));
           }}
         >
-          <Text style={s.link}>{label}</Text>
+          <View style={s.sourceHeading}>
+            <Icon name="external" size={13} color={colors.textSecondary} />
+            <Text style={s.link}>{label}</Text>
+          </View>
           <Text style={s.caption}>{evidence.publisher}</Text>
         </Pressable>
         <Pressable
@@ -357,7 +364,14 @@ function Source({ evidence, label }: { evidence: Evidence; label: string }) {
           style={s.sourceToggle}
           onPress={() => setExpanded(!expanded)}
         >
-          <Text style={s.disclosureLabel}>Details {expanded ? "−" : "+"}</Text>
+          <View style={s.sourceHeading}>
+            <Text style={s.link}>Details</Text>
+            <Icon
+              name={expanded ? "chevD" : "chevR"}
+              size={14}
+              color={P.badgeIndigo}
+            />
+          </View>
         </Pressable>
       </View>
       {failed && (
@@ -419,11 +433,14 @@ function Disclosure({
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         onPress={() => setExpanded(!expanded)}
-        style={s.button}
+        style={[s.button, s.disclosureHeading]}
       >
-        <Text style={s.disclosureLabel}>
-          {title} {expanded ? "−" : "+"}
-        </Text>
+        <Text style={[s.disclosureLabel, { flex: 1 }]}>{title}</Text>
+        <Icon
+          name={expanded ? "chevD" : "chevR"}
+          size={14}
+          color={colors.textSecondary}
+        />
       </Pressable>
       {expanded && <View style={s.block}>{children}</View>}
     </View>
@@ -458,7 +475,12 @@ const s = StyleSheet.create({
     alignSelf: "center",
   },
   lead: { gap: sp[2] },
-  identity: { fontFamily: fontEditorial.regular, fontSize: 25, color: P.paper },
+  identity: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 22,
+    lineHeight: 28,
+    color: colors.white,
+  },
   statuses: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -480,66 +502,73 @@ const s = StyleSheet.create({
     marginTop: sp[2],
   },
   priorityRow: { flexDirection: "row", gap: sp[3], paddingTop: sp[2] },
-  paperBrief: {
-    backgroundColor: P.paper,
-    borderRadius: 16,
-    padding: sp[4],
-    gap: sp[2],
+  actionBrief: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    padding: 15,
+    gap: 11,
   },
   actionMeta: { flexDirection: "row", alignItems: "center", gap: sp[2] },
   actionTitle: {
-    fontFamily: fontEditorial.regular,
-    fontSize: 27,
-    color: P.ink,
+    fontFamily: fontEditorial.bold,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.white,
   },
-  paperLabel: {
+  actionLabel: {
     fontFamily: fontBody.semibold,
-    fontSize: 12,
-    lineHeight: 19,
-    color: P.ink,
+    fontSize: 9.5,
+    letterSpacing: 0.9,
+    lineHeight: 14,
+    color: colors.textSecondary,
   },
-  paperCaption: {
+  actionCaption: {
     fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 21,
-    color: P.ink,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
   },
   mechanismRow: {
     flexDirection: "row",
     gap: sp[3],
-    paddingTop: sp[4],
-    paddingBottom: sp[2],
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: planes.surface,
   },
   unknownRow: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.inkHair,
+    borderTopColor: hair[1],
   },
-  changeIcon: { backgroundColor: P.spark, borderColor: P.spark },
+  changeIcon: { backgroundColor: planes.slate, borderColor: hair[2] },
   stepIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: P.paper,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: planes.slate,
     borderWidth: 1,
-    borderColor: P.ink,
+    borderColor: hair[2],
     justifyContent: "center",
     alignItems: "center",
   },
   stepText: { flex: 1, gap: 4 },
   mechanismAnswer: {
     fontFamily: fontBody.semibold,
-    fontSize: 18,
-    lineHeight: 25,
-    color: P.ink,
+    fontSize: 14.5,
+    lineHeight: 21,
+    color: colors.white,
   },
   comparisonRow: {
     flexDirection: "row",
     gap: sp[2],
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: DigestHair.inkHair,
+    borderTopColor: hair[1],
     paddingTop: sp[3],
   },
+  sourceHeading: { flexDirection: "row", alignItems: "center", gap: 7 },
+  disclosureHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
   sourceRow: { flexDirection: "row", alignItems: "center", gap: sp[2] },
   sourceLink: { flex: 1 },
   sourceToggle: {
@@ -555,36 +584,44 @@ const s = StyleSheet.create({
     lineHeight: 24,
     color: P.paper,
   },
-  heading: { fontFamily: fontEditorial.regular, fontSize: 23, color: P.paper },
+  heading: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.white,
+  },
   body: {
     fontFamily: fontBody.regular,
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 13.5,
+    lineHeight: 20,
     color: P.paper,
   },
   caption: {
     fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 21,
-    color: P.paper,
+    fontSize: 11.5,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
   kicker: {
     fontFamily: fontBody.medium,
-    fontSize: 12,
-    lineHeight: 19,
-    color: P.paper,
+    fontSize: 9.5,
+    letterSpacing: 0.8,
+    lineHeight: 15,
+    color: colors.textSecondary,
   },
   label: {
     fontFamily: fontBody.semibold,
-    fontSize: 14,
-    lineHeight: 21,
-    color: P.paper,
+    fontSize: 11.5,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
   card: {
-    backgroundColor: P.card,
-    borderRadius: 16,
-    padding: sp[4],
-    gap: sp[4],
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    padding: 15,
+    gap: 11,
   },
   block: { gap: sp[3] },
   result: {
@@ -593,11 +630,17 @@ const s = StyleSheet.create({
     paddingTop: sp[4],
     gap: sp[2],
   },
-  disclosure: { borderTopWidth: 1, borderTopColor: P.border },
+  disclosure: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    paddingHorizontal: 14,
+  },
   disclosureLabel: {
-    fontFamily: fontBody.medium,
-    fontSize: 15,
-    lineHeight: 23,
+    fontFamily: fontEditorial.bold,
+    fontSize: 16,
+    lineHeight: 21,
     color: P.paper,
   },
   options: { flexDirection: "row", flexWrap: "wrap", gap: sp[2] },
@@ -608,13 +651,18 @@ const s = StyleSheet.create({
     borderColor: P.border,
     borderRadius: 12,
   },
-  selected: { backgroundColor: P.primary },
-  selectedText: { color: P.ink },
+  selected: { backgroundColor: planes.surface, borderColor: P.badgeIndigo },
+  selectedText: { color: colors.white },
   button: { minHeight: 48, justifyContent: "center", paddingVertical: sp[2] },
+  optionLabel: {
+    fontFamily: fontBody.medium,
+    fontSize: 12,
+    color: colors.white,
+  },
   link: {
-    fontFamily: fontBody.regular,
-    fontSize: 16,
-    color: P.paper,
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+    color: colors.white,
     textDecorationLine: "underline",
   },
 });
