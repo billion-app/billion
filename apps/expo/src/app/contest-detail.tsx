@@ -30,6 +30,9 @@ import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Card, Icon, NavHeader } from "~/components/ui";
+import { ContestMarking } from "~/components/ballot-marking/ContestMarking";
+
+
 import {
   DigestHair,
   DigestRadii,
@@ -308,6 +311,15 @@ export default function ContestDetailScreen() {
           state={params.state}
           districtId={params.districtId}
         />
+
+        <ContestMarking
+          scope={{
+            contestId: "",
+            electionDate: params.electionDate ?? "",
+            jurisdiction: params.state ?? "",
+          }}
+        />
+
 
         {description ? (
           <View style={s.section}>
