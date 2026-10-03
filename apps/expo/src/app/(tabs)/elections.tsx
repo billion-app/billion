@@ -243,12 +243,28 @@ function CaliforniaElectionEntry({
   return (
     <TabScreen title="Elections">
       <View style={s.entry}>
-        <View style={s.entryRule} />
-        <Text style={s.entryKicker}>
-          {guide
-            ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
-            : "CALIFORNIA STATEWIDE GUIDE"}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              backgroundColor: planes.slate,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name="book" size={23} color={colors.bill} />
+          </View>
+          <Text style={[s.entryKicker, { marginTop: 0, flex: 1 }]}>
+            {guide
+              ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
+              : "CALIFORNIA STATEWIDE GUIDE"}
+          </Text>
+        </View>
         <Text style={s.entryTitle}>Voting in California?</Text>
         <Text style={s.entryBody}>
           Read official candidate statements and statewide propositions.
@@ -316,6 +332,21 @@ function CaliforniaElectionEntry({
             gap: 12,
           }}
         >
+          <View
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 12,
+              backgroundColor: planes.slate,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name="pin" size={20} color={colors.white} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text
               style={{
@@ -681,7 +712,6 @@ function ElectionsLive({
 
 const s = StyleSheet.create({
   entry: { paddingHorizontal: 20, paddingTop: 30 },
-  entryRule: { width: 44, height: 3, backgroundColor: colors.bill },
   entryKicker: {
     fontFamily: fontBody.semibold,
     fontSize: 11,

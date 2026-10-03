@@ -1,8 +1,15 @@
-import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ElectionOfficeLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
@@ -45,9 +52,45 @@ export function BallotLookupGate({
           Find your ballot
         </Text>
         <Card style={{ padding: 16, gap: 16, borderRadius: 14 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View
+              accessible={false}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                backgroundColor: P.canvas,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {checking ? (
+                <ActivityIndicator color={P.inkOnNight} />
+              ) : (
+                <Icon name="info" size={20} color={P.inkOnNight} />
+              )}
+            </View>
+            <Text
+              accessibilityLiveRegion="polite"
+              accessibilityRole={failed ? "alert" : undefined}
+              style={{
+                flex: 1,
+                fontFamily: fontBody.bold,
+                fontSize: 14,
+                lineHeight: 21,
+                color: P.inkOnNight,
+              }}
+            >
+              {checking
+                ? "Checking ballot lookup…"
+                : failed
+                  ? "We couldn’t check ballot lookup"
+                  : "Ballot lookup unavailable"}
+            </Text>
+          </View>
           <Text
-            accessibilityLiveRegion="polite"
-            accessibilityRole={failed ? "alert" : undefined}
             style={{
               fontFamily: fontBody.regular,
               fontSize: 16,
@@ -55,11 +98,7 @@ export function BallotLookupGate({
               color: P.inkOnNight,
             }}
           >
-            {checking
-              ? "Checking ballot lookup…"
-              : failed
-                ? "We couldn’t check ballot lookup. Your election office can help you find your official ballot."
-                : "Ballot lookup isn’t available yet. Your election office can help you find your official ballot."}
+            Your election office can help you find your official ballot.
           </Text>
           <ElectionOfficeLink prominence="primary" />
           {failed && (

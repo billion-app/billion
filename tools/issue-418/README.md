@@ -53,6 +53,21 @@ this fallback alone does not establish Billion's personalized election value.
 Final polish addresses initial-loading CTA changes, wording precision and repeated
 headings. An expert design verdict does not replace real-reader/native/live gates.
 
+## Meaningful visual cues
+
+The entry replaces its decorative rule with a book beside the statewide-guide
+label and pairs the official-ballot action with a location pin. These distinguish
+reading statewide material from finding information tied to where the reader votes;
+they do not establish address matching or coverage. Existing blue/cream accents
+reinforce the labels without representing candidate quality or partisan judgment.
+
+The fallback replaces its opening status sentence with a compact info-icon status
+row (a spinner while checking). Status text remains explicit; color is not the only
+signal. The body now explains only the useful election-office next step. Decorative
+scope/status icons are hidden from assistive technology; visible text and button
+labels retain the meaning. No maps, ballot checkmarks or certification seals imply
+unsupported readiness.
+
 ## Remaining launch gates
 
 - #399: configure licensed REST v2 `/elections` access with `includeBallotData=true`.
