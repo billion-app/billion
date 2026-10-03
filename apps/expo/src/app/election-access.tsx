@@ -4,14 +4,16 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
-import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { OfficialResourceLink as SourceLink } from "~/components/ballot/OfficialResourceLink";
 import { Icon, NavHeader } from "~/components/ui";
 import {
-  DigestHair,
+  colors,
+  digest,
   fontBody,
   fontEditorial,
-  DigestPalette as P,
+  hair,
+  planes,
   sp,
 } from "~/styles";
 
@@ -36,7 +38,7 @@ function TopicHeading({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <Icon name={icon} size={20} color={P.primary} />
+        <Icon name={icon} size={16} color={digest.primary} />
       </View>
       <Text accessibilityRole="header" style={[s.heading, { flex: 1 }]}>
         {children}
@@ -65,7 +67,7 @@ function Details({ title, children }: { title: string; children: ReactNode }) {
           <Icon
             name={expanded ? "chevD" : "chevR"}
             size={16}
-            color={P.inkOnNight}
+            color={colors.white}
           />
         </View>
       </Pressable>
@@ -176,28 +178,37 @@ export default function ElectionAccessScreen() {
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: P.canvas },
-  content: { padding: sp[5], paddingBottom: sp[8], gap: sp[3] },
-  title: { fontFamily: fontEditorial.bold, fontSize: 30, color: P.inkOnNight },
+  screen: { flex: 1, backgroundColor: planes.navy },
+  content: { padding: sp[5], paddingBottom: sp[8], gap: 18 },
+  title: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 26,
+    lineHeight: 31,
+    color: colors.white,
+  },
   heading: {
     fontFamily: fontEditorial.bold,
-    fontSize: 22,
-    color: P.inkOnNight,
+    fontSize: 17,
+    lineHeight: 22,
+    color: colors.white,
   },
   body: {
     fontFamily: fontBody.regular,
-    fontSize: 17,
-    lineHeight: 26,
-    color: P.inkOnNight,
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.white,
   },
   caption: {
     fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 22,
-    color: P.inkOnNight,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.white,
+    opacity: 0.72,
   },
   card: {
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
     borderRadius: 14,
     padding: sp[4],
     gap: sp[2],
@@ -206,8 +217,8 @@ const s = StyleSheet.create({
   topicIcon: {
     width: 32,
     height: 32,
-    borderRadius: 8,
-    backgroundColor: P.canvas,
+    borderRadius: 9,
+    backgroundColor: `${digest.primary}28`,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -217,13 +228,14 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: sp[2],
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.sectionRule,
+    borderTopColor: hair[1],
   },
   detailLabel: {
     flex: 1,
     fontFamily: fontBody.medium,
-    fontSize: 16,
-    color: P.inkOnNight,
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.white,
   },
   details: { gap: sp[3], paddingBottom: sp[2] },
 });

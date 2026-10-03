@@ -19,7 +19,7 @@ PDF URLs. These checks are automated source inspection, not editorial approval.
 The preview now exposes its headline as a heading and retry as a button with a
 48-point minimum height. Proposition titles wrap instead of being truncated;
 proposition number tiles can grow with text. Resource labels wrap alongside
-icons. Existing shared SourceLink handles failed external opens and provides
+icons. The ballot-specific OfficialResourceLink preserves failed external opens and
 44-point minimum targets; no new animation was introduced.
 
 ## Journey audit and remaining checks
@@ -147,3 +147,39 @@ the first hotline remains visible; the capture keeps decorative vector glyphs at
 their fixed size, matching the library's `allowFontScaling: false` default. This
 refines the synthetic browser check, not native Dynamic Type evidence. All native,
 reader, editorial and integrated-journey gates remain outstanding.
+
+## Bills design alignment
+
+The live Bills reference was captured in the same Expo web app, dark theme and
+390×844 viewport using CA SB 492 (`fa107d14-8165-482c-acc4-d1938af4c215`), with
+server-provided data rather than a fixture. This is visual comparison evidence,
+not verification of that bill's generated explanation. The Bills captures include
+an existing development warning overlay; it was not treated as design guidance.
+
+Voting help now follows BillBrief's 17-point editorial card headings, 15/23 body
+text, 14-point card corners, subtle `hair[1]` borders, slate/surface planes and
+small source/disclosure controls. Its category icons retain the task meaning and
+use the Bills blue icon treatment. The guide has a compact jurisdiction header,
+26-point editorial title, restrained proposition-number tiles and matching card
+borders. All tokens come from `~/styles`. No parallel palette, legislative
+progress metaphor or party/outcome judgment was introduced.
+
+A fresh independent Astra reviewer first compared the actual Bills and Elections
+captures. It found the initial cream actions and gray icon tiles inconsistent
+with Bills. Compact blue-tinted controls and Bills-style icon tiles resolved both
+findings; the reviewer then found no further actionable screenshot-only design
+findings. Its independent code review caught an unused import, which was removed,
+and found no substantive correctness or regression issue. The smaller resource
+captions use 72% white: 7.90:1 contrast on slate, 9.63:1 on navy and 6.94:1 on
+surface. Essential local-availability limits remain visible.
+
+The ballot-specific OfficialResourceLink is reused by this route and its statewide
+guide entry, avoiding changes to the generic shared evidence component. Root
+integration must reconcile CaliforniaGuidePreview with other Elections streams;
+the prior additive Icon mapping remains the only generic UI change in the PR.
+The reviewer also checked the live candidate and proposition cards and final
+guide-error capture; no actionable design or code findings remained. Unique
+Metro port 8428 was verified with its process cwd pointing at this worktree.
+Native VoiceOver/Dynamic Type, real-reader comprehension, editorial review and
+integrated-journey gates remain outstanding. No merge or release is authorized
+by this evidence.
