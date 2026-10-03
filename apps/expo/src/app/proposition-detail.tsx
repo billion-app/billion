@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
+import { PropositionConsequences } from "~/components/ballot-evidence/PropositionConsequences";
 import { Icon, NavHeader } from "~/components/ui";
 import { fontBody, fontEditorial, DigestPalette as P, sp } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -47,7 +48,7 @@ export default function PropositionDetailScreen() {
         ) : query.isError ? (
           <StateCard
             title="Could not load the guide"
-            detail="Check your connection and try again."
+            detail="Try again, or open California’s official voter guide."
             onRetry={() => void query.refetch()}
           />
         ) : !query.data ? (
@@ -68,12 +69,39 @@ export default function PropositionDetailScreen() {
               <Text style={s.kicker}>
                 California · {ballotElectionDate(query.data.electionDate)}
               </Text>
-              <Text style={s.caption}>
-                Official California voter guide · Retrieved{" "}
-                {query.data.fetchedAt.slice(0, 10)} UTC
-              </Text>
             </View>
-            {measure.voteMeaningYes && measure.voteMeaningNo ? (
+            {!measure.consequences && (
+              <Text accessibilityRole="header" style={s.recordTitle}>
+                {measure.title}
+              </Text>
+            )}
+            {measure.consequences ? (
+              <PropositionConsequences analysis={measure.consequences} />
+            ) : (
+              <View style={s.lead}>
+                {measure.voteMeaningYes && measure.voteMeaningNo && (
+                  <Text style={s.caption}>
+                    Official guide · Billion’s explanation isn’t available yet.
+                  </Text>
+                )}
+                {!(measure.voteMeaningYes && measure.voteMeaningNo) && (
+                  <>
+                    <Text style={s.body}>
+                      Billion’s explanation and a complete official Yes/No
+                      comparison aren’t available here yet.
+                    </Text>
+                    <SourceLink
+                      label="Open official voter guide"
+                      url={measure.sourceUrl}
+                      prominence="primary"
+                    />
+                  </>
+                )}
+              </View>
+            )}
+            {!measure.consequences &&
+            measure.voteMeaningYes &&
+            measure.voteMeaningNo ? (
               <View style={s.voteSection}>
                 <Text accessibilityRole="header" style={s.heading}>
                   What your vote means
@@ -93,85 +121,120 @@ export default function PropositionDetailScreen() {
                   />
                 </View>
               </View>
-            ) : (
-              <Text style={s.caption}>
-                The official Yes/No descriptions are not available in Billion
-                yet. Open the state guide below.
-              </Text>
-            )}
-            <View style={s.record}>
-              <Text style={s.metaLabel}>
-                OFFICIAL BALLOT TITLE · CALIFORNIA SOS
-              </Text>
-              <Text accessibilityRole="header" style={s.recordTitle}>
-                {measure.title}
-              </Text>
-              <Text style={s.metaLabel}>OFFICIAL SUMMARY</Text>
-              <Text style={s.body}>
-                {measure.officialSummary ??
-                  "Not available in Billion. Open the state guide."}
-              </Text>
-              <Text style={s.metaLabel}>OFFICIAL FISCAL IMPACT</Text>
-              <Text style={s.body}>
-                {measure.fiscalImpact ??
-                  "Not available in Billion. Open the state guide."}
-              </Text>
-              <DetailDisclosure
-                title="Submitted arguments"
-                subtitle="Advocacy statements from the official guide"
-              >
-                <Text style={s.caption}>
-                  Advocacy statements, not independent findings. Their presence
-                  does not indicate equal evidentiary support.
-                </Text>
-                <Text style={s.argumentLabel}>For</Text>
-                {proArguments.length ? (
-                  proArguments.map((arg, i) => (
-                    <Text key={`pro-${i}`} style={s.body}>
-                      {arg.text}
-                    </Text>
-                  ))
-                ) : (
-                  <Text style={s.caption}>
-                    No argument for was provided in this guide entry.
-                  </Text>
-                )}
-                <Text style={s.argumentLabel}>Against</Text>
-                {conArguments.length ? (
-                  conArguments.map((arg, i) => (
-                    <Text key={`con-${i}`} style={s.body}>
-                      {arg.text}
-                    </Text>
-                  ))
-                ) : (
-                  <Text style={s.caption}>
-                    No argument against was provided in this guide entry.
-                  </Text>
-                )}
-                <InlineSource
-                  label="California SOS · Arguments and rebuttals"
-                  url={`${measure.sourceUrl}arguments-rebuttals.htm`}
-                />
-              </DetailDisclosure>
-              <Text style={s.metaLabel}>ORIGINAL SOURCES</Text>
-              <Text style={s.caption}>
-                California Secretary of State Official Voter Information Guide ·
-                Retrieved {query.data.fetchedAt.slice(0, 10)} UTC.
-              </Text>
-              <InlineSource
-                label="Official title and summary"
-                url={`${measure.sourceUrl}title-summary.htm`}
-              />
-              {measure.fullTextUrl && (
-                <InlineSource
-                  label="Text of proposed law (PDF)"
-                  url={measure.fullTextUrl}
+            ) : null}
+            {!measure.consequences &&
+              measure.voteMeaningYes &&
+              measure.voteMeaningNo && (
+                <SourceLink
+                  label="Open official voter guide"
+                  url={measure.sourceUrl}
                 />
               )}
-              <InlineSource
-                label="Full official proposition page"
-                url={measure.sourceUrl}
-              />
+            <View style={s.record}>
+              {measure.officialSummary ||
+              measure.fiscalImpact ||
+              measure.consequences ||
+              proArguments.length ||
+              conArguments.length ? (
+                <Text accessibilityRole="header" style={s.heading}>
+                  Official record
+                </Text>
+              ) : null}
+              {measure.consequences &&
+                measure.voteMeaningYes &&
+                measure.voteMeaningNo && (
+                  <DetailDisclosure
+                    title="Official Yes/No descriptions"
+                    subtitle="California SOS wording"
+                  >
+                    <Outcome
+                      label="YES"
+                      body={officialVoteMeaning(measure.voteMeaningYes, "YES")}
+                    />
+                    <Outcome
+                      label="NO"
+                      body={officialVoteMeaning(measure.voteMeaningNo, "NO")}
+                    />
+                  </DetailDisclosure>
+                )}
+              {measure.officialSummary && (
+                <DetailDisclosure
+                  title="Official summary"
+                  subtitle="California SOS wording"
+                >
+                  <Text style={s.body}>{measure.officialSummary}</Text>
+                </DetailDisclosure>
+              )}
+              {measure.fiscalImpact && (
+                <DetailDisclosure
+                  title="Official fiscal analysis"
+                  subtitle="California SOS wording"
+                >
+                  <Text style={s.body}>{measure.fiscalImpact}</Text>
+                </DetailDisclosure>
+              )}
+              {(proArguments.length > 0 || conArguments.length > 0) && (
+                <DetailDisclosure
+                  title="Submitted arguments"
+                  subtitle="Advocacy statements from the official guide"
+                >
+                  <Text style={s.caption}>
+                    Advocacy statements, not independent findings. Their
+                    presence does not indicate equal evidentiary support.
+                  </Text>
+                  <Text style={s.argumentLabel}>For</Text>
+                  {proArguments.length ? (
+                    proArguments.map((arg, i) => (
+                      <Text key={`pro-${i}`} style={s.body}>
+                        {arg.text}
+                      </Text>
+                    ))
+                  ) : (
+                    <Text style={s.caption}>
+                      No argument for was provided in this guide entry.
+                    </Text>
+                  )}
+                  <Text style={s.argumentLabel}>Against</Text>
+                  {conArguments.length ? (
+                    conArguments.map((arg, i) => (
+                      <Text key={`con-${i}`} style={s.body}>
+                        {arg.text}
+                      </Text>
+                    ))
+                  ) : (
+                    <Text style={s.caption}>
+                      No argument against was provided in this guide entry.
+                    </Text>
+                  )}
+                  <InlineSource
+                    label="California SOS · Arguments and rebuttals"
+                    url={`${measure.sourceUrl}arguments-rebuttals.htm`}
+                  />
+                </DetailDisclosure>
+              )}
+              <DetailDisclosure
+                title="Official sources"
+                subtitle="State guide and text of the proposed law"
+              >
+                <Text style={s.caption}>
+                  California Secretary of State Official Voter Information Guide
+                  · Retrieved {query.data.fetchedAt.slice(0, 10)} UTC.
+                </Text>
+                <InlineSource
+                  label="Official title and summary"
+                  url={`${measure.sourceUrl}title-summary.htm`}
+                />
+                {measure.fullTextUrl && (
+                  <InlineSource
+                    label="Text of proposed law (PDF)"
+                    url={measure.fullTextUrl}
+                  />
+                )}
+                <InlineSource
+                  label="Full official proposition page"
+                  url={measure.sourceUrl}
+                />
+              </DetailDisclosure>
             </View>
           </>
         )}
@@ -269,7 +332,7 @@ function StateCard({
         <Text style={s.retryText}>Try again</Text>
       </Pressable>
       <SourceLink
-        label="California official proposition guide"
+        label="Open official voter guide"
         url="https://voterguide.sos.ca.gov/propositions/"
       />
     </View>
