@@ -36,8 +36,8 @@ comprehension validation. Keep the PR draft until these gates are resolved.
 
 The count is the editorial headline, followed by the official marking action.
 Optional write-in, overvote, and blank-contest passages have plainly named
-expansion controls. Source identity stays visible in “Sources & details”; opening
-it reveals the direct official link, system, election stage, and review date.
+expansion controls. “Sources & details” opens the source identity, direct official
+link, system, election stage, and review date.
 Essential marking restrictions must stay in the primary `marking` passage, not
 be hidden in supporting detail. The voting boundary stays visible throughout.
 
@@ -75,12 +75,30 @@ with the answer available in seconds and optional explanation chosen by the read
 The single-choice headline was further shortened to avoid making the simplest
 mechanic visually heavier. This does not substitute for real-reader testing.
 
-## Integration dependency exposed by review
+## Bills design alignment
 
-The pre-existing contest/candidate footer says “Source information unavailable”
-without naming its field scope. Beside a sourced marking card, that could appear
-to contradict the instruction authority. Coordinate the field-specific footer
-copy with #425 before integrated release; this stream does not overwrite shared
-provenance components or another stream’s contest changes. Long real contest and
-source names, native accessibility, official-record mapping, editorial review,
-and real-reader comprehension remain unverified draft gates.
+The final marking card follows the current `BillBrief` summary language: slate
+plane, 14px radius, subtle shared hairline, blue accent edge and compact document
+icon, 17px editorial rule heading and 15px/23px body. Disclosure labels use the
+compact 12px scale with 44px targets. Labels remain white for contrast; blue
+chevrons distinguish interactive rows. No new palette or legislative semantics
+were introduced. Source authority appears inside the source disclosure, preserving
+space for candidate exploration.
+
+`bills-reference` and `bills-brief` capture the actual `article-detail` route and
+`BillBrief` renderer with explicitly synthetic content in the same confirmed Expo
+process, dark theme and 390×844 viewport as the election captures. Port 8424 was
+verified against the process cwd in this worktree. Capture waits for content and
+browser fonts before taking images. Temporary article data, onboarding bypass,
+contest fixture injection and link failure overrides are restored before checks.
+The Bills images establish design comparison, not source-backed legislative data.
+
+## Candidate-source integration
+
+The pre-existing footer says “Source information unavailable.” The contest route
+now labels that section “Candidate information sources,” so it cannot appear to
+contradict the separate marking source. This narrow route addition leaves shared
+provenance components unchanged; coordinate overlapping contest-detail edits with
+#425 during integration. Long real contest and source names, native accessibility,
+official-record mapping, editorial review and real-reader comprehension remain
+unverified draft gates.

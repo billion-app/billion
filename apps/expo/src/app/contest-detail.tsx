@@ -696,6 +696,12 @@ export default function ContestDetailScreen() {
           />
         </BallotDisclosure>
         <BallotLanguages items={[]} showRecovery={false} />
+||||||| d1747c36
+        <Text style={s.readingLabel}>Candidate information sources</Text>
+        <BallotDetailEvidence
+          citations={raceCitations}
+          showOfficeLink={candidates.length > 0}
+        />
       </ScrollView>
     </View>
   );
