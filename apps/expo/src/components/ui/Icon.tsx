@@ -8,6 +8,8 @@ import { Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { colors } from "~/styles";
 
 type IconName =
+  | "bus"
+  | "roadworks"
   | "search"
   | "home"
   | "feed"
@@ -69,6 +71,8 @@ type IconName =
 type Family = "ion" | "feather" | "fa";
 
 const MAP: Record<IconName, { family: Family; name: string }> = {
+  bus: { family: "ion", name: "bus-outline" },
+  roadworks: { family: "ion", name: "construct-outline" },
   search: { family: "feather", name: "search" },
   home: { family: "feather", name: "home" },
   feed: { family: "feather", name: "layout" },
