@@ -33,6 +33,7 @@ type IconName =
   | "info"
   | "lock"
   | "block"
+  | "mail"
   | "doc"
   | "trash"
   | "undo"
@@ -93,6 +94,7 @@ const MAP: Record<IconName, { family: Family; name: string }> = {
   info: { family: "feather", name: "info" },
   lock: { family: "feather", name: "lock" },
   block: { family: "feather", name: "slash" },
+  mail: { family: "feather", name: "mail" },
   doc: { family: "feather", name: "file-text" },
   trash: { family: "feather", name: "trash-2" },
   undo: { family: "feather", name: "rotate-ccw" },

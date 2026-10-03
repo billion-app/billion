@@ -1,8 +1,12 @@
 import type { ReactNode } from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   BackHandler,
+  findNodeHandle,
+  Text as NativeText,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +30,7 @@ import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
+import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import {
   DigestHair,
   fontBody,
@@ -41,6 +46,7 @@ import {
   ballotOfficeUrl,
   validateBallotAddress,
 } from "~/utils/ballot-lookup";
+import { hasVotingPlanLogistics } from "~/utils/voting-plan";
 import { BallotContestCard } from "./BallotContestCard";
 
 export interface BallotLookupViewProps {
@@ -63,19 +69,58 @@ export function BallotLookupView(props: BallotLookupViewProps) {
   const [ballotTab, setBallotTab] = useState<"candidates" | "measures">(
     "candidates",
   );
-  const { fontScale } = useWindowDimensions();
+  const { fontScale, height: viewportHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState(props.address);
   const [editing, setEditing] = useState(!props.address);
   const [invalid, setInvalid] = useState(false);
   const [choosingElection, setChoosingElection] = useState(false);
   const [votingExpanded, setVotingExpanded] = useState(false);
+  const votingScroll = useRef<ScrollView>(null);
+  const votingViewport = useRef<View>(null);
+  const logisticsHeading = useRef<NativeText>(null);
+  const votingOffset = useRef(0);
+  const viewLogistics = () => {
+    logisticsHeading.current?.measureInWindow((_x, headingY) => {
+      votingViewport.current?.measureInWindow((_scrollX, scrollY) => {
+        votingScroll.current?.scrollTo({
+          y: Math.max(0, votingOffset.current + headingY - scrollY),
+          animated: false,
+        });
+        requestAnimationFrame(() => {
+          if (Platform.OS === "web") logisticsHeading.current?.focus();
+          else {
+            const handle = findNodeHandle(logisticsHeading.current);
+            if (handle) AccessibilityInfo.setAccessibilityFocus(handle);
+          }
+        });
+      });
+    });
+  };
+  const votingEntry = useRef<View>(null);
+  const returnFocusPending = useRef(false);
+  const returnToBallot = () => {
+    returnFocusPending.current = true;
+    setVotingExpanded(false);
+  };
+  useEffect(() => {
+    if (votingExpanded || !returnFocusPending.current) return;
+    returnFocusPending.current = false;
+    const frame = requestAnimationFrame(() => {
+      if (Platform.OS === "web") votingEntry.current?.focus();
+      else {
+        const handle = findNodeHandle(votingEntry.current);
+        if (handle) AccessibilityInfo.setAccessibilityFocus(handle);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [votingExpanded]);
   const addressInput = useRef<TextInput>(null);
   const ballotScroll = useRef(0);
   const [ballotOffset, setBallotOffset] = useState(0);
   useFocusEffect(
     useCallback(() => {
-      if (!votingExpanded) return;
+      if (!votingExpanded || Platform.OS === "web") return;
       const subscription = BackHandler.addEventListener(
         "hardwareBackPress",
         () => {
@@ -138,38 +183,72 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           title=""
           onBack={() => setVotingExpanded(false)}
         />
-        <ScrollView
-          key="voting"
-          contentContainerStyle={[
-            s.content,
-            { paddingBottom: insets.bottom + 24 },
-          ]}
-        >
-          <Text accessibilityRole="header" style={s.pageTitle}>
-            How to vote
-          </Text>
-          {model?.election && (
-            <View style={s.electionHeader}>
-              <Text style={s.electionTitle}>{model.election.name}</Text>
-              <Text style={s.secondary}>
-                {ballotElectionDate(model.election.electionDay)}
-              </Text>
-            </View>
-          )}
-          {props.loading ? (
-            <View accessibilityLiveRegion="polite" style={s.loading}>
-              <ActivityIndicator color={P.spark} />
-              <Text style={s.body}>Updating voting information…</Text>
-            </View>
-          ) : props.failed ? (
-            <BallotStatusNotice
-              evidence={{ kind: "provider-failure" }}
-              onRetry={props.onRetry}
-            />
-          ) : data ? (
-            <VotingLogisticsSection status="ready" data={data} />
-          ) : null}
-        </ScrollView>
+        <View ref={votingViewport} style={{ flex: 1 }}>
+          <ScrollView
+            key="voting"
+            ref={votingScroll}
+            onScroll={(event) => {
+              votingOffset.current = event.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+            contentContainerStyle={[
+              s.content,
+              { paddingBottom: insets.bottom + 24 },
+            ]}
+          >
+            <Text accessibilityRole="header" style={s.pageTitle}>
+              How to vote
+            </Text>
+            {model?.election && (
+              <View style={s.electionHeader}>
+                <Text style={s.electionTitle}>{model.election.name}</Text>
+                <Text style={s.secondary}>
+                  {ballotElectionDate(model.election.electionDay)}
+                </Text>
+              </View>
+            )}
+            {props.loading ? (
+              <View accessibilityLiveRegion="polite" style={s.loading}>
+                <ActivityIndicator color={P.spark} />
+                <Text style={s.body}>Updating voting information…</Text>
+              </View>
+            ) : props.failed ? (
+              <BallotStatusNotice
+                evidence={{ kind: "provider-failure" }}
+                onRetry={props.onRetry}
+              />
+            ) : data ? (
+              <>
+                <VotingPlanSection
+                  election={model?.election}
+                  data={data}
+                  california={model?.isCalifornia}
+                  returnLabel="Return to ballot"
+                  onReturn={returnToBallot}
+                  onViewLogistics={viewLogistics}
+                />
+                {hasVotingPlanLogistics(data) && (
+                  <View
+                    style={{
+                      minHeight: Math.max(0, viewportHeight - insets.top - 56),
+                    }}
+                  >
+                    <NativeText
+                      ref={logisticsHeading}
+                      accessible
+                      accessibilityRole="header"
+                      tabIndex={-1}
+                      style={s.electionTitle}
+                    >
+                      Voting dates & locations
+                    </NativeText>
+                    <VotingLogisticsSection status="ready" data={data} />
+                  </View>
+                )}
+              </>
+            ) : null}
+          </ScrollView>
+        </View>
       </View>
     );
   }
@@ -421,10 +500,12 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             {hasSupport && (
               <Pressable
                 accessibilityRole="button"
+                ref={votingEntry}
                 accessibilityLabel="How to vote"
                 accessibilityHint="Opens voting information"
                 onPress={() => {
                   setBallotOffset(ballotScroll.current);
+                  votingOffset.current = 0;
                   setVotingExpanded(true);
                 }}
                 style={s.votingEntry}

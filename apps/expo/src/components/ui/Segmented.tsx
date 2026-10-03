@@ -26,10 +26,12 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  iconPosition = "beside",
 }: {
   options: SegmentOption<T>[];
   value: T;
   onChange: (id: T) => void;
+  iconPosition?: "beside" | "above";
 }) {
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale > 1.3;
@@ -45,16 +47,27 @@ export function Segmented<T extends string>({
           <TouchableOpacity
             key={o.id}
             accessibilityRole="tab"
+            accessibilityLabel={o.label}
             aria-selected={active}
             onPress={() => onChange(o.id)}
             activeOpacity={0.8}
             style={[
               s.seg,
+              iconPosition === "above" &&
+                !stacked && { flexDirection: "column" },
               stacked && { flex: 0 },
               active ? s.segActive : undefined,
             ]}
           >
-            {o.icon && <Icon name={o.icon} size={15} color={fg} />}
+            {o.icon && (
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                aria-hidden
+              >
+                <Icon name={o.icon} size={15} color={fg} />
+              </View>
+            )}
             <Text key={fontScale} style={[s.segText, { color: fg }]}>
               {o.label}
             </Text>

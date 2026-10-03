@@ -1,7 +1,12 @@
-import { useState } from "react";
+import type { ScrollView } from "react-native";
+import { useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  findNodeHandle,
   Image,
+  Text as NativeText,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -13,6 +18,7 @@ import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
+import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
@@ -132,6 +138,18 @@ export function CaliforniaGuidePreview({
   onOpenFixtures?: () => void;
   onBack?: () => void;
 }) {
+  const guideScroll = useRef<ScrollView>(null);
+  const guideHeading = useRef<NativeText>(null);
+  const returnToGuide = () => {
+    requestAnimationFrame(() => {
+      guideScroll.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === "web") guideHeading.current?.focus();
+      else {
+        const handle = findNodeHandle(guideHeading.current);
+        if (handle) AccessibilityInfo.setAccessibilityFocus(handle);
+      }
+    });
+  };
   const [tab, setTab] = useState<GuideTab>("candidates");
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.isError ? undefined : query.data;
@@ -166,13 +184,14 @@ export function CaliforniaGuidePreview({
         ) : undefined
       }
       contentStyle={s.screen}
+      scrollRef={guideScroll}
     >
       {guide ? (
         <View style={s.intro}>
           <Text style={s.kicker}>
             {`${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`}
           </Text>
-          <Text style={s.headline}>The statewide guide</Text>
+          <NativeText ref={guideHeading} tabIndex={-1} accessible accessibilityRole="header" style={s.headline}>The statewide guide</NativeText>
           <Text style={s.introText}>
             Official candidate statements and propositions, directly from
             California's voter guide.
@@ -180,7 +199,7 @@ export function CaliforniaGuidePreview({
         </View>
       ) : (
         <View style={s.intro}>
-          <Text style={s.headline}>The statewide guide</Text>
+          <NativeText ref={guideHeading} tabIndex={-1} accessible accessibilityRole="header" style={s.headline}>The statewide guide</NativeText>
           <Text style={[s.introText, { color: colors.white }]}>
             {query.isPending
               ? "Checking the statewide preview…"
@@ -190,6 +209,7 @@ export function CaliforniaGuidePreview({
           </Text>
         </View>
       )}
+
 
       {query.isPending && <ActivityIndicator color={colors.bill} />}
       {!query.isPending && !guide && (
@@ -218,6 +238,21 @@ export function CaliforniaGuidePreview({
           )}
         </Card>
       )}
+      <VotingPlanSection
+        california
+        returnLabel="Return to statewide guide"
+        onReturn={returnToGuide}
+        election={
+          guide
+            ? {
+                id: `ca-guide:${guide.electionDate}`,
+                name: `California statewide election · ${ballotElectionDate(guide.electionDate)}`,
+                electionDay: guide.electionDate,
+                ocdDivisionId: "ocd-division/country:us/state:ca",
+              }
+            : undefined
+        }
+      />
       {guide && (
         <>
           <View style={s.scope}>

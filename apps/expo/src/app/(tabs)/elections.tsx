@@ -25,6 +25,7 @@ import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
+import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { colors, fontBody, hair, DigestPalette as P, planes } from "~/styles";
@@ -716,6 +717,11 @@ function ElectionsLive({
         )}
 
       <View style={s.section}>
+        <VotingPlanSection
+          election={selected}
+          data={data}
+          california={hasVerifiedCaliforniaAddress}
+        />
         <VotingLogisticsSection
           data={data}
           status={
