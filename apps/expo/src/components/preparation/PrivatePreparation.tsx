@@ -576,7 +576,7 @@ export function PrivatePreparation({
                         <Pressable
                           key={index}
                           accessibilityRole="button"
-                          accessibilityLabel={`${title}, ${duplicate ? "Notes unavailable for this item" : item ? status(item.progress) : "Add notes"}${item?.choice ? `, Possible choice: ${item.choice}` : item?.notes ? `, Your note preview: ${item.notes.slice(0, 120)}` : ""}`}
+                          accessibilityLabel={`${contest.referendumTitle ? "Measure" : contest.office ? "Race" : "Contest"}, ${title}, ${duplicate ? "Notes unavailable for this item" : item ? status(item.progress) : "Add notes"}${item?.choice ? `, Possible choice: ${item.choice}` : item?.notes ? `, Your note preview: ${item.notes.slice(0, 120)}` : ""}`}
                           accessibilityState={{ disabled: duplicate || busy }}
                           disabled={duplicate || busy}
                           onPress={() => {
