@@ -77,10 +77,14 @@ limit stays visible. Coverage policy and source/review metadata use disclosures.
 A populated brief presents candidate priorities and documented record before
 governing mechanisms and potential effects. Quote, document, layers and question
 icons accompany explicit promise, fact, analysis and missing-information labels;
-blue and gold distinguish attribution, never candidate merit. All claim text and
+muted category accents distinguish attribution, never candidate merit. All claim text and
 specific evidence gaps remain visible. Only supporting source excerpts and
 revision metadata sit behind controls. This changes presentation, not evidence
-or publication eligibility.
+or publication eligibility. Compact slate cards, 14-pixel corners, hairlines,
+editorial headings and smaller body/source typography follow the current
+`BillBrief` renderer. Candidate statements and excerpts retain their distinct
+source-text styling; election information does not borrow legislative status
+or outcome colors.
 
 Development builds can show bounded fictional populated and mixed examples on
 the same candidate-detail route: `briefPreview=reviewed` or `briefPreview=mixed`

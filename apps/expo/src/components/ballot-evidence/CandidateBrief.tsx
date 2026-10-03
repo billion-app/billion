@@ -9,12 +9,13 @@ import {
   fontEditorial,
   hair,
   DigestPalette as P,
+  planes,
   sp,
 } from "~/styles";
-import { SourceLink } from "./BallotEvidence";
 import {
   candidateDetailText,
   CandidateDisclosure,
+  CandidateSourceLink as SourceLink,
 } from "./CandidateDisclosure";
 
 const labels = {
@@ -42,9 +43,9 @@ function ClaimKindLabel({ kind }: { kind: keyof typeof kinds | "missing" }) {
   } as const;
   const accent =
     kind === "analysis"
-      ? P.spark
+      ? P.badgeIndigo
       : kind === "promise"
-        ? P.primary
+        ? P.badgeBlue
         : P.inkOnNight;
   return (
     <View
@@ -66,7 +67,7 @@ function ClaimKindLabel({ kind }: { kind: keyof typeof kinds | "missing" }) {
         style={{
           color: P.inkOnNight,
           fontFamily: fontBody.semibold,
-          fontSize: 12,
+          fontSize: 10.5,
           flex: 1,
         }}
       >
@@ -84,21 +85,30 @@ export function CandidateCoverage({
   officeUrl: string;
 }) {
   return (
-    <View style={{ gap: sp[3] }}>
+    <Card
+      style={{
+        backgroundColor: planes.slate,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: hair[1],
+        padding: 16,
+        gap: 11,
+      }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", gap: sp[3] }}>
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           aria-hidden
         >
-          <Icon name="book" size={22} color={P.inkOnNight} />
+          <Icon name="book" size={17} color={P.inkOnNight} />
         </View>
         <Text
           accessibilityRole="header"
           style={{
             color: P.inkOnNight,
             fontFamily: fontEditorial.bold,
-            fontSize: 19,
+            fontSize: 17,
             flex: 1,
           }}
         >
@@ -128,7 +138,7 @@ export function CandidateCoverage({
           complete candidate list.
         </Text>
       </CandidateDisclosure>
-    </View>
+    </Card>
   );
 }
 
@@ -146,7 +156,7 @@ export function CandidateIndependentBrief({
         style={{
           color: P.inkOnNight,
           fontFamily: fontEditorial.bold,
-          fontSize: 19,
+          fontSize: 18,
         }}
       >
         Independent brief
@@ -172,8 +182,7 @@ export function CandidateIndependentBrief({
       ].map((topic) => {
         const section = brief.sections.find((item) => item.topic === topic);
         if (!section) return null;
-        const firstClaim = section.claims[0];
-        const sources = (claim: typeof firstClaim) =>
+        const sources = (claim: (typeof section.claims)[number]) =>
           claim?.evidenceIds.map((id) => {
             const evidence = brief.evidence.find((e) => e.id === id);
             return evidence ? (
@@ -186,7 +195,16 @@ export function CandidateIndependentBrief({
                 >
                   {evidence.publisher}
                 </Text>
-                <Text selectable style={candidateDetailText}>
+                <Text
+                  selectable
+                  style={{
+                    ...candidateDetailText,
+                    fontFamily: fontEditorial.italic,
+                    backgroundColor: planes.ink,
+                    borderRadius: 10,
+                    padding: 12,
+                  }}
+                >
                   {evidence.excerpt}
                 </Text>
                 <Text style={candidateDetailText}>{evidence.locator}</Text>
@@ -219,8 +237,8 @@ export function CandidateIndependentBrief({
                   selectable
                   style={{
                     ...candidateDetailText,
-                    fontSize: 15,
-                    lineHeight: 23,
+                    fontSize: topic === "priorities" ? 15 : 13.5,
+                    lineHeight: topic === "priorities" ? 23 : 20,
                   }}
                 >
                   {claim.text}
@@ -251,22 +269,22 @@ export function CandidateIndependentBrief({
             ) : null}
           </>
         );
-        return section.topic === "effects" && firstClaim ? (
-          <Card key={topic} style={{ padding: sp[4], gap: sp[2] }}>
-            {body}
-          </Card>
-        ) : (
-          <View
+        return (
+          <Card
             key={topic}
             style={{
-              paddingVertical: sp[3],
-              gap: sp[2],
-              borderBottomWidth: 1,
-              borderBottomColor: hair[2],
+              backgroundColor: planes.slate,
+              borderWidth: 1,
+              borderColor: hair[1],
+              borderLeftWidth: topic === "priorities" ? 3 : 1,
+              borderLeftColor: topic === "priorities" ? P.badgeBlue : hair[1],
+              borderRadius: 14,
+              padding: 14,
+              gap: 10,
             }}
           >
             {body}
-          </View>
+          </Card>
         );
       })}
       <CandidateDisclosure title="Review details">

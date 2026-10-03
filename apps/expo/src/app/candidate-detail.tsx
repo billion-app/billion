@@ -10,7 +10,6 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
-import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import {
   CandidateCoverage,
   CandidateIndependentBrief,
@@ -18,6 +17,7 @@ import {
 import {
   candidateDetailText,
   CandidateDisclosure,
+  CandidateSourceLink as SourceLink,
 } from "~/components/ballot-evidence/CandidateDisclosure";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { Text } from "~/components/Themed";
@@ -26,6 +26,7 @@ import {
   fontBody,
   fontDisplay,
   fontEditorial,
+  hair,
   DigestPalette as P,
   planes,
 } from "~/styles";
@@ -246,7 +247,7 @@ export default function CandidateDetailScreen() {
                         <Icon
                           name={showOfficeDuties ? "chevD" : "chevR"}
                           size={16}
-                          color={P.primary}
+                          color={P.quiet}
                         />
                       </TouchableOpacity>
                       {showOfficeDuties &&
@@ -298,7 +299,7 @@ export default function CandidateDetailScreen() {
                       <Icon
                         name={showStatement ? "chevD" : "chevR"}
                         size={16}
-                        color={P.primary}
+                        color={P.quiet}
                       />
                     </TouchableOpacity>
                   ) : null}
@@ -420,8 +421,8 @@ const s = StyleSheet.create({
   name: {
     color: P.inkOnNight,
     fontFamily: fontDisplay.bold,
-    fontSize: 25,
-    lineHeight: 29,
+    fontSize: 24,
+    lineHeight: 28,
   },
   office: { color: P.inkOnNight, fontFamily: fontEditorial.bold, fontSize: 16 },
   heroMeta: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 12 },
@@ -437,7 +438,7 @@ const s = StyleSheet.create({
   sectionTitle: {
     color: P.inkOnNight,
     fontFamily: fontEditorial.bold,
-    fontSize: 19,
+    fontSize: 18,
   },
   sectionIntro: {
     color: P.quiet,
@@ -445,7 +446,14 @@ const s = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  panel: { padding: 16, gap: 10 },
+  panel: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+  },
   panelLabel: {
     color: P.inkOnNight,
     fontFamily: fontBody.semibold,
@@ -460,7 +468,7 @@ const s = StyleSheet.create({
   },
   action: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 },
   retryAction: {
-    backgroundColor: P.inkOnNight,
+    backgroundColor: planes.paper,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
@@ -470,14 +478,18 @@ const s = StyleSheet.create({
     flexShrink: 1,
     color: P.inkOnNight,
     fontFamily: fontBody.semibold,
-    fontSize: 14,
+    fontSize: 12,
   },
-  heading: { color: P.inkOnNight, fontFamily: fontDisplay.bold, fontSize: 22 },
+  heading: {
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 18,
+  },
   body: {
     color: P.inkOnNight,
     fontFamily: fontBody.regular,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 13.5,
+    lineHeight: 20,
   },
   footer: { gap: 10, paddingTop: 8 },
   footerTitle: {

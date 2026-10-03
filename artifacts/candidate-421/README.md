@@ -66,3 +66,40 @@ Independent Astra re-review approved the final implementation with no material
 visual reservations after flexible text constraints addressed the native-layout
 risk beside icons. It judged the result polished and credible, with meaningful
 comprehension gains, while noting that more elaborate graphics would add little.
+
+## Bills brand-alignment iteration
+
+The current redesign captures supersede the earlier iterations described above.
+`bills-reference-top.png` and `bills-reference-brief.png` show the unchanged actual
+article-detail and BillBrief renderers in the same Expo web app, dark theme and
+390×844 viewport. The bill response was intercepted with an explicitly fictional
+school-reporting proposal; it is renderer evidence, not live legislative data.
+
+Candidate cards now use the Bills slate plane, 14-pixel radius, hairline border,
+18-pixel section headings, 13.5/20 body typography and muted source rows. Source
+excerpts use the ink plane and editorial italic face. Category accents remain
+muted, with explicit attribution labels. Sparse official recovery uses the
+shared paper plane. Candidate-local components changed; shared generic UI and
+publication/provider/editorial gates did not change.
+
+The Bills comparison review requested clearer source actions, stronger disclosure
+contrast, a modest leading priority card, and restoration of the display face
+for candidate names. These were addressed without combining claims into an
+invented summary: the lead remains explicitly a candidate promise.
+
+Fresh independent Astra screenshot-first comparison re-review found no remaining
+material brand, scanning or action-visibility issues in these captures. It
+explicitly compared candidate cards, lead hierarchy, source quotations/actions
+and display typography with the Bills screenshots. This is not native
+interaction or real-reader testing, nor coverage of unseen longer-content states.
+
+Capture integrity: dedicated Metro port 8421 was verified with lsof/ps. Its
+listener cwd was this worktree’s `apps/expo`, and its command was Expo web on 8421. Bills and candidate captures were then refreshed sequentially from that
+same running process, viewport and theme. No shared localhost8099 capture was
+used. Final screenshots are bound to the commit in the latest PR evidence comment.
+
+A separate fresh Astra code review found no actionable correctness/regression
+findings, including re-review of the lint cleanup. URL filtering/retry, explicit
+claim attribution, visible gaps and production preview rejection remain intact.
+Native accessibility/runtime and live-link interaction were not independently
+tested. Package checks and production-export results are recorded in the PR.
