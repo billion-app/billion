@@ -17,7 +17,6 @@ import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
 import {
   fontBody,
-  fontDisplay,
   fontEditorial,
   hair,
   DigestPalette as P,
@@ -217,7 +216,7 @@ export default function CandidateDetailScreen() {
                       <Icon
                         name={showStatement ? "chevD" : "chevR"}
                         size={16}
-                        color={P.primary}
+                        color={P.badgeIndigo}
                       />
                     </TouchableOpacity>
                   )}
@@ -397,8 +396,8 @@ const s = StyleSheet.create({
   identityText: { flex: 1, gap: 3 },
   name: {
     color: P.inkOnNight,
-    fontFamily: fontDisplay.bold,
-    fontSize: 25,
+    fontFamily: fontEditorial.bold,
+    fontSize: 24,
     lineHeight: 29,
   },
   office: { color: P.inkOnNight, fontFamily: fontEditorial.bold, fontSize: 16 },
@@ -432,7 +431,7 @@ const s = StyleSheet.create({
   sectionTitle: {
     color: P.inkOnNight,
     fontFamily: fontEditorial.bold,
-    fontSize: 19,
+    fontSize: 18,
   },
   sectionIntro: {
     color: P.quiet,
@@ -440,7 +439,14 @@ const s = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  panel: { padding: 16, gap: 10 },
+  panel: {
+    padding: 16,
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[1],
+    backgroundColor: planes.ink,
+  },
   panelLabel: {
     color: P.inkOnNight,
     fontFamily: fontBody.semibold,
@@ -450,7 +456,7 @@ const s = StyleSheet.create({
   statementPreview: {
     color: P.inkOnNight,
     fontFamily: fontEditorial.regular,
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 23,
   },
   action: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 },
@@ -458,9 +464,13 @@ const s = StyleSheet.create({
     flexShrink: 1,
     color: P.inkOnNight,
     fontFamily: fontBody.semibold,
-    fontSize: 14,
+    fontSize: 12,
   },
-  heading: { color: P.inkOnNight, fontFamily: fontDisplay.bold, fontSize: 22 },
+  heading: {
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 18,
+  },
   body: {
     color: P.inkOnNight,
     fontFamily: fontBody.regular,
