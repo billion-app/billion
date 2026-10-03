@@ -183,7 +183,7 @@ export function CandidateIndependentBrief({
         const section = brief.sections.find((item) => item.topic === topic);
         if (!section) return null;
         const sources = (claim: (typeof section.claims)[number]) =>
-          claim?.evidenceIds.map((id) => {
+          claim.evidenceIds.map((id) => {
             const evidence = brief.evidence.find((e) => e.id === id);
             return evidence ? (
               <View key={id} style={{ gap: sp[2] }}>
