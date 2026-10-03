@@ -62,7 +62,7 @@ const s = StyleSheet.create({
   compactLabel: { fontSize: 12, lineHeight: 18 },
   detail: {
     marginLeft: 23,
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 18,

@@ -393,7 +393,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.semibold,
   },
   eyebrow: {
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.semibold,
     fontSize: 11,
     letterSpacing: 1,
@@ -416,10 +416,14 @@ const s = StyleSheet.create({
     lineHeight: 34,
   },
   office: { color: P.inkOnNight, fontFamily: fontBody.semibold, fontSize: 15 },
-  heroMeta: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 12 },
+  heroMeta: {
+    color: "rgba(255,255,255,0.70)",
+    fontFamily: fontBody.medium,
+    fontSize: 12,
+  },
   statusRow: { flexDirection: "row", alignItems: "flex-start", gap: 7 },
   muted: {
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 18,
@@ -432,7 +436,7 @@ const s = StyleSheet.create({
     fontSize: 18,
   },
   sectionIntro: {
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 19,

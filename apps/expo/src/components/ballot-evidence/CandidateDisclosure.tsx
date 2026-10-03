@@ -74,7 +74,7 @@ export function CandidateDisclosure({
             fontFamily: fontBody.regular,
             fontSize: 12.5,
             lineHeight: 18,
-            color: colors.textSecondary,
+            color: "rgba(255,255,255,0.70)",
           }}
         >
           {summary}

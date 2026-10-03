@@ -10,7 +10,6 @@ import {
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
 import {
-  colors,
   DigestRadii,
   fontBody,
   fontEditorial,
@@ -246,7 +245,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 20,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   details: {
     borderTopWidth: StyleSheet.hairlineWidth,

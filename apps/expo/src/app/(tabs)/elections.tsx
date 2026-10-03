@@ -210,7 +210,7 @@ function DevelopmentElections() {
       previewAddress={scenario === "live" ? undefined : `mock:${scenario}`}
       devControls={
         <View>
-          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+          <Text style={{ color: "rgba(255,255,255,0.70)", fontSize: 12 }}>
             Development · synthetic ballot scenarios
           </Text>
           <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
@@ -717,7 +717,7 @@ const s = StyleSheet.create({
   entryKicker: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     letterSpacing: 0.5,
   },
   entryTitle: {
@@ -773,7 +773,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 12.5,
     lineHeight: 18,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   entryTool: {
     backgroundColor: planes.slate,
@@ -802,7 +802,7 @@ const s = StyleSheet.create({
   addrKicker: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 11,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     letterSpacing: 0.4,
   },
   addrText: {
@@ -825,7 +825,7 @@ const s = StyleSheet.create({
   contestMeta: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 12,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     marginTop: 3,
   },
   measureHeader: {
@@ -843,7 +843,7 @@ const s = StyleSheet.create({
   measureSub: {
     fontFamily: fontBody.regular,
     fontSize: 13.5,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     lineHeight: 20,
   },
   stanceRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
@@ -891,7 +891,7 @@ const s = StyleSheet.create({
   fiscalLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
@@ -911,12 +911,12 @@ const s = StyleSheet.create({
   sourceChipText: {
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   empty: {
     fontFamily: "AlbertSans-Regular",
     fontSize: 14,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     textAlign: "center",
   },
   pollRow: { flexDirection: "row", alignItems: "center", gap: 14 },
@@ -936,6 +936,6 @@ const s = StyleSheet.create({
   pollSub: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
 });

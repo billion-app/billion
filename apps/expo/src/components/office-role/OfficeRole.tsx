@@ -250,7 +250,7 @@ const s = StyleSheet.create({
   },
   sourceLabel: {
     flex: 1,
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.medium,
     fontSize: 11.5,
   },

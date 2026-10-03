@@ -358,7 +358,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 12,
     lineHeight: 18,
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
   },
   voteSection: { gap: 12 },
   voteCard: {
@@ -395,7 +395,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 12,
     lineHeight: 18,
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
   },
   record: { gap: 14 },
   recordTitle: {
@@ -429,7 +429,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 18,
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
   },
   disclosure: {
     borderTopWidth: 1,

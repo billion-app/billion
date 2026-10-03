@@ -368,7 +368,7 @@ const s = StyleSheet.create({
     lineHeight: 34,
   },
   introText: {
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
     fontSize: 16,
     lineHeight: 24,
@@ -376,14 +376,14 @@ const s = StyleSheet.create({
   scope: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   scopeText: {
     flex: 1,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 19,
   },
   list: { gap: 12 },
   caption: {
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 19,
@@ -424,7 +424,7 @@ const s = StyleSheet.create({
     lineHeight: 21,
   },
   cardMeta: {
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
     fontSize: 11.5,
     lineHeight: 17,
@@ -468,7 +468,7 @@ const s = StyleSheet.create({
   },
   retry: { color: P.canvas, fontFamily: fontBody.semibold, fontSize: 16 },
 
-  fixtureLink: { color: colors.textSecondary, paddingVertical: 16 },
+  fixtureLink: { color: "rgba(255,255,255,0.70)", paddingVertical: 16 },
   addressAction: {
     minHeight: 48,
     flexDirection: "row",

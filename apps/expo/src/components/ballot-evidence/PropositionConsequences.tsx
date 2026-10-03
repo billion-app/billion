@@ -452,7 +452,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 11.5,
     lineHeight: 17,
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
   },
   flow: {
     backgroundColor: P.card,

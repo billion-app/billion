@@ -112,6 +112,6 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 18,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
 });

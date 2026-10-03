@@ -227,7 +227,7 @@ export function PrivatePreparation({
           color={colors.textSecondary}
         />
       </View>
-      <Text style={{ fontSize: 11.5, color: colors.textSecondary }}>
+      <Text style={{ fontSize: 11.5, color: "rgba(255,255,255,0.70)" }}>
         {status(progress)}
       </Text>
     </View>
@@ -270,10 +270,12 @@ export function PrivatePreparation({
       <Text style={s.heading}>{item.title}</Text>
       {item.choice && <Text>Possible choice: {item.choice}</Text>}
       {!!item.notes && <Text>{item.notes}</Text>}
-      <Text style={{ color: P.quiet }}>
+      <Text style={{ color: "rgba(255,255,255,0.70)" }}>
         {item.electionName} · {date(item.electionDay)}
       </Text>
-      {previous && <Text style={{ color: P.quiet }}>Previous ballot</Text>}
+      {previous && (
+        <Text style={{ color: "rgba(255,255,255,0.70)" }}>Previous ballot</Text>
+      )}
       {readingBadge(item.progress)}
       {button(
         "Delete note",
@@ -465,7 +467,7 @@ export function PrivatePreparation({
                 {...{ "ph-no-capture": true }}
                 accessibilityLabel="Private notes"
                 placeholder="What do you want to remember?"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor="rgba(255,255,255,0.70)"
                 multiline
                 editable={!busy}
                 maxLength={1000}
@@ -763,7 +765,9 @@ export function PrivatePreparation({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: sp[4], paddingBottom: sp[6] }}
         >
-          <Text style={{ marginBottom: sp[3], color: P.quiet }}>
+          <Text
+            style={{ marginBottom: sp[3], color: "rgba(255,255,255,0.70)" }}
+          >
             {heading ?? "Your ballot notes"}
           </Text>
           {content}
@@ -807,7 +811,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 11.5,
     lineHeight: 17,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   statusOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   statusOption: {

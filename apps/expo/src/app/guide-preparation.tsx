@@ -9,7 +9,7 @@ import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { PrivatePreparation } from "~/components/preparation/PrivatePreparation";
 import { NavHeader } from "~/components/ui";
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
-import { colors, fontBody, DigestPalette as P, sp } from "~/styles";
+import { fontBody, DigestPalette as P, sp } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 
@@ -35,7 +35,7 @@ export default function GuidePreparation() {
       >
         <Text
           style={{
-            color: colors.textSecondary,
+            color: "rgba(255,255,255,0.70)",
             fontFamily: fontBody.regular,
             fontSize: 12.5,
             lineHeight: 18,

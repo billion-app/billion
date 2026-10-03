@@ -363,7 +363,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               ref={addressInput}
               accessibilityLabel="Voting address"
               placeholder="Street, city, state, ZIP"
-              placeholderTextColor={P.quiet}
+              placeholderTextColor="rgba(255,255,255,0.70)"
               value={draft}
               onChangeText={setDraft}
               onSubmitEditing={submit}

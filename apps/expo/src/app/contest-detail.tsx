@@ -395,7 +395,7 @@ export default function ContestDetailScreen() {
               <TextInput
                 accessibilityLabel="Search candidates"
                 placeholder="Search candidates"
-                placeholderTextColor={P.quiet}
+                placeholderTextColor="rgba(255,255,255,0.70)"
                 style={s.search}
                 value={query}
                 onChangeText={setQuery}

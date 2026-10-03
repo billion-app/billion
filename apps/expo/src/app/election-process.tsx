@@ -332,7 +332,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 12.5,
     lineHeight: 18,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   card: {
     backgroundColor: P.card,
@@ -393,7 +393,7 @@ const s = StyleSheet.create({
   stageLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 10.5,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     letterSpacing: 0.8,
   },
   step: { gap: sp[2] },

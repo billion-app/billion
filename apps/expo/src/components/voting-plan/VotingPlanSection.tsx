@@ -242,7 +242,7 @@ function Plan({
   }
   const body = [s.body, { color: colors.white }];
   const heading = [s.heading, { color: colors.white }];
-  const caption = [s.caption, { color: colors.textSecondary }];
+  const caption = [s.caption, { color: "rgba(255,255,255,0.70)" }];
   const check =
     registrationCheck(data) ??
     (california

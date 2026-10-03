@@ -465,7 +465,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 18,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   body: {
     fontFamily: fontBody.regular,
@@ -493,7 +493,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 11.5,
     lineHeight: 18,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   choice: {
     minHeight: 44,
@@ -510,7 +510,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 12.5,
     lineHeight: 18,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   status: {
     fontFamily: fontBody.semibold,
