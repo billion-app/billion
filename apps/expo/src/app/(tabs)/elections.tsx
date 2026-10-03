@@ -334,6 +334,26 @@ function CaliforniaElectionEntry({
           </Text>
           <Icon name="chevR" size={18} color={P.inkOnNight} />
         </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => router.push("/ballot-preparation")}
+          style={{
+            minHeight: 48,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <Icon name="book" size={18} color={P.inkOnNight} />
+          <Text
+            style={[
+              s.entryBody,
+              { color: P.inkOnNight, fontFamily: fontBody.semibold },
+            ]}
+          >
+            Your saved notes
+          </Text>
+        </TouchableOpacity>
         <View style={s.entryNote}>
           <Icon name="info" size={16} color={colors.textSecondary} />
           <Text style={s.entryNoteText}>

@@ -13,4 +13,3 @@ export const unused = z.string().describe(
 export * from "./candidate-brief";
 
 export * from "./proposition-consequences";
-

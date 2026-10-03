@@ -41,6 +41,7 @@ import {
   statewideOfficeSlug,
 } from "~/utils/candidate-explainer";
 import { candidateStatementExcerpt } from "~/utils/candidate-statement";
+import { resolveOfficeRole } from "~/utils/office-role";
 
 export default function CandidateDetailScreen() {
   const router = useRouter();
@@ -56,7 +57,6 @@ export default function CandidateDetailScreen() {
   }>();
   const [photoFailed, setPhotoFailed] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
-  const [showOfficeDuties, setShowOfficeDuties] = useState(false);
   const fromBallot = parseBallotCandidate(params.candidate, params.name);
   const office = params.office ? statewideOfficeSlug(params.office) : undefined;
   const lookupGuide =
@@ -284,7 +284,34 @@ export default function CandidateDetailScreen() {
               </View>
             ) : null}
 
-            <OfficeRole office={guide?.officeName ?? params.office} state={guide ? "CA" : params.state} districtId={guide ? "ocd-division/country:us/state:ca" : params.districtId} />
+            {(!guide?.officeDuties?.length ||
+              resolveOfficeRole({
+                office: guide.officeName,
+                state: "CA",
+                districtId: "ocd-division/country:us/state:ca",
+              })) && (
+              <OfficeRole
+                office={guide?.officeName ?? params.office}
+                state={guide ? "CA" : params.state}
+                districtId={
+                  guide ? "ocd-division/country:us/state:ca" : params.districtId
+                }
+              />
+            )}
+
+            {!!guide?.officeDuties?.length && (
+              <CandidateDisclosure title="Official office responsibilities">
+                {guide.officeDuties.map((duty, index) => (
+                  <Text key={index} style={s.body}>
+                    {duty}
+                  </Text>
+                ))}
+                <SourceLink
+                  label="California official voter guide"
+                  url={guide.sourceUrl}
+                />
+              </CandidateDisclosure>
+            )}
 
             {!previewBrief ? (
               <CandidateCoverage

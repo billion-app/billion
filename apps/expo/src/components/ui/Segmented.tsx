@@ -28,7 +28,6 @@ export function Segmented<T extends string>({
   onChange,
   iconPosition = "beside",
   wrap = false,
-
 }: {
   options: SegmentOption<T>[];
   value: T;
@@ -36,7 +35,6 @@ export function Segmented<T extends string>({
   iconPosition?: "beside" | "above";
   /** Reflow long topic labels with available width, including browser zoom. */
   wrap?: boolean;
-
 }) {
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale > 1.3;

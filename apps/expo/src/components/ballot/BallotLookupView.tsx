@@ -49,9 +49,8 @@ import {
   ballotOfficeUrl,
   validateBallotAddress,
 } from "~/utils/ballot-lookup";
-import { hasVotingPlanLogistics } from "~/utils/voting-plan";
 import { electionType, electionTypeLabel } from "~/utils/elections";
-
+import { hasVotingPlanLogistics } from "~/utils/voting-plan";
 import { BallotContestCard } from "./BallotContestCard";
 
 export interface BallotLookupViewProps {

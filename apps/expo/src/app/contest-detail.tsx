@@ -33,11 +33,9 @@ import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { CandidateBallotStatus } from "~/components/ballot-evidence/CandidateBallotStatus";
 import { candidateStatusLabel } from "~/components/ballot-evidence/election-status";
 import { webUrl } from "~/components/ballot-evidence/model";
+import { ContestMarking } from "~/components/ballot-marking/ContestMarking";
 import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Card, Icon, NavHeader } from "~/components/ui";
-import { ContestMarking } from "~/components/ballot-marking/ContestMarking";
-
-
 import {
   DigestHair,
   DigestRadii,
@@ -350,8 +348,6 @@ export default function ContestDetailScreen() {
             jurisdiction: params.state ?? "",
           }}
         />
-
-
 
         {description ? (
           <View style={s.section}>
@@ -691,7 +687,6 @@ export default function ContestDetailScreen() {
           />
         </BallotDisclosure>
         <BallotLanguages items={[]} showRecovery={false} />
-
       </ScrollView>
     </View>
   );

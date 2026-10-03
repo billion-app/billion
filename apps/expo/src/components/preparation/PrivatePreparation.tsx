@@ -52,6 +52,7 @@ export function PrivatePreparation({
   initiallyOpen = false,
   onOpenBallot,
   showElectionContext = true,
+  heading = "Your ballot notes",
 }: {
   election?: Election;
   provider: string;
@@ -61,6 +62,7 @@ export function PrivatePreparation({
   initiallyOpen?: boolean;
   onOpenBallot?: () => void;
   showElectionContext?: boolean;
+  heading?: string;
 }) {
   const identity =
     election && lookupScope
@@ -287,11 +289,7 @@ export function PrivatePreparation({
         }}
       >
         <Text accessibilityRole="header" style={[typography.h3, { flex: 1 }]}>
-          {draft
-            ? draft.title
-            : election
-              ? "Your ballot notes"
-              : "Your saved notes"}
+          {draft ? draft.title : election ? heading : "Your saved notes"}
         </Text>
         {!draft &&
           election &&
@@ -346,102 +344,104 @@ export function PrivatePreparation({
                   }}
                 />
               </View>
-              {!selectedContest?.referendumTitle && (
-                <View>
-                  {button(
-                    `${choiceOpen ? "Possible choice (optional)" : draft.choice ? `Possible choice: ${draft.choice}` : "Add a possible choice (optional)"} ${choiceOpen ? "−" : "+"}`,
-                    () => setChoiceOpen(!choiceOpen),
-                  )}
-                  {choiceOpen && (
-                    <View style={{ gap: sp[2] }}>
-                      {selectedContest?.referendumTitle ? (
-                        <Text>
-                          Write your possible measure choice in notes. Marking
-                          options haven’t been supplied for this measure.
-                        </Text>
-                      ) : (
-                        [
-                          undefined,
-                          ...(selectedContest?.candidates ?? []).map(
-                            (candidate) => candidate.name,
-                          ),
-                        ].map((name, index) => {
-                          const candidates = selectedContest?.candidates ?? [];
-                          const withdrawn =
-                            name !== undefined &&
-                            candidates[index - 1]?.ballotStatus ===
-                              "withdrewStillOnBallot";
-                          const disabled =
-                            busy ||
-                            withdrawn ||
-                            (name !== undefined &&
-                              candidates.filter(
-                                (candidate) => candidate.name === name,
-                              ).length > 1);
-                          const selected = draft.choice === name;
-                          return (
-                            <Pressable
-                              key={index}
-                              accessibilityRole="radio"
-                              aria-checked={selected}
-                              accessibilityState={{
-                                checked: selected,
-                                disabled,
-                              }}
-                              disabled={disabled}
-                              onPress={() =>
-                                setDraft({ ...draft, choice: name })
-                              }
-                              style={{
-                                minHeight: 48,
-                                padding: 12,
-                                borderWidth: 1,
-                                borderColor: selected
-                                  ? P.primary
-                                  : DigestHair.cardBorder,
-                                borderRadius: 10,
-                                flexDirection: "row",
-                                alignItems: "center",
-                                gap: 12,
-                                opacity: disabled ? 0.5 : 1,
-                              }}
-                            >
-                              <View
+              {!selectedContest?.referendumTitle &&
+                !!selectedContest?.candidates?.length && (
+                  <View>
+                    {button(
+                      `${choiceOpen ? "Possible choice (optional)" : draft.choice ? `Possible choice: ${draft.choice}` : "Add a possible choice (optional)"} ${choiceOpen ? "−" : "+"}`,
+                      () => setChoiceOpen(!choiceOpen),
+                    )}
+                    {choiceOpen && (
+                      <View style={{ gap: sp[2] }}>
+                        {selectedContest?.referendumTitle ? (
+                          <Text>
+                            Write your possible measure choice in notes. Marking
+                            options haven’t been supplied for this measure.
+                          </Text>
+                        ) : (
+                          [
+                            undefined,
+                            ...(selectedContest?.candidates ?? []).map(
+                              (candidate) => candidate.name,
+                            ),
+                          ].map((name, index) => {
+                            const candidates =
+                              selectedContest?.candidates ?? [];
+                            const withdrawn =
+                              name !== undefined &&
+                              candidates[index - 1]?.ballotStatus ===
+                                "withdrewStillOnBallot";
+                            const disabled =
+                              busy ||
+                              withdrawn ||
+                              (name !== undefined &&
+                                candidates.filter(
+                                  (candidate) => candidate.name === name,
+                                ).length > 1);
+                            const selected = draft.choice === name;
+                            return (
+                              <Pressable
+                                key={index}
+                                accessibilityRole="radio"
+                                aria-checked={selected}
+                                accessibilityState={{
+                                  checked: selected,
+                                  disabled,
+                                }}
+                                disabled={disabled}
+                                onPress={() =>
+                                  setDraft({ ...draft, choice: name })
+                                }
                                 style={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: 10,
-                                  borderWidth: 2,
+                                  minHeight: 48,
+                                  padding: 12,
+                                  borderWidth: 1,
                                   borderColor: selected
                                     ? P.primary
-                                    : P.inkOnNight,
+                                    : DigestHair.cardBorder,
+                                  borderRadius: 10,
+                                  flexDirection: "row",
                                   alignItems: "center",
-                                  justifyContent: "center",
+                                  gap: 12,
+                                  opacity: disabled ? 0.5 : 1,
                                 }}
                               >
-                                {selected && (
-                                  <View
-                                    style={{
-                                      width: 10,
-                                      height: 10,
-                                      borderRadius: 5,
-                                      backgroundColor: P.primary,
-                                    }}
-                                  />
-                                )}
-                              </View>
-                              <Text style={{ flex: 1 }}>
-                                {name ?? "No choice yet"}
-                                {withdrawn ? " · Withdrawn" : ""}
-                              </Text>
-                            </Pressable>
-                          );
-                        })
-                      )}
-                    </View>
-                  )}
-                </View>
-              )}
+                                <View
+                                  style={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 10,
+                                    borderWidth: 2,
+                                    borderColor: selected
+                                      ? P.primary
+                                      : P.inkOnNight,
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  {selected && (
+                                    <View
+                                      style={{
+                                        width: 10,
+                                        height: 10,
+                                        borderRadius: 5,
+                                        backgroundColor: P.primary,
+                                      }}
+                                    />
+                                  )}
+                                </View>
+                                <Text style={{ flex: 1 }}>
+                                  {name ?? "No choice yet"}
+                                  {withdrawn ? " · Withdrawn" : ""}
+                                </Text>
+                              </Pressable>
+                            );
+                          })
+                        )}
+                      </View>
+                    )}
+                  </View>
+                )}
               <Text>Notes</Text>
               {selectedContest?.referendumTitle && (
                 <Text>You can write your possible measure choice here.</Text>
@@ -747,9 +747,7 @@ export function PrivatePreparation({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: sp[4], paddingBottom: sp[6] }}
         >
-          <Text style={{ marginBottom: sp[3], color: P.quiet }}>
-            Your ballot notes
-          </Text>
+          <Text style={{ marginBottom: sp[3], color: P.quiet }}>{heading}</Text>
           {content}
         </ScrollView>
       </SafeAreaView>

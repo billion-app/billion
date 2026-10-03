@@ -1,12 +1,9 @@
 import type { ScrollView } from "react-native";
 import { useRef, useState } from "react";
 import {
-  AccessibilityInfo,
   ActivityIndicator,
-  findNodeHandle,
   Image,
   Text as NativeText,
-  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -18,7 +15,6 @@ import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
-import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import {
   colors,
   fontBody,
@@ -26,13 +22,10 @@ import {
   DigestPalette as P,
   planes,
 } from "~/styles";
-
-
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
 import { propositionDetailRoute } from "~/utils/proposition-explainers";
-import { electionCoverageLabel } from "../ballot-evidence/election-status";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
@@ -150,16 +143,6 @@ export function CaliforniaGuidePreview({
 }) {
   const guideScroll = useRef<ScrollView>(null);
   const guideHeading = useRef<NativeText>(null);
-  const returnToGuide = () => {
-    requestAnimationFrame(() => {
-      guideScroll.current?.scrollTo({ y: 0, animated: false });
-      if (Platform.OS === "web") guideHeading.current?.focus();
-      else {
-        const handle = findNodeHandle(guideHeading.current);
-        if (handle) AccessibilityInfo.setAccessibilityFocus(handle);
-      }
-    });
-  };
   const router = useRouter();
 
   const [tab, setTab] = useState<GuideTab>("candidates");
@@ -203,15 +186,27 @@ export function CaliforniaGuidePreview({
           <Text style={s.kicker}>
             {`${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`}
           </Text>
-          <NativeText ref={guideHeading} tabIndex={-1} accessible accessibilityRole="header" style={s.headline}>The statewide guide</NativeText>
-          <Text style={s.introText}>
-            Official candidate statements and propositions, directly from
-            California's voter guide.
-          </Text>
+          <NativeText
+            ref={guideHeading}
+            tabIndex={-1}
+            accessible
+            accessibilityRole="header"
+            style={s.headline}
+          >
+            The statewide guide
+          </NativeText>
         </View>
       ) : (
         <View style={s.intro}>
-          <NativeText ref={guideHeading} tabIndex={-1} accessible accessibilityRole="header" style={s.headline}>The statewide guide</NativeText>
+          <NativeText
+            ref={guideHeading}
+            tabIndex={-1}
+            accessible
+            accessibilityRole="header"
+            style={s.headline}
+          >
+            The statewide guide
+          </NativeText>
           <Text style={[s.introText, { color: colors.white }]}>
             {query.isPending
               ? "Checking the statewide preview…"
@@ -222,20 +217,43 @@ export function CaliforniaGuidePreview({
         </View>
       )}
 
-
-
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="California language and accessible voting resources"
-        accessibilityHint="Opens official resources and coverage limits"
-        style={s.addressAction}
-        onPress={() => router.push("/election-access")}
-      >
-        <Text style={[s.addressActionText, { flex: 1 }]}>
-          Language and accessible voting resources
-        </Text>
-        <Icon name="arrowRight" size={17} color={colors.bill} />
-      </TouchableOpacity>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+        {(
+          [
+            { label: "Voting plan", icon: "vote", mode: "plan" },
+            { label: "Notes", icon: "book", mode: "notes" },
+            { label: "Voting help", icon: "info", mode: "help" },
+          ] as const
+        ).map((item) => (
+          <TouchableOpacity
+            key={item.mode}
+            accessibilityRole="button"
+            style={{
+              minHeight: 48,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+            onPress={() =>
+              router.push(
+                item.mode === "help"
+                  ? "/election-access"
+                  : {
+                      pathname: "/guide-preparation",
+                      params: { mode: item.mode },
+                    },
+              )
+            }
+          >
+            <Icon name={item.icon} size={18} color={P.inkOnNight} />
+            <Text
+              style={{ color: P.inkOnNight, fontFamily: fontBody.semibold }}
+            >
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
       {query.isPending && <ActivityIndicator color={colors.bill} />}
       {query.isError && (
         <Card>
@@ -256,8 +274,6 @@ export function CaliforniaGuidePreview({
           <Text style={[s.introText, { color: P.inkOnNight }]}>
             Guide data is unavailable to Billion. Check the official guide or
             your election office.
-
-
           </Text>
           <SourceLink
             label="Read the official guide"
@@ -268,32 +284,8 @@ export function CaliforniaGuidePreview({
             label="Find your county elections office"
             url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
           />
-          {query.isError && (
-            <TouchableOpacity
-              accessibilityRole="button"
-              onPress={() => void query.refetch()}
-              style={{ minHeight: 48, justifyContent: "center" }}
-            >
-              <Text style={s.retry}>Try again</Text>
-            </TouchableOpacity>
-          )}
         </Card>
       )}
-      <VotingPlanSection
-        california
-        returnLabel="Return to statewide guide"
-        onReturn={returnToGuide}
-        election={
-          guide
-            ? {
-                id: `ca-guide:${guide.electionDate}`,
-                name: `California statewide election · ${ballotElectionDate(guide.electionDate)}`,
-                electionDay: guide.electionDate,
-                ocdDivisionId: "ocd-division/country:us/state:ca",
-              }
-            : undefined
-        }
-      />
       {!query.isPending && (query.isError || !guide) && (
         <View style={s.intro}>
           <SourceLink
@@ -313,8 +305,7 @@ export function CaliforniaGuidePreview({
           <View style={s.scope}>
             <Icon name="info" size={16} color={colors.textSecondary} />
             <Text style={s.scopeText}>
-              {electionCoverageLabel("statement-guide")}. Statewide preview;
-              local races and measures are not shown.
+              Statement submitters only · not your complete ballot.
             </Text>
           </View>
           <Segmented<GuideTab>
@@ -336,10 +327,6 @@ export function CaliforniaGuidePreview({
           {tab === "candidates" ? (
             <View style={s.list}>
               <Kicker>Candidate statements</Kicker>
-              <Text style={s.caption}>
-                Only candidates who submitted a statement appear here. This is
-                not a complete candidate list.
-              </Text>
               {guide.candidates.map((candidate) => (
                 <CandidateCard
                   key={`${candidate.officeSlug}:${candidate.name}`}
