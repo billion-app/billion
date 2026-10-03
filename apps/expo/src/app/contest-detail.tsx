@@ -387,9 +387,6 @@ export default function ContestDetailScreen() {
               {filtering
                 ? `${filtered.length} of ${candidates.length} names shown`
                 : `Candidates · ${candidates.length}`}
-||||||| 6e9cc18f
-                ? `${filtered.length} of ${candidates.length} names shown`
-                : `${candidates.length} names shown`}
             </Text>
           )}
 
@@ -698,12 +695,6 @@ export default function ContestDetailScreen() {
           />
         </BallotDisclosure>
         <BallotLanguages items={[]} showRecovery={false} />
-||||||| d1747c36
-        <Text style={s.readingLabel}>Candidate information sources</Text>
-        <BallotDetailEvidence
-          citations={raceCitations}
-          showOfficeLink={candidates.length > 0}
-        />
       </ScrollView>
     </View>
   );

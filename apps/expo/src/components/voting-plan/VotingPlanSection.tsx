@@ -8,7 +8,7 @@ import type { VotingLogisticsData } from "~/utils/voting-logistics";
 import type { PlanMethod } from "~/utils/voting-plan";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Card, Icon, Segmented } from "~/components/ui";
-import { colors, fontBody, fontEditorial, hair, sp } from "~/styles";
+import { colors, fontBody, fontEditorial, hair, planes, sp } from "~/styles";
 import { votingInformationLinks } from "~/utils/voting-logistics";
 import {
   hasVotingPlanLogistics,

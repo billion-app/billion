@@ -5,6 +5,7 @@ import type { CandidateBrief } from "@acme/validators";
 import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
 import {
+  colors,
   fontBody,
   fontEditorial,
   hair,

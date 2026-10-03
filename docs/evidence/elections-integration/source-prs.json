@@ -1,62 +1,62 @@
 [
   {
     "headRefName": "codex/private-ballot-preparation",
-    "headRefOid": "2c3917ae288504b84acd74291d3f0e3f70d50855",
+    "headRefOid": "e5277e82ee56150b1cd7f9f24da5910555f16343",
     "number": 441
   },
   {
+    "number": 440,
     "headRefName": "codex/election-status-425",
-    "headRefOid": "6e9cc18ff0f8133ed4882ded98f227c51196d758",
-    "number": 440
+    "headRefOid": "dbe1ada4652b8c781a9925c1983fa4a04eabe604"
   },
   {
     "headRefName": "codex/424-ballot-marking",
-    "headRefOid": "d1747c365e290aa7aa97724339b51586c99795f0",
+    "headRefOid": "b119b6e678d5f5a367b23096b5808aa290fc41d6",
     "number": 439
   },
   {
     "headRefName": "codex/elections-accessibility-428",
-    "headRefOid": "c7fdea4f2525a2b115a55e4aa16c59c18e72023c",
+    "headRefOid": "f4ae67da97f9d18927f6b8f8a67d025019199da5",
     "number": 438
   },
   {
     "headRefName": "codex/election-accountability-429",
-    "headRefOid": "0412dbb2d6f36e019682760b806670fc8f7d3908",
+    "headRefOid": "e96637a2d7995c04d597f8711ad059ecc1f9f31e",
     "number": 437
   },
   {
     "headRefName": "codex/proposition-consequences-426",
-    "headRefOid": "1719afc55f789e14414eff4a1d725d4042dbc5f9",
+    "headRefOid": "128b3d383c7cdb4e37bc8c21a68ac28ffb387374",
     "number": 436
   },
   {
     "headRefName": "codex/election-process-419",
-    "headRefOid": "07ecd6c8bd0ede93b11b049fe28681ffd249d91d",
+    "headRefOid": "6381dea05c67a9d78049d49fd48ad4a988d1c5c4",
     "number": 435
   },
   {
     "headRefName": "codex/reviewed-candidate-briefs-421",
-    "headRefOid": "9ecf76aa7a26f8604454cb9bfdd39baa514fb164",
+    "headRefOid": "2263f7d1e2b84f9463f02e217815cb0f453175fb",
     "number": 434
   },
   {
     "headRefName": "codex/office-role-420",
-    "headRefOid": "3ff20e930f0e9fca53fc4cd9ed584555f9c7bd20",
+    "headRefOid": "448402750ffbf32ec6d7bbb6daf42bf9bb0c191a",
     "number": 433
   },
   {
     "headRefName": "codex/personal-voting-plan-422",
-    "headRefOid": "9d630452ad331f3dc4f294b216b899b5a4259134",
+    "headRefOid": "f3c89dd39ee1b4ca047fff56f88e4838ee1ef36e",
     "number": 432
   },
   {
     "headRefName": "codex/issue-418-personalized-ballots",
-    "headRefOid": "aa7bbe0e8a03cb65cd67a3b4a1f5eeb3df025a43",
+    "headRefOid": "905f68416fd469d29844349568ff58f7b1dc0f50",
     "number": 431
   },
   {
+    "number": 430,
     "headRefName": "codex/candidate-comparison-423",
-    "headRefOid": "faa9443196a294f18fe0979d2435d882cc030fb1",
-    "number": 430
+    "headRefOid": "e452732bbfb0027d2bc2dbcbc7dd0739e94b9e8a"
   }
 ]

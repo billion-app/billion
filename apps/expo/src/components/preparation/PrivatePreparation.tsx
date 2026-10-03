@@ -54,7 +54,9 @@ export function PrivatePreparation({
   initiallyOpen = false,
   onOpenBallot,
   showElectionContext = true,
+  heading,
 }: {
+  heading?: string;
   election?: Election;
   provider: string;
   /** Exact lookup input stays local; never bind preparation across addresses. */
@@ -293,7 +295,7 @@ export function PrivatePreparation({
           {draft
             ? draft.title
             : election
-              ? "Your ballot notes"
+              ? (heading ?? "Your ballot notes")
               : "Your saved notes"}
         </Text>
         {!draft &&
@@ -367,27 +369,22 @@ export function PrivatePreparation({
                   ),
                 )}
               </View>
-              {!selectedContest?.referendumTitle && (
-                <View>
-                  {button(
-                    `${choiceOpen ? "Possible choice (optional)" : draft.choice ? `Possible choice: ${draft.choice}` : "Add a possible choice (optional)"} ${choiceOpen ? "−" : "+"}`,
-                    () => setChoiceOpen(!choiceOpen),
-                  )}
-                  {choiceOpen && (
-                    <View style={{ gap: sp[2] }}>
-                      {selectedContest?.referendumTitle ? (
-                        <Text>
-                          Write your possible measure choice in notes. Marking
-                          options haven’t been supplied for this measure.
-                        </Text>
-                      ) : (
-                        [
+              {!selectedContest?.referendumTitle &&
+                !!selectedContest?.candidates?.length && (
+                  <View>
+                    {button(
+                      `${choiceOpen ? "Possible choice (optional)" : draft.choice ? `Possible choice: ${draft.choice}` : "Add a possible choice (optional)"} ${choiceOpen ? "−" : "+"}`,
+                      () => setChoiceOpen(!choiceOpen),
+                    )}
+                    {choiceOpen && (
+                      <View style={{ gap: sp[2] }}>
+                        {[
                           undefined,
-                          ...(selectedContest?.candidates ?? []).map(
+                          ...selectedContest.candidates.map(
                             (candidate) => candidate.name,
                           ),
                         ].map((name, index) => {
-                          const candidates = selectedContest?.candidates ?? [];
+                          const candidates = selectedContest.candidates ?? [];
                           const withdrawn =
                             name !== undefined &&
                             candidates[index - 1]?.ballotStatus ===
@@ -455,12 +452,11 @@ export function PrivatePreparation({
                               </Text>
                             </Pressable>
                           );
-                        })
-                      )}
-                    </View>
-                  )}
-                </View>
-              )}
+                        })}
+                      </View>
+                    )}
+                  </View>
+                )}
               <Text>Notes</Text>
               {selectedContest?.referendumTitle && (
                 <Text>You can write your possible measure choice here.</Text>
@@ -768,7 +764,7 @@ export function PrivatePreparation({
           contentContainerStyle={{ padding: sp[4], paddingBottom: sp[6] }}
         >
           <Text style={{ marginBottom: sp[3], color: P.quiet }}>
-            Your ballot notes
+            {heading ?? "Your ballot notes"}
           </Text>
           {content}
         </ScrollView>
