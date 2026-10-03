@@ -18,8 +18,11 @@ import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
 import { Segmented } from "~/components/ui/Segmented";
 import {
+  colors,
   DigestHair,
   fontBody,
+  fontEditorial,
+  hair,
   DigestPalette as P,
   sp,
   typography,
@@ -35,8 +38,12 @@ function Text({ style, ...props }: TextProps) {
     <BaseText
       {...props}
       style={[
-        typography.bodySmall,
-        { color: P.inkOnNight, fontFamily: fontBody.regular },
+        {
+          color: P.inkOnNight,
+          fontFamily: fontBody.regular,
+          fontSize: 14,
+          lineHeight: 21,
+        },
         style,
       ]}
     />
@@ -160,7 +167,7 @@ export function PrivatePreparation({
         paddingVertical: 12,
         paddingHorizontal: primary ? 16 : 4,
         minHeight: 44,
-        backgroundColor: primary ? P.primary : undefined,
+        backgroundColor: primary ? `${colors.bill}28` : undefined,
         borderRadius: 10,
         opacity: disabled || busy ? 0.5 : 1,
       }}
@@ -169,7 +176,7 @@ export function PrivatePreparation({
         style={[
           typography.bodySmall,
           {
-            color: primary ? P.canvas : P.inkOnNight,
+            color: primary ? colors.bill : P.inkOnNight,
             fontFamily: fontBody.regular,
           },
         ]}
@@ -264,7 +271,11 @@ export function PrivatePreparation({
         gap: sp[2],
       }}
     >
-      <Text style={typography.h3}>{item.title}</Text>
+      <Text
+        style={{ fontFamily: fontEditorial.bold, fontSize: 17, lineHeight: 23 }}
+      >
+        {item.title}
+      </Text>
       {item.choice && <Text>Possible choice: {item.choice}</Text>}
       {!!item.notes && <Text>{item.notes}</Text>}
       <Text style={{ color: P.quiet }}>
@@ -279,7 +290,16 @@ export function PrivatePreparation({
     </View>
   );
   const content = (
-    <Card {...{ "ph-no-capture": true }} style={{ padding: sp[4], gap: sp[4] }}>
+    <Card
+      {...{ "ph-no-capture": true }}
+      style={{
+        padding: 16,
+        gap: 18,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: hair[1],
+      }}
+    >
       <View
         style={{
           flexDirection: "row",
@@ -288,7 +308,15 @@ export function PrivatePreparation({
           gap: sp[2],
         }}
       >
-        <Text accessibilityRole="header" style={[typography.h3, { flex: 1 }]}>
+        <Text
+          accessibilityRole="header"
+          style={{
+            fontFamily: fontEditorial.bold,
+            fontSize: 17,
+            lineHeight: 23,
+            flex: 1,
+          }}
+        >
           {draft ? draft.title : election ? heading : "Your saved notes"}
         </Text>
         {!draft &&
@@ -617,7 +645,7 @@ export function PrivatePreparation({
                               alignSelf: "flex-start",
                               padding: 8,
                               borderRadius: 10,
-                              backgroundColor: P.canvas,
+                              backgroundColor: `${colors.bill}28`,
                             }}
                           >
                             <Icon
@@ -627,7 +655,15 @@ export function PrivatePreparation({
                             />
                           </View>
                           <View style={{ flex: 1, gap: sp[2] }}>
-                            <Text style={typography.body}>{title}</Text>
+                            <Text
+                              style={{
+                                fontFamily: fontBody.semibold,
+                                fontSize: 15,
+                                lineHeight: 21,
+                              }}
+                            >
+                              {title}
+                            </Text>
                             {item ? (
                               readingBadge(item.progress)
                             ) : (
@@ -660,7 +696,15 @@ export function PrivatePreparation({
               )}
               {ready && !election && !items.length && (
                 <View style={{ gap: sp[2], paddingVertical: sp[4] }}>
-                  <Text style={typography.h3}>A place to remember</Text>
+                  <Text
+                    style={{
+                      fontFamily: fontEditorial.bold,
+                      fontSize: 17,
+                      lineHeight: 23,
+                    }}
+                  >
+                    A place to remember
+                  </Text>
                   <Text>
                     Open your ballot and choose a race or measure to save your
                     first note.

@@ -24,9 +24,11 @@ import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
 import {
+  colors,
   fontBody,
   fontDisplay,
   fontEditorial,
+  hair,
   DigestPalette as P,
   planes,
 } from "~/styles";
@@ -148,7 +150,9 @@ export default function CandidateDetailScreen() {
               onPress={() => void query.refetch()}
               style={[s.action, s.retryAction]}
             >
-              <Text style={[s.actionText, { color: P.canvas }]}>Try again</Text>
+              <Text style={[s.actionText, { color: colors.bill }]}>
+                Try again
+              </Text>
             </TouchableOpacity>
             <SourceLink
               label="Find your election office"
@@ -226,16 +230,13 @@ export default function CandidateDetailScreen() {
 
             {candidate.statement ? (
               <View style={s.section}>
-                <Text accessibilityRole="header" style={s.sectionTitle}>
-                  Candidate’s statement
-                </Text>
                 <Text style={s.sectionIntro}>
                   {usingGuideStatement
                     ? "This statement was supplied by the candidate. California does not check these claims for accuracy."
                     : "This statement was supplied by a ballot provider. Its claims have not been independently checked by Billion."}
                 </Text>
                 <Card style={s.panel}>
-                  <Text style={s.panelLabel}>CANDIDATE'S OWN WORDS</Text>
+                  <Text style={s.panelLabel}>Candidate’s own words</Text>
                   {!showStatement ? (
                     <Text selectable style={s.statementPreview}>
                       {statementExcerpt.text}
@@ -300,8 +301,11 @@ export default function CandidateDetailScreen() {
             )}
 
             {!!guide?.officeDuties?.length && (
-              <CandidateDisclosure title="Official office responsibilities">
-                {guide.officeDuties.map((duty, index) => (
+              <CandidateDisclosure
+                title="Official office responsibilities"
+                summary={guide.officeDuties[0]}
+              >
+                {guide.officeDuties.slice(1).map((duty, index) => (
                   <Text key={index} style={s.body}>
                     {duty}
                   </Text>
@@ -408,10 +412,10 @@ const s = StyleSheet.create({
   name: {
     color: P.inkOnNight,
     fontFamily: fontDisplay.bold,
-    fontSize: 25,
-    lineHeight: 29,
+    fontSize: 30,
+    lineHeight: 34,
   },
-  office: { color: P.inkOnNight, fontFamily: fontEditorial.bold, fontSize: 16 },
+  office: { color: P.inkOnNight, fontFamily: fontBody.semibold, fontSize: 15 },
   heroMeta: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 12 },
   statusRow: { flexDirection: "row", alignItems: "flex-start", gap: 7 },
   muted: {
@@ -425,7 +429,7 @@ const s = StyleSheet.create({
   sectionTitle: {
     color: P.inkOnNight,
     fontFamily: fontEditorial.bold,
-    fontSize: 19,
+    fontSize: 18,
   },
   sectionIntro: {
     color: P.quiet,
@@ -433,22 +437,31 @@ const s = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  panel: { padding: 16, gap: 10 },
+  panel: {
+    padding: 16,
+    gap: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderLeftWidth: 3,
+    borderLeftColor: colors.bill,
+  },
   panelLabel: {
     color: P.inkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 10,
-    letterSpacing: 1,
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
   },
   statementPreview: {
     color: P.inkOnNight,
-    fontFamily: fontEditorial.regular,
-    fontSize: 16,
+    fontFamily: fontBody.regular,
+    fontSize: 15,
     lineHeight: 23,
   },
   action: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 },
   retryAction: {
-    backgroundColor: P.inkOnNight,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
@@ -456,11 +469,15 @@ const s = StyleSheet.create({
   },
   actionText: {
     flexShrink: 1,
-    color: P.inkOnNight,
+    color: colors.bill,
     fontFamily: fontBody.semibold,
-    fontSize: 14,
+    fontSize: 12,
   },
-  heading: { color: P.inkOnNight, fontFamily: fontDisplay.bold, fontSize: 22 },
+  heading: {
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 18,
+  },
   body: {
     color: P.inkOnNight,
     fontFamily: fontBody.regular,

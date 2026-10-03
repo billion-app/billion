@@ -5,10 +5,12 @@ import type { CandidateBrief } from "@acme/validators";
 import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
 import {
+  colors,
   fontBody,
   fontEditorial,
   hair,
   DigestPalette as P,
+  planes,
   sp,
 } from "~/styles";
 import { SourceLink } from "./BallotEvidence";
@@ -84,21 +86,24 @@ export function CandidateCoverage({
   officeUrl: string;
 }) {
   return (
-    <View style={{ gap: sp[3] }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: sp[3] }}>
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          aria-hidden
-        >
-          <Icon name="book" size={22} color={P.inkOnNight} />
-        </View>
+    <View
+      style={{
+        gap: 9,
+        backgroundColor: planes.surface,
+        borderWidth: 1,
+        borderColor: hair[2],
+        borderRadius: 12,
+        padding: 14,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+        <Icon name="info" size={16} color={colors.bill} />
         <Text
           accessibilityRole="header"
           style={{
-            color: P.inkOnNight,
             fontFamily: fontEditorial.bold,
-            fontSize: 19,
+            fontSize: 16,
+            color: P.inkOnNight,
             flex: 1,
           }}
         >
@@ -107,20 +112,13 @@ export function CandidateCoverage({
             : "Information is limited"}
         </Text>
       </View>
-      <Text style={candidateDetailText}>
+      <Text style={{ ...candidateDetailText, fontSize: 13, lineHeight: 19 }}>
         {hasStatement
           ? "Billion hasn’t published independent analysis for this race."
           : "Billion has no statement or independent analysis for this candidate yet."}{" "}
         Missing coverage is not a judgment of their qualifications.
       </Text>
-      <SourceLink
-        label="Find your election office"
-        url={officeUrl}
-        prominence="primary"
-      />
-      <Text style={candidateDetailText}>
-        Look for the official candidate list and voter guide.
-      </Text>
+      <SourceLink label="Find your official candidate list" url={officeUrl} />
       <CandidateDisclosure title="About our coverage">
         <Text style={candidateDetailText}>
           We publish independent briefs only after reviewing everyone in a

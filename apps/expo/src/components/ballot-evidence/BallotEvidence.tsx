@@ -5,10 +5,13 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 import type { BallotCitation, BallotEvidence, LanguageEvidence } from "./model";
 import { Icon } from "~/components/ui/Icon";
 import {
+  colors,
   DigestHair,
   fontBody,
   fontEditorial,
+  hair,
   DigestPalette as P,
+  planes,
   sp,
 } from "~/styles";
 import { BallotText as Text } from "./BallotText";
@@ -49,11 +52,7 @@ export function SourceLink({
         <Text style={[s.linkText, prominence === "primary" && s.primaryText]}>
           {label}
         </Text>
-        <Icon
-          name="external"
-          size={16}
-          color={prominence === "primary" ? P.canvas : P.primary}
-        />
+        <Icon name="external" size={16} color={colors.bill} />
       </Pressable>
       {failed && (
         <Text accessibilityRole="alert" style={s.secondary}>
@@ -389,17 +388,15 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
   },
   primary: {
-    backgroundColor: P.inkOnNight,
-    paddingHorizontal: sp[5],
+    backgroundColor: planes.slate,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: hair[1],
     borderRadius: 10,
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 44,
   },
-  primaryText: {
-    textDecorationLine: "none",
-    fontFamily: fontBody.semibold,
-    color: P.canvas,
-  },
+  primaryText: { fontFamily: fontBody.semibold, color: colors.bill },
   disclosure: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: DigestHair.sectionRule,
@@ -430,24 +427,19 @@ const s = StyleSheet.create({
   },
   link: {
     minHeight: 44,
-    paddingVertical: sp[2],
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "stretch",
     justifyContent: "space-between",
-    paddingHorizontal: sp[4],
-    backgroundColor: P.canvas,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
-    borderRadius: 10,
-    gap: sp[2],
+    gap: 8,
   },
   linkText: {
-    textDecorationLine: "none",
     flexShrink: 1,
-    fontFamily: fontBody.medium,
-    fontSize: 16,
-    color: P.primary,
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.bill,
   },
   recoveryCard: {
     backgroundColor: P.card,

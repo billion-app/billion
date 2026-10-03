@@ -9,14 +9,7 @@ import type { PlanMethod } from "~/utils/voting-plan";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Card, Icon, Segmented } from "~/components/ui";
-import {
-  fontBody,
-  fontEditorial,
-  hair,
-  DigestPalette as P,
-  sp,
-  useTheme,
-} from "~/styles";
+import { colors, fontBody, fontEditorial, hair, sp } from "~/styles";
 import { votingInformationLinks } from "~/utils/voting-logistics";
 import {
   hasVotingPlanLogistics,
@@ -35,7 +28,7 @@ function Cue({ name, size = 18 }: { name: IconName; size?: number }) {
       importantForAccessibility="no-hide-descendants"
       aria-hidden
     >
-      <Icon name={name} size={size} color={P.inkOnNight} />
+      <Icon name={name} size={size} color={colors.bill} />
     </View>
   );
 }
@@ -47,7 +40,6 @@ function StepHeading({
   icon: IconName;
   children: ReactNode;
 }) {
-  const { theme } = useTheme();
   return (
     <View style={s.row}>
       <View style={s.stepIcon}>
@@ -55,7 +47,7 @@ function StepHeading({
       </View>
       <Text
         accessibilityRole="header"
-        style={[s.heading, s.flex, { color: theme.foreground }]}
+        style={[s.heading, s.flex, { color: colors.white }]}
       >
         {children}
       </Text>
@@ -72,15 +64,14 @@ function Deadline({
   label: string;
   children: ReactNode;
 }) {
-  const { theme } = useTheme();
   return (
     <View style={s.deadline}>
       <View style={s.deadlineIcon}>
         <Cue name={icon} />
       </View>
       <View style={s.flex}>
-        <Text style={[s.action, { color: theme.foreground }]}>{label}</Text>
-        <Text style={[s.body, { color: theme.foreground }]}>{children}</Text>
+        <Text style={[s.action, { color: colors.white }]}>{label}</Text>
+        <Text style={[s.body, { color: colors.white }]}>{children}</Text>
       </View>
     </View>
   );
@@ -96,7 +87,6 @@ function Detail({
   icon?: IconName;
 }) {
   const [open, setOpen] = useState(false);
-  const { theme } = useTheme();
   return (
     <View>
       <Pressable
@@ -107,14 +97,8 @@ function Detail({
         style={s.disclosure}
       >
         {icon && <Cue name={icon} />}
-        <Text style={[s.action, s.flex, { color: theme.foreground }]}>
-          {label}
-        </Text>
-        <Icon
-          name={open ? "chevD" : "chevR"}
-          size={16}
-          color={theme.foreground}
-        />
+        <Text style={[s.action, s.flex, { color: colors.white }]}>{label}</Text>
+        <Icon name={open ? "chevD" : "chevR"} size={16} color={colors.white} />
       </Pressable>
       {open && <View style={s.details}>{children}</View>}
     </View>
@@ -129,6 +113,7 @@ export function VotingPlanSection({
   returnLabel = "Hide voting steps",
   onReturn,
   onViewLogistics,
+  initiallyOpen = false,
 }: {
   election?: {
     id: string;
@@ -141,6 +126,7 @@ export function VotingPlanSection({
   returnLabel?: string;
   onReturn?: () => void;
   onViewLogistics?: () => void;
+  initiallyOpen?: boolean;
 }) {
   const key = election ? planStorageKey(election) : undefined;
   return (
@@ -152,6 +138,7 @@ export function VotingPlanSection({
       returnLabel={returnLabel}
       onReturn={onReturn}
       onViewLogistics={onViewLogistics}
+      initiallyOpen={initiallyOpen}
     />
   );
 }
@@ -163,6 +150,7 @@ function Plan({
   returnLabel,
   onReturn,
   onViewLogistics,
+  initiallyOpen,
 }: {
   storageKey?: string;
   data?: VotingLogisticsData;
@@ -170,9 +158,9 @@ function Plan({
   returnLabel: string;
   onReturn?: () => void;
   onViewLogistics?: () => void;
+  initiallyOpen: boolean;
 }) {
-  const { theme } = useTheme();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initiallyOpen);
   const [method, setMethod] = useState<PlanMethod>("undecided");
   const [loaded, setLoaded] = useState(!storageKey);
   const [storageFailed, setStorageFailed] = useState(false);
@@ -222,9 +210,9 @@ function Plan({
         },
       );
   }
-  const body = [s.body, { color: theme.foreground }];
-  const heading = [s.heading, { color: theme.foreground }];
-  const caption = [s.caption, { color: theme.foreground }];
+  const body = [s.body, { color: colors.white }];
+  const heading = [s.heading, { color: colors.white }];
+  const caption = [s.caption, { color: colors.textSecondary }];
   const check =
     registrationCheck(data) ??
     (california
@@ -273,7 +261,14 @@ function Plan({
         : "Confirm available methods for your election";
   const resources = votingInformationLinks(data ?? {});
   return (
-    <Card>
+    <Card
+      style={{
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: hair[1],
+        padding: 16,
+      }}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Make your voting plan"
@@ -289,7 +284,7 @@ function Plan({
           <Icon
             name={expanded ? "chevD" : "chevR"}
             size={16}
-            color={theme.foreground}
+            color={colors.white}
           />
         </View>
       </Pressable>
@@ -401,10 +396,10 @@ function Plan({
                 onPress={onViewLogistics}
                 style={s.disclosure}
               >
-                <Text style={[s.action, s.flex, { color: theme.foreground }]}>
+                <Text style={[s.action, s.flex, { color: colors.white }]}>
                   View dates & locations
                 </Text>
-                <Icon name="chevR" size={16} color={theme.foreground} />
+                <Icon name="chevR" size={16} color={colors.white} />
               </Pressable>
             )}
             {method === "mail" && (
@@ -503,10 +498,10 @@ function Plan({
             }}
             style={s.return}
           >
-            <Text style={[s.caption, s.flex, { color: theme.foreground }]}>
+            <Text style={[s.caption, s.flex, { color: colors.white }]}>
               {returnLabel}
             </Text>
-            <Icon name="chevL" size={14} color={theme.foreground} />
+            <Icon name="chevL" size={14} color={colors.white} />
           </Pressable>
         </View>
       )}
@@ -518,7 +513,7 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: P.primary,
+    backgroundColor: `${colors.bill}28`,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -557,7 +552,7 @@ const s = StyleSheet.create({
   details: { gap: sp[2], paddingBottom: sp[3] },
   flex: { flex: 1 },
   action: { fontFamily: fontBody.semibold, fontSize: 15, lineHeight: 22 },
-  heading: { fontFamily: fontEditorial.bold, fontSize: 19, lineHeight: 26 },
+  heading: { fontFamily: fontEditorial.bold, fontSize: 17, lineHeight: 23 },
   body: { fontFamily: fontBody.regular, fontSize: 15, lineHeight: 23 },
-  caption: { fontFamily: fontBody.regular, fontSize: 13, lineHeight: 19 },
+  caption: { fontFamily: fontBody.regular, fontSize: 12.5, lineHeight: 18 },
 });

@@ -4,22 +4,42 @@ import { Pressable, View } from "react-native";
 
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
-import { fontBody, DigestPalette as P, sp } from "~/styles";
+import {
+  colors,
+  fontBody,
+  fontEditorial,
+  hair,
+  DigestPalette as P,
+  planes,
+  sp,
+} from "~/styles";
 
 export function CandidateDisclosure({
   title,
   children,
   initiallyOpen = false,
   label,
+  summary,
 }: {
   title: string;
   children: ReactNode;
   initiallyOpen?: boolean;
   label?: string;
+  summary?: string;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
   return (
-    <View style={{ gap: sp[2] }}>
+    <View
+      style={{
+        gap: sp[2],
+        backgroundColor: planes.slate,
+        borderWidth: 1,
+        borderColor: hair[1],
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+      }}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label ?? title}
@@ -38,15 +58,28 @@ export function CandidateDisclosure({
             style={{
               flex: 1,
               color: P.inkOnNight,
-              fontFamily: fontBody.semibold,
-              fontSize: 14,
+              fontFamily: fontEditorial.bold,
+              fontSize: 16,
+              lineHeight: 21,
             }}
           >
             {title}
           </Text>
         </View>
-        <Icon name={open ? "chevD" : "chevR"} size={16} color={P.inkOnNight} />
+        <Icon name={open ? "chevD" : "chevR"} size={14} color={colors.bill} />
       </Pressable>
+      {summary && (
+        <Text
+          style={{
+            fontFamily: fontBody.regular,
+            fontSize: 12.5,
+            lineHeight: 18,
+            color: colors.textSecondary,
+          }}
+        >
+          {summary}
+        </Text>
+      )}
       {open ? <View style={{ gap: sp[3] }}>{children}</View> : null}
     </View>
   );

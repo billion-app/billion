@@ -28,7 +28,14 @@ import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogi
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, hair, DigestPalette as P, planes } from "~/styles";
+import {
+  colors,
+  fontBody,
+  fontDisplay,
+  fontEditorial,
+  hair,
+  planes,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import {
   ballotElectionDate,
@@ -246,174 +253,120 @@ function CaliforniaElectionEntry({
   return (
     <TabScreen title="Elections">
       <View style={s.entry}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <View
-            accessible={false}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              backgroundColor: planes.slate,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon name="book" size={23} color={colors.bill} />
-          </View>
-          <Text style={[s.entryKicker, { marginTop: 0, flex: 1 }]}>
-            {guide
-              ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
-              : "CALIFORNIA STATEWIDE GUIDE"}
-          </Text>
-        </View>
-        <Text style={s.entryTitle}>Voting in California?</Text>
-        <Text style={s.entryBody}>
-          Read official candidate statements and statewide propositions.
+        <Text style={s.entryKicker}>
+          {guide
+            ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
+            : "CALIFORNIA STATEWIDE GUIDE"}
         </Text>
-        {query.isPending ? (
-          <View
-            style={[
-              s.entryButton,
-              { backgroundColor: planes.slate, gap: 12, paddingVertical: 14 },
-            ]}
-          >
-            <Text
-              accessibilityLiveRegion="polite"
-              style={{
-                fontFamily: fontBody.regular,
-                fontSize: 16,
-                lineHeight: 24,
-                flex: 1,
-                color: colors.white,
-              }}
+        <Text style={s.entryTitle}>Voting in California?</Text>
+        <Card style={s.entryGuide}>
+          <View style={s.entryGuideHead}>
+            <View
+              style={s.entryIcon}
+              accessible={false}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
             >
-              Loading statewide preview…
+              <Icon name="book" size={18} color={colors.bill} />
+            </View>
+            <Text accessibilityRole="header" style={s.entryGuideTitle}>
+              The statewide guide
             </Text>
-            <ActivityIndicator color={colors.white} />
           </View>
-        ) : guide ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Explore the California statewide guide"
-            activeOpacity={0.85}
-            onPress={onExplore}
-            style={s.entryButton}
-          >
-            <Text style={s.entryButtonText}>Explore the guide</Text>
-            <Icon name="arrowRight" size={19} color={planes.navy} />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ marginTop: 30 }}>
+          <Text style={s.entryBody}>
+            Read official candidate statements and statewide propositions.
+          </Text>
+          <Text style={s.entryNoteText}>
+            Statewide information, not your personal ballot.
+          </Text>
+          {query.isPending ? (
+            <View style={s.entryButton}>
+              <Text accessibilityLiveRegion="polite" style={s.entryButtonText}>
+                Loading statewide preview…
+              </Text>
+              <ActivityIndicator color={colors.bill} />
+            </View>
+          ) : guide ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Explore the California statewide guide"
+              activeOpacity={0.8}
+              onPress={onExplore}
+              style={s.entryButton}
+            >
+              <Text style={s.entryButtonText}>Explore the guide</Text>
+              <Icon name="arrowRight" size={16} color={colors.bill} />
+            </TouchableOpacity>
+          ) : (
             <SourceLink
               label="Read California’s official guide"
               url="https://voterguide.sos.ca.gov/"
               prominence="primary"
             />
-          </View>
-        )}
+          )}
+        </Card>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Learn how elections work"
           onPress={() => router.push("/election-process")}
-          style={{
-            minHeight: 48,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-          }}
+          style={s.entryTool}
         >
-          <Text
-            style={[
-              s.entryBody,
-              { color: P.inkOnNight, fontFamily: fontBody.semibold, flex: 1 },
-            ]}
+          <View
+            style={s.entryIcon}
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
           >
-            Learn how elections work
-          </Text>
-          <Icon name="chevR" size={18} color={P.inkOnNight} />
+            <Icon name="users" size={18} color={colors.bill} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={s.entryGuideTitle}>How elections work</Text>
+            <Text style={s.entryNoteText}>
+              Primaries, nominations and your vote.
+            </Text>
+          </View>
+          <Icon name="chevR" size={16} color={colors.bill} />
         </TouchableOpacity>
         <TouchableOpacity
           accessibilityRole="button"
           onPress={() => router.push("/ballot-preparation")}
-          style={{
-            minHeight: 48,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-          }}
+          style={s.entryTool}
         >
-          <Icon name="book" size={18} color={P.inkOnNight} />
-          <Text
-            style={[
-              s.entryBody,
-              { color: P.inkOnNight, fontFamily: fontBody.semibold },
-            ]}
+          <View
+            style={s.entryIcon}
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
           >
-            Your saved notes
-          </Text>
+            <Icon name="bookmark" size={18} color={colors.bill} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={s.entryGuideTitle}>Your saved notes</Text>
+            <Text style={s.entryNoteText}>
+              Private reading notes on this device.
+            </Text>
+          </View>
+          <Icon name="chevR" size={16} color={colors.bill} />
         </TouchableOpacity>
-        <View style={s.entryNote}>
-          <Icon name="info" size={16} color={colors.textSecondary} />
-          <Text style={s.entryNoteText}>
-            Statewide information, not your personal ballot.
-          </Text>
-        </View>
         <TouchableOpacity
           accessibilityRole="button"
           onPress={onLookup}
           accessibilityLabel="Find my official ballot through my election office"
-          style={{
-            minHeight: 56,
-            marginTop: 16,
-            padding: 14,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: hair[2],
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-          }}
+          style={s.entryTool}
         >
           <View
+            style={s.entryIcon}
             accessible={false}
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              backgroundColor: planes.slate,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
           >
-            <Icon name="pin" size={20} color={colors.white} />
+            <Icon name="pin" size={18} color={colors.bill} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontFamily: fontBody.bold,
-                fontSize: 16,
-                color: colors.white,
-              }}
-            >
-              Find my official ballot
-            </Text>
-            <Text
-              style={{
-                fontFamily: fontBody.regular,
-                fontSize: 13,
-                lineHeight: 19,
-                color: colors.textSecondary,
-                marginTop: 4,
-              }}
-            >
-              Through your election office
-            </Text>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={s.entryGuideTitle}>Find my official ballot</Text>
+            <Text style={s.entryNoteText}>Through your election office.</Text>
           </View>
-          <Icon name="arrowRight" size={19} color={colors.white} />
+          <Icon name="arrowRight" size={16} color={colors.bill} />
         </TouchableOpacity>
       </View>
     </TabScreen>
@@ -760,57 +713,78 @@ function ElectionsLive({
 }
 
 const s = StyleSheet.create({
-  entry: { paddingHorizontal: 20, paddingTop: 30 },
+  entry: { paddingHorizontal: 20, paddingTop: 16, gap: 18 },
   entryKicker: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
-    color: colors.bill,
-    marginTop: 28,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
   },
   entryTitle: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 32,
-    lineHeight: 39,
+    fontFamily: fontDisplay.bold,
+    fontSize: 30,
+    lineHeight: 34,
     color: colors.white,
-    marginTop: 12,
+  },
+  entryGuide: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderLeftWidth: 3,
+    borderLeftColor: colors.bill,
+    borderRadius: 14,
+    padding: 16,
+    gap: 13,
+  },
+  entryGuideHead: { flexDirection: "row", alignItems: "center", gap: 9 },
+  entryGuideTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 22,
+    color: colors.white,
+  },
+  entryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: `${colors.bill}28`,
+    alignItems: "center",
+    justifyContent: "center",
   },
   entryBody: {
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.textSecondary,
-    marginTop: 14,
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.white,
   },
   entryButton: {
-    minHeight: 56,
-    marginTop: 30,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: colors.bill,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    alignSelf: "flex-start",
+    gap: 8,
   },
   entryButtonText: {
     fontFamily: fontBody.semibold,
-    fontSize: 16,
-    color: planes.navy,
-  },
-  entryNote: {
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "flex-start",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: hair[2],
-    marginTop: 34,
-    paddingTop: 18,
+    fontSize: 12,
+    color: colors.bill,
   },
   entryNoteText: {
-    flex: 1,
     fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12.5,
+    lineHeight: 18,
     color: colors.textSecondary,
+  },
+  entryTool: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    padding: 14,
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   addrCard: {
     flexDirection: "row",

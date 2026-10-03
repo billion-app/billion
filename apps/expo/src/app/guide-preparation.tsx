@@ -9,7 +9,7 @@ import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { PrivatePreparation } from "~/components/preparation/PrivatePreparation";
 import { NavHeader } from "~/components/ui";
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
-import { DigestPalette as P, sp } from "~/styles";
+import { colors, fontBody, DigestPalette as P, sp } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 
@@ -27,12 +27,20 @@ export default function GuidePreparation() {
       />
       <ScrollView
         contentContainerStyle={{
-          padding: sp[4],
+          paddingHorizontal: 20,
+          paddingTop: 8,
           gap: sp[4],
           paddingBottom: sp[12],
         }}
       >
-        <Text style={{ color: P.inkOnNight }}>
+        <Text
+          style={{
+            color: colors.textSecondary,
+            fontFamily: fontBody.regular,
+            fontSize: 12.5,
+            lineHeight: 18,
+          }}
+        >
           California statewide guide · local races are not included.
         </Text>
         {mode === "notes" && !guide && (
@@ -81,6 +89,7 @@ export default function GuidePreparation() {
           />
         ) : (
           <VotingPlanSection
+            initiallyOpen
             california
             returnLabel="Return to statewide guide"
             onReturn={returnToGuide}
