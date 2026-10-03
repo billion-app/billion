@@ -600,6 +600,7 @@ export default function ContestDetailScreen() {
             {contactError}
           </Text>
         )}
+        <Text style={s.readingLabel}>Candidate information sources</Text>
         <BallotDetailEvidence
           citations={raceCitations}
           showOfficeLink={candidates.length > 0}

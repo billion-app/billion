@@ -10,11 +10,13 @@ import {
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
 import {
-  DigestHair,
+  colors,
   DigestRadii,
   fontBody,
   fontEditorial,
+  hair,
   DigestPalette as P,
+  planes,
   sp,
 } from "~/styles";
 import {
@@ -45,11 +47,7 @@ function Detail({
           <Text style={s.detailLabel}>{title}</Text>
           {caption && <Text style={s.metadata}>{caption}</Text>}
         </View>
-        <Icon
-          name={expanded ? "chevD" : "chevR"}
-          size={16}
-          color={P.inkOnNight}
-        />
+        <Icon name={expanded ? "chevD" : "chevR"} size={16} color={P.primary} />
       </Pressable>
       {expanded && <View style={s.detailBody}>{children}</View>}
     </View>
@@ -128,7 +126,12 @@ export function ContestMarking({
   const verified = applicableInstructions(instructions, scope);
   return (
     <View style={s.card}>
-      <Text style={s.kicker}>How to mark your ballot</Text>
+      <View style={s.heading}>
+        <View style={s.headingIcon} aria-hidden accessibilityElementsHidden>
+          <Icon name="doc" size={16} color={P.primary} />
+        </View>
+        <Text style={s.kicker}>How to mark your ballot</Text>
+      </View>
       <Text accessibilityRole="header" style={s.answer}>
         {verified
           ? selectionLabel(verified)
@@ -167,8 +170,8 @@ export function ContestMarking({
             <Detail
               key={`${verified.scope.contestId}:details`}
               title="Sources & details"
-              caption={verified.source.authority}
             >
+              <Text style={s.metadata}>{verified.source.authority}</Text>
               <View style={s.source}>
                 <SourceLink
                   label="Official instructions"
@@ -195,20 +198,31 @@ export function ContestMarking({
         <ElectionOfficeLink prominence="primary" />
       )}
       <Text style={s.metadata}>
-        Use your official ballot to vote. Billion does not submit votes.
+        Vote on your official ballot. Billion does not submit votes.
       </Text>
     </View>
   );
 }
 const s = StyleSheet.create({
   card: {
-    gap: sp[2],
+    gap: 13,
     padding: sp[4],
     marginVertical: sp[4],
-    backgroundColor: P.card,
+    backgroundColor: planes.slate,
     borderRadius: DigestRadii.menu,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: DigestHair.cardBorder,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderLeftWidth: 3,
+    borderLeftColor: P.primary,
+  },
+  heading: { flexDirection: "row", alignItems: "center", gap: 9 },
+  headingIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: planes.surface,
   },
   kicker: {
     fontFamily: fontBody.semibold,
@@ -218,8 +232,8 @@ const s = StyleSheet.create({
   },
   answer: {
     fontFamily: fontEditorial.bold,
-    fontSize: 26,
-    lineHeight: 33,
+    fontSize: 17,
+    lineHeight: 23,
     color: P.inkOnNight,
   },
   body: {
@@ -232,16 +246,15 @@ const s = StyleSheet.create({
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 20,
-    color: P.inkOnNight,
-    opacity: 0.85,
+    color: colors.textSecondary,
   },
   details: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.cardBorder,
+    borderTopColor: hair[1],
   },
   detail: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DigestHair.cardBorder,
+    borderBottomColor: hair[1],
   },
   detailAction: {
     minHeight: 44,
@@ -253,8 +266,8 @@ const s = StyleSheet.create({
   detailLabel: {
     flex: 1,
     fontFamily: fontBody.semibold,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 12,
+    lineHeight: 18,
     color: P.inkOnNight,
   },
   detailBody: { paddingBottom: sp[3], gap: sp[2] },
@@ -265,7 +278,7 @@ const s = StyleSheet.create({
     gap: sp[2],
     padding: sp[3],
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: DigestHair.cardBorder,
+    borderColor: hair[1],
     borderRadius: DigestRadii.menu,
   },
   diagramRow: { flexDirection: "row", alignItems: "center", gap: sp[2] },
