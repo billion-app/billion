@@ -28,7 +28,8 @@ import {
 } from "~/components/ballot-evidence/BallotReadingCard";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
-import { Card, Icon, Kicker, NavHeader } from "~/components/ui";
+import { OfficeRole } from "~/components/office-role/OfficeRole";
+import { Card, Icon, NavHeader } from "~/components/ui";
 import {
   DigestHair,
   DigestRadii,
@@ -203,6 +204,7 @@ export default function ContestDetailScreen() {
     );
   };
   const description = params.roleDescription || null;
+  const [showRoleDescription, setShowRoleDescription] = useState(false);
 
   // Expansion keyed by candidate identity (name + original index), not array
   // index — index-keying breaks once the list is filtered.
@@ -301,21 +303,50 @@ export default function ContestDetailScreen() {
           <Text style={s.district}>{params.districtName}</Text>
         ) : null}
 
+        <OfficeRole
+          office={params.office}
+          state={params.state}
+          districtId={params.districtId}
+        />
+
         {description ? (
           <View style={s.section}>
-            <Kicker style={s.kicker}>About this office</Kicker>
-            <Card style={cardChrome}>
-              <Text style={s.descText}>{description}</Text>
-            </Card>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showRoleDescription }}
+              onPress={() => setShowRoleDescription((value) => !value)}
+              style={{
+                minHeight: 48,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Text style={s.websiteTitle}>
+                {showRoleDescription
+                  ? "Hide ballot office description"
+                  : "Ballot office description"}
+              </Text>
+              <Icon
+                name={showRoleDescription ? "chevD" : "chevR"}
+                size={16}
+                color={P.inkOnNight}
+              />
+            </Pressable>
+            {showRoleDescription && (
+              <Card style={cardChrome}>
+                <Text style={s.descText}>{description}</Text>
+              </Card>
+            )}
           </View>
         ) : null}
 
         <View style={s.section}>
-          {(candidates.length > 1 || filtering) && (
-            <Text style={s.readingLabel}>
+          {(candidates.length > 0 || filtering) && (
+            <Text accessibilityRole="header" style={s.readingLabel}>
               {filtering
                 ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
-                : `${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
+                : `Candidates · ${candidates.length}`}
             </Text>
           )}
 
@@ -508,8 +539,14 @@ export default function ContestDetailScreen() {
                         }
                         style={s.contactRow}
                       >
-                        <Text style={s.websiteTitle}>Open candidate page</Text>
-                        <Icon name="arrowRight" size={16} color={P.primary} />
+                        <Text style={[s.websiteTitle, { color: P.inkOnNight }]}>
+                          Open candidate page
+                        </Text>
+                        <Icon
+                          name="arrowRight"
+                          size={16}
+                          color={P.inkOnNight}
+                        />
                       </TouchableOpacity>
                       <CandidateStatement cand={cand} />
                       {cand.biography ? (
@@ -574,11 +611,13 @@ export default function ContestDetailScreen() {
                           ))}
                         </View>
                       )}
-                      <BallotSources
-                        citations={sources}
-                        contentKind="citations"
-                        showRecovery={false}
-                      />
+                      {sources.length || hasStatement || cand.biography ? (
+                        <BallotSources
+                          citations={sources}
+                          contentKind="citations"
+                          showRecovery={false}
+                        />
+                      ) : null}
                     </View>
                   )}
                 </View>
@@ -591,10 +630,14 @@ export default function ContestDetailScreen() {
             {contactError}
           </Text>
         )}
-        <BallotDetailEvidence
-          citations={raceCitations}
-          showOfficeLink={candidates.length > 0}
-        />
+        {raceCitations.length > 0 ? (
+          <BallotDetailEvidence
+            citations={raceCitations}
+            showOfficeLink={candidates.length > 0}
+          />
+        ) : candidates.length > 0 ? (
+          <ElectionOfficeLink />
+        ) : null}
       </ScrollView>
     </View>
   );

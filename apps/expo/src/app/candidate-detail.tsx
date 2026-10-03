@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { webUrl } from "~/components/ballot-evidence/model";
+import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
 import {
@@ -78,6 +79,7 @@ export default function CandidateDetailScreen() {
         photoUrl: fromBallot.photoUrl ?? guide?.photoUrl,
       }
     : guide;
+  const hasLongStatement = (candidate?.statement?.length ?? 0) > 280;
   const statementCitation = fromBallot?.citations?.find(
     (item) => item.field === "statement",
   );
@@ -179,84 +181,46 @@ export default function CandidateDetailScreen() {
 
             <View style={s.section}>
               <Text accessibilityRole="header" style={s.sectionTitle}>
-                What this office does
-              </Text>
-              {guide?.officeDuties?.length ? (
-                <>
-                  <Text style={s.body}>{guide.officeDuties[0]}</Text>
-                  {guide.officeDuties.length > 1 && (
-                    <>
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityState={{ expanded: showOfficeDuties }}
-                        onPress={() => setShowOfficeDuties((value) => !value)}
-                        style={s.action}
-                      >
-                        <Text style={s.actionText}>
-                          {showOfficeDuties
-                            ? "Hide other responsibilities"
-                            : "Other responsibilities"}
-                        </Text>
-                        <Icon
-                          name={showOfficeDuties ? "chevD" : "chevR"}
-                          size={16}
-                          color={P.primary}
-                        />
-                      </TouchableOpacity>
-                      {showOfficeDuties &&
-                        guide.officeDuties.slice(1).map((duty, index) => (
-                          <Text key={`${index}:${duty}`} style={s.body}>
-                            {duty}
-                          </Text>
-                        ))}
-                    </>
-                  )}
-                  <SourceLink
-                    label="Office duties · California voter guide"
-                    url={guide.sourceUrl}
-                  />
-                </>
-              ) : (
-                <Text style={s.muted}>
-                  Office duties are not available in Billion for this race.
-                </Text>
-              )}
-            </View>
-
-            <View style={s.section}>
-              <Text accessibilityRole="header" style={s.sectionTitle}>
                 What they say
               </Text>
-              <Text style={s.sectionIntro}>
-                {usingGuideStatement
-                  ? "This statement was supplied by the candidate. California does not check these claims for accuracy."
-                  : "This statement was supplied by a ballot provider. Its claims have not been independently checked by Billion."}
-              </Text>
+              {candidate.statement ? (
+                <Text style={s.sectionIntro}>
+                  {usingGuideStatement
+                    ? "Candidate-supplied statement; California does not verify these claims."
+                    : "Provider-supplied statement; claims not independently checked by Billion."}
+                </Text>
+              ) : null}
               {candidate.statement ? (
                 <Card style={s.panel}>
                   <Text style={s.panelLabel}>CANDIDATE'S OWN WORDS</Text>
                   {!showStatement ? (
-                    <Text style={s.statementPreview} numberOfLines={3}>
+                    <Text
+                      selectable
+                      style={s.statementPreview}
+                      numberOfLines={hasLongStatement ? 3 : undefined}
+                    >
                       {candidate.statement}
                     </Text>
                   ) : null}
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: showStatement }}
-                    onPress={() => setShowStatement((value) => !value)}
-                    style={s.action}
-                  >
-                    <Text style={s.actionText}>
-                      {showStatement
-                        ? "Hide full statement"
-                        : "Read full statement"}
-                    </Text>
-                    <Icon
-                      name={showStatement ? "chevD" : "chevR"}
-                      size={16}
-                      color={P.primary}
-                    />
-                  </TouchableOpacity>
+                  {hasLongStatement && (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: showStatement }}
+                      onPress={() => setShowStatement((value) => !value)}
+                      style={s.action}
+                    >
+                      <Text style={s.actionText}>
+                        {showStatement
+                          ? "Hide full statement"
+                          : "Read full statement"}
+                      </Text>
+                      <Icon
+                        name={showStatement ? "chevD" : "chevR"}
+                        size={16}
+                        color={P.primary}
+                      />
+                    </TouchableOpacity>
+                  )}
                   {showStatement ? (
                     <Text selectable style={s.body}>
                       {candidate.statement}
@@ -287,17 +251,62 @@ export default function CandidateDetailScreen() {
               )}
             </View>
 
-            <View style={s.analysisNote}>
-              <Icon name="info" size={17} color={P.quiet} />
-              <Text style={s.analysisText}>
-                Billion has not independently reviewed this candidate's record
-                or statement claims.
-              </Text>
-            </View>
+            <OfficeRole
+              office={guide?.officeName ?? params.office}
+              state={guide ? "CA" : params.state}
+              districtId={
+                guide ? "ocd-division/country:us/state:ca" : params.districtId
+              }
+            />
+
+            {guide?.officeDuties?.length ? (
+              <View style={s.section}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showOfficeDuties }}
+                  onPress={() => setShowOfficeDuties((value) => !value)}
+                  style={s.action}
+                >
+                  <Text style={s.actionText}>
+                    {showOfficeDuties
+                      ? "Hide official office description"
+                      : "Official office description"}
+                  </Text>
+                  <Icon
+                    name={showOfficeDuties ? "chevD" : "chevR"}
+                    size={16}
+                    color={P.inkOnNight}
+                  />
+                </TouchableOpacity>
+                {showOfficeDuties && (
+                  <>
+                    {guide.officeDuties.map((duty, index) => (
+                      <Text key={`${index}:${duty}`} style={s.body}>
+                        {duty}
+                      </Text>
+                    ))}
+                    <SourceLink
+                      label="Office duties · California voter guide"
+                      url={guide.sourceUrl}
+                    />
+                  </>
+                )}
+              </View>
+            ) : null}
+
+            {!candidate.statement && (
+              <View style={s.analysisNote}>
+                <Icon name="info" size={17} color={P.quiet} />
+                <Text style={s.analysisText}>
+                  Billion has not independently reviewed this candidate's record
+                  or statement claims.
+                </Text>
+              </View>
+            )}
 
             <View style={s.footer}>
               <Text accessibilityRole="header" style={s.footerTitle}>
-                Sources & freshness
+                Sources & updates
               </Text>
               {sourceUrl ? (
                 <SourceLink
