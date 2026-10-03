@@ -129,6 +129,9 @@ importers:
 
   apps/expo:
     dependencies:
+      '@acme/validators':
+        specifier: workspace:*
+        version: link:../../packages/validators
       '@acme/ui':
         specifier: workspace:*
         version: link:../../packages/ui

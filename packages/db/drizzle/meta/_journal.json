@@ -162,6 +162,13 @@
       "when": 1790746251846,
       "tag": "0022_lush_the_order",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790967340581,
+      "tag": "0023_classy_firebird",
+      "breakpoints": true
     }
   ]
 }

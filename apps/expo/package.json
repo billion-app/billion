@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@acme/ui": "workspace:*",
+    "@acme/validators": "workspace:*",
     "@better-auth/expo": "catalog:",
     "@expo-google-fonts/albert-sans": "^0.4.2",
     "@expo-google-fonts/ibm-plex-serif": "^0.4.1",
