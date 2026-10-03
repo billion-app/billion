@@ -27,6 +27,7 @@ import {
   planes,
 } from "~/styles";
 
+
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
@@ -45,7 +46,13 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
     <Card style={s.card}>
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel={`${candidate.name}, ${candidate.officeName ?? "statewide office"}`}
+        accessibilityLabel={[
+          candidate.name,
+          candidate.officeName ?? "statewide office",
+          candidate.party,
+        ]
+          .filter(Boolean)
+          .join(", ")}
         activeOpacity={0.8}
         onPress={() =>
           router.push(guideCandidateRoute(candidate.name, candidate.officeSlug))
@@ -93,12 +100,7 @@ function MeasureCard({ measure }: { measure: Measure }) {
           <Text style={s.measureNumberText}>{measure.number}</Text>
         </View>
         <View style={s.cardIdentity}>
-          <Text
-            style={[s.cardTitle, s.measureTitle]}
-            numberOfLines={expanded ? undefined : 3}
-          >
-            {measure.title}
-          </Text>
+          <Text style={[s.cardTitle, s.measureTitle]}>{measure.title}</Text>
           <Text style={s.cardMeta}>Statewide proposition</Text>
         </View>
         <Icon
@@ -158,6 +160,8 @@ export function CaliforniaGuidePreview({
       }
     });
   };
+  const router = useRouter();
+
   const [tab, setTab] = useState<GuideTab>("candidates");
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.isError ? undefined : query.data;
@@ -219,6 +223,19 @@ export function CaliforniaGuidePreview({
       )}
 
 
+
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="California language and accessible voting resources"
+        accessibilityHint="Opens official resources and coverage limits"
+        style={s.addressAction}
+        onPress={() => router.push("/election-access")}
+      >
+        <Text style={[s.addressActionText, { flex: 1 }]}>
+          Language and accessible voting resources
+        </Text>
+        <Icon name="arrowRight" size={17} color={colors.bill} />
+      </TouchableOpacity>
       {query.isPending && <ActivityIndicator color={colors.bill} />}
       {query.isError && (
         <Card>
@@ -239,6 +256,7 @@ export function CaliforniaGuidePreview({
           <Text style={[s.introText, { color: P.inkOnNight }]}>
             Guide data is unavailable to Billion. Check the official guide or
             your election office.
+
 
           </Text>
           <SourceLink
@@ -419,7 +437,7 @@ const s = StyleSheet.create({
   portrait: { width: 62, height: 62, borderRadius: 4 },
   portraitFallback: {
     width: 62,
-    height: 62,
+    minHeight: 62,
     borderRadius: 4,
     alignItems: "center",
     justifyContent: "center",
@@ -438,7 +456,7 @@ const s = StyleSheet.create({
     lineHeight: 21,
   },
   cardMeta: {
-    color: colors.textSecondary,
+    color: P.inkOnNight,
     fontFamily: fontBody.regular,
     fontSize: 13,
   },
@@ -451,7 +469,7 @@ const s = StyleSheet.create({
   },
   measureNumber: {
     width: 62,
-    height: 62,
+    minHeight: 62,
     borderRadius: 4,
     alignItems: "center",
     justifyContent: "center",
@@ -463,7 +481,7 @@ const s = StyleSheet.create({
     fontSize: 24,
   },
   detailBlock: { gap: 4 },
-  detailLabel: { color: colors.textSecondary, fontFamily: fontBody.semibold },
+  detailLabel: { color: P.inkOnNight, fontFamily: fontBody.semibold },
   detailText: {
     color: "#FFFFFF",
     fontFamily: fontBody.regular,
@@ -480,6 +498,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   retry: { color: P.canvas, fontFamily: fontBody.semibold, fontSize: 16 },
+
   fixtureLink: { color: colors.textSecondary, paddingVertical: 16 },
   addressAction: {
     minHeight: 48,
@@ -501,7 +520,8 @@ const s = StyleSheet.create({
     borderTopColor: colors.textSecondary,
   },
   detailActionText: {
-    color: colors.bill,
+    color: P.inkOnNight,
+    flexShrink: 1,
     fontFamily: fontBody.semibold,
     fontSize: 15,
   },
