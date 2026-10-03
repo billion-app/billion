@@ -1,23 +1,33 @@
 import { useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 
 import type { ProcessExample } from "~/components/election-process/content";
-import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { processExamples } from "~/components/election-process/content";
-import { Icon, NavHeader, Segmented } from "~/components/ui";
+import { Icon, NavHeader } from "~/components/ui";
 import {
-  DigestHair,
-  DigestRadii,
+  colors,
+  digest,
   fontBody,
+  fontDisplay,
   fontEditorial,
+  hair,
   DigestPalette as P,
+  planes,
   sp,
 } from "~/styles";
 
 export default function ElectionProcessScreen() {
   const router = useRouter();
+  const { fontScale } = useWindowDimensions();
   const scroll = useRef<ScrollView>(null);
   const [example, setExample] = useState<ProcessExample>("president");
   const [expanded, setExpanded] = useState(false);
@@ -29,20 +39,37 @@ export default function ElectionProcessScreen() {
     <View style={s.screen}>
       <NavHeader title="How elections work" onBack={() => router.back()} />
       <ScrollView ref={scroll} contentContainerStyle={s.content}>
-        <Segmented
-          value={example}
-          options={(Object.keys(processExamples) as ProcessExample[]).map(
-            (id) => ({ id, label: processExamples[id].label }),
-          )}
-          onChange={(id) => {
-            setExample(id);
-            setExpanded(false);
-            setParticipation(false);
-            setSources(false);
-            setProcessDetail(false);
-            scroll.current?.scrollTo({ y: 0, animated: false });
-          }}
-        />
+        <View
+          accessibilityRole="tablist"
+          style={[s.examples, fontScale > 1.3 && { flexDirection: "column" }]}
+        >
+          {(Object.keys(processExamples) as ProcessExample[]).map((id) => (
+            <Pressable
+              key={id}
+              accessibilityRole="tab"
+              aria-selected={example === id}
+              style={[
+                s.example,
+                fontScale > 1.3 && { flex: 0 },
+                example === id && s.selectedExample,
+              ]}
+              onPress={() => {
+                setExample(id);
+                setExpanded(false);
+                setParticipation(false);
+                setSources(false);
+                setProcessDetail(false);
+                scroll.current?.scrollTo({ y: 0, animated: false });
+              }}
+            >
+              <Text
+                style={[s.exampleText, example === id && { color: planes.ink }]}
+              >
+                {processExamples[id].label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
         <View style={s.intro}>
           <Text style={s.caption}>
             {item.year} educational example · no live updates
@@ -118,8 +145,8 @@ export default function ElectionProcessScreen() {
             ))}
           </View>
         )}
-        <SourceLink
-          prominence="primary"
+        <OfficialLink
+          primary
           label="Election dates: find my election office"
           url="https://www.usa.gov/state-election-office"
         />
@@ -136,8 +163,8 @@ export default function ElectionProcessScreen() {
                 Billion does not know your registration, party affiliation or
                 eligibility.
               </Text>
-              <SourceLink
-                prominence="primary"
+              <OfficialLink
+                primary
                 label={item.action[0]}
                 url={item.action[1]}
               />
@@ -167,12 +194,52 @@ export default function ElectionProcessScreen() {
                 eligibility.
               </Text>
               {item.sources.map(([label, url]) => (
-                <SourceLink key={url} label={label} url={url} />
+                <OfficialLink key={url} label={label} url={url} />
               ))}
             </View>
           )}
         </View>
       </ScrollView>
+    </View>
+  );
+}
+function OfficialLink({
+  label,
+  url,
+  primary = false,
+}: {
+  label: string;
+  url: string;
+  primary?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={label}
+        style={[s.sourceLink, primary && s.primarySource]}
+        onPress={() => {
+          void Linking.openURL(url).then(
+            () => setFailed(false),
+            () => setFailed(true),
+          );
+        }}
+      >
+        <Text style={[s.link, { flex: 1 }, primary && { color: planes.ink }]}>
+          {label}
+        </Text>
+        <Icon
+          name="external"
+          size={16}
+          color={primary ? planes.ink : colors.textSecondary}
+        />
+      </Pressable>
+      {failed && (
+        <Text accessibilityRole="alert" style={s.caption}>
+          Could not open the link. Tap to retry.
+        </Text>
+      )}
     </View>
   );
 }
@@ -208,32 +275,70 @@ function Disclosure({
   );
 }
 const s = StyleSheet.create({
+  examples: {
+    flexDirection: "row",
+    gap: 4,
+    padding: 4,
+    borderRadius: 14,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+  },
+  example: {
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 10,
+  },
+  selectedExample: { backgroundColor: planes.paper },
+  exampleText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13.5,
+    color: colors.textSecondary,
+    textAlign: "center",
+    flexShrink: 1,
+  },
+  sourceLink: {
+    minHeight: 44,
+    padding: 12,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    backgroundColor: planes.surface,
+    borderWidth: 1,
+    borderColor: hair[1],
+  },
+  primarySource: { backgroundColor: planes.paper },
   screen: { flex: 1, backgroundColor: P.canvas },
   content: { padding: sp[5], gap: sp[4], paddingBottom: sp[12] },
   intro: { gap: sp[2] },
-  title: { fontFamily: fontEditorial.bold, fontSize: 26, color: P.inkOnNight },
+  title: { fontFamily: fontDisplay.bold, fontSize: 24, color: P.inkOnNight },
   heading: {
-    fontFamily: fontEditorial.regular,
-    fontSize: 21,
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
     color: P.inkOnNight,
   },
   body: {
     fontFamily: fontBody.regular,
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 15,
+    lineHeight: 23,
     color: P.inkOnNight,
   },
   caption: {
     fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 20,
-    color: P.inkOnNight,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
   card: {
     backgroundColor: P.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: DigestHair.cardBorder,
-    borderRadius: DigestRadii.card,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
     padding: sp[4],
     gap: sp[3],
   },
@@ -244,8 +349,8 @@ const s = StyleSheet.create({
     marginLeft: sp[3],
     borderWidth: StyleSheet.hairlineWidth,
     borderStyle: "dashed",
-    borderColor: P.primary,
-    borderRadius: DigestRadii.menuRow,
+    borderColor: digest.badgeBlue,
+    borderRadius: 10,
     padding: sp[3],
     marginBottom: sp[3],
   },
@@ -254,7 +359,7 @@ const s = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 2,
-    backgroundColor: P.primary,
+    backgroundColor: digest.badgeBlue,
   },
   branch: {
     position: "absolute",
@@ -262,16 +367,16 @@ const s = StyleSheet.create({
     left: 16,
     width: 40,
     height: 1,
-    backgroundColor: P.primary,
+    backgroundColor: digest.badgeBlue,
   },
   rail: { width: 32, alignItems: "center" },
   marker: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: P.canvas,
+    borderRadius: 9,
+    backgroundColor: planes.surface,
     borderWidth: 1,
-    borderColor: P.primary,
+    borderColor: digest.badgeBlue,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -280,15 +385,15 @@ const s = StyleSheet.create({
     flex: 1,
     width: 2,
     minHeight: 20,
-    backgroundColor: P.primary,
+    backgroundColor: digest.badgeBlue,
     marginTop: sp[2],
   },
 
   stageCopy: { flex: 1, gap: sp[1], paddingBottom: sp[3] },
   stageLabel: {
     fontFamily: fontBody.semibold,
-    fontSize: 12,
-    color: P.inkOnNight,
+    fontSize: 10.5,
+    color: colors.textSecondary,
     letterSpacing: 0.8,
   },
   step: { gap: sp[2] },
@@ -300,5 +405,5 @@ const s = StyleSheet.create({
     gap: sp[3],
     paddingVertical: sp[2],
   },
-  link: { fontFamily: fontBody.semibold, fontSize: 17, color: P.inkOnNight },
+  link: { fontFamily: fontBody.semibold, fontSize: 13.5, color: P.inkOnNight },
 });
