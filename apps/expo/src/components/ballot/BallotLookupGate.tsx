@@ -12,7 +12,13 @@ import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
-import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
+import {
+  fontBody,
+  fontEditorial,
+  hair,
+  DigestPalette as P,
+  planes,
+} from "~/styles";
 
 /** Unavailable lookup never describes the address as having no election. */
 export function BallotLookupGate({
@@ -35,7 +41,7 @@ export function BallotLookupGate({
       <NavHeader key={fontScale} title="" onBack={onBack} />
       <ScrollView
         contentContainerStyle={{
-          padding: 16,
+          padding: 20,
           gap: 16,
           paddingBottom: insets.bottom + 24,
         }}
@@ -43,25 +49,34 @@ export function BallotLookupGate({
         <Text
           accessibilityRole="header"
           style={{
-            fontFamily: fontDisplay.bold,
-            fontSize: 34,
-            lineHeight: 38,
+            fontFamily: fontEditorial.bold,
+            fontSize: 24,
+            lineHeight: 29,
             color: P.inkOnNight,
           }}
         >
           Find your ballot
         </Text>
-        <Card style={{ padding: 16, gap: 16, borderRadius: 14 }}>
+        <Card
+          style={{
+            padding: 16,
+            gap: 13,
+            borderRadius: 14,
+            backgroundColor: planes.slate,
+            borderWidth: 1,
+            borderColor: hair[1],
+          }}
+        >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <View
               accessible={false}
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                backgroundColor: P.canvas,
+                width: 32,
+                height: 32,
+                borderRadius: 9,
+                backgroundColor: planes.surface,
                 alignItems: "center",
                 justifyContent: "center",
               }}
@@ -77,8 +92,8 @@ export function BallotLookupGate({
               accessibilityRole={failed ? "alert" : undefined}
               style={{
                 flex: 1,
-                fontFamily: fontBody.bold,
-                fontSize: 14,
+                fontFamily: fontEditorial.bold,
+                fontSize: 17,
                 lineHeight: 21,
                 color: P.inkOnNight,
               }}
@@ -93,14 +108,14 @@ export function BallotLookupGate({
           <Text
             style={{
               fontFamily: fontBody.regular,
-              fontSize: 16,
-              lineHeight: 24,
+              fontSize: 15,
+              lineHeight: 23,
               color: P.inkOnNight,
             }}
           >
             Your election office can help you find your official ballot.
           </Text>
-          <ElectionOfficeLink prominence="primary" />
+          <ElectionOfficeLink reader />
           {failed && (
             <Pressable
               accessibilityRole="button"
@@ -109,16 +124,16 @@ export function BallotLookupGate({
               style={{
                 minHeight: 48,
                 padding: 12,
-                borderRadius: 12,
-                backgroundColor: P.canvas,
+                borderRadius: 9,
+                backgroundColor: planes.surface,
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
               <Text
                 style={{
-                  fontFamily: fontBody.bold,
-                  fontSize: 16,
+                  fontFamily: fontBody.medium,
+                  fontSize: 13.5,
                   color: P.inkOnNight,
                 }}
               >
@@ -133,15 +148,15 @@ export function BallotLookupGate({
               minHeight: 48,
               padding: 12,
               borderRadius: 12,
-              backgroundColor: P.canvas,
+              backgroundColor: planes.surface,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
             <Text
               style={{
-                fontFamily: fontBody.bold,
-                fontSize: 16,
+                fontFamily: fontBody.medium,
+                fontSize: 13.5,
                 color: P.inkOnNight,
               }}
             >
