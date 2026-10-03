@@ -27,7 +27,7 @@ import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
 import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, hair, planes } from "~/styles";
+import { colors, fontBody, hair, DigestPalette as P, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import {
   ballotElectionDate,
@@ -238,8 +238,10 @@ function CaliforniaElectionEntry({
   onExplore: () => void;
   onLookup: () => void;
 }) {
+  const router = useRouter();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.isError ? undefined : query.data;
+
   return (
     <TabScreen title="Elections">
       <View style={s.entry}>
@@ -310,6 +312,27 @@ function CaliforniaElectionEntry({
             />
           </View>
         )}
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Learn how elections work"
+          onPress={() => router.push("/election-process")}
+          style={{
+            minHeight: 48,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <Text
+            style={[
+              s.entryBody,
+              { color: P.inkOnNight, fontFamily: fontBody.semibold, flex: 1 },
+            ]}
+          >
+            Learn how elections work
+          </Text>
+          <Icon name="chevR" size={18} color={P.inkOnNight} />
+        </TouchableOpacity>
         <View style={s.entryNote}>
           <Icon name="info" size={16} color={colors.textSecondary} />
           <Text style={s.entryNoteText}>
