@@ -42,6 +42,7 @@ import {
   fontBody,
   fontDisplay,
   fontEditorial,
+  hair,
   DigestPalette as P,
   planes,
 } from "~/styles";
@@ -51,8 +52,8 @@ import { parseRouteArray } from "~/utils/route-array";
 const cardChrome = {
   backgroundColor: P.card,
   borderRadius: DigestRadii.menu,
-  borderWidth: StyleSheet.hairlineWidth,
-  borderColor: DigestHair.cardBorder,
+  borderWidth: 1,
+  borderColor: hair[1],
 } as const;
 
 interface CandidateCitation {
@@ -608,7 +609,11 @@ export default function ContestDetailScreen() {
                             onPress={row.onPress}
                             activeOpacity={0.7}
                           >
-                            <Icon name={row.icon} size={16} color={P.primary} />
+                            <Icon
+                              name={row.icon}
+                              size={16}
+                              color={P.badgeIndigo}
+                            />
                             <View style={{ flex: 1 }}>
                               <Text
                                 style={
@@ -625,7 +630,7 @@ export default function ContestDetailScreen() {
                                 style={
                                   row.label === "Website"
                                     ? s.websiteHost
-                                    : [s.contactValue, { color: P.primary }]
+                                    : [s.contactValue, { color: P.badgeIndigo }]
                                 }
                               >
                                 {row.label === "Website"
@@ -633,7 +638,11 @@ export default function ContestDetailScreen() {
                                   : row.value}
                               </Text>
                             </View>
-                            <Icon name="external" size={13} color={P.primary} />
+                            <Icon
+                              name="external"
+                              size={13}
+                              color={P.badgeIndigo}
+                            />
                           </TouchableOpacity>
                         ))}
                       {cand.channels.length > 0 && (
@@ -832,9 +841,9 @@ const s = StyleSheet.create({
   },
   candBio: {
     fontFamily: fontBody.regular,
-    fontSize: 17,
+    fontSize: 15,
     color: P.inkOnNight,
-    lineHeight: 26,
+    lineHeight: 23,
     marginBottom: 4,
   },
   candParty: {
@@ -865,7 +874,7 @@ const s = StyleSheet.create({
   websiteTitle: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: P.primary,
+    color: P.badgeIndigo,
   },
   websiteHost: {
     fontFamily: fontBody.regular,
