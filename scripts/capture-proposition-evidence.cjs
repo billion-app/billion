@@ -1,3 +1,4 @@
+// Port 8208 is reserved for this worktree; verify the Expo server cwd before capture.
 const { chromium } = require(process.cwd() + "/node_modules/@playwright/test");
 const fs = require("node:fs");
 const claim = (text) => ({ text, sourceIds: ["guide"] });
@@ -88,6 +89,44 @@ const guide = {
   candidates: [],
   measures: [{ ...measure, consequences: analysis }],
 };
+// Fictional reference data rendered by the unchanged article-detail / BillBrief.
+const billReference = {
+  id: "fixture-bill-reference",
+  type: "bill",
+  title: "School facilities funding proposal",
+  billNumber: "DEMO 1",
+  jurisdiction: "federal",
+  url: "https://www.congress.gov/",
+  isAIGenerated: true,
+  originalContent: "Synthetic reference text only.",
+  articleContent: "Synthetic reference explanation only.",
+  brief: {
+    summary:
+      "Allow a school district to borrow for facilities, with projects determined by later funding decisions.",
+    hook: "This fictional proposal would authorize school facilities borrowing. Repayment and project choices remain separate decisions.",
+    legalStatus: "proposed",
+    facts: [],
+    terms: [],
+    changes: [
+      {
+        kind: "funds",
+        title: "School facilities borrowing",
+        before: "No authority for this borrowing.",
+        after: "Borrowing is authorized; projects are decided later.",
+      },
+    ],
+    affected: [
+      {
+        group: "School district",
+        effect: "Manages which allowed projects receive the funding.",
+        direction: "mixed",
+      },
+    ],
+    unknowns: [
+      "Authorization does not guarantee which projects will be completed or when.",
+    ],
+  },
+};
 let browser;
 (async () => {
   browser = await chromium.launch({ headless: true });
@@ -131,7 +170,12 @@ let browser;
             : {
                 result: {
                   data: {
-                    json: p === "civic.getCaliforniaGuide" ? response : null,
+                    json:
+                      p === "civic.getCaliforniaGuide"
+                        ? response
+                        : p === "content.getById"
+                          ? billReference
+                          : null,
                   },
                 },
               }),
@@ -148,13 +192,37 @@ let browser;
     });
   };
   page.on("pageerror", (e) => console.log("PAGE_ERROR", e.message));
-  await page.goto("http://localhost:8096/proposition-detail?number=5", {
+  await page.goto(
+    "http://localhost:8208/article-detail?id=fixture-bill-reference",
+    { waitUntil: "networkidle", timeout: 180000 },
+  );
+  await page.getByTestId("bill-brief").waitFor({ timeout: 120000 });
+  await resetScroll();
+  await page.screenshot({
+    path: "docs/screenshots/issue-426/bill-reference-overview.png",
+    fullPage: true,
+  });
+  await page
+    .getByTestId("brief-summary")
+    .evaluate((element) => element.scrollIntoView({ block: "start" }));
+  await page.screenshot({
+    path: "docs/screenshots/issue-426/bill-reference-brief.png",
+    fullPage: true,
+  });
+  await page.goto("http://localhost:8208/proposition-detail?number=5", {
     waitUntil: "networkidle",
     timeout: 180000,
   });
   await page
     .getByText("The rule today", { exact: true })
     .waitFor({ timeout: 120000 });
+  const mapFontSize = await page
+    .getByText(analysis.decisionMap.yes.text, { exact: true })
+    .evaluate((element) => getComputedStyle(element).fontSize);
+  if (mapFontSize !== "13px")
+    throw new Error(
+      "Capture server does not render the current compact decision-map build",
+    );
   const noBounds = await page
     .getByText(analysis.decisionMap.no.text, { exact: true })
     .boundingBox();
@@ -448,6 +516,12 @@ let browser;
   await page
     .getByText("Could not load the guide", { exact: true })
     .waitFor({ timeout: 60000 });
+  await resetScroll();
+  const errorHeader = await page
+    .getByText("Proposition 5", { exact: true })
+    .boundingBox();
+  if (!errorHeader || errorHeader.y < 0)
+    throw new Error("Error capture lost its route header");
   await page.screenshot({
     path: "docs/screenshots/issue-426/guide-error.png",
     fullPage: true,
