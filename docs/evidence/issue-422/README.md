@@ -32,6 +32,23 @@ reload, a different election starts at Unsure, return restores the guide heading
 and keyboard focus, and the sparse How to Vote returns focus to its ballot entry.
 No page exceptions occurred in these sessions.
 
+## Visual cues revision
+
+The final visual revision uses blue task badges for registration and method choice,
+plus labeled help/envelope/location icons in the existing selected control. A lock
+pairs with the explicit device-only preference status. Mail guidance uses three
+separate icon-led rows—request document, postmark clock, receipt destination—so
+readers can distinguish the questions without reading a paragraph first. Icons
+and color do not convey completion, eligibility, or verified registration. All
+meaning has text equivalents; decorative glyphs are hidden from accessibility.
+
+The actual integrated screenshots include these changes across selected, missing,
+error and enlarged-text states. The fresh independent Astra visual-cues reviewer
+found the next action clear, deadline distinctions comprehensible, and icon density
+restrained. Its follow-up review confirmed that icons above method labels resolve
+the cramped enlarged selector, with no remaining actionable screenshot or semantic
+blocker. Exact commit confirmation is recorded in the PR screenshot comment. Existing native/live/reader/editorial gates apply.
+
 ## Design review iteration
 
 The fresh rigorous screenshot-first Astra critique and the independent four-PR

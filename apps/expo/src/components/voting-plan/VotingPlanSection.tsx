@@ -3,12 +3,20 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import type { IconName } from "~/components/ui/Icon";
 import type { VotingLogisticsData } from "~/utils/voting-logistics";
 import type { PlanMethod } from "~/utils/voting-plan";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Card, Icon, Segmented } from "~/components/ui";
-import { fontBody, fontEditorial, hair, sp, useTheme } from "~/styles";
+import {
+  fontBody,
+  fontEditorial,
+  hair,
+  DigestPalette as P,
+  sp,
+  useTheme,
+} from "~/styles";
 import { votingInformationLinks } from "~/utils/voting-logistics";
 import {
   hasVotingPlanLogistics,
@@ -20,7 +28,73 @@ import {
 
 const ca = "https://www.sos.ca.gov/elections";
 
-function Detail({ label, children }: { label: string; children: ReactNode }) {
+function Cue({ name, size = 18 }: { name: IconName; size?: number }) {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      aria-hidden
+    >
+      <Icon name={name} size={size} color={P.inkOnNight} />
+    </View>
+  );
+}
+
+function StepHeading({
+  icon,
+  children,
+}: {
+  icon: IconName;
+  children: ReactNode;
+}) {
+  const { theme } = useTheme();
+  return (
+    <View style={s.row}>
+      <View style={s.stepIcon}>
+        <Cue name={icon} />
+      </View>
+      <Text
+        accessibilityRole="header"
+        style={[s.heading, s.flex, { color: theme.foreground }]}
+      >
+        {children}
+      </Text>
+    </View>
+  );
+}
+
+function Deadline({
+  icon,
+  label,
+  children,
+}: {
+  icon: IconName;
+  label: string;
+  children: ReactNode;
+}) {
+  const { theme } = useTheme();
+  return (
+    <View style={s.deadline}>
+      <View style={s.deadlineIcon}>
+        <Cue name={icon} />
+      </View>
+      <View style={s.flex}>
+        <Text style={[s.action, { color: theme.foreground }]}>{label}</Text>
+        <Text style={[s.body, { color: theme.foreground }]}>{children}</Text>
+      </View>
+    </View>
+  );
+}
+
+function Detail({
+  label,
+  children,
+  icon,
+}: {
+  label: string;
+  children: ReactNode;
+  icon?: IconName;
+}) {
   const [open, setOpen] = useState(false);
   const { theme } = useTheme();
   return (
@@ -32,6 +106,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
         onPress={() => setOpen(!open)}
         style={s.disclosure}
       >
+        {icon && <Cue name={icon} />}
         <Text style={[s.action, s.flex, { color: theme.foreground }]}>
           {label}
         </Text>
@@ -227,9 +302,7 @@ function Plan({
             </Text>
           )}
           <View style={s.step}>
-            <Text accessibilityRole="header" style={heading}>
-              1. Check registration
-            </Text>
+            <StepHeading icon="user">1. Check registration</StepHeading>
             {check ? (
               <>
                 <SourceLink
@@ -265,17 +338,18 @@ function Plan({
             )}
           </View>
           <View style={s.step}>
-            <Text accessibilityRole="header" style={heading}>
+            <StepHeading icon="vote">
               2. How would you like to vote?
-            </Text>
+            </StepHeading>
             {loaded ? (
               <Segmented<PlanMethod>
+                iconPosition="above"
                 value={method}
                 onChange={choose}
                 options={[
-                  { id: "undecided", label: "Unsure" },
-                  { id: "mail", label: "By mail" },
-                  { id: "in-person", label: "In person" },
+                  { id: "undecided", label: "Unsure", icon: "help" },
+                  { id: "mail", label: "By mail", icon: "mail" },
+                  { id: "in-person", label: "In person", icon: "pin" },
                 ]}
               />
             ) : (
@@ -285,15 +359,21 @@ function Plan({
               !storageKey ||
               saving ||
               method !== "undecided") && (
-              <Text accessibilityLiveRegion="polite" style={caption}>
-                {storageFailed
-                  ? "Couldn’t save. Your choice may be lost when you leave."
-                  : !storageKey
-                    ? "This choice is temporary while election details are unavailable."
-                    : saving
-                      ? "Saving…"
-                      : "Saved on this device"}
-              </Text>
+              <View style={s.row}>
+                <Cue name={storageFailed ? "info" : "lock"} size={14} />
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={[...caption, s.flex]}
+                >
+                  {storageFailed
+                    ? "Couldn’t save. Your choice may be lost when you leave."
+                    : !storageKey
+                      ? "This choice is temporary while election details are unavailable."
+                      : saving
+                        ? "Saving…"
+                        : "Saved on this device"}
+                </Text>
+              </View>
             )}
             {!check && officeAction ? (
               <Text style={caption}>
@@ -328,20 +408,19 @@ function Plan({
               </Pressable>
             )}
             {method === "mail" && (
-              <Detail label="Mail deadlines & tracking">
+              <Detail label="Mail deadlines & tracking" icon="clock">
                 <Text style={body}>
                   Check these separately with your election office:
                 </Text>
-                <Text style={body}>
-                  Request — whether you need to request a ballot, and by when.
-                </Text>
-                <Text style={body}>
-                  Postmark — when the postal service must mark your return
-                  envelope.
-                </Text>
-                <Text style={body}>
-                  Receipt — when the election office must receive your ballot.
-                </Text>
+                <Deadline icon="doc" label="Request">
+                  Check if you need to request a ballot, and by when.
+                </Deadline>
+                <Deadline icon="clock" label="Postmark">
+                  When the postal service must mark your return envelope.
+                </Deadline>
+                <Deadline icon="home" label="Receipt">
+                  When the election office must receive your ballot.
+                </Deadline>
                 {california && (
                   <SourceLink
                     label="Track my ballot"
@@ -356,7 +435,7 @@ function Plan({
               </Detail>
             )}
             {method === "in-person" && (
-              <Detail label="Before you go">
+              <Detail label="Before you go" icon="pin">
                 <Text style={body}>
                   Confirm the location, early-voting dates or Election Day
                   hours, and what to bring. Missing location details here don’t
@@ -371,7 +450,7 @@ function Plan({
               </Detail>
             )}
           </View>
-          <Detail label="More voting help & privacy">
+          <Detail label="More voting help & privacy" icon="help">
             <Detail label="Voting in a primary?">
               <Text style={body}>
                 Check which contests you can vote in, whether party enrollment
@@ -435,6 +514,27 @@ function Plan({
   );
 }
 const s = StyleSheet.create({
+  stepIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: P.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deadlineIcon: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deadline: {
+    flexDirection: "row",
+    gap: sp[2],
+    paddingVertical: sp[2],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: hair[2],
+  },
   open: { minHeight: 48, gap: sp[2], paddingVertical: sp[2] },
   steps: { gap: sp[3], paddingTop: sp[3] },
   step: { gap: sp[2] },
