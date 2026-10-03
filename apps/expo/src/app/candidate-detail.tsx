@@ -21,9 +21,10 @@ import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
 import {
   fontBody,
-  fontDisplay,
   fontEditorial,
+  hair,
   DigestPalette as P,
+  planes,
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
@@ -416,9 +417,9 @@ const s = StyleSheet.create({
   identityText: { flex: 1, gap: 3 },
   name: {
     color: P.inkOnNight,
-    fontFamily: fontDisplay.bold,
-    fontSize: 25,
-    lineHeight: 29,
+    fontFamily: fontEditorial.bold,
+    fontSize: 22,
+    lineHeight: 28,
   },
   office: { color: P.inkOnNight, fontFamily: fontEditorial.bold, fontSize: 16 },
   heroMeta: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 12 },
@@ -432,7 +433,8 @@ const s = StyleSheet.create({
   sectionTitle: {
     color: P.inkOnNight,
     fontFamily: fontEditorial.bold,
-    fontSize: 19,
+    fontSize: 18,
+    lineHeight: 23,
   },
   sectionIntro: {
     color: P.quiet,
@@ -440,21 +442,33 @@ const s = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  panel: { padding: 16, gap: 10 },
+  panel: {
+    backgroundColor: planes.slate,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[1],
+    padding: 15,
+    gap: 11,
+  },
   statementPreview: {
     color: P.inkOnNight,
-    fontFamily: fontEditorial.regular,
-    fontSize: 16,
+    fontFamily: fontBody.regular,
+    fontSize: 15,
     lineHeight: 23,
   },
   action: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 },
   actionText: {
     flexShrink: 1,
     color: P.inkOnNight,
+    textDecorationLine: "underline",
     fontFamily: fontBody.semibold,
-    fontSize: 14,
+    fontSize: 12,
   },
-  heading: { color: P.inkOnNight, fontFamily: fontDisplay.bold, fontSize: 22 },
+  heading: {
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 18,
+  },
   body: {
     color: P.inkOnNight,
     fontFamily: fontBody.regular,

@@ -16,7 +16,7 @@ import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import {
   colors,
   fontBody,
-  fontDisplay,
+  fontEditorial,
   DigestPalette as P,
   planes,
 } from "~/styles";
@@ -162,7 +162,7 @@ export function CaliforniaGuidePreview({
 
       {query.isPending && <ActivityIndicator color={colors.bill} />}
       {query.isError && (
-        <Card>
+        <Card style={s.recoveryCard}>
           <Text style={[s.introText, { color: P.inkOnNight }]}>
             The official guide could not load.
           </Text>
@@ -176,7 +176,7 @@ export function CaliforniaGuidePreview({
         </Card>
       )}
       {!query.isPending && !query.isError && !guide && (
-        <Card>
+        <Card style={s.recoveryCard}>
           <Text style={[s.introText, { color: P.inkOnNight }]}>
             Guide data is unavailable to Billion. Check the official guide or
             your election office.
@@ -284,20 +284,21 @@ export function CaliforniaGuidePreview({
 }
 
 const s = StyleSheet.create({
+  recoveryCard: { borderRadius: 14, padding: 15 },
   screen: { paddingHorizontal: 20, gap: 22 },
   intro: { paddingTop: 20, gap: 12 },
   kicker: { color: colors.bill, fontFamily: fontBody.semibold, fontSize: 12 },
   headline: {
     color: "#FFFFFF",
-    fontFamily: fontDisplay.bold,
-    fontSize: 30,
-    lineHeight: 36,
+    fontFamily: fontEditorial.bold,
+    fontSize: 24,
+    lineHeight: 30,
   },
   introText: {
     color: colors.textSecondary,
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 23,
   },
   scope: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   scopeText: {
@@ -334,7 +335,7 @@ const s = StyleSheet.create({
   cardIdentity: { flex: 1, gap: 5 },
   cardTitle: {
     color: "#FFFFFF",
-    fontFamily: fontDisplay.bold,
+    fontFamily: fontEditorial.bold,
     fontSize: 19,
     lineHeight: 24,
   },
@@ -365,7 +366,7 @@ const s = StyleSheet.create({
   },
   measureNumberText: {
     color: planes.navy,
-    fontFamily: fontDisplay.bold,
+    fontFamily: fontEditorial.bold,
     fontSize: 24,
   },
   detailBlock: { gap: 4 },
@@ -377,15 +378,16 @@ const s = StyleSheet.create({
   },
   footer: { gap: 12, paddingBottom: 18 },
   retryButton: {
-    minHeight: 48,
-    padding: 12,
+    minHeight: 44,
+    paddingHorizontal: 13,
     marginTop: 12,
-    borderRadius: 10,
-    backgroundColor: P.inkOnNight,
+    borderRadius: 999,
+    backgroundColor: P.primary,
+    alignSelf: "flex-start",
     alignItems: "center",
     justifyContent: "center",
   },
-  retry: { color: P.canvas, fontFamily: fontBody.semibold, fontSize: 16 },
+  retry: { color: P.ink, fontFamily: fontBody.semibold, fontSize: 12 },
   fixtureLink: { color: colors.textSecondary, paddingVertical: 16 },
   addressAction: {
     minHeight: 48,

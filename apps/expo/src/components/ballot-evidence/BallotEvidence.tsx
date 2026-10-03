@@ -8,7 +8,9 @@ import {
   DigestHair,
   fontBody,
   fontEditorial,
+  hair,
   DigestPalette as P,
+  planes,
   sp,
 } from "~/styles";
 import { BallotText as Text } from "./BallotText";
@@ -52,7 +54,7 @@ export function SourceLink({
         <Icon
           name="external"
           size={16}
-          color={prominence === "primary" ? P.canvas : P.primary}
+          color={prominence === "primary" ? P.ink : P.primary}
         />
       </Pressable>
       {failed && (
@@ -389,23 +391,28 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
   },
   primary: {
-    backgroundColor: P.inkOnNight,
-    paddingHorizontal: sp[5],
-    borderRadius: 10,
+    backgroundColor: P.primary,
+    alignSelf: "flex-start",
+    paddingHorizontal: 13,
+    borderRadius: 999,
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 44,
   },
   primaryText: {
     textDecorationLine: "none",
     fontFamily: fontBody.semibold,
-    color: P.canvas,
+    color: P.ink,
   },
   disclosure: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: DigestHair.sectionRule,
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    marginBottom: 10,
   },
   row: {
-    minHeight: 56,
+    minHeight: 52,
     paddingVertical: sp[3],
     flexDirection: "row",
     alignItems: "center",
@@ -414,17 +421,17 @@ const s = StyleSheet.create({
   rowText: { flex: 1, gap: sp[1] },
   disclosureBody: { paddingBottom: sp[4], gap: sp[3] },
   citation: { paddingVertical: sp[2], gap: 2 },
-  label: { fontFamily: fontBody.semibold, fontSize: 16, color: P.inkOnNight },
+  label: { fontFamily: fontEditorial.bold, fontSize: 16, color: P.inkOnNight },
   body: {
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 13.5,
+    lineHeight: 20,
     color: P.inkOnNight,
   },
   secondary: {
     fontFamily: fontBody.regular,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 11.5,
+    lineHeight: 17,
     color: P.inkOnNight,
     opacity: 0.7,
   },
@@ -435,19 +442,16 @@ const s = StyleSheet.create({
     alignItems: "center",
     alignSelf: "stretch",
     justifyContent: "space-between",
-    paddingHorizontal: sp[4],
-    backgroundColor: P.canvas,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
+    paddingHorizontal: 0,
     borderRadius: 10,
     gap: sp[2],
   },
   linkText: {
-    textDecorationLine: "none",
+    textDecorationLine: "underline",
     flexShrink: 1,
     fontFamily: fontBody.medium,
-    fontSize: 16,
-    color: P.primary,
+    fontSize: 12,
+    color: P.inkOnNight,
   },
   recoveryCard: {
     backgroundColor: P.card,

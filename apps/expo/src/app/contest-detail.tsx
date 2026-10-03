@@ -38,8 +38,8 @@ import {
   DigestHair,
   DigestRadii,
   fontBody,
-  fontDisplay,
   fontEditorial,
+  hair,
   DigestPalette as P,
   planes,
 } from "~/styles";
@@ -49,8 +49,8 @@ import { parseRouteArray } from "~/utils/route-array";
 const cardChrome = {
   backgroundColor: P.card,
   borderRadius: DigestRadii.menu,
-  borderWidth: StyleSheet.hairlineWidth,
-  borderColor: DigestHair.cardBorder,
+  borderWidth: 1,
+  borderColor: hair[1],
 } as const;
 
 interface CandidateCitation {
@@ -345,8 +345,8 @@ export default function ContestDetailScreen() {
           {(candidates.length > 1 || filtering) && (
             <Text style={s.readingLabel}>
               {filtering
-                ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
-                : `${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
+                ? `${filtered.length} of ${candidates.length} names shown`
+                : `${candidates.length} name${candidates.length !== 1 ? "s" : ""} shown`}
             </Text>
           )}
 
@@ -663,9 +663,9 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   office: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 30,
-    lineHeight: 34,
+    fontFamily: fontEditorial.bold,
+    fontSize: 22,
+    lineHeight: 28,
     color: P.inkOnNight,
     marginBottom: 4,
     letterSpacing: -0.55,
@@ -718,9 +718,9 @@ const s = StyleSheet.create({
     gap: 12,
   },
   identityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     backgroundColor: planes.surface,
     alignItems: "center",
     justifyContent: "center",
@@ -734,8 +734,8 @@ const s = StyleSheet.create({
   },
   candName: {
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     letterSpacing: -0.2,
     color: P.inkOnNight,
   },
@@ -754,18 +754,18 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  emptyState: { ...cardChrome, gap: 12, padding: 20 },
+  emptyState: { ...cardChrome, gap: 11, padding: 15 },
   emptyTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     color: P.inkOnNight,
   },
   candidateSection: { gap: 18 },
   readingLabel: {
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     color: P.inkOnNight,
     marginBottom: 8,
   },
@@ -784,9 +784,9 @@ const s = StyleSheet.create({
   },
   candBio: {
     fontFamily: fontBody.regular,
-    fontSize: 17,
+    fontSize: 15,
     color: P.inkOnNight,
-    lineHeight: 26,
+    lineHeight: 23,
     marginBottom: 4,
   },
   candParty: {
