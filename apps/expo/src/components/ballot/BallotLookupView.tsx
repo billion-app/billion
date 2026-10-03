@@ -19,7 +19,9 @@ import { useFocusEffect, useRouter } from "expo-router";
 
 import type { BallotResponse } from "~/utils/ballot-lookup";
 import {
+  BallotDisclosure,
   BallotLanguages,
+  BallotProvenanceRows,
   BallotStatusNotice,
   SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
@@ -47,6 +49,8 @@ import {
   validateBallotAddress,
 } from "~/utils/ballot-lookup";
 import { hasVotingPlanLogistics } from "~/utils/voting-plan";
+import { electionType, electionTypeLabel } from "~/utils/elections";
+
 import { BallotContestCard } from "./BallotContestCard";
 
 export interface BallotLookupViewProps {
@@ -474,6 +478,11 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           />
         )}
         {!editing && props.failed && addressSummary}
+        {(data?.kind === "development-fixture" || data?.kind === "fixture") && (
+          <Text style={s.secondary}>
+            Example ballot · not real election information
+          </Text>
+        )}
         {model && data && (
           <>
             {data.provider?.addressScope === "statewide_only" && (
@@ -528,8 +537,8 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               <>
                 <Text style={s.coverage}>
                   {model.contests.length}{" "}
-                  {model.contests.length === 1 ? "contest" : "contests"} ·
-                  Coverage may be incomplete
+                  {model.contests.length === 1 ? "contest" : "contests"} · List
+                  may be incomplete
                 </Text>
                 <Segmented
                   value={ballotTab}
@@ -570,8 +579,18 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                     <BallotContestCard
                       key={`${model.election?.id ?? "unknown"}:${index}`}
                       contest={contest}
-                      state={model.isCalifornia ? "CA" : undefined}
+                      state={
+                        model.isCalifornia ? "CA" : data.normalizedInput?.state
+                      }
                       electionDate={model.election?.electionDay}
+                      electionStage={
+                        electionType(model.election?.name) === "other"
+                          ? undefined
+                          : electionTypeLabel(
+                              electionType(model.election?.name),
+                            )
+                      }
+                      provider={data.provider}
                     />
                   ))}
               </>
@@ -600,23 +619,20 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               </View>
             )}
             {data.provider && (
-              <View style={s.provider}>
-                <Text style={s.secondary}>
-                  {data.kind === "development-fixture"
-                    ? "Synthetic development data. Not a real ballot."
-                    : "Ballot data from Democracy Works. Coverage is partial."}
-                </Text>
-                {data.provider.sourceUrl && (
-                  <SourceLink
-                    label={
-                      data.kind === "development-fixture"
-                        ? "Fixture reference"
-                        : "View ballot data source"
-                    }
-                    url={data.provider.sourceUrl}
-                  />
-                )}
-              </View>
+              <BallotDisclosure
+                title="Sources & updates"
+                detail="Ballot source and retrieval date"
+              >
+                <BallotProvenanceRows
+                  sourceName={
+                    data.kind === "development-fixture"
+                      ? "Synthetic development fixture"
+                      : "Democracy Works"
+                  }
+                  sourceUrl={data.provider.sourceUrl}
+                  fetchedAt={data.provider.fetchedAt}
+                />
+              </BallotDisclosure>
             )}
             {model.isCalifornia &&
               model.election &&

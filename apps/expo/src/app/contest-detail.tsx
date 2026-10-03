@@ -16,9 +16,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Fuse from "fuse.js";
 
 import {
-  BallotDetailEvidence,
+  BallotDisclosure,
+  BallotLanguages,
+  BallotProvenanceRows,
   BallotSources,
   ElectionOfficeLink,
+  SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
 import {
   BallotAiDisclosure,
@@ -27,6 +30,8 @@ import {
   BallotReadingMode,
 } from "~/components/ballot-evidence/BallotReadingCard";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { CandidateBallotStatus } from "~/components/ballot-evidence/CandidateBallotStatus";
+import { candidateStatusLabel } from "~/components/ballot-evidence/election-status";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Card, Icon, NavHeader } from "~/components/ui";
@@ -42,6 +47,7 @@ import {
   DigestPalette as P,
   planes,
 } from "~/styles";
+import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { parseRouteArray } from "~/utils/route-array";
 
 const cardChrome = {
@@ -153,6 +159,10 @@ export default function ContestDetailScreen() {
     roleDescription: string;
     state?: string;
     electionDate?: string;
+    electionStage?: string;
+    ballotSourceName?: string;
+    ballotSourceUrl?: string;
+    ballotFetchedAt?: string;
     districtId?: string;
     citations?: string;
   }>();
@@ -302,10 +312,31 @@ export default function ContestDetailScreen() {
         <Text accessibilityRole="header" style={s.office}>
           {params.office}
         </Text>
-        {params.districtName ? (
-          <Text style={s.district}>{params.districtName}</Text>
-        ) : null}
-
+        <Text style={s.district}>
+          {[
+            params.districtName,
+            params.electionDate
+              ? ballotElectionDate(params.electionDate)
+              : "Election date unavailable",
+            params.electionStage?.trim()
+              ? params.electionStage.trim()
+              : "Election stage unavailable",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </Text>
+        {candidates.length > 0 && (
+          <View style={{ marginTop: 12, gap: 4 }}>
+            <Text style={s.district}>
+              This list may be incomplete. Confirm whether this race is on your
+              ballot with your election office.
+            </Text>
+            <SourceLink
+              label="Find your election office"
+              url="https://www.usa.gov/state-election-office"
+            />
+          </View>
+        )}
         <OfficeRole
           office={params.office}
           state={params.state}
@@ -319,6 +350,7 @@ export default function ContestDetailScreen() {
             jurisdiction: params.state ?? "",
           }}
         />
+
 
 
         {description ? (
@@ -485,9 +517,7 @@ export default function ContestDetailScreen() {
                       cand.name,
                       cand.party,
                       cand.incumbent ? "Incumbent" : undefined,
-                      cand.ballotStatus === "withdrewStillOnBallot"
-                        ? "Withdrawn; still on ballot"
-                        : undefined,
+                      candidateStatusLabel(cand.ballotStatus),
                     ]
                       .filter(Boolean)
                       .join(", ")}
@@ -518,11 +548,10 @@ export default function ContestDetailScreen() {
                       {cand.party ? (
                         <Text style={s.candParty}>{cand.party}</Text>
                       ) : null}
-                      {cand.ballotStatus === "withdrewStillOnBallot" && (
-                        <Text style={s.withdrawn}>
-                          Withdrawn; still on ballot
-                        </Text>
-                      )}
+                      <CandidateBallotStatus
+                        status={cand.ballotStatus}
+                        compact
+                      />
                     </View>
                     <Icon
                       name={open ? "chevD" : "chevR"}
@@ -543,6 +572,10 @@ export default function ContestDetailScreen() {
                               office: params.office,
                               state: params.state,
                               electionDate: params.electionDate,
+                              electionStage: params.electionStage,
+                              ballotSourceName: params.ballotSourceName,
+                              ballotSourceUrl: params.ballotSourceUrl,
+                              ballotFetchedAt: params.ballotFetchedAt,
                               districtId: params.districtId,
                               district: params.districtName,
                               candidate: JSON.stringify(cand),
@@ -642,14 +675,23 @@ export default function ContestDetailScreen() {
             {contactError}
           </Text>
         )}
-        {raceCitations.length > 0 ? (
-          <BallotDetailEvidence
-            citations={raceCitations}
-            showOfficeLink={candidates.length > 0}
+        <BallotDisclosure
+          title="Sources & updates"
+          detail="Ballot source and retrieval date"
+        >
+          <BallotProvenanceRows
+            sourceName={params.ballotSourceName}
+            sourceUrl={params.ballotSourceUrl}
+            fetchedAt={params.ballotFetchedAt}
           />
-        ) : candidates.length > 0 ? (
-          <ElectionOfficeLink />
-        ) : null}
+          <BallotSources
+            citations={raceCitations}
+            contentKind="citations"
+            showRecovery={false}
+          />
+        </BallotDisclosure>
+        <BallotLanguages items={[]} showRecovery={false} />
+
       </ScrollView>
     </View>
   );
@@ -799,12 +841,6 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
     lineHeight: 26,
     marginBottom: 4,
-  },
-  withdrawn: {
-    fontFamily: fontBody.medium,
-    fontSize: 14,
-    color: P.inkOnNight,
-    marginTop: 8,
   },
   candParty: {
     fontFamily: fontBody.medium,

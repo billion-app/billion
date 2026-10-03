@@ -19,11 +19,19 @@ import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
-import { colors, fontBody, fontDisplay, planes } from "~/styles";
+import {
+  colors,
+  fontBody,
+  fontDisplay,
+  DigestPalette as P,
+  planes,
+} from "~/styles";
+
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
 import { propositionDetailRoute } from "~/utils/proposition-explainers";
+import { electionCoverageLabel } from "../ballot-evidence/election-status";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
@@ -212,11 +220,26 @@ export function CaliforniaGuidePreview({
 
 
       {query.isPending && <ActivityIndicator color={colors.bill} />}
-      {!query.isPending && !guide && (
-        <Card style={{ gap: 16 }}>
-          <Text style={[s.introText, { color: colors.white, marginTop: 0 }]}>
-            Read California’s candidate statements and propositions on the
-            official guide website.
+      {query.isError && (
+        <Card>
+          <Text style={[s.introText, { color: P.inkOnNight }]}>
+            The official guide could not load.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={s.retryButton}
+            onPress={() => void query.refetch()}
+          >
+            <Text style={s.retry}>Try again</Text>
+          </TouchableOpacity>
+        </Card>
+      )}
+      {!query.isPending && !query.isError && !guide && (
+        <Card>
+          <Text style={[s.introText, { color: P.inkOnNight }]}>
+            Guide data is unavailable to Billion. Check the official guide or
+            your election office.
+
           </Text>
           <SourceLink
             label="Read the official guide"
@@ -253,13 +276,27 @@ export function CaliforniaGuidePreview({
             : undefined
         }
       />
+      {!query.isPending && (query.isError || !guide) && (
+        <View style={s.intro}>
+          <SourceLink
+            label="California official voter guide"
+            prominence="primary"
+            url="https://voterguide.sos.ca.gov/"
+          />
+          <SourceLink
+            label="Find your county elections office"
+            url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
+          />
+        </View>
+      )}
+
       {guide && (
         <>
           <View style={s.scope}>
             <Icon name="info" size={16} color={colors.textSecondary} />
             <Text style={s.scopeText}>
-              Statewide preview, not your address-specific ballot. Local races
-              and measures are not shown.
+              {electionCoverageLabel("statement-guide")}. Statewide preview;
+              local races and measures are not shown.
             </Text>
           </View>
           <Segmented<GuideTab>
@@ -433,7 +470,16 @@ const s = StyleSheet.create({
     lineHeight: 21,
   },
   footer: { gap: 12, paddingBottom: 18 },
-  retry: { color: colors.bill, fontFamily: fontBody.semibold, marginTop: 14 },
+  retryButton: {
+    minHeight: 48,
+    padding: 12,
+    marginTop: 12,
+    borderRadius: 10,
+    backgroundColor: P.inkOnNight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  retry: { color: P.canvas, fontFamily: fontBody.semibold, fontSize: 16 },
   fixtureLink: { color: colors.textSecondary, paddingVertical: 16 },
   addressAction: {
     minHeight: 48,

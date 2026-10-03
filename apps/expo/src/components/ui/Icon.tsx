@@ -53,6 +53,7 @@ type IconName =
   | "arrowUp"
   | "arrowDown"
   | "arrowRight"
+  | "minusCircle"
   | "minus"
   | "quote"
   | "book"
@@ -116,6 +117,7 @@ const MAP: Record<IconName, { family: Family; name: string }> = {
   arrowUp: { family: "feather", name: "arrow-up" },
   arrowDown: { family: "feather", name: "arrow-down" },
   arrowRight: { family: "feather", name: "arrow-right" },
+  minusCircle: { family: "feather", name: "minus-circle" },
   minus: { family: "feather", name: "minus" },
   quote: { family: "fa", name: "quote-left" },
   book: { family: "feather", name: "book-open" },
