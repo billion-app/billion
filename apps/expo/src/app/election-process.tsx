@@ -226,13 +226,13 @@ function OfficialLink({
           );
         }}
       >
-        <Text style={[s.link, { flex: 1 }, primary && { color: planes.ink }]}>
+        <Text style={[s.link, { flex: 1 }, primary && { color: colors.bill }]}>
           {label}
         </Text>
         <Icon
           name="external"
           size={16}
-          color={primary ? planes.ink : colors.textSecondary}
+          color={primary ? colors.bill : colors.textSecondary}
         />
       </Pressable>
       {failed && (
@@ -293,7 +293,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     borderRadius: 10,
   },
-  selectedExample: { backgroundColor: planes.paper },
+  selectedExample: { backgroundColor: colors.bill },
   exampleText: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
@@ -312,7 +312,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: hair[1],
   },
-  primarySource: { backgroundColor: planes.paper },
+  primarySource: { backgroundColor: planes.slate },
   screen: { flex: 1, backgroundColor: P.canvas },
   content: { padding: sp[5], gap: sp[4], paddingBottom: sp[12] },
   intro: { gap: sp[2] },
