@@ -25,9 +25,17 @@ import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
+import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { posthog } from "~/config/posthog";
 import { useUserAddress } from "~/hooks/useUserAddress";
-import { colors, fontBody, hair, planes } from "~/styles";
+import {
+  colors,
+  fontBody,
+  fontDisplay,
+  fontEditorial,
+  hair,
+  planes,
+} from "~/styles";
 import { trpc } from "~/utils/api";
 import {
   ballotElectionDate,
@@ -172,16 +180,23 @@ function MeasureCard({
 }
 
 export default function ElectionsScreen() {
+  const router = useRouter();
   const [view, setView] = useState<"entry" | "guide" | "ballot" | "fixtures">(
     "entry",
   );
   if (view === "entry")
-    return <CaliforniaElectionEntry onExplore={() => setView("guide")} />;
+    return (
+      <CaliforniaElectionEntry
+        onExplore={() => setView("guide")}
+        onLookup={() => router.push("/ballot")}
+      />
+    );
   if (__DEV__ && view === "fixtures") return <DevelopmentElections />;
   if (view === "ballot") return <ElectionsLive />;
   return (
     <CaliforniaGuidePreview
-      onOpenBallot={__DEV__ ? () => setView("ballot") : undefined}
+      onOpenBallot={() => router.push("/ballot")}
+      onBack={() => setView("entry")}
       onOpenFixtures={__DEV__ ? () => setView("fixtures") : undefined}
     />
   );
@@ -195,7 +210,7 @@ function DevelopmentElections() {
       previewAddress={scenario === "live" ? undefined : `mock:${scenario}`}
       devControls={
         <View>
-          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+          <Text style={{ color: "rgba(255,255,255,0.70)", fontSize: 12 }}>
             Development · synthetic ballot scenarios
           </Text>
           <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
@@ -224,39 +239,135 @@ function DevelopmentElections() {
   );
 }
 
-function CaliforniaElectionEntry({ onExplore }: { onExplore: () => void }) {
-  const guide = useQuery(trpc.civic.getCaliforniaGuide.queryOptions()).data;
+function CaliforniaElectionEntry({
+  onExplore,
+  onLookup,
+}: {
+  onExplore: () => void;
+  onLookup: () => void;
+}) {
+  const router = useRouter();
+  const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
+  const guide = query.isError ? undefined : query.data;
+
   return (
     <TabScreen title="Elections">
       <View style={s.entry}>
-        <View style={s.entryRule} />
         <Text style={s.entryKicker}>
           {guide
             ? `${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`
             : "CALIFORNIA STATEWIDE GUIDE"}
         </Text>
         <Text style={s.entryTitle}>Voting in California?</Text>
-        <Text style={s.entryBody}>
-          Explore official candidate statements and statewide propositions.
-          Local races and measures depend on where you vote.
-        </Text>
+        <Card style={s.entryGuide}>
+          <View style={s.entryGuideHead}>
+            <View
+              style={s.entryIcon}
+              accessible={false}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Icon name="book" size={18} color={colors.bill} />
+            </View>
+            <Text accessibilityRole="header" style={s.entryGuideTitle}>
+              The statewide guide
+            </Text>
+          </View>
+          <Text style={s.entryBody}>
+            Read official candidate statements and statewide propositions.
+          </Text>
+          <Text style={s.entryNoteText}>
+            Statewide information, not your personal ballot.
+          </Text>
+          {query.isPending ? (
+            <View style={s.entryButton}>
+              <Text accessibilityLiveRegion="polite" style={s.entryButtonText}>
+                Loading statewide preview…
+              </Text>
+              <ActivityIndicator color={colors.bill} />
+            </View>
+          ) : guide ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Explore the California statewide guide"
+              activeOpacity={0.8}
+              onPress={onExplore}
+              style={s.entryButton}
+            >
+              <Text style={s.entryButtonText}>Explore the guide</Text>
+              <Icon name="arrowRight" size={16} color={colors.bill} />
+            </TouchableOpacity>
+          ) : (
+            <SourceLink
+              label="Read California’s official guide"
+              url="https://voterguide.sos.ca.gov/"
+              prominence="primary"
+            />
+          )}
+        </Card>
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Try the California ballot preview"
-          activeOpacity={0.85}
-          onPress={onExplore}
-          style={s.entryButton}
+          accessibilityLabel="Learn how elections work"
+          onPress={() => router.push("/election-process")}
+          style={s.entryTool}
         >
-          <Text style={s.entryButtonText}>Try it now</Text>
-          <Icon name="arrowRight" size={19} color={planes.navy} />
+          <View
+            style={s.entryIcon}
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon name="users" size={18} color={colors.bill} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={s.entryGuideTitle}>How elections work</Text>
+            <Text style={s.entryNoteText}>
+              Primaries, nominations and your vote.
+            </Text>
+          </View>
+          <Icon name="chevR" size={16} color={colors.bill} />
         </TouchableOpacity>
-        <View style={s.entryNote}>
-          <Icon name="info" size={16} color={colors.textSecondary} />
-          <Text style={s.entryNoteText}>
-            Coverage is still growing. Confirm your ballot and voting options
-            with your election office.
-          </Text>
-        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => router.push("/ballot-preparation")}
+          style={s.entryTool}
+        >
+          <View
+            style={s.entryIcon}
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon name="bookmark" size={18} color={colors.bill} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={s.entryGuideTitle}>Your saved notes</Text>
+            <Text style={s.entryNoteText}>
+              Private reading notes on this device.
+            </Text>
+          </View>
+          <Icon name="chevR" size={16} color={colors.bill} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={onLookup}
+          accessibilityLabel="Find my official ballot through my election office"
+          style={s.entryTool}
+        >
+          <View
+            style={s.entryIcon}
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon name="pin" size={18} color={colors.bill} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={s.entryGuideTitle}>Find my official ballot</Text>
+            <Text style={s.entryNoteText}>Through your election office.</Text>
+          </View>
+          <Icon name="arrowRight" size={16} color={colors.bill} />
+        </TouchableOpacity>
       </View>
     </TabScreen>
   );
@@ -579,6 +690,11 @@ function ElectionsLive({
         )}
 
       <View style={s.section}>
+        <VotingPlanSection
+          election={selected}
+          data={data}
+          california={hasVerifiedCaliforniaAddress}
+        />
         <VotingLogisticsSection
           data={data}
           status={
@@ -597,58 +713,78 @@ function ElectionsLive({
 }
 
 const s = StyleSheet.create({
-  entry: { paddingHorizontal: 20, paddingTop: 30 },
-  entryRule: { width: 44, height: 3, backgroundColor: colors.bill },
+  entry: { paddingHorizontal: 20, paddingTop: 16, gap: 18 },
   entryKicker: {
     fontFamily: fontBody.semibold,
     fontSize: 11,
-    color: colors.bill,
-    marginTop: 28,
+    color: "rgba(255,255,255,0.70)",
+    letterSpacing: 0.5,
   },
   entryTitle: {
-    fontFamily: "InriaSerif-Bold",
-    fontSize: 32,
-    lineHeight: 39,
+    fontFamily: fontDisplay.bold,
+    fontSize: 30,
+    lineHeight: 34,
     color: colors.white,
-    marginTop: 12,
+  },
+  entryGuide: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderLeftWidth: 3,
+    borderLeftColor: colors.bill,
+    borderRadius: 14,
+    padding: 16,
+    gap: 13,
+  },
+  entryGuideHead: { flexDirection: "row", alignItems: "center", gap: 9 },
+  entryGuideTitle: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 22,
+    color: colors.white,
+  },
+  entryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: `${colors.bill}28`,
+    alignItems: "center",
+    justifyContent: "center",
   },
   entryBody: {
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.textSecondary,
-    marginTop: 14,
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.white,
   },
   entryButton: {
-    minHeight: 56,
-    marginTop: 30,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: colors.bill,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    alignSelf: "flex-start",
+    gap: 8,
   },
   entryButtonText: {
     fontFamily: fontBody.semibold,
-    fontSize: 16,
-    color: planes.navy,
-  },
-  entryNote: {
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "flex-start",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: hair[2],
-    marginTop: 34,
-    paddingTop: 18,
+    fontSize: 12,
+    color: colors.white,
   },
   entryNoteText: {
-    flex: 1,
     fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.textSecondary,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: "rgba(255,255,255,0.70)",
+  },
+  entryTool: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderRadius: 14,
+    padding: 14,
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   addrCard: {
     flexDirection: "row",
@@ -666,7 +802,7 @@ const s = StyleSheet.create({
   addrKicker: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 11,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     letterSpacing: 0.4,
   },
   addrText: {
@@ -675,7 +811,11 @@ const s = StyleSheet.create({
     color: colors.white,
     marginTop: 1,
   },
-  addrEdit: { fontFamily: fontBody.semibold, fontSize: 13, color: colors.bill },
+  addrEdit: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    color: colors.white,
+  },
   section: { paddingHorizontal: 20 },
   contestOffice: {
     fontFamily: "InriaSerif-Bold",
@@ -685,7 +825,7 @@ const s = StyleSheet.create({
   contestMeta: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 12,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     marginTop: 3,
   },
   measureHeader: {
@@ -703,7 +843,7 @@ const s = StyleSheet.create({
   measureSub: {
     fontFamily: fontBody.regular,
     fontSize: 13.5,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     lineHeight: 20,
   },
   stanceRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
@@ -734,7 +874,7 @@ const s = StyleSheet.create({
   readMoreText: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: colors.bill,
+    color: colors.white,
   },
   aiChip: {
     flexDirection: "row",
@@ -751,7 +891,7 @@ const s = StyleSheet.create({
   fiscalLabel: {
     fontFamily: fontBody.semibold,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
@@ -771,12 +911,12 @@ const s = StyleSheet.create({
   sourceChipText: {
     fontFamily: fontBody.medium,
     fontSize: 11.5,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   empty: {
     fontFamily: "AlbertSans-Regular",
     fontSize: 14,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
     textAlign: "center",
   },
   pollRow: { flexDirection: "row", alignItems: "center", gap: 14 },
@@ -796,6 +936,6 @@ const s = StyleSheet.create({
   pollSub: {
     fontFamily: "AlbertSans-Medium",
     fontSize: 12.5,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
 });

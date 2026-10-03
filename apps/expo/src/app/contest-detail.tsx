@@ -16,9 +16,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import Fuse from "fuse.js";
 
 import {
-  BallotDetailEvidence,
+  BallotDisclosure,
+  BallotLanguages,
+  BallotProvenanceRows,
   BallotSources,
   ElectionOfficeLink,
+  SourceLink,
 } from "~/components/ballot-evidence/BallotEvidence";
 import {
   BallotAiDisclosure,
@@ -27,24 +30,29 @@ import {
   BallotReadingMode,
 } from "~/components/ballot-evidence/BallotReadingCard";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { CandidateBallotStatus } from "~/components/ballot-evidence/CandidateBallotStatus";
+import { candidateStatusLabel } from "~/components/ballot-evidence/election-status";
 import { webUrl } from "~/components/ballot-evidence/model";
-import { Card, Icon, Kicker, NavHeader } from "~/components/ui";
+import { ContestMarking } from "~/components/ballot-marking/ContestMarking";
+import { OfficeRole } from "~/components/office-role/OfficeRole";
+import { Card, Icon, NavHeader } from "~/components/ui";
 import {
   DigestHair,
   DigestRadii,
   fontBody,
-  fontDisplay,
   fontEditorial,
+  hair,
   DigestPalette as P,
   planes,
 } from "~/styles";
+import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { parseRouteArray } from "~/utils/route-array";
 
 const cardChrome = {
   backgroundColor: P.card,
   borderRadius: DigestRadii.menu,
-  borderWidth: StyleSheet.hairlineWidth,
-  borderColor: DigestHair.cardBorder,
+  borderWidth: 1,
+  borderColor: hair[1],
 } as const;
 
 interface CandidateCitation {
@@ -149,6 +157,10 @@ export default function ContestDetailScreen() {
     roleDescription: string;
     state?: string;
     electionDate?: string;
+    electionStage?: string;
+    ballotSourceName?: string;
+    ballotSourceUrl?: string;
+    ballotFetchedAt?: string;
     districtId?: string;
     citations?: string;
   }>();
@@ -203,6 +215,7 @@ export default function ContestDetailScreen() {
     );
   };
   const description = params.roleDescription || null;
+  const [showRoleDescription, setShowRoleDescription] = useState(false);
 
   // Expansion keyed by candidate identity (name + original index), not array
   // index — index-keying breaks once the list is filtered.
@@ -297,25 +310,83 @@ export default function ContestDetailScreen() {
         <Text accessibilityRole="header" style={s.office}>
           {params.office}
         </Text>
-        {params.districtName ? (
-          <Text style={s.district}>{params.districtName}</Text>
-        ) : null}
+        <Text style={s.district}>
+          {[
+            params.districtName,
+            params.electionDate
+              ? ballotElectionDate(params.electionDate)
+              : "Election date unavailable",
+            params.electionStage?.trim()
+              ? params.electionStage.trim()
+              : "Election stage unavailable",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </Text>
+        {candidates.length > 0 && (
+          <View style={{ marginTop: 12, gap: 4 }}>
+            <Text style={s.district}>
+              This list may be incomplete. Confirm whether this race is on your
+              ballot with your election office.
+            </Text>
+            <SourceLink
+              label="Find your election office"
+              url="https://www.usa.gov/state-election-office"
+            />
+          </View>
+        )}
+        <OfficeRole
+          office={params.office}
+          state={params.state}
+          districtId={params.districtId}
+        />
+
+        <ContestMarking
+          scope={{
+            contestId: "",
+            electionDate: params.electionDate ?? "",
+            jurisdiction: params.state ?? "",
+          }}
+        />
 
         {description ? (
           <View style={s.section}>
-            <Kicker style={s.kicker}>About this office</Kicker>
-            <Card style={cardChrome}>
-              <Text style={s.descText}>{description}</Text>
-            </Card>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showRoleDescription }}
+              onPress={() => setShowRoleDescription((value) => !value)}
+              style={{
+                minHeight: 48,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Text style={s.websiteTitle}>
+                {showRoleDescription
+                  ? "Hide ballot office description"
+                  : "Ballot office description"}
+              </Text>
+              <Icon
+                name={showRoleDescription ? "chevD" : "chevR"}
+                size={16}
+                color={P.inkOnNight}
+              />
+            </Pressable>
+            {showRoleDescription && (
+              <Card style={cardChrome}>
+                <Text style={s.descText}>{description}</Text>
+              </Card>
+            )}
           </View>
         ) : null}
 
         <View style={s.section}>
-          {(candidates.length > 1 || filtering) && (
-            <Text style={s.readingLabel}>
+          {(candidates.length > 0 || filtering) && (
+            <Text accessibilityRole="header" style={s.readingLabel}>
               {filtering
-                ? `${filtered.length} of ${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`
-                : `${candidates.length} candidate${candidates.length !== 1 ? "s" : ""}`}
+                ? `${filtered.length} of ${candidates.length} names shown`
+                : `Candidates · ${candidates.length}`}
             </Text>
           )}
 
@@ -324,7 +395,7 @@ export default function ContestDetailScreen() {
               <TextInput
                 accessibilityLabel="Search candidates"
                 placeholder="Search candidates"
-                placeholderTextColor={P.quiet}
+                placeholderTextColor="rgba(255,255,255,0.70)"
                 style={s.search}
                 value={query}
                 onChangeText={setQuery}
@@ -442,9 +513,7 @@ export default function ContestDetailScreen() {
                       cand.name,
                       cand.party,
                       cand.incumbent ? "Incumbent" : undefined,
-                      cand.ballotStatus === "withdrewStillOnBallot"
-                        ? "Withdrawn; still on ballot"
-                        : undefined,
+                      candidateStatusLabel(cand.ballotStatus),
                     ]
                       .filter(Boolean)
                       .join(", ")}
@@ -475,11 +544,10 @@ export default function ContestDetailScreen() {
                       {cand.party ? (
                         <Text style={s.candParty}>{cand.party}</Text>
                       ) : null}
-                      {cand.ballotStatus === "withdrewStillOnBallot" && (
-                        <Text style={s.withdrawn}>
-                          Withdrawn; still on ballot
-                        </Text>
-                      )}
+                      <CandidateBallotStatus
+                        status={cand.ballotStatus}
+                        compact
+                      />
                     </View>
                     <Icon
                       name={open ? "chevD" : "chevR"}
@@ -500,6 +568,10 @@ export default function ContestDetailScreen() {
                               office: params.office,
                               state: params.state,
                               electionDate: params.electionDate,
+                              electionStage: params.electionStage,
+                              ballotSourceName: params.ballotSourceName,
+                              ballotSourceUrl: params.ballotSourceUrl,
+                              ballotFetchedAt: params.ballotFetchedAt,
                               districtId: params.districtId,
                               district: params.districtName,
                               candidate: JSON.stringify(cand),
@@ -508,8 +580,14 @@ export default function ContestDetailScreen() {
                         }
                         style={s.contactRow}
                       >
-                        <Text style={s.websiteTitle}>Open candidate page</Text>
-                        <Icon name="arrowRight" size={16} color={P.primary} />
+                        <Text style={[s.websiteTitle, { color: P.inkOnNight }]}>
+                          Open candidate page
+                        </Text>
+                        <Icon
+                          name="arrowRight"
+                          size={16}
+                          color={P.inkOnNight}
+                        />
                       </TouchableOpacity>
                       <CandidateStatement cand={cand} />
                       {cand.biography ? (
@@ -530,7 +608,11 @@ export default function ContestDetailScreen() {
                             onPress={row.onPress}
                             activeOpacity={0.7}
                           >
-                            <Icon name={row.icon} size={16} color={P.primary} />
+                            <Icon
+                              name={row.icon}
+                              size={16}
+                              color={P.badgeIndigo}
+                            />
                             <View style={{ flex: 1 }}>
                               <Text
                                 style={
@@ -547,7 +629,7 @@ export default function ContestDetailScreen() {
                                 style={
                                   row.label === "Website"
                                     ? s.websiteHost
-                                    : [s.contactValue, { color: P.primary }]
+                                    : [s.contactValue, { color: P.badgeIndigo }]
                                 }
                               >
                                 {row.label === "Website"
@@ -555,7 +637,11 @@ export default function ContestDetailScreen() {
                                   : row.value}
                               </Text>
                             </View>
-                            <Icon name="external" size={13} color={P.primary} />
+                            <Icon
+                              name="external"
+                              size={13}
+                              color={P.badgeIndigo}
+                            />
                           </TouchableOpacity>
                         ))}
                       {cand.channels.length > 0 && (
@@ -574,11 +660,13 @@ export default function ContestDetailScreen() {
                           ))}
                         </View>
                       )}
-                      <BallotSources
-                        citations={sources}
-                        contentKind="citations"
-                        showRecovery={false}
-                      />
+                      {sources.length || hasStatement || cand.biography ? (
+                        <BallotSources
+                          citations={sources}
+                          contentKind="citations"
+                          showRecovery={false}
+                        />
+                      ) : null}
                     </View>
                   )}
                 </View>
@@ -591,10 +679,22 @@ export default function ContestDetailScreen() {
             {contactError}
           </Text>
         )}
-        <BallotDetailEvidence
-          citations={raceCitations}
-          showOfficeLink={candidates.length > 0}
-        />
+        <BallotDisclosure
+          title="Sources & updates"
+          detail="Ballot source and retrieval date"
+        >
+          <BallotProvenanceRows
+            sourceName={params.ballotSourceName}
+            sourceUrl={params.ballotSourceUrl}
+            fetchedAt={params.ballotFetchedAt}
+          />
+          <BallotSources
+            citations={raceCitations}
+            contentKind="citations"
+            showRecovery={false}
+          />
+        </BallotDisclosure>
+        <BallotLanguages items={[]} showRecovery={false} />
       </ScrollView>
     </View>
   );
@@ -619,9 +719,9 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   office: {
-    fontFamily: fontDisplay.bold,
-    fontSize: 30,
-    lineHeight: 34,
+    fontFamily: fontEditorial.bold,
+    fontSize: 22,
+    lineHeight: 28,
     color: P.inkOnNight,
     marginBottom: 4,
     letterSpacing: -0.55,
@@ -674,9 +774,9 @@ const s = StyleSheet.create({
     gap: 12,
   },
   identityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     backgroundColor: planes.surface,
     alignItems: "center",
     justifyContent: "center",
@@ -690,8 +790,8 @@ const s = StyleSheet.create({
   },
   candName: {
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     letterSpacing: -0.2,
     color: P.inkOnNight,
   },
@@ -710,18 +810,18 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  emptyState: { ...cardChrome, gap: 12, padding: 20 },
+  emptyState: { ...cardChrome, gap: 11, padding: 15 },
   emptyTitle: {
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     color: P.inkOnNight,
   },
   candidateSection: { gap: 18 },
   readingLabel: {
     fontFamily: fontEditorial.bold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     color: P.inkOnNight,
     marginBottom: 8,
   },
@@ -740,16 +840,10 @@ const s = StyleSheet.create({
   },
   candBio: {
     fontFamily: fontBody.regular,
-    fontSize: 17,
+    fontSize: 15,
     color: P.inkOnNight,
-    lineHeight: 26,
+    lineHeight: 23,
     marginBottom: 4,
-  },
-  withdrawn: {
-    fontFamily: fontBody.medium,
-    fontSize: 14,
-    color: P.inkOnNight,
-    marginTop: 8,
   },
   candParty: {
     fontFamily: fontBody.medium,
@@ -779,7 +873,7 @@ const s = StyleSheet.create({
   websiteTitle: {
     fontFamily: fontBody.semibold,
     fontSize: 13.5,
-    color: P.primary,
+    color: P.badgeIndigo,
   },
   websiteHost: {
     fontFamily: fontBody.regular,

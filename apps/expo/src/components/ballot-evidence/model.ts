@@ -1,4 +1,5 @@
 import { webUrl } from "../../utils/web-url";
+import { electionCoverageLabel } from "./election-status";
 
 export { webUrl } from "../../utils/web-url";
 
@@ -22,9 +23,10 @@ export function ballotStatus(evidence: BallotEvidence) {
     };
   if (evidence.contestCount > 0)
     return {
-      title: "Ballot data available",
+      title: "Partial ballot data",
       detail:
-        "These are the contests returned for this lookup. Confirm your complete ballot with your election office.",
+        electionCoverageLabel("partial") +
+        ". Confirm your complete ballot with your election office.",
     };
   if (evidence.electionKnown)
     return {
@@ -49,6 +51,8 @@ export interface BallotCitation {
   fetchedAt?: string;
   verifiedAt?: string;
   verifiedBy?: string;
+  staleAfter?: string;
+  conflicting?: boolean;
 }
 
 export function verificationLabel(citation: BallotCitation): string {

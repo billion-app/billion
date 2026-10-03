@@ -32,7 +32,7 @@ as interim relief. Legislative stages appear only for bills. Records missing a
 current court brief keep their Markdown or original-text fallback; the original
 text tab remains available alongside the brief and cited lenses.
 
-Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab starts with a California preview invitation. The statewide guide links to California's official voter lookup and county offices while production address-based ballot access is unconfigured; it does not offer a dead-end personalized lookup. Development builds expose the address lookup and synthetic scenarios for testing. The standalone ballot and local-elections routes retain their separate launch gate. Home address and coverage (federal, California, Massachusetts bills and court records, North Carolina, Texas) are available from the Feed lockup dropdown or the Browse jurisdiction sheet. Check both Expo Router options and the custom `TabBar` when changing visibility.
+Feed, Browse, and Elections are visible tabs. Feedback and Settings are reached from the profile mark. The Elections tab starts with a California preview invitation. The statewide guide links to California's official voter lookup and county offices while production address-based ballot access is unconfigured; its official-ballot link offers election-office resources, with retry when the release-state check fails. If the in-app statewide preview is missing, the entry opens California’s official guide directly. Development builds expose the address lookup and synthetic scenarios for testing. The standalone ballot route reads `civic.getBallotAvailability`; local elections remains development-only. Home address and coverage (federal, California, Massachusetts bills and court records, North Carolina, Texas) are available from the Feed lockup dropdown or the Browse jurisdiction sheet. Check both Expo Router options and the custom `TabBar` when changing visibility.
 
 The gated [national ballot route](../apps/expo/src/app/ballot.tsx) offers an election-office fallback until launch. The Elections tab displays the selected provider ballot in a card layout with Candidates/Measures tabs. The separate ballot route remains available from [local elections](../apps/expo/src/app/local-elections.tsx). The initial handoff reuses the caller’s query result; changing the lookup address or retrying fetches again. Lookup edits last for that mounted experience and do not replace the saved home address.
 
@@ -100,6 +100,8 @@ On a physical phone, Your alerts loads the server history when the screen opens.
 
 Push registration waits for onboarding to finish and notification preferences to load. Completing onboarding writes the selected instant and recap choices to the notification store before registration starts. Later Settings edits remain authoritative across launches.
 
+The [election-process education route](../apps/expo/src/app/election-process.tsx) is reached from the Elections invitation. It uses hand-authored summaries of linked official sources to compare presidential nomination, California congressional top-two elections and Texas party primaries. These are labeled educational examples, not personalized ballots or live contest timelines. Current stage and next milestone remain unavailable; official registration and election-office links provide the next action. Candidate-status distinctions do not create a 2028 roster. [Prototype gates](evidence/419/README.md) record the remaining editorial, reader and native verification work.
+
 ## Development ballot scenarios
 
 The Elections invitation opens the live, statewide California official guide cached by the scraper. It includes source-linked candidate statements and propositions, and official candidate photos when available. It is not an address-matched ballot or complete candidate roster. The production guide sends readers to the California Secretary of State and county offices for personalized information until the Democracy Works credential and live ballot path have been verified. Development builds expose a separate scenario picker beneath the guide: `full` opens a synthetic ballot with candidate statements, a measure and voting locations. `partial` omits statements and locations; `empty` omits contests; `error` exercises retry handling. `live` uses the saved address and normal provider. Mock selection does not overwrite the saved address.
@@ -107,3 +109,14 @@ The Elections invitation opens the live, statewide California official guide cac
 These screens call the local `civic.getVoterInfo` API with explicit `mock:full`, `mock:partial`, `mock:empty` or `mock:error` addresses. The server recognizes them only when `NODE_ENV=development`, before any provider or cache operation. Production never returns these fixtures. Names, instructions and schedules in the fixtures are fictional.
 
 Article detail on mobile, the web reader, and shared article pages shows Created and Last updated beneath the title. These come from the stored record’s `createdAt` and `updatedAt` through `content.getById`, rather than the official publication or action date. If no update timestamp exists, Last updated uses the creation timestamp.
+
+The voting plan opens inline in the statewide guide and the address ballot, so
+readers keep their election, tab and ballot position while checking official
+services. `VotingPlanSection` routes registration, primary eligibility, voting
+methods and missing logistics to authorities. It does not determine personal
+status or infer deadlines. Only a method preference is saved on the device,
+scoped by election ID, date and jurisdiction; addresses and party choices are
+not stored in the plan. The statewide guide remains a routing experience until
+personalized logistics are available. The address ballot keeps supplied dates
+and locations in `VotingLogisticsSection`. Issue #422 remains gated on the
+production personalized-ballot path and real-reader flow verification.

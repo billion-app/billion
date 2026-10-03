@@ -11,10 +11,20 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
+import {
+  CandidateCoverage,
+  CandidateIndependentBrief,
+} from "~/components/ballot-evidence/CandidateBrief";
+import {
+  candidateDetailText,
+  CandidateDisclosure,
+} from "~/components/ballot-evidence/CandidateDisclosure";
 import { webUrl } from "~/components/ballot-evidence/model";
+import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
 import {
+  colors,
   fontBody,
   fontDisplay,
   fontEditorial,
@@ -24,6 +34,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
+import { candidateBriefPreview } from "~/utils/candidate-brief-preview";
 import {
   canMatchCaliforniaGuide,
   ELECTION_DATE,
@@ -31,6 +42,8 @@ import {
   parseBallotCandidate,
   statewideOfficeSlug,
 } from "~/utils/candidate-explainer";
+import { candidateStatementExcerpt } from "~/utils/candidate-statement";
+import { resolveOfficeRole } from "~/utils/office-role";
 
 export default function CandidateDetailScreen() {
   const router = useRouter();
@@ -42,10 +55,10 @@ export default function CandidateDetailScreen() {
     district?: string;
     districtId?: string;
     candidate?: string;
+    briefPreview?: string;
   }>();
   const [photoFailed, setPhotoFailed] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
-  const [showOfficeDuties, setShowOfficeDuties] = useState(false);
   const fromBallot = parseBallotCandidate(params.candidate, params.name);
   const office = params.office ? statewideOfficeSlug(params.office) : undefined;
   const lookupGuide =
@@ -94,6 +107,25 @@ export default function CandidateDetailScreen() {
       ? guide.sourceUrl
       : undefined;
 
+  const previewBrief =
+    fromBallot?.name === "Morgan Lee (fictional)"
+      ? candidateBriefPreview(params.briefPreview)
+      : undefined;
+  const electionOfficeUrl = guide
+    ? "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
+    : "https://www.usa.gov/state-election-office";
+
+  const identityMeta = [
+    fromBallot ? params.district?.trim() : "Statewide",
+    candidate?.party,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const statementExcerpt = candidateStatementExcerpt(
+    candidate?.statement ?? "",
+  );
+
   return (
     <View style={s.screen}>
       <NavHeader title="Candidate" tone="dark" onBack={() => router.back()} />
@@ -106,14 +138,26 @@ export default function CandidateDetailScreen() {
         ) : null}
         {!fromBallot && query.isError ? (
           <Card style={s.panel}>
-            <Text style={s.body}>Candidate details could not load.</Text>
+            <Text accessibilityRole="header" style={s.sectionTitle}>
+              Candidate details couldn’t load
+            </Text>
+            <Text style={s.body}>
+              Try again, or check your election office for the official
+              candidate list.
+            </Text>
             <TouchableOpacity
               accessibilityRole="button"
               onPress={() => void query.refetch()}
-              style={s.action}
+              style={[s.action, s.retryAction]}
             >
-              <Text style={s.actionText}>Try again</Text>
+              <Text style={[s.actionText, { color: colors.white }]}>
+                Try again
+              </Text>
             </TouchableOpacity>
+            <SourceLink
+              label="Find your election office"
+              url={electionOfficeUrl}
+            />
           </Card>
         ) : null}
         {!query.isPending && !query.isError && !candidate ? (
@@ -128,6 +172,11 @@ export default function CandidateDetailScreen() {
         {candidate ? (
           <>
             <View style={s.hero}>
+              {previewBrief ? (
+                <Text style={s.fixtureLabel}>
+                  Fictional preview · not published
+                </Text>
+              ) : null}
               <Text style={s.eyebrow}>
                 {guide && query.data
                   ? `CALIFORNIA · ${ballotElectionDate(query.data.electionDate)}`
@@ -155,14 +204,9 @@ export default function CandidateDetailScreen() {
                   </Text>
                 </View>
               </View>
-              <Text style={s.heroMeta}>
-                {fromBallot
-                  ? params.district?.trim()
-                    ? params.district.trim()
-                    : "District unavailable"
-                  : "Statewide"}
-                {candidate.party ? ` · ${candidate.party}` : ""}
-              </Text>
+              {identityMeta ? (
+                <Text style={s.heroMeta}>{identityMeta}</Text>
+              ) : null}
               <View style={s.statusRow}>
                 <Icon name="info" size={14} color={P.quiet} />
                 <Text style={[s.muted, s.rowText]}>
@@ -171,92 +215,53 @@ export default function CandidateDetailScreen() {
                     : fromBallot?.ballotStatus === "onBallot"
                       ? "Listed on your ballot"
                       : guide
-                        ? "Statement guide entry · verify ballot status with your election office"
+                        ? "Statement guide · not a complete candidate list"
                         : "Ballot status unavailable"}
                 </Text>
               </View>
             </View>
 
-            <View style={s.section}>
-              <Text accessibilityRole="header" style={s.sectionTitle}>
-                What this office does
-              </Text>
-              {guide?.officeDuties?.length ? (
-                <>
-                  <Text style={s.body}>{guide.officeDuties[0]}</Text>
-                  {guide.officeDuties.length > 1 && (
-                    <>
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityState={{ expanded: showOfficeDuties }}
-                        onPress={() => setShowOfficeDuties((value) => !value)}
-                        style={s.action}
-                      >
-                        <Text style={s.actionText}>
-                          {showOfficeDuties
-                            ? "Hide other responsibilities"
-                            : "Other responsibilities"}
-                        </Text>
-                        <Icon
-                          name={showOfficeDuties ? "chevD" : "chevR"}
-                          size={16}
-                          color={P.primary}
-                        />
-                      </TouchableOpacity>
-                      {showOfficeDuties &&
-                        guide.officeDuties.slice(1).map((duty, index) => (
-                          <Text key={`${index}:${duty}`} style={s.body}>
-                            {duty}
-                          </Text>
-                        ))}
-                    </>
-                  )}
-                  <SourceLink
-                    label="Office duties · California voter guide"
-                    url={guide.sourceUrl}
-                  />
-                </>
-              ) : (
-                <Text style={s.muted}>
-                  Office duties are not available in Billion for this race.
-                </Text>
-              )}
-            </View>
+            {previewBrief ? (
+              <CandidateIndependentBrief
+                brief={previewBrief}
+                reviewedAt="October 2, 2026"
+              />
+            ) : null}
 
-            <View style={s.section}>
-              <Text accessibilityRole="header" style={s.sectionTitle}>
-                What they say
-              </Text>
-              <Text style={s.sectionIntro}>
-                {usingGuideStatement
-                  ? "This statement was supplied by the candidate. California does not check these claims for accuracy."
-                  : "This statement was supplied by a ballot provider. Its claims have not been independently checked by Billion."}
-              </Text>
-              {candidate.statement ? (
+            {candidate.statement ? (
+              <View style={s.section}>
+                <Text style={s.sectionIntro}>
+                  {usingGuideStatement
+                    ? "This statement was supplied by the candidate. California does not check these claims for accuracy."
+                    : "This statement was supplied by a ballot provider. Its claims have not been independently checked by Billion."}
+                </Text>
                 <Card style={s.panel}>
-                  <Text style={s.panelLabel}>CANDIDATE'S OWN WORDS</Text>
+                  <Text style={s.panelLabel}>Candidate’s own words</Text>
                   {!showStatement ? (
-                    <Text style={s.statementPreview} numberOfLines={3}>
-                      {candidate.statement}
+                    <Text selectable style={s.statementPreview}>
+                      {statementExcerpt.text}
+                      {statementExcerpt.truncated ? "…" : ""}
                     </Text>
                   ) : null}
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: showStatement }}
-                    onPress={() => setShowStatement((value) => !value)}
-                    style={s.action}
-                  >
-                    <Text style={s.actionText}>
-                      {showStatement
-                        ? "Hide full statement"
-                        : "Read full statement"}
-                    </Text>
-                    <Icon
-                      name={showStatement ? "chevD" : "chevR"}
-                      size={16}
-                      color={P.primary}
-                    />
-                  </TouchableOpacity>
+                  {statementExcerpt.truncated ? (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: showStatement }}
+                      onPress={() => setShowStatement((value) => !value)}
+                      style={s.action}
+                    >
+                      <Text style={s.actionText}>
+                        {showStatement
+                          ? "Hide full statement"
+                          : "Read full statement"}
+                      </Text>
+                      <Icon
+                        name={showStatement ? "chevD" : "chevR"}
+                        size={16}
+                        color={P.primary}
+                      />
+                    </TouchableOpacity>
+                  ) : null}
                   {showStatement ? (
                     <Text selectable style={s.body}>
                       {candidate.statement}
@@ -277,81 +282,94 @@ export default function CandidateDetailScreen() {
                     </Text>
                   )}
                 </Card>
-              ) : (
-                <Card style={s.panel}>
-                  <Text style={s.body}>
-                    No candidate statement is available to Billion for this
-                    person.
-                  </Text>
-                </Card>
-              )}
-            </View>
+              </View>
+            ) : null}
 
-            <View style={s.analysisNote}>
-              <Icon name="info" size={17} color={P.quiet} />
-              <Text style={s.analysisText}>
-                Billion has not independently reviewed this candidate's record
-                or statement claims.
-              </Text>
-            </View>
-
-            <View style={s.footer}>
-              <Text accessibilityRole="header" style={s.footerTitle}>
-                Sources & freshness
-              </Text>
-              {sourceUrl ? (
-                <SourceLink
-                  label={
-                    usingGuideStatement
-                      ? "Candidate statement · official guide"
-                      : `Candidate statement · ${statementCitation?.sourceName ?? "ballot provider"}`
-                  }
-                  url={sourceUrl}
-                />
-              ) : null}
-              {candidate.photoUrl && portraitSource ? (
-                <SourceLink
-                  label={
-                    fromBallot?.photoUrl
-                      ? "Portrait · ballot provider"
-                      : "Portrait · California voter guide"
-                  }
-                  url={portraitSource}
-                />
-              ) : null}
-              {guide ? (
-                <SourceLink
-                  label="About candidate statements"
-                  url="https://voterguide.sos.ca.gov/voter-info/info-about-candidate-statements.htm"
-                />
-              ) : null}
-              {fetchedAt ? (
-                <Text style={s.muted}>
-                  {usingGuideStatement ? "Guide" : "Statement"} retrieved{" "}
-                  {new Date(fetchedAt).toLocaleDateString("en-US", {
-                    timeZone: "UTC",
-                  })}
-                </Text>
-              ) : (
-                <Text style={s.muted}>Retrieval date unavailable</Text>
-              )}
-              <Text style={s.muted}>
-                {guide
-                  ? "The guide includes only people who submitted statements. It is not a complete roster. Check your county ballot for eligibility, write-in, or withdrawal updates."
-                  : "Check your election office for eligibility, write-in, or withdrawal updates."}
-              </Text>
-              <SourceLink
-                label="Find your county elections office"
-                url={
-                  guide
-                    ? "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
-                    : "https://www.usa.gov/state-election-office"
+            {(!guide?.officeDuties?.length ||
+              resolveOfficeRole({
+                office: guide.officeName,
+                state: "CA",
+                districtId: "ocd-division/country:us/state:ca",
+              })) && (
+              <OfficeRole
+                office={guide?.officeName ?? params.office}
+                state={guide ? "CA" : params.state}
+                districtId={
+                  guide ? "ocd-division/country:us/state:ca" : params.districtId
                 }
               />
-              <SourceLink
-                label="Report a correction to Billion"
-                url="https://billion-news.app/support"
+            )}
+
+            {!!guide?.officeDuties?.length && (
+              <CandidateDisclosure
+                title="Official office responsibilities"
+                summary={guide.officeDuties[0]}
+              >
+                {guide.officeDuties.slice(1).map((duty, index) => (
+                  <Text key={index} style={s.body}>
+                    {duty}
+                  </Text>
+                ))}
+                <SourceLink
+                  label="California official voter guide"
+                  url={guide.sourceUrl}
+                />
+              </CandidateDisclosure>
+            )}
+
+            {!previewBrief ? (
+              <CandidateCoverage
+                hasStatement={!!candidate.statement}
+                officeUrl={electionOfficeUrl}
               />
+            ) : null}
+
+            <View style={s.footer}>
+              <CandidateDisclosure title="Sources & updates">
+                {sourceUrl ? (
+                  <SourceLink
+                    label={
+                      usingGuideStatement
+                        ? "Candidate statement · official guide"
+                        : `Candidate statement · ${statementCitation?.sourceName ?? "ballot provider"}`
+                    }
+                    url={sourceUrl}
+                  />
+                ) : null}
+                {candidate.photoUrl && portraitSource ? (
+                  <SourceLink
+                    label={
+                      fromBallot?.photoUrl
+                        ? "Portrait · ballot provider"
+                        : "Portrait · California voter guide"
+                    }
+                    url={portraitSource}
+                  />
+                ) : null}
+                {guide ? (
+                  <SourceLink
+                    label="About candidate statements"
+                    url="https://voterguide.sos.ca.gov/voter-info/info-about-candidate-statements.htm"
+                  />
+                ) : null}
+                {fetchedAt ? (
+                  <Text style={s.muted}>
+                    {usingGuideStatement ? "Guide" : "Statement"} retrieved{" "}
+                    {new Date(fetchedAt).toLocaleDateString("en-US", {
+                      timeZone: "UTC",
+                    })}
+                  </Text>
+                ) : null}
+                <Text style={s.muted}>
+                  {guide
+                    ? "The guide includes only people who submitted statements. It is not a complete roster. Check your county ballot for eligibility, write-in, or withdrawal updates."
+                    : "Check your election office for eligibility, write-in, or withdrawal updates."}
+                </Text>
+                <SourceLink
+                  label="Report a correction to Billion"
+                  url="https://billion-news.app/support"
+                />
+              </CandidateDisclosure>
             </View>
           </>
         ) : null}
@@ -369,8 +387,13 @@ const s = StyleSheet.create({
     gap: 14,
   },
   hero: { gap: 9 },
+  fixtureLabel: {
+    ...candidateDetailText,
+    color: P.spark,
+    fontFamily: fontBody.semibold,
+  },
   eyebrow: {
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.semibold,
     fontSize: 11,
     letterSpacing: 1,
@@ -389,69 +412,76 @@ const s = StyleSheet.create({
   name: {
     color: P.inkOnNight,
     fontFamily: fontDisplay.bold,
-    fontSize: 25,
-    lineHeight: 29,
+    fontSize: 30,
+    lineHeight: 34,
   },
-  office: { color: P.inkOnNight, fontFamily: fontEditorial.bold, fontSize: 16 },
-  heroMeta: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 12 },
+  office: { color: P.inkOnNight, fontFamily: fontBody.semibold, fontSize: 15 },
+  heroMeta: {
+    color: "rgba(255,255,255,0.70)",
+    fontFamily: fontBody.medium,
+    fontSize: 12,
+  },
   statusRow: { flexDirection: "row", alignItems: "flex-start", gap: 7 },
   muted: {
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 18,
   },
   rowText: { flex: 1, flexShrink: 1 },
-  analysisNote: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    padding: 13,
-    backgroundColor: planes.slate,
-    borderColor: hair[2],
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-  },
-  analysisText: {
-    flex: 1,
-    color: P.inkOnNight,
-    fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-  },
   section: { gap: 10, paddingTop: 8 },
   sectionTitle: {
     color: P.inkOnNight,
     fontFamily: fontEditorial.bold,
-    fontSize: 19,
+    fontSize: 18,
   },
   sectionIntro: {
-    color: P.quiet,
+    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 19,
   },
-  panel: { padding: 16, gap: 10 },
+  panel: {
+    padding: 16,
+    gap: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[1],
+    borderLeftWidth: 3,
+    borderLeftColor: colors.bill,
+  },
   panelLabel: {
     color: P.inkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 10,
-    letterSpacing: 1,
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
   },
   statementPreview: {
     color: P.inkOnNight,
-    fontFamily: fontEditorial.regular,
-    fontSize: 16,
+    fontFamily: fontBody.regular,
+    fontSize: 15,
     lineHeight: 23,
   },
   action: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 },
+  retryAction: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[1],
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    justifyContent: "center",
+  },
   actionText: {
     flexShrink: 1,
-    color: P.inkOnNight,
+    color: colors.white,
     fontFamily: fontBody.semibold,
-    fontSize: 14,
+    fontSize: 12,
   },
-  heading: { color: P.inkOnNight, fontFamily: fontDisplay.bold, fontSize: 22 },
+  heading: {
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 18,
+  },
   body: {
     color: P.inkOnNight,
     fontFamily: fontBody.regular,

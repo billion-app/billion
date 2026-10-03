@@ -98,12 +98,23 @@ Default election selection uses a conservative UTC-12 date cutoff so an election
 
 ## Release gate
 
-This adapter alone does not enable the mobile ballot flow. The
-[Elections feature flag](../apps/expo/src/utils/elections-live.ts) is still off,
-and the [parked screen](<../apps/expo/src/app/(tabs)/elections.tsx>) still uses
-`normalizedInput.state` to gate California coverage. This provider deliberately
-leaves that value empty, so the existing screen would hide every returned ballot.
-Before enabling it, update consumers to use provider jurisdiction and coverage
-metadata, surface unavailable ballot data and withdrawn-candidate status, and
-complete licensed live acceptance against official sample ballots. Keep the flag
-off until those integration checks pass.
+`civic.getBallotAvailability` owns the production mobile launch state in
+[ballot-launch.ts](../packages/api/src/lib/ballot-launch.ts). It is closed with
+no supported areas or verification evidence. Provider credentials do not open
+this gate. The Elections guide links to `/ballot`, which checks this state before
+mounting the address lookup. Failed availability checks offer retry and an election
+office link; they never imply that no election exists. Development retains access
+for controlled verification.
+
+The address lookup uses the existing `BallotExperience` and provider coverage
+model. Its address and election selection live only in screen state; edits do not
+write the saved home address. Discovery remains address-specific and base reads
+skip generation. The legacy development scenario screen remains for fixtures.
+
+Before changing the launch state, complete #399 provider entitlement, #332
+bounded comparisons against official ballots for each intended launch area, and
+#418 running production mobile checks for supported/unsupported addresses,
+alternative elections, partial/empty data, provider failure and recovery. Attach
+those evidence links and the precise supported scope in the launch contract.
+Neither a configured key, synthetic tests nor a successful bundle establishes
+live coverage. This change does not authorize a production launch.

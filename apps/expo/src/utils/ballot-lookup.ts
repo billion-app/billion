@@ -150,7 +150,12 @@ export function isBallotMeasure(contest: Contest): boolean {
 /** Pass supplied evidence to the existing readers without another ballot request. */
 export function ballotContestRoute(
   contest: Contest,
-  context?: { state?: string; electionDate?: string },
+  context?: {
+    state?: string;
+    electionDate?: string;
+    electionStage?: string;
+    provider?: { name: string; sourceUrl?: string; fetchedAt?: string };
+  },
 ) {
   if (isBallotMeasure(contest)) {
     return {
@@ -180,6 +185,13 @@ export function ballotContestRoute(
       office: contest.office ?? "Candidate race",
       state: context?.state ?? "",
       electionDate: context?.electionDate ?? "",
+      electionStage: context?.electionStage ?? "",
+      ballotSourceName:
+        context?.provider?.name === "democracy_works"
+          ? "Democracy Works"
+          : (context?.provider?.name ?? ""),
+      ballotSourceUrl: context?.provider?.sourceUrl ?? "",
+      ballotFetchedAt: context?.provider?.fetchedAt ?? "",
       districtId: contest.district?.id ?? "",
       citations: JSON.stringify(contestBallotCitations(contest)),
       roles: JSON.stringify(contest.roles ?? []),

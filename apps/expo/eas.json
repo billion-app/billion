@@ -33,6 +33,11 @@
       "extends": "base",
       "channel": "production",
       "autoIncrement": true
+    },
+    "elections-review": {
+      "extends": "production",
+      "channel": "elections-review",
+      "environment": "production"
     }
   },
   "submit": {

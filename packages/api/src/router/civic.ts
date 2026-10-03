@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 import { caSosResultsClient } from "../clients/ca-sos-results";
 import { BallotProviderError } from "../clients/democracy-works";
 import { getDevBallot } from "../lib/ballot-dev-mocks";
+import { getBallotAvailability } from "../lib/ballot-launch";
 import {
   getCaliforniaGuide,
   getDistrictElectionResults,
@@ -14,6 +15,10 @@ import {
 } from "../lib/civic";
 import { CivicReadUnavailableError } from "../lib/civic-read-guard";
 import { getElectedOfficials } from "../lib/elected-officials";
+import {
+  publicPropositionConsequences,
+  publishedPropositionConsequences,
+} from "../lib/proposition-consequences";
 import { publicProcedure } from "../trpc";
 
 const STATEWIDE_OFFICE = z.enum(
@@ -30,7 +35,22 @@ const DISTRICT_REF = z.object({
 });
 
 export const civicRouter = {
-  getCaliforniaGuide: publicProcedure.query(() => getCaliforniaGuide()),
+  /** Public release state; does not expose credentials or infer provider coverage. */
+  getBallotAvailability: publicProcedure.query(() => getBallotAvailability()),
+  getCaliforniaGuide: publicProcedure.query(async () => {
+    const guide = await getCaliforniaGuide();
+    if (!guide) return null;
+    return {
+      ...guide,
+      measures: guide.measures.map((measure) => ({
+        ...measure,
+        consequences: publicPropositionConsequences(
+          publishedPropositionConsequences(guide.electionDate, measure),
+        ),
+      })),
+    };
+  }),
+
   /**
    * Get a list of upcoming elections
    */

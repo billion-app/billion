@@ -10,3 +10,6 @@ export const unused = z.string().describe(
    with back and frontend, you can put them in here
   `,
 );
+export * from "./candidate-brief";
+
+export * from "./proposition-consequences";
