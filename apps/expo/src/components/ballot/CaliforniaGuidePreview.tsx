@@ -10,13 +10,13 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import type { RouterOutputs } from "~/utils/api";
-import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
 import {
   colors,
   fontBody,
-  fontDisplay,
+  fontEditorial,
+  hair,
   DigestPalette as P,
   planes,
 } from "~/styles";
@@ -24,6 +24,7 @@ import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
 import { propositionDetailRoute } from "~/utils/proposition-explainers";
+import { OfficialResourceLink as SourceLink } from "./OfficialResourceLink";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
@@ -124,7 +125,7 @@ function MeasureCard({ measure }: { measure: Measure }) {
         style={s.detailAction}
       >
         <Text style={s.detailActionText}>Read proposition detail</Text>
-        <Icon name="arrowRight" size={17} color={colors.bill} />
+        <Icon name="arrowRight" size={17} color={P.inkOnNight} />
       </TouchableOpacity>
     </Card>
   );
@@ -143,8 +144,12 @@ export function CaliforniaGuidePreview({
   const guide = query.data;
   return (
     <TabScreen
-      title={
-        guide ? `California ${guide.electionDate.slice(0, 4)}` : "California"
+      headerExtra={
+        <Text style={s.jurisdiction}>
+          {guide
+            ? `California ${guide.electionDate.slice(0, 4)}`
+            : "California"}
+        </Text>
       }
       contentStyle={s.screen}
     >
@@ -173,11 +178,11 @@ export function CaliforniaGuidePreview({
         <Text style={[s.addressActionText, { flex: 1 }]}>
           Language and accessible voting resources
         </Text>
-        <Icon name="arrowRight" size={17} color={colors.bill} />
+        <Icon name="arrowRight" size={17} color={P.inkOnNight} />
       </TouchableOpacity>
-      {query.isPending && <ActivityIndicator color={colors.bill} />}
+      {query.isPending && <ActivityIndicator color={P.inkOnNight} />}
       {query.isError && (
-        <Card>
+        <Card style={s.recovery}>
           <Text style={[s.introText, { color: P.inkOnNight }]}>
             The official guide could not load.
           </Text>
@@ -191,7 +196,7 @@ export function CaliforniaGuidePreview({
         </Card>
       )}
       {!query.isPending && !query.isError && !guide && (
-        <Card>
+        <Card style={s.recovery}>
           <Text style={[s.introText, { color: P.inkOnNight }]}>
             The official guide is being refreshed. Check back soon.
           </Text>
@@ -269,7 +274,7 @@ export function CaliforniaGuidePreview({
                 style={s.addressAction}
               >
                 <Text style={s.addressActionText}>Test ballot lookup</Text>
-                <Icon name="arrowRight" size={17} color={colors.bill} />
+                <Icon name="arrowRight" size={17} color={P.inkOnNight} />
               </TouchableOpacity>
             )}
           </View>
@@ -285,20 +290,28 @@ export function CaliforniaGuidePreview({
 }
 
 const s = StyleSheet.create({
-  screen: { paddingHorizontal: 20, gap: 22 },
-  intro: { paddingTop: 20, gap: 12 },
+  screen: { paddingHorizontal: 20, gap: 18 },
+  jurisdiction: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: P.inkOnNight,
+    textAlign: "center",
+    paddingVertical: 10,
+  },
+  intro: { paddingTop: 16, gap: 9 },
   kicker: { color: colors.bill, fontFamily: fontBody.semibold, fontSize: 12 },
   headline: {
     color: "#FFFFFF",
-    fontFamily: fontDisplay.bold,
-    fontSize: 30,
-    lineHeight: 36,
+    fontFamily: fontEditorial.bold,
+    fontSize: 26,
+    lineHeight: 31,
   },
   introText: {
     color: colors.textSecondary,
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 23,
   },
   scope: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   scopeText: {
@@ -315,12 +328,19 @@ const s = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  card: { padding: 0, overflow: "hidden" },
+  card: {
+    padding: 0,
+    overflow: "hidden",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[1],
+    backgroundColor: planes.slate,
+  },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    minHeight: 90,
+    gap: 10,
+    minHeight: 76,
     padding: 14,
   },
   portrait: { width: 62, height: 62, borderRadius: 4 },
@@ -335,9 +355,9 @@ const s = StyleSheet.create({
   cardIdentity: { flex: 1, gap: 5 },
   cardTitle: {
     color: "#FFFFFF",
-    fontFamily: fontDisplay.bold,
-    fontSize: 19,
-    lineHeight: 24,
+    fontFamily: fontEditorial.bold,
+    fontSize: 17,
+    lineHeight: 22,
   },
   measureTitle: {
     fontFamily: fontBody.semibold,
@@ -362,12 +382,12 @@ const s = StyleSheet.create({
     borderRadius: 4,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.bill,
+    backgroundColor: planes.surface,
   },
   measureNumberText: {
-    color: planes.navy,
-    fontFamily: fontDisplay.bold,
-    fontSize: 24,
+    color: P.inkOnNight,
+    fontFamily: fontEditorial.bold,
+    fontSize: 20,
   },
   detailBlock: { gap: 4 },
   detailLabel: { color: P.inkOnNight, fontFamily: fontBody.semibold },
@@ -377,12 +397,20 @@ const s = StyleSheet.create({
     lineHeight: 21,
   },
   footer: { gap: 12, paddingBottom: 18 },
+  recovery: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: hair[1],
+    padding: 16,
+  },
   retryButton: {
     minHeight: 48,
     marginTop: 14,
     paddingHorizontal: 16,
     justifyContent: "center",
-    backgroundColor: P.canvas,
+    backgroundColor: planes.surface,
+    borderWidth: 1,
+    borderColor: hair[2],
     borderRadius: 10,
   },
   retry: { color: P.inkOnNight, fontFamily: fontBody.semibold },
@@ -394,7 +422,12 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 12,
   },
-  addressActionText: { color: colors.bill, fontFamily: fontBody.semibold },
+  addressActionText: {
+    color: P.inkOnNight,
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    lineHeight: 19,
+  },
   detailAction: {
     minHeight: 48,
     marginHorizontal: 14,
