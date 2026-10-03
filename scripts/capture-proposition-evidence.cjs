@@ -46,6 +46,11 @@ const analysis = {
   no: claim(
     "Does not authorize this borrowing. It does not cancel other existing school funding.",
   ),
+  decisionMap: {
+    today: claim("No authority for this borrowing"),
+    yes: claim("School borrowing authorized; projects decided later"),
+    no: claim("This borrowing not authorized; other school funding continues"),
+  },
   decisionNote: claim(
     "If bonds are issued, property owners repay them through a tax.",
   ),
@@ -151,7 +156,7 @@ let browser;
     .getByText("The rule today", { exact: true })
     .waitFor({ timeout: 120000 });
   const noBounds = await page
-    .getByText(analysis.no.text, { exact: true })
+    .getByText(analysis.decisionMap.no.text, { exact: true })
     .boundingBox();
   if (!noBounds || noBounds.y + noBounds.height > 844)
     throw new Error("Full No outcome is outside the initial viewport");
@@ -173,6 +178,19 @@ let browser;
   await page
     .getByRole("button", { name: "Official ballot title", exact: true })
     .click();
+  await page
+    .getByRole("button", {
+      name: "Full voting explanation. Current rule, outcomes and conditions",
+    })
+    .click();
+  await page.getByText(analysis.no.text, { exact: true }).waitFor();
+  await page
+    .getByText(analysis.yes.text, { exact: true })
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: "docs/screenshots/issue-426/full-voting-explanation.png",
+    fullPage: true,
+  });
   const body = await page.locator("body").innerText();
   for (const text of [
     "If you vote Yes",
@@ -244,6 +262,13 @@ let browser;
         consequences: {
           ...analysis,
           decisionNote: undefined,
+          decisionMap: {
+            today: claim(
+              "If a Governor leaves early: appointed temporary official",
+            ),
+            yes: claim("Elected deputy serves during the vacancy"),
+            no: claim("Appointed official continues temporarily"),
+          },
           sources: [
             ...analysis.sources,
             {
@@ -318,6 +343,9 @@ let browser;
     })
     .click();
   const guideEvidence = page.getByTestId("proposition-source-guide");
+  await guideEvidence
+    .getByText("Elected deputy serves during the vacancy", { exact: true })
+    .waitFor();
   if (
     await guideEvidence
       .getByText(

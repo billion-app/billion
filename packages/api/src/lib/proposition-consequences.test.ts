@@ -107,6 +107,13 @@ void test("broken citations, mismatched review revision, duplicate sources and p
   for (const changed of [
     { yes: { text: "Unsupported", sourceIds: ["missing"] } },
     { decisionNote: { text: "Unsupported qualifier", sourceIds: ["missing"] } },
+    {
+      decisionMap: {
+        today: claim("Today"),
+        yes: claim("Yes"),
+        no: { text: "Unsupported map", sourceIds: ["missing"] },
+      },
+    },
     { sources: [...draft.sources, ...draft.sources] },
     { review: { ...draft.review, revision: "old" } },
     { review: { ...draft.review, reviewedAt: "2025-01-01T00:00:00Z" } },
@@ -189,4 +196,25 @@ void test("a reviewed decision qualifier retains its citation in the public resp
     publishedPropositionConsequences(date, measure, [draft]),
   );
   assert.deepEqual(published?.decisionNote, draft.decisionNote);
+});
+
+void test("reviewed decision-map nodes retain citations and reject partial maps", () => {
+  const draft = {
+    ...revision(),
+    decisionMap: {
+      today: claim("Today"),
+      yes: claim("Yes consequence"),
+      no: claim("No consequence"),
+    },
+  };
+  const published = publicPropositionConsequences(
+    publishedPropositionConsequences(date, measure, [draft]),
+  );
+  assert.deepEqual(published?.decisionMap, draft.decisionMap);
+  assert.equal(
+    publishedPropositionConsequences(date, measure, [
+      { ...draft, decisionMap: { today: claim("Today"), yes: claim("Yes") } },
+    ]),
+    null,
+  );
 });

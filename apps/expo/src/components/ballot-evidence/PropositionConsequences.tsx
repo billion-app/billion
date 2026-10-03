@@ -3,6 +3,7 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 
 import type { RouterOutputs } from "@acme/api";
 
+import type { IconName } from "~/components/ui/Icon";
 import { Icon } from "~/components/ui";
 import { fontBody, fontEditorial, DigestPalette as P, sp } from "~/styles";
 import { BallotText as Text } from "./BallotText";
@@ -14,16 +15,42 @@ type Claim = Analysis["yes"];
 
 export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
   const [titleOpen, setTitleOpen] = useState(false);
-  const section = (title: string, claims: Claim[]) => (
+  const section = (title: string, claims: Claim[], icon?: IconName) => (
     <View style={s.section}>
-      <Text accessibilityRole="header" style={s.heading}>
-        {title}
-      </Text>
+      <View style={s.sectionHeading}>
+        {icon && (
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Icon name={icon} size={19} color={P.inkOnNight} />
+          </View>
+        )}
+        <Text accessibilityRole="header" style={s.heading}>
+          {title}
+        </Text>
+      </View>
       {claims.map((claim, index) => (
         <View key={index} style={s.claim}>
           <Text style={s.body}>{claim.text}</Text>
         </View>
       ))}
+    </View>
+  );
+  const outcome = (vote: "Yes" | "No", claim: Claim) => (
+    <View style={s.mapOutcome}>
+      <View style={s.mapHeading}>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <Icon name="arrowRight" size={18} color={P.inkOnNight} />
+        </View>
+        <Text accessibilityRole="header" style={s.mapLabel}>
+          If you vote {vote}
+        </Text>
+      </View>
+      <Text style={s.mapConsequence}>{claim.text}</Text>
     </View>
   );
   return (
@@ -51,21 +78,51 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
         </Pressable>
         {titleOpen && <Text style={s.titleText}>{analysis.officialTitle}</Text>}
       </View>
-      {section("The rule today", [analysis.currentRule])}
-      <View style={s.flow}>
-        {section("If you vote Yes", [analysis.yes])}
-        <View style={s.divider} />
-        {section("If you vote No", [analysis.no])}
-        {analysis.decisionNote && (
-          <>
+      {analysis.decisionMap ? (
+        <View style={s.decisionMap}>
+          <View style={s.mapToday}>
+            <Text accessibilityRole="header" style={s.todayLabel}>
+              The rule today
+            </Text>
+            <Text style={s.todayText}>{analysis.decisionMap.today.text}</Text>
+          </View>
+          <View style={s.mapBranches}>
+            <View
+              style={s.mapSpine}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            />
+            <View style={s.mapChoices}>
+              {outcome("Yes", analysis.decisionMap.yes)}
+              {outcome("No", analysis.decisionMap.no)}
+            </View>
+          </View>
+          {analysis.decisionNote &&
+            section("Also consider", [analysis.decisionNote])}
+          <AnalysisDisclosure
+            title="Full voting explanation"
+            subtitle="Current rule, outcomes and conditions"
+          >
+            {section("The rule today", [analysis.currentRule])}
+            {section("If you vote Yes", [analysis.yes])}
+            {section("If you vote No", [analysis.no])}
+          </AnalysisDisclosure>
+        </View>
+      ) : (
+        <>
+          {section("The rule today", [analysis.currentRule])}
+          <View style={s.flow}>
+            {section("If you vote Yes", [analysis.yes])}
             <View style={s.divider} />
-            {section("Also consider", [analysis.decisionNote])}
-          </>
-        )}
-      </View>
-      {section("Who is affected", analysis.affected)}
+            {section("If you vote No", [analysis.no])}
+            {analysis.decisionNote &&
+              section("Also consider", [analysis.decisionNote])}
+          </View>
+        </>
+      )}
+      {section("Who is affected", analysis.affected, "users")}
       {section("Costs and funding", [analysis.costsAndFunding])}
-      {section("Limits and unknowns", [analysis.uncertainty])}
+      {section("Limits and unknowns", [analysis.uncertainty], "help")}
       <AnalysisDisclosure
         title="How this would work"
         subtitle="What happens next"
@@ -93,6 +150,13 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
             ["The rule today", analysis.currentRule],
             ["If you vote Yes", analysis.yes],
             ["If you vote No", analysis.no],
+            ...(analysis.decisionMap
+              ? [
+                  ["Decision map: today", analysis.decisionMap.today] as const,
+                  ["Decision map: Yes", analysis.decisionMap.yes] as const,
+                  ["Decision map: No", analysis.decisionMap.no] as const,
+                ]
+              : []),
             ...(analysis.decisionNote
               ? [["Also consider", analysis.decisionNote] as const]
               : []),
@@ -203,6 +267,39 @@ function ClaimSource({
   );
 }
 const s = StyleSheet.create({
+  sectionHeading: { flexDirection: "row", alignItems: "center", gap: 9 },
+  decisionMap: { gap: 12 },
+  mapToday: { backgroundColor: P.paper, padding: 14, borderRadius: 8, gap: 5 },
+  todayLabel: {
+    fontFamily: fontBody.medium,
+    fontSize: 13,
+    lineHeight: 20,
+    color: P.ink,
+  },
+  todayText: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 20,
+    lineHeight: 27,
+    color: P.ink,
+  },
+  mapBranches: { flexDirection: "row", gap: 0, marginLeft: 16 },
+  mapSpine: { width: 12, borderLeftWidth: 1, borderColor: P.quiet },
+  mapChoices: { flex: 1, gap: 10 },
+  mapOutcome: { backgroundColor: P.card, borderRadius: 8, padding: 12, gap: 5 },
+  mapHeading: { flexDirection: "row", gap: 8, alignItems: "center" },
+  mapLabel: {
+    flex: 1,
+    fontFamily: fontBody.medium,
+    fontSize: 13,
+    lineHeight: 20,
+    color: P.inkOnNight,
+  },
+  mapConsequence: {
+    fontFamily: fontEditorial.bold,
+    fontSize: 20,
+    lineHeight: 27,
+    color: P.inkOnNight,
+  },
   officialTitle: { gap: 3 },
   titleTrigger: {
     minHeight: 44,

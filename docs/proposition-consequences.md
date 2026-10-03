@@ -20,4 +20,6 @@ The reading hierarchy puts the headline, current rule and paired voting outcomes
 
 An optional reviewed `decisionNote` puts a material qualifier, such as who repays authorized borrowing, inside the voting comparison. It is a cited explanatory claim subject to the same publication gate, never inferred from a title or created by the client. Adding it to an approved draft requires a new immutable revision and editorial review.
 
+An optional `decisionMap` supplies three concise cited claims (`today`, `yes`, `no`, each at most 160 characters). The UI shows the present rule leading to two equally styled alternatives, with the full voting explanation available beneath it. Each node must preserve material conditions; it is reviewed evidence, not a client-generated summary. All three nodes are required together and pass the same citation gate. Older revisions without the map retain the full prose comparison. Material qualifiers and limits remain visible.
+
 Source disclosures retain the complete text of each cited claim under its supporting source. Section names alone are insufficient when two statements in one section use different evidence. The capture fixtures exercise that case without restoring repeated citation links to the primary reading flow.

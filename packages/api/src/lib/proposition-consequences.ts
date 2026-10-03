@@ -82,6 +82,7 @@ export function publishedPropositionConsequences(
       draft.yes,
       draft.no,
       ...(draft.decisionNote ? [draft.decisionNote] : []),
+      ...(draft.decisionMap ? Object.values(draft.decisionMap) : []),
       ...draft.implementation,
       ...draft.affected,
       draft.costsAndFunding,
