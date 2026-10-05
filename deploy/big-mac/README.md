@@ -7,12 +7,12 @@ These files are **live infrastructure**, not build output or leftovers. Each one
 is the versioned source of something currently installed on that host, so a
 change here is a change to a running service.
 
-| file | installed as | what it runs |
-| --- | --- | --- |
-| `com.billion.supervisor.plist` | `~/Library/LaunchAgents/` | The scraper supervisor (`apps/supervisor`), which owns every scheduled and manual job |
-| `billion-supervisor` | `~/.local/bin/` | The wrapper launchd execs — resolves the pinned image, mounts state, runs the container |
-| `com.billion.flux-api.plist` | `~/Library/LaunchAgents/` | The local FLUX HTTP server that generates header art when the hosted provider is unavailable |
-| `Modelfile.billion-scraper` | `ollama create` | Pins the local LLM to a 32K context; the full advertised window costs startup latency and memory for no benefit |
+| file                           | installed as              | what it runs                                                                                                    |
+| ------------------------------ | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `com.billion.supervisor.plist` | `~/Library/LaunchAgents/` | The scraper supervisor (`apps/supervisor`), which owns every scheduled and manual job                           |
+| `billion-supervisor`           | `~/.local/bin/`           | The wrapper launchd execs — resolves the pinned image, mounts state, runs the container                         |
+| `com.billion.flux-api.plist`   | `~/Library/LaunchAgents/` | The local FLUX HTTP server that generates header art when the hosted provider is unavailable                    |
+| `Modelfile.billion-scraper`    | `ollama create`           | Pins the local LLM to a 32K context; the full advertised window costs startup latency and memory for no benefit |
 
 ## Do not edit these on the host
 
@@ -36,3 +36,30 @@ They were briefly under `apps/supervisor/deploy/`, which put two conventions in
 the repo for the same kind of thing — host configuration. Anything describing
 what runs on `big-mac` belongs in one place, next to the FLUX plist that was
 already here.
+
+## Optional OAuth-backed fallback
+
+The scraper can use a Responses-compatible proxy on this host after its usual
+providers fail. The proxy owns login and token refresh; scraper containers do
+not receive OAuth credentials. Keep the proxy running across logouts and host
+restarts using its own service configuration.
+
+Add these settings to `~/.config/billion/scraper.env`:
+
+```dotenv
+SCRAPER_FALLBACK_BASE_URL=http://host.docker.internal:10531/v1
+SCRAPER_FALLBACK_MODEL=gpt-6-luna
+```
+
+The container's `127.0.0.1` refers to itself. Verify the host endpoint from the
+running container before enabling it; OrbStack exposes the host through
+`host.docker.internal`. The model must appear in the proxy's `/v1/models`.
+`SCRAPER_FALLBACK_API_KEY` is optional for proxies requiring a bearer token.
+
+Deploy a merged image containing the fallback support using the command above.
+The supervisor forwards these environment variables to jobs on restart.
+Leaving the URL unset disables this fallback. It covers text and structured briefs. Search fallback requires native search
+support from the endpoint and rejects responses without URL citations. The
+current OAuth proxy with Luna passed live text and JSON checks but did not expose
+native web search; the ordinary hosted search providers are still required. It does not replace image generation
+or vision review. Adding the fallback does not invalidate existing lens caches.

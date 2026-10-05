@@ -8,7 +8,12 @@ export const openStatesConfig = {
   environment: {
     required: ["POSTGRES_URL", "OPEN_STATES_API_KEY"],
     requiredAny: [
-      ["OPENROUTER_API_KEY", "LOCAL_LLM_BASE_URL", "DEEPSEEK_API_KEY"],
+      [
+        "OPENROUTER_API_KEY",
+        "LOCAL_LLM_BASE_URL",
+        "DEEPSEEK_API_KEY",
+        "SCRAPER_FALLBACK_BASE_URL",
+      ],
     ],
     recommended: ["OPENROUTER_API_KEY", "LOCAL_LLM_BASE_URL"],
     optional: [

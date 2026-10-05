@@ -434,3 +434,19 @@ pnpm --filter @acme/scraper repair-bill-descriptions --apply --manifest /tmp/bil
   that persisted a valid article or structured bill brief. Partial/failed
   IDs are printed for a targeted retry, and rate-limit failures re-raise
   `AIRateLimitError` so an orchestrator can back off.
+
+## Optional text and search outage fallback
+
+`SCRAPER_FALLBACK_BASE_URL` adds a Responses-compatible endpoint after the
+ordinary text and structured providers. `SCRAPER_FALLBACK_MODEL` defaults to
+`gpt-6-luna`; an optional `SCRAPER_FALLBACK_API_KEY` authenticates to the proxy.
+The proxy manages its own credentials. Native web search retries the whole
+request with the fallback provider's own tool so source citations remain
+available. An uncited fallback response is rejected; some OAuth endpoints do not
+expose native search even when text and JSON generation work. Court briefs retain the selected provider's model provenance through
+their existing candidate loop. An aborted text request does not start fallback.
+
+This setting is independent of the preferred `LOCAL_LLM_BASE_URL`. Enabling an
+outage fallback preserves the existing dual-lens cache key. See
+[host setup](../deploy/big-mac/README.md#optional-oauth-backed-fallback) for the
+container address and deployment procedure.

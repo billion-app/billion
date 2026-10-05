@@ -502,6 +502,9 @@ importers:
       "@ai-sdk/google":
         specifier: ^3.0.53
         version: 3.0.53(zod@4.3.6)
+      "@ai-sdk/openai":
+        specifier: ^2.0.0
+        version: 2.0.106(zod@4.3.6)
       "@ai-sdk/openai-compatible":
         specifier: 2.0.59
         version: 2.0.59(zod@4.3.6)
