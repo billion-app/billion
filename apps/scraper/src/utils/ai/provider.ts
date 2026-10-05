@@ -8,6 +8,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { customProvider, generateText, wrapLanguageModel } from "ai";
 
 import { createLogger } from "../log.js";
+import { searchTavily } from "./tavily-search.js";
 
 const logger = createLogger("ai-provider");
 
@@ -376,15 +377,34 @@ export function getWebSearchTool() {
   return provider.tools.webSearch_20250305({ maxUses: 5 });
 }
 /** Retry search with the fallback's own native tool so citations survive. */
-export async function generateWebSearch(prompt: string) {
+export async function generateWebSearch(query: string) {
+  const tavilyKey = process.env.TAVILY_API_KEY?.trim();
+  if (process.env.SCRAPER_SEARCH_PROVIDER === "tavily") {
+    if (!tavilyKey)
+      throw new Error(
+        "TAVILY_API_KEY is required when SCRAPER_SEARCH_PROVIDER=tavily",
+      );
+    // Fail closed on exhausted free credits instead of silently buying search.
+    return searchTavily(query, tavilyKey);
+  }
+  const prompt = `Search the web and briefly summarize what you find for: ${query}`;
   try {
     return await generateText({
       model: getSearchModel(),
       tools: { web_search: getWebSearchTool() as Tool<any, any> },
       prompt,
-      ...(getFallbackProvider() ? { maxRetries: 0 } : {}),
+      ...(getFallbackProvider() || tavilyKey ? { maxRetries: 0 } : {}),
     });
   } catch (error) {
+    if (tavilyKey) {
+      logger.warn("Primary web search failed; trying Tavily");
+      try {
+        return await searchTavily(query, tavilyKey);
+      } catch (tavilyError) {
+        error = tavilyError;
+        logger.warn("Tavily search failed; trying configured fallback");
+      }
+    }
     const provider = getFallbackProvider();
     const model = getFallbackModel();
     if (!provider || !model) throw error;

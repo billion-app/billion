@@ -582,9 +582,7 @@ const webResearchTool = tool({
     query: z.string().describe("A focused search query."),
   }),
   execute: async ({ query }: { query: string }) => {
-    const res = await generateWebSearch(
-      `Search the web and briefly summarize what you find for: ${query}`,
-    );
+    const res = await generateWebSearch(query);
     trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
     const results = ((res.sources ?? []) as SdkSource[])
       .filter((s) => s.sourceType === "url" && s.url)
