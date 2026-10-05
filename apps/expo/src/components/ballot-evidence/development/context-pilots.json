@@ -198,7 +198,8 @@
         }
       }
     ],
-    "mechanismQuestion": "How does continuing the tax affect funding?"
+    "mechanismQuestion": "How does continuing the tax affect funding?",
+    "authorship": "ai-assisted"
   },
   {
     "schemaVersion": 1,
@@ -652,7 +653,8 @@
         }
       }
     ],
-    "mechanismQuestion": "Who acts after the audit?"
+    "mechanismQuestion": "Who acts after the audit?",
+    "authorship": "ai-assisted"
   },
   {
     "schemaVersion": 1,
@@ -866,6 +868,7 @@
         }
       }
     ],
-    "mechanismQuestion": "Why could reserves rise?"
+    "mechanismQuestion": "Why could reserves rise?",
+    "authorship": "ai-assisted"
   }
 ]

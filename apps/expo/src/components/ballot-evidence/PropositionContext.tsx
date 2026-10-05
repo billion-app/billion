@@ -41,11 +41,11 @@ export function PropositionContext({
     <CitedClaim value={value} sources={analysis.sources} />
   );
   return (
-    <View style={s.stack}>
+    <View style={[s.stack, s.reader]}>
       <Text style={s.meta}>
         {preview
-          ? "Source-backed pilot · pending editorial review"
-          : "Billion contextual explanation"}
+          ? `Source-backed pilot · ${analysis.authorship === "ai-assisted" ? "AI-assisted" : "Human-authored"} · pending editorial review`
+          : `Billion contextual explanation · ${analysis.authorship === "ai-assisted" ? "AI-assisted" : "Human-authored"}`}
       </Text>
       <Text accessibilityRole="header" style={s.heading}>
         What changes, and why?
@@ -272,9 +272,13 @@ function Disclosure({
 }
 export function ContextUnavailable({
   state = "missing",
+  sourceUrl,
 }: {
+  sourceUrl?: string;
   state?: "missing" | "stale" | "error";
 }) {
+  const [failed, setFailed] = useState(false);
+  const href = webUrl(sourceUrl);
   return (
     <View style={s.card}>
       <Text style={s.subheading}>
@@ -289,11 +293,32 @@ export function ContextUnavailable({
           ? "The source or explanation changed. The previous version is withheld."
           : "Consult the official record to investigate the proposed rule and its limits."}
       </Text>
+      {href && (
+        <Pressable
+          accessibilityRole="link"
+          style={s.link}
+          onPress={() => {
+            void Linking.openURL(href).then(
+              () => setFailed(false),
+              () => setFailed(true),
+            );
+          }}
+        >
+          <Text style={s.linkText}>Open official record</Text>
+          <Icon name="external" size={14} color={P.quiet} />
+        </Pressable>
+      )}
+      {failed && (
+        <Text accessibilityRole="alert" style={s.meta}>
+          Could not open the source. Tap to retry.
+        </Text>
+      )}
     </View>
   );
 }
 const s = StyleSheet.create({
   stack: { gap: 12 },
+  reader: { width: "100%", maxWidth: 680, alignSelf: "center" },
   claim: { gap: 0 },
   card: {
     backgroundColor: P.card,

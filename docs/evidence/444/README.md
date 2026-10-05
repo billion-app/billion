@@ -44,7 +44,7 @@ no required equal-sided argument structure or vote/desirability score.
 
 `proposition-context.ts` validates drafts, binds review to a digest of all parsed
 content (including every captured source), checks exact election/number/title/URL
-and the guide hash, and requires every source to match the latest adopted capture
+and the guide hash, and requires each source key (URL/layer) to have exactly one latest adopted capture and match its snapshot
 in `currentContextSources`. Editing claims or snapshots, changing the guide or
 adopting newer evidence invalidates approval. Missing evidence withholds the whole
 revision. Snapshot bodies stay off the public API. Reads do not fetch or generate.
@@ -60,7 +60,7 @@ not approve content or certify production registration**. See the commands in
 [measure enrichment](../../measure-enrichment.md#contextual-explanation-review).
 
 `development/context-pilots.json` contains only public projections of these
-pending records, without evidence snapshots. The development preview parses them
+pending records, without evidence snapshots. The development preview validates the public schema and parses them
 and feeds the production renderer; production has no preview fallback. This is
 not a special case by proposition number: process questions, claims, sources,
 unknowns and optional scenarios/history/magnitude are all record data.
@@ -68,7 +68,13 @@ unknowns and optional scenarios/history/magnitude are all record data.
 ## Verification and remaining gates
 
 Screenshots come from the running Expo **web** development app at 390 × 844,
-including collapsed answers, expanded actor chain and source disclosure. Missing,
+including collapsed answers, expanded actor chain and source disclosure.
+`live-guide-prop39-*` shows the actual proposition-detail route reading the configured
+existing live API’s official guide: the new explanation is withheld and the original
+record remains usable. This confirms the missing-field compatibility path; the new
+API publication helper is exercised offline, not deployed to that service. The
+fallback source link was clicked in the running web app and opened the correct
+SOS proposition page in a browser tab. Missing,
 stale and error views are labelled development scenarios. The stale state’s
 withholding behavior is separately exercised at the API gate; the preview is not
 a live source-refresh demonstration. Enlarged text is a browser simulation,
@@ -78,7 +84,7 @@ Independent Astra reviewed the original screenshots before code. It correctly
 explained sunset versus funding guarantees and auditor recommendations versus
 implementation/court action, and formed further questions. Its refinements
 separated legal requirements from inference, strengthened evidence controls and
-made the process question specific through record data. This is adversarial model
+made the process question specific through record data. Its code audit found an ambiguous adopted-capture bug and missing AI attribution; the gate now rejects multiple captures for the same source key and the authorship field explicitly labels AI-assisted prose. Regression tests cover both capture orders and exact preview/draft projection parity. This is adversarial model
 comprehension evidence, **not novice human-reader validation**.
 
 Required before publication:

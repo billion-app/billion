@@ -142,7 +142,7 @@ export default function PropositionDetailScreen() {
             {measure.contextualExplanation ? (
               <PropositionContext analysis={measure.contextualExplanation} />
             ) : (
-              <ContextUnavailable />
+              <ContextUnavailable sourceUrl={measure.sourceUrl} />
             )}
             {/* Cross-measure relationships (#447) integrate immediately below. */}
             <View style={s.record}>

@@ -48,6 +48,7 @@ export const propositionContextSchema = z.object({
   officialUrl: https,
   guideHash: hash,
   preparedAt: z.iso.datetime(),
+  authorship: z.enum(["ai-assisted", "human-authored"]),
   sources: z.array(contextSourceSchema).min(2).max(20),
   takeaway: claim,
   today: claim,
@@ -115,6 +116,14 @@ export const propositionContextSchema = z.object({
 });
 export type PropositionContext = z.infer<typeof propositionContextSchema>;
 export type ContextClaim = z.infer<typeof contextClaimSchema>;
-export type PublicPropositionContext = Omit<PropositionContext, "sources"> & {
-  sources: Omit<PropositionContext["sources"][number], "snapshot">[];
-};
+export const publicPropositionContextSchema = propositionContextSchema
+  .omit({ sources: true })
+  .extend({
+    sources: z
+      .array(contextSourceSchema.omit({ snapshot: true }))
+      .min(2)
+      .max(20),
+  });
+export type PublicPropositionContext = z.infer<
+  typeof publicPropositionContextSchema
+>;

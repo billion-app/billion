@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { propositionContextSchema } from "@acme/validators";
+import { publicPropositionContextSchema } from "@acme/validators";
 
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import {
@@ -18,20 +18,7 @@ const pilots = __DEV__
   ? // eslint-disable-next-line @typescript-eslint/no-require-imports
     (require("~/components/ballot-evidence/development/context-pilots.json") as unknown)
   : [];
-// Parse public records by supplying a placeholder only for the server-only snapshot.
-const records = Array.isArray(pilots)
-  ? pilots.map((raw: unknown) => {
-      const value = raw as { sources: Record<string, unknown>[] };
-      return propositionContextSchema.parse({
-        ...value,
-        sources: value.sources.map((source) => ({
-          ...source,
-          snapshot:
-            "Development public projection; see captured evidence artifacts",
-        })),
-      });
-    })
-  : [];
+const records = publicPropositionContextSchema.array().parse(pilots);
 export default function PropositionContextPreview() {
   const router = useRouter();
   const [selected, setSelected] = useState("0");
@@ -79,6 +66,7 @@ export default function PropositionContextPreview() {
               </View>
             ) : (
               <ContextUnavailable
+                sourceUrl="https://voterguide.sos.ca.gov/propositions/"
                 state={
                   selected === "stale"
                     ? "stale"

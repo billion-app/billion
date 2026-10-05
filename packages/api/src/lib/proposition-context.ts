@@ -92,14 +92,15 @@ export function publishedPropositionContext(
           source.layer === "legal-text" && source.url === measure.fullTextUrl,
       ) ||
       !validateContextEvidence(value) ||
-      !value.sources.every((source) =>
-        currentSources.some(
+      !value.sources.every((source) => {
+        const captures = currentSources.filter(
           (current) =>
-            current.url === source.url &&
-            current.layer === source.layer &&
-            current.snapshot === source.snapshot,
-        ),
-      ) ||
+            current.url === source.url && current.layer === source.layer,
+        );
+        return (
+          captures.length === 1 && captures[0]?.snapshot === source.snapshot
+        );
+      }) ||
       !value.sources.some(
         (source) =>
           source.url === measure.sourceUrl &&

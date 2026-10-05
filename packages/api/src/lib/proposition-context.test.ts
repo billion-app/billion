@@ -7,6 +7,7 @@ import { propositionContextSchema } from "@acme/validators";
 import { officialGuidePayloadSchema } from "./official-guide-cache";
 import {
   contextContentHash,
+  publicPropositionContext,
   publishedPropositionContext,
   validateContextEvidence,
 } from "./proposition-context";
@@ -177,4 +178,41 @@ void test("adopting changed or missing supplemental evidence withholds the old e
       ),
       null,
     );
+});
+
+void test("old and new captures for the same key are rejected in either order", () => {
+  const measure = guide.measures.find((item) => item.number === "39");
+  assert.ok(measure);
+  const value = approved("39");
+  const old = value.sources.find((source) => source.id === "history");
+  assert.ok(old);
+  const newer = { ...old, snapshot: "Newly adopted historical evidence" };
+  for (const captures of [
+    [...value.sources, newer],
+    [newer, ...value.sources],
+  ])
+    assert.equal(
+      publishedPropositionContext(
+        guide.electionDate,
+        measure,
+        [value],
+        captures,
+      ),
+      null,
+    );
+});
+void test("development preview records are exactly the public projections of captured drafts", () => {
+  const raw: unknown = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../../../apps/expo/src/components/ballot-evidence/development/context-pilots.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    raw,
+    ["3", "39", "2"].map((number) => publicPropositionContext(draft(number))),
+  );
 });

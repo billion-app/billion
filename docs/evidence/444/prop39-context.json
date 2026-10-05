@@ -457,5 +457,6 @@
       }
     }
   ],
-  "mechanismQuestion": "Who acts after the audit?"
+  "mechanismQuestion": "Who acts after the audit?",
+  "authorship": "ai-assisted"
 }
