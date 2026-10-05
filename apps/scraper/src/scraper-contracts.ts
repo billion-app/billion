@@ -3,6 +3,7 @@ import type { ScraperEnvContract } from "@acme/env";
 import { caElectionLogisticsConfig } from "./scrapers/ca-election-logistics.config.js";
 import { caOfficialGuideConfig } from "./scrapers/ca-official-guide.config.js";
 import { caSosStatementsConfig } from "./scrapers/ca-sos-statements.config.js";
+import { candidateResearchConfig } from "./scrapers/candidate-research.config.js";
 import { congressConfig } from "./scrapers/congress.config.js";
 import { ecourtRecordsConfig } from "./scrapers/ecourt-records.config.js";
 import { federalregisterConfig } from "./scrapers/federalregister.config.js";
@@ -21,6 +22,7 @@ export const scraperContracts: readonly ScraperEnvContract[] = [
   ecourtRecordsConfig,
   sccCvigConfig,
   caSosStatementsConfig,
+  candidateResearchConfig,
   caOfficialGuideConfig,
   caElectionLogisticsConfig,
   santaCruzLocationsConfig,

@@ -13,21 +13,34 @@ import {
 
 import type { PublishedCandidateRace } from "../lib/candidate-race-release";
 import type { createTRPCContext } from "../trpc";
-import {
-  candidatePublicationPolicy,
-  readCandidateRace,
-} from "../lib/candidate-race-release";
+import { readCandidateRace } from "../lib/candidate-race-release";
+import { activeResearchPolicy } from "../lib/candidate-research-store";
 import { publicProcedure } from "../trpc";
 
+interface Policy {
+  approved: boolean;
+  version: string;
+}
+type PolicyInput =
+  | Policy
+  | ((
+      database: Pick<
+        Awaited<ReturnType<typeof createTRPCContext>>["db"],
+        "select"
+      >,
+    ) => Promise<Policy>);
 async function readReleases(
   database: Awaited<ReturnType<typeof createTRPCContext>>["db"],
-  policy: { approved: boolean; version: string },
+  policyInput: PolicyInput,
   releaseId?: string,
-): Promise<PublishedCandidateRace[]> {
-  // No database, provider or generation work until the human publication gate opens.
-  if (!policy.approved) return [];
+): Promise<{ policy: Policy; races: PublishedCandidateRace[] }> {
+  if (typeof policyInput !== "function" && !policyInput.approved)
+    return { policy: policyInput, races: [] };
   return database.transaction(
     async (tx) => {
+      const policy =
+        typeof policyInput === "function" ? await policyInput(tx) : policyInput;
+      if (!policy.approved) return { policy, races: [] };
       // Rank before limiting so repeated snapshots of one race cannot evict another.
       // Filtering the requested ID happens after ranking: old URLs cannot revive superseded research.
       const latest = tx
@@ -61,7 +74,7 @@ async function readReleases(
       const ids = releases.flatMap((r) =>
         r.document.members.map((m) => m.revisionId),
       );
-      if (!ids.length) return [];
+      if (!ids.length) return { policy, races: [] };
       const revisions = await tx
         .select()
         .from(CandidateBriefRevision)
@@ -70,7 +83,7 @@ async function readReleases(
         .select()
         .from(CandidateBriefReviewEvent)
         .where(inArray(CandidateBriefReviewEvent.revisionId, ids));
-      return releases.flatMap((release) => {
+      const races = releases.flatMap((release) => {
         const race = readCandidateRace({
           manifest: release.document,
           revokedReason: release.revokedReason,
@@ -81,18 +94,16 @@ async function readReleases(
         });
         return race ? [race] : [];
       });
+      return { policy, races };
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
 }
 /** Dependency is server-owned; no request parameter or environment flag can approve policy. */
-export function createCandidateBriefsRouter(policy: {
-  approved: boolean;
-  version: string;
-}) {
+export function createCandidateBriefsRouter(policyInput: PolicyInput) {
   return {
     listRaces: publicProcedure.query(async ({ ctx }) =>
-      (await readReleases(ctx.db, policy)).map((race) => ({
+      (await readReleases(ctx.db, policyInput)).races.map((race) => ({
         id: race.manifest.id,
         office: race.manifest.office,
         jurisdiction: race.manifest.jurisdictionLabel,
@@ -104,12 +115,13 @@ export function createCandidateBriefsRouter(policy: {
       .input(z.object({ releaseId: z.uuid() }))
       .query(
         async ({ ctx, input }) =>
-          (await readReleases(ctx.db, policy, input.releaseId))[0] ?? null,
+          (await readReleases(ctx.db, policyInput, input.releaseId)).races[0] ??
+          null,
       ),
     get: publicProcedure
       .input(candidateBriefIdentitySchema)
       .query(async ({ ctx, input }) => {
-        const races = await readReleases(ctx.db, policy);
+        const { policy, races } = await readReleases(ctx.db, policyInput);
         const race = races.find(
           (r) =>
             r.manifest.contestId === input.contestId &&
@@ -136,6 +148,5 @@ export function createCandidateBriefsRouter(policy: {
       }),
   };
 }
-export const candidateBriefsRouter = createCandidateBriefsRouter(
-  candidatePublicationPolicy,
-);
+export const candidateBriefsRouter =
+  createCandidateBriefsRouter(activeResearchPolicy);

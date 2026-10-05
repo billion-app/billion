@@ -168,93 +168,105 @@ export function Finance({
           open={open}
         />
       </CandidateDisclosure>
-      <Panel title="Donors & interests">
-        <Text style={s.muted}>
-          {finance.donorCoverage === "selected"
-            ? "Selected donors"
-            : finance.donorCoverage === "all_itemized"
-              ? "Itemized donors"
-              : "Donor details unavailable"}{" "}
-          · Given to the campaign
-        </Text>
-        <CandidateDisclosure title="Filter donors">
-          <Segments
-            options={[
-              { value: "all", label: "All types" },
-              { value: "individual", label: "Individuals" },
-              { value: "committee", label: "Committees" },
-              { value: "lobbyists", label: "Lobbyists" },
-            ]}
-            value={type}
-            onChange={setType}
-          />
-          <Text style={s.label}>Interest area</Text>
-          <Segments
-            options={[
-              { value: "all", label: "All interests" },
-              ...Array.from(
-                new Set(
-                  finance.donors.flatMap((d) => d.interests.map((i) => i.area)),
-                ),
-              ).map((value) => ({ value, label: interestLabels[value] })),
-              { value: "unknown", label: "Not established" },
-            ]}
-            value={area}
-            onChange={setArea}
-          />
-        </CandidateDisclosure>
-        {donors.map((d) => (
-          <Pressable
-            key={d.id}
-            accessibilityRole="button"
-            accessibilityLabel={`${d.name}, ${money(d.amountCents)}. ${donorTypeLabels[d.type]}. ${d.lobbying ? "Registered lobbyist. " : ""}${d.interests.length ? d.interests.map((i) => interestLabels[i.area]).join(", ") : "Interest not established"}. View donor details`}
-            onPress={() => onDonor(d.id)}
-            style={s.rule}
-          >
-            <View
-              style={[
-                s.row,
-                { flexWrap: "wrap", justifyContent: "space-between" },
-              ]}
-            >
-              <Text style={[s.body, { flexShrink: 1, flexBasis: "65%" }]}>
-                {d.name}
-              </Text>
-              <Text style={s.label}>{money(d.amountCents)}</Text>
-            </View>
-            <View style={s.row}>
-              <View style={s.grow}>
-                <Text style={s.muted}>
-                  {donorTypeLabels[d.type]}
-                  {d.lobbying ? " · Registered lobbyist" : ""}
-                </Text>
-                <View
-                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
-                >
-                  {d.interests.length ? (
-                    d.interests.map((i) => (
-                      <Interest key={i.area} area={i.area} />
-                    ))
-                  ) : (
-                    <Interest area="unknown" />
-                  )}
-                </View>
-              </View>
-              <Icon name="chevR" color={P.primary} size={18} />
-            </View>
-          </Pressable>
-        ))}
-        {!donors.length && (
-          <Text style={s.body}>
-            {finance.donors.length
-              ? "No donors match these filters."
-              : "No reviewed donor details are available."}
+      {finance.donorCoverage === "unavailable" ? (
+        <Panel title="Donors & interests">
+          <Text style={s.muted}>
+            Donor identities and lobbying ties weren’t available in this source
+            check.
           </Text>
-        )}
-        <Text style={s.muted}>
-          Already included in receipts below. {finance.coverageNote}
-        </Text>
-      </Panel>
+        </Panel>
+      ) : (
+        <Panel title="Donors & interests">
+          <Text style={s.muted}>
+            {finance.donorAmounts === "contribution"
+              ? "Selected contributions · one payment per row"
+              : finance.donorCoverage === "selected"
+                ? "Selected donors"
+                : "Itemized donors"}{" "}
+            · Given to the campaign
+          </Text>
+          <CandidateDisclosure title="Filter donors">
+            <Segments
+              options={[
+                { value: "all", label: "All types" },
+                { value: "individual", label: "Individuals" },
+                { value: "committee", label: "Committees" },
+                { value: "lobbyists", label: "Lobbyists" },
+              ]}
+              value={type}
+              onChange={setType}
+            />
+            <Text style={s.label}>Interest area</Text>
+            <Segments
+              options={[
+                { value: "all", label: "All interests" },
+                ...Array.from(
+                  new Set(
+                    finance.donors.flatMap((d) =>
+                      d.interests.map((i) => i.area),
+                    ),
+                  ),
+                ).map((value) => ({ value, label: interestLabels[value] })),
+                { value: "unknown", label: "Not established" },
+              ]}
+              value={area}
+              onChange={setArea}
+            />
+          </CandidateDisclosure>
+          {donors.map((d) => (
+            <Pressable
+              key={d.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${d.name}, ${money(d.amountCents)}. ${donorTypeLabels[d.type]}. ${d.lobbying ? "Registered lobbyist. " : ""}${d.interests.length ? d.interests.map((i) => interestLabels[i.area]).join(", ") : "Interest not established"}. View donor details`}
+              onPress={() => onDonor(d.id)}
+              style={s.rule}
+            >
+              <View
+                style={[
+                  s.row,
+                  { flexWrap: "wrap", justifyContent: "space-between" },
+                ]}
+              >
+                <Text style={[s.body, { flexShrink: 1, flexBasis: "65%" }]}>
+                  {d.name}
+                </Text>
+                <Text style={s.label}>{money(d.amountCents)}</Text>
+              </View>
+              <View style={s.row}>
+                <View style={s.grow}>
+                  <Text style={s.muted}>
+                    {donorTypeLabels[d.type]}
+                    {d.lobbying ? " · Registered lobbyist" : ""}
+                  </Text>
+                  <View
+                    style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
+                  >
+                    {d.interests.length ? (
+                      d.interests.map((i) => (
+                        <Interest key={i.area} area={i.area} />
+                      ))
+                    ) : (
+                      <Interest area="unknown" />
+                    )}
+                  </View>
+                </View>
+                <Icon name="chevR" color={P.primary} size={18} />
+              </View>
+            </Pressable>
+          ))}
+          {!donors.length && (
+            <Text style={s.body}>
+              {finance.donors.length
+                ? "No donors match these filters."
+                : "No reviewed donor details are available."}
+            </Text>
+          )}
+          <Text style={s.muted}>
+            Included in the receipts below. Open the reporting period for
+            coverage details.
+          </Text>
+        </Panel>
+      )}
       <Panel title="Received by the campaign">
         {receipts ? (
           <>

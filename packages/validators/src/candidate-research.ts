@@ -99,6 +99,7 @@ export const campaignFinanceSchema = z
         }),
       )
       .max(500),
+    donorAmounts: z.enum(["donor_total", "contribution"]).optional(),
     donorCoverage: z.enum(["all_itemized", "selected", "unavailable"]),
     outsideSpending: z
       .array(

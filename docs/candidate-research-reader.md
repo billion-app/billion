@@ -51,8 +51,8 @@ policy version, independent approvals, current source hashes, and withdrawals.
 Source checks expire in at most 24 hours. The
 [store](../packages/api/src/lib/candidate-race-store.ts) inserts a full-race
 snapshot only after those checks. Source changes or fetch failures must revoke
-that snapshot before rereview. A new source check requires a new release; it does
-not silently extend an old one.
+that snapshot before rereview. An unchanged successful source check retains the release URL and renews freshness
+only after validating the exact approved revisions. Changed evidence requires new review.
 
 The [tRPC procedures](../packages/api/src/router/candidate-briefs.ts) recheck the
 whole race in a repeatable-read transaction. A revoked, expired, or incomplete
@@ -62,31 +62,30 @@ do not evict another race. Mobile polls while open and removes an expired result
 locally. There is no provider lookup, paid generation, or publication write on a
 reader request. Expo imports API types and calls tRPC, never the database client.
 
-## Current publication limits
+## Collected drafts and publication
 
-The publication policy is still **unapproved**. Production returns an empty
-catalog and unavailable research, without touching the database. Development
-examples are explicitly fictional and gated by `__DEV__`; changing URL parameters
-in a production build cannot enable them. The official statement-guide and ballot
-provider paths retain their existing behavior. This implementation does not certify
-that guide as a full ballot or match research to a candidate by name.
+The [CA-17 source adapter and authenticated workbench](candidate-research-collection.md)
+now collect a complete certified pilot roster, candidate positions, office powers,
+and reconciled FEC finances. Real data remains a visibly unpublished draft until
+independent editorial approval. Source refresh and revocation are implemented;
+the supervisor job must be deployed to run them in production.
 
-A live pilot still requires a selected jurisdiction/election, independently
-verified official full roster and identities, source/filing ingestion, editorial
-policy approval, and a reviewed release. Finance currently consumes reviewed
-snapshots; this change does **not** add FEC/CAL-ACCESS/county scraping, amendment
-reconciliation, or automated donor classification. Operators must reconcile
-amendments and duplicates in their source work before submission. No fictional
-records are production seeds. An authenticated editorial application, automated
-source refresh/revocation scheduling, physical-device VoiceOver and real-reader
-comprehension acceptance remain separate release gates. This does not complete
-all live-data acceptance criteria in issue #443.
+Publication defaults to **unapproved**. The server reads the latest persisted
+policy decision before looking up releases, within the same transaction. Only a
+provisioned publisher can approve or revoke policy through the authenticated API.
+Development fictional examples remain gated by `__DEV__`; production URL
+parameters cannot enable them. Draft previews require an editor session.
+
+The pilot does not provide comprehensive candidate histories, automatic interest
+classification, nationwide matching or local finance ingestion. Physical-device
+VoiceOver and real-reader acceptance remain release checks. No fictional records
+are production seeds and no real editorial approval was performed during development.
 
 ## Trusted operator workflow
 
 Apply migration `0024_blushing_sharon_ventura.sql` through the normal
 [migration procedure](data-layer.md#migrations) before activating the API. It adds
-only the release snapshot table. No shared database was migrated during development.
+the release snapshot table; `0025_tranquil_ego.sql` adds the collection and editorial tables. No shared database was migrated during development.
 
 The CLI is for trusted server operators with database access; it is not an
 editorial authorization API. It does not prove the identity of an actor supplied

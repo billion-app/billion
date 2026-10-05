@@ -15,6 +15,13 @@ import { Finance } from "./Finance";
 import { candidateResearchPreview } from "./fixtures";
 import { Action, EvidenceAction, Panel, s, Segments } from "./ResearchUI";
 
+const electionLabel = (date: string) =>
+  new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 const blankReleaseId = "00000000-0000-4000-8000-000000000000";
 const topics = [
   { value: "priorities", label: "Priorities" },
@@ -32,6 +39,7 @@ export function ResearchScreen({
   const router = useRouter();
   const params = useLocalSearchParams<{
     race?: string;
+    draft?: string;
     person?: string;
     preview?: string;
     tab?: string;
@@ -46,7 +54,18 @@ export function ResearchScreen({
     (EvidenceSelection & { person: string; route: string }) | null
   >(null);
   const [now, setNow] = useState(() => Date.now());
-  const fixture = candidateResearchPreview(params.preview);
+  const draftQuery = useQuery({
+    ...trpc.candidateResearchEditorial.preview.queryOptions({
+      id: params.draft ?? blankReleaseId,
+    }),
+    enabled: !!params.draft,
+    retry: false,
+    staleTime: 0,
+    refetchInterval: 30_000,
+  });
+  const fixture = params.draft
+    ? null
+    : candidateResearchPreview(params.preview);
   const fictional = !!fixture;
   const previewUnavailable = __DEV__ && !!params.preview && !fixture;
   const validId =
@@ -58,13 +77,13 @@ export function ResearchScreen({
     ...trpc.candidateBriefs.race.queryOptions({
       releaseId: validId ? (params.race ?? blankReleaseId) : blankReleaseId,
     }),
-    enabled: validId && !fictional && !previewUnavailable,
+    enabled: validId && !params.draft && !fictional && !previewUnavailable,
     staleTime: 0,
     refetchInterval: 30_000,
   });
   const catalog = useQuery({
     ...trpc.candidateBriefs.listRaces.queryOptions(),
-    enabled: !params.race && !fictional && !previewUnavailable,
+    enabled: !params.race && !params.draft && !fictional && !previewUnavailable,
     staleTime: 0,
   });
   useEffect(() => {
@@ -73,12 +92,14 @@ export function ResearchScreen({
   }, []);
   const route = JSON.stringify([
     params.race,
+    params.draft,
     params.person,
     params.promise,
     params.tab,
     params.view,
   ]);
   const race =
+    (params.draft && !draftQuery.isError ? draftQuery.data : null) ??
     fixture ??
     (!query.isError &&
     query.data &&
@@ -101,7 +122,11 @@ export function ResearchScreen({
     router.push({
       pathname: promise ? "/candidate-promise" : "/candidate-research",
       params: {
-        ...(fictional ? { preview: params.preview } : { race: params.race }),
+        ...(params.draft
+          ? { draft: params.draft }
+          : fictional
+            ? { preview: params.preview }
+            : { race: params.race }),
         ...next,
       },
     });
@@ -136,10 +161,32 @@ export function ResearchScreen({
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
       >
+        {params.draft && (
+          <Panel title="Editorial draft · not published">
+            <Text style={s.body}>
+              Real collected sources. The explanation is awaiting independent
+              review.
+            </Text>
+            {draftQuery.data?.failure ? (
+              <Text style={s.body}>{draftQuery.data.failure}</Text>
+            ) : null}
+            {draftQuery.isError ? (
+              <Text style={s.body}>
+                Sign in with an authorized editor account to view this draft.
+              </Text>
+            ) : null}
+          </Panel>
+        )}
         {fictional && (
           <Text style={s.eyebrow}>Fictional example · not your ballot</Text>
         )}
-        {!race ? (
+        {params.draft && !race ? (
+          <ActivityIndicator
+            accessibilityLabel="Loading editorial draft"
+            color={P.primary}
+            animating={!draftQuery.isError}
+          />
+        ) : !race ? (
           <>
             {(validId && query.isFetching) ||
             (!params.race && catalog.isPending && !previewUnavailable) ? (
@@ -183,7 +230,8 @@ export function ResearchScreen({
                   ? catalog.data.map((item) => (
                       <Panel key={item.id} title={item.office}>
                         <Text style={s.muted}>
-                          {item.jurisdiction} · {item.electionDate}
+                          {item.jurisdiction} ·{" "}
+                          {electionLabel(item.electionDate)}
                         </Text>
                         <Text style={s.body}>
                           {item.candidateCount} candidates
@@ -252,7 +300,7 @@ export function ResearchScreen({
             <>
               <Text style={s.eyebrow}>
                 {race.manifest.jurisdictionLabel.toUpperCase()} ·{" "}
-                {race.manifest.electionDate}
+                {electionLabel(race.manifest.electionDate)}
               </Text>
               <Text accessibilityRole="header" style={s.title}>
                 {race.manifest.office}
@@ -312,6 +360,12 @@ export function ResearchScreen({
                               "No reviewed evidence available for this question."}
                           </Text>
                         )}
+                        {!!section?.claims.length &&
+                          !!section.missingEvidence && (
+                            <Text style={s.muted}>
+                              {section.missingEvidence}
+                            </Text>
+                          )}
                         <Action
                           label={`Explore ${person.name}`}
                           onPress={() =>
@@ -451,7 +505,11 @@ export function ResearchScreen({
                 ) : tab === "sources" ? (
                   <>
                     <Text style={s.muted}>
-                      {fictional ? "Example review" : "Reviewed"}{" "}
+                      {params.draft
+                        ? "Sources checked"
+                        : fictional
+                          ? "Example review"
+                          : "Reviewed"}{" "}
                       {new Date(race.reviewedAt).toLocaleDateString("en-US", {
                         timeZone: "UTC",
                       })}

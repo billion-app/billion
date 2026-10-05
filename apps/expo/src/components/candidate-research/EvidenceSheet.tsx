@@ -159,6 +159,12 @@ export function EvidenceSheet({
                   ) : (
                     <SourceLink label={source.url} url={source.url} />
                   )}
+                  {!fictional && source.filingUrl && (
+                    <SourceLink
+                      label="View original filing"
+                      url={source.filingUrl}
+                    />
+                  )}
                   <Text style={s.muted}>
                     Retrieved{" "}
                     {new Date(source.retrievedAt).toLocaleDateString("en-US", {

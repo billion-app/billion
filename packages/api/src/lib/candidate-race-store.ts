@@ -7,17 +7,15 @@ import {
 } from "@acme/db/schema";
 import { candidateRaceManifestSchema } from "@acme/validators";
 
-import {
-  candidatePublicationPolicy,
-  readCandidateRace,
-} from "./candidate-race-release";
+import { readCandidateRace } from "./candidate-race-release";
+import { activeResearchPolicy } from "./candidate-research-store";
 
 /** Trusted editorial operator only; never exposed as a public mutation. */
 export async function releaseCandidateRace(value: unknown) {
   const manifest = candidateRaceManifestSchema.parse(value);
-  if (!candidatePublicationPolicy.approved)
-    throw new Error("Publication policy is not approved");
   return db.transaction(async (tx) => {
+    const policy = await activeResearchPolicy(tx);
+    if (!policy.approved) throw new Error("Publication policy is not approved");
     const ids = manifest.members.map((m) => m.revisionId);
     const revisions = await tx
       .select()
@@ -33,7 +31,7 @@ export async function releaseCandidateRace(value: unknown) {
       revisions,
       events,
       now: new Date().toISOString(),
-      policy: candidatePublicationPolicy,
+      policy,
     });
     if (!published)
       throw new Error(

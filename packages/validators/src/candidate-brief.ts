@@ -35,6 +35,10 @@ export const candidateBriefSchema = z
           shows: text.optional(),
           limits: text.optional(),
           url: z.url().refine((url) => /^https?:\/\//.test(url)),
+          filingUrl: z
+            .url()
+            .refine((url) => /^https?:\/\//.test(url))
+            .optional(),
           publisher: text,
           locator: text,
           retrievedAt: date,

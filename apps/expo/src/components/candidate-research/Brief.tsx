@@ -36,6 +36,9 @@ export function Brief({
   const headline =
     claims.find((claim) => claim.id === brief.research?.headlineClaimId) ??
     brief.sections.find((section) => section.topic === "priorities")?.claims[0];
+  const recordGap = brief.sections.find(
+    (section) => section.topic === "record",
+  )?.missingEvidence;
   const records = claims.filter((claim) => claim.kind === "fact");
   const promises = claims.filter((claim) => claim.kind === "promise");
   return (
@@ -113,6 +116,11 @@ export function Brief({
             {brief.sections.find((section) => section.topic === "record")
               ?.missingEvidence ?? "No reviewed record available."}
           </Text>
+        </Panel>
+      )}
+      {!!records.length && !!recordGap && (
+        <Panel>
+          <Text style={s.muted}>{recordGap}</Text>
         </Panel>
       )}
       {promises.map((claim) => (

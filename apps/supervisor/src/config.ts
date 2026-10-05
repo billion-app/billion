@@ -10,6 +10,18 @@ import type { JobDefinition } from "./types.js";
  */
 export const jobs: readonly JobDefinition[] = [
   {
+    id: "candidate-research-twice-daily",
+    description:
+      "Refresh one complete CA-17 research race; revoke on source change or failure",
+    script: "main.js",
+    args: ["candidate-research", "--max-items", "1", "--concurrency", "1"],
+    env: { SCRAPER_MAX_NEW_ITEMS_PER_RUN: "0" },
+    schedule: { kind: "interval", everyMinutes: 720 },
+    priority: 12,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "congress-daily",
     description:
       "Refresh federal bills and retain 90 active days plus category leaders",

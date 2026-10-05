@@ -96,6 +96,11 @@ const scraperSourceLimitDefinitions = [
     "1",
   ],
   [
+    "CANDIDATE_RESEARCH_MAX_ITEMS",
+    "Complete candidate research races per run (only 1 is supported by the CA-17 pilot).",
+    "1",
+  ],
+  [
     "CA_GUIDE_MAX_ITEMS",
     "California official guide detail pages per run (1–100; incomplete collections are not saved).",
     "40",
@@ -129,6 +134,16 @@ const scraperSourceLimitDefinitions = [
 ] as const;
 
 export const envRegistry = [
+  define({
+    key: "FEC_API_KEY",
+    description:
+      "OpenFEC API key for bounded candidate finance collection; DEMO_KEY is used for small local runs when absent.",
+    group: "Candidate research",
+    secret: true,
+    setupUrl: "https://api.open.fec.gov/developers/",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
   define({
     key: "SANTA_CRUZ_ELECTION_DATE",
     description:

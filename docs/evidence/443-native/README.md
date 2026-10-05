@@ -1,5 +1,7 @@
 # Native candidate research evidence
 
+For the later real-source follow-up, see [real collected drafts and verification](../443-real-data/README.md).
+
 These are captures of the running Expo implementation, not the HTML design
 prototype. All pictured candidates, amounts, quotations, and classifications are
 fictional development fixtures. They do not demonstrate live research coverage or
@@ -69,7 +71,7 @@ CANDIDATE_RESEARCH_TEST_DATABASE_URL=postgresql://127.0.0.1:55443/billion_candid
 ```
 
 The ordinary test run skips this integration without that explicit local target.
-The suite verifies pending-policy reads do not touch the database. CLI draft
+The static pending-policy test verifies no release reads; the follow-up persisted policy resolver reads its policy decision inside the release transaction. CLI draft
 validation was also exercised without writes. Production iOS and Android exports
 verify the native bundle path; they do not constitute a store release.
 
