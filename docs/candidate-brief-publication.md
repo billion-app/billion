@@ -1,9 +1,10 @@
-# Reviewed candidate briefs: gated implementation and policy proposal
+# Candidate brief publication and editorial policy
 
-Independent briefs remain unpublished. The public `candidateBriefs.get` procedure
-returns `policy_pending`, zero reviewed candidates and an unknown roster count.
-It performs no database access, generation or provider fetch. The candidate page
-shows the complete-race publication gap without implying poor qualifications.
+Public briefs require a versioned publication policy and independent approval of
+an entire current certified race. Publication defaults to closed. The
+[collection and editorial guide](candidate-research-collection.md) describes the
+implemented CA-17 source ingestion, authenticated review workbench and refresh
+lifecycle. Real collected drafts do not imply editorial approval.
 
 ## Implemented contract
 
@@ -15,11 +16,10 @@ uses provider candidate and contest IDs, jurisdiction and election date; names
 are never identifiers. The comparison work in #423 should consume this contract
 rather than summaries extracted from statements.
 
-The dedicated revision and review-event tables retain documents independently
-of normalized ballot persistence. Revisions are intended to be append-only;
-there is deliberately no public writer or editor role assigned yet. They are
-storage scaffolding. Trusted server-only draft/review functions validate identity
-and refuse self-approval; they are not an authenticated editorial tool.
+Dedicated revision and review-event tables retain append-only documents separately
+from normalized ballot persistence. Authenticated editors can create successor
+revisions and approve another author's exact revision; publisher roles control
+policy and complete-race release. Original source snapshots remain separate.
 
 [The deterministic gate](../packages/api/src/lib/candidate-brief-publication.ts)
 requires an approved policy, a verified complete race roster, one revision per
@@ -27,7 +27,7 @@ candidate, an independent editor's approval bound to the exact revision digest
 and policy version, and current evidence hashes. Source changes, withdrawals,
 invalid citations and incomplete rosters suppress the entire race. It does not
 establish whether evidence supports a claim; that is an editorial responsibility.
-The gate is a tested prototype and is not connected to production publication.
+The gate now backs the [native research reader and transactional race release](candidate-research-reader.md). Production publication remains disabled pending the human policy and source-review gates.
 
 ## Proposed resolution of #401 / #344 scheduling
 
@@ -42,33 +42,24 @@ candidate attribution for promises; allegation provenance, response and dispute
 status; office powers grounding for potential mechanisms; explicit uncertainty
 and unequal evidence disclosure. Lack of evidence cannot count against someone.
 Publish only complete certified races, including non-statement candidates, with
-review dates and covered/total counts from the verified roster. Start with one
-bounded California statewide race; #100's local statement expansion and #333's
+review dates and covered/total counts from the verified roster. The implemented first collection is the bounded CA-17 House race; #100's local statement expansion and #333's
 national matching tests do not establish roster completeness or review readiness.
 
-## Remaining release gates and operations proposal
+## Release decisions
 
-1. Editorial owner approves the minimum policy and its 2026 scope under #344.
-2. Select a certified race roster with stable provider IDs. Retain its snapshot,
-   hash and verification date. Do not use the submitted-statement guide as roster.
-3. Build authenticated editorial tooling with restricted append-only writes and
-   audit events; apply the forward migration to a verified local/staging target.
-4. Review primary-source incumbent and non-incumbent examples, identity collisions,
-   sparse evidence and correction cases. Synthetic tests are not reviewed content.
-5. On every source refresh, compare content hashes and invalidate affected race
-   releases before reads. Source fetch failures must also close publication.
-6. For corrections, withdraw the current revision first; create a successor with
-   the reason and previous revision ID, retain both versions, and re-review the
-   whole race. Rollback selects an older revision only after fresh source checks
-   and new approval; a previous approval alone is insufficient.
-7. Wire a transactionally published race release and its current-source manifest
-   through tRPC to mobile. Test real-reader comprehension, large text and the
-   production mobile flow before enabling. No release is authorized here.
+The bounded CA-17 roster, source collection, authenticated editorial application,
+refresh invalidation and transactional reader are implemented. The operations
+guide explains how to collect, provision accounts, review and publish. The pilot
+has real source data but has not received human editorial approval. An accountable
+publisher must approve policy and editors must review every exact revision before
+release. Production migrations, deployment, physical-device accessibility and
+real-reader comprehension acceptance remain separately recorded release steps.
 
-These are exact blockers to live analysis, not a claim that the editorial review
-or deployment has happened. The existing statement citations remain independent.
+For corrections, create a successor with its reason and previous revision ID.
+The whole race is withdrawn until fresh independent review. Failed source refresh
+also withdraws the race; successful recovery does not reuse old approvals.
 
-## Reader-facing prototype
+## Earlier reader-facing prototype
 
 The candidate screen keeps one visible missing-coverage message and an immediate
 link to the election office. It shows available statements and office duties;

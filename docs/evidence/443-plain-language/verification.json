@@ -1,0 +1,12 @@
+{
+  "surface": "Expo web development build; fictional transit fixture",
+  "checks": [
+    "Keyboard Enter/Space opens and toggles inline definition; Close restores term focus",
+    "Brief has three question-led sections; authority opens its own supporting source and restores focus",
+    "In-depth navigation and URL reload",
+    "320px: headings, tabs and actions fit",
+    "390px: headings, tabs and actions fit",
+    "768px: headings, tabs and actions fit"
+  ],
+  "errors": []
+}

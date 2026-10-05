@@ -36,6 +36,8 @@ export const digest = {
   spark: "#D4AF37",
   /** Filled primary actions (buttons, selected segments) — not gold */
   primary: "#4A7CFF",
+  /** Underlined body-text links and definitions on navy/slate surfaces. */
+  linkOnNight: "#A5B9FF",
   /** Alias of spark */
   copper: "#D4AF37",
   /** Primary text on night surfaces */
@@ -126,4 +128,17 @@ export const outcomeColors = {
 export const lensColors = {
   proponents: "#6DD6C7",
   opponents: "#F2B56B",
+} as const;
+
+/** Descriptive interest categories, never a score or party affiliation. */
+export const interestColors = {
+  labor: "#84D7CF",
+  business: "#A9BFF5",
+  housing: "#C5B5E8",
+  health: "#C0D99B",
+  environment: "#A4D4BC",
+  education: "#D5C5A9",
+  rights: "#DDB4D5",
+  foreign_policy: "#EAC697",
+  unknown: "#B7BFD0",
 } as const;

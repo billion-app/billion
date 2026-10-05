@@ -2,7 +2,13 @@
  * Screen header with optional large title.
  */
 import type { ReactNode } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -29,6 +35,8 @@ export function NavHeader({
   tone?: "dark" | "paper";
 }) {
   const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
+  const largeText = fontScale > 1.4;
   const paper = tone === "paper";
   const foreground = paper ? P.ink : P.inkOnNight;
   const backBg = paper ? DigestHair.inkFaint : P.stone;
@@ -48,7 +56,7 @@ export function NavHeader({
             two side slots, so a screen with two actions does not push its
             title off-centre. Behind the buttons in the layout, and inert, so
             a long title cannot swallow a tap. */}
-        {!large && (
+        {!large && !largeText && (
           <Text
             style={[s.title, { color: foreground }]}
             numberOfLines={1}
@@ -73,6 +81,25 @@ export function NavHeader({
           </TouchableOpacity>
         ) : (
           <View style={s.spacer} />
+        )}
+        {!large && largeText && (
+          <Text
+            key={fontScale}
+            accessibilityRole="header"
+            style={[
+              s.title,
+              {
+                position: "relative",
+                left: 0,
+                right: 0,
+                flex: 1,
+                marginHorizontal: 12,
+                color: foreground,
+              },
+            ]}
+          >
+            {title}
+          </Text>
         )}
         <View style={s.action}>{action}</View>
       </View>

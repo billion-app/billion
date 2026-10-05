@@ -597,6 +597,9 @@ importers:
 
   packages/api:
     dependencies:
+      '@acme/env':
+        specifier: workspace:*
+        version: link:../env
       "@acme/auth":
         specifier: workspace:*
         version: link:../auth
