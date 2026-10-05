@@ -1,5 +1,8 @@
 import { z } from "zod/v4";
 
+import type { CandidateRaceManifest } from "./candidate-research";
+import { candidateResearchSchema } from "./candidate-research";
+
 const text = z.string().trim().min(1).max(4000);
 const date = z.iso.datetime();
 export const candidateBriefIdentitySchema = z.object({
@@ -28,6 +31,9 @@ export const candidateBriefSchema = z
       .array(
         z.object({
           id: text,
+          title: text.optional(),
+          shows: text.optional(),
+          limits: text.optional(),
           url: z.url().refine((url) => /^https?:\/\//.test(url)),
           publisher: text,
           locator: text,
@@ -39,6 +45,7 @@ export const candidateBriefSchema = z
         }),
       )
       .max(100),
+    research: candidateResearchSchema.optional(),
     sections: z
       .array(
         z.object({
@@ -57,6 +64,7 @@ export const candidateBriefSchema = z
                 id: text,
                 kind: z.enum(["promise", "fact", "disputed", "analysis"]),
                 text,
+                emphasis: z.array(text).max(4).optional(),
                 evidenceIds: z.array(text).min(1),
               }),
             )
@@ -86,6 +94,11 @@ export const candidateBriefSchema = z
           message: "Empty section needs an explicit evidence gap",
         });
       for (const claim of section.claims) {
+        if (claim.emphasis?.some((phrase) => !claim.text.includes(phrase)))
+          ctx.addIssue({
+            code: "custom",
+            message: "Claim emphasis must quote its text",
+          });
         if (ids.has(claim.id))
           ctx.addIssue({ code: "custom", message: "Duplicate claim IDs" });
         ids.add(claim.id);
@@ -106,6 +119,60 @@ export const candidateBriefSchema = z
           });
       }
     }
+    if (brief.research) {
+      const claims = brief.sections.flatMap((section) => section.claims);
+      if (!claims.some((claim) => claim.id === brief.research?.headlineClaimId))
+        ctx.addIssue({ code: "custom", message: "Unknown headline claim" });
+      const promises = new Set<string>();
+      for (const promise of brief.research.promises) {
+        if (
+          promises.has(promise.claimId) ||
+          !claims.some(
+            (claim) => claim.id === promise.claimId && claim.kind === "promise",
+          )
+        )
+          ctx.addIssue({
+            code: "custom",
+            message: "Promise details require a unique campaign promise",
+          });
+        promises.add(promise.claimId);
+      }
+      // Walk the structured reading fields so every source-bearing point is checked.
+      function checkReferences(value: unknown): void {
+        if (!value || typeof value !== "object") return;
+        for (const [key, item] of Object.entries(value)) {
+          if (
+            (key === "evidenceIds" || key === "filingEvidenceIds") &&
+            Array.isArray(item)
+          ) {
+            if (item.some((id) => typeof id !== "string" || !evidence.has(id)))
+              ctx.addIssue({
+                code: "custom",
+                message: "Unknown research evidence reference",
+              });
+          } else if (Array.isArray(item)) item.forEach(checkReferences);
+          else checkReferences(item);
+        }
+      }
+      checkReferences(brief.research);
+      const finance = brief.research.finance;
+      if (finance) {
+        const financialRefs = [
+          ...finance.filingEvidenceIds,
+          ...finance.donors.flatMap((d) => d.evidenceIds),
+          ...(finance.outsideSpending?.flatMap((d) => d.evidenceIds) ?? []),
+        ];
+        if (
+          financialRefs.some(
+            (id) => evidence.get(id)?.origin !== "primary_record",
+          )
+        )
+          ctx.addIssue({
+            code: "custom",
+            message: "Financial amounts require primary records",
+          });
+      }
+    }
     if (
       brief.correction &&
       brief.correction.previousRevisionId !== brief.supersedes
@@ -119,3 +186,9 @@ export type CandidateBrief = z.infer<typeof candidateBriefSchema>;
 export type CandidateBriefIdentity = z.infer<
   typeof candidateBriefIdentitySchema
 >;
+
+export interface CandidateResearchRace {
+  manifest: CandidateRaceManifest;
+  briefs: CandidateBrief[];
+  reviewedAt: string;
+}

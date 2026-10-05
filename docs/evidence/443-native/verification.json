@@ -1,0 +1,17 @@
+{
+  "surface": "Expo web development build; fictional data",
+  "checks": [
+    "roster → candidate",
+    "source sheet, Done and focus restoration",
+    "promise page, depth, URL reload",
+    "donor identity, role and unknown interest distinct",
+    "donor filters",
+    "comparison preserves full roster and gaps",
+    "withdrawal remains visible in comparison",
+    "missing financial data is not zero",
+    "320px: candidate, promise, finance fit",
+    "390px: candidate, promise, finance fit",
+    "768px: candidate, promise, finance fit"
+  ],
+  "errors": []
+}

@@ -27,7 +27,7 @@ candidate, an independent editor's approval bound to the exact revision digest
 and policy version, and current evidence hashes. Source changes, withdrawals,
 invalid citations and incomplete rosters suppress the entire race. It does not
 establish whether evidence supports a claim; that is an editorial responsibility.
-The gate is a tested prototype and is not connected to production publication.
+The gate now backs the [native research reader and transactional race release](candidate-research-reader.md). Production publication remains disabled pending the human policy and source-review gates.
 
 ## Proposed resolution of #401 / #344 scheduling
 
@@ -61,14 +61,14 @@ national matching tests do not establish roster completeness or review readiness
    the reason and previous revision ID, retain both versions, and re-review the
    whole race. Rollback selects an older revision only after fresh source checks
    and new approval; a previous approval alone is insufficient.
-7. Wire a transactionally published race release and its current-source manifest
-   through tRPC to mobile. Test real-reader comprehension, large text and the
-   production mobile flow before enabling. No release is authorized here.
+7. Exercise the implemented transactional release, current-source manifest, and
+   tRPC/mobile reader with reviewed pilot data. Complete real-reader comprehension
+   and physical-device accessibility checks before enabling. No release is authorized here.
 
 These are exact blockers to live analysis, not a claim that the editorial review
 or deployment has happened. The existing statement citations remain independent.
 
-## Reader-facing prototype
+## Earlier reader-facing prototype
 
 The candidate screen keeps one visible missing-coverage message and an immediate
 link to the election office. It shows available statements and office duties;

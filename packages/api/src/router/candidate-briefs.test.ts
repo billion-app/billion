@@ -24,6 +24,11 @@ void test("public read remains closed and does not touch the database", async ()
     jurisdiction: "fixture",
     electionDate: "2026-11-03",
   });
+  assert.deepEqual(await caller.listRaces(), []);
+  assert.equal(
+    await caller.race({ releaseId: "00000000-0000-4000-8000-000000000443" }),
+    null,
+  );
   assert.equal(result.status, "policy_pending");
   assert.equal(result.brief, null);
   assert.equal(result.coverage.rosterCandidates, null);

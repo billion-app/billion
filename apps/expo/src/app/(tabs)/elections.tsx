@@ -307,6 +307,23 @@ function CaliforniaElectionEntry({
         </Card>
         <TouchableOpacity
           accessibilityRole="button"
+          accessibilityLabel="Explore candidate research"
+          onPress={() => router.push("/candidate-research")}
+          style={s.entryTool}
+        >
+          <View style={s.entryIcon} accessible={false}>
+            <Icon name="users" size={18} color={colors.bill} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={s.entryGuideTitle}>Candidate research</Text>
+            <Text style={s.entryNoteText}>
+              Records, promises and reported funding.
+            </Text>
+          </View>
+          <Icon name="chevR" size={18} color={colors.bill} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
           accessibilityLabel="Learn how elections work"
           onPress={() => router.push("/election-process")}
           style={s.entryTool}

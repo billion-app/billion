@@ -15,6 +15,7 @@ import { z } from "zod/v4";
 import type {
   BillBriefRecord,
   CandidateBrief,
+  CandidateRaceManifest,
   CourtBriefRecord,
 } from "@acme/validators";
 
@@ -1368,3 +1369,11 @@ export const CandidateBriefReviewEvent = pgTable(
     createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
 );
+
+/** A bounded, source-checked race snapshot. Revocation removes the whole race. */
+export const CandidateRaceRelease = pgTable("candidate_race_release", (t) => ({
+  id: t.uuid().primaryKey(),
+  document: t.jsonb().$type<CandidateRaceManifest>().notNull(),
+  revokedReason: t.text(),
+  createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+}));
