@@ -456,6 +456,34 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "SCRAPER_FALLBACK_BASE_URL",
+    description:
+      "Optional Responses-compatible outage fallback for scraper text, briefs, and web search. Unset disables fallback.",
+    group: "AI",
+    secret: false,
+    example: "http://host.docker.internal:10531/v1",
+    requirements: { scraper: "optional" },
+    schema: url,
+  }),
+  define({
+    key: "SCRAPER_FALLBACK_MODEL",
+    description: "Model served by the scraper fallback endpoint.",
+    group: "AI",
+    secret: false,
+    defaultValue: "gpt-6-luna",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_FALLBACK_API_KEY",
+    description:
+      "Optional bearer token for the fallback proxy; OAuth credentials stay with the proxy.",
+    group: "AI",
+    secret: true,
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "LOCAL_LLM_BASE_URL",
     description:
       "Preferred OpenAI-compatible local inference base URL for AI text generation, for example Ollama's /v1 endpoint; OpenRouter is the fallback.",
