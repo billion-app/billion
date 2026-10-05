@@ -1,16 +1,33 @@
-/* eslint-disable turbo/no-undeclared-env-vars -- This test sets its own timezone and restores it; TZ is not a build input. */
+/* eslint-disable turbo/no-undeclared-env-vars -- Tests deliberately set and restore the timezone to verify calendar-date boundaries. */
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import test from "node:test";
 
-import { monthDay } from "./dates";
+import { daysUntil, formatDate } from "./dates";
 
-void test("calendar dates keep their day west of UTC", () => {
-  const prior = process.env.TZ;
+test("calendar-only election dates retain their day west of UTC", () => {
+  const previous = process.env.TZ;
+  process.env.TZ = "America/Los_Angeles";
   try {
-    process.env.TZ = "America/Los_Angeles";
-    assert.equal(monthDay("2026-11-03"), "Nov 3");
+    assert.equal(formatDate("2099-11-03"), "Tue, Nov 3");
   } finally {
-    if (prior === undefined) delete process.env.TZ;
-    else process.env.TZ = prior;
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+});
+
+test("Election Day does not end at UTC midnight in California", (context) => {
+  const previous = process.env.TZ;
+  process.env.TZ = "America/Los_Angeles";
+  context.mock.timers.enable({
+    apis: ["Date"],
+    now: new Date("2026-11-04T01:00:00Z"),
+  });
+  try {
+    assert.equal(daysUntil("2026-11-03"), 0);
+    assert.equal(daysUntil("2026-11-04"), 1);
+  } finally {
+    context.mock.timers.reset();
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
   }
 });

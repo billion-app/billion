@@ -136,6 +136,14 @@
     ],
     "expo-build-properties",
     "expo-font",
-    "expo-notifications"
+    "expo-notifications",
+    [
+      "expo-location",
+      {
+        "locationAlwaysAndWhenInUsePermission": "Billion uses your location to suggest a nearby address for you to confirm before looking up voting information.",
+        "locationWhenInUsePermission": "Billion uses your location to suggest a nearby address for you to confirm before looking up voting information.",
+        "isAndroidBackgroundLocationEnabled": false
+      }
+    ]
   ]
 }

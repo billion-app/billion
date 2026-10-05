@@ -236,22 +236,16 @@ import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 
 ---
 
-## Address autocomplete
+## Address entry (client-side)
 
-**Source:** Google Places API (New)  
-**Entry point:** `packages/api/src/lib/places.ts`  
-**Auth:** `GOOGLE_PLACES_API_KEY` (falls back through `GOOGLE_API_KEY` → `GOOGLE_CIVIC_API_KEY`)
+**Source:** Native device location via `expo-location`, plus typed entry  
+**Entry point:** `apps/expo/src/hooks/useDeviceLocation.ts`, `apps/expo/src/components/AddressAutocomplete.tsx`  
+**Auth:** none — OS permission prompt instead of an API key
 
-```ts
-import type { AddressSuggestion } from "@acme/api";
-import { getAddressSuggestions, getPlaceDetails } from "@acme/api";
-
-const suggestions = await getAddressSuggestions("123 Main St");
-const details = await getPlaceDetails(suggestions[0].placeId);
-// details.formattedAddress, details.location (lat/lng)
-```
-
-Uses session-token billing — each autocomplete→select flow is one billed session, not one request per keystroke.
+The Google Places autocomplete and place-details endpoints were removed. The
+client asks for a one-shot foreground location fix, reverse-geocodes it on
+device, and still lets the voter type a registered address — GPS locates the
+person, not necessarily their registration.
 
 ---
 
