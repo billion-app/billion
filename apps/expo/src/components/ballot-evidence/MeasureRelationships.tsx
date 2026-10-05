@@ -9,10 +9,10 @@ import { BallotText as Text } from "./BallotText";
 
 export function MeasureRelationships({
   number,
-  relationships,
+  relationships = [],
 }: {
   number: string;
-  relationships: PublicMeasureRelationship[];
+  relationships?: PublicMeasureRelationship[];
 }) {
   return (
     <View style={s.section}>

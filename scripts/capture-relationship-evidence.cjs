@@ -190,7 +190,7 @@ const guide = {
   await page.setViewportSize({ width: 390, height: 844 });
   response = {
     ...guide,
-    measures: guide.measures.map((m) => ({ ...m, relationships: [] })),
+    measures: guide.measures.map((m) => ({ ...m, relationships: undefined })),
   };
   await load();
   await label("FIXTURE · unavailable/stale relationship suppressed");
