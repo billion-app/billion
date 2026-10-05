@@ -63,3 +63,30 @@ support from the endpoint and rejects responses without URL citations. The
 current OAuth proxy with Luna passed live text and JSON checks but did not expose
 native web search; the ordinary hosted search providers are still required. It does not replace image generation
 or vision review. Adding the fallback does not invalidate existing lens caches.
+
+## Free-tier search with Tavily
+
+For search independent of the OAuth model's native tools, add a Tavily API key
+from [the Tavily dashboard](https://app.tavily.com) to `scraper.env` and select
+Tavily explicitly:
+
+```dotenv
+TAVILY_API_KEY='your-private-api-key'
+SCRAPER_SEARCH_PROVIDER=tavily
+```
+
+Use the free Researcher account with pay-as-you-go disabled. Tavily currently
+includes [1,000 monthly credits](https://www.tavily.com/pricing). Each scraper
+search requests `basic` depth with automatic parameter selection disabled,
+which uses one credit, and at most five results. This does not guarantee that
+1,000 credits cover every scheduled job; a research loop may search repeatedly.
+
+In `tavily` mode, exhausted credits or an invalid key fail the search without
+switching to a paid provider. Text generation retains its separate provider
+order, including the OAuth fallback. Search returns source URLs and snippets;
+the research agent must still open sources before citing their contents.
+
+The default `hosted` mode retains the existing hosted search. If a Tavily key is
+configured in that mode, Tavily is tried after hosted search fails and before
+the Responses endpoint's native-search fallback. Deploy a merged image and
+restart through the usual deployment script to activate host settings.

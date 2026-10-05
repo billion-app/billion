@@ -456,6 +456,26 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "TAVILY_API_KEY",
+    description:
+      "Tavily search key. Basic search uses one credit; source snippets retain their URLs.",
+    group: "AI",
+    secret: true,
+    setupUrl: "https://app.tavily.com",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_SEARCH_PROVIDER",
+    description:
+      "Preferred scraper web search: hosted uses existing providers with optional Tavily fallback; tavily uses only Tavily and stops on exhausted credits.",
+    group: "AI",
+    secret: false,
+    defaultValue: "hosted",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["hosted", "tavily"]),
+  }),
+  define({
     key: "SCRAPER_FALLBACK_BASE_URL",
     description:
       "Optional Responses-compatible outage fallback for scraper text, briefs, and web search. Unset disables fallback.",

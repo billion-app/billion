@@ -450,3 +450,18 @@ This setting is independent of the preferred `LOCAL_LLM_BASE_URL`. Enabling an
 outage fallback preserves the existing dual-lens cache key. See
 [host setup](../deploy/big-mac/README.md#optional-oauth-backed-fallback) for the
 container address and deployment procedure.
+
+### Independent search with Tavily
+
+`SCRAPER_SEARCH_PROVIDER=tavily` uses Tavily directly and requires
+`TAVILY_API_KEY`. The adapter makes one bounded `basic` request per search with
+automatic parameter selection disabled. It returns up to five HTTP(S) source
+URLs and their snippets, with no generated answer or separate LLM summary.
+The research agent still opens promising pages through its existing fetch tool;
+search snippets do not become verified source text.
+
+A failed or exhausted Tavily request does not switch to billed hosted search in
+this mode. The default `hosted` mode preserves existing behavior and uses a
+configured Tavily key as an outage fallback. The OAuth setting continues to
+control text generation independently. See
+[free-tier host setup](../deploy/big-mac/README.md#free-tier-search-with-tavily).

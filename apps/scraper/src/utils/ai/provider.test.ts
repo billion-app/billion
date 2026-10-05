@@ -11,6 +11,8 @@ const keys = [
   "SCRAPER_FALLBACK_BASE_URL",
   "SCRAPER_FALLBACK_MODEL",
   "SCRAPER_FALLBACK_API_KEY",
+  "TAVILY_API_KEY",
+  "SCRAPER_SEARCH_PROVIDER",
 ];
 let sequence = 0;
 async function setup(t: TestContext, env: Record<string, string>) {
@@ -234,4 +236,159 @@ test("uncited fallback search is rejected", async (t) => {
     provider.generateWebSearch("find evidence"),
     /no web-search citations/,
   );
+});
+
+test("preferred Tavily searches directly with one-credit settings and source snippets", async (t) => {
+  const provider = await setup(t, {
+    TAVILY_API_KEY: "test-search-key",
+    SCRAPER_SEARCH_PROVIDER: "tavily",
+    OPENROUTER_API_KEY: "test",
+    ...fallback,
+  });
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    calls++;
+    assert.equal(String(url), "https://api.tavily.com/search");
+    assert.equal(
+      (init.headers as Record<string, string>).Authorization,
+      "Bearer test-search-key",
+    );
+    assert.deepEqual(JSON.parse(init.body as string), {
+      query: "official bill history",
+      search_depth: "basic",
+      auto_parameters: false,
+      max_results: 5,
+      include_answer: false,
+      include_raw_content: false,
+    });
+    assert.ok(init.signal);
+    return Response.json({
+      answer: "Do not use a generated answer",
+      results: [
+        {
+          title: "Official record",
+          url: "https://congress.gov/bill/example",
+          content: "Source snippet",
+        },
+      ],
+    });
+  });
+  const result = await provider.generateWebSearch("official bill history");
+  assert.equal(calls, 1);
+  assert.match(result.text, /Source snippet/);
+  assert.doesNotMatch(result.text, /generated answer/);
+  assert.deepEqual(result.sources, [
+    {
+      sourceType: "url",
+      id: "tavily-0",
+      title: "Official record",
+      url: "https://congress.gov/bill/example",
+    },
+  ]);
+  assert.deepEqual(result.usage, { inputTokens: 0, outputTokens: 0 });
+});
+
+test("hosted failure tries Tavily before unsupported OAuth native search", async (t) => {
+  const provider = await setup(t, {
+    TAVILY_API_KEY: "test-search-key",
+    OPENROUTER_API_KEY: "test",
+    ...fallback,
+  });
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    calls.push(String(url));
+    if (String(url) === "https://api.tavily.com/search")
+      return Response.json({ results: [] });
+    return new Response("unavailable", { status: 503 });
+  });
+  const result = await provider.generateWebSearch("search query");
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1], "https://api.tavily.com/search");
+  assert.deepEqual(result.sources, []);
+});
+
+test("exhausted preferred Tavily credits never switch to paid search", async (t) => {
+  const provider = await setup(t, {
+    TAVILY_API_KEY: "test-search-key",
+    SCRAPER_SEARCH_PROVIDER: "tavily",
+    OPENROUTER_API_KEY: "test",
+    ...fallback,
+  });
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    calls++;
+    assert.equal(String(url), "https://api.tavily.com/search");
+    return new Response("credit limit", { status: 432 });
+  });
+  await assert.rejects(
+    provider.generateWebSearch("query"),
+    /Tavily search failed \(HTTP 432\)/,
+  );
+  assert.equal(calls, 1);
+});
+
+test("preferred Tavily without a key fails before any provider request", async (t) => {
+  const provider = await setup(t, {
+    SCRAPER_SEARCH_PROVIDER: "tavily",
+    OPENROUTER_API_KEY: "test",
+  });
+  t.mock.method(globalThis, "fetch", async () => {
+    assert.fail("No request expected");
+  });
+  await assert.rejects(
+    provider.generateWebSearch("query"),
+    /TAVILY_API_KEY is required/,
+  );
+});
+
+test("Tavily rejects invalid source URLs and caps returned results", async (t) => {
+  const provider = await setup(t, {
+    TAVILY_API_KEY: "test",
+    SCRAPER_SEARCH_PROVIDER: "tavily",
+  });
+  let invalid = true;
+  t.mock.method(globalThis, "fetch", async () =>
+    Response.json({
+      results: Array.from({ length: 7 }, (_, i) => ({
+        title: "Source",
+        url: invalid ? "javascript:alert(1)" : `https://example.com/${i}`,
+        content: "snippet".repeat(1000),
+      })),
+    }),
+  );
+  await assert.rejects(provider.generateWebSearch("query"));
+  invalid = false;
+  const result = await provider.generateWebSearch("query");
+  assert.equal(result.sources.length, 5);
+  assert.ok(result.text.length <= 1500);
+});
+
+test("hosted and Tavily failures continue to cited Responses search", async (t) => {
+  const provider = await setup(t, {
+    TAVILY_API_KEY: "test-search-key",
+    OPENROUTER_API_KEY: "test",
+    ...fallback,
+  });
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    calls.push(String(url));
+    if (String(url) === "https://api.tavily.com/search")
+      return new Response("credit limit", { status: 432 });
+    if (String(url).startsWith("http://proxy.test/"))
+      return response("Official evidence", [
+        {
+          type: "url_citation",
+          start_index: 0,
+          end_index: 17,
+          url: "https://congress.gov/bill/example",
+          title: "Official record",
+        },
+      ]);
+    return new Response("unavailable", { status: 503 });
+  });
+  const result = await provider.generateWebSearch("query");
+  assert.equal(calls.length, 3);
+  assert.equal(calls[1], "https://api.tavily.com/search");
+  assert.equal(calls[2], "http://proxy.test/v1/responses");
+  assert.equal(result.sources[0]?.sourceType, "url");
 });
