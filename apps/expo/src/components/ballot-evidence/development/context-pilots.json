@@ -1,0 +1,871 @@
+[
+  {
+    "schemaVersion": 1,
+    "revision": "ca-2026-prop-3-context-v1",
+    "electionDate": "2026-11-03",
+    "number": "3",
+    "officialTitle": "PROVIDES PERMANENT FUNDING FOR SCHOOLS AND HEALTH CARE BY EXTENDING EXISTING TAX ON HIGH INCOMES. INITIATIVE CONSTITUTIONAL AMENDMENT.",
+    "officialUrl": "https://voterguide.sos.ca.gov/propositions/3/",
+    "guideHash": "8d1b24e099b1e35a64b7945d52dbafcc9fbebb0e9df77d79b512bfa602f7cebd",
+    "preparedAt": "2026-10-05T15:48:49Z",
+    "sources": [
+      {
+        "id": "guide",
+        "name": "California SOS guide entry",
+        "url": "https://voterguide.sos.ca.gov/propositions/3/",
+        "layer": "official-summary",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "analysis",
+        "name": "Legislative Analyst analysis",
+        "url": "https://voterguide.sos.ca.gov/propositions/3/analysis.htm",
+        "layer": "official-analysis",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "law",
+        "name": "Text of proposed law",
+        "url": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop3-text-proposed-laws.pdf",
+        "layer": "legal-text",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "constitution",
+        "name": "California Constitution",
+        "url": "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=CONS&article=XVIII",
+        "layer": "legal-text",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      }
+    ],
+    "terms": [
+      {
+        "term": "permanent",
+        "meaning": {
+          "text": "No scheduled sunset for these higher rates. Voters can still amend the Constitution; the Legislature can propose an amendment with two-thirds of each house, subject to voter approval. No fixed yearly revenue is guaranteed.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "constitution",
+              "locator": "Article XVIII §§1, 3–4"
+            },
+            {
+              "sourceId": "law",
+              "locator": "Sec. 4, Article XIII §36(f)(2)–(3): removal of expiration, pp. 114–115"
+            }
+          ]
+        }
+      }
+    ],
+    "magnitude": [
+      {
+        "amount": {
+          "text": "The analyst projects $5–15 billion a year, varying with the stock market.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Proposal and fiscal effects"
+            }
+          ]
+        },
+        "comparison": {
+          "text": "For scale only: that is 2–6% of the guide’s roughly $250 billion current-year General Fund spending figure. This compares future revenue with today’s spending, not a forecast of its future budget share.",
+          "kind": "illustration",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Background spending and fiscal estimate; $5–15bn ÷ $250bn"
+            }
+          ]
+        },
+        "period": "Annual future revenue",
+        "basis": "projection"
+      }
+    ],
+    "history": [],
+    "scenarios": [],
+    "questions": [
+      {
+        "question": "How much stability does continuing a volatile tax buy?",
+        "path": {
+          "text": "Compare the revenue range with the spending commitments and reserve rules in the analyst’s fiscal discussion.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Proposal and fiscal effects"
+            }
+          ]
+        }
+      }
+    ],
+    "review": {
+      "state": "pending"
+    },
+    "takeaway": {
+      "text": "“Permanent” removes the scheduled end of higher tax rates. It does not lock in a yearly funding amount or prevent a later constitutional amendment.",
+      "kind": "source-summary",
+      "evidence": [
+        {
+          "sourceId": "analysis",
+          "locator": "Proposal and fiscal effects"
+        }
+      ]
+    },
+    "today": {
+      "text": "Higher income-tax rates apply through 2030, then expire. These rates are paid by the top 2% of California taxpayers.",
+      "kind": "source-summary",
+      "evidence": [
+        {
+          "sourceId": "analysis",
+          "locator": "Background: prior voter-approved tax increases"
+        }
+      ]
+    },
+    "change": {
+      "text": "Proposition 3 removes the 2031 expiration of the higher rates; it continues an existing tax rather than creating a tax on everyone.",
+      "kind": "source-summary",
+      "evidence": [
+        {
+          "sourceId": "law",
+          "locator": "Sec. 4, Article XIII §36(f)(2)–(3), pp. 114–115: struck expiration clauses"
+        }
+      ]
+    },
+    "rationale": {
+      "text": "The measure’s findings say ending the higher rates would reduce resources for education and health care. This is its stated reason; it is not evidence that every additional dollar improves services.",
+      "kind": "billion-inference",
+      "evidence": [
+        {
+          "sourceId": "law",
+          "locator": "Sec. 2 findings and Sec. 3 purpose"
+        }
+      ]
+    },
+    "chain": [
+      {
+        "actor": "Taxpayers → state revenue",
+        "action": {
+          "text": "Continuing the higher rates preserves revenue after their scheduled expiration. The amount depends heavily on high-income earnings and investment gains.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Proposal and fiscal effects"
+            }
+          ]
+        }
+      },
+      {
+        "actor": "State budget → programs and reserves",
+        "action": {
+          "text": "The analyst estimates roughly 40% of added funding goes to schools and community colleges; the remainder supports other state programs, with part set aside in reserves.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Proposal and fiscal effects"
+            }
+          ]
+        }
+      }
+    ],
+    "tradeoffs": [
+      {
+        "text": "Continuing revenue supports public services, while high-income taxpayers continue paying rates that would otherwise expire. Revenue still fluctuates with investment gains.",
+        "kind": "billion-inference",
+        "evidence": [
+          {
+            "sourceId": "analysis",
+            "locator": "Background, proposal and fiscal effects"
+          }
+        ]
+      }
+    ],
+    "unknowns": [
+      {
+        "status": "uncertain-effect",
+        "claim": {
+          "text": "A continuing tax is not a promise of the same dollars every year. Future revenue and program outcomes cannot be read from the word “permanent.”",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Fiscal effects: revenue varies"
+            }
+          ]
+        }
+      }
+    ],
+    "mechanismQuestion": "How does continuing the tax affect funding?"
+  },
+  {
+    "schemaVersion": 1,
+    "revision": "ca-2026-prop-39-context-v1",
+    "electionDate": "2026-11-03",
+    "number": "39",
+    "officialTitle": "PROHIBITS CITIZENS FROM VOTING UNLESS THEY PRESENT GOVERNMENT-ISSUED IDENTIFICATION. INITIATIVE CONSTITUTIONAL AMENDMENT.",
+    "officialUrl": "https://voterguide.sos.ca.gov/propositions/39/",
+    "guideHash": "f1ddb78593f7e35645ea4db9e8a2cc8f245f060e7ce70799ddade08329611a79",
+    "preparedAt": "2026-10-05T15:48:49Z",
+    "sources": [
+      {
+        "id": "guide",
+        "name": "California SOS guide entry",
+        "url": "https://voterguide.sos.ca.gov/propositions/39/",
+        "layer": "official-summary",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "analysis",
+        "name": "Legislative Analyst analysis",
+        "url": "https://voterguide.sos.ca.gov/propositions/39/analysis.htm",
+        "layer": "official-analysis",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "law",
+        "name": "Text of proposed law",
+        "url": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop39-text-proposed-laws.pdf",
+        "layer": "legal-text",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "cure",
+        "name": "California SOS signature correction",
+        "url": "https://www.sos.ca.gov/elections/voter-registration/vote-mail/verify-my-signature",
+        "layer": "official-record",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "auditor",
+        "name": "California State Auditor: authority and work",
+        "url": "https://www.auditor.ca.gov/about-us/",
+        "layer": "official-record",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "history",
+        "name": "2024 homelessness audit",
+        "url": "https://www.auditor.ca.gov/reports/2023-102-1/",
+        "layer": "official-record",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "followup",
+        "name": "2023 unimplemented recommendations report",
+        "url": "https://information.auditor.ca.gov/pdfs/reports/2023-041.pdf",
+        "layer": "official-record",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      }
+    ],
+    "terms": [
+      {
+        "term": "free voter ID",
+        "meaning": {
+          "text": "The state must supply an eligible voter an ID card on request without an issuance charge. The text does not specify supporting documents, travel, processing time or replacement steps. No fee does not mean no practical cost.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article II §3.1(b), p. 134"
+            }
+          ]
+        }
+      }
+    ],
+    "magnitude": [
+      {
+        "amount": {
+          "text": "The analyst projects annual state and local costs of tens of millions to low hundreds of millions of dollars.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Proposal and fiscal effects"
+            }
+          ]
+        },
+        "comparison": {
+          "text": "The analyst compares those combined costs with less than 0.25% of the state General Fund budget; that comparison does not show the burden on each county or voter.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Proposal and fiscal effects"
+            }
+          ]
+        },
+        "period": "Each year",
+        "basis": "projection"
+      }
+    ],
+    "history": [
+      {
+        "date": "April 9, 2024 · homelessness performance audit",
+        "finding": {
+          "text": "The auditor found gaps in consistent cost and outcome information and recommended state reporting changes.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "history",
+              "locator": "Recommendations to Legislature and Cal ICH"
+            }
+          ]
+        },
+        "followThrough": {
+          "text": "Cal ICH’s response agreed with recommendations and described intended improvements. Agreement is not evidence that all recommended changes were implemented.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "history",
+              "locator": "Agency response and auditor comments"
+            }
+          ]
+        },
+        "outcome": {
+          "text": "This captured report does not verify realized savings resulting from the recommendations. It is evidence of a finding and response, not a measured return on auditing.",
+          "kind": "unknown",
+          "evidence": [
+            {
+              "sourceId": "history",
+              "locator": "Report and agency response"
+            }
+          ]
+        },
+        "limit": {
+          "text": "Homelessness reporting is a different program. This example shows why follow-through matters, not whether election audits would work.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "history",
+              "locator": "Scope and recommendations"
+            }
+          ]
+        }
+      },
+      {
+        "date": "November 2023 · recommendation follow-up",
+        "finding": {
+          "text": "The auditor identified 191 recommendations to 46 nonstate entities that were more than a year old and not fully implemented.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "followup",
+              "locator": "Summary: nonstate entities"
+            }
+          ]
+        },
+        "followThrough": {
+          "text": "The report tracks unimplemented recommendations and follow-up. It does not say all agencies ignored every finding.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "followup",
+              "locator": "Summary"
+            }
+          ]
+        },
+        "outcome": {
+          "text": "An unimplemented-recommendation count is not an estimate of money wasted or a success rate for all audits.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "followup",
+              "locator": "Summary: selected overdue recommendations"
+            }
+          ]
+        },
+        "limit": {
+          "text": "The 191 overdue recommendations came from 632 recommendations in 63 reports involving nonstate entities issued November 2017–October 2022. This historical set cannot predict Proposition 39 outcomes.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "followup",
+              "locator": "Results in brief: nonstate entities; cohort and timeframe"
+            }
+          ]
+        }
+      },
+      {
+        "date": "2021 audit → 2022 follow-up, summarized January 2024",
+        "finding": {
+          "text": "The auditor found inaccurate tobacco-tax rates and recommended updating the data source.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "followup",
+              "locator": "Letter to Governor and Legislature; introduction"
+            }
+          ]
+        },
+        "followThrough": {
+          "text": "The tax agency changed its calculation method. The auditor’s follow-up found that the change increased state tax revenue by $45 million annually.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "followup",
+              "locator": "2022 follow-up outcome described in letter"
+            }
+          ]
+        },
+        "outcome": {
+          "text": "This is auditor-reported revenue from a changed calculation, not an audited estimate of net savings after the cost of conducting the audit.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "followup",
+              "locator": "Letter and introduction"
+            }
+          ]
+        },
+        "limit": {
+          "text": "Tax administration differs from election compliance. This example supports investigating follow-through, not a claim that Proposition 39 would produce similar revenue or benefits.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "followup",
+              "locator": "Audit scope and introduction"
+            }
+          ]
+        }
+      }
+    ],
+    "scenarios": [
+      {
+        "title": "I vote by mail",
+        "claim": {
+          "text": "Today, a missing or nonmatching signature has a correction process through the county. The proposal adds the ID-number check; the existing signature correction procedure does not establish a remedy for a new ID-number error.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "cure",
+              "locator": "Signature correction instructions; compare proposed §3.1(b)"
+            },
+            {
+              "sourceId": "law",
+              "locator": "Article II §3.1(b)–(c): proposed identity requirement"
+            }
+          ]
+        }
+      },
+      {
+        "title": "I do not have an ID",
+        "claim": {
+          "text": "You could request the promised free voter ID. Required documents, application access and processing time remain unspecified in the measure, so practical steps cannot yet be listed.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article II §3.1(b)"
+            }
+          ]
+        }
+      }
+    ],
+    "questions": [
+      {
+        "question": "Which problems would the check address, and how often do they occur?",
+        "path": {
+          "text": "Start with the measure’s stated goals; seek independent evidence distinguishing impersonation, registration errors and other fraud before judging the likely benefit.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Sec. 1 findings"
+            }
+          ]
+        }
+      },
+      {
+        "question": "Who would fix an error, and by when?",
+        "path": {
+          "text": "Inspect the future implementing laws and county instructions for ID correction, deadlines, accessibility and fallback procedures. The measure does not supply these details.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article II §3.1(b)–(c)"
+            }
+          ]
+        }
+      }
+    ],
+    "review": {
+      "state": "pending"
+    },
+    "takeaway": {
+      "text": "Proposition 39 adds an ID check at each vote. Its audits produce public findings and recommendations; changes still require action by officials, lawmakers or courts.",
+      "kind": "source-summary",
+      "evidence": [
+        {
+          "sourceId": "law",
+          "locator": "Article II §3.1(b)–(c), p. 134"
+        }
+      ]
+    },
+    "today": {
+      "text": "Identity is checked during registration. In person, voters typically sign the voter list; some first-time voters must show ID. Mail voters sign the envelope, and officials compare the signature.",
+      "kind": "source-summary",
+      "evidence": [
+        {
+          "sourceId": "analysis",
+          "locator": "Background: registration and voter identification"
+        }
+      ]
+    },
+    "change": {
+      "text": "In person: present government-issued ID. By mail: write the last four digits of the selected government-issued ID number on the envelope, matching registration. Identity must be verified before a regular or provisional ballot counts.",
+      "kind": "source-summary",
+      "evidence": [
+        {
+          "sourceId": "law",
+          "locator": "Article II §3.1(b), p. 134"
+        }
+      ]
+    },
+    "rationale": {
+      "text": "The measure states goals of public confidence, detecting fraud and reducing impersonation. Its text describes the proposed checks; it does not measure how common each problem is or how much fraud they would prevent.",
+      "kind": "billion-inference",
+      "evidence": [
+        {
+          "sourceId": "law",
+          "locator": "Sec. 1 findings and purposes, p. 133"
+        }
+      ]
+    },
+    "chain": [
+      {
+        "actor": "Elections officials · verify identity",
+        "action": {
+          "text": "State and county officials must implement the ID checks and make best efforts to verify citizenship using government data.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article II §3.1(a)–(b)"
+            }
+          ]
+        }
+      },
+      {
+        "actor": "State Auditor · report and recommend",
+        "action": {
+          "text": "In each odd-numbered year the auditor reviews state and county compliance and publishes findings and recommendations. This clause grants no power to issue ballot-counting orders or impose penalties.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article II §3.1(c), p. 134"
+            }
+          ]
+        }
+      },
+      {
+        "actor": "Officials, Legislature and courts · act next",
+        "action": {
+          "text": "Officials must comply; the Legislature must promptly pass implementation laws. Citizens may seek judicial review and remedy.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article II §3.1(c), p. 134"
+            }
+          ]
+        }
+      },
+      {
+        "actor": "Possible outcome · depends on follow-through",
+        "action": {
+          "text": "An audit can expose noncompliance. Improvement depends on corrective action and workable implementation; an ignored recommendation is not itself a correction.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "auditor",
+              "locator": "How our work begins: public reports, hearings and legislation"
+            }
+          ]
+        }
+      }
+    ],
+    "tradeoffs": [
+      {
+        "text": "The additional checks aim to verify who casts a ballot, while adding steps for voters and administrators. The pilot has no verified estimate of present impersonation prevalence or the number of eligible voters affected.",
+        "kind": "billion-inference",
+        "evidence": [
+          {
+            "sourceId": "law",
+            "locator": "Sec. 1 and Article II §3.1(b)"
+          }
+        ]
+      },
+      {
+        "text": "Mail envelopes would carry four digits, not a full identifier. The text does not specify shielding from observers or establish actual misuse; privacy risk depends on handling and other information an observer has.",
+        "kind": "billion-inference",
+        "evidence": [
+          {
+            "sourceId": "law",
+            "locator": "Article II §3.1(b): envelope requirement"
+          }
+        ]
+      }
+    ],
+    "unknowns": [
+      {
+        "status": "later-legislation",
+        "claim": {
+          "text": "Which specific IDs qualify is unresolved. The analyst says the Legislature must clarify this; do not assume a passport, birth certificate or current license will qualify.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Requires legislative action for full implementation"
+            }
+          ]
+        }
+      },
+      {
+        "status": "not-specified",
+        "claim": {
+          "text": "The text does not detail how to correct a wrong ID number, missing ID, name mismatch or delays receiving a free card. It requires verification even for provisional ballots; this pilot cannot establish a cure deadline.",
+          "kind": "unknown",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article II §3.1(b)–(c)"
+            }
+          ]
+        }
+      },
+      {
+        "status": "evidence-unavailable",
+        "claim": {
+          "text": "The guide gives a total implementation estimate, not an isolated audit cost or a measured benefit from these proposed audits. Value for money cannot be calculated from this evidence.",
+          "kind": "unknown",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Fiscal effects"
+            }
+          ]
+        }
+      }
+    ],
+    "mechanismQuestion": "Who acts after the audit?"
+  },
+  {
+    "schemaVersion": 1,
+    "revision": "ca-2026-prop-2-context-v1",
+    "electionDate": "2026-11-03",
+    "number": "2",
+    "officialTitle": "INCREASES STATE’S RAINY DAY FUND. LEGISLATIVE CONSTITUTIONAL AMENDMENT.",
+    "officialUrl": "https://voterguide.sos.ca.gov/propositions/2/",
+    "guideHash": "e84f3a52a557bcca4c047d7adc62194096d9339bf20e761af3ab74d36720f380",
+    "preparedAt": "2026-10-05T15:48:49Z",
+    "sources": [
+      {
+        "id": "guide",
+        "name": "California SOS guide entry",
+        "url": "https://voterguide.sos.ca.gov/propositions/2/",
+        "layer": "official-summary",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "analysis",
+        "name": "Legislative Analyst analysis",
+        "url": "https://voterguide.sos.ca.gov/propositions/2/analysis.htm",
+        "layer": "official-analysis",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      },
+      {
+        "id": "law",
+        "name": "Text of proposed law",
+        "url": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop2-text-proposed-laws.pdf",
+        "layer": "legal-text",
+        "retrievedAt": "2026-10-05T15:48:49Z"
+      }
+    ],
+    "terms": [],
+    "magnitude": [],
+    "history": [],
+    "scenarios": [
+      {
+        "title": "Same revenue, different cap",
+        "claim": {
+          "text": "Illustration in 2027–28: assume $100bn General Fund taxes, a $10bn starting reserve balance, $0.75bn otherwise required reserve deposit, no capital-gains addition, adjustments or emergency. The old 10% cap blocks the deposit; the new 20% cap permits it. The $0.75bn changes destination, not total revenue.",
+          "kind": "illustration",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "§20(a),(c)(1),(e); illustrative inputs, not forecast"
+            }
+          ]
+        }
+      },
+      {
+        "title": "When the link breaks",
+        "claim": {
+          "text": "With the same figures but a fully suspended transfer during a budget emergency, neither rule requires that $0.75bn deposit. Raising the cap would not increase this year’s reserve balance.",
+          "kind": "illustration",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article XVI §22(a)(1)"
+            }
+          ]
+        }
+      }
+    ],
+    "questions": [
+      {
+        "question": "What would receive less money in order to save more?",
+        "path": {
+          "text": "Trace the cap’s infrastructure diversion and the debt-payment split, then compare the value of spending now with a larger reserve for future shortfalls.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article XVI §20(c),(e)"
+            }
+          ]
+        }
+      }
+    ],
+    "review": {
+      "state": "pending"
+    },
+    "takeaway": {
+      "text": "A higher reserve cap allows more saving; it does not create money. Required deposits would continue longer, using revenue that could otherwise go to infrastructure.",
+      "kind": "source-summary",
+      "evidence": [
+        {
+          "sourceId": "analysis",
+          "locator": "Proposal and fiscal effects"
+        }
+      ]
+    },
+    "today": {
+      "text": "The rainy-day fund generally receives 0.75% of General Fund tax revenue plus deposits tied to unusually high investment gains. At the 10% balance limit, money otherwise deposited goes to infrastructure.",
+      "kind": "source-summary",
+      "evidence": [
+        {
+          "sourceId": "analysis",
+          "locator": "Background: reserves and debt"
+        }
+      ]
+    },
+    "change": {
+      "text": "The measure raises the transfer limit to 20%, increases the investment-gain formula above a threshold and extends extra debt-payment rules through 2039–40. Transfers remain subject to budget-emergency reductions.",
+      "kind": "source-summary",
+      "evidence": [
+        {
+          "sourceId": "law",
+          "locator": "Article XVI §20(b),(c),(e) and §22(a), pp. 106–109"
+        }
+      ]
+    },
+    "rationale": {
+      "text": "The Legislature’s findings say more reserves can cushion revenue downturns. Whether spending cuts are avoided depends on the amount saved and the size of a later shortfall.",
+      "kind": "billion-inference",
+      "evidence": [
+        {
+          "sourceId": "law",
+          "locator": "First: findings and purpose, p. 106"
+        }
+      ]
+    },
+    "chain": [
+      {
+        "actor": "Finance Department · estimate",
+        "action": {
+          "text": "Finance estimates tax revenue and capital-gains revenue in the Budget Act. The changed formula counts 150% of capital-gains tax revenue above 10% of General Fund taxes, with specified offsets.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article XVI §20(b)(1)(B)–(E)"
+            }
+          ]
+        }
+      },
+      {
+        "actor": "Controller · transfer",
+        "action": {
+          "text": "The Controller transfers money from the General Fund into the reserve account under Finance’s schedule. The cap rises from 10% to 20%; money blocked by the cap otherwise goes to infrastructure.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article XVI §20(c),(e)"
+            }
+          ]
+        }
+      },
+      {
+        "actor": "Legislature · debt payments and exceptions",
+        "action": {
+          "text": "Half the calculated amount is reserved for specified obligations through 2039–40. During a budget emergency, deposits can be suspended or reduced; withdrawals can lower the balance.",
+          "kind": "source-summary",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article XVI §20(c)(1), §22(a)"
+            }
+          ]
+        }
+      },
+      {
+        "actor": "Reserve balance · conditional effect",
+        "action": {
+          "text": "When required deposits would exceed the old cap but fit below the new cap, more can be saved instead of directed to infrastructure. A larger cap alone adds nothing if deposits are suspended.",
+          "kind": "billion-inference",
+          "evidence": [
+            {
+              "sourceId": "law",
+              "locator": "Article XVI §20(e), §22(a)"
+            }
+          ]
+        }
+      }
+    ],
+    "tradeoffs": [
+      {
+        "text": "Saving revenue now can help pay for programs in a downturn, while leaving less for infrastructure when the old cap would have redirected deposits there. These are competing uses of the same dollars.",
+        "kind": "billion-inference",
+        "evidence": [
+          {
+            "sourceId": "analysis",
+            "locator": "Background reserves; fiscal effects"
+          }
+        ]
+      },
+      {
+        "text": "Extending the debt-payment split can divert money that could otherwise be fully deposited after 2030 under current law. The net balance depends on revenue, the cap and discretionary debt choices.",
+        "kind": "billion-inference",
+        "evidence": [
+          {
+            "sourceId": "law",
+            "locator": "Article XVI §20(c)(1)–(2)"
+          }
+        ]
+      }
+    ],
+    "unknowns": [
+      {
+        "status": "uncertain-effect",
+        "claim": {
+          "text": "Future balances depend on revenues, debt allocations and withdrawals. The source establishes changed rules, not an exact dollar increase in reserves.",
+          "kind": "unknown",
+          "evidence": [
+            {
+              "sourceId": "analysis",
+              "locator": "Fiscal effects"
+            }
+          ]
+        }
+      }
+    ],
+    "mechanismQuestion": "Why could reserves rise?"
+  }
+]

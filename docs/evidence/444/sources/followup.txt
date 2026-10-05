@@ -1,0 +1,173 @@
+        January 4, 2024
+        2023‑041
+
+
+        The Governor of California
+        President pro Tempore of the Senate
+        Speaker of the Assembly
+        State Capitol
+        Sacramento, California 95814
+
+        Dear Governor and Legislative Leaders:
+
+        Consistent with the Omnibus Audit Accountability Act of 2006 (Government Code sections
+        8548.7 and 8548.9), our office presents this report to the Joint Legislative Audit Committee, Joint
+        Legislative Budget Committee, and Department of Finance regarding audit recommendations we
+        have made that are more than one year old and that have not yet been fully implemented by the
+        relevant agencies.
+
+        From November 2016 through October 2022, our office issued 173 reports about our audits
+        and investigations of state agencies. Those reports included 1,400 recommendations, and as of
+        November 2023, state agencies had fully implemented 1,146 recommendations—or 82 percent. Of
+        those recommendations that are not fully implemented, 254 are more than one year old. Our office’s
+        website lists all of the recommendations we have made and displays agencies’ explanations of each
+        recommendation’s implementation status.
+
+        Our office’s work results in the greatest return for the State’s investment when agencies act upon
+        our findings and recommendations. The California Department of Tax and Fee Administration
+        (CDTFA) demonstrates an example of the benefits that can result from such action: based on our
+        January 2021 audit report about the State’s administration of tobacco tax revenue from 2016’s
+        Proposition 56, we found that CDFTA had not ensured the accuracy of certain tobacco tax rates.
+        We recommended that the agency update the source of the data it used to determine such rates. As
+        a result, CDTFA changed its calculation methodology, and in a 2022 follow-up audit, we found that
+        CDTFA’s changes increased tax revenue by $45 million annually.
+
+        If you would like more information about any of the background or recommendations in this report,
+        please contact our Communications Office at (916) 445-0255.
+
+        Respectfully submitted,
+
+
+
+        GRANT PARKS
+        California State Auditor
+
+
+
+
+621 Capitol Mall, Suite 1200   |   Sacramento, CA 95814   |   916.445.0255   |   916.327.0019 fax   |   w w w. a u d i t o r. c a . g o v
+Blank page inserted for reproduction purposes only.
+                                                           California State Auditor Report 2023-041   v
+                                                                                    January 2024
+
+
+
+
+Contents
+Introduction                                               1
+
+Table 1
+Recommendations Made to State Entities That Are More
+Than Five Years Old and Are Still Not Fully Implemented    5
+
+Table 2
+Recommendations Made to State Entities That Are More
+Than One Year Old and Are Still Not Fully Implemented     11
+
+Table 3
+Recommendations Made to Nonstate Entities That Are More
+Than One Year Old and Are Still Not Fully Implemented     53
+vi      California State Auditor Report 2023-041
+        January 2024
+
+
+
+
+     Blank page inserted for reproduction purposes only.
+                                                                                                   California State Auditor Report 2023-041       1
+                                                                                                                                 January 2024
+
+
+
+
+INTRODUCTION
+
+As required by the Omnibus Audit Accountability Act of 2006 (Accountability Act), the
+California State Auditor (State Auditor) presents this report on the status of recommendations
+that are more than one year old and have not been fully implemented by the audited entities. The
+Accountability Act requires state agencies audited or investigated by the State Auditor’s office that
+have not fully implemented an audit recommendation within one year to provide updates on their
+implementation of those audit recommendations. In September 2023, we provided our annual
+reminder to relevant state agencies about recommendations that we issued more than a year ago
+and that they had not yet fully implemented. Subsequently, we reviewed agencies’ responses and
+corresponding evidence. The following report of the status of these recommendations is current
+as of November 2023. Throughout the year, our website at www.auditor.ca.gov contains the most
+up‑to‑date information on the status of all audit recommendations.
+
+
+RESULTS IN BRIEF
+
+State Entities
+
+From November 2016 through October 2022, our office issued 173 reports that related to audits
+or investigations of state agencies. These reports were requested through the Joint Legislative
+Audit Committee or statute, were initiated by us through the state high-risk program, or came
+about as the result of an investigation.1 We made 1,400 recommendations to the audited state
+agencies in those reports, of which 1,146 have been fully implemented. However, we identified
+254 recommendations made to 43 agencies that had been outstanding at least one year and remain
+not fully implemented as of November 2023.2
+
+Nonstate Entities
+
+From November 2017 through October 2022, our office issued 63 reports that included nonstate
+entities and made 632 recommendations to these entities. As of November 2023, we identified
+191 recommendations issued to 46 nonstate entities that are more than one year old and not
+fully implemented.
+
+Importance of Implementing Recommendations
+
+Our audit and investigative efforts bring the greatest return when agencies act upon the findings
+and recommendations. For example, in January 2021, we released an audit concerning the State’s
+administration of tobacco tax revenue from Proposition 56 (2016). Our office found that the
+California Department of Tax and Fee Administration (CDTFA) did not ensure the accuracy of the
+tax rate it imposed for certain tobacco products, costing the state millions of dollars in additional
+revenue. To address this issue, we recommended that CDTFA update the source of the data it
+used for calculating the tax rate for other tobacco products, such as cigars, chewing tobacco, and
+
+
+1   The statewide single audit (financial and federal compliance audits) is mandated as a condition of California receiving federal funding. We
+    follow up on recommendations made in those audits each year in our annual report on California’s Internal Control and State and Federal
+    Compliance. As of January 1, 2010, we began reporting as required on the status of recommendations made more than one year prior in
+    investigative reports. We initiated the investigations in response to whistleblower complaints suggesting improper governmental activities.
+2   These statistics do not include recommendations for legislative changes.
+2   California State Auditor Report 2023-041
+    January 2024
+
+
+
+
+    e‑cigarettes containing nicotine. In response to these recommendations, CDTFA made changes to
+    its methodology for calculating tax rates on these tobacco products and in a follow-up audit issued
+    in November 2022, we determined that the changes CDTFA made increased tax revenue to the
+    State by $45 million annually.
+
+
+    In September 2023, we mailed notices to audited and investigated entities regarding recommendations
+    more than a year old and not fully implemented. The tables beginning on page 5 summarize and
+    provide information on these recommendations. Table 1 shows recommendations more than
+    five years old issued to state entities between November 2016 and October 2017 that have not
+    been fully implemented as of the agencies’ latest response. Because the recommendations shown
+    in Table 1 are more than five years old, we will not reassess them in subsequent reports. Table 2,
+    beginning on page 11, summarizes recommendations that have not been fully implemented for
+    audits and investigations pertaining to state entities and issued between November 2017 and
+    October 2022. As indicated on Table 2, we did not always agree with agency assertions that
+    certain recommendations were fully implemented. Two columns in Table 2 provide our reason for
+    disagreement. Table 3, beginning on page 53, summarizes recommendations more than one year
+    old made to nonstate entities and their current implementation status.
+
+
+    The      symbol appears in the tables next to the audit number whenever an audit has recommendations
+    to more than one agency appearing in this report. Please refer to the index on page 3.
+                                                                                                             California State Auditor Report 2023-041                   3
+                                                                                                                                               January 2024
+
+
+
+
+Index
+Reference for Reports Featuring Recommendations to Multiple Entities
+
+      REPORT                                                              ENTITIES WITH RECOMMENDATIONS
+
+
+ 

@@ -14,6 +14,10 @@ import { useQuery } from "@tanstack/react-query";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { PropositionConsequences } from "~/components/ballot-evidence/PropositionConsequences";
+import {
+  ContextUnavailable,
+  PropositionContext,
+} from "~/components/ballot-evidence/PropositionContext";
 import { Icon, NavHeader } from "~/components/ui";
 import {
   fontBody,
@@ -135,6 +139,12 @@ export default function PropositionDetailScreen() {
                   url={measure.sourceUrl}
                 />
               )}
+            {measure.contextualExplanation ? (
+              <PropositionContext analysis={measure.contextualExplanation} />
+            ) : (
+              <ContextUnavailable />
+            )}
+            {/* Cross-measure relationships (#447) integrate immediately below. */}
             <View style={s.record}>
               {measure.officialSummary ||
               measure.fiscalImpact ||

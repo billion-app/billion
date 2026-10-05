@@ -1,0 +1,82 @@
+{
+  "electionDate": "2026-11-03",
+  "jurisdiction": "CA",
+  "complete": false,
+  "fetchedAt": "2026-10-05T15:48:49Z",
+  "sourceUrl": "https://voterguide.sos.ca.gov/propositions/",
+  "measures": [
+    {
+      "number": "2",
+      "title": "INCREASES STATE’S RAINY DAY FUND. LEGISLATIVE CONSTITUTIONAL AMENDMENT.",
+      "sourceUrl": "https://voterguide.sos.ca.gov/propositions/2/",
+      "officialSummary": "Increases California's Rainy Day Fund, approved by voters in 2014, to provide funding for education, health care, public safety, and other essential services during economic downturns.",
+      "voteMeaningYes": "A YES vote on this measure means: Rules for building state budget reserves and paying down extra state debts would change. As a result, state budget reserves would be higher. The state also would be required to make extra debt payments for longer.",
+      "voteMeaningNo": "A NO vote on this measure means: Rules for building state budget reserves and paying down extra state debts would not change.",
+      "fiscalImpact": "State budget reserves would be higher.",
+      "proArguments": [
+        {
+          "text": "Vote yes on Proposition 2 to protect schools, healthcare, and public safety funding. Proposition 2 doubles the state's Rainy Day Fund, stops politicians from overspending when there is a budget surplus, and ensures education funding continues during economic downturns. It has bipartisan support from firefighters, hospitals, health clinics, and educators.",
+          "sourceName": "California Secretary of State Official Voter Information Guide",
+          "sourceUrl": "https://voterguide.sos.ca.gov/propositions/2/"
+        }
+      ],
+      "conArguments": [
+        {
+          "text": "Proposition 2 guarantees more spending, not savings, creating a loophole that makes taxpayer rebates less likely by excluding reserve deposits from California's constitutional spending limit. It provides no new funding for education, healthcare, or public safety. Vote No to protect taxpayer rebates and constitutional limits.",
+          "sourceName": "California Secretary of State Official Voter Information Guide",
+          "sourceUrl": "https://voterguide.sos.ca.gov/propositions/2/"
+        }
+      ],
+      "fullTextUrl": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop2-text-proposed-laws.pdf"
+    },
+    {
+      "number": "3",
+      "title": "PROVIDES PERMANENT FUNDING FOR SCHOOLS AND HEALTH CARE BY EXTENDING EXISTING TAX ON HIGH INCOMES. INITIATIVE CONSTITUTIONAL AMENDMENT.",
+      "sourceUrl": "https://voterguide.sos.ca.gov/propositions/3/",
+      "officialSummary": "Makes permanent existing voter-approved tax rates for individuals earning over $371,000 (adjusted annually for inflation). Allocates tax revenues to public education.",
+      "voteMeaningYes": "A YES vote on this measure means: An income tax increase on high-income earners in place since 2012 would become permanent instead of expiring in 2031.",
+      "voteMeaningNo": "A NO vote on this measure means: An income tax increase on high-income earners in place since 2012 would expire in 2031.",
+      "fiscalImpact": "Maintains $5 billion to $15 billion of annual state income tax revenue by making a temporary tax increase on high-income earners permanent instead of letting it expire in 2031.",
+      "proArguments": [
+        {
+          "text": "PROPOSITION 3 PROTECTS OUR SCHOOLS AND HEALTHCARE WITHOUT RAISING YOUR TAXES. Prop. 3 prevents a massive tax cut for millionaires and billionaires by maintaining the current tax rates the wealthiest 2% have paid for 15 years and requires strict accountability and audits to ensure school funding gets to classrooms. Vote YES.",
+          "sourceName": "California Secretary of State Official Voter Information Guide",
+          "sourceUrl": "https://voterguide.sos.ca.gov/propositions/3/"
+        }
+      ],
+      "conArguments": [
+        {
+          "text": "Californians already pay the nation’s highest income, sales, and gas taxes—and have the highest cost of living. Prop. 3 makes temporary income taxes permanent while Sacramento wastes billions on failed programs instead of voters’ priorities. Don’t reward failure. Fix spending first before making taxes permanent. No on Prop. 3.",
+          "sourceName": "California Secretary of State Official Voter Information Guide",
+          "sourceUrl": "https://voterguide.sos.ca.gov/propositions/3/"
+        }
+      ],
+      "fullTextUrl": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop3-text-proposed-laws.pdf"
+    },
+    {
+      "number": "39",
+      "title": "PROHIBITS CITIZENS FROM VOTING UNLESS THEY PRESENT GOVERNMENT-ISSUED IDENTIFICATION. INITIATIVE CONSTITUTIONAL AMENDMENT.",
+      "sourceUrl": "https://voterguide.sos.ca.gov/propositions/39/",
+      "officialSummary": "Invalidates mail ballots that do not have last four digits of designated government-issued identification number written on envelope. Prohibits in-person voting without presenting government-issued identification.",
+      "voteMeaningYes": "A YES vote on this measure means: Voters would be required to present additional identifying information to elections officials each time they vote.",
+      "voteMeaningNo": "A NO vote on this measure means: A voter’s identity would continue to be established with the voter’s signature.",
+      "fiscalImpact": "Costs of between tens of millions of dollars and low hundreds of millions of dollars each year to implement new voting requirements.",
+      "proArguments": [
+        {
+          "text": "Yes on Prop. 39 gives California a BIPARTISAN solution for VOTER ID. Supported by a solid majority of Democratic, Independent and Republican voters. Increases trust and confidence in our elections.",
+          "sourceName": "California Secretary of State Official Voter Information Guide",
+          "sourceUrl": "https://voterguide.sos.ca.gov/propositions/39/"
+        }
+      ],
+      "conArguments": [
+        {
+          "text": "No on Prop. 39. This would advance Trump’s voter suppression agenda by adding costly, unnecessary barriers that could block eligible California voters, expose personal information to identity theft, and waste hundreds of millions in taxpayer dollars. Don’t let MAGA billionaires decide which voters count. Vote No.",
+          "sourceName": "California Secretary of State Official Voter Information Guide",
+          "sourceUrl": "https://voterguide.sos.ca.gov/propositions/39/"
+        }
+      ],
+      "fullTextUrl": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop39-text-proposed-laws.pdf"
+    }
+  ],
+  "candidates": []
+}

@@ -140,3 +140,33 @@ The source-adapter interface (`MeasureSourceData`) is generic, so the **source s
 Outreach-gated sources (CEDA, NCSL, VIP) follow the same code path once access is granted — a data-access request just precedes the build. **Risk mitigations baked into source design:** scrapers tag the source-structure version they target; 403-prone sites (live VIG) fall back to archived versions plus politeness delays; PDF-only states (FL, TX) use `pdfminer`/`pdfplumber` and are deprioritized; government data has no SLA, so results are cached aggressively with last-fetched timestamps. CEDA historical data can validate extraction accuracy.
 
 The base ballot route reads date-scoped official summaries, fiscal impacts and published argument summaries from the [official guide scraper](../apps/scraper/README.md#ballot-source-collection). Source text is preserved without generating an explanation. A unique proposition number must match a provider-selected California statewide contest for the same election date. County measures are excluded from this join.
+
+## Contextual explanation review
+
+The proposition reader has a separate, versioned contextual explanation contract
+in [`proposition-context.ts`](../packages/validators/src/proposition-context.ts).
+It compares the baseline with the change, explains the actor/action chain, and
+keeps terms, tradeoffs, unknowns, historical evidence and research paths distinct.
+Claims carry locators and evidence layers; estimates retain timeframe and a
+comparison rather than letting an absolute figure imply significance.
+
+The [publication helper](../packages/api/src/lib/proposition-context.ts) accepts
+only editorially approved revisions bound to all content and captured sources,
+the exact guide identity, and the latest adopted source captures. It strips
+snapshot text before `civic.getCaliforniaGuide` exposes `contextualExplanation`.
+Normal reads perform no research or generation. Source refresh and correction
+require explicit capture adoption and a new reviewed revision. There are no
+published revisions yet; the [bounded pilot](evidence/444/README.md) documents
+source verification and remaining editorial/reader/native gates.
+
+Validate captured evidence without fetching, approving or writing a database:
+
+```bash
+pnpm --filter @acme/api exec tsx src/tools/review-proposition-context.ts ../../docs/evidence/444/guide.json ../../docs/evidence/444/prop3-context.json
+```
+
+A valid pending record is still unpublished. The tool checks structure and source
+references; editors must assess whether each source actually supports the claim.
+For UI review, open `/proposition-context-preview` in a development Expo build.
+It renders labelled public projections of the same records and separate missing,
+stale and error scenarios. Release builds cannot select those pilots.
