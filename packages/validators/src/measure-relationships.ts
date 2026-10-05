@@ -38,6 +38,53 @@ export const measureRelationshipSchema = z.object({
     both: claim,
   }),
   conditions: z.array(claim).min(1),
+  compact: z
+    .object({
+      measures: z.tuple([
+        claim.extend({ text: text.max(70) }),
+        claim.extend({ text: text.max(70) }),
+      ]),
+      takeaway: claim.extend({ text: text.max(140) }),
+      scenarios: z.object({
+        neither: z.object({
+          title: claim.extend({ text: text.max(80) }),
+          consequence: claim.extend({ text: text.max(220) }),
+        }),
+        onlyFirst: z.object({
+          title: claim.extend({ text: text.max(80) }),
+          consequence: claim.extend({ text: text.max(220) }),
+        }),
+        onlySecond: z.object({
+          title: claim.extend({ text: text.max(80) }),
+          consequence: claim.extend({ text: text.max(220) }),
+        }),
+        both: z.object({
+          title: claim.extend({ text: text.max(80) }),
+          consequence: claim.extend({ text: text.max(220) }),
+        }),
+      }),
+      bothPassComparisons: z
+        .object({
+          firstMore: claim.extend({ text: text.max(220) }),
+          secondMore: claim.extend({ text: text.max(220) }),
+          equal: claim.extend({ text: text.max(220) }),
+        })
+        .optional(),
+      provisions: z.tuple([
+        claim.extend({ text: text.max(180) }),
+        claim.extend({ text: text.max(180) }),
+      ]),
+      conflictScopes: z
+        .object({
+          condition: claim.extend({ text: text.max(220) }),
+          scopes: z.tuple([
+            claim.extend({ text: text.max(180) }),
+            claim.extend({ text: text.max(180) }),
+          ]),
+        })
+        .optional(),
+    })
+    .optional(),
   review: z.object({
     state: z.enum(["pending", "approved", "rejected"]),
     reviewer: text.optional(),

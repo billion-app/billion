@@ -40,6 +40,7 @@ export function publishedMeasureRelationships(
       draft.measures[0].number === draft.measures[1].number
     )
       continue;
+    if (!draft.compact) continue;
     const pair = draft.measures
       .map((m) => m.number)
       .sort()
@@ -118,6 +119,22 @@ export function publishedMeasureRelationships(
       ...draft.affectedProvisions,
       ...Object.values(draft.scenarios),
       ...draft.conditions,
+      ...draft.compact.measures,
+      draft.compact.takeaway,
+      ...Object.values(draft.compact.scenarios).flatMap((s) => [
+        s.title,
+        s.consequence,
+      ]),
+      ...draft.compact.provisions,
+      ...(draft.compact.bothPassComparisons
+        ? Object.values(draft.compact.bothPassComparisons)
+        : []),
+      ...(draft.compact.conflictScopes
+        ? [
+            draft.compact.conflictScopes.condition,
+            ...draft.compact.conflictScopes.scopes,
+          ]
+        : []),
     ];
     if (claims.some((c) => c.sourceIds.some((id) => !sources.has(id))))
       continue;

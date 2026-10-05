@@ -41,6 +41,40 @@ reader comprehension testing, native phone/Dynamic Type verification, normal
 scraper refresh after an approved record is committed, and live API verification.
 No shared-database writes or paid ingestion were run. Keep #447 open.
 
+## Reader design
+
+The initial four-paragraph expansion was rejected as too much reading. The
+revised core is a compact relationship summary with sourced semantic labels, an
+explicit causal relationship sentence, four scenario controls and one consequence
+that changes in place. It follows the actual Bills reader's compact slate surfaces,
+editorial heading and short labeled comparisons. The controls are hypothetical
+passage cases, not voting instructions or current results. Selection is local to
+the component and never saves a vote preference.
+
+Both defaults open as a scenario, with legal uncertainty beside the consequence.
+Its optional Yes-total comparison reveals the three orderings and their different
+limits. Provision scope, conditions and official records are supporting disclosures;
+opening them does not reveal a stack of every unrelated scenario. Compact copy is
+separate cited input under `compact`, not runtime truncation or generated summaries.
+Publication requires it, validates its citation IDs and binds it to editorial
+approval. Changing a node label or selected consequence invalidates prior approval.
+An absent compact revision uses the unavailable fallback.
+
+Scenario controls are ordinary buttons with pressed/selected state, supporting
+standard keyboard activation without claiming tab semantics. Browser text enlargement
+reflows the measure summaries by intrinsic width; native font scaling selects the
+stacked layout. Native runtime behavior still needs verification.
+
+The first Astra acted as designer after comparing actual Bills screenshots. A
+separate fresh Astra then assessed screenshot comprehension without the implementation
+rationale. The user rejection remains the reason this design was reopened; earlier
+no-findings review was not treated as proof of a good reader experience. The fresh
+review resolved enlarged-text wrapping, explicit conflict conditions, ambiguous
+connector imagery, clause locations and repeated evidence prose. Its code review
+caught incomplete tab semantics; ordinary pressed buttons now pass independent
+Tab/Enter/Space checks. Six publication tests and focused package typechecks passed.
+The final reviewed head and refreshed captures are recorded in the PR comment.
+
 ## Screenshot evidence
 
 The actual Expo web app at port 8217 was rendered with Playwright. The API was
@@ -50,12 +84,13 @@ fixtures**, not proof of live published content. Enlarged web CSS text is not
 native Dynamic Type. Missing and stale records share the same safe fallback.
 
 - `40-collapsed-phone.png`, `42-collapsed-phone.png`: reciprocal readers.
-- `40-expanded-cases.png`, `40-both-pass.png`: combined cases.
+- `40-neither.png`, `40-only-first.png`, `40-only-second.png`, `40-both-pass.png`: one selected consequence per hypothetical case.
+- `40-vote-totals.png`: higher/lower/equal Yes-total conditions, not live results.
 - `40-provisions.png`, `40-conditions.png`: scope and legal uncertainty.
-- `42-enlarged-web-text.png`, `42-tablet.png`: enlarged text and larger viewport.
+- `42-enlarged-web-text.png`, `42-enlarged-web-outcome.png`, `42-tablet.png`: enlarged text, complete selected outcome and larger viewport.
 - `unavailable-stale.png`, `guide-error.png`: suppressed explanation and failure.
 
-The capture script also exercises navigation to the other reader and checks for
+The capture script verifies that only the selected consequence appears, selected state is exposed, Yes-total comparisons appear only for Both, evidence/provision disclosures work, navigation reaches the other reader, and checks for
 browser page errors. It does not certify external source-link availability or
 native accessibility. The GitHub screenshot comment records the exact reviewed
 commit, so changes to the UI require refreshing that evidence.

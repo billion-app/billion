@@ -1,7 +1,7 @@
 {
   "draft": {
     "schemaVersion": 1,
-    "revision": "ca-2026-40-42-captured-v1",
+    "revision": "ca-2026-40-42-captured-v2",
     "jurisdiction": "CA",
     "electionDate": "2026-11-03",
     "kind": "conflict",
@@ -109,6 +109,104 @@
     ],
     "review": {
       "state": "pending"
+    },
+    "compact": {
+      "measures": [
+        {
+          "text": "One-time wealth tax",
+          "sourceIds": ["law-40"]
+        },
+        {
+          "text": "New tax restrictions",
+          "sourceIds": ["law-42"]
+        }
+      ],
+      "takeaway": {
+        "text": "42\u2019s new tax restrictions may conflict with 40\u2019s wealth tax.",
+        "sourceIds": ["law-40", "law-42", "analysis-40", "analysis-42"]
+      },
+      "scenarios": {
+        "neither": {
+          "title": {
+            "text": "Neither proposal is approved",
+            "sourceIds": ["law-40", "law-42"]
+          },
+          "consequence": {
+            "text": "This pair makes no change to existing tax law.",
+            "sourceIds": ["law-40", "law-42"]
+          }
+        },
+        "onlyFirst": {
+          "title": {
+            "text": "Wealth tax approved",
+            "sourceIds": ["law-40"]
+          },
+          "consequence": {
+            "text": "40\u2019s tax is approved; 42\u2019s restrictions are not. Other measures and legal challenges could still affect implementation.",
+            "sourceIds": ["law-40", "law-42", "analysis-40"]
+          }
+        },
+        "onlySecond": {
+          "title": {
+            "text": "Tax restrictions approved",
+            "sourceIds": ["law-42"]
+          },
+          "consequence": {
+            "text": "42\u2019s restrictions are approved; 40\u2019s tax is not. Taxes expressly preserved by 42 remain outside its ban.",
+            "sourceIds": ["law-40", "law-42"]
+          }
+        },
+        "both": {
+          "title": {
+            "text": "Both pass; effect is unsettled",
+            "sourceIds": ["analysis-40", "analysis-42"]
+          },
+          "consequence": {
+            "text": "If 42 has more Yes votes and courts find a conflict, they could stop 40. Other vote totals need separate legal analysis.",
+            "sourceIds": ["law-40", "law-42", "analysis-40", "analysis-42"]
+          }
+        }
+      },
+      "bothPassComparisons": {
+        "firstMore": {
+          "text": "40\u2019s clause targets conflicting provisions. Whether it applies to 42 requires legal interpretation.",
+          "sourceIds": ["law-40"]
+        },
+        "secondMore": {
+          "text": "The LAO says courts could stop 40 if they find a conflict.",
+          "sourceIds": ["analysis-40", "analysis-42"]
+        },
+        "equal": {
+          "text": "These clauses establish no tie-break. The outcome remains unresolved here.",
+          "sourceIds": ["law-40", "law-42"]
+        }
+      },
+      "provisions": [
+        {
+          "text": "Section 4 authorizes a wealth tax; Section 7 sets its collection rules.",
+          "sourceIds": ["law-40"]
+        },
+        {
+          "text": "Section 4 restricts new personal-property taxes and certain retroactive taxes.",
+          "sourceIds": ["law-42"]
+        }
+      ],
+      "conflictScopes": {
+        "condition": {
+          "text": "Each clause requires more Yes votes and an applicable conflict. Courts must interpret their effect.",
+          "sourceIds": ["law-40", "law-42", "analysis-40", "analysis-42"]
+        },
+        "scopes": [
+          {
+            "text": "Section 8: conflicting provisions of another measure.",
+            "sourceIds": ["law-40"]
+          },
+          {
+            "text": "Section 5: the entire other measure.",
+            "sourceIds": ["law-42"]
+          }
+        ]
+      }
     }
   },
   "guideMeasures": [

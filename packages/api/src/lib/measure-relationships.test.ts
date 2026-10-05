@@ -54,7 +54,7 @@ function fixture(numbers = ["70", "71"]): {
     })),
   );
   const claim = {
-    text: "Synthetic conditional outcome; no voting recommendation.",
+    text: "Synthetic conditional outcome",
     sourceIds: sources.map((s) => s.id),
   };
   const draft: MeasureRelationship = {
@@ -79,6 +79,17 @@ function fixture(numbers = ["70", "71"]): {
       both: claim,
     },
     conditions: [claim],
+    compact: {
+      measures: [claim, claim],
+      takeaway: claim,
+      scenarios: {
+        neither: { title: claim, consequence: claim },
+        onlyFirst: { title: claim, consequence: claim },
+        onlySecond: { title: claim, consequence: claim },
+        both: { title: claim, consequence: claim },
+      },
+      provisions: [claim, claim],
+    },
     review: { state: "pending" },
   };
   approve(draft);
@@ -248,4 +259,31 @@ void test("captured pilot stays pending; reviewed copy must match all four docum
     ),
     [],
   );
+});
+
+void test("compact reader claims require evidence and renewed editorial approval", () => {
+  for (const mutation of [
+    (draft: MeasureRelationship) => {
+      draft.compact = undefined;
+      approve(draft);
+    },
+    (draft: MeasureRelationship) => {
+      assert.ok(draft.compact);
+      draft.compact.scenarios.both.consequence.text = "Changed consequence";
+    },
+    (draft: MeasureRelationship) => {
+      assert.ok(draft.compact);
+      draft.compact.measures[0].sourceIds = ["missing"];
+      approve(draft);
+    },
+    (draft: MeasureRelationship) => {
+      assert.ok(draft.compact);
+      draft.compact.scenarios.neither.consequence.sourceIds = ["missing"];
+      approve(draft);
+    },
+  ]) {
+    const { guide, draft } = fixture();
+    mutation(draft);
+    assert.deepEqual(publish(guide, draft), []);
+  }
 });

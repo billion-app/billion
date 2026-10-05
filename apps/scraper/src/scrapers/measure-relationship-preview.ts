@@ -53,6 +53,11 @@ for (const source of draft.sources) {
     if (guideElectionDate(html) !== draft.electionDate)
       throw new Error("Analysis election mismatch");
     const $ = load(html);
+    if (
+      $("#propNum").text().trim() !== source.number ||
+      $(".propName h2").text().replace(/\s+/g, " ").trim() !== identity.title
+    )
+      throw new Error("Analysis measure identity mismatch");
     source.snapshot = $("#mainCont").text().replace(/\s+/g, " ").trim();
     // Interaction warnings can be image alt text in the official analysis.
     if (source.snapshot.length < 250)
