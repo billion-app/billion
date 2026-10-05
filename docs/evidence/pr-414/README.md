@@ -1,0 +1,9 @@
+# PR 414 — rebased How to Vote evidence
+
+Captured from the running Expo web app at 390 × 844, after fonts loaded, on the rebased PR branch. These are implementation screenshots, not mockups. Address entry is a real empty state. Voting-method screenshots use an intercepted synthetic voter-info response with an explicitly fictional election, address, authority and location; they do not establish real ballot coverage or official hours. `national-provider.png` exercises the Democracy Works response with provider-neutral attribution.
+
+The rebase preserves main's election entry, inline voting plan, logistics, evidence guards, and election header. The added route checks the server launch gate, carries the selected address/election, rejects stale or mismatched responses, and keeps lookup edits separate from the saved home address. GPS suggests an address for explicit confirmation and does not submit raw coordinates. Generic hardcoded instructions are no longer attributed to an election authority; listed locations do not imply they are currently open. Date-only election labels/countdowns use calendar days.
+
+Verification: workspace lint, typecheck, tests, workspace dependency lint, Expo Doctor (21/21), iOS prebuild configuration validation and production iOS export passed. Independent Astra review identified and re-reviewed the fixes. Final screen captures show expanded mail links, sparse details and the supplied location/address/hours/directions.
+
+Limits: browser fixtures are not live personalized voter information. Native GPS/permission, software keyboard, VoiceOver and larger-text testing remain unverified. Countdown uses the device calendar date, not a verified election jurisdiction timezone; the UI directs readers to authorities for applicable hours. This PR adds expo-location and native permissions and requires a new binary. It has not been merged or released.

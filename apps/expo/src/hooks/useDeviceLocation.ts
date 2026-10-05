@@ -14,10 +14,7 @@
 import { useCallback, useState } from "react";
 import * as Location from "expo-location";
 
-export type DeviceLocationError =
-  | "denied"
-  | "unavailable"
-  | "failed";
+export type DeviceLocationError = "denied" | "unavailable" | "failed";
 
 export interface DeviceLocationState {
   /** Fetch a one-shot fix. Resolves with null instead of throwing on any failure. */
@@ -35,32 +32,33 @@ export function useDeviceLocation(): DeviceLocationState {
   const [error, setError] = useState<DeviceLocationError | null>(null);
   const [permissionDecided, setPermissionDecided] = useState(false);
 
-  const request = useCallback(async (): Promise<Location.LocationObject | null> => {
-    setError(null);
-    setLocating(true);
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      setPermissionDecided(true);
-      if (!permission.granted) {
-        setError("denied");
-        return null;
-      }
+  const request =
+    useCallback(async (): Promise<Location.LocationObject | null> => {
+      setError(null);
+      setLocating(true);
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        setPermissionDecided(true);
+        if (!permission.granted) {
+          setError("denied");
+          return null;
+        }
 
-      // Accuracy balanced for address resolution, not navigation. A few
-      // seconds is acceptable; the user is waiting on a form field.
-      const fix = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      return fix;
-    } catch {
-      // Unavailable services and provider failures both land here; the
-      // distinction rarely changes the copy ("turn location on / try again").
-      setError("failed");
-      return null;
-    } finally {
-      setLocating(false);
-    }
-  }, []);
+        // Accuracy balanced for address resolution, not navigation. A few
+        // seconds is acceptable; the user is waiting on a form field.
+        const fix = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        return fix;
+      } catch {
+        // Unavailable services and provider failures both land here; the
+        // distinction rarely changes the copy ("turn location on / try again").
+        setError("failed");
+        return null;
+      } finally {
+        setLocating(false);
+      }
+    }, []);
 
   return { request, locating, error, permissionDecided };
 }

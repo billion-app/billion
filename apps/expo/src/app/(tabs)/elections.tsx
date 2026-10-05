@@ -38,19 +38,19 @@ import {
   planes,
 } from "~/styles";
 import { trpc } from "~/utils/api";
-import { daysUntil } from "~/utils/dates";
-import { buildVotingPlan, electionPhase } from "~/utils/voting";
 import {
   ballotElectionDate,
   ballotElectionOptions,
   contestBallotCitations,
   currentBallot,
 } from "~/utils/ballot-lookup";
+import { daysUntil } from "~/utils/dates";
 import {
   groupContestsByLevel,
   isCaliforniaState,
   measureIsStatewide,
 } from "~/utils/elections";
+import { buildVotingPlan, electionPhase } from "~/utils/voting";
 
 type BallotTab = "candidates" | "measures";
 
@@ -576,7 +576,10 @@ function ElectionsLive({
                 : null,
               available_methods: votingPlan.availableCount,
             });
-            router.push("/how-to-vote");
+            router.push({
+              pathname: "/how-to-vote",
+              params: { address: storedAddress, electionId: selected?.id },
+            });
           }}
         />
       </View>

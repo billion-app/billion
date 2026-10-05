@@ -280,7 +280,7 @@ export function SourceFooter({
       </Text>
       <Text style={s.sourceVerified}>
         {note ??
-          "Locations and contacts come from Google Civic. Deadlines aren't verified in Billion yet — confirm them with your county."}
+          "Locations and contacts come from the ballot lookup. Confirm hours, deadlines, and instructions with your election office."}
       </Text>
       <LinkRow
         label="Open the election office site"

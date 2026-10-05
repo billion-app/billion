@@ -140,8 +140,8 @@
     [
       "expo-location",
       {
-        "locationAlwaysAndWhenInUsePermission": "Billion uses your location to find your registered address, polling places, and deadlines for your ballot.",
-        "locationWhenInUsePermission": "Billion uses your location to find your registered address, polling places, and deadlines for your ballot.",
+        "locationAlwaysAndWhenInUsePermission": "Billion uses your location to suggest a nearby address for you to confirm before looking up voting information.",
+        "locationWhenInUsePermission": "Billion uses your location to suggest a nearby address for you to confirm before looking up voting information.",
         "isAndroidBackgroundLocationEnabled": false
       }
     ]

@@ -18,7 +18,7 @@ import {
 function offsetDays(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function location(overrides: Partial<PollingLocation> = {}): PollingLocation {
@@ -97,22 +97,22 @@ void test("buildVotingPlan returns a full method list with no data at all", () =
   assert.equal(plan.noLocationsPublished, true);
 });
 
-void test("missing locations read as unpublished, never as unavailable", () => {
+void test("missing location details do not imply a method is unavailable", () => {
   // The distinction is the whole point of the screen: "we don't know yet" must
   // not render as "this method isn't offered".
   const dropBox = method(buildVotingPlan(response()), "dropBox");
   assert.equal(dropBox.status, "unknown");
-  assert.equal(dropBox.chip.label, "Not published");
-  assert.equal(dropBox.subtitle, "Locations not published yet");
+  assert.equal(dropBox.chip.label, "Details unavailable");
+  assert.equal(dropBox.subtitle, "Location details unavailable");
 });
 
-void test("a method becomes available once locations are published", () => {
+void test("listed locations do not establish current availability", () => {
   const plan = buildVotingPlan(
     response({ dropOffLocations: [location(), location()] }),
   );
   const dropBox = method(plan, "dropBox");
-  assert.equal(dropBox.status, "available");
-  assert.equal(dropBox.chip.label, "Open now");
+  assert.equal(dropBox.status, "listed");
+  assert.equal(dropBox.chip.label, "Locations listed");
   assert.equal(dropBox.subtitle, "2 locations");
   assert.equal(plan.noLocationsPublished, false);
 });
@@ -152,7 +152,7 @@ void test("a mail-only election drops early voting and limits in-person", () => 
   // In-person is reduced, not removed — mailOnly does not mean "you cannot vote
   // in person", and hiding the row would say exactly that.
   assert.equal(method(plan, "electionDay").status, "limited");
-  assert.equal(method(plan, "mail").status, "available");
+  assert.equal(method(plan, "mail").status, "unknown");
 });
 
 void test("no step or subtitle ever states a deadline we cannot source", () => {
@@ -169,28 +169,7 @@ void test("no step or subtitle ever states a deadline we cannot source", () => {
   }
 });
 
-void test("California postage guidance is gated on the resolved state", () => {
-  // Steps only exist alongside a citable source, so both halves need one.
-  const caMail = method(buildVotingPlan(withSource()), "mail");
-  assert.match(caMail.steps.at(-1)?.title ?? "", /no stamp needed/);
-
-  const nvPlan = buildVotingPlan(
-    withSource({
-      normalizedInput: {
-        line1: "1 Main St",
-        city: "Reno",
-        state: "NV",
-        zip: "89501",
-      },
-    }),
-  );
-  assert.doesNotMatch(
-    method(nvPlan, "mail").steps.at(-1)?.title ?? "",
-    /no stamp needed/,
-  );
-});
-
-void test("availableCount counts only methods usable today", () => {
+void test("listed locations do not count as verified availability", () => {
   const plan = buildVotingPlan(
     response({
       dropOffLocations: [location()],
@@ -198,7 +177,7 @@ void test("availableCount counts only methods usable today", () => {
       earlyVoteSites: [location({ startDate: offsetDays(3) })],
     }),
   );
-  assert.equal(plan.availableCount, 2);
+  assert.equal(plan.availableCount, 0);
 });
 
 void test("resolveOfficialSource prefers the local jurisdiction", () => {
@@ -244,6 +223,32 @@ void test("resolveOfficialSource falls back to the state body", () => {
   assert.equal(source.name, "California Secretary of State");
 });
 
+void test("provider lookup destinations are not attributed to an official authority", () => {
+  const suppliedLocation = location();
+  const data = withSource({
+    provider: {
+      name: "democracy_works",
+      fetchedAt: "2099-10-01T12:00:00Z",
+      coverage: "partial",
+      addressScope: "address",
+      ballotDataStatus: "provided",
+      addressNormalization: "unavailable",
+      logistics: "lookup_links_only",
+    },
+    pollingLocations: [suppliedLocation],
+  });
+  const plan = buildVotingPlan(data);
+  assert.equal(resolveOfficialSource(data), undefined);
+  assert.equal(plan.source, undefined);
+  assert.equal(registrationCheckUrl(plan.source), "https://vote.gov");
+  for (const votingMethod of plan.methods) {
+    assert.equal(votingMethod.instructionsUrl, undefined);
+    assert.deepEqual(votingMethod.steps, []);
+  }
+  assert.deepEqual(method(plan, "electionDay").locations, [suppliedLocation]);
+  assert.equal(method(plan, "electionDay").chip.label, "Locations listed");
+});
+
 void test("resolveOfficialSource yields nothing without administration data", () => {
   assert.equal(resolveOfficialSource(response()), undefined);
   assert.equal(resolveOfficialSource(undefined), undefined);
@@ -256,7 +261,7 @@ void test("entryCardSubtitle asks for an address before anything else", () => {
   );
 });
 
-void test("entryCardSubtitle counts available ways to vote", () => {
+void test("entryCardSubtitle does not promise availability from location counts", () => {
   const many = buildVotingPlan(
     response({
       dropOffLocations: [location()],
@@ -265,13 +270,13 @@ void test("entryCardSubtitle counts available ways to vote", () => {
   );
   assert.equal(
     entryCardSubtitle(true, many, "upcoming"),
-    "2 ways to vote in this election",
+    "Ways to vote and where to go",
   );
 
   const one = buildVotingPlan(response({ dropOffLocations: [location()] }));
   assert.equal(
     entryCardSubtitle(true, one, "upcoming"),
-    "1 way to vote in this election",
+    "Ways to vote and where to go",
   );
 });
 
@@ -294,7 +299,7 @@ void test("entryCardSubtitle never promises a deadline it doesn't have", () => {
   );
 });
 
-// --- source gating: no source, no step summary -----------------------------
+// --- instruction provenance -----------------------------
 
 /** A response carrying an administration body, i.e. a citable source. */
 function withSource(
@@ -329,24 +334,40 @@ void test("steps are withheld entirely when no source can be cited", () => {
   }
 });
 
-void test("steps appear once an official instructions URL exists", () => {
+void test("official links remain available without inventing instruction text", () => {
   const plan = buildVotingPlan(withSource());
   const mail = method(plan, "mail");
-  assert.ok(mail.steps.length > 0);
+  assert.equal(mail.steps.length, 0);
   assert.equal(mail.instructionsUrl, "https://elections.saccounty.gov/vbm");
 
   const day = method(plan, "electionDay");
-  assert.ok(day.steps.length > 0);
+  assert.equal(day.steps.length, 0);
   assert.equal(day.instructionsUrl, "https://elections.saccounty.gov/centers");
 });
 
-void test("every method with steps can name the page it summarizes", () => {
-  const plan = buildVotingPlan(withSource());
-  for (const m of plan.methods) {
-    if (m.steps.length > 0) {
-      assert.ok(m.instructionsUrl, `${m.id} has steps but no source URL`);
+void test("authority URLs never authorize hardcoded instructions for any method", () => {
+  for (const mailOnly of [false, true]) {
+    for (const m of buildVotingPlan(withSource({ mailOnly })).methods) {
+      assert.deepEqual(m.steps, [], `${m.id} has no supplied instruction text`);
+      assert.ok(m.instructionsUrl);
     }
   }
+});
+
+void test("a published date window and hours do not prove a location is open now", () => {
+  const plan = buildVotingPlan(
+    response({
+      dropOffLocations: [
+        location({
+          startDate: offsetDays(-2),
+          endDate: offsetDays(2),
+          pollingHours: "9am–5pm",
+        }),
+      ],
+    }),
+  );
+  assert.equal(method(plan, "dropBox").status, "listed");
+  assert.equal(method(plan, "dropBox").chip.label, "Locations listed");
 });
 
 // --- registration check always resolves ------------------------------------

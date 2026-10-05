@@ -14,13 +14,7 @@ import type { VotingMethod, VotingMethodId } from "~/utils/voting";
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
-import {
-  LinkRow,
-  LocationList,
-  StatusChip,
-  StepList,
-  UnavailableNote,
-} from "./parts";
+import { LinkRow, LocationList, StatusChip, UnavailableNote } from "./parts";
 
 const METHOD_ICON: Record<VotingMethodId, IconName> = {
   mail: "mail",
@@ -48,13 +42,12 @@ export function MethodCard({
   method,
   expanded,
   onToggle,
-  authorityName,
   locationFinderUrl,
 }: {
   method: VotingMethod;
   expanded: boolean;
   onToggle: () => void;
-  /** Named above the steps, so whose words they are is clear before reading. */
+  /** Authority context supplied by callers; instructions open at the source. */
   authorityName?: string;
   /** Official location finder — the fallback when nothing is published. */
   locationFinderUrl?: string;
@@ -78,7 +71,9 @@ export function MethodCard({
         accessibilityState={{ expanded }}
         accessibilityLabel={`${method.title}. ${method.chip.label}. ${method.subtitle}`}
         accessibilityHint={
-          expanded ? "Double-tap to collapse" : "Double-tap for the steps"
+          expanded
+            ? "Double-tap to collapse"
+            : "Double-tap for locations and official links"
         }
       >
         <View style={[s.iconTile, expanded && s.iconTileOpen]}>
@@ -107,30 +102,10 @@ export function MethodCard({
 
       {expanded && (
         <View style={s.open}>
-          {/* Steps are a summary of the authority's instructions, never
-              Billion's own advice — so they only render when we can name and
-              link the source they came from. */}
-          {method.steps.length > 0 && (
-            <>
-              <Text style={s.kicker}>
-                {authorityName
-                  ? `SUMMARIZED FROM ${authorityName.toUpperCase()}`
-                  : "SUMMARIZED FROM YOUR ELECTION OFFICE"}
-              </Text>
-              <StepList steps={method.steps} />
-              <LinkRow
-                label="Full instructions from the source"
-                url={method.instructionsUrl}
-              />
-            </>
-          )}
-
-          {method.steps.length === 0 && (
-            <LinkRow
-              label="Instructions from your election office"
-              url={method.instructionsUrl ?? locationFinderUrl}
-            />
-          )}
+          <LinkRow
+            label="Instructions from your election office"
+            url={method.instructionsUrl ?? locationFinderUrl}
+          />
 
           {method.locations.length > 0 ? (
             <>

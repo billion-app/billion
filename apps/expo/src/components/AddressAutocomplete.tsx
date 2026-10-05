@@ -70,6 +70,7 @@ export function AddressAutocomplete({
   } = useDeviceLocation();
   // The committed address while the post-GPS lookup is still resolving.
   const [resolving, setResolving] = useState(false);
+  const [locationNote, setLocationNote] = useState<string | null>(null);
 
   const commit = (address: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -88,17 +89,17 @@ export function AddressAutocomplete({
         longitude: fix.coords.longitude,
       });
       const formatted = placemarks[0] ? formatPlacemark(placemarks[0]) : null;
-      // Without a usable placemark, hand the coordinates to Civic anyway —
-      // Civic accepts "latitude,longitude" and resolves the jurisdiction.
-      commit(
-        formatted ??
-          `${fix.coords.latitude.toFixed(5)},${fix.coords.longitude.toFixed(5)}`,
-      );
+      if (formatted) {
+        setInput(formatted);
+        setLocationNote("Check this is your voting address, then submit it.");
+      } else {
+        setLocationNote(
+          "We couldn't find a street address. Enter your voting address below.",
+        );
+      }
     } catch {
-      // Reverse geocode failed but the fix itself was good — coordinates
-      // still beat nothing, and Civic can resolve them.
-      commit(
-        `${fix.coords.latitude.toFixed(5)},${fix.coords.longitude.toFixed(5)}`,
+      setLocationNote(
+        "We couldn't find a street address. Enter your voting address below.",
       );
     } finally {
       setResolving(false);
@@ -107,7 +108,7 @@ export function AddressAutocomplete({
 
   const locationStatus = resolving ? (
     inline ? null : (
-      <Text style={s.statusText}>Confirming your address…</Text>
+      <Text style={s.statusText}>Finding a nearby address…</Text>
     )
   ) : locationError === "denied" ? (
     <Text style={s.statusText}>
@@ -121,6 +122,8 @@ export function AddressAutocomplete({
     <Text style={s.statusText}>
       Couldn&apos;t get a location fix — try again or type it in.
     </Text>
+  ) : locationNote ? (
+    <Text style={s.statusText}>{locationNote}</Text>
   ) : null;
 
   const gpsButton = (

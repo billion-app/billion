@@ -12,7 +12,7 @@
  * rather than a date computed from the election day. See `~/utils/voting`.
  */
 import type { ReactNode } from "react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   LayoutAnimation,
@@ -26,6 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { VotingMethodId } from "~/utils/voting";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
+import { BallotLookupGate } from "~/components/ballot/BallotLookupGate";
 import { MethodCard } from "~/components/how-to-vote/MethodCard";
 import {
   FactRow,
@@ -47,7 +48,10 @@ import {
   planes,
 } from "~/styles";
 import { trpc } from "~/utils/api";
+import { currentBallot } from "~/utils/ballot-lookup";
 import { daysUntil, formatDate } from "~/utils/dates";
+import { isCaliforniaState } from "~/utils/elections";
+import { electionsAreLive } from "~/utils/elections-live";
 import {
   buildVotingPlan,
   electionPhase,
@@ -57,10 +61,46 @@ import {
 
 export const ErrorBoundary = createRouteErrorBoundary("how-to-vote");
 
-export default function HowToVoteScreen() {
+export default function HowToVoteRoute() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ method?: string }>();
-  const { address, setAddress, isLoading: addressLoading } = useUserAddress();
+  const availability = useQuery({
+    ...trpc.civic.getBallotAvailability.queryOptions(),
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+  });
+  if (!electionsAreLive(availability.isError ? undefined : availability.data)) {
+    return (
+      <BallotLookupGate
+        checking={availability.isFetching}
+        failed={availability.isError}
+        onRetry={() => void availability.refetch()}
+        onBack={() =>
+          router.canGoBack() ? router.back() : router.replace("/elections")
+        }
+        onHome={() => router.replace("/elections")}
+      />
+    );
+  }
+  return <HowToVoteScreen />;
+}
+
+function HowToVoteScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    method?: string;
+    address?: string;
+    electionId?: string;
+  }>();
+  const { address: storedAddress, isLoading: addressLoading } =
+    useUserAddress();
+  const [lookupAddress, setAddress] = useState<string | undefined>(
+    params.address,
+  );
+  const address = lookupAddress ?? storedAddress;
+  const [requestedElectionId, setRequestedElectionId] = useState(
+    params.electionId,
+  );
   const [editing, setEditing] = useState(false);
   const [openMethod, setOpenMethod] = useState<VotingMethodId | null>(
     (params.method as VotingMethodId | undefined) ?? null,
@@ -69,73 +109,107 @@ export default function HowToVoteScreen() {
   const hasAddress = !!address;
 
   const voterInfoQuery = useQuery({
-    ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
+    ...trpc.civic.getVoterInfo.queryOptions({
+      address: address ?? "",
+      electionId: requestedElectionId,
+    }),
     enabled: hasAddress,
     retry: 1,
   });
 
-  const data = voterInfoQuery.data;
-  const unsupportedState = !!data && data.normalizedInput.state !== "CA";
+  const { data, mismatch } = currentBallot({
+    data: voterInfoQuery.data,
+    requestedElectionId,
+    editing,
+    fetching: voterInfoQuery.isFetching,
+    failed: voterInfoQuery.isError,
+  });
+  const unsupportedState =
+    !!data &&
+    !isCaliforniaState(data.normalizedInput.state) &&
+    data.provider?.name !== "democracy_works";
   const election = unsupportedState ? undefined : data?.election;
   const plan = buildVotingPlan(unsupportedState ? undefined : data);
   const phase = electionPhase(election?.electionDay);
 
-  const toggleMethod = useCallback(
-    (id: VotingMethodId) => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setOpenMethod((prev) => {
-        const next = prev === id ? null : id;
-        if (next) {
-          const method = plan.methods.find((m) => m.id === id);
-          posthog.capture("voting_method_expanded", {
-            method: id,
-            status: method?.status ?? null,
-            location_count: method?.locations.length ?? 0,
-          });
-        }
-        return next;
-      });
-    },
-    [plan.methods],
-  );
+  const toggleMethod = (id: VotingMethodId) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpenMethod((prev) => {
+      const next = prev === id ? null : id;
+      if (next) {
+        const method = plan.methods.find((m) => m.id === id);
+        posthog.capture("voting_method_expanded", {
+          method: id,
+          status: method?.status ?? null,
+          location_count: method?.locations.length ?? 0,
+        });
+      }
+      return next;
+    });
+  };
+
+  if (editing) {
+    return (
+      <Screen>
+        <Card style={s.gapCard}>
+          <Kicker>YOUR VOTING ADDRESS</Kicker>
+          <AddressAutocomplete
+            initialValue={address ?? ""}
+            onSubmit={(addr) => {
+              setAddress(addr);
+              setRequestedElectionId(undefined);
+              setEditing(false);
+            }}
+          />
+          <Text style={s.fineprint}>
+            Used for this lookup. Your saved home address stays the same.
+          </Text>
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (mismatch) {
+    return (
+      <Screen>
+        <Card>
+          <Text style={s.cardTitle}>Election information doesn't match</Text>
+          <Text style={s.cardBody}>
+            Check with your election office or look up this address again.
+          </Text>
+          <PrimaryButton
+            label="Look up again"
+            onPress={() => setRequestedElectionId(undefined)}
+          />
+        </Card>
+      </Screen>
+    );
+  }
 
   // ---- No address -------------------------------------------------------
   if (!addressLoading && !hasAddress) {
     return (
       <Screen>
-        {editing ? (
-          <Card style={s.gapCard}>
-            <Kicker>YOUR REGISTERED ADDRESS</Kicker>
-            <AddressAutocomplete
-              initialValue=""
-              onSubmit={(addr) => {
-                void setAddress(addr);
-                setEditing(false);
-                posthog.capture("voter_address_set", { is_update: false });
-              }}
-            />
-          </Card>
-        ) : (
-          <Card style={s.gapCard}>
-            <View style={s.emptyIcon}>
-              <Icon name="pin" size={20} color={colors.bill} />
-            </View>
-            <Text style={s.cardTitle}>Add your registered address</Text>
-            <Text style={s.cardBody}>
-              Voting rules, deadlines, and locations are set county by county.
-              Billion needs the address you&apos;re registered at to show the
-              right ones.
-            </Text>
-            <PrimaryButton
-              label="Add address"
-              onPress={() => setEditing(true)}
-              style={s.primaryAction}
-            />
-            <Text style={s.fineprint}>
-              Stored on your device and used only for election lookups.
-            </Text>
-          </Card>
-        )}
+        <Card style={s.gapCard}>
+          <View style={s.emptyIcon}>
+            <Icon name="pin" size={20} color={colors.bill} />
+          </View>
+          <Text style={s.cardTitle}>Add your registered address</Text>
+          <Text style={s.cardBody}>
+            Voting rules, deadlines, and locations are set county by county.
+            Billion needs the address you&apos;re registered at to show the
+            right ones.
+          </Text>
+          <PrimaryButton
+            label="Add address"
+            onPress={() => setEditing(true)}
+            style={s.primaryAction}
+          />
+          <Text style={s.fineprint}>
+            Used for this lookup; it does not verify your registration.
+          </Text>
+        </Card>
+
         <Card>
           <Kicker>IN THE MEANTIME</Kicker>
           <Text style={s.cardBody}>
@@ -177,8 +251,8 @@ export default function HowToVoteScreen() {
             We couldn&apos;t load your voting options
           </Text>
           <Text style={s.cardBody}>
-            The election lookup didn&apos;t respond. Your address is saved —
-            this is on our side.
+            The election lookup didn&apos;t respond. Your address is still in
+            this lookup — this is on our side.
           </Text>
           <PrimaryButton
             label="Try again"
@@ -248,7 +322,7 @@ export default function HowToVoteScreen() {
               {phase === "electionDay"
                 ? "· Today"
                 : phase === "ended"
-                  ? "· Voting has closed"
+                  ? "· Election date has passed"
                   : `· ${days} day${days === 1 ? "" : "s"} away`}
             </Text>
           </View>
@@ -275,19 +349,6 @@ export default function HowToVoteScreen() {
           <Text style={s.fineprintLeft}>
             Used only to look up your ballot and voting locations.
           </Text>
-
-          {editing && (
-            <View style={s.editWrap}>
-              <AddressAutocomplete
-                initialValue={address ?? ""}
-                onSubmit={(addr) => {
-                  void setAddress(addr);
-                  setEditing(false);
-                  posthog.capture("voter_address_set", { is_update: true });
-                }}
-              />
-            </View>
-          )}
 
           <View style={s.rule} />
 
@@ -326,9 +387,10 @@ export default function HowToVoteScreen() {
         <View style={[s.banner, s.bannerEnded]}>
           <Icon name="info" size={17} color={colors.bill} />
           <View style={s.bannerBody}>
-            <Text style={s.bannerTitle}>This election has ended</Text>
+            <Text style={s.bannerTitle}>This election date has passed</Text>
             <Text style={s.bannerDetail}>
-              Counting continues for several weeks after Election Day.
+              Check your election office for applicable voting hours and
+              results.
             </Text>
           </View>
         </View>
@@ -372,8 +434,8 @@ export default function HowToVoteScreen() {
         <Card>
           <Kicker>VOTING LOCATIONS</Kicker>
           <UnavailableNote
-            title="Locations aren't published yet"
-            body="Counties usually post vote centers and drop boxes closer to Election Day. Billion refreshes this daily."
+            title="Location details unavailable"
+            body="This lookup did not supply locations. Check your election office for current vote centers and drop boxes."
           />
         </Card>
       )}

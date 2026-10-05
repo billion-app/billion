@@ -2,12 +2,12 @@
  * Voting-logistics derivation — the "how do I cast my ballot" model behind the
  * How to Vote screen.
  *
- * Everything here is derived from data Google Civic actually returned. Nothing
+ * Locations and authority links are derived from the ballot response. Nothing
  * is inferred from the election date: this module deliberately has no
  * "registration closes 15 days before" style arithmetic, because a deadline we
  * computed is not a deadline any authority published. Where we don't have a
  * fact, the model says so (`status: "unknown"`) and the UI renders an honest
- * "not published" variant instead of a guess.
+ * missing-details variant instead of a guess.
  *
  * See also `~/utils/elections` for ballot-content classification. This module
  * is strictly logistics.
@@ -35,17 +35,15 @@ export type VotingMethodId =
 /**
  * How usable a method is right now.
  *
- * `unknown` is load-bearing and must never collapse into `unavailable`: the
- * former means "the county hasn't published this yet", the latter means "an
- * official source says this isn't offered". Telling a voter a method doesn't
- * exist when we simply don't know is the exact failure this screen exists to
- * avoid.
+ * Missing data does not establish whether a method is offered or open.
+ * Listed locations likewise do not establish current opening hours.
  */
 export type MethodStatus =
-  | "available" // usable today
+  | "available" // reserved for explicitly verified availability
+  | "listed" // locations supplied; current availability is unverified
   | "upcoming" // published start date is in the future
   | "closed" // published end date has passed
-  | "unknown" // offered, but the county hasn't published the details
+  | "unknown" // this lookup does not supply the details
   | "limited"; // offered in a reduced form (e.g. in person during a mail-only election)
 
 export interface MethodChip {
@@ -66,12 +64,11 @@ export interface VotingMethod {
   /** Locations this method applies to, if any were published. */
   locations: PollingLocation[];
   /**
-   * Numbered checklist — a summary of the authority's own instructions, never
-   * Billion's independent advice. Empty unless `instructionsUrl` is set: if we
-   * can't point at the source we summarized, we don't show a summary.
+   * Reserved for sourced instruction text. Authority URLs alone do not supply
+   * instructions, so this model currently leaves the checklist empty.
    */
   steps: VotingStep[];
-  /** The authority page these steps summarize. Gates `steps` entirely. */
+  /** Official hand-off for instructions. */
   instructionsUrl?: string;
   /** Published window for the method, when the feed carried one. */
   startDate?: string;
@@ -167,7 +164,8 @@ const CHIP: Record<MethodStatus, MethodChip> = {
   available: { label: "Available", tone: "positive", icon: "check" },
   upcoming: { label: "Not open yet", tone: "urgent", icon: "clock" },
   closed: { label: "Closed", tone: "negative", icon: "block" },
-  unknown: { label: "Not published", tone: "neutral", icon: "clock" },
+  listed: { label: "Locations listed", tone: "neutral", icon: "info" },
+  unknown: { label: "Details unavailable", tone: "neutral", icon: "clock" },
   limited: { label: "Limited", tone: "neutral", icon: "info" },
 };
 
@@ -204,7 +202,7 @@ function windowStatus(
   if (locations.length === 0) return "unknown";
   if (start && daysUntil(start) > 0) return "upcoming";
   if (end && daysUntil(end) < 0) return "closed";
-  return "available";
+  return "listed";
 }
 
 /** "18 vote centers" / "1 vote center" — count phrasing shared by in-person rows. */
@@ -212,60 +210,20 @@ function countLabel(n: number, singular: string, plural: string): string {
   return `${n} ${n === 1 ? singular : plural}`;
 }
 
-/**
- * Vote by mail.
- *
- * Steps are unconditional (they describe handling a ballot, not a jurisdiction
- * rule) except the postage line, which is California-specific and therefore
- * gated on the resolved state.
- */
+/** Mail instructions require supplied source text; a URL alone is not evidence. */
 function mailMethod(
   resp: VoterInfoResponse | undefined,
-  isCalifornia: boolean,
   source: OfficialSource | undefined,
 ): VotingMethod {
-  const instructionsUrl =
-    source?.absenteeVotingInfoUrl ?? source?.electionInfoUrl;
-  const mailOnly = resp?.mailOnly === true;
-  const steps: VotingStep[] = [
-    {
-      title: "Find the ballot mailed to you",
-      detail: "Contact your county if it hasn't arrived.",
-    },
-    {
-      title: "Mark your choices in ink",
-      detail: "Skipping contests won't void your ballot.",
-    },
-    {
-      title: "Seal it in the official return envelope",
-      detail: "Any other envelope may not be counted.",
-    },
-    {
-      title: "Sign the back — it must match your registration",
-      detail: "The most common reason a ballot is rejected.",
-    },
-    isCalifornia
-      ? {
-          title: "Mail it — no stamp needed",
-          detail: "Postage is prepaid in California.",
-        }
-      : { title: "Mail it back as early as you can" },
-  ];
-
   return {
     id: "mail",
-    instructionsUrl,
-    title: mailOnly ? "Return your ballot by mail" : "Vote by mail",
-    // Every registered voter in an all-mail election is sent a ballot; outside
-    // one we can't confirm this voter gets one without a source, so the status
-    // stays honest rather than optimistic.
-    status: mailOnly ? "available" : "unknown",
-    chip: mailOnly ? CHIP.available : CHIP.unknown,
-    subtitle: mailOnly
-      ? "Every registered voter is mailed a ballot"
-      : "Return deadline not available",
+    instructionsUrl: source?.absenteeVotingInfoUrl ?? source?.electionInfoUrl,
+    title: resp?.mailOnly ? "Return your ballot by mail" : "Vote by mail",
+    status: "unknown",
+    chip: CHIP.unknown,
+    subtitle: "Return deadline not available",
     locations: [],
-    steps: instructionsUrl ? steps : [],
+    steps: [],
   };
 }
 
@@ -285,30 +243,15 @@ function dropBoxMethod(
     instructionsUrl,
     title: "Return at a drop box",
     status,
-    chip:
-      status === "available"
-        ? { ...CHIP.available, label: "Open now" }
-        : CHIP[status],
+    chip: CHIP[status],
     subtitle:
       locations.length > 0
         ? countLabel(locations.length, "location", "locations")
-        : "Locations not published yet",
+        : "Location details unavailable",
     locations,
     startDate: start,
     endDate: end,
-    steps: !instructionsUrl
-      ? []
-      : [
-          {
-            title: "Mark, seal, and sign your ballot first",
-            detail: "A drop box takes the same sealed return envelope.",
-          },
-          { title: "Drop it in any box in your county" },
-          {
-            title: "Arrive before your county's cutoff on Election Day",
-            detail: "Boxes are locked at closing; later isn't counted.",
-          },
-        ],
+    steps: [],
   };
 }
 
@@ -341,20 +284,11 @@ function earlyMethod(
     subtitle:
       locations.length > 0
         ? countLabel(locations.length, "early vote site", "early vote sites")
-        : "Locations not published yet",
+        : "Location details unavailable",
     locations,
     startDate: start,
     endDate: end,
-    steps: !instructionsUrl
-      ? []
-      : [
-          { title: "Go to any early vote site in your county" },
-          {
-            title: "Bring your mailed ballot if you have it",
-            detail: "You can surrender it and vote in person instead.",
-          },
-          { title: "Check the site's hours before you go" },
-        ],
+    steps: [],
   };
 }
 
@@ -376,45 +310,25 @@ function electionDayMethod(
       title: "Vote in person",
       status: "limited",
       chip: CHIP.limited,
-      subtitle: "In-person help is available for replacement ballots",
+      subtitle: "Check with your election office about in-person options",
       locations,
-      steps: !instructionsUrl
-        ? []
-        : [
-            { title: "Contact your county election office" },
-            {
-              title: "Ask about in-person service for this election",
-              detail: "All-mail elections still staff at least one location.",
-            },
-          ],
+      steps: [],
     };
   }
 
-  const status: MethodStatus = locations.length > 0 ? "available" : "unknown";
+  const status: MethodStatus = locations.length > 0 ? "listed" : "unknown";
   return {
     id: "electionDay",
     instructionsUrl,
     title: "Vote in person on Election Day",
     status,
-    chip: status === "available" ? CHIP.available : CHIP.unknown,
+    chip: CHIP[status],
     subtitle:
       locations.length > 0
         ? countLabel(locations.length, "polling place", "polling places")
-        : "Locations not published yet",
+        : "Location details unavailable",
     locations,
-    steps: !instructionsUrl
-      ? []
-      : [
-          { title: "Go to a polling place listed below" },
-          {
-            title: "Bring your mailed ballot if you received one",
-            detail: "You can surrender it and vote in person instead.",
-          },
-          {
-            title: "If you're in line when polls close, stay in line",
-            detail: "Anyone already in line is entitled to vote.",
-          },
-        ],
+    steps: [],
   };
 }
 
@@ -431,6 +345,10 @@ function electionDayMethod(
 export function resolveOfficialSource(
   resp: VoterInfoResponse | undefined,
 ): OfficialSource | undefined {
+  // Democracy Works synthesizes these fields from provider lookup destinations;
+  // they do not identify a verified election authority (see ballotOfficeUrl).
+  if (resp?.provider?.name === "democracy_works") return undefined;
+
   const region = resp?.state?.[0];
   if (!region) return undefined;
 
@@ -469,16 +387,15 @@ export function buildVotingPlan(
   resp: VoterInfoResponse | undefined,
 ): VotingPlan {
   const mailOnly = resp?.mailOnly === true;
-  const isCalifornia = resp?.normalizedInput.state === "CA";
   const dropOff = resp?.dropOffLocations ?? [];
   const early = resp?.earlyVoteSites ?? [];
   const polling = resp?.pollingLocations ?? [];
 
-  // Resolved first: it gates whether any method may show a step summary.
+  // Resolve the authority used for official hand-offs.
   const source = resolveOfficialSource(resp);
 
   const methods: VotingMethod[] = [
-    mailMethod(resp, isCalifornia, source),
+    mailMethod(resp, source),
     dropBoxMethod(dropOff, source),
     ...(mailOnly ? [] : [earlyMethod(early, source)]),
     electionDayMethod(polling, mailOnly, source),
