@@ -239,6 +239,8 @@ export function PromiseDetail({
     .flatMap((s) => s.claims)
     .find((c) => c.id === promiseId && c.kind === "promise");
   const detail = brief.research?.promises.find((p) => p.claimId === promiseId);
+  const repeatsPromise =
+    detail?.brief.change.text.trim() === claim?.text.trim();
   if (!claim)
     return (
       <Panel title="Promise unavailable">
@@ -256,9 +258,18 @@ export function PromiseDetail({
         <Text style={s.muted}>Candidate promise</Text>
         <Emphasis text={claim.text} phrases={claim.emphasis} />
         <EvidenceAction
-          ids={claim.evidenceIds}
+          ids={
+            repeatsPromise && detail
+              ? [
+                  ...new Set([
+                    ...claim.evidenceIds,
+                    ...detail.brief.change.evidenceIds,
+                  ]),
+                ]
+              : claim.evidenceIds
+          }
           title="Campaign promise"
-          label="Campaign source"
+          label={repeatsPromise ? "Proposal sources" : "Campaign source"}
           open={open}
         />
       </Panel>
@@ -350,11 +361,53 @@ export function PromiseDetail({
         </>
       ) : (
         <>
-          <Panel title="In brief">
-            {Object.values(detail.brief).map((p) => (
-              <Point key={p.title} point={p} open={open} />
+          {[
+            {
+              title: "What’s proposed",
+              icon: "sparkle" as const,
+              point: detail.brief.change,
+            },
+            {
+              title: "Who decides",
+              icon: "layers" as const,
+              point: detail.brief.authority,
+            },
+            {
+              title: "What’s unresolved",
+              icon: "help" as const,
+              point: detail.brief.unknowns,
+            },
+          ]
+            .filter(
+              ({ point }) => point !== detail.brief.change || !repeatsPromise,
+            )
+            .map(({ title, icon, point }) => (
+              <Panel key={title}>
+                <View style={[s.row, { alignItems: "center" }]}>
+                  <View
+                    style={s.tile}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                    aria-hidden
+                  >
+                    <Icon name={icon} size={19} color={P.primary} />
+                  </View>
+                  <Text
+                    accessibilityRole="header"
+                    style={[s.heading, { flex: 1 }]}
+                  >
+                    {title}
+                  </Text>
+                </View>
+                <Emphasis text={point.text} phrases={point.emphasis} />
+                <EvidenceAction
+                  ids={point.evidenceIds}
+                  title={title}
+                  label="View sources"
+                  open={open}
+                />
+              </Panel>
             ))}
-          </Panel>
           <Action
             label="Read the in-depth analysis"
             onPress={() => onRead(true)}
