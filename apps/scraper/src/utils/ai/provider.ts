@@ -108,7 +108,7 @@ function getFallbackModel(): V3Model | null {
   const provider = getFallbackProvider();
   if (!provider) return null;
   return wrapLanguageModel({
-    model: provider.responses(
+    model: customProvider({ fallbackProvider: provider }).languageModel(
       process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna",
     ),
     middleware: {
@@ -385,9 +385,12 @@ export async function generateWebSearch(prompt: string) {
     const result = await generateText({
       model,
       tools: {
-        web_search: provider.tools.webSearchPreview({
-          searchContextSize: "low",
-        }) as Tool<any, any>,
+        // OpenAI SDK v2 names this discriminator provider-defined; AI SDK v6
+        // accepts provider and adapts it back at the model boundary.
+        web_search: {
+          ...provider.tools.webSearchPreview({ searchContextSize: "low" }),
+          type: "provider",
+        } as Tool<any, any>,
       },
       prompt,
       maxRetries: 0,
