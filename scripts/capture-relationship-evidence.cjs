@@ -247,8 +247,13 @@ let browser;
       relationships: undefined,
     })),
   };
-  await load();
-  await label("FIXTURE · missing/stale relationship · older API compatible");
+  await page.goto(
+    "http://localhost:8217/proposition-detail?number=" +
+      draft.measures[0].number,
+  );
+  await page.getByText("Official record", { exact: true }).last().waitFor();
+  assert.equal(await page.getByTestId("measure-relationships").count(), 0);
+  await label("FIXTURE · no relevant approved relationships · section omitted");
   await shot("unavailable-stale");
   fail = true;
   await page.reload({ waitUntil: "networkidle" });
@@ -260,7 +265,7 @@ let browser;
   await shot("guide-error");
   assert.deepEqual(errors, []);
   console.log(
-    "Running Expo web verified: one selected consequence, all four case controls/selected state, conditional vote comparison, provisions/evidence disclosures, reciprocal navigation, phone/tablet/enlarged web text, old-API/stale/error fallback. No page errors. Native Dynamic Type remains unverified.",
+    "Running Expo web verified: one selected consequence, all four case controls/selected state, conditional vote comparison, provisions/evidence disclosures, reciprocal navigation, phone/tablet/enlarged web text, empty/old-API section omission and error fallback. No page errors. Native Dynamic Type remains unverified.",
   );
   await browser.close();
 })().catch(async (error) => {

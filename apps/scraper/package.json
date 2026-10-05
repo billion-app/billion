@@ -54,7 +54,8 @@
     "content-images": "tsx src/content-images.ts",
     "bill-interest": "tsx src/bill-interest-entry.ts",
     "notify-followers": "tsx src/notify-followers-entry.ts",
-    "prune-bills": "tsx src/prune-bills-entry.ts"
+    "prune-bills": "tsx src/prune-bills-entry.ts",
+    "measure-relationships": "tsx src/measure-relationships-entry.ts"
   },
   "author": "It's not you it's me",
   "license": "ISC"

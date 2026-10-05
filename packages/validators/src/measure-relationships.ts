@@ -85,6 +85,20 @@ export const measureRelationshipSchema = z.object({
         .optional(),
     })
     .optional(),
+  generation: z
+    .object({
+      promptVersion: text,
+      model: text,
+      inputHash: hash,
+      generatedAt: z.iso.datetime(),
+      warrants: z
+        .array(
+          z.object({ sourceId: text, quote: text.max(1000), locator: text }),
+        )
+        .min(2)
+        .max(12),
+    })
+    .optional(),
   review: z.object({
     state: z.enum(["pending", "approved", "rejected"]),
     reviewer: text.optional(),
@@ -98,3 +112,56 @@ export type MeasureRelationship = z.infer<typeof measureRelationshipSchema>;
 export type PublicMeasureRelationship = Omit<MeasureRelationship, "sources"> & {
   sources: Omit<MeasureRelationship["sources"][number], "snapshot">[];
 };
+
+/** All reader claims participate in citation and editorial approval checks. */
+export function measureRelationshipClaims(draft: MeasureRelationship) {
+  const compact = draft.compact;
+  return [
+    draft.takeaway,
+    ...draft.affectedProvisions,
+    ...Object.values(draft.scenarios),
+    ...draft.conditions,
+    ...(compact
+      ? [
+          ...compact.measures,
+          compact.takeaway,
+          ...Object.values(compact.scenarios).flatMap((s) => [
+            s.title,
+            s.consequence,
+          ]),
+          ...compact.provisions,
+          ...Object.values(compact.bothPassComparisons ?? {}),
+          ...(compact.conflictScopes
+            ? [
+                compact.conflictScopes.condition,
+                ...compact.conflictScopes.scopes,
+              ]
+            : []),
+        ]
+      : []),
+  ];
+}
+export function hasValidRelationshipEvidence(draft: MeasureRelationship) {
+  const sources = new Map(draft.sources.map((s) => [s.id, s]));
+  if (
+    sources.size !== draft.sources.length ||
+    measureRelationshipClaims(draft).some((c) =>
+      c.sourceIds.some((id) => !sources.has(id)),
+    )
+  )
+    return false;
+  const warrants = draft.generation?.warrants;
+  return (
+    !warrants ||
+    (warrants.every((w) =>
+      sources.get(w.sourceId)?.snapshot.includes(w.quote),
+    ) &&
+      draft.measures.every((m) =>
+        warrants.some(
+          (w) =>
+            sources.get(w.sourceId)?.number === m.number &&
+            sources.get(w.sourceId)?.role === "legal-text",
+        ),
+      ))
+  );
+}

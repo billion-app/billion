@@ -35,25 +35,15 @@ export function MeasureRelationships({
   relationships?: Relationship[];
 }) {
   const readable = relationships.filter((r) => r.compact);
+  if (!readable.length) return null;
   return (
     <View style={s.section} testID="measure-relationships">
       <Text accessibilityRole="header" style={s.heading}>
         Related measures
       </Text>
-      {readable.length ? (
-        readable.map((r) => (
-          <RelationshipCard key={r.revision} relationship={r} number={number} />
-        ))
-      ) : (
-        <View style={s.fallback}>
-          <Text style={s.body}>
-            Relationships haven’t been verified for this guide entry.
-          </Text>
-          <Text style={s.caption}>
-            Missing links don’t mean there are no interactions.
-          </Text>
-        </View>
-      )}
+      {readable.map((r) => (
+        <RelationshipCard key={r.revision} relationship={r} number={number} />
+      ))}
     </View>
   );
 }
@@ -379,12 +369,6 @@ const s = StyleSheet.create({
     borderRadius: 14,
     padding: 15,
     gap: 12,
-  },
-  fallback: {
-    borderLeftWidth: 2,
-    borderColor: hair[2],
-    paddingLeft: 12,
-    gap: 6,
   },
   caption: {
     fontFamily: fontBody.regular,

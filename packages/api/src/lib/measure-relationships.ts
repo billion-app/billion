@@ -4,10 +4,13 @@ import type {
   MeasureRelationship,
   PublicMeasureRelationship,
 } from "@acme/validators";
-import { measureRelationshipSchema } from "@acme/validators";
+import {
+  hasValidRelationshipEvidence,
+  measureRelationshipSchema,
+} from "@acme/validators";
 
 import type { OfficialGuidePayload } from "./official-guide-cache";
-import pilot from "./measure-relationship-revisions/ca-2026-pilot.json";
+import { relationshipRevisions } from "./measure-relationship-revisions/registry";
 import { propositionGuideHash } from "./proposition-consequences";
 
 export const relationshipHash = (value: string) =>
@@ -15,7 +18,8 @@ export const relationshipHash = (value: string) =>
 export const relationshipEvidenceHash = (draft: MeasureRelationship) =>
   relationshipHash(JSON.stringify({ ...draft, review: undefined }));
 /** Immutable editorial store, pending revisions cannot publish before #334 review. No generation on reads. */
-export const reviewedRelationshipRevisions: readonly unknown[] = [pilot.draft];
+export const reviewedRelationshipRevisions: readonly unknown[] =
+  relationshipRevisions;
 export interface RelationshipSnapshot {
   url: string;
   hash: string;
@@ -114,30 +118,7 @@ export function publishedMeasureRelationships(
       })
     )
       continue;
-    const claims = [
-      draft.takeaway,
-      ...draft.affectedProvisions,
-      ...Object.values(draft.scenarios),
-      ...draft.conditions,
-      ...draft.compact.measures,
-      draft.compact.takeaway,
-      ...Object.values(draft.compact.scenarios).flatMap((s) => [
-        s.title,
-        s.consequence,
-      ]),
-      ...draft.compact.provisions,
-      ...(draft.compact.bothPassComparisons
-        ? Object.values(draft.compact.bothPassComparisons)
-        : []),
-      ...(draft.compact.conflictScopes
-        ? [
-            draft.compact.conflictScopes.condition,
-            ...draft.compact.conflictScopes.scopes,
-          ]
-        : []),
-    ];
-    if (claims.some((c) => c.sourceIds.some((id) => !sources.has(id))))
-      continue;
+    if (!hasValidRelationshipEvidence(draft)) continue;
     const review = draft.review;
     const reviewedAt = review.reviewedAt;
     if (
@@ -191,7 +172,7 @@ export function relationshipSourceUrls(
         urls.add(s.url);
     }
   }
-  if (urls.size > 20)
-    throw new Error("Relationship pilot exceeds 20 source documents");
+  if (urls.size > 200)
+    throw new Error("Relationship registry exceeds 200 source documents");
   return [...urls];
 }

@@ -285,21 +285,68 @@ pnpm --filter @acme/api exec tsx src/tools/review-proposition.ts /absolute/path/
 
 The first prints the source snapshot and hash for review. The second prints the candidate revision and whether the publication gate accepts it, exiting nonzero if blocked. It never calls a model, approves a revision, or writes data. Do not put credentials in captured payloads. An editor must review claim support and uncertainty under #334 before an approved revision is committed; see the remaining pipeline gates in the contract above.
 
-### Cross-measure relationship curation pilot
+### Cross-measure discovery and drafting
 
-Relationships are immutable editorial inputs, separate from the official guide.
-The bounded read-only adapter below captures two exact measure pages, their
-specified official analyses and linked legal PDFs. It needs `pdftotext` on PATH,
-downloads at most 5 MB per PDF, and runs no model or database writes. Input must
-be pending; output remains pending. Use a new output file for a new revision.
+`measure-relationships` examines an election's measures together. It discovers
+all measure pages from the official index, captures each measure's complete
+legal PDF and official analysis once, then evaluates every unordered pair. It
+requires no authored relationship or selected proposition numbers. California
+is the current source adapter; the discovery and reader copy are not specific
+to an election or tax issue. Multiple relationships can attach to one measure.
+
+These commands write local files, not the database. Collection needs `pdftotext`
+on PATH and caps each source download at 5 MB. An election exceeding the explicit
+measure or pair budget fails instead of silently sampling. Run from the repo root:
 
 ```bash
-pnpm --filter @acme/scraper exec tsx src/scrapers/measure-relationship-preview.ts ../../packages/api/src/lib/measure-relationship-revisions/ca-2026-pilot.json /tmp/relationship-capture.json
+pnpm --filter @acme/scraper measure-relationships collect 2028-11-07 /tmp/measure-corpus.json --max-measures 20
+pnpm --filter @acme/scraper measure-relationships generate /tmp/measure-corpus.json /tmp/relationship-drafts.json --max-pairs 190 --max-model-calls 190 --max-prompt-chars 200000
 ```
 
-Inspect every claim beside the captured text and legal locator before #334
-approval. The API's `relationshipEvidenceHash` binds approval to all fields;
-changing copy, sources, identities or conditions requires a new approval.
-Normal guide ingestion refreshes approved relationship document hashes without
-generating explanations. Missing or changed source hashes suppress publication.
-See [pilot evidence and remaining gates](../../docs/evidence/447/README.md).
+The date must match the official site's current election. The example budgets
+allow all pairs for up to 20 measures; choose explicit smaller limits for a
+bounded run. Collection refuses to overwrite its output. **Generate calls the
+configured scraper structured-output model and can spend money.** It uses one
+selected provider, no automatic retries or provider fallback, an output-token
+cap and a per-call timeout. All budgets are checked before model calls. Complete
+evidence exceeding the prompt budget fails; it is never silently truncated.
+
+The generic prompt distinguishes material operational relationships from shared
+topics and generic conflict boilerplate. An unrelated pair returns no draft;
+a one-measure election makes no model calls. Related drafts require valid claim
+citations and exact legal-text quotations from both measures with section/page
+locators. Models can still misinterpret law, so quotation validation is grounding,
+not editorial approval. Passage scenarios are hypothetical; Yes-total comparisons
+are optional and generated only where supported. Pair explanations do not claim
+to model simultaneous three-way or larger legal interactions exhaustively.
+
+The output records both related and unrelated assessments. Each completed pair
+is saved atomically, with an input hash bound to full evidence, prompt version
+and actual model. Rerun with the same output path to resume after interruption;
+unchanged positive and negative assessments are reused without model calls.
+Changed evidence or prompts require fresh assessments. `complete: false` marks
+an interrupted run. Source capture and generated prose remain separate.
+
+Every generated revision is **pending**. Inspect its causal warrants, each claim,
+all four cases and uncertainties against the captured documents under #334 before
+approval. Extract reviewed drafts into an array and explicitly record reviewer,
+review time, findings, revision and the full evidence hash. The hash command does
+not approve anything:
+
+```bash
+pnpm --filter @acme/scraper measure-relationships review-hash /tmp/one-reviewed-draft.json
+pnpm --filter @acme/scraper measure-relationships register /tmp/measure-corpus.json /tmp/approved-relationships.json
+```
+
+`register` refuses pending, unsupported, stale or changed revisions. It writes
+immutable revision files and regenerates the server registry from those files;
+new pairs need no hand-written imports, API switches or renderer edits. Commit
+these local artifacts through review. Normal guide ingestion refreshes the
+registered approved source hashes (at most 200 distinct documents) without
+regenerating explanations. Publication still requires matching guide identities,
+source documents and whole-revision approval. The reader omits Related measures
+when no relevant approved relationship exists, including missing/stale evidence.
+
+The older two-measure `measure-relationship-preview.ts` remains a read-only
+recapture tool for an existing authored draft; it is not the discovery workflow.
+The [source-captured pilot](../../docs/evidence/447/README.md) is still pending.

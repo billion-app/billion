@@ -25,14 +25,21 @@ requires legal text and official analysis for each measure, validates citations
 and captured text hashes, checks freshly ingested document hashes, and binds
 approval to the entire immutable draft. One record serves both readers.
 
+The generated registry includes this pending revision. New approved records are
+registered by the generic discovery workflow without pair-specific code edits.
+The corpus collector starts from the election index, the generator evaluates every
+pair and stores positive/negative assessments, and registration never approves
+anything automatically. Offline future-election tests cover non-tax dependency
+relationships, unrelated pairs, several neighbors, resumption and publication.
+
 The committed registry contains this pending revision. The normal guide response
 therefore exposes no relationship explanation for it. Once a source-supported
 revision passes #334 editorial review, approval records reviewer, time, findings,
 revision and `relationshipEvidenceHash(draft)`. A reviewable registry update may
 select an earlier approved revision for rollback; it still must match current
-sources. There is no automatic generation, automatic approval or database
-migration. The bounded official-guide scraper refreshes hashes only for approved
-registry inputs (maximum 20 documents, 5 MB per document); failed reads omit the
+sources. Ordinary guide ingestion and API reads do not generate explanations. There is
+no automatic approval or database migration. The bounded official-guide scraper refreshes hashes only for approved
+registry inputs (maximum 200 documents, 5 MB per document); failed reads omit the
 hash and suppress the dependent relationship. Existing caches without hashes
 also suppress relationships.
 
@@ -58,7 +65,8 @@ opening them does not reveal a stack of every unrelated scenario. Compact copy i
 separate cited input under `compact`, not runtime truncation or generated summaries.
 Publication requires it, validates its citation IDs and binds it to editorial
 approval. Changing a node label or selected consequence invalidates prior approval.
-An absent compact revision uses the unavailable fallback.
+An absent compact revision is omitted from the section. If no approved record
+remains, the entire Related measures section is omitted.
 
 Scenario controls are ordinary buttons with pressed/selected state, supporting
 standard keyboard activation without claiming tab semantics. Browser text enlargement
@@ -81,14 +89,14 @@ The actual Expo web app at port 8217 was rendered with Playwright. The API was
 intercepted with the captured pending draft, intentionally bypassing publication
 for the preview; banners label this. These screenshots are **source-backed draft
 fixtures**, not proof of live published content. Enlarged web CSS text is not
-native Dynamic Type. Missing and stale records share the same safe fallback.
+native Dynamic Type. Missing, stale and unrelated records omit the section.
 
 - `40-collapsed-phone.png`, `42-collapsed-phone.png`: reciprocal readers.
 - `40-neither.png`, `40-only-first.png`, `40-only-second.png`, `40-both-pass.png`: one selected consequence per hypothetical case.
 - `40-vote-totals.png`: higher/lower/equal Yes-total conditions, not live results.
 - `40-provisions.png`, `40-conditions.png`: scope and legal uncertainty.
 - `42-enlarged-web-text.png`, `42-enlarged-web-outcome.png`, `42-tablet.png`: enlarged text, complete selected outcome and larger viewport.
-- `unavailable-stale.png`, `guide-error.png`: suppressed explanation and failure.
+- `unavailable-stale.png`, `guide-error.png`: omitted relationship section and guide failure.
 
 The capture script verifies that only the selected consequence appears, selected state is exposed, Yes-total comparisons appear only for Both, evidence/provision disclosures work, navigation reaches the other reader, and checks for
 browser page errors. It does not certify external source-link availability or
