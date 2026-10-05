@@ -411,3 +411,28 @@ void test(
     }
   },
 );
+
+void test("inline definitions are optional for old revisions and covered by editorial approval", () => {
+  const old = fixture();
+  old.research = {
+    headlineClaimId: "claim",
+    promises: [],
+    finance: null,
+    financeGap: "Not collected",
+  };
+  const parsed = candidateBriefSchema.parse(old);
+  assert.equal(Object.hasOwn(parsed.research ?? {}, "terms"), false);
+  const oldDigest = briefDigest(old);
+  assert.equal(briefDigest(parsed), oldDigest);
+  const research = required(parsed.research);
+  research.terms = [
+    { term: "Congress", plain: "The national law-making body." },
+  ];
+  const withTerms = briefDigest(parsed);
+  assert.notEqual(withTerms, oldDigest);
+  required(research.terms[0]).plain =
+    "A changed definition needs another review.";
+  assert.notEqual(briefDigest(parsed), withTerms);
+  research.terms.push({ term: "CONGRESS", plain: "A conflicting definition." });
+  assert.equal(candidateBriefSchema.safeParse(parsed).success, false);
+});

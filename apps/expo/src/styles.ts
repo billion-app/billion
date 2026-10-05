@@ -63,6 +63,7 @@ export const DigestPalette = {
   spark: digest.spark,
   copper: digest.copper,
   primary: digest.primary,
+  linkOnNight: digest.linkOnNight,
   quiet: digest.quiet,
   border: digest.border,
   badgeBlue: digest.badgeBlue,

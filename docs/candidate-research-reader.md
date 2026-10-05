@@ -17,7 +17,7 @@ Comparison includes every roster member, including withdrawals and evidence gaps
 A recorded action uses a document/timeline treatment. A campaign promise uses a
 separate card. Interpretation is attributed to Billion and labeled AI-assisted
 when appropriate. The promise's short reading explains the proposal, authority,
-and unresolved requirements; the deeper reading places potential benefits and
+and unresolved requirements. The short cards answer “What could change,” “Who has to agree,” and “What we still don’t know”; the deeper reading places potential benefits and
 costs together, then affected people, perspectives, decisions, alternatives, and
 unknowns. All substantive points reference evidence in the reviewed revision.
 
@@ -25,6 +25,13 @@ Evidence opens in a native modal sheet with a persistent Done control, separate
 scroll area, drag dismissal, original passage, locator, and source URL. The
 reviewed explanation of what a source establishes is separate from its quotation.
 Text emphasis is exact, limited to four phrases per point, and covered by review.
+
+Necessary terms use the shared inline definition component. Optional
+`research.terms` contains the meanings supplied with that revision. These
+explanations are part of its approval digest; the UI never invents definitions or
+rewrites published prose while displaying it. Omitting terms leaves older
+revisions unchanged. The source template version advances when its draft wording
+or definitions change, so a source refresh creates drafts for fresh review.
 
 Finance separates donor **type**, a documented **lobbying role**, and documented
 **interest areas**. Unknown interests remain explicit. Positions belong in donor

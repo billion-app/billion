@@ -146,6 +146,22 @@ export const campaignFinanceSchema = z
 export const candidateResearchSchema = z
   .object({
     headlineClaimId: text,
+    // Optional so parsing older approved revisions does not change their digest.
+    // Definitions are authored and reviewed with the explanation, never inferred by the UI.
+    terms: z
+      .array(
+        z.object({
+          term: z.string().trim().min(1).max(120),
+          plain: z.string().trim().min(1).max(1000),
+        }),
+      )
+      .max(40)
+      .refine(
+        (terms) =>
+          new Set(terms.map((t) => t.term.toLowerCase())).size === terms.length,
+        "Each term must have one definition",
+      )
+      .optional(),
     promises: z
       .array(
         z.object({

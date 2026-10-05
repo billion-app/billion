@@ -12,8 +12,10 @@ import {
 
 import type { ResearchPoint } from "@acme/validators";
 
+import type { InlineDefinition } from "~/components/ui/DefinedText";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui";
+import { DefinedText } from "~/components/ui/DefinedText";
 import {
   fontBody,
   fontDisplay,
@@ -108,44 +110,23 @@ export function Panel({
 export function Emphasis({
   text,
   phrases = [],
+  terms,
 }: {
   text: string;
   phrases?: string[];
+  terms?: readonly InlineDefinition[];
 }) {
-  const parts: ReactNode[] = [];
-  let cursor = 0;
-  // Only exact editorial phrases; never interpret source text as markup.
-  while (cursor < text.length) {
-    const matches = phrases
-      .flatMap((phrase) => {
-        const index = text.indexOf(phrase, cursor);
-        return index < 0 ? [] : [{ index, phrase }];
-      })
-      .sort((a, b) => a.index - b.index || b.phrase.length - a.phrase.length);
-    const match = matches[0];
-    if (!match) {
-      parts.push(text.slice(cursor));
-      break;
-    }
-    parts.push(text.slice(cursor, match.index));
-    parts.push(
-      <Text key={match.index} style={s.emphasis}>
-        {match.phrase}
-      </Text>,
-    );
-    cursor = match.index + match.phrase.length;
-  }
   return (
-    <Text selectable style={s.body}>
-      {parts}
-    </Text>
+    <DefinedText text={text} emphasis={phrases} terms={terms} style={s.body} />
   );
 }
 export function Point({
   point,
   open,
+  terms,
 }: {
   point: ResearchPoint;
+  terms?: readonly InlineDefinition[];
   open: EvidenceOpener;
 }) {
   return (
@@ -153,7 +134,7 @@ export function Point({
       <Text accessibilityRole="header" style={s.label}>
         {point.title}
       </Text>
-      <Emphasis text={point.text} phrases={point.emphasis} />
+      <Emphasis text={point.text} phrases={point.emphasis} terms={terms} />
       <EvidenceAction ids={point.evidenceIds} title={point.title} open={open} />
     </View>
   );

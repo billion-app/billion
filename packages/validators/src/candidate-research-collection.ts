@@ -3,7 +3,7 @@ import { z } from "zod/v4";
 import { candidateBriefSchema } from "./candidate-brief";
 import { candidateRaceManifestSchema } from "./candidate-research";
 
-export const candidateResearchTemplateVersion = "ca-house-17-v3";
+export const candidateResearchTemplateVersion = "ca-house-17-v4";
 
 /** Collected source text stays separate from the editable, unpublished explanation. */
 export const researchSourceSchema = z.object({

@@ -36,6 +36,8 @@ export const digest = {
   spark: "#D4AF37",
   /** Filled primary actions (buttons, selected segments) — not gold */
   primary: "#4A7CFF",
+  /** Underlined body-text links and definitions on navy/slate surfaces. */
+  linkOnNight: "#A5B9FF",
   /** Alias of spark */
   copper: "#D4AF37",
   /** Primary text on night surfaces */

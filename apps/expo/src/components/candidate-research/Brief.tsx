@@ -32,6 +32,7 @@ export function Brief({
   open: EvidenceOpener;
   onPromise: (id: string) => void;
 }) {
+  const terms = brief.research?.terms;
   const claims = brief.sections.flatMap((section) => section.claims);
   const headline =
     claims.find((claim) => claim.id === brief.research?.headlineClaimId) ??
@@ -57,7 +58,11 @@ export function Brief({
               ? " · AI-assisted"
               : ""}
           </Text>
-          <Emphasis text={headline.text} phrases={headline.emphasis} />
+          <Emphasis
+            terms={terms}
+            text={headline.text}
+            phrases={headline.emphasis}
+          />
           <EvidenceAction
             ids={headline.evidenceIds}
             title="Candidate priorities"
@@ -100,7 +105,11 @@ export function Brief({
                     : "";
                 })()}
               </Text>
-              <Emphasis text={claim.text} phrases={claim.emphasis} />
+              <Emphasis
+                terms={terms}
+                text={claim.text}
+                phrases={claim.emphasis}
+              />
               <EvidenceAction
                 ids={claim.evidenceIds}
                 title={claim.text}
@@ -124,13 +133,7 @@ export function Brief({
         </Panel>
       )}
       {promises.map((claim) => (
-        <Pressable
-          key={claim.id}
-          accessibilityRole="button"
-          accessibilityLabel={`Explore promise: ${claim.text}`}
-          onPress={() => onPromise(claim.id)}
-          style={s.panel}
-        >
+        <Panel key={claim.id}>
           <View style={s.row}>
             <View
               style={s.tile}
@@ -148,12 +151,21 @@ export function Brief({
               </Text>
             </View>
           </View>
-          <Emphasis text={claim.text} phrases={claim.emphasis} />
-          <View style={[s.rule, s.row, { justifyContent: "space-between" }]}>
+          <Emphasis terms={terms} text={claim.text} phrases={claim.emphasis} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Explore promise: ${claim.text}`}
+            onPress={() => onPromise(claim.id)}
+            style={[
+              s.rule,
+              s.row,
+              { justifyContent: "space-between", minHeight: 48 },
+            ]}
+          >
             <Text style={s.link}>Explore this promise</Text>
             <Icon name="chevR" size={18} color={P.primary} />
-          </View>
-        </Pressable>
+          </Pressable>
+        </Panel>
       ))}
       {!promises.length && (
         <Panel title="Campaign promises">
@@ -205,7 +217,11 @@ export function Brief({
               {remaining.map((claim) => (
                 <View key={claim.id} style={s.point}>
                   <Text style={s.muted}>{claimLabels[claim.kind]}</Text>
-                  <Emphasis text={claim.text} phrases={claim.emphasis} />
+                  <Emphasis
+                    terms={terms}
+                    text={claim.text}
+                    phrases={claim.emphasis}
+                  />
                   <EvidenceAction
                     ids={claim.evidenceIds}
                     title={claim.text}
@@ -235,6 +251,7 @@ export function PromiseDetail({
   onRead: (analysis: boolean) => void;
   open: EvidenceOpener;
 }) {
+  const terms = brief.research?.terms;
   const claim = brief.sections
     .flatMap((s) => s.claims)
     .find((c) => c.id === promiseId && c.kind === "promise");
@@ -254,9 +271,12 @@ export function PromiseDetail({
       <Text accessibilityRole="header" style={s.title}>
         {detail?.title ?? "Campaign promise"}
       </Text>
+      {!!terms?.length && (
+        <Text style={s.muted}>Tap an underlined word for its meaning.</Text>
+      )}
       <Panel>
         <Text style={s.muted}>Candidate promise</Text>
-        <Emphasis text={claim.text} phrases={claim.emphasis} />
+        <Emphasis terms={terms} text={claim.text} phrases={claim.emphasis} />
         <EvidenceAction
           ids={
             repeatsPromise && detail
@@ -296,6 +316,7 @@ export function PromiseDetail({
         <>
           <Panel title="Benefits & tradeoffs">
             <Point
+              terms={terms}
               point={
                 detail.benefits[0] ?? {
                   title: "Potential benefits",
@@ -307,12 +328,12 @@ export function PromiseDetail({
               open={open}
             />
             {detail.benefits.slice(1).map((p) => (
-              <Point key={p.title} point={p} open={open} />
+              <Point terms={terms} key={p.title} point={p} open={open} />
             ))}
             <View style={s.rule}>
               {detail.costs.length ? (
                 detail.costs.map((p) => (
-                  <Point key={p.title} point={p} open={open} />
+                  <Point terms={terms} key={p.title} point={p} open={open} />
                 ))
               ) : (
                 <Text style={s.body}>
@@ -324,7 +345,7 @@ export function PromiseDetail({
           <Panel title="Who could be affected">
             {detail.affected.length ? (
               detail.affected.map((p) => (
-                <Point key={p.title} point={p} open={open} />
+                <Point terms={terms} key={p.title} point={p} open={open} />
               ))
             ) : (
               <Text style={s.body}>
@@ -335,7 +356,7 @@ export function PromiseDetail({
           <Panel title="Perspectives in the sources">
             {detail.perspectives.length ? (
               detail.perspectives.map((p) => (
-                <Point key={p.title} point={p} open={open} />
+                <Point terms={terms} key={p.title} point={p} open={open} />
               ))
             ) : (
               <Text style={s.body}>
@@ -351,7 +372,7 @@ export function PromiseDetail({
             <CandidateDisclosure key={group.title} title={group.title}>
               {group.points.length ? (
                 group.points.map((p) => (
-                  <Point key={p.title} point={p} open={open} />
+                  <Point terms={terms} key={p.title} point={p} open={open} />
                 ))
               ) : (
                 <Text style={s.body}>No reviewed details are available.</Text>
@@ -363,17 +384,17 @@ export function PromiseDetail({
         <>
           {[
             {
-              title: "What’s proposed",
+              title: "What could change",
               icon: "sparkle" as const,
               point: detail.brief.change,
             },
             {
-              title: "Who decides",
+              title: "Who has to agree",
               icon: "layers" as const,
               point: detail.brief.authority,
             },
             {
-              title: "What’s unresolved",
+              title: "What we still don’t know",
               icon: "help" as const,
               point: detail.brief.unknowns,
             },
@@ -399,7 +420,11 @@ export function PromiseDetail({
                     {title}
                   </Text>
                 </View>
-                <Emphasis text={point.text} phrases={point.emphasis} />
+                <Emphasis
+                  terms={terms}
+                  text={point.text}
+                  phrases={point.emphasis}
+                />
                 <EvidenceAction
                   ids={point.evidenceIds}
                   title={title}

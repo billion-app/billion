@@ -195,28 +195,40 @@ export function candidateResearchPreview(
     ],
     research: {
       headlineClaimId: "priority",
+      terms: [
+        {
+          term: "transit board",
+          plain:
+            "The group that decides how the local public transport service runs. In this example, it decides the bus schedule.",
+        },
+        {
+          term: "budget",
+          plain:
+            "A plan for how a government or organization will collect and spend money.",
+        },
+      ],
       promises: [
         {
           claimId: "transit",
           title: "Buses every 15 minutes",
           brief: {
             change: point(
-              "What is being promised",
-              "Morgan Lee wants buses to arrive every 15 minutes on two routes. The proposal does not yet name the routes or operating hours.",
+              "What could change",
+              "Buses would arrive every 15 minutes on two routes. That could mean less waiting. We don’t know today’s schedule, so we can’t say how much waiting would change.",
               ["platform", "context"],
               ["every 15 minutes", "two routes"],
             ),
             authority: point(
               "Can the mayor do it?",
-              "The mayor can request funding. The council must approve the budget, and the transit board must adopt the schedule. The mayor cannot set bus service alone.",
+              "The mayor can ask for money. The city council must approve the budget, and the transit board must agree to the bus schedule. The mayor cannot do this alone.",
               ["powers"],
-              ["cannot set bus service alone"],
+              ["cannot do this alone"],
             ),
             unknowns: point(
               "What would make it a workable plan?",
-              "A cost estimate, a funding source and enough drivers. Without a current timetable, we also cannot tell how much service would increase.",
+              "We don’t yet know the routes or hours, what it would cost, where the money would come from or whether there would be enough drivers.",
               ["context", "powers"],
-              ["cost estimate", "funding source", "enough drivers"],
+              ["routes or hours", "cost", "money", "drivers"],
             ),
           },
           benefits: [
