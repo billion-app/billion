@@ -140,3 +140,22 @@ The source-adapter interface (`MeasureSourceData`) is generic, so the **source s
 Outreach-gated sources (CEDA, NCSL, VIP) follow the same code path once access is granted — a data-access request just precedes the build. **Risk mitigations baked into source design:** scrapers tag the source-structure version they target; 403-prone sites (live VIG) fall back to archived versions plus politeness delays; PDF-only states (FL, TX) use `pdfminer`/`pdfplumber` and are deprioritized; government data has no SLA, so results are cached aggressively with last-fetched timestamps. CEDA historical data can validate extraction accuracy.
 
 The base ballot route reads date-scoped official summaries, fiscal impacts and published argument summaries from the [official guide scraper](../apps/scraper/README.md#ballot-source-collection). Source text is preserved without generating an explanation. A unique proposition number must match a provider-selected California statewide contest for the same election date. County measures are excluded from this join.
+
+## Cross-measure relationships (gated pilot)
+
+The statewide official-guide path has a separate, versioned relationship model
+in `packages/validators/src/measure-relationships.ts`. Each record names two
+exact guide identities, their election and source hashes, provision-level
+claims, four combined passage cases and unresolved conditions. One record is
+selected symmetrically for both readers; missing links do not imply that a
+measure has no interactions.
+
+The server selector in `packages/api/src/lib/measure-relationships.ts` publishes
+only approved revisions with both matching guide records and fresh legal-text
+and analysis document hashes. Scraper failures or either source change suppress
+the dependent explanation. Expo receives citations and review metadata through
+tRPC; captured source snapshots remain server-side. The source-captured 40/42
+pilot remains pending under #334. [Evidence and gates](evidence/447/README.md)
+distinguish preview screenshots from live published data; the [scraper CLI
+guide](../apps/scraper/README.md#cross-measure-relationship-curation-pilot) owns
+capture and review operations.

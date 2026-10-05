@@ -10,6 +10,7 @@ import type { Scraper } from "../utils/types.js";
 import { createLogger } from "../utils/log.js";
 import { collectOfficialGuide } from "./ca-official-guide-source.js";
 import { caOfficialGuideConfig } from "./ca-official-guide.config.js";
+import { collectRelationshipDocumentHashes } from "./measure-relationship-source.js";
 
 const logger = createLogger("ca-official-guide");
 export const caOfficialGuide: Scraper = {
@@ -27,6 +28,8 @@ export const caOfficialGuide: Scraper = {
       );
     if (!payload.measures.length && !payload.candidates.length)
       throw new Error("No official guide content collected");
+    payload.relationshipSources =
+      await collectRelationshipDocumentHashes(electionDate);
     const fetchedAt = new Date(payload.fetchedAt);
     const values = {
       addressHash: CA_OFFICIAL_GUIDE_ADDRESS_HASH,

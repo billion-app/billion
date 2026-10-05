@@ -284,3 +284,22 @@ pnpm --filter @acme/api exec tsx src/tools/review-proposition.ts /absolute/path/
 ```
 
 The first prints the source snapshot and hash for review. The second prints the candidate revision and whether the publication gate accepts it, exiting nonzero if blocked. It never calls a model, approves a revision, or writes data. Do not put credentials in captured payloads. An editor must review claim support and uncertainty under #334 before an approved revision is committed; see the remaining pipeline gates in the contract above.
+
+### Cross-measure relationship curation pilot
+
+Relationships are immutable editorial inputs, separate from the official guide.
+The bounded read-only adapter below captures two exact measure pages, their
+specified official analyses and linked legal PDFs. It needs `pdftotext` on PATH,
+downloads at most 5 MB per PDF, and runs no model or database writes. Input must
+be pending; output remains pending. Use a new output file for a new revision.
+
+```bash
+pnpm --filter @acme/scraper exec tsx src/scrapers/measure-relationship-preview.ts ../../packages/api/src/lib/measure-relationship-revisions/ca-2026-pilot.json /tmp/relationship-capture.json
+```
+
+Inspect every claim beside the captured text and legal locator before #334
+approval. The API's `relationshipEvidenceHash` binds approval to all fields;
+changing copy, sources, identities or conditions requires a new approval.
+Normal guide ingestion refreshes approved relationship document hashes without
+generating explanations. Missing or changed source hashes suppress publication.
+See [pilot evidence and remaining gates](../../docs/evidence/447/README.md).
