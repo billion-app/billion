@@ -16,3 +16,5 @@ export * from "./proposition-consequences";
 export * from "./candidate-research";
 export * from "./candidate-research-collection";
 export * from "./proposition-context";
+
+export * from "./budget-context";
