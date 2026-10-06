@@ -62,7 +62,7 @@ export function contextMoneyLabel(
 ): string {
   const comparison = value.comparison;
   if (comparison.state !== "available")
-    return `${value.nominal} · Budget share ${comparison.state}: ${comparison.reason}`;
+    return `${value.nominal} (${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${value.scope.accounting}) · Budget share ${comparison.state}: ${comparison.reason}`;
   const percent = (amount: number) =>
     new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 }).format(
       (amount / comparison.denominator.amount) * 100,
@@ -86,7 +86,7 @@ export function contextMoneyMentions(text: string): string[] {
   return [
     ...new Set(
       text.match(
-        /(?:\$\s*\d[\d.,]*(?:[–-]\d[\d.,]*)?\s*(?:bn|million|billion)?|\b\d[\d.,–-]*\s*(?:bn|million|billion|dollars)\b|tens of millions(?: to low hundreds of millions)?|hundreds of millions)/gi,
+        /(?:\$\s*\d[\d.,]*(?:[–-]\d[\d.,]*)?\s*(?:bn|million|billion)?|\b\d[\d.,–-]*\s*(?:bn|million|billion|dollars)\b|tens of (?:millions|billions)(?: to low hundreds of millions)?|hundreds of (?:millions|billions))/gi,
       ) ?? [],
     ),
   ];
