@@ -59,6 +59,12 @@ export const contextMoneySchema = z
     }
     const comparison = value.comparison;
     if (comparison.state !== "available") return;
+    if (value.scope.accounting === "unspecified")
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "An available budget share requires a known gross/net accounting basis.",
+      });
     const bounds = nominalBounds(value.nominal);
     if (
       bounds?.min !== comparison.numerator.min ||
