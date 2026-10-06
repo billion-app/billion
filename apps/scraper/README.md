@@ -315,7 +315,12 @@ The generic prompt distinguishes material operational relationships from shared
 topics and generic conflict boilerplate. An unrelated pair returns no draft;
 a one-measure election makes no model calls. Related drafts require valid claim
 citations and exact legal-text quotations from both measures with section/page
-locators. Models can still misinterpret law, so quotation validation is grounding,
+locators. Monetary claims also require a `money` entry using the shared nominal/budget
+contract. Supply a sourced, period/jurisdiction/timing/accounting-matched denominator
+only when verified; otherwise label the comparison unavailable or inapplicable.
+Percentages are computed from validated USD data, never invented in the prompt.
+Denominator citations are part of whole-revision approval. Models can still
+misinterpret law, so quotation and money validation are grounding,
 not editorial approval. Passage scenarios are hypothetical; Yes-total comparisons
 are optional and generated only where supported. Pair explanations do not claim
 to model simultaneous three-way or larger legal interactions exhaustively.

@@ -179,3 +179,21 @@ The captured 40/42 pilot remains pending under #334. [Evidence and gates](eviden
 distinguish intercepted preview screenshots from live published data. The
 [scraper CLI guide](../apps/scraper/README.md#cross-measure-discovery-and-drafting)
 owns bounded collection, generation, resuming and registration commands.
+
+Monetary claims use the shared `budget-context.ts` contract through `claim.money`.
+Every displayed amount appears with its budget share or an explicit unavailable /
+inapplicable reason. Available shares are computed from validated numeric USD
+amounts, not authored percentage strings; nominal values must agree with numeric
+bounds and units. Numerator and denominator must match period, jurisdiction,
+annual/one-time/stock timing and gross/net basis. Denominator citations participate
+in publication checks and are displayed beside the comparison. Qualitative estimates
+without numerical bounds cannot be converted into fabricated percentages. Amounts
+belong in dedicated paired money paragraphs, with source text preserved separately.
+
+This applies to graph labels, scenarios, comparisons, provisions and expanded
+conditions/evidence. Missing budget context suppresses a monetary revision rather
+than allowing a bare amount. Citation locators stay section/page references rather
+than adding uncontextualized monetary quotations. Monetary scale does not imply a
+policy is irrelevant or excessive. The pending pilot's temporary multi-year LAO
+revenue estimate has no verified matching denominator, so its reader context says
+budget share unavailable instead of comparing it to one annual spending budget.

@@ -16,7 +16,12 @@ import { propositionGuideHash } from "./proposition-consequences";
 export const relationshipHash = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 export const relationshipEvidenceHash = (draft: MeasureRelationship) =>
-  relationshipHash(JSON.stringify({ ...draft, review: undefined }));
+  relationshipHash(
+    JSON.stringify({
+      ...measureRelationshipSchema.parse(draft),
+      review: undefined,
+    }),
+  );
 /** Immutable editorial store, pending revisions cannot publish before #334 review. No generation on reads. */
 export const reviewedRelationshipRevisions: readonly unknown[] =
   relationshipRevisions;

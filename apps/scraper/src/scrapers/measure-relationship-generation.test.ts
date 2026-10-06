@@ -369,3 +369,89 @@ void test("interrupted changed-source rerun preserves unchanged later negative a
   assert.equal(calls, 1);
   assert.equal(resumed.assessments.length, 3);
 });
+
+void test("generic generation retains computed budget data and rejects monetary prose without paired context", async () => {
+  const corpus = fixture(2);
+  const analysis = corpus.sources.find((s) => s.id === "official-analysis-70")!;
+  analysis.snapshot +=
+    " FY2028–29 California state: gross program cost $10 million; relevant gross program budget $100 million.";
+  analysis.hash = sourceHash(analysis.snapshot);
+  analysis.documentHash = sourceHash("updated synthetic budget analysis");
+  const scope = {
+    period: "2028–29 fiscal year",
+    jurisdiction: "California state",
+    timing: "annual",
+    accounting: "gross",
+  };
+  const raw = authored(corpus, ["70", "71"]);
+  const response = {
+    ...raw,
+    compact: {
+      ...raw.compact,
+      scenarios: {
+        ...raw.compact.scenarios,
+        onlyFirst: {
+          title: raw.compact.scenarios.onlyFirst.title,
+          consequence: {
+            text: "The program has an additional annual cost.",
+            sourceIds: [analysis.id],
+            money: [
+              {
+                nominal: "$10 million",
+                currency: "USD",
+                scope,
+                comparison: {
+                  state: "available",
+                  numerator: { min: 10000000, max: 10000000 },
+                  denominator: {
+                    name: "Relevant program budget",
+                    amount: 100000000,
+                    currency: "USD",
+                    scope,
+                    evidence: [
+                      {
+                        sourceId: analysis.id,
+                        locator: "FY2028–29 program budget",
+                      },
+                    ],
+                  },
+                  basis: "projection",
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  };
+  const result = await discoverMeasureRelationships(corpus, {
+    ...options,
+    assess: async (prompt) => {
+      assert.ok(prompt.includes("Never compare multi-year collections"));
+      assert.ok(prompt.includes("Budget percentages are computed"));
+      return {
+        reason: "Source-supported test dependency with budget context",
+        relationship: response,
+      };
+    },
+  });
+  const draft = result.assessments[0]!.draft!;
+  assert.equal(draft.review.state, "pending");
+  assert.equal(
+    draft.compact!.scenarios.onlyFirst.consequence.money![0]!.nominal,
+    "$10 million",
+  );
+  response.compact.scenarios.onlyFirst.consequence.text =
+    "The program costs $10 million.";
+  response.compact.scenarios.onlyFirst.consequence.money = [];
+  await assert.rejects(
+    discoverMeasureRelationships(corpus, {
+      ...options,
+      assess: async () => ({
+        reason: "Unpaired example",
+        relationship: response,
+      }),
+    }),
+    /not grounded/,
+  );
+});

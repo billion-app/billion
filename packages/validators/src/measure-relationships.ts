@@ -1,8 +1,18 @@
 import { z } from "zod/v4";
 
+import {
+  contextMoneyMentions,
+  contextMoneySchema,
+  hasUncoveredContextMoney,
+} from "./budget-context";
+
 const text = z.string().trim().min(1).max(2000);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
-const claim = z.object({ text, sourceIds: z.array(z.string()).min(1) });
+const claim = z.object({
+  text,
+  sourceIds: z.array(z.string()).min(1),
+  money: z.array(contextMoneySchema).max(8).optional(),
+});
 export const measureRelationshipSchema = z.object({
   schemaVersion: z.literal(1),
   revision: text,
@@ -145,8 +155,13 @@ export function hasValidRelationshipEvidence(draft: MeasureRelationship) {
   const sources = new Map(draft.sources.map((s) => [s.id, s]));
   if (
     sources.size !== draft.sources.length ||
-    measureRelationshipClaims(draft).some((c) =>
-      c.sourceIds.some((id) => !sources.has(id)),
+    draft.sources.some(
+      (source) => contextMoneyMentions(source.locator).length > 0,
+    ) ||
+    measureRelationshipClaims(draft).some(
+      (c) =>
+        measureRelationshipClaimSourceIds(c).some((id) => !sources.has(id)) ||
+        !hasRelationshipMoneyContext(c),
     )
   )
     return false;
@@ -164,4 +179,25 @@ export function hasValidRelationshipEvidence(draft: MeasureRelationship) {
         ),
       ))
   );
+}
+
+/** Budget sources are claim evidence, including in expanded reader explanations. */
+export function measureRelationshipClaimSourceIds(
+  claim: MeasureRelationship["takeaway"],
+) {
+  return [
+    ...new Set([
+      ...claim.sourceIds,
+      ...(claim.money ?? []).flatMap((m) =>
+        m.comparison.state === "available"
+          ? m.comparison.denominator.evidence.map((e) => e.sourceId)
+          : [],
+      ),
+    ]),
+  ];
+}
+export function hasRelationshipMoneyContext(
+  claim: MeasureRelationship["takeaway"],
+) {
+  return !hasUncoveredContextMoney(claim.text, claim.money ?? []);
 }

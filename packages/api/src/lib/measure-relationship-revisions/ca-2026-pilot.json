@@ -1,7 +1,7 @@
 {
   "draft": {
     "schemaVersion": 1,
-    "revision": "ca-2026-40-42-captured-v2",
+    "revision": "ca-2026-40-42-captured-v3-money",
     "jurisdiction": "CA",
     "electionDate": "2026-11-03",
     "kind": "conflict",
@@ -36,7 +36,7 @@
         "number": "40",
         "role": "official-analysis",
         "url": "https://voterguide.sos.ca.gov/propositions/40/analysis.htm",
-        "locator": "LAO \u00b7 Potential interactions figure",
+        "locator": "LAO \u00b7 Fiscal Effects: Temporary State Revenue; Potential interactions figure",
         "retrievedAt": "2026-10-05T15:45:00.309Z",
         "snapshot": "Home \u00bb Propositions PROP 40 IMPOSES ONE-TIME TAX ON CERTAIN TAXPAYERS. INITIATIVE CONSTITUTIONAL AMENDMENT AND STATUTE. ANALYSIS BY THE LEGISLATIVE ANALYST BACKGROUND California Is Home to Many Billionaires. Several of the wealthiest people in the world live in California. Wealth is the value of all the things a person owns. Wealth is different from income, which is how much a person earns in a set period of time, like one year. A person\u2019s wealth typically is measured by their net worth. A person\u2019s net worth is the value of all the things they own, like stocks, businesses, or other investments, minus their debts. California is home to a few hundred people with net worth over $1 billion, often called billionaires. Many of these billionaires gained their wealth as executives or investors in California technology companies. Health Care Is a Major Category of State Spending. The state and federal government spend over $200 billion per year on state health care programs. Most state health care spending is for Medi-Cal, the state\u2019s health insurance program for low-income people. State spending also supports public health programs, mental health care, and drug and alcohol treatment. PROPOSAL Establishes One-Time Wealth Tax on Billionaires. Under Proposition 40, billionaires who were residents of California on January 1, 2026 would have to pay a one-time state tax equal to 5 percent of their net worth. The tax would be due in 2027. Taxpayers would have the option to spread the payments over five years but would have to pay more to do so. Real estate, pensions, and retirement accounts generally would be excluded from the tax. Most of the Money Must Be Spent on Health Care. The state would decide how and when to spend the money from the wealth tax, but it would have to be spent on certain types of services. Ninety percent of the money would have to be spent on health care services for the public. The rest would have to be spent on education, food assistance, and administration of the wealth tax. Existing rules in the State Constitution that limit spending and require the state to spend a certain amount on schools and community colleges would not apply to this money. FISCAL EFFECTS Temporary State Revenue Increase From Wealth Tax. The state probably would collect tens of billions of dollars from the wealth tax. This temporary increase in state tax collections would be spread across several years. Exactly when and how much the state would collect is very hard to predict for many reasons. For example, it is hard to know what actions billionaires would take to reduce the amount of tax they pay. Also, much of the wealth is based on stock prices, which are always changing. Possible Ongoing Decrease in State Income Tax Revenues. California billionaires, like all those earning money in the state, currently pay state taxes on their annual income. Billionaires may respond to a new wealth tax in ways that reduce their income tax payments. For example, some billionaires may decide to leave California. The income taxes they currently pay to the state also would go away. These responses probably would reduce state revenues by less than $1 billion per year. This could mean less money for the state\u2019s General Fund, which is the account that pays for most public services, including education, health care, and prisons. State Costs to Administer the Wealth Tax. The state would have costs to determine how much wealth tax is owed and to collect tax payments. These costs could be tens of millions of dollars per year for several years. These costs would be paid from the new wealth tax revenues. Visit sos.ca.gov/campaign-lobbying/cal-access-resources/measure-contributions/2026-ballot-measure-contribution-totals for a list of committees primarily formed to support or oppose this measure. Visit fppc.ca.gov/transparency/top-contributors.html to access the committee's top 10 contributors. Back to the Top Proposition 40 Figure 1. Potential Interactions With Other Propositions: If Proposition 41 or 42 on this same ballot receive more yes votes than Proposition 40, then Propostion 40 could be stopped from becoming law even if it gets yes votes from a majority of voters. This is because the courts could find that Proposition 41 or 42 conflict with 40. Back to top",
         "hash": "47a2b42e1f5f7b155ac8f98c9475f66d336d767091f9aa00d71c6015311747c5",
@@ -77,6 +77,26 @@
       {
         "text": "42\u2019s Section 5 claims the entire other measure is void if its conflict rule applies and 42 has more Yes votes. 40\u2019s Section 8 claims only conflicting provisions of another measure are void if 40 has more Yes votes. These are proposed clauses, not a court ruling that either cancels the other.",
         "sourceIds": ["law-40", "law-42"]
+      },
+      {
+        "text": "The LAO expects temporary wealth-tax receipts collected over several years. Timing and total are hard to predict; this is not a net estimate of all effects on state finances.",
+        "sourceIds": ["analysis-40"],
+        "money": [
+          {
+            "nominal": "tens of billions of dollars",
+            "currency": "USD",
+            "scope": {
+              "period": "Several years; collection timing uncertain",
+              "jurisdiction": "California state",
+              "timing": "one-time",
+              "accounting": "gross"
+            },
+            "comparison": {
+              "state": "unavailable",
+              "reason": "No verified budget matches the uncertain collection period."
+            }
+          }
+        ]
       }
     ],
     "scenarios": {
@@ -142,8 +162,24 @@
             "sourceIds": ["law-40"]
           },
           "consequence": {
-            "text": "40\u2019s tax is approved; 42\u2019s restrictions are not. Other measures and legal challenges could still affect implementation.",
-            "sourceIds": ["law-40", "law-42", "analysis-40"]
+            "text": "40\u2019s tax is approved; 42\u2019s restrictions are not. The LAO expects temporary receipts over several years; timing and total remain uncertain.",
+            "sourceIds": ["law-40", "law-42", "analysis-40"],
+            "money": [
+              {
+                "nominal": "tens of billions of dollars",
+                "currency": "USD",
+                "scope": {
+                  "period": "Several years; collection timing uncertain",
+                  "jurisdiction": "California state",
+                  "timing": "one-time",
+                  "accounting": "gross"
+                },
+                "comparison": {
+                  "state": "unavailable",
+                  "reason": "No verified budget matches the uncertain collection period."
+                }
+              }
+            ]
           }
         },
         "onlySecond": {

@@ -12,6 +12,10 @@ import {
 import { useRouter } from "expo-router";
 
 import type { PublicMeasureRelationship } from "@acme/validators";
+import {
+  contextMoneyPresentation,
+  measureRelationshipClaimSourceIds,
+} from "@acme/validators";
 
 import { Icon } from "~/components/ui";
 import {
@@ -107,9 +111,43 @@ function RelationshipCard({
       })}
     </View>
   );
+  const moneyContext = (claim: Claim) =>
+    (claim.money ?? []).map((money, index) => {
+      const presentation = contextMoneyPresentation(money);
+      return (
+        <View
+          key={index}
+          style={s.moneyContext}
+          testID="relationship-money-context"
+        >
+          <Text style={[s.moneyText, { fontWeight: "600" }]}>
+            {presentation.nominal}
+          </Text>
+          <Text style={s.moneyText}>{presentation.comparison}</Text>
+          <Text style={s.moneyText}>{presentation.scope}</Text>
+          {presentation.reason && (
+            <Text style={s.moneyText}>{presentation.reason}</Text>
+          )}
+          {money.comparison.state === "available" && (
+            <>
+              <Text style={s.caption}>
+                Budget evidence:{" "}
+                {money.comparison.denominator.evidence
+                  .map((e) => e.locator)
+                  .join("; ")}
+              </Text>
+              {sourceLinks(
+                money.comparison.denominator.evidence.map((e) => e.sourceId),
+              )}
+            </>
+          )}
+        </View>
+      );
+    });
   const detailClaim = (claim: Claim, key: string) => (
     <View key={key} style={s.detailClaim}>
       <Text style={s.body}>{claim.text}</Text>
+      {moneyContext(claim)}
       {sourceLinks(claim.sourceIds)}
     </View>
   );
@@ -133,6 +171,7 @@ function RelationshipCard({
                 {number === measure.number ? " · THIS PAGE" : " →"}
               </Text>
               <Text style={s.nodeBody}>{description.text}</Text>
+              {moneyContext(description)}
             </View>
           );
           return number === measure.number ? (
@@ -158,6 +197,7 @@ function RelationshipCard({
         })}
       </View>
       <Text style={s.framing}>{compact.takeaway.text}</Text>
+      {moneyContext(compact.takeaway)}
       <View style={s.chooser}>
         <Text style={s.label}>What if…</Text>
         <View style={s.optionGrid}>
@@ -206,8 +246,14 @@ function RelationshipCard({
         aria-live="polite"
         testID="relationship-selected-outcome"
       >
-        <Text style={s.resultTitle}>{outcome.title.text}</Text>
-        <Text style={s.body}>{outcome.consequence.text}</Text>
+        <Text style={s.resultTitle} testID="relationship-outcome-title">
+          {outcome.title.text}
+        </Text>
+        {moneyContext(outcome.title)}
+        <Text style={s.body} testID="relationship-outcome-copy">
+          {outcome.consequence.text}
+        </Text>
+        {moneyContext(outcome.consequence)}
       </View>
       <View style={s.supporting}>
         {selected === "both" && compact.bothPassComparisons && (
@@ -219,6 +265,8 @@ function RelationshipCard({
               {compact.conflictScopes?.condition.text ??
                 "These cases assume both measures pass."}
             </Text>
+            {compact.conflictScopes &&
+              moneyContext(compact.conflictScopes.condition)}
             {(["firstMore", "secondMore", "equal"] as const).map((key) => (
               <View key={key} style={s.comparison}>
                 <Text style={s.label}>
@@ -229,11 +277,13 @@ function RelationshipCard({
                 <Text style={s.body}>
                   {compact.bothPassComparisons?.[key].text}
                 </Text>
+                {compact.bothPassComparisons?.[key] &&
+                  moneyContext(compact.bothPassComparisons[key])}
               </View>
             ))}
             {sourceLinks(
-              Object.values(compact.bothPassComparisons).flatMap(
-                (c) => c.sourceIds,
+              Object.values(compact.bothPassComparisons).flatMap((c) =>
+                measureRelationshipClaimSourceIds(c),
               ),
             )}
           </Disclosure>
@@ -250,6 +300,7 @@ function RelationshipCard({
             <View key={index} style={s.provision}>
               <Text style={s.nodeMeta}>PROP {r.measures[index]?.number}</Text>
               <Text style={s.body}>{provision.text}</Text>
+              {moneyContext(provision)}
               {sourceLinks(provision.sourceIds)}
             </View>
           ))}
@@ -259,12 +310,14 @@ function RelationshipCard({
               <Text style={s.caption}>
                 {compact.conflictScopes.condition.text}
               </Text>
+              {moneyContext(compact.conflictScopes.condition)}
               {compact.conflictScopes.scopes.map((scope, index) => (
                 <View key={index} style={s.comparison}>
                   <Text style={s.nodeMeta}>
                     PROP {r.measures[index]?.number}
                   </Text>
                   <Text style={s.body}>{scope.text}</Text>
+                  {moneyContext(scope)}
                 </View>
               ))}
               {sourceLinks([
@@ -277,9 +330,10 @@ function RelationshipCard({
         <Disclosure title="Sources & conditions" testID="relationship-evidence">
           <Text style={s.label}>What remains unresolved</Text>
           {r.conditions.map((claim, index) => (
-            <Text key={index} style={s.body}>
-              {claim.text}
-            </Text>
+            <View key={index}>
+              <Text style={s.body}>{claim.text}</Text>
+              {moneyContext(claim)}
+            </View>
           ))}
           <Disclosure title="Full provision explanation">
             {r.affectedProvisions.map((claim, index) =>
@@ -493,6 +547,18 @@ const s = StyleSheet.create({
     gap: 4,
   },
   detailClaim: { gap: 5 },
+  moneyText: {
+    fontFamily: fontBody.regular,
+    fontSize: 12,
+    lineHeight: 18,
+    color: P.inkOnNight,
+  },
+  moneyContext: {
+    gap: 4,
+    borderLeftWidth: 1,
+    borderColor: hair[2],
+    paddingLeft: 8,
+  },
   sources: { flexDirection: "row", flexWrap: "wrap", columnGap: 16 },
   sourceLink: { minHeight: 44, justifyContent: "center" },
   link: {

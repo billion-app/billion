@@ -95,6 +95,7 @@ native Dynamic Type. Missing, stale and unrelated records omit the section.
 - `40-neither.png`, `40-only-first.png`, `40-only-second.png`, `40-both-pass.png`: one selected consequence per hypothetical case.
 - `40-vote-totals.png`: higher/lower/equal Yes-total conditions, not live results.
 - `40-provisions.png`, `40-conditions.png`: scope and legal uncertainty.
+- `40-money-evidence.png`: the expanded sourced fiscal estimate and matching-period budget comparison unavailable.
 - `42-enlarged-web-text.png`, `42-enlarged-web-outcome.png`, `42-tablet.png`: enlarged text, complete selected outcome and larger viewport.
 - `unavailable-stale.png`, `guide-error.png`: omitted relationship section and guide failure.
 
@@ -102,3 +103,19 @@ The capture script verifies that only the selected consequence appears, selected
 browser page errors. It does not certify external source-link availability or
 native accessibility. The GitHub screenshot comment records the exact reviewed
 commit, so changes to the UI require refreshing that evidence.
+
+## Money context
+
+The reader and generic drafting pipeline share `budget-context.ts` with #444.
+Claim money paragraphs always show nominal USD value plus a computed, cited share
+of a compatible budget, or an explicit unavailable/inapplicable label with reason.
+Matching scope includes period, jurisdiction, annual/one-time/stock timing and
+accounting basis; numerical nominal units and ranges must agree with the numerator.
+Whole-revision approval includes these fields and the denominator citations.
+
+The updated pending pilot includes the LAO's qualitative temporary revenue estimate
+in Only 40 and expanded provision evidence. Its collection spans several uncertain
+years. No matching multi-year budget is verified; the annual health-spending amount
+in the analysis would be a mismatched denominator. The screenshot correctly shows
+nominal revenue and budget share unavailable, not a fabricated percentage. Source
+snapshots are unchanged, and the updated copy remains pending review.

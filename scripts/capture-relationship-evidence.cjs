@@ -144,9 +144,32 @@ let browser;
     await card().getByRole("button", { name: names[id], exact: true }).click();
     const result = card().getByTestId("relationship-selected-outcome");
     assert.equal(
-      await result.innerText(),
-      `${draft.compact.scenarios[id].title.text}\n${draft.compact.scenarios[id].consequence.text}`,
+      await result.getByTestId("relationship-outcome-title").innerText(),
+      draft.compact.scenarios[id].title.text,
     );
+    assert.equal(
+      await result.getByTestId("relationship-outcome-copy").innerText(),
+      draft.compact.scenarios[id].consequence.text,
+    );
+    const contexts = [
+      ...(draft.compact.scenarios[id].title.money ?? []),
+      ...(draft.compact.scenarios[id].consequence.money ?? []),
+    ];
+    assert.equal(
+      await result.getByTestId("relationship-money-context").count(),
+      contexts.length,
+    );
+    for (const context of contexts) {
+      const visible = result
+        .getByTestId("relationship-money-context")
+        .filter({ hasText: context.nominal });
+      assert.ok(
+        (await visible.innerText()).includes(
+          `Budget share ${context.comparison.state}`,
+        ),
+      );
+      assert.ok((await visible.innerText()).includes(context.scope.period));
+    }
     for (const other of Object.keys(draft.compact.scenarios))
       if (other !== id)
         assert.equal(
@@ -213,6 +236,16 @@ let browser;
     .click();
   await position(card().getByTestId("relationship-evidence"));
   await shot("40-conditions");
+  await card()
+    .getByRole("button", { name: "Full provision explanation", exact: true })
+    .click();
+  await position(
+    card().getByText(draft.affectedProvisions.at(-1).text, { exact: true }),
+  );
+  await shot("40-money-evidence");
+  await card()
+    .getByRole("button", { name: "Full provision explanation", exact: true })
+    .click();
   await card()
     .getByRole("button", { name: "Sources & conditions", exact: true })
     .click();

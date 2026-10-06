@@ -287,3 +287,215 @@ void test("compact reader claims require evidence and renewed editorial approval
     assert.deepEqual(publish(guide, draft), []);
   }
 });
+
+void test("money claims require paired context and valid cited compatible budgets across all reader slots", async () => {
+  const { contextMoneySchema, contextMoneyLabel, measureRelationshipClaims } =
+    await import("@acme/validators");
+  for (const slot of [
+    "node",
+    "takeaway",
+    "title",
+    "outcome",
+    "provision",
+    "condition",
+    "comparison",
+    "scope",
+  ] as const) {
+    const { guide, draft: initial } = fixture();
+    const draft = JSON.parse(JSON.stringify(initial)) as MeasureRelationship;
+    const compact = draft.compact;
+    assert.ok(compact);
+    compact.bothPassComparisons = {
+      firstMore: structuredClone(draft.takeaway),
+      secondMore: structuredClone(draft.takeaway),
+      equal: structuredClone(draft.takeaway),
+    };
+    compact.conflictScopes = {
+      condition: structuredClone(draft.takeaway),
+      scopes: [
+        structuredClone(draft.takeaway),
+        structuredClone(draft.takeaway),
+      ],
+    };
+    const target = {
+      node: compact.measures[0],
+      takeaway: compact.takeaway,
+      title: compact.scenarios.both.title,
+      outcome: compact.scenarios.both.consequence,
+      provision: draft.affectedProvisions[0],
+      condition: draft.conditions[0],
+      comparison: compact.bothPassComparisons.firstMore,
+      scope: compact.conflictScopes.scopes[0],
+    }[slot];
+    assert.ok(target);
+    target.text = "A $10 million annual cost.";
+    approve(draft);
+    assert.deepEqual(
+      publish(guide, draft),
+      [],
+      `${slot}: unpaired money cannot publish`,
+    );
+    const scope = {
+      period: "2026–27 fiscal year",
+      jurisdiction: "California state",
+      timing: "annual" as const,
+      accounting: "gross" as const,
+    };
+    target.money = [
+      contextMoneySchema.parse({
+        nominal: "$10 million",
+        currency: "USD",
+        scope,
+        comparison: {
+          state: "available",
+          numerator: { min: 10000000, max: 10000000 },
+          denominator: {
+            name: "Synthetic relevant program budget",
+            amount: 100000000,
+            currency: "USD",
+            scope,
+            evidence: [
+              {
+                sourceId: draft.sources[0]?.id,
+                locator: "Synthetic annual program budget",
+              },
+            ],
+          },
+          basis: "illustrative",
+        },
+      }),
+    ];
+    approve(draft);
+    assert.equal(publish(guide, draft).length, 1);
+    const money = target.money[0];
+    assert.ok(money);
+    assert.ok(contextMoneyLabel(money).includes("10%"));
+    target.text += " Another $5 million is unspecified.";
+    approve(draft);
+    assert.deepEqual(
+      publish(guide, draft),
+      [],
+      "uncovered second amount fails closed",
+    );
+    target.text = "A $10 million annual cost.";
+    const context = money;
+    assert.equal(context.comparison.state, "available");
+    const evidence = context.comparison.denominator.evidence[0];
+    assert.ok(evidence);
+    evidence.sourceId = "unknown-budget";
+    approve(draft);
+    assert.deepEqual(
+      publish(guide, draft),
+      [],
+      "unknown denominator citation fails closed",
+    );
+    target.money = [
+      contextMoneySchema.parse({
+        nominal: "$10 million",
+        currency: "USD",
+        scope,
+        comparison: {
+          state: "unavailable",
+          reason: "No verified matching annual budget denominator",
+        },
+      }),
+    ];
+    approve(draft);
+    assert.equal(publish(guide, draft).length, 1);
+    const fallback = target.money[0];
+    assert.ok(fallback);
+    assert.ok(contextMoneyLabel(fallback).includes("Budget share unavailable"));
+    assert.ok(measureRelationshipClaims(draft).includes(target));
+  }
+});
+
+void test("budget shares bind numeric units, range and scope; contextual unavailable/inapplicable labels preserve uncertainty", async () => {
+  const {
+    contextMoneySchema,
+    contextMoneyLabel,
+    contextMoneyMentions,
+    hasUncoveredContextMoney,
+  } = await import("@acme/validators");
+  const scope = {
+    period: "2026–27",
+    jurisdiction: "California state",
+    timing: "annual",
+    accounting: "gross",
+  };
+  const value = {
+    nominal: "$10–20 million",
+    currency: "USD",
+    scope,
+    comparison: {
+      state: "available",
+      numerator: { min: 10000000, max: 20000000 },
+      denominator: {
+        name: "Relevant program budget",
+        amount: 100000000,
+        currency: "USD",
+        scope,
+        evidence: [
+          { sourceId: "analysis-70", locator: "Annual program table" },
+        ],
+      },
+      basis: "projection",
+    },
+  };
+  const label = contextMoneyLabel(contextMoneySchema.parse(value));
+  assert.ok(label.includes("$10–20 million USD"));
+  assert.ok(label.includes("10–20%"));
+  assert.ok(label.includes("$100 million USD"));
+  assert.ok(label.includes("projection"));
+  for (const mismatch of [
+    { period: "2025–26" },
+    { jurisdiction: "California local" },
+    { timing: "one-time" },
+    { accounting: "net" },
+  ])
+    assert.equal(
+      contextMoneySchema.safeParse({
+        ...value,
+        comparison: {
+          ...value.comparison,
+          denominator: {
+            ...value.comparison.denominator,
+            scope: { ...scope, ...mismatch },
+          },
+        },
+      }).success,
+      false,
+    );
+  for (const nominal of ["$", "$10", "tens of billions of dollars"])
+    assert.equal(
+      contextMoneySchema.safeParse({ ...value, nominal }).success,
+      false,
+    );
+  assert.equal(
+    hasUncoveredContextMoney("The cost is $5 billion.", [{ nominal: "$5" }]),
+    true,
+  );
+  assert.deepEqual(
+    contextMoneyMentions("15 million people and 3 billion trees"),
+    [],
+  );
+  for (const state of ["unavailable", "inapplicable"]) {
+    const context = contextMoneySchema.parse({
+      nominal: "tens of billions of dollars",
+      currency: "USD",
+      scope: {
+        ...scope,
+        timing: "one-time",
+        period: "Several uncertain future years",
+      },
+      comparison: {
+        state,
+        reason: "No meaningful matching budget is verified",
+      },
+    });
+    const result = contextMoneyLabel(context);
+    assert.ok(result.includes(`Budget share ${state}`));
+    assert.ok(result.includes("USD"));
+    assert.ok(result.includes("Several uncertain future years"));
+    assert.ok(!result.includes("%"));
+  }
+});
