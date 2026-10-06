@@ -147,8 +147,17 @@ The proposition reader has a separate, versioned contextual explanation contract
 in [`proposition-context.ts`](../packages/validators/src/proposition-context.ts).
 It compares the baseline with the change, explains the actor/action chain, and
 keeps terms, tradeoffs, unknowns, historical evidence and research paths distinct.
-Claims carry locators and evidence layers; estimates retain timeframe and a
-comparison rather than letting an absolute figure imply significance.
+Claims carry locators and evidence layers. Every explicit monetary amount carries
+[`budget-context.ts`](../packages/validators/src/budget-context.ts) data: a nominal
+USD value, period, jurisdiction, annual/one-time/stock basis, gross/net accounting,
+and either a cited matching denominator or an explicit unavailable/inapplicable
+reason. The renderer calculates shares from numeric ranges and the denominator;
+ratios are never stored or hardcoded. Illustrative assumptions are labelled.
+Unmatched future/current years, combined state/local versus state-only budgets,
+or reserve stocks versus annual spending cannot pass as matched comparisons.
+Missing money coverage rejects the claim, and denominator citations participate
+in evidence checks and review invalidation. This gives scale without using
+nominal size or percentage as a recommendation.
 
 The [publication helper](../packages/api/src/lib/proposition-context.ts) accepts
 only editorially approved revisions bound to all content and captured sources,

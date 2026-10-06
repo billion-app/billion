@@ -1,17 +1,27 @@
 import { z } from "zod/v4";
 
+import {
+  contextMoneyMentions,
+  contextMoneySchema,
+  hasUncoveredContextMoney,
+} from "./budget-context";
+
 const id = z
   .string()
   .regex(/^[a-z0-9-]+$/)
   .max(100);
 const short = z.string().trim().min(1).max(500);
+const presentation = short.refine(
+  (text) => contextMoneyMentions(text).length === 0,
+  "Put monetary amounts in typed claims, not headings or citation labels.",
+);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const https = z.url().refine((value) => {
   return /^https:\/\/[^/@\s]+(?:\/|$)/.test(value);
 });
 export const contextSourceSchema = z.object({
   id,
-  name: short,
+  name: presentation,
   url: https,
   layer: z.enum([
     "legal-text",
@@ -24,19 +34,27 @@ export const contextSourceSchema = z.object({
   retrievedAt: z.iso.datetime(),
   snapshot: z.string().min(1).max(100_000),
 });
-export const contextClaimSchema = z.object({
-  text: short,
-  kind: z.enum([
-    "source-summary",
-    "billion-inference",
-    "illustration",
-    "unknown",
-  ]),
-  evidence: z
-    .array(z.object({ sourceId: id, locator: short }))
-    .min(1)
-    .max(8),
-});
+const citation = z.object({ sourceId: id, locator: presentation });
+export const contextClaimSchema = z
+  .object({
+    text: short,
+    kind: z.enum([
+      "source-summary",
+      "billion-inference",
+      "illustration",
+      "unknown",
+    ]),
+    evidence: z.array(citation).min(1).max(8),
+    money: z.array(contextMoneySchema).min(1).max(8).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (hasUncoveredContextMoney(value.text, value.money ?? []))
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Every explicit money mention requires nominal value and budget-share context.",
+      });
+  });
 const claim = contextClaimSchema;
 /** Source-captured, immutable editorial record; no generation happens on reads. */
 export const propositionContextSchema = z.object({
@@ -54,10 +72,10 @@ export const propositionContextSchema = z.object({
   today: claim,
   change: claim,
   rationale: claim,
-  terms: z.array(z.object({ term: short, meaning: claim })).max(6),
-  mechanismQuestion: short,
+  terms: z.array(z.object({ term: presentation, meaning: claim })).max(6),
+  mechanismQuestion: presentation,
   chain: z
-    .array(z.object({ actor: short, action: claim }))
+    .array(z.object({ actor: presentation, action: claim }))
     .min(2)
     .max(6),
   tradeoffs: z.array(claim).min(1).max(5),
@@ -80,7 +98,7 @@ export const propositionContextSchema = z.object({
       z.object({
         amount: claim,
         comparison: claim,
-        period: short,
+        period: presentation,
         basis: z.enum(["projection", "measured", "illustrative"]),
       }),
     )
@@ -88,7 +106,7 @@ export const propositionContextSchema = z.object({
   history: z
     .array(
       z.object({
-        date: short,
+        date: presentation,
         finding: claim,
         followThrough: claim,
         outcome: claim,
@@ -96,9 +114,9 @@ export const propositionContextSchema = z.object({
       }),
     )
     .max(3),
-  scenarios: z.array(z.object({ title: short, claim })).max(4),
+  scenarios: z.array(z.object({ title: presentation, claim })).max(4),
   questions: z
-    .array(z.object({ question: short, path: claim }))
+    .array(z.object({ question: presentation, path: claim }))
     .min(1)
     .max(5),
   review: z.discriminatedUnion("state", [

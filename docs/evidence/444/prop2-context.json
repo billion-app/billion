@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "ca-2026-prop-2-context-v1",
+  "revision": "ca-2026-prop-2-context-v1-money-context",
   "electionDate": "2026-11-03",
   "number": "2",
   "officialTitle": "INCREASES STATE’S RAINY DAY FUND. LEGISLATIVE CONSTITUTIONAL AMENDMENT.",
@@ -40,12 +40,98 @@
     {
       "title": "Same revenue, different cap",
       "claim": {
-        "text": "Illustration in 2027–28: assume $100bn General Fund taxes, a $10bn starting reserve balance, $0.75bn otherwise required reserve deposit, no capital-gains addition, adjustments or emergency. The old 10% cap blocks the deposit; the new 20% cap permits it. The $0.75bn changes destination, not total revenue.",
+        "text": "Illustration in 2027–28: assume the annual tax revenues, opening reserve and otherwise-required deposit shown below, with no capital-gains addition, adjustments or emergency. The old 10% cap blocks the deposit; the new 20% cap permits it. The deposit changes destination, not total revenue.",
         "kind": "illustration",
         "evidence": [
           {
             "sourceId": "law",
             "locator": "§20(a),(c)(1),(e); illustrative inputs, not forecast"
+          }
+        ],
+        "money": [
+          {
+            "nominal": "$100 billion",
+            "currency": "USD",
+            "scope": {
+              "period": "2027–28 hypothetical fiscal year",
+              "jurisdiction": "California",
+              "timing": "annual",
+              "accounting": "gross"
+            },
+            "comparison": {
+              "state": "available",
+              "numerator": {
+                "min": 100000000000,
+                "max": 100000000000
+              },
+              "denominator": {
+                "name": "assumed General Fund tax revenues",
+                "amount": 100000000000,
+                "currency": "USD",
+                "scope": {
+                  "period": "2027–28 hypothetical fiscal year",
+                  "jurisdiction": "California",
+                  "timing": "annual",
+                  "accounting": "gross"
+                },
+                "evidence": [
+                  {
+                    "sourceId": "law",
+                    "locator": "Article XVI, section 20(a)(2); assumed amounts illustrate the rule, not a forecast"
+                  }
+                ]
+              },
+              "basis": "illustrative"
+            }
+          },
+          {
+            "nominal": "$10 billion",
+            "currency": "USD",
+            "scope": {
+              "period": "start of 2027–28 hypothetical fiscal year",
+              "jurisdiction": "California",
+              "timing": "stock",
+              "accounting": "gross"
+            },
+            "comparison": {
+              "state": "inapplicable",
+              "reason": "This is a reserve stock, not annual spending. It equals the old 10% tax-revenue cap in the example; a matching stock budget denominator is inapplicable."
+            }
+          },
+          {
+            "nominal": "$0.75 billion",
+            "currency": "USD",
+            "scope": {
+              "period": "2027–28 hypothetical fiscal year",
+              "jurisdiction": "California",
+              "timing": "annual",
+              "accounting": "gross"
+            },
+            "comparison": {
+              "state": "available",
+              "numerator": {
+                "min": 750000000,
+                "max": 750000000
+              },
+              "denominator": {
+                "name": "assumed General Fund tax revenues",
+                "amount": 100000000000,
+                "currency": "USD",
+                "scope": {
+                  "period": "2027–28 hypothetical fiscal year",
+                  "jurisdiction": "California",
+                  "timing": "annual",
+                  "accounting": "gross"
+                },
+                "evidence": [
+                  {
+                    "sourceId": "law",
+                    "locator": "Article XVI, section 20(a)(2); assumed amounts illustrate the rule, not a forecast"
+                  }
+                ]
+              },
+              "basis": "illustrative"
+            }
           }
         ]
       }
@@ -53,12 +139,49 @@
     {
       "title": "When the link breaks",
       "claim": {
-        "text": "With the same figures but a fully suspended transfer during a budget emergency, neither rule requires that $0.75bn deposit. Raising the cap would not increase this year’s reserve balance.",
+        "text": "With the same figures but a fully suspended transfer during a budget emergency, neither rule requires the deposit shown below. Raising the cap would not increase this year’s reserve balance.",
         "kind": "illustration",
         "evidence": [
           {
             "sourceId": "law",
             "locator": "Article XVI §22(a)(1)"
+          }
+        ],
+        "money": [
+          {
+            "nominal": "$0.75 billion",
+            "currency": "USD",
+            "scope": {
+              "period": "2027–28 hypothetical fiscal year",
+              "jurisdiction": "California",
+              "timing": "annual",
+              "accounting": "gross"
+            },
+            "comparison": {
+              "state": "available",
+              "numerator": {
+                "min": 750000000,
+                "max": 750000000
+              },
+              "denominator": {
+                "name": "assumed General Fund tax revenues",
+                "amount": 100000000000,
+                "currency": "USD",
+                "scope": {
+                  "period": "2027–28 hypothetical fiscal year",
+                  "jurisdiction": "California",
+                  "timing": "annual",
+                  "accounting": "gross"
+                },
+                "evidence": [
+                  {
+                    "sourceId": "law",
+                    "locator": "Article XVI, section 20(a)(2); assumed amounts illustrate the rule, not a forecast"
+                  }
+                ]
+              },
+              "basis": "illustrative"
+            }
           }
         ]
       }

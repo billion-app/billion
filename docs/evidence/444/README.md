@@ -104,3 +104,20 @@ Required before publication:
 
 Keep the PR draft and issue open while these gates remain. No merge/deployment/
 OTA/TestFlight action is included in this work.
+
+## Monetary context follow-up
+
+Every explicit currency amount in these pilots now renders its nominal USD value
+and budget context together, including historical outcomes and worked examples.
+The shared validated contract in [budget-context.ts](../../../packages/validators/src/budget-context.ts)
+calculates a share only from a cited denominator with matching scope. The reserve
+example uses explicitly assumed annual General Fund tax revenues; its reserve
+balance is a stock and is labelled budget-share inapplicable. The future revenue
+projection lacks matching future budgets, the combined state/local cost estimate
+lacks a combined denominator, and the tobacco-tax follow-up lacks a matched program
+budget. These show comparison-unavailable reasons rather than invented ratios.
+
+Screenshots `prop*-money-*.png` show these running development records on phone
+web. The new source-backed content remains pending editorial review. Shared tests
+cover ratio calculations, ranges, currency, mismatched scope, unavailable labels,
+population-count detection, uncovered claims and denominator review invalidation.

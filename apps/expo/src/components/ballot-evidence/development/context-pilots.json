@@ -1,7 +1,7 @@
 [
   {
     "schemaVersion": 1,
-    "revision": "ca-2026-prop-3-context-v1",
+    "revision": "ca-2026-prop-3-context-v1-money-context",
     "electionDate": "2026-11-03",
     "number": "3",
     "officialTitle": "PROVIDES PERMANENT FUNDING FOR SCHOOLS AND HEALTH CARE BY EXTENDING EXISTING TAX ON HIGH INCOMES. INITIATIVE CONSTITUTIONAL AMENDMENT.",
@@ -60,22 +60,38 @@
     "magnitude": [
       {
         "amount": {
-          "text": "The analyst projects $5–15 billion a year, varying with the stock market.",
+          "text": "The analyst projects continued annual revenue, varying with the stock market:",
           "kind": "source-summary",
           "evidence": [
             {
               "sourceId": "analysis",
               "locator": "Proposal and fiscal effects"
             }
+          ],
+          "money": [
+            {
+              "nominal": "$5–15 billion",
+              "currency": "USD",
+              "scope": {
+                "period": "future years after the scheduled sunset",
+                "jurisdiction": "California",
+                "timing": "annual",
+                "accounting": "unspecified"
+              },
+              "comparison": {
+                "state": "unavailable",
+                "reason": "The captured guide does not provide matching future-year General Fund budgets; a current-year spending figure is not the future budget denominator."
+              }
+            }
           ]
         },
         "comparison": {
-          "text": "For scale only: that is 2–6% of the guide’s roughly $250 billion current-year General Fund spending figure. This compares future revenue with today’s spending, not a forecast of its future budget share.",
-          "kind": "illustration",
+          "text": "The captured guide does not provide a matching future-year budget denominator. Revenue varies with the stock market; this projection does not establish its future budget share.",
+          "kind": "billion-inference",
           "evidence": [
             {
               "sourceId": "analysis",
-              "locator": "Background spending and fiscal estimate; $5–15bn ÷ $250bn"
+              "locator": "Background spending and fiscal effects"
             }
           ]
         },
@@ -203,7 +219,7 @@
   },
   {
     "schemaVersion": 1,
-    "revision": "ca-2026-prop-39-context-v1",
+    "revision": "ca-2026-prop-39-context-v1-money-context",
     "electionDate": "2026-11-03",
     "number": "39",
     "officialTitle": "PROHIBITS CITIZENS FROM VOTING UNLESS THEY PRESENT GOVERNMENT-ISSUED IDENTIFICATION. INITIATIVE CONSTITUTIONAL AMENDMENT.",
@@ -279,17 +295,33 @@
     "magnitude": [
       {
         "amount": {
-          "text": "The analyst projects annual state and local costs of tens of millions to low hundreds of millions of dollars.",
+          "text": "The analyst projects the following annual state and local costs:",
           "kind": "source-summary",
           "evidence": [
             {
               "sourceId": "analysis",
               "locator": "Proposal and fiscal effects"
             }
+          ],
+          "money": [
+            {
+              "nominal": "tens of millions to low hundreds of millions of dollars",
+              "currency": "USD",
+              "scope": {
+                "period": "future implementation years",
+                "jurisdiction": "California state and local governments",
+                "timing": "annual",
+                "accounting": "unspecified"
+              },
+              "comparison": {
+                "state": "unavailable",
+                "reason": "The estimate combines state and local costs; the state General Fund alone is not a matching denominator, and county-level budgets and cost allocations are not supplied."
+              }
+            }
           ]
         },
         "comparison": {
-          "text": "The analyst compares those combined costs with less than 0.25% of the state General Fund budget; that comparison does not show the burden on each county or voter.",
+          "text": "The analyst’s statewide scale comparison does not establish a matched state-and-local budget share or show the burden on each county or voter.",
           "kind": "source-summary",
           "evidence": [
             {
@@ -402,12 +434,28 @@
           ]
         },
         "followThrough": {
-          "text": "The tax agency changed its calculation method. The auditor’s follow-up found that the change increased state tax revenue by $45 million annually.",
+          "text": "The tax agency changed its calculation method. The auditor’s follow-up reported additional annual tax revenue:",
           "kind": "source-summary",
           "evidence": [
             {
               "sourceId": "followup",
               "locator": "2022 follow-up outcome described in letter"
+            }
+          ],
+          "money": [
+            {
+              "nominal": "$45 million",
+              "currency": "USD",
+              "scope": {
+                "period": "2022 follow-up annualized result",
+                "jurisdiction": "California",
+                "timing": "annual",
+                "accounting": "gross"
+              },
+              "comparison": {
+                "state": "unavailable",
+                "reason": "The captured follow-up does not provide a matched annual state revenue budget for this 2022 result or net implementation costs. This is additional revenue, not net audit savings."
+              }
             }
           ]
         },
@@ -658,7 +706,7 @@
   },
   {
     "schemaVersion": 1,
-    "revision": "ca-2026-prop-2-context-v1",
+    "revision": "ca-2026-prop-2-context-v1-money-context",
     "electionDate": "2026-11-03",
     "number": "2",
     "officialTitle": "INCREASES STATE’S RAINY DAY FUND. LEGISLATIVE CONSTITUTIONAL AMENDMENT.",
@@ -695,12 +743,98 @@
       {
         "title": "Same revenue, different cap",
         "claim": {
-          "text": "Illustration in 2027–28: assume $100bn General Fund taxes, a $10bn starting reserve balance, $0.75bn otherwise required reserve deposit, no capital-gains addition, adjustments or emergency. The old 10% cap blocks the deposit; the new 20% cap permits it. The $0.75bn changes destination, not total revenue.",
+          "text": "Illustration in 2027–28: assume the annual tax revenues, opening reserve and otherwise-required deposit shown below, with no capital-gains addition, adjustments or emergency. The old 10% cap blocks the deposit; the new 20% cap permits it. The deposit changes destination, not total revenue.",
           "kind": "illustration",
           "evidence": [
             {
               "sourceId": "law",
               "locator": "§20(a),(c)(1),(e); illustrative inputs, not forecast"
+            }
+          ],
+          "money": [
+            {
+              "nominal": "$100 billion",
+              "currency": "USD",
+              "scope": {
+                "period": "2027–28 hypothetical fiscal year",
+                "jurisdiction": "California",
+                "timing": "annual",
+                "accounting": "gross"
+              },
+              "comparison": {
+                "state": "available",
+                "numerator": {
+                  "min": 100000000000,
+                  "max": 100000000000
+                },
+                "denominator": {
+                  "name": "assumed General Fund tax revenues",
+                  "amount": 100000000000,
+                  "currency": "USD",
+                  "scope": {
+                    "period": "2027–28 hypothetical fiscal year",
+                    "jurisdiction": "California",
+                    "timing": "annual",
+                    "accounting": "gross"
+                  },
+                  "evidence": [
+                    {
+                      "sourceId": "law",
+                      "locator": "Article XVI, section 20(a)(2); assumed amounts illustrate the rule, not a forecast"
+                    }
+                  ]
+                },
+                "basis": "illustrative"
+              }
+            },
+            {
+              "nominal": "$10 billion",
+              "currency": "USD",
+              "scope": {
+                "period": "start of 2027–28 hypothetical fiscal year",
+                "jurisdiction": "California",
+                "timing": "stock",
+                "accounting": "gross"
+              },
+              "comparison": {
+                "state": "inapplicable",
+                "reason": "This is a reserve stock, not annual spending. It equals the old 10% tax-revenue cap in the example; a matching stock budget denominator is inapplicable."
+              }
+            },
+            {
+              "nominal": "$0.75 billion",
+              "currency": "USD",
+              "scope": {
+                "period": "2027–28 hypothetical fiscal year",
+                "jurisdiction": "California",
+                "timing": "annual",
+                "accounting": "gross"
+              },
+              "comparison": {
+                "state": "available",
+                "numerator": {
+                  "min": 750000000,
+                  "max": 750000000
+                },
+                "denominator": {
+                  "name": "assumed General Fund tax revenues",
+                  "amount": 100000000000,
+                  "currency": "USD",
+                  "scope": {
+                    "period": "2027–28 hypothetical fiscal year",
+                    "jurisdiction": "California",
+                    "timing": "annual",
+                    "accounting": "gross"
+                  },
+                  "evidence": [
+                    {
+                      "sourceId": "law",
+                      "locator": "Article XVI, section 20(a)(2); assumed amounts illustrate the rule, not a forecast"
+                    }
+                  ]
+                },
+                "basis": "illustrative"
+              }
             }
           ]
         }
@@ -708,12 +842,49 @@
       {
         "title": "When the link breaks",
         "claim": {
-          "text": "With the same figures but a fully suspended transfer during a budget emergency, neither rule requires that $0.75bn deposit. Raising the cap would not increase this year’s reserve balance.",
+          "text": "With the same figures but a fully suspended transfer during a budget emergency, neither rule requires the deposit shown below. Raising the cap would not increase this year’s reserve balance.",
           "kind": "illustration",
           "evidence": [
             {
               "sourceId": "law",
               "locator": "Article XVI §22(a)(1)"
+            }
+          ],
+          "money": [
+            {
+              "nominal": "$0.75 billion",
+              "currency": "USD",
+              "scope": {
+                "period": "2027–28 hypothetical fiscal year",
+                "jurisdiction": "California",
+                "timing": "annual",
+                "accounting": "gross"
+              },
+              "comparison": {
+                "state": "available",
+                "numerator": {
+                  "min": 750000000,
+                  "max": 750000000
+                },
+                "denominator": {
+                  "name": "assumed General Fund tax revenues",
+                  "amount": 100000000000,
+                  "currency": "USD",
+                  "scope": {
+                    "period": "2027–28 hypothetical fiscal year",
+                    "jurisdiction": "California",
+                    "timing": "annual",
+                    "accounting": "gross"
+                  },
+                  "evidence": [
+                    {
+                      "sourceId": "law",
+                      "locator": "Article XVI, section 20(a)(2); assumed amounts illustrate the rule, not a forecast"
+                    }
+                  ]
+                },
+                "basis": "illustrative"
+              }
             }
           ]
         }

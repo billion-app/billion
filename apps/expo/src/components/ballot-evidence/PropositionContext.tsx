@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 
 import type { ContextClaim, PublicPropositionContext } from "@acme/validators";
+import { contextMoneyLabel } from "@acme/validators";
 
 import { Icon } from "~/components/ui";
 import { fontBody, fontEditorial, hair, DigestPalette as P } from "~/styles";
@@ -51,6 +52,7 @@ export function PropositionContext({
         What changes, and why?
       </Text>
       <Text style={s.lead}>{analysis.takeaway.text}</Text>
+      <MoneyContext value={analysis.takeaway} />
       <Disclosure title="Evidence for the short answer">
         {claim(analysis.takeaway)}
       </Disclosure>
@@ -176,6 +178,18 @@ export function PropositionContext({
     </View>
   );
 }
+function MoneyContext({ value }: { value: ContextClaim }) {
+  if (!value.money?.length) return null;
+  return (
+    <View style={{ gap: 8 }}>
+      {value.money.map((item, i) => (
+        <Text key={i} style={s.body}>
+          {contextMoneyLabel(item)}
+        </Text>
+      ))}
+    </View>
+  );
+}
 function CitedClaim({
   value,
   sources,
@@ -186,17 +200,34 @@ function CitedClaim({
   return (
     <View style={s.claim}>
       <Text style={s.body}>{value.text}</Text>
+      <MoneyContext value={value} />
       <Disclosure title={`${kinds[value.kind]} · Evidence`} compact>
-        {value.evidence.map((ref, i) => {
-          const source = sources.find((item) => item.id === ref.sourceId);
-          return source ? (
-            <SourceLink key={i} source={source} locator={ref.locator} />
-          ) : (
-            <Text key={i} style={s.meta}>
-              Supporting evidence unavailable.
-            </Text>
-          );
-        })}
+        {[
+          ...value.evidence,
+          ...(value.money ?? []).flatMap((item) =>
+            item.comparison.state === "available"
+              ? item.comparison.denominator.evidence
+              : [],
+          ),
+        ]
+          .filter(
+            (ref, index, refs) =>
+              refs.findIndex(
+                (item) =>
+                  item.sourceId === ref.sourceId &&
+                  item.locator === ref.locator,
+              ) === index,
+          )
+          .map((ref, i) => {
+            const source = sources.find((item) => item.id === ref.sourceId);
+            return source ? (
+              <SourceLink key={i} source={source} locator={ref.locator} />
+            ) : (
+              <Text key={i} style={s.meta}>
+                Supporting evidence unavailable.
+              </Text>
+            );
+          })}
       </Disclosure>
     </View>
   );

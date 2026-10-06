@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "ca-2026-prop-39-context-v1",
+  "revision": "ca-2026-prop-39-context-v1-money-context",
   "electionDate": "2026-11-03",
   "number": "39",
   "officialTitle": "PROHIBITS CITIZENS FROM VOTING UNLESS THEY PRESENT GOVERNMENT-ISSUED IDENTIFICATION. INITIATIVE CONSTITUTIONAL AMENDMENT.",
@@ -83,17 +83,33 @@
   "magnitude": [
     {
       "amount": {
-        "text": "The analyst projects annual state and local costs of tens of millions to low hundreds of millions of dollars.",
+        "text": "The analyst projects the following annual state and local costs:",
         "kind": "source-summary",
         "evidence": [
           {
             "sourceId": "analysis",
             "locator": "Proposal and fiscal effects"
           }
+        ],
+        "money": [
+          {
+            "nominal": "tens of millions to low hundreds of millions of dollars",
+            "currency": "USD",
+            "scope": {
+              "period": "future implementation years",
+              "jurisdiction": "California state and local governments",
+              "timing": "annual",
+              "accounting": "unspecified"
+            },
+            "comparison": {
+              "state": "unavailable",
+              "reason": "The estimate combines state and local costs; the state General Fund alone is not a matching denominator, and county-level budgets and cost allocations are not supplied."
+            }
+          }
         ]
       },
       "comparison": {
-        "text": "The analyst compares those combined costs with less than 0.25% of the state General Fund budget; that comparison does not show the burden on each county or voter.",
+        "text": "The analyst’s statewide scale comparison does not establish a matched state-and-local budget share or show the burden on each county or voter.",
         "kind": "source-summary",
         "evidence": [
           {
@@ -206,12 +222,28 @@
         ]
       },
       "followThrough": {
-        "text": "The tax agency changed its calculation method. The auditor’s follow-up found that the change increased state tax revenue by $45 million annually.",
+        "text": "The tax agency changed its calculation method. The auditor’s follow-up reported additional annual tax revenue:",
         "kind": "source-summary",
         "evidence": [
           {
             "sourceId": "followup",
             "locator": "2022 follow-up outcome described in letter"
+          }
+        ],
+        "money": [
+          {
+            "nominal": "$45 million",
+            "currency": "USD",
+            "scope": {
+              "period": "2022 follow-up annualized result",
+              "jurisdiction": "California",
+              "timing": "annual",
+              "accounting": "gross"
+            },
+            "comparison": {
+              "state": "unavailable",
+              "reason": "The captured follow-up does not provide a matched annual state revenue budget for this 2022 result or net implementation costs. This is additional revenue, not net audit savings."
+            }
           }
         ]
       },

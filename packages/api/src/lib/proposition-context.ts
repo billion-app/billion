@@ -52,7 +52,14 @@ export function validateContextEvidence(value: PropositionContext): boolean {
     sources.size === value.sources.length &&
     value.sources.some((item) => item.layer === "legal-text") &&
     contextClaims(value).every((claim) =>
-      claim.evidence.every((ref) => sources.has(ref.sourceId)),
+      [
+        ...claim.evidence,
+        ...(claim.money ?? []).flatMap((item) =>
+          item.comparison.state === "available"
+            ? item.comparison.denominator.evidence
+            : [],
+        ),
+      ].every((ref) => sources.has(ref.sourceId)),
     )
   );
 }
