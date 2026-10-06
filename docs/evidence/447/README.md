@@ -119,3 +119,12 @@ years. No matching multi-year budget is verified; the annual health-spending amo
 in the analysis would be a mismatched denominator. The screenshot correctly shows
 nominal revenue and budget share unavailable, not a fabricated percentage. Source
 snapshots are unchanged, and the updated copy remains pending review.
+
+## Main integration
+
+The reader retains the contextual explanation (or its explicit availability notice)
+above related measures, followed by the official record. Refreshed relationship
+captures use the same pending 40/42 fixture; no contextual pilot exists for those
+measures, so that reader shows the availability notice. The 444 contextual pilots
+remain separate source-backed records. Both API projections and their independent
+publication gates are preserved.

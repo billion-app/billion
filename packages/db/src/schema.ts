@@ -15,6 +15,8 @@ import { z } from "zod/v4";
 import type {
   BillBriefRecord,
   CandidateBrief,
+  CandidateRaceManifest,
+  CandidateResearchCollectionDocument,
   CourtBriefRecord,
 } from "@acme/validators";
 
@@ -1365,6 +1367,57 @@ export const CandidateBriefReviewEvent = pgTable(
     action: t.text().notNull(),
     policyVersion: t.text().notNull(),
     reason: t.text().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+);
+
+/** A bounded, source-checked race snapshot. Revocation removes the whole race. */
+export const CandidateRaceRelease = pgTable("candidate_race_release", (t) => ({
+  id: t.uuid().primaryKey(),
+  document: t.jsonb().$type<CandidateRaceManifest>().notNull(),
+  revokedReason: t.text(),
+  createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+}));
+
+/** Complete source snapshots and draft revisions. Access is restricted to editors. */
+export const CandidateResearchCollection = pgTable(
+  "candidate_research_collection",
+  (t) => ({
+    id: t.uuid().primaryKey().defaultRandom(),
+    pilotKey: t.text().notNull(),
+    sourceDigest: t.text().notNull(),
+    document: t.jsonb().$type<CandidateResearchCollectionDocument>().notNull(),
+    checkedAt: t.timestamp({ withTimezone: true }).notNull(),
+    failure: t.text(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+  (table) => [
+    index("candidate_research_collection_pilot_idx").on(
+      table.pilotKey,
+      table.createdAt,
+    ),
+  ],
+);
+
+/** Provisioned by a trusted operator; users cannot grant themselves access. */
+export const CandidateResearchEditor = pgTable(
+  "candidate_research_editor",
+  (t) => ({
+    userId: t.text().primaryKey(),
+    canPublish: t.boolean().default(false).notNull(),
+    grantedBy: t.text().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+);
+
+/** Explicit human policy decisions. An empty table leaves publication closed. */
+export const CandidateResearchPolicy = pgTable(
+  "candidate_research_policy",
+  (t) => ({
+    version: t.text().primaryKey(),
+    approvedBy: t.text().notNull(),
+    statement: t.text().notNull(),
+    revokedAt: t.timestamp({ withTimezone: true }),
     createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
 );

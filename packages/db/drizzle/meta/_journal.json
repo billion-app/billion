@@ -169,6 +169,20 @@
       "when": 1790967340581,
       "tag": "0023_classy_firebird",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791178137048,
+      "tag": "0024_blushing_sharon_ventura",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791181434788,
+      "tag": "0025_tranquil_ego",
+      "breakpoints": true
     }
   ]
 }

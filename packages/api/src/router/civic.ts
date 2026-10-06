@@ -20,6 +20,7 @@ import {
   publicPropositionConsequences,
   publishedPropositionConsequences,
 } from "../lib/proposition-consequences";
+import { publishedPropositionContext } from "../lib/proposition-context";
 import { publicProcedure } from "../trpc";
 
 const STATEWIDE_OFFICE = z.enum(
@@ -49,6 +50,10 @@ export const civicRouter = {
           guide,
           measure.number,
           guide.relationshipSources ?? [],
+        ),
+        contextualExplanation: publishedPropositionContext(
+          guide.electionDate,
+          measure,
         ),
         consequences: publicPropositionConsequences(
           publishedPropositionConsequences(guide.electionDate, measure),

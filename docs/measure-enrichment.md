@@ -197,3 +197,48 @@ than adding uncontextualized monetary quotations. Monetary scale does not imply 
 policy is irrelevant or excessive. The pending pilot's temporary multi-year LAO
 revenue estimate has no verified matching denominator, so its reader context says
 budget share unavailable instead of comparing it to one annual spending budget.
+
+## Contextual explanation review
+
+The proposition reader has a separate, versioned contextual explanation contract
+in [`proposition-context.ts`](../packages/validators/src/proposition-context.ts).
+It compares the baseline with the change, explains the actor/action chain, and
+keeps terms, tradeoffs, unknowns, historical evidence and research paths distinct.
+Claims carry locators and evidence layers. Every explicit monetary amount carries
+[`budget-context.ts`](../packages/validators/src/budget-context.ts) data: a nominal
+USD value, period, jurisdiction, annual/one-time/stock basis, gross/net accounting,
+and either a cited matching denominator or an explicit unavailable/inapplicable
+reason. The renderer calculates shares from numeric ranges and the denominator;
+ratios are never stored or hardcoded. Illustrative assumptions are labelled.
+Unmatched future/current years, combined state/local versus state-only budgets,
+or reserve stocks versus annual spending cannot pass as matched comparisons.
+Missing money coverage rejects the claim, and denominator citations participate
+in evidence checks and review invalidation. This gives scale without using
+nominal size or percentage as a recommendation.
+
+The [publication helper](../packages/api/src/lib/proposition-context.ts) accepts
+only editorially approved revisions bound to all content and captured sources,
+the exact guide identity, and the latest adopted source captures. It strips
+snapshot text before `civic.getCaliforniaGuide` exposes `contextualExplanation`.
+Normal reads perform no research or generation. Source refresh and correction
+require explicit capture adoption and a new reviewed revision. There are no
+published revisions yet; the [bounded pilot](evidence/444/README.md) documents
+source verification and remaining editorial/reader/native gates.
+
+Validate captured evidence without fetching, approving or writing a database:
+
+```bash
+pnpm --filter @acme/api exec tsx src/tools/review-proposition-context.ts ../../docs/evidence/444/guide.json ../../docs/evidence/444/prop3-context.json
+```
+
+A valid pending record is still unpublished. The tool checks structure and source
+references; editors must assess whether each source actually supports the claim.
+For UI review, open `/proposition-context-preview` in a development Expo build.
+It renders labelled public projections of the same records and separate missing,
+stale and error scenarios. Release builds cannot select those pilots.
+
+Monetary qualifiers such as “less than” and “about” remain part of the nominal
+amount. These cannot become exact numeric shares; absent a supported matched
+comparison they use the explicit unavailable path. Available shares require a
+known gross/net basis. The shared presentation helper returns separate amount,
+comparison, scope and reason lines so both readers use the same calculation.

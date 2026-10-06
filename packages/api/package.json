@@ -74,6 +74,14 @@
     "./lib/measure-relationships": {
       "types": "./dist/lib/measure-relationships.d.ts",
       "default": "./src/lib/measure-relationships.ts"
+    },
+    "./lib/candidate-brief-publication": {
+      "types": "./dist/lib/candidate-brief-publication.d.ts",
+      "default": "./src/lib/candidate-brief-publication.ts"
+    },
+    "./lib/candidate-research-store": {
+      "types": "./dist/lib/candidate-research-store.d.ts",
+      "default": "./src/lib/candidate-research-store.ts"
     }
   },
   "license": "MIT",
@@ -84,11 +92,13 @@
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
     "test": "tsx --test \"src/**/*.test.ts\" \"test/*.test.ts\"",
-    "typecheck": "tsc --noEmit --emitDeclarationOnly false && tsc -p test/tsconfig.json"
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false && tsc -p test/tsconfig.json",
+    "candidate-research": "tsx src/cli/candidate-research.ts"
   },
   "dependencies": {
     "@acme/auth": "workspace:*",
     "@acme/db": "workspace:*",
+    "@acme/env": "workspace:*",
     "@acme/validators": "workspace:*",
     "@ai-sdk/deepseek": "^1.0.0",
     "@ai-sdk/groq": "^1.0.0",

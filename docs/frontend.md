@@ -88,6 +88,22 @@ The landing page uses [CinematicExperience](../apps/nextjs/src/app/_components/c
 - **`/read/[id]` is not the share page.** `/b/[id]` stays thin and ends with an install prompt. The reader carries the full brief, the Dual-Lens, the timeline and the original text. Its canonical URL points at `/b/…`, so search engines see one URL per record. The explainer/source toggle and the Billion AI provenance note are required: without them the page would present analysis as the record.
 - **No accounts.** Saves and the chosen jurisdiction go through [reader-state.ts](../apps/nextjs/src/lib/reader-state.ts), which uses `localStorage` today. Components never touch storage directly, so a server-backed implementation (`content.saved.*`) can replace it without screen changes.
 
+### Inline word definitions
+
+[DefinedText](../apps/expo/src/components/ui/DefinedText.tsx) is the shared native
+reader component for tap-to-define words. Court briefs and candidate research
+both use it. Pass the paragraph, its content-specific `{ term, plain }`
+definitions, body style, and optional exact emphasis phrases. It keeps the original
+text intact, matches whole terms (longer phrases first), and opens one definition
+below that paragraph. Terms support keyboard activation; Close returns focus to
+the term. The lighter shared `linkOnNight` token provides contrast for body-sized
+links on dark cards.
+
+Use ordinary words first. Definitions are for necessary names and terms, not a
+reason to keep avoidable jargon. Supply meanings with the content so the same
+word can have the right meaning for that record. Do not put a defined paragraph
+inside another button: give the card its own separate navigation action.
+
 ## Authentication
 
 [packages/auth/src/index.ts](../packages/auth/src/index.ts) configures Better Auth with the Drizzle adapter, optional Discord OAuth, the OAuth proxy, and the native callback bridge. Next.js exposes it through `/api/auth` and passes the resulting session into the tRPC context.
