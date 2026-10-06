@@ -1,16 +1,20 @@
 import { z } from "zod/v4";
 
 const short = z.string().trim().min(1).max(500);
+const presentation = short.refine(
+  (text) => contextMoneyMentions(text).length === 0,
+  "Put monetary amounts in nominal, not presentation labels.",
+);
 const citation = z.object({
   sourceId: z
     .string()
     .regex(/^[a-z0-9-]+$/)
     .max(100),
-  locator: short,
+  locator: presentation,
 });
 const scope = z.object({
-  period: short,
-  jurisdiction: short,
+  period: presentation,
+  jurisdiction: presentation,
   timing: z.enum(["annual", "one-time", "stock"]),
   accounting: z.enum(["gross", "net", "unspecified"]),
 });
@@ -27,7 +31,7 @@ export const contextMoneySchema = z
           max: z.number(),
         }),
         denominator: z.object({
-          name: short,
+          name: presentation,
           amount: z.number().positive(),
           currency: z.literal("USD"),
           scope,
@@ -37,13 +41,35 @@ export const contextMoneySchema = z
       }),
       z.object({
         state: z.enum(["unavailable", "inapplicable"]),
-        reason: short,
+        reason: presentation,
       }),
     ]),
   })
   .superRefine((value, ctx) => {
+    const mentions = contextMoneyMentions(value.nominal);
+    if (
+      mentions.length !== 1 ||
+      mentions[0]?.trim().toLowerCase() !== value.nominal.trim().toLowerCase()
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Nominal must be a complete recognized currency amount or monetary range.",
+      });
+    }
     const comparison = value.comparison;
     if (comparison.state !== "available") return;
+    const bounds = nominalBounds(value.nominal);
+    if (
+      !bounds ||
+      bounds.min !== comparison.numerator.min ||
+      bounds.max !== comparison.numerator.max
+    )
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Nominal amount and computed-share numerator must agree exactly.",
+      });
     if (
       comparison.numerator.max < comparison.numerator.min ||
       JSON.stringify(value.scope) !==
@@ -97,6 +123,43 @@ export type ContextMoney = z.infer<typeof contextMoneySchema>;
 /** Detect explicit currency amounts, including ranges and verbal cost estimates. */
 export function contextMoneyMentions(text: string): string[] {
   const amount =
-    /(?:(?:[+-]?\$|USD\s*[+-]?)\s*[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|bn|million|billion|trillion)?\b|\b[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|bn|million|billion|trillion)?\s+(?:US\s+)?dollars\b|(?:tens|hundreds) of (?:millions|billions|trillions)(?: to low hundreds of millions)?(?: of)? dollars)/gi;
+    /(?:(?:[+-]?\$|USD\s*[+-]?)\s*[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|b|bn|million|billion|trillion)?\b|\b[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|b|bn|million|billion|trillion)?\s+(?:(?:US\s+)?dollars|USD)\b|(?:(?:tens|hundreds) of (?:millions|billions|trillions)(?: to low hundreds of millions)?(?: of)?|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)(?:[ -](?:one|two|three|four|five|six|seven|eight|nine))? (?:million|billion|trillion)) dollars)/gi;
   return [...new Set(text.match(amount) ?? [])];
+}
+
+function nominalBounds(nominal: string): { min: number; max: number } | null {
+  const text = nominal.replace(/USD/gi, "").replace("$", "").trim();
+  const match =
+    /^([+-]?\d[\d.,]*)(?:[–-]([+-]?\d[\d.,]*))?\s*(k|m|b|bn|million|billion|trillion)?(?:\s+(?:(?:US\s+)?dollars|USD))?$/i.exec(
+      text,
+    );
+  if (!match) return null;
+  const unit = match[3]?.toLowerCase();
+  const scale =
+    unit === "trillion"
+      ? 1e12
+      : unit === "b" || unit === "bn" || unit === "billion"
+        ? 1e9
+        : unit === "m" || unit === "million"
+          ? 1e6
+          : unit === "k"
+            ? 1e3
+            : 1;
+  const min = Number(match[1]?.replaceAll(",", "")) * scale;
+  const max = Number((match[2] ?? match[1])?.replaceAll(",", "")) * scale;
+  return Number.isFinite(min) && Number.isFinite(max) ? { min, max } : null;
+}
+
+/** Compare complete currency mentions; a '$5' prefix never covers '$5 billion'. */
+export function hasUncoveredContextMoney(
+  text: string,
+  money: readonly { nominal: string }[],
+): boolean {
+  return contextMoneyMentions(text).some(
+    (mention) =>
+      !money.some(
+        (item) =>
+          item.nominal.trim().toLowerCase() === mention.trim().toLowerCase(),
+      ),
+  );
 }
