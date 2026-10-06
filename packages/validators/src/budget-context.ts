@@ -61,8 +61,12 @@ export function contextMoneyLabel(
   value: z.infer<typeof contextMoneySchema>,
 ): string {
   const comparison = value.comparison;
+  const accounting =
+    value.scope.accounting === "unspecified"
+      ? "gross/net basis unspecified"
+      : `${value.scope.accounting} basis`;
   if (comparison.state !== "available")
-    return `${value.nominal} USD (${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${value.scope.accounting}) · Budget share ${comparison.state}: ${comparison.reason}`;
+    return `${value.nominal} USD (${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${accounting}) · Budget share ${comparison.state}: ${comparison.reason}`;
   const percent = (amount: number) =>
     new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 }).format(
       (amount / comparison.denominator.amount) * 100,
@@ -71,12 +75,21 @@ export function contextMoneyLabel(
     comparison.numerator.min === comparison.numerator.max
       ? `${percent(comparison.numerator.min)}%`
       : `${percent(comparison.numerator.min)}–${percent(comparison.numerator.max)}%`;
-  const denominator = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(comparison.denominator.amount);
-  return `${value.nominal} USD · ${share} of ${comparison.denominator.name} (${denominator}; ${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${value.scope.accounting}; ${comparison.basis}).`;
+  const amount = comparison.denominator.amount;
+  const scale =
+    amount >= 1_000_000_000
+      ? 1_000_000_000
+      : amount >= 1_000_000
+        ? 1_000_000
+        : 1;
+  const unit =
+    scale === 1_000_000_000
+      ? " billion"
+      : scale === 1_000_000
+        ? " million"
+        : "";
+  const denominator = `$${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 6 }).format(amount / scale)}${unit} USD`;
+  return `${value.nominal} USD · ${share} of ${comparison.denominator.name} (${denominator}; ${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${accounting}; ${comparison.basis}).`;
 }
 
 export type ContextMoney = z.infer<typeof contextMoneySchema>;
