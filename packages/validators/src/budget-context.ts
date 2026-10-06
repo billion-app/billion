@@ -61,8 +61,7 @@ export const contextMoneySchema = z
     if (comparison.state !== "available") return;
     const bounds = nominalBounds(value.nominal);
     if (
-      !bounds ||
-      bounds.min !== comparison.numerator.min ||
+      bounds?.min !== comparison.numerator.min ||
       bounds.max !== comparison.numerator.max
     )
       ctx.addIssue({
@@ -145,8 +144,12 @@ function nominalBounds(nominal: string): { min: number; max: number } | null {
           : unit === "k"
             ? 1e3
             : 1;
-  const min = Number(match[1]?.replaceAll(",", "")) * scale;
-  const max = Number((match[2] ?? match[1])?.replaceAll(",", "")) * scale;
+  const min =
+    Math.round(Number(match[1]?.replaceAll(",", "")) * scale * 100) / 100;
+  const max =
+    Math.round(
+      Number((match[2] ?? match[1])?.replaceAll(",", "")) * scale * 100,
+    ) / 100;
   return Number.isFinite(min) && Number.isFinite(max) ? { min, max } : null;
 }
 
