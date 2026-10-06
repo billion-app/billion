@@ -81,17 +81,29 @@ export const contextMoneySchema = z
       });
     }
   });
-/** Always displays nominal value and budget context together; never ranks importance. */
-export function contextMoneyLabel(
+/** Shared display parts keep calculation out of every renderer. */
+export function contextMoneyPresentation(
   value: z.infer<typeof contextMoneySchema>,
-): string {
+): {
+  nominal: string;
+  comparison: string;
+  scope: string;
+  reason?: string;
+} {
   const comparison = value.comparison;
   const accounting =
     value.scope.accounting === "unspecified"
       ? "gross/net basis unspecified"
       : `${value.scope.accounting} basis`;
+  const scope = `${value.scope.period} · ${value.scope.jurisdiction} · ${value.scope.timing} · ${accounting}`;
+  const nominal = `${value.nominal} USD`;
   if (comparison.state !== "available")
-    return `${value.nominal} USD (${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${accounting}) · Budget share ${comparison.state}: ${comparison.reason}`;
+    return {
+      nominal,
+      comparison: `Budget share ${comparison.state}`,
+      scope,
+      reason: comparison.reason,
+    };
   const percent = (amount: number) =>
     new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 }).format(
       (amount / comparison.denominator.amount) * 100,
@@ -101,20 +113,23 @@ export function contextMoneyLabel(
       ? `${percent(comparison.numerator.min)}%`
       : `${percent(comparison.numerator.min)}–${percent(comparison.numerator.max)}%`;
   const amount = comparison.denominator.amount;
-  const scale =
-    amount >= 1_000_000_000
-      ? 1_000_000_000
-      : amount >= 1_000_000
-        ? 1_000_000
-        : 1;
-  const unit =
-    scale === 1_000_000_000
-      ? " billion"
-      : scale === 1_000_000
-        ? " million"
-        : "";
+  const scale = amount >= 1e9 ? 1e9 : amount >= 1e6 ? 1e6 : 1;
+  const unit = scale === 1e9 ? " billion" : scale === 1e6 ? " million" : "";
   const denominator = `$${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 6 }).format(amount / scale)}${unit} USD`;
-  return `${value.nominal} USD · ${share} of ${comparison.denominator.name} (${denominator}; ${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${accounting}; ${comparison.basis}).`;
+  return {
+    nominal,
+    comparison: `${share} of ${comparison.denominator.name} (${denominator})`,
+    scope: `${scope} · ${comparison.basis}`,
+  };
+}
+/** Text-only consumers use the same calculation and complete scope. */
+export function contextMoneyLabel(
+  value: z.infer<typeof contextMoneySchema>,
+): string {
+  const parts = contextMoneyPresentation(value);
+  return [parts.nominal, parts.comparison, parts.scope, parts.reason]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export type ContextMoney = z.infer<typeof contextMoneySchema>;
@@ -122,7 +137,7 @@ export type ContextMoney = z.infer<typeof contextMoneySchema>;
 /** Detect explicit currency amounts, including ranges and verbal cost estimates. */
 export function contextMoneyMentions(text: string): string[] {
   const amount =
-    /(?:(?:[+-]?\$|USD\s*[+-]?)\s*[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|b|bn|million|billion|trillion)?\b|\b[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|b|bn|million|billion|trillion)?\s+(?:(?:US\s+)?dollars|USD)\b|(?:(?:tens|hundreds) of (?:millions|billions|trillions)(?: to low hundreds of millions)?(?: of)?|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)(?:[ -](?:one|two|three|four|five|six|seven|eight|nine))? (?:million|billion|trillion)) dollars)/gi;
+    /(?:(?:up to|at least|less than|more than|about|approximately|roughly|over|under)\s+)?(?:(?:[+-]?\$|USD\s*[+-]?)\s*[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|b|bn|million|billion|trillion)?\b|\b[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|b|bn|million|billion|trillion)?\s+(?:(?:US\s+)?dollars|USD|cents)\b|(?:(?:tens|hundreds) of (?:millions|billions|trillions)(?: to low hundreds of millions)?(?: of)?|(?:half a|several|few|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)(?:[ -](?:one|two|three|four|five|six|seven|eight|nine))? (?:million|billion|trillion)) dollars)/gi;
   return [...new Set(text.match(amount) ?? [])];
 }
 
