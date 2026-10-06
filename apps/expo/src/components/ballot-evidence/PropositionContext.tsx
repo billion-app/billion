@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 
 import type { ContextClaim, PublicPropositionContext } from "@acme/validators";
-import { contextMoneyLabel } from "@acme/validators";
+import { contextMoneyPresentation } from "@acme/validators";
 
 import { Icon } from "~/components/ui";
 import { fontBody, fontEditorial, hair, DigestPalette as P } from "~/styles";
@@ -181,12 +181,20 @@ export function PropositionContext({
 function MoneyContext({ value }: { value: ContextClaim }) {
   if (!value.money?.length) return null;
   return (
-    <View style={{ gap: 8 }}>
-      {value.money.map((item, i) => (
-        <Text key={i} style={s.body}>
-          {contextMoneyLabel(item)}
-        </Text>
-      ))}
+    <View style={{ gap: 12 }}>
+      {value.money.map((item, i) => {
+        const parts = contextMoneyPresentation(item);
+        return (
+          <View key={i} style={s.money}>
+            <Text style={[s.body, { fontFamily: fontBody.semibold }]}>
+              {parts.nominal}
+            </Text>
+            <Text style={s.body}>{parts.comparison}</Text>
+            {parts.reason && <Text style={s.body}>{parts.reason}</Text>}
+            <Text style={s.moneyScope}>{parts.scope}</Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -369,6 +377,13 @@ const s = StyleSheet.create({
     fontFamily: fontEditorial.regular,
     fontSize: 20,
     lineHeight: 29,
+    color: P.inkOnNight,
+  },
+  money: { gap: 4 },
+  moneyScope: {
+    fontFamily: fontBody.regular,
+    fontSize: 14,
+    lineHeight: 21,
     color: P.inkOnNight,
   },
   body: {

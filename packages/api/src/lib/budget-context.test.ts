@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   contextMoneyLabel,
   contextMoneyMentions,
+  contextMoneyPresentation,
   contextMoneySchema,
+  hasUncoveredContextMoney,
 } from "@acme/validators";
 
 const scope = {
@@ -36,7 +38,7 @@ void test("budget shares derive from monetary ranges and disclose denominator an
   assert.match(label, /\$5–15 billion USD · 2–6%/);
   assert.match(
     label,
-    /\$250 billion USD; 2027–28; California; annual; gross basis; illustrative/,
+    /\$250 billion USD\) · 2027–28 · California · annual · gross basis · illustrative/,
   );
   const changed = structuredClone(value);
   changed.comparison.denominator.amount = 500_000_000_000;
@@ -207,4 +209,86 @@ void test("decimal billion values agree with exact dollar numerators at cent pre
       true,
     );
   }
+});
+
+void test("bounds and approximation qualifiers remain nominal and cannot become exact shares", () => {
+  for (const qualifier of [
+    "up to",
+    "at least",
+    "less than",
+    "about",
+    "roughly",
+    "more than",
+  ]) {
+    const nominal = `${qualifier} $10 million`;
+    assert.deepEqual(contextMoneyMentions(nominal), [nominal]);
+    assert.equal(
+      hasUncoveredContextMoney(nominal, [{ nominal: "$10 million" }]),
+      true,
+    );
+    assert.equal(
+      contextMoneySchema.safeParse({
+        ...value,
+        nominal,
+        comparison: {
+          ...value.comparison,
+          numerator: { min: 10_000_000, max: 10_000_000 },
+        },
+      }).success,
+      false,
+    );
+    const parsed = contextMoneySchema.parse({
+      ...value,
+      nominal,
+      comparison: {
+        state: "unavailable",
+        reason: "No exact, matched budget share established.",
+      },
+    });
+    assert.equal(contextMoneyPresentation(parsed).nominal, `${nominal} USD`);
+  }
+  for (const nominal of [
+    "50 cents",
+    "half a billion dollars",
+    "several billion dollars",
+  ]) {
+    assert.deepEqual(contextMoneyMentions(nominal), [nominal]);
+    assert.equal(hasUncoveredContextMoney(nominal, []), true);
+    assert.equal(
+      contextMoneySchema.safeParse({
+        ...value,
+        nominal,
+        comparison: { state: "unavailable", reason: "No matched budget" },
+      }).success,
+      true,
+    );
+  }
+});
+void test("structured presentation retains amount, computed share, scope and unavailable reason", () => {
+  const parts = contextMoneyPresentation(contextMoneySchema.parse(value));
+  assert.equal(parts.nominal, "$5–15 billion USD");
+  assert.match(parts.comparison, /2–6%/);
+  assert.match(
+    parts.scope,
+    /2027–28 · California · annual · gross basis · illustrative/,
+  );
+  assert.equal(
+    contextMoneyLabel(contextMoneySchema.parse(value)),
+    [parts.nominal, parts.comparison, parts.scope].join(" · "),
+  );
+});
+
+void test("unknown accounting bases cannot be treated as verified matching scopes", () => {
+  const unknown = { ...scope, accounting: "unspecified" };
+  assert.equal(
+    contextMoneySchema.safeParse({
+      ...value,
+      scope: unknown,
+      comparison: {
+        ...value.comparison,
+        denominator: { ...value.comparison.denominator, scope: unknown },
+      },
+    }).success,
+    false,
+  );
 });

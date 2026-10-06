@@ -179,3 +179,9 @@ references; editors must assess whether each source actually supports the claim.
 For UI review, open `/proposition-context-preview` in a development Expo build.
 It renders labelled public projections of the same records and separate missing,
 stale and error scenarios. Release builds cannot select those pilots.
+
+Monetary qualifiers such as “less than” and “about” remain part of the nominal
+amount. These cannot become exact numeric shares; absent a supported matched
+comparison they use the explicit unavailable path. Available shares require a
+known gross/net basis. The shared presentation helper returns separate amount,
+comparison, scope and reason lines so both readers use the same calculation.

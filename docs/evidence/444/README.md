@@ -121,3 +121,9 @@ Screenshots `prop*-money-*.png` show these running development records on phone
 web. The new source-backed content remains pending editorial review. Shared tests
 cover ratio calculations, ranges, currency, mismatched scope, unavailable labels,
 population-count detection, uncovered claims and denominator review invalidation.
+
+Monetary qualifiers such as “less than” and “about” remain part of the nominal
+amount. These cannot become exact numeric shares; absent a supported matched
+comparison they use the explicit unavailable path. Available shares require a
+known gross/net basis. The shared presentation helper returns separate amount,
+comparison, scope and reason lines so both readers use the same calculation.
