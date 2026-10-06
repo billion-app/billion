@@ -14,3 +14,4 @@ export * from "./candidate-brief";
 
 export * from "./proposition-consequences";
 export * from "./measure-relationships";
+export * from "./budget-context";
