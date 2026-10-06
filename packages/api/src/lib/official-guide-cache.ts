@@ -42,6 +42,10 @@ export const officialGuidePayloadSchema = z.object({
       }),
     )
     .max(100),
+  relationshipSources: z
+    .array(z.object({ url, hash: z.string().regex(/^[a-f0-9]{64}$/) }))
+    .max(200)
+    .optional(),
   candidates: z
     .array(
       z.object({

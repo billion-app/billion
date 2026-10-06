@@ -141,6 +141,63 @@ Outreach-gated sources (CEDA, NCSL, VIP) follow the same code path once access i
 
 The base ballot route reads date-scoped official summaries, fiscal impacts and published argument summaries from the [official guide scraper](../apps/scraper/README.md#ballot-source-collection). Source text is preserved without generating an explanation. A unique proposition number must match a provider-selected California statewide contest for the same election date. County measures are excluded from this join.
 
+## Cross-measure discovery and approved explanations
+
+The statewide official-guide path has a separate, versioned relationship model
+in `packages/validators/src/measure-relationships.ts`. Each record names two
+exact guide identities, their election and source hashes, provision-level
+claims, four combined passage cases and unresolved conditions. One record is
+selected symmetrically for both readers; missing links do not imply that a
+measure has no interactions.
+
+The scraper's `measure-relationship-capture.ts` discovers the current election's
+measure index and captures legal text plus official analysis for every measure.
+`measure-relationship-generation.ts` evaluates all unordered pairs with a generic
+prompt. It emits cited pending drafts only for material operational relationships;
+shared topics and generic boilerplate alone do not qualify. Exact legal-text
+warrants from both measures are checked against full captured source text. The
+prompt covers all four passage cases, preserves uncertainty and makes Yes-total
+comparisons optional. One measure can have several related neighbors; pair records
+do not claim to solve simultaneous multi-measure interactions exhaustively.
+
+Generation is an explicit bounded operation, separate from ordinary guide
+collection and API reads. The run records negative assessments as well as drafts,
+reuses unchanged input/model/prompt hashes and saves progress for interruption
+recovery. It never silently truncates source evidence or treats an incomplete scan
+as complete. Automatic generation does not mean automatic editorial approval.
+
+The register command accepts separately approved revisions, writes immutable
+records and regenerates `measure-relationship-revisions/registry.ts`. There is no
+single-pair selector or manual API/UI edit for a new relationship. The server
+selector in `packages/api/src/lib/measure-relationships.ts` publishes only approved
+revisions with matching guide identities and fresh legal-text/analysis hashes.
+Scraper failures or source changes suppress the dependent explanation. Expo gets
+citations and review metadata through tRPC; source snapshots remain server-side.
+Related measures is absent when there is no relevant approved record.
+
+The captured 40/42 pilot remains pending under #334. [Evidence and gates](evidence/447/README.md)
+distinguish intercepted preview screenshots from live published data. The
+[scraper CLI guide](../apps/scraper/README.md#cross-measure-discovery-and-drafting)
+owns bounded collection, generation, resuming and registration commands.
+
+Monetary claims use the shared `budget-context.ts` contract through `claim.money`.
+Every displayed amount appears with its budget share or an explicit unavailable /
+inapplicable reason. Available shares are computed from validated numeric USD
+amounts, not authored percentage strings; nominal values must agree with numeric
+bounds and units. Numerator and denominator must match period, jurisdiction,
+annual/one-time/stock timing and gross/net basis. Denominator citations participate
+in publication checks and are displayed beside the comparison. Qualitative estimates
+without numerical bounds cannot be converted into fabricated percentages. Amounts
+belong in dedicated paired money paragraphs, with source text preserved separately.
+
+This applies to graph labels, scenarios, comparisons, provisions and expanded
+conditions/evidence. Missing budget context suppresses a monetary revision rather
+than allowing a bare amount. Citation locators stay section/page references rather
+than adding uncontextualized monetary quotations. Monetary scale does not imply a
+policy is irrelevant or excessive. The pending pilot's temporary multi-year LAO
+revenue estimate has no verified matching denominator, so its reader context says
+budget share unavailable instead of comparing it to one annual spending budget.
+
 ## Contextual explanation review
 
 The proposition reader has a separate, versioned contextual explanation contract

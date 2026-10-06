@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
+import { MeasureRelationships } from "~/components/ballot-evidence/MeasureRelationships";
 import { webUrl } from "~/components/ballot-evidence/model";
 import { PropositionConsequences } from "~/components/ballot-evidence/PropositionConsequences";
 import {
@@ -144,7 +145,10 @@ export default function PropositionDetailScreen() {
             ) : (
               <ContextUnavailable sourceUrl={measure.sourceUrl} />
             )}
-            {/* Cross-measure relationships (#447) integrate immediately below. */}
+            <MeasureRelationships
+              number={measure.number}
+              relationships={measure.relationships}
+            />
             <View style={s.record}>
               {measure.officialSummary ||
               measure.fiscalImpact ||

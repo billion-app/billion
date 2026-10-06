@@ -71,6 +71,10 @@
       "types": "./dist/lib/voting-logistics/county-locations-cache.d.ts",
       "default": "./src/lib/voting-logistics/county-locations-cache.ts"
     },
+    "./lib/measure-relationships": {
+      "types": "./dist/lib/measure-relationships.d.ts",
+      "default": "./src/lib/measure-relationships.ts"
+    },
     "./lib/candidate-brief-publication": {
       "types": "./dist/lib/candidate-brief-publication.d.ts",
       "default": "./src/lib/candidate-brief-publication.ts"

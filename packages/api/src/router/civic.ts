@@ -15,6 +15,7 @@ import {
 } from "../lib/civic";
 import { CivicReadUnavailableError } from "../lib/civic-read-guard";
 import { getElectedOfficials } from "../lib/elected-officials";
+import { publishedMeasureRelationships } from "../lib/measure-relationships";
 import {
   publicPropositionConsequences,
   publishedPropositionConsequences,
@@ -45,6 +46,11 @@ export const civicRouter = {
       ...guide,
       measures: guide.measures.map((measure) => ({
         ...measure,
+        relationships: publishedMeasureRelationships(
+          guide,
+          measure.number,
+          guide.relationshipSources ?? [],
+        ),
         contextualExplanation: publishedPropositionContext(
           guide.electionDate,
           measure,
