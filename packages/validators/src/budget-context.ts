@@ -62,7 +62,7 @@ export function contextMoneyLabel(
 ): string {
   const comparison = value.comparison;
   if (comparison.state !== "available")
-    return `${value.nominal} (${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${value.scope.accounting}) · Budget share ${comparison.state}: ${comparison.reason}`;
+    return `${value.nominal} USD (${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${value.scope.accounting}) · Budget share ${comparison.state}: ${comparison.reason}`;
   const percent = (amount: number) =>
     new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 }).format(
       (amount / comparison.denominator.amount) * 100,
@@ -76,7 +76,7 @@ export function contextMoneyLabel(
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(comparison.denominator.amount);
-  return `${value.nominal} · ${share} of ${comparison.denominator.name} (${denominator}; ${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${value.scope.accounting}; ${comparison.basis}).`;
+  return `${value.nominal} USD · ${share} of ${comparison.denominator.name} (${denominator}; ${value.scope.period}; ${value.scope.jurisdiction}; ${value.scope.timing}; ${value.scope.accounting}; ${comparison.basis}).`;
 }
 
 export type ContextMoney = z.infer<typeof contextMoneySchema>;
