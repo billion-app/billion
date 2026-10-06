@@ -23,8 +23,8 @@ export const contextMoneySchema = z
       z.object({
         state: z.literal("available"),
         numerator: z.object({
-          min: z.number().nonnegative(),
-          max: z.number().nonnegative(),
+          min: z.number(),
+          max: z.number(),
         }),
         denominator: z.object({
           name: short,
@@ -83,11 +83,7 @@ export type ContextMoney = z.infer<typeof contextMoneySchema>;
 
 /** Detect explicit currency amounts, including ranges and verbal cost estimates. */
 export function contextMoneyMentions(text: string): string[] {
-  return [
-    ...new Set(
-      text.match(
-        /(?:\$\s*\d[\d.,]*(?:[–-]\d[\d.,]*)?\s*(?:bn|million|billion)?|\b\d[\d.,–-]*\s*(?:bn|million|billion|dollars)\b|tens of (?:millions|billions)(?: to low hundreds of millions)?|hundreds of (?:millions|billions))/gi,
-      ) ?? [],
-    ),
-  ];
+  const amount =
+    /(?:(?:[+-]?\$|USD\s*[+-]?)\s*[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|bn|million|billion|trillion)?\b|\b[+-]?\d[\d.,]*(?:[–-][+-]?\d[\d.,]*)?\s*(?:k|m|bn|million|billion|trillion)?\s+(?:US\s+)?dollars\b|(?:tens|hundreds) of (?:millions|billions|trillions)(?: to low hundreds of millions)?(?: of)? dollars)/gi;
+  return [...new Set(text.match(amount) ?? [])];
 }
