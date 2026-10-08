@@ -1,0 +1,12 @@
+services:
+  searxng:
+    image: searxng/searxng@sha256:cc026dbee25b864d7f9731957cd5ef36ba2e2d61abd2996d57f1b863483e7409
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8888:8080"
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?Set a private random secret in the local .env}
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml:ro
+    cap_drop:
+      - ALL

@@ -1,0 +1,29 @@
+use_default_settings:
+  engines:
+    keep_only:
+      - duckduckgo
+      - bing
+      - brave
+      - google
+      - yahoo
+      - startpage
+server:
+  bind_address: "0.0.0.0"
+  port: 8080
+  limiter: false
+  image_proxy: false
+search:
+  formats:
+    - json
+outgoing:
+  request_timeout: 12
+  max_request_timeout: 20
+engines:
+  - name: bing
+    disabled: false
+  - name: google
+    disabled: false
+  - name: yahoo
+    disabled: false
+  - name: startpage
+    disabled: false

@@ -355,3 +355,37 @@ when no relevant approved relationship exists, including missing/stale evidence.
 The older two-measure `measure-relationship-preview.ts` remains a read-only
 recapture tool for an existing authored draft; it is not the discovery workflow.
 The [source-captured pilot](../../docs/evidence/447/README.md) is still pending.
+
+### Search research verification
+
+[Shared research](../../docs/scraper-research.md) supplies bill history, further
+reading, and perspectives from one persistent evidence collection. Apply its
+committed migration before running the new scraper build. Keep production paused
+until schema and provider readiness are verified separately.
+
+Run the storage test against a separate local database named `billion_research*_test`.
+The test checks real source persistence, shared notes, full-text retrieval,
+original source versions and RLS. It skips without the explicit test URL.
+
+```sh
+POSTGRES_URL=postgresql://localhost/billion_research_test pnpm db:migrate
+RESEARCH_TEST_DATABASE_URL=postgresql://localhost/billion_research_test pnpm --filter @acme/scraper exec tsx --test src/research/store.integration.test.ts
+pnpm --filter @acme/scraper exec tsx --test 'src/research/*.test.ts' src/utils/ai/searxng-search.test.ts
+```
+
+A bounded provider comparison reads at most three queries from the JSON file and
+opens at most two result pages per provider/query. It never calls a model or
+writes the database. Without `--tavily` it spends no Tavily credits; adding that
+flag explicitly permits at most three basic-search requests. Output includes
+URLs, retrieval failures, source excerpts and topic-term matches. Term matches
+are a review aid, not citation-quality approval.
+
+```sh
+SCRAPER_SEARXNG_BASE_URL=http://127.0.0.1:8888 pnpm --filter @acme/scraper search-benchmark src/research/benchmark-queries.json /tmp/search-trial.json
+SCRAPER_SEARXNG_BASE_URL=http://127.0.0.1:8888 pnpm --filter @acme/scraper search-benchmark src/research/benchmark-queries.json /tmp/search-trial.json --tavily
+```
+
+Root `.env.local` can override `.env`; the benchmark needs `TAVILY_API_KEY` only
+when comparison is explicitly enabled. Review the result pages before changing
+`SCRAPER_SEARCH_PROVIDER`. The [Big Mac setup](../../deploy/big-mac/README.md#private-searxng-trial)
+keeps the private search service separate from the production supervisor.

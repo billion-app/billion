@@ -58,3 +58,5 @@ These documents explain intent or record plans. Use the implementation guides an
 - [Historical Expo page implementation notes](../apps/expo/src/new_pages_implementation/README.md)
 
 Agent entry points are [AGENTS.md](../AGENTS.md) and the [TestFlight release skill](../.codex/skills/release-billion-testflight/SKILL.md). Keep developer explanations in these guides and agent workflow instructions in those files.
+
+- [Shared scraper research](scraper-research.md): persistent evidence, source-library search, and discovery providers.
