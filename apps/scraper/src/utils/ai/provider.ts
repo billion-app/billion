@@ -9,7 +9,9 @@ import { customProvider, generateText, wrapLanguageModel } from "ai";
 
 import { createLogger } from "../log.js";
 import { searchSearxng } from "./searxng-search.js";
-import { searchTavily } from "./tavily-search.js";
+import { createTavilySearch, TavilyBudgetError } from "./tavily-search.js";
+
+const searchTavily = createTavilySearch();
 
 const logger = createLogger("ai-provider");
 
@@ -410,6 +412,7 @@ export async function generateWebSearch(query: string) {
       try {
         return await searchTavily(query, tavilyKey);
       } catch (tavilyError) {
+        if (tavilyError instanceof TavilyBudgetError) throw tavilyError;
         error = tavilyError;
         logger.warn("Tavily search failed; trying configured fallback");
       }
