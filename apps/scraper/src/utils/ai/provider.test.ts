@@ -13,6 +13,8 @@ const keys = [
   "SCRAPER_FALLBACK_API_KEY",
   "TAVILY_API_KEY",
   "SCRAPER_SEARCH_PROVIDER",
+  "SCRAPER_TAVILY_MAX_SEARCHES_PER_RUN",
+  "SCRAPER_TAVILY_MONTHLY_CREDIT_LIMIT",
 ];
 let sequence = 0;
 async function setup(t: TestContext, env: Record<string, string>) {
@@ -238,6 +240,13 @@ test("uncited fallback search is rejected", async (t) => {
   );
 });
 
+function tavilyUsage() {
+  return Response.json({
+    key: { usage: 0, limit: null },
+    account: { plan_usage: 0, plan_limit: 1000 },
+  });
+}
+
 test("preferred Tavily searches directly with one-credit settings and source snippets", async (t) => {
   const provider = await setup(t, {
     TAVILY_API_KEY: "test-search-key",
@@ -247,6 +256,7 @@ test("preferred Tavily searches directly with one-credit settings and source sni
   });
   let calls = 0;
   t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    if (String(url).endsWith("/usage")) return tavilyUsage();
     calls++;
     assert.equal(String(url), "https://api.tavily.com/search");
     assert.equal(
@@ -296,6 +306,7 @@ test("hosted failure tries Tavily before unsupported OAuth native search", async
   });
   const calls: string[] = [];
   t.mock.method(globalThis, "fetch", async (url: string) => {
+    if (String(url).endsWith("/usage")) return tavilyUsage();
     calls.push(String(url));
     if (String(url) === "https://api.tavily.com/search")
       return Response.json({ results: [] });
@@ -316,6 +327,7 @@ test("exhausted preferred Tavily credits never switch to paid search", async (t)
   });
   let calls = 0;
   t.mock.method(globalThis, "fetch", async (url: string) => {
+    if (String(url).endsWith("/usage")) return tavilyUsage();
     calls++;
     assert.equal(String(url), "https://api.tavily.com/search");
     return new Response("credit limit", { status: 432 });
@@ -347,14 +359,16 @@ test("Tavily rejects invalid source URLs and caps returned results", async (t) =
     SCRAPER_SEARCH_PROVIDER: "tavily",
   });
   let invalid = true;
-  t.mock.method(globalThis, "fetch", async () =>
-    Response.json({
-      results: Array.from({ length: 7 }, (_, i) => ({
-        title: "Source",
-        url: invalid ? "javascript:alert(1)" : `https://example.com/${i}`,
-        content: "snippet".repeat(1000),
-      })),
-    }),
+  t.mock.method(globalThis, "fetch", async (url: string) =>
+    String(url).endsWith("/usage")
+      ? tavilyUsage()
+      : Response.json({
+          results: Array.from({ length: 7 }, (_, i) => ({
+            title: "Source",
+            url: invalid ? "javascript:alert(1)" : `https://example.com/${i}`,
+            content: "snippet".repeat(1000),
+          })),
+        }),
   );
   await assert.rejects(provider.generateWebSearch("query"));
   invalid = false;
@@ -371,9 +385,10 @@ test("hosted and Tavily failures continue to cited Responses search", async (t) 
   });
   const calls: string[] = [];
   t.mock.method(globalThis, "fetch", async (url: string) => {
+    if (String(url).endsWith("/usage")) return tavilyUsage();
     calls.push(String(url));
     if (String(url) === "https://api.tavily.com/search")
-      return new Response("credit limit", { status: 432 });
+      return new Response("unavailable", { status: 503 });
     if (String(url).startsWith("http://proxy.test/"))
       return response("Official evidence", [
         {
