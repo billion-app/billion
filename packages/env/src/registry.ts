@@ -491,6 +491,32 @@ export const envRegistry = [
     schema: z.enum(["hosted", "tavily"]),
   }),
   define({
+    key: "SCRAPER_TAVILY_MAX_SEARCHES_PER_RUN",
+    description:
+      "Maximum uncached Tavily search attempts per scraper process, shared across concurrent items. Zero disables Tavily searches.",
+    group: "AI",
+    secret: false,
+    defaultValue: "10",
+    requirements: { scraper: "optional" },
+    schema: string.refine(
+      (value) => Number.isSafeInteger(Number(value)) && Number(value) >= 0,
+      "must be a nonnegative integer",
+    ),
+  }),
+  define({
+    key: "SCRAPER_TAVILY_MONTHLY_CREDIT_LIMIT",
+    description:
+      "Stop Tavily searches when account plan usage reaches this monthly credit ceiling or the provider limit, whichever is lower. Defaults to reserving 200 free-tier credits.",
+    group: "AI",
+    secret: false,
+    defaultValue: "800",
+    requirements: { scraper: "optional" },
+    schema: string.refine(
+      (value) => Number.isSafeInteger(Number(value)) && Number(value) >= 0,
+      "must be a nonnegative integer",
+    ),
+  }),
+  define({
     key: "SCRAPER_FALLBACK_BASE_URL",
     description:
       "Optional Responses-compatible outage fallback for scraper text, briefs, and web search. Unset disables fallback.",

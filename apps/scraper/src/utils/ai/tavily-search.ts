@@ -14,7 +14,7 @@ const searchResponse = z.object({
 });
 
 /** Basic search uses one credit; return source snippets, never generated answers. */
-export async function searchTavily(query: string, apiKey: string) {
+async function requestSearch(query: string, apiKey: string) {
   const response = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: {
@@ -47,5 +47,97 @@ export async function searchTavily(query: string, apiKey: string) {
       url: result.url,
     })),
     usage: { inputTokens: 0, outputTokens: 0 },
+  };
+}
+
+export class TavilyBudgetError extends Error {}
+
+/** One instance per scraper process, shared by all concurrent research loops. */
+export function createTavilySearch() {
+  const cache = new Map<
+    string,
+    Promise<Awaited<ReturnType<typeof requestSearch>>>
+  >();
+  let allowance: Promise<number> | undefined;
+  let attempted = 0;
+  let stopped: Error | undefined;
+
+  const limit = (name: string, fallback: number) => {
+    const value = Number(process.env[name] ?? fallback);
+    if (!Number.isSafeInteger(value) || value < 0)
+      throw new TavilyBudgetError(`${name} must be a nonnegative integer`);
+    return value;
+  };
+
+  return (query: string, apiKey: string) => {
+    const key = query.trim().replace(/\s+/g, " ");
+    const cached = cache.get(key);
+    if (cached) return cached;
+    const result = (async () => {
+      if (stopped) throw stopped;
+      const runLimit = limit("SCRAPER_TAVILY_MAX_SEARCHES_PER_RUN", 10);
+      if (attempted >= runLimit)
+        throw new TavilyBudgetError(
+          `Tavily run budget reached (${runLimit} searches)`,
+        );
+      allowance ??= (async () => {
+        const monthlyLimit = limit("SCRAPER_TAVILY_MONTHLY_CREDIT_LIMIT", 800);
+        if (!monthlyLimit || !runLimit) return 0;
+        const response = await fetch("https://api.tavily.com/usage", {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (!response.ok)
+          throw new TavilyBudgetError(
+            `Tavily usage check failed (HTTP ${response.status}); search stopped`,
+          );
+        const usage = z
+          .object({
+            key: z.object({
+              usage: z.number().nonnegative(),
+              limit: z.number().nonnegative().nullable(),
+            }),
+            account: z.object({
+              plan_usage: z.number().nonnegative(),
+              plan_limit: z.number().nonnegative(),
+            }),
+          })
+          .parse(await response.json());
+        return Math.max(
+          0,
+          Math.min(
+            monthlyLimit - usage.account.plan_usage,
+            usage.account.plan_limit - usage.account.plan_usage,
+            usage.key.limit === null
+              ? Infinity
+              : usage.key.limit - usage.key.usage,
+          ),
+        );
+      })();
+      let available: number;
+      try {
+        available = await allowance;
+      } catch (error) {
+        throw new TavilyBudgetError(
+          `Tavily usage could not be verified; search stopped (${error instanceof Error ? error.message : "invalid response"})`,
+        );
+      }
+      // Reserve synchronously after the shared usage read, before sending HTTP.
+      if (attempted >= Math.min(runLimit, available))
+        throw new TavilyBudgetError(
+          "Tavily credit budget reached; search stopped",
+        );
+      attempted++;
+      try {
+        return await requestSearch(key, apiKey);
+      } catch (error) {
+        if (error instanceof Error && /HTTP (401|432|433)/.test(error.message))
+          stopped = new TavilyBudgetError(error.message);
+        throw stopped ?? error;
+      }
+    })();
+    cache.set(key, result);
+    void result.catch(() => cache.delete(key));
+    return result;
   };
 }
