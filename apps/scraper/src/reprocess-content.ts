@@ -409,6 +409,8 @@ async function processItem(
         fullText,
         item.articleType,
         effectiveArticle,
+        undefined,
+        item.url,
       );
       if (!lensGenerated) {
         errors.push("Dual-Lens failed structural quality validation");

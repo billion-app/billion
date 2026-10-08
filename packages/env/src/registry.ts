@@ -483,12 +483,22 @@ export const envRegistry = [
   define({
     key: "SCRAPER_SEARCH_PROVIDER",
     description:
-      "Preferred scraper web search: hosted uses existing providers with optional Tavily fallback; tavily uses only Tavily and stops on exhausted credits.",
+      "Preferred scraper web search: hosted uses existing providers with optional Tavily fallback; tavily uses only Tavily; searxng uses only the self-hosted instance. Neither switches to a paid provider on failure.",
     group: "AI",
     secret: false,
     defaultValue: "hosted",
     requirements: { scraper: "optional" },
-    schema: z.enum(["hosted", "tavily"]),
+    schema: z.enum(["hosted", "tavily", "searxng"]),
+  }),
+  define({
+    key: "SCRAPER_SEARXNG_BASE_URL",
+    description:
+      "Private self-hosted SearXNG URL with JSON search enabled. Used only when SCRAPER_SEARCH_PROVIDER=searxng.",
+    group: "AI",
+    secret: false,
+    example: "http://host.docker.internal:8888",
+    requirements: { scraper: "optional" },
+    schema: url,
   }),
   define({
     key: "SCRAPER_FALLBACK_BASE_URL",

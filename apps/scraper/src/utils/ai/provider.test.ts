@@ -13,6 +13,7 @@ const keys = [
   "SCRAPER_FALLBACK_API_KEY",
   "TAVILY_API_KEY",
   "SCRAPER_SEARCH_PROVIDER",
+  "SCRAPER_SEARXNG_BASE_URL",
 ];
 let sequence = 0;
 async function setup(t: TestContext, env: Record<string, string>) {
@@ -391,4 +392,69 @@ test("hosted and Tavily failures continue to cited Responses search", async (t) 
   assert.equal(calls[1], "https://api.tavily.com/search");
   assert.equal(calls[2], "http://proxy.test/v1/responses");
   assert.equal(result.sources[0]?.sourceType, "url");
+});
+
+test("preferred SearXNG bypasses hosted and Tavily providers", async (t) => {
+  const provider = await setup(t, {
+    SCRAPER_SEARCH_PROVIDER: "searxng",
+    SCRAPER_SEARXNG_BASE_URL: "http://search.test/",
+    TAVILY_API_KEY: "test",
+    OPENROUTER_API_KEY: "test",
+    ...fallback,
+  });
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async (url: URL) => {
+    calls++;
+    assert.equal(String(url), "http://search.test/search");
+    return Response.json({
+      results: [
+        {
+          title: "Official",
+          url: "https://example.gov/analysis",
+          content: "Evidence",
+        },
+      ],
+    });
+  });
+  assert.equal(
+    (await provider.generateWebSearch("bill analysis")).sources.length,
+    1,
+  );
+  assert.equal(calls, 1);
+});
+
+test("SearXNG outage never activates a paid fallback", async (t) => {
+  const provider = await setup(t, {
+    SCRAPER_SEARCH_PROVIDER: "searxng",
+    SCRAPER_SEARXNG_BASE_URL: "http://search.test/",
+    TAVILY_API_KEY: "test",
+    OPENROUTER_API_KEY: "test",
+    ...fallback,
+  });
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async (url: URL) => {
+    calls++;
+    assert.equal(String(url), "http://search.test/search");
+    return new Response("blocked", { status: 503 });
+  });
+  await assert.rejects(
+    provider.generateWebSearch("analysis"),
+    /SearXNG search failed/,
+  );
+  assert.equal(calls, 1);
+});
+
+test("SearXNG without an endpoint fails before requesting any provider", async (t) => {
+  const provider = await setup(t, {
+    SCRAPER_SEARCH_PROVIDER: "searxng",
+    TAVILY_API_KEY: "test",
+    ...fallback,
+  });
+  t.mock.method(globalThis, "fetch", async () =>
+    assert.fail("No provider request expected"),
+  );
+  await assert.rejects(
+    provider.generateWebSearch("analysis"),
+    /SCRAPER_SEARXNG_BASE_URL is required/,
+  );
 });

@@ -8,6 +8,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { customProvider, generateText, wrapLanguageModel } from "ai";
 
 import { createLogger } from "../log.js";
+import { searchSearxng } from "./searxng-search.js";
 import { searchTavily } from "./tavily-search.js";
 
 const logger = createLogger("ai-provider");
@@ -378,6 +379,14 @@ export function getWebSearchTool() {
 }
 /** Retry search with the fallback's own native tool so citations survive. */
 export async function generateWebSearch(query: string) {
+  if (process.env.SCRAPER_SEARCH_PROVIDER === "searxng") {
+    const baseUrl = process.env.SCRAPER_SEARXNG_BASE_URL?.trim();
+    if (!baseUrl)
+      throw new Error(
+        "SCRAPER_SEARXNG_BASE_URL is required when SCRAPER_SEARCH_PROVIDER=searxng",
+      );
+    return searchSearxng(query, baseUrl);
+  }
   const tavilyKey = process.env.TAVILY_API_KEY?.trim();
   if (process.env.SCRAPER_SEARCH_PROVIDER === "tavily") {
     if (!tavilyKey)

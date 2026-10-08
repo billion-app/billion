@@ -1095,6 +1095,7 @@ export async function generateBillBrief(args: {
     args.title,
     args.billNumber,
     args.fullText,
+    args.url,
   );
   let loadedPhrases: string[] | undefined;
   let jargonPhrases: string[] | undefined;

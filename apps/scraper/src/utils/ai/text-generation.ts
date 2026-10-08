@@ -3,14 +3,7 @@
  * Generates summaries and full articles from government content
  */
 
-import {
-  APICallError,
-  generateText,
-  Output,
-  RetryError,
-  stepCountIs,
-  tool,
-} from "ai";
+import { APICallError, generateText, Output, RetryError } from "ai";
 import { z } from "zod";
 
 import type {
@@ -19,10 +12,11 @@ import type {
 } from "@acme/validators";
 import { deriveBillLifecycle } from "@acme/validators";
 
+import { researchContent } from "../../research/shared.js";
 import { clampBillDescription } from "../bill-description.js";
 import { trackLLMUsage } from "../costs.js";
 import { createLogger } from "../log.js";
-import { generateWebSearch, getTextLlm } from "./provider.js";
+import { getTextLlm } from "./provider.js";
 
 const logger = createLogger("ai");
 
@@ -504,28 +498,6 @@ export function isUsableDualLens(value: unknown): boolean {
   return CompatibleDualLensSchema.safeParse(value).success;
 }
 
-/** Web-search results surfaced by the AI SDK, as returned by generateText. */
-interface SdkSource {
-  sourceType?: string;
-  url?: string;
-  title?: string;
-}
-
-/** Dedupe web-search sources by URL and assign stable 1-based citation ids. */
-function numberSources(
-  raw: readonly SdkSource[] | undefined,
-): DualLensSource[] {
-  const byUrl = new Map<string, number>();
-  const out: DualLensSource[] = [];
-  for (const s of raw ?? []) {
-    if (s.sourceType !== "url" || !s.url || byUrl.has(s.url)) continue;
-    const id = out.length + 1;
-    byUrl.set(s.url, id);
-    out.push({ id, title: s.title?.trim() || s.url, url: s.url });
-  }
-  return out;
-}
-
 /**
  * Well-engineered citations: strip any sourceId the model invented that doesn't
  * resolve to a real fetched source, so every rendered citation number is backed
@@ -552,146 +524,6 @@ function verifyCitations(
     right: fix(lens.right),
     sources,
   };
-}
-
-const BROWSER_UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
-  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
-/** Strip a fetched HTML page down to readable text for the agent to read. */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&[a-z]+;|&#\d+;/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/**
- * Client tool: web search. Wraps the active provider's server-side web search
- * (which completes in one shot) so the OUTER model drives a genuine multi-step
- * loop — it can search, read a page, then search again. The native search
- * sub-call is tracked separately.
- */
-const webResearchTool = tool({
-  description:
-    "Search the web for information about a topic. Returns a short summary and a list of result sources (title + url).",
-  inputSchema: z.object({
-    query: z.string().describe("A focused search query."),
-  }),
-  execute: async ({ query }: { query: string }) => {
-    const res = await generateWebSearch(query);
-    trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
-    const results = ((res.sources ?? []) as SdkSource[])
-      .filter((s) => s.sourceType === "url" && s.url)
-      .map((s) => ({ title: s.title ?? s.url, url: s.url }));
-    return { summary: res.text.slice(0, 1500), results };
-  },
-});
-
-/**
- * Client tool: read a page in depth (search results are only snippets/summaries).
- * The model calls this to open the most relevant sources before concluding.
- */
-const fetchPageTool = tool({
-  description:
-    "Fetch the readable text of a web page by URL to read a source in depth. Use after web_search to open the most relevant results.",
-  inputSchema: z.object({
-    url: z
-      .string()
-      .describe("The full URL to fetch, from a web_search result."),
-  }),
-  execute: async ({ url }: { url: string }) => {
-    try {
-      const res = await fetch(url, {
-        headers: { Accept: "text/html", "User-Agent": BROWSER_UA },
-        signal: AbortSignal.timeout(12_000),
-      });
-      if (!res.ok) return { url, error: `HTTP ${res.status}` };
-      const text = stripHtml(await res.text()).slice(0, 4000);
-      return { url, text };
-    } catch (err) {
-      return {
-        url,
-        error: err instanceof Error ? err.message : "fetch failed",
-      };
-    }
-  },
-});
-
-/** Collect every source URL surfaced across the loop's tool results, for citations. */
-function collectLoopSources(steps: unknown): SdkSource[] {
-  const out: SdkSource[] = [];
-  for (const step of Array.isArray(steps) ? steps : []) {
-    const results = (step as { toolResults?: unknown }).toolResults;
-    for (const r of Array.isArray(results) ? results : []) {
-      const rr = r as {
-        toolName?: string;
-        output?: {
-          url?: string;
-          text?: string;
-          results?: { title?: string; url?: string }[];
-        };
-      };
-      if (rr.toolName === "web_search" && Array.isArray(rr.output?.results)) {
-        for (const it of rr.output.results) {
-          if (it.url)
-            out.push({ sourceType: "url", url: it.url, title: it.title });
-        }
-      } else if (
-        rr.toolName === "fetch_page" &&
-        rr.output?.url &&
-        rr.output.text
-      ) {
-        out.push({
-          sourceType: "url",
-          url: rr.output.url,
-          title: rr.output.url,
-        });
-      }
-    }
-  }
-  return out;
-}
-
-/** Return only pages the agent successfully opened, preserving search titles. */
-function collectOpenedLoopSources(steps: unknown): SdkSource[] {
-  const titles = new Map<string, string>();
-  const opened: string[] = [];
-
-  for (const step of Array.isArray(steps) ? steps : []) {
-    const results = (step as { toolResults?: unknown }).toolResults;
-    for (const result of Array.isArray(results) ? results : []) {
-      const item = result as {
-        toolName?: string;
-        output?: {
-          url?: string;
-          text?: string;
-          results?: { title?: string; url?: string }[];
-        };
-      };
-      if (item.toolName === "web_search") {
-        for (const source of item.output?.results ?? []) {
-          if (source.url) titles.set(source.url, source.title ?? source.url);
-        }
-      }
-      if (
-        item.toolName === "fetch_page" &&
-        item.output?.url &&
-        item.output.text
-      ) {
-        opened.push(item.output.url);
-      }
-    }
-  }
-
-  return [...new Set(opened)].map((url) => ({
-    sourceType: "url",
-    url,
-    title: titles.get(url) ?? url,
-  }));
 }
 
 /**
@@ -724,59 +556,21 @@ export interface BillContextResearch {
  */
 export async function researchBillContext(
   title: string,
-  billNumber: string,
+  _billNumber: string,
   fullText: string,
+  sourceUrl?: string,
 ): Promise<BillContextResearch> {
   try {
-    const res = await generateText({
-      model: getTextLlm(),
-      tools: { web_search: webResearchTool, fetch_page: fetchPageTool },
-      stopWhen: stepCountIs(7),
-      prompt: `You are researching historical context and useful follow-up reading for an average citizen reading about ${billNumber}, "${title}".
-
-1. Read the bill text below before searching, and identify every distinct subject it legislates on. A bill's title names one of them at best. If the text contains provisions **unrelated to the title's subject** — separate policy riding along in the same bill — those are as important to research as the headline subject, and a reader will find them nowhere else. Note them explicitly.
-2. Then investigate why this policy has not already been implemented. Look for earlier bills, documented disagreements, legal or budget constraints, implementation tradeoffs, and circumstances that changed. Do not guess at lawmakers' motives.
-3. Prefer the Congressional Research Service, GAO, CBO, established newsrooms, universities, and transparent research organizations. Avoid campaign pages, SEO summaries, scraped copies, and sources that merely repeat a press release. Reject a URL carrying referral or campaign tracking parameters (utm_source, utm_campaign, ref=) — find the publisher's own canonical link instead.
-4. Search separately for clear explanatory reporting or authoritative background that helps a reader understand the bill's most important mechanism or uncertainty. **Cover each distinct subject you identified in step 1**, not just the one the title names: a reading list that only addresses the headline subject leaves the reader with no way to learn about the rest of what the bill does.
-5. Open and read at least three promising results with fetch_page, including at least two that directly support the historical explanation. A search snippet is not enough.
-6. Return concise notes in two labeled parts:
-   - WHY NOT BEFORE: the documented answer, distinguishing established facts from uncertainty and naming which opened URLs support each point.
-   - FURTHER READING: the two to four best articles, who published each, and what each helps a reader understand. Say which subject each one covers.
-Do not cite or recommend a page you did not open.
-
-Official bill text:
-${fullText.slice(0, SOURCE_WINDOW)}`,
-    });
-    trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
-    return {
-      notes: res.text.trim(),
-      sources: numberSources(collectOpenedLoopSources(res.steps)),
-    };
+    return await researchContent({ title, fullText, type: "bill", sourceUrl });
   } catch (error) {
     if (isRateLimitError(error)) {
       rateLimitHit = true;
       throw new AIRateLimitError();
     }
-    logger.warn(`Bill-context research failed for "${title}"`, error);
+    logger.warn(`Bill-context research unavailable for "${title}"`, error);
     return { notes: "", sources: [] };
   }
 }
-
-const RESEARCH_PROMPT = (title: string, type: string, text: string) =>
-  `You are a nonpartisan civic analyst researching a ${type}. Your framing must stay balanced, but to capture each side's real arguments you should deliberately seek out sources FROM BOTH SIDES. Work step by step and DO NOT write your briefing until you have read primary sources:
-1. Use web_search to find both the strongest case FOR and the strongest case AGAINST — including proponents/campaigns/supportive editorials and critics/opponents/critical editorials, alongside official or nonpartisan analyses for the facts.
-2. You MUST then use fetch_page to open and read at least TWO of the most relevant results in full (snippets alone are not enough) — at least one supportive and one critical source.
-3. Find documented real-world examples for BOTH sides: an existing law or program, named jurisdiction, earlier bill, court ruling, enforcement action, or measured implementation result. A prediction about what "could" happen is not an example.
-4. Test the relevance of every example: it must show the same mechanism, right, cost, or tradeoff as the argument. Merely naming a related law or event is not enough. Record the explicit connection between the example and the argument.
-5. Search or fetch again if either side lacks a directly relevant concrete example or is still weak or one-sided.
-6. Only once you have read enough, write a concise briefing of the strongest real-world arguments from BOTH sides. Pair every argument with a concrete example, explain why that example supports the argument, and note which source URLs support both.
-
-Prioritize credible, verifiable sources over neutrality — a partisan source is fine for capturing that side's argument, as long as it's real. Do not editorialize in your own voice.
-
-Title: ${title}
-
-Content excerpt:
-${text.substring(0, SOURCE_WINDOW)}`;
 
 const STRUCTURE_PROMPT = (
   title: string,
@@ -828,14 +622,10 @@ ${research}
 
 Title: ${title}`;
 
-/** Max tool-call rounds in the research loop (bounds cost + latency). */
-const RESEARCH_MAX_STEPS = 6;
-
 /**
  * Generate a cited dual-lens for a content item.
- *   (1) A real agentic loop: the active text model drives a multi-step tool loop
- *       (web_search + fetch_page, capped by stopWhen) — it searches, opens and
- *       reads sources, and searches again until it can brief both sides.
+ *   (1) Reuse the source revision's persistent evidence collection, shared with
+ *       bill context and further reading. Only opened documents can be cited.
  *   (2) The text model structures the briefing into schema-validated perspectives with
  *       per-point citations (AI SDK structured output; no manual JSON parsing).
  * Returns null if research cannot supply cited concrete examples; the official
@@ -846,29 +636,19 @@ export async function generateDualLens(
   fullText: string,
   type: string,
   framing: LensFraming,
+  sourceUrl?: string,
 ): Promise<DualLens | null> {
   if (rateLimitHit) {
     throw new AIRateLimitError();
   }
 
-  // Step 1 — model-driven agentic research loop. The standard model drives it
-  // (web_search here is a client tool wrapping provider-side search), so it
-  // genuinely multi-steps: search -> read a page -> search again -> brief.
+  // Reuse the same evidence collection as the structured brief.
   let research = "";
   let sources: DualLensSource[] = [];
   try {
-    const res = await generateText({
-      model: getTextLlm(),
-      tools: { web_search: webResearchTool, fetch_page: fetchPageTool },
-      stopWhen: stepCountIs(RESEARCH_MAX_STEPS),
-      prompt: RESEARCH_PROMPT(title, type, fullText),
-    });
-    trackLLMUsage(res.usage.inputTokens, res.usage.outputTokens);
-    research = res.text;
-    sources = numberSources(collectLoopSources(res.steps));
-    logger.info(
-      `Dual-lens: research loop ran ${res.steps?.length ?? 1} step(s), ${sources.length} sources for "${title}"`,
-    );
+    const packet = await researchContent({ title, fullText, type, sourceUrl });
+    research = packet.notes;
+    sources = packet.sources.map(({ id, title, url }) => ({ id, title, url }));
   } catch (error) {
     if (isRateLimitError(error)) {
       rateLimitHit = true;

@@ -44,12 +44,14 @@ interface LensCandidate {
   fullText: string;
   articleType: string;
   aiGeneratedArticle: string | null;
+  sourceUrl: string;
 }
 
 async function findBills(limit: number): Promise<LensCandidate[]> {
   const rows = await db
     .select({
       id: Bill.id,
+      sourceUrl: Bill.url,
       contentHash: Bill.contentHash,
       title: Bill.title,
       fullText: Bill.fullText,
@@ -78,6 +80,7 @@ async function findGovernmentContent(limit: number): Promise<LensCandidate[]> {
   const rows = await db
     .select({
       id: GovernmentContent.id,
+      sourceUrl: GovernmentContent.url,
       contentHash: GovernmentContent.contentHash,
       title: GovernmentContent.title,
       fullText: GovernmentContent.fullText,
@@ -106,6 +109,7 @@ async function findCourtCases(limit: number): Promise<LensCandidate[]> {
   const rows = await db
     .select({
       id: CourtCase.id,
+      sourceUrl: CourtCase.url,
       contentHash: CourtCase.contentHash,
       title: CourtCase.title,
       fullText: CourtCase.fullText,
@@ -209,6 +213,8 @@ for (const contentType of selectedTypes) {
             candidate.fullText,
             candidate.articleType,
             candidate.aiGeneratedArticle,
+            undefined,
+            candidate.sourceUrl,
           );
           if (generated) processed++;
           else failed++;

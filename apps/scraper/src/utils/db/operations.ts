@@ -24,7 +24,6 @@ import { generateImageSearchKeywords } from "../ai/image-keywords.js";
 import { getTextModelVersion } from "../ai/provider.js";
 import {
   AIRateLimitError,
-  buildDualLensGrounding,
   framingForContentType,
   generateAIArticle,
   generateAISummary,
@@ -768,6 +767,7 @@ export async function upsertContent(
         articleType,
         aiGeneratedArticle,
         claimBudget,
+        url,
       );
     }
 
@@ -841,8 +841,9 @@ export async function upsertContentLens(
   title: string,
   fullText: string,
   articleType: string,
-  aiGeneratedArticle?: string | null,
+  _aiGeneratedArticle?: string | null,
   claimBudget?: () => boolean,
+  sourceUrl?: string,
 ): Promise<boolean> {
   const modelVersion = `${getTextModelVersion()}:concrete-examples-v2`;
 
@@ -894,9 +895,10 @@ export async function upsertContentLens(
 
   const lens = await generateDualLens(
     title,
-    buildDualLensGrounding(fullText, aiGeneratedArticle),
+    fullText,
     articleType,
     framingForContentType(contentType),
+    sourceUrl,
   );
   if (!lens) {
     logger.warn(`Dual-lens generation returned null for ${contentId}`);
@@ -1080,6 +1082,7 @@ async function assembleNewBill(args: {
         "bill",
         null,
         args.claimBudget,
+        data.url,
       );
     } catch (error) {
       logger.warn(

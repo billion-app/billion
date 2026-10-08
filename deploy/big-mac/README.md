@@ -90,3 +90,46 @@ The default `hosted` mode retains the existing hosted search. If a Tavily key is
 configured in that mode, Tavily is tried after hosted search fails and before
 the Responses endpoint's native-search fallback. Deploy a merged image and
 restart through the usual deployment script to activate host settings.
+
+## Private SearXNG trial
+
+The [pinned Compose service](searxng/compose.yaml) exposes JSON search only on
+loopback port 8888. Its [engine settings](searxng/settings.yml) use upstream web
+engines, so rate limits, CAPTCHAs and irrelevant results remain possible. This
+service does not replace the scraper supervisor or resume paused jobs.
+
+Copy the `searxng` directory to `~/.config/billion/searxng` on Big Mac and create
+an ignored private `.env` containing `SEARXNG_SECRET` (a random 32-byte hex secret).
+Do not commit that value. Start and inspect the service from that directory:
+
+```sh
+docker compose up -d
+docker compose logs --tail 50
+docker compose down
+```
+
+Run the [bounded comparison](../../apps/scraper/README.md#search-research-verification)
+before selecting it for production. For a local trial of the Big Mac endpoint,
+forward its loopback port over SSH:
+
+```sh
+ssh -N -L 18888:127.0.0.1:8888 big-mac
+```
+
+Use `SCRAPER_SEARXNG_BASE_URL=http://127.0.0.1:18888` from the local checkout.
+A successful JSON response is not enough: inspect readable pages, relevance to
+the specific bill, and coverage of the requested evidence. Keep Tavily as an
+explicit alternative if the trial is weak; there is no automatic paid fallback.
+
+After a successful trial, the scraper container can use these settings in its
+private `scraper.env`:
+
+```dotenv
+SCRAPER_SEARCH_PROVIDER=searxng
+SCRAPER_SEARXNG_BASE_URL=http://host.docker.internal:8888
+```
+
+Apply the research-library migration and deploy a merged scraper image before
+resuming jobs. Provider selection, schema application, deployment and resumption
+are separate operations. See [shared research](../../docs/scraper-research.md)
+for cache behavior and provenance.

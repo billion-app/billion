@@ -1421,3 +1421,31 @@ export const CandidateResearchPolicy = pgTable(
     createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
   }),
 );
+
+/** Retrieved source material, never generated explanation. Server-only research library. */
+export const ResearchDocument = pgTable(
+  "research_document",
+  (t) => ({
+    id: t.text().primaryKey(),
+    url: t.text().notNull(),
+    title: t.text().notNull(),
+    body: t.text().notNull(),
+    sourceHash: t.text().notNull(),
+    fetchedAt: t.timestamp({ withTimezone: true }).notNull(),
+    expiresAt: t.timestamp({ withTimezone: true }).notNull(),
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      sql`to_tsvector('english', coalesce(title, '') || ' ' || coalesce(body, ''))`,
+    ),
+  }),
+  (table) => [
+    index("research_document_search_idx").using("gin", table.searchVector),
+    index("research_document_url_idx").on(table.url),
+  ],
+).enableRLS();
+
+/** Versioned discovery results and shared research notes; original text stays above. */
+export const ResearchCache = pgTable("research_cache", (t) => ({
+  key: t.text().primaryKey(),
+  value: t.jsonb().notNull().$type<unknown>(),
+  expiresAt: t.timestamp({ withTimezone: true }).notNull(),
+})).enableRLS();
