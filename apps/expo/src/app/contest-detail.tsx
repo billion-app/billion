@@ -572,6 +572,8 @@ export default function ContestDetailScreen() {
                           ballotFetchedAt: params.ballotFetchedAt,
                           districtId: params.districtId,
                           district: params.districtName,
+                          roles: params.roles,
+                          levels: params.levels,
                           candidate: JSON.stringify(cand),
                         },
                       })

@@ -6,6 +6,7 @@ import { caSosResultsClient } from "../clients/ca-sos-results";
 import { BallotProviderError } from "../clients/democracy-works";
 import { getDevBallot } from "../lib/ballot-dev-mocks";
 import { getBallotAvailability } from "../lib/ballot-launch";
+import { getCandidateBackground } from "../lib/candidate-background";
 import {
   getCaliforniaGuide,
   getDistrictElectionResults,
@@ -37,6 +38,54 @@ const DISTRICT_REF = z.object({
 export const civicRouter = {
   /** Public release state; does not expose credentials or infer provider coverage. */
   getBallotAvailability: publicProcedure.query(() => getBallotAvailability()),
+  /**
+   * Cited biography from the shared candidate-enrichment cache. The same merge
+   * runs for every named candidate: state, district, and county keep same-name
+   * people apart. A miss stays empty. This is not a vote record.
+   */
+  getCandidateBackground: publicProcedure
+    .input(
+      z.object({
+        name: z.string().trim().min(1).max(200),
+        office: z.string().trim().min(1).max(200),
+        state: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z]{2}$/)
+          .optional(),
+        district: z.string().trim().min(1).max(200).optional(),
+        county: z.string().trim().min(1).max(200).optional(),
+        party: z.string().trim().min(1).max(100).optional(),
+        roles: z.array(z.string().trim().min(1).max(80)).max(8).optional(),
+        level: z.array(z.string().trim().min(1).max(80)).max(8).optional(),
+        electionYear: z.number().int().min(2000).max(2100),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        return await getCandidateBackground({
+          name: input.name,
+          office: input.office,
+          stateAbbrev: input.state,
+          district: input.district,
+          county: input.county,
+          party: input.party,
+          roles: input.roles,
+          level: input.level,
+          electionYear: input.electionYear,
+        });
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch candidate background",
+          cause: error,
+        });
+      }
+    }),
+
   getCaliforniaGuide: publicProcedure.query(async () => {
     const guide = await getCaliforniaGuide();
     if (!guide) return null;

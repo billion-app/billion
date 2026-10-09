@@ -47,9 +47,30 @@ import {
   ELECTION_DATE,
   findGuideCandidate,
   parseBallotCandidate,
+  statewideOfficeName,
   statewideOfficeSlug,
 } from "~/utils/candidate-explainer";
 import { resolveOfficeRole } from "~/utils/office-role";
+
+/** Contest routes pass JSON string arrays. Drop anything that is not a short label. */
+function routeStringList(value: string | undefined): string[] | undefined {
+  if (!value) return undefined;
+  try {
+    const raw: unknown = JSON.parse(value);
+    if (!Array.isArray(raw)) return undefined;
+    const items = raw
+      .filter(
+        (item): item is string =>
+          typeof item === "string" &&
+          item.trim().length > 0 &&
+          item.length <= 80,
+      )
+      .slice(0, 8);
+    return items.length ? items : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export default function CandidateDetailScreen() {
   const router = useRouter();
@@ -60,6 +81,8 @@ export default function CandidateDetailScreen() {
     electionDate?: string;
     district?: string;
     districtId?: string;
+    roles?: string;
+    levels?: string;
     candidate?: string;
     briefPreview?: string;
   }>();
@@ -85,6 +108,7 @@ export default function CandidateDetailScreen() {
     params.name
       ? findGuideCandidate(query.data.candidates, params.name, office)
       : undefined;
+  const routeName = params.name?.trim();
   const candidate = fromBallot
     ? {
         ...guide,
@@ -95,7 +119,15 @@ export default function CandidateDetailScreen() {
         party: fromBallot.party ?? guide?.party,
         photoUrl: fromBallot.photoUrl ?? guide?.photoUrl,
       }
-    : guide;
+    : (guide ??
+      (query.isError && routeName
+        ? {
+            name: routeName,
+            party: undefined,
+            statement: undefined,
+            photoUrl: undefined,
+          }
+        : undefined));
   const statementCitation = fromBallot?.citations?.find(
     (item) => item.field === "statement",
   );
@@ -133,6 +165,59 @@ export default function CandidateDetailScreen() {
       : `Original statement · ${statementCitation?.sourceName ?? "source"}`
     : undefined;
 
+  const backgroundOffice = statewideOfficeName(
+    guide?.officeName ?? params.office,
+  );
+  const electionDate =
+    params.electionDate ??
+    query.data?.electionDate ??
+    (office ? ELECTION_DATE : undefined) ??
+    "";
+  const backgroundYear = Number(electionDate.slice(0, 4));
+  const explicitState = params.state?.trim();
+  const backgroundState =
+    explicitState?.length === 2
+      ? explicitState.toUpperCase()
+      : (guide ?? office)
+        ? "CA"
+        : undefined;
+  const trimmedDistrict = params.district?.trim();
+  const backgroundDistrict =
+    trimmedDistrict && trimmedDistrict.length > 0 ? trimmedDistrict : undefined;
+  const backgroundRoles = routeStringList(params.roles);
+  const backgroundLevels = routeStringList(params.levels);
+  const suppliedBiography = fromBallot?.biography?.trim();
+  const backgroundQuery = useQuery({
+    ...trpc.civic.getCandidateBackground.queryOptions({
+      name: params.name ?? candidate?.name ?? "",
+      office: backgroundOffice ?? "",
+      state: backgroundState,
+      district: backgroundDistrict,
+      party: fromBallot?.party,
+      roles: backgroundRoles,
+      level: backgroundLevels,
+      electionYear: Number.isInteger(backgroundYear)
+        ? backgroundYear
+        : new Date().getUTCFullYear(),
+    }),
+    enabled:
+      !suppliedBiography &&
+      !!(params.name ?? candidate?.name) &&
+      !!backgroundOffice &&
+      (!fromBallot || !query.isPending),
+  });
+  const publicBiography = suppliedBiography
+    ? {
+        biography: suppliedBiography,
+        sourceName:
+          fromBallot?.citations?.find((item) => item.field === "biography")
+            ?.sourceName ?? "ballot provider",
+        sourceUrl: fromBallot?.citations?.find(
+          (item) => item.field === "biography",
+        )?.sourceUrl,
+      }
+    : backgroundQuery.data;
+
   return (
     <View style={s.screen}>
       <NavHeader title="Candidate" tone="dark" onBack={() => router.back()} />
@@ -143,7 +228,7 @@ export default function CandidateDetailScreen() {
         {!fromBallot && query.isPending ? (
           <ActivityIndicator color={P.spark} />
         ) : null}
-        {!fromBallot && query.isError ? (
+        {!fromBallot && query.isError && !candidate ? (
           <Card style={s.panel}>
             <Text accessibilityRole="header" style={s.sectionTitle}>
               Candidate details couldn’t load
@@ -207,7 +292,9 @@ export default function CandidateDetailScreen() {
                     {candidate.name}
                   </Text>
                   <Text style={s.office}>
-                    {guide?.officeName ?? params.office ?? "Office unavailable"}
+                    {guide?.officeName ??
+                      backgroundOffice ??
+                      "Office unavailable"}
                   </Text>
                 </View>
               </View>
@@ -303,29 +390,31 @@ export default function CandidateDetailScreen() {
               question="What have they done before?"
               icon="doc"
               availability={
-                fromBallot?.biography
+                publicBiography
                   ? "Source-provided biography available"
-                  : previewBrief
-                    ? "Preview research notes available"
-                    : "Background not supplied"
+                  : backgroundQuery.isPending
+                    ? "Checking public biographies"
+                    : previewBrief
+                      ? "Preview research notes available"
+                      : "Background not supplied"
               }
             >
-              {fromBallot?.biography ? (
+              {publicBiography ? (
                 <View style={{ gap: 12 }}>
                   <Text style={s.muted}>
-                    Source-provided biography · not an independent assessment
+                    {publicBiography.sourceName} biography · not an independent
+                    assessment or a record of votes
                   </Text>
-                  <BallotReadingText text={fromBallot.biography} />
+                  <BallotReadingText text={publicBiography.biography} />
                   <SourceLink
                     prominence="primary"
-                    label={`Biography · ${fromBallot.citations?.find((item) => item.field === "biography")?.sourceName ?? "ballot provider"}`}
-                    url={
-                      fromBallot.citations?.find(
-                        (item) => item.field === "biography",
-                      )?.sourceUrl
-                    }
+                    label={`Biography · ${publicBiography.sourceName}`}
+                    url={publicBiography.sourceUrl}
                   />
                 </View>
+              ) : null}
+              {backgroundQuery.isPending && !publicBiography ? (
+                <ActivityIndicator color={P.spark} />
               ) : null}
 
               {previewBrief && (
@@ -335,12 +424,14 @@ export default function CandidateDetailScreen() {
                   topics={["record"]}
                 />
               )}
-              {!fromBallot?.biography && !previewBrief && (
-                <Text style={s.muted}>
-                  Background records have not been supplied here. Missing
-                  information is not a judgment of this candidate.
-                </Text>
-              )}
+              {!publicBiography &&
+                !backgroundQuery.isPending &&
+                !previewBrief && (
+                  <Text style={s.muted}>
+                    Background records have not been supplied here. Missing
+                    information is not a judgment of this candidate.
+                  </Text>
+                )}
               <CandidateResearchPrompt
                 questions={[
                   "Which roles have they held, and who documented that work?",

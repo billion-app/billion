@@ -30,6 +30,14 @@ export function isOfficeSlug(value: string): value is OfficeSlug {
   return Object.prototype.hasOwnProperty.call(officeNames, value);
 }
 
+export function statewideOfficeName(
+  value: string | undefined,
+): string | undefined {
+  if (!value?.trim()) return undefined;
+  const slug = statewideOfficeSlug(value);
+  return slug ? officeNames[slug] : value.trim();
+}
+
 export function statewideOfficeSlug(value: string): OfficeSlug | undefined {
   const normalized = value
     .trim()

@@ -5,6 +5,7 @@ The preview reads `https://www.billion-news.app` through the normal Expo tRPC cl
 Actual native captures:
 
 - [Fiona Ma research cards, October 9](pr-fiona-top.png): live guide match. Promises shows "Candidate statement available" without reprinting the statement. Background is "not supplied". Funding is "Donor records not connected". Office is "Office guide available".
+- [Fiona Ma sourced background, October 9](fiona-background.png): candidate-enrichment biography wired. Background card shows "Source-provided biography available" with Wikipedia biography cited.
 - [Fiona Ma overview, October 5](fiona-ma-overview.png): earlier capture of name, portrait, office, party, and office duties.
 - [Fiona Ma statement, October 5](fiona-ma-statement.png): earlier capture from when the page still printed the statement inline. That reprint is no longer the page.
 
