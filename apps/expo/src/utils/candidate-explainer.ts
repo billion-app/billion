@@ -65,6 +65,7 @@ export interface BallotCandidateDetail {
   name: string;
   party?: string;
   statement?: string;
+  biography?: string;
   photoUrl?: string;
   ballotStatus?: "onBallot" | "withdrewStillOnBallot";
   citations?: {
@@ -132,6 +133,7 @@ export function parseBallotCandidate(
       name: candidate.name,
       party: optionalText("party", 100),
       statement: optionalText("statement", 30_000),
+      biography: optionalText("biography", 30_000),
       photoUrl: optionalText("photoUrl", 2_000),
       ballotStatus:
         candidate.ballotStatus === "onBallot" ||

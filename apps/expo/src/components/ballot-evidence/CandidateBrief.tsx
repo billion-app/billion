@@ -133,9 +133,11 @@ export function CandidateCoverage({
 export function CandidateIndependentBrief({
   brief,
   reviewedAt,
+  topics,
 }: {
   brief: CandidateBrief;
   reviewedAt: string;
+  topics?: CandidateBrief["sections"][number]["topic"][];
 }) {
   return (
     <View style={{ gap: sp[3] }}>
@@ -168,6 +170,11 @@ export function CandidateIndependentBrief({
         "tradeoffs",
         "unknowns",
       ].map((topic) => {
+        if (
+          topics &&
+          !topics.includes(topic as CandidateBrief["sections"][number]["topic"])
+        )
+          return null;
         const section = brief.sections.find((item) => item.topic === topic);
         if (!section) return null;
         const sources = (claim: (typeof section.claims)[number]) =>

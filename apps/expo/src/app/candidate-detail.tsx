@@ -11,6 +11,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
+import { BallotReadingText } from "~/components/ballot-evidence/BallotReadingCard";
 import {
   CandidateCoverage,
   CandidateIndependentBrief,
@@ -20,6 +21,12 @@ import {
   CandidateDisclosure,
 } from "~/components/ballot-evidence/CandidateDisclosure";
 import { webUrl } from "~/components/ballot-evidence/model";
+import {
+  CandidateMoneyChapter,
+  CandidateResearchCard,
+  CandidateResearchPrompt,
+  CandidateStatementChapter,
+} from "~/components/candidate-research/CandidateResearchCards";
 import { OfficeRole } from "~/components/office-role/OfficeRole";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader } from "~/components/ui";
@@ -42,7 +49,6 @@ import {
   parseBallotCandidate,
   statewideOfficeSlug,
 } from "~/utils/candidate-explainer";
-import { candidateStatementExcerpt } from "~/utils/candidate-statement";
 import { resolveOfficeRole } from "~/utils/office-role";
 
 export default function CandidateDetailScreen() {
@@ -58,7 +64,6 @@ export default function CandidateDetailScreen() {
     briefPreview?: string;
   }>();
   const [photoFailed, setPhotoFailed] = useState(false);
-  const [showStatement, setShowStatement] = useState(false);
   const fromBallot = parseBallotCandidate(params.candidate, params.name);
   const office = params.office ? statewideOfficeSlug(params.office) : undefined;
   const lookupGuide =
@@ -122,9 +127,11 @@ export default function CandidateDetailScreen() {
     .filter(Boolean)
     .join(" · ");
 
-  const statementExcerpt = candidateStatementExcerpt(
-    candidate?.statement ?? "",
-  );
+  const statementSourceLabel = sourceUrl
+    ? usingGuideStatement
+      ? "Original statement · California voter guide"
+      : `Original statement · ${statementCitation?.sourceName ?? "source"}`
+    : undefined;
 
   return (
     <View style={s.screen}>
@@ -180,7 +187,7 @@ export default function CandidateDetailScreen() {
               <Text style={s.eyebrow}>
                 {guide && query.data
                   ? `CALIFORNIA · ${ballotElectionDate(query.data.electionDate)}`
-                  : "BALLOT CONTEST"}
+                  : "CANDIDATE RESEARCH"}
               </Text>
               <View style={s.identity}>
                 {webUrl(candidate.photoUrl) && !photoFailed ? (
@@ -221,108 +228,218 @@ export default function CandidateDetailScreen() {
               </View>
             </View>
 
-            {previewBrief ? (
-              <CandidateIndependentBrief
-                brief={previewBrief}
-                reviewedAt="October 2, 2026"
-              />
-            ) : null}
-
-            {candidate.statement ? (
-              <View style={s.section}>
-                <Text style={s.sectionIntro}>
-                  {usingGuideStatement
-                    ? "This statement was supplied by the candidate. California does not check these claims for accuracy."
-                    : "This statement was supplied by a ballot provider. Its claims have not been independently checked by Billion."}
+            <View style={{ gap: 8 }}>
+              <Text style={s.eyebrow}>START YOUR RESEARCH</Text>
+              <Text style={s.body}>
+                Follow the sources, compare records, and look for what’s
+                missing. These are starting points for exploring this candidate.
+              </Text>
+              {!previewBrief && (
+                <Text style={s.muted}>
+                  Independent research has not been published for this race.
                 </Text>
-                <Card style={s.panel}>
-                  <Text style={s.panelLabel}>Candidate’s own words</Text>
-                  {!showStatement ? (
-                    <Text selectable style={s.statementPreview}>
-                      {statementExcerpt.text}
-                      {statementExcerpt.truncated ? "…" : ""}
-                    </Text>
-                  ) : null}
-                  {statementExcerpt.truncated ? (
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      accessibilityState={{ expanded: showStatement }}
-                      onPress={() => setShowStatement((value) => !value)}
-                      style={s.action}
-                    >
-                      <Text style={s.actionText}>
-                        {showStatement
-                          ? "Hide full statement"
-                          : "Read full statement"}
-                      </Text>
-                      <Icon
-                        name={showStatement ? "chevD" : "chevR"}
-                        size={16}
-                        color={P.primary}
-                      />
-                    </TouchableOpacity>
-                  ) : null}
-                  {showStatement ? (
-                    <Text selectable style={s.body}>
-                      {candidate.statement}
-                    </Text>
-                  ) : null}
-                  {sourceUrl ? (
-                    <SourceLink
-                      label={
-                        usingGuideStatement
-                          ? "Original statement · California voter guide"
-                          : `Original statement · ${statementCitation?.sourceName ?? "source"}`
-                      }
-                      url={sourceUrl}
-                    />
-                  ) : (
-                    <Text style={s.muted}>
-                      Statement source link unavailable
-                    </Text>
-                  )}
-                </Card>
-              </View>
-            ) : null}
+              )}
+            </View>
 
-            {(!guide?.officeDuties?.length ||
-              resolveOfficeRole({
-                office: guide.officeName,
-                state: "CA",
-                districtId: "ocd-division/country:us/state:ca",
-              })) && (
-              <OfficeRole
-                office={guide?.officeName ?? params.office}
-                state={guide ? "CA" : params.state}
-                districtId={
-                  guide ? "ocd-division/country:us/state:ca" : params.districtId
-                }
-              />
-            )}
-
-            {!!guide?.officeDuties?.length && (
-              <CandidateDisclosure
-                title="Official office responsibilities"
-                summary={guide.officeDuties[0]}
-              >
-                {guide.officeDuties.slice(1).map((duty, index) => (
-                  <Text key={index} style={s.body}>
-                    {duty}
-                  </Text>
-                ))}
+            <CandidateResearchCard
+              title="Promises & priorities"
+              question="What do they want to change?"
+              icon="quote"
+              availability={
+                candidate.statement
+                  ? "Candidate statement available"
+                  : "Statement not supplied"
+              }
+            >
+              {candidate.statement ? (
+                <CandidateStatementChapter
+                  attribution={
+                    usingGuideStatement
+                      ? "Supplied by the candidate. California does not check these claims for accuracy."
+                      : "Supplied by a ballot provider. Claims have not been independently checked by Billion."
+                  }
+                  sourceLabel={statementSourceLabel}
+                  sourceUrl={sourceUrl}
+                />
+              ) : (
+                <Text style={s.muted}>
+                  A candidate statement has not been supplied here. Check the
+                  official guide for available statements.
+                </Text>
+              )}
+              {previewBrief && (
+                <CandidateIndependentBrief
+                  brief={previewBrief}
+                  reviewedAt="October 2, 2026"
+                  topics={[
+                    "priorities",
+                    "mechanisms",
+                    "effects",
+                    "tradeoffs",
+                    "unknowns",
+                  ]}
+                />
+              )}
+              {!candidate.statement && (
+                <CandidateResearchPrompt
+                  questions={[
+                    "What specific change do they say they want?",
+                    "Do they name a timeline, a cost, or who else must agree?",
+                    "Which claims have no linked document or outside record behind them?",
+                  ]}
+                />
+              )}
+              {!sourceUrl && (
                 <SourceLink
-                  label="California official voter guide"
-                  url={guide.sourceUrl}
+                  label="Find your official voter guide"
+                  url={electionOfficeUrl}
+                  prominence="primary"
+                />
+              )}
+            </CandidateResearchCard>
+
+            <CandidateResearchCard
+              title="Background & record"
+              question="What have they done before?"
+              icon="doc"
+              availability={
+                fromBallot?.biography
+                  ? "Source-provided biography available"
+                  : previewBrief
+                    ? "Preview research notes available"
+                    : "Background not supplied"
+              }
+            >
+              {fromBallot?.biography ? (
+                <View style={{ gap: 12 }}>
+                  <Text style={s.muted}>
+                    Source-provided biography · not an independent assessment
+                  </Text>
+                  <BallotReadingText text={fromBallot.biography} />
+                  <SourceLink
+                    prominence="primary"
+                    label={`Biography · ${fromBallot.citations?.find((item) => item.field === "biography")?.sourceName ?? "ballot provider"}`}
+                    url={
+                      fromBallot.citations?.find(
+                        (item) => item.field === "biography",
+                      )?.sourceUrl
+                    }
+                  />
+                </View>
+              ) : null}
+
+              {previewBrief && (
+                <CandidateIndependentBrief
+                  brief={previewBrief}
+                  reviewedAt="October 2, 2026"
+                  topics={["record"]}
+                />
+              )}
+              {!fromBallot?.biography && !previewBrief && (
+                <Text style={s.muted}>
+                  Background records have not been supplied here. Missing
+                  information is not a judgment of this candidate.
+                </Text>
+              )}
+              <CandidateResearchPrompt
+                questions={[
+                  "Which roles have they held, and who documented that work?",
+                  "If they served in public office, where are the meeting minutes or recorded votes?",
+                  "Who wrote each source, and when was it published or retrieved?",
+                ]}
+              />
+              <SourceLink
+                label="Find the election office and official candidate list"
+                url={electionOfficeUrl}
+                prominence="primary"
+              />
+            </CandidateResearchCard>
+
+            <CandidateResearchCard
+              title="Campaign funding"
+              question="Who contributes, and who spends outside the campaign?"
+              icon="book"
+              availability="Donor records not connected"
+            >
+              <CandidateMoneyChapter
+                state={guide ? "CA" : params.state}
+                office={guide?.officeName ?? params.office}
+              />
+            </CandidateResearchCard>
+
+            <CandidateResearchCard
+              title="Office powers & limits"
+              question="Can this job deliver the promise?"
+              icon="info"
+              availability={
+                guide?.officeDuties?.length ||
+                resolveOfficeRole({
+                  office: guide?.officeName ?? params.office,
+                  state: guide ? "CA" : params.state,
+                  districtId: guide
+                    ? "ocd-division/country:us/state:ca"
+                    : params.districtId,
+                })
+                  ? "Office guide available"
+                  : "Office guide not supplied"
+              }
+            >
+              {(!guide?.officeDuties?.length ||
+                resolveOfficeRole({
+                  office: guide.officeName,
+                  state: "CA",
+                  districtId: "ocd-division/country:us/state:ca",
+                })) && (
+                <OfficeRole
+                  office={guide?.officeName ?? params.office}
+                  state={guide ? "CA" : params.state}
+                  districtId={
+                    guide
+                      ? "ocd-division/country:us/state:ca"
+                      : params.districtId
+                  }
+                />
+              )}
+
+              {!!guide?.officeDuties?.length && (
+                <CandidateDisclosure
+                  title="Official office responsibilities"
+                  summary={guide.officeDuties[0]}
+                >
+                  {guide.officeDuties.slice(1).map((duty, index) => (
+                    <Text key={index} style={s.body}>
+                      {duty}
+                    </Text>
+                  ))}
+                  <SourceLink
+                    label="California official voter guide"
+                    url={guide.sourceUrl}
+                  />
+                </CandidateDisclosure>
+              )}
+
+              <CandidateResearchPrompt
+                questions={[
+                  "Which decisions actually belong to this office?",
+                  "Who controls the budget, and whose approval does a proposal need?",
+                  "How would the candidate act within those limits?",
+                ]}
+              />
+              <SourceLink
+                label="Find your election office"
+                url={electionOfficeUrl}
+                prominence="primary"
+              />
+            </CandidateResearchCard>
+
+            {!previewBrief && (
+              <CandidateDisclosure title="About this research">
+                <CandidateCoverage
+                  hasStatement={!!candidate.statement}
+                  officeUrl={electionOfficeUrl}
                 />
               </CandidateDisclosure>
             )}
-
-            {!previewBrief ? (
-              <CandidateCoverage
-                hasStatement={!!candidate.statement}
-                officeUrl={electionOfficeUrl}
-              />
-            ) : null}
 
             <View style={s.footer}>
               <CandidateDisclosure title="Sources & updates">
@@ -386,7 +503,12 @@ const s = StyleSheet.create({
     paddingBottom: 64,
     gap: 14,
   },
-  hero: { gap: 9 },
+  hero: {
+    gap: 12,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: P.border,
+  },
   fixtureLabel: {
     ...candidateDetailText,
     color: P.spark,
@@ -429,18 +551,12 @@ const s = StyleSheet.create({
     lineHeight: 18,
   },
   rowText: { flex: 1, flexShrink: 1 },
-  section: { gap: 10, paddingTop: 8 },
   sectionTitle: {
     color: P.inkOnNight,
     fontFamily: fontEditorial.bold,
     fontSize: 18,
   },
-  sectionIntro: {
-    color: "rgba(255,255,255,0.70)",
-    fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-  },
+
   panel: {
     padding: 16,
     gap: 13,
@@ -454,12 +570,6 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
     fontFamily: fontEditorial.bold,
     fontSize: 17,
-  },
-  statementPreview: {
-    color: P.inkOnNight,
-    fontFamily: fontBody.regular,
-    fontSize: 15,
-    lineHeight: 23,
   },
   action: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 },
   retryAction: {

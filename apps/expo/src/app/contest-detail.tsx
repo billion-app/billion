@@ -555,40 +555,41 @@ export default function ContestDetailScreen() {
                       color={P.quiet}
                     />
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${cand.name} candidate page`}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/candidate-detail",
+                        params: {
+                          name: cand.name,
+                          office: params.office,
+                          state: params.state,
+                          electionDate: params.electionDate,
+                          electionStage: params.electionStage,
+                          ballotSourceName: params.ballotSourceName,
+                          ballotSourceUrl: params.ballotSourceUrl,
+                          ballotFetchedAt: params.ballotFetchedAt,
+                          districtId: params.districtId,
+                          district: params.districtName,
+                          candidate: JSON.stringify(cand),
+                        },
+                      })
+                    }
+                    style={s.fieldGuideAction}
+                  >
+                    <Text
+                      style={[
+                        s.websiteTitle,
+                        { color: P.spark, textDecorationLine: "underline" },
+                      ]}
+                    >
+                      Research this candidate
+                    </Text>
+                    <Icon name="arrowRight" size={16} color={P.spark} />
+                  </TouchableOpacity>
                   {open && (
                     <View style={s.candBody}>
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityLabel={`Open ${cand.name} candidate page`}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/candidate-detail",
-                            params: {
-                              name: cand.name,
-                              office: params.office,
-                              state: params.state,
-                              electionDate: params.electionDate,
-                              electionStage: params.electionStage,
-                              ballotSourceName: params.ballotSourceName,
-                              ballotSourceUrl: params.ballotSourceUrl,
-                              ballotFetchedAt: params.ballotFetchedAt,
-                              districtId: params.districtId,
-                              district: params.districtName,
-                              candidate: JSON.stringify(cand),
-                            },
-                          })
-                        }
-                        style={s.contactRow}
-                      >
-                        <Text style={[s.websiteTitle, { color: P.inkOnNight }]}>
-                          Open candidate page
-                        </Text>
-                        <Icon
-                          name="arrowRight"
-                          size={16}
-                          color={P.inkOnNight}
-                        />
-                      </TouchableOpacity>
                       <CandidateStatement cand={cand} />
                       {cand.biography ? (
                         <BallotBiography text={cand.biography} />
@@ -718,6 +719,14 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 8,
   },
+  fieldGuideAction: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 14,
+  },
   office: {
     fontFamily: fontEditorial.bold,
     fontSize: 22,
@@ -817,7 +826,7 @@ const s = StyleSheet.create({
     lineHeight: 21,
     color: P.inkOnNight,
   },
-  candidateSection: { gap: 18 },
+  candidateSection: { gap: 8 },
   readingLabel: {
     fontFamily: fontEditorial.bold,
     fontSize: 16,
