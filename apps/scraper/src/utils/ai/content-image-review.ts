@@ -5,6 +5,7 @@ import type { GeneratedImage } from "./image-generation.js";
 import type { LocalLlmConfig } from "./provider.js";
 import { trackDeepSeekVisionUsage } from "../costs.js";
 import { createLogger } from "../log.js";
+import { UnsafeContentVisualPlanError } from "./content-image-visual.js";
 import {
   DEEPSEEK_VISION_MODEL,
   getDeepSeekVisionApiKey,
@@ -26,6 +27,7 @@ export const CONTENT_IMAGE_REVIEW_REASONS = [
   "invented-consequences",
   "artifacts",
   "insufficient-source-description",
+  "unsafe-visual-plan",
 ] as const;
 
 export type ContentImageReviewReason =
@@ -501,6 +503,26 @@ export async function reviewContentImage(
  * feedback. The caller owns persistence, so rejected or errored images cannot
  * be published by this function.
  */
+function generationFailure(
+  error: unknown,
+  reviewAttempts: number,
+): ReviewedImageResult {
+  if (error instanceof UnsafeContentVisualPlanError) {
+    return {
+      status: "rejected",
+      reviewAttempts,
+      review: {
+        decision: "reject",
+        description: `No image was published because the scene failed the readable-copy check after ${error.planningAttempts} planning attempts.`,
+        rejectionReasons: ["unsafe-visual-plan"],
+        feedback: `Rejected visual plan: ${error.scene.slice(0, 500)}`,
+        reviewModelVersion: "visual-plan-validation-v1",
+      },
+    };
+  }
+  return { status: "error", error, reviewAttempts };
+}
+
 export async function generateReviewedContentImage(args: {
   source: ContentImageReviewSource;
   generate: ImageGenerator;
@@ -527,7 +549,7 @@ export async function generateReviewedContentImage(args: {
     try {
       generated = await args.generate(feedback);
     } catch (error) {
-      return { status: "error", error, reviewAttempts };
+      return generationFailure(error, reviewAttempts);
     }
     if (!generated) {
       return {
@@ -595,6 +617,6 @@ export async function generateContentImage(args: {
     }
     return { status: "unreviewed", generated };
   } catch (error) {
-    return { status: "error", error, reviewAttempts: 0 };
+    return generationFailure(error, 0);
   }
 }
