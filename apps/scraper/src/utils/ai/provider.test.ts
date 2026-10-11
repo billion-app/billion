@@ -113,6 +113,10 @@ test("structured generation falls back with JSON schema", async (t) => {
   });
   assert.deepEqual(result.output, { answer: "yes" });
   assert.equal(
+    provider.getGeneratedModelVersion(result),
+    "fallback:gpt-6-luna",
+  );
+  assert.equal(
     provider.getStructuredLlmCandidates().at(-1)?.modelVersion,
     "fallback:gpt-6-luna",
   );
@@ -501,6 +505,10 @@ test("primary Responses endpoint leads text and both structured orders", async (
     output: Output.object({ schema: z.object({ answer: z.string() }) }),
   });
   assert.deepEqual(result.output, { answer: "yes" });
+  assert.equal(
+    provider.getGeneratedModelVersion(result),
+    "fallback:gpt-6-luna",
+  );
   assert.equal(calls.length, 2);
   for (const options of [undefined, { localFirst: true }]) {
     const candidates = provider.getStructuredLlmCandidates(options);
@@ -559,5 +567,40 @@ test("primary Responses priority requires an endpoint", async (t) => {
   assert.throws(
     () => provider.getStructuredLlmCandidates(),
     /SCRAPER_FALLBACK_BASE_URL is required/,
+  );
+});
+
+test("structured provenance identifies the successful outage alternative", async (t) => {
+  const provider = await setup(t, {
+    ...fallback,
+    SCRAPER_FALLBACK_PRIORITY: "primary",
+    DEEPSEEK_API_KEY: "test",
+  });
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    if (String(url).startsWith("http://proxy.test/"))
+      return new Response("unavailable", { status: 503 });
+    return Response.json({
+      id: "chat_test",
+      model: "deepseek-v4-flash",
+      created: 1,
+      choices: [
+        {
+          index: 0,
+          message: { role: "assistant", content: '{"answer":"yes"}' },
+          finish_reason: "stop",
+        },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+    });
+  });
+  const result = await generateText({
+    model: provider.getStructuredLlm(),
+    prompt: "hello",
+    maxRetries: 0,
+    output: Output.object({ schema: z.object({ answer: z.string() }) }),
+  });
+  assert.equal(
+    provider.getGeneratedModelVersion(result),
+    "deepseek:deepseek-v4-flash",
   );
 });

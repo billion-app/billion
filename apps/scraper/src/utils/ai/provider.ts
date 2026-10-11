@@ -314,10 +314,36 @@ export function getStructuredLlm(): LanguageModel {
   structuredLlm ??= withFallbacks(
     getStructuredLlmCandidates().map((candidate) => ({
       label: candidate.modelVersion,
-      model: candidate.model,
+      model: wrapLanguageModel({
+        model: candidate.model,
+        middleware: {
+          specificationVersion: "v3",
+          wrapGenerate: async ({ doGenerate }) => {
+            const result = await doGenerate();
+            logger.info(`Structured generation used ${candidate.modelVersion}`);
+            return {
+              ...result,
+              providerMetadata: {
+                ...result.providerMetadata,
+                scraper: { modelVersion: candidate.modelVersion },
+              },
+            };
+          },
+        },
+      }),
     })),
   );
   return structuredLlm;
+}
+
+/** Successful structured provider, including an outage alternative. */
+export function getGeneratedModelVersion(result: {
+  providerMetadata?: Record<string, Record<string, unknown>>;
+}): string {
+  const version = result.providerMetadata?.scraper?.modelVersion;
+  if (typeof version !== "string")
+    throw new Error("Structured generation did not report its provider");
+  return version;
 }
 
 /**
