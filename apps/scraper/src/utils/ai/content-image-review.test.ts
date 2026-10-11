@@ -440,3 +440,118 @@ test("rejections without an explicit reason fail schema validation", async () =>
     /at least one explicit reason/,
   );
 });
+
+test("Codex reviews both crops through native Responses without chat image translation", async () => {
+  const generated = await image();
+  let calls = 0;
+  const review = await reviewContentImage(generated, source, {
+    codex: {
+      baseURL: "http://codex.test/v1",
+      model: "gpt-6-luna",
+      apiKey: "unused",
+    },
+    local: null,
+    fetch: async (url, init) => {
+      calls += 1;
+      assert.equal(String(url), "http://codex.test/v1/responses");
+      const body = JSON.parse(init?.body as string);
+      assert.equal(body.model, "gpt-6-luna");
+      assert.equal(body.store, false);
+      const images = body.input[0].content.filter(
+        (item: { type: string }) => item.type === "input_image",
+      );
+      assert.equal(images.length, 2);
+      const dimensions = await Promise.all(
+        images.map((item: { image_url: string }) =>
+          sharp(
+            Buffer.from(item.image_url.split(",")[1]!, "base64"),
+          ).metadata(),
+        ),
+      );
+      assert.deepEqual(
+        dimensions.map((m) => [m.width, m.height]),
+        [
+          [1024, 512],
+          [768, 768],
+        ],
+      );
+      return Response.json({
+        model: "gpt-6-luna",
+        output: [
+          {
+            type: "message",
+            content: [
+              { type: "output_text", text: JSON.stringify(acceptedReview()) },
+            ],
+          },
+        ],
+      });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(review.decision, "accept");
+  assert.equal(review.reviewModelVersion, "codex:gpt-6-luna");
+});
+
+test("Codex rejection is final and does not ask another provider to approve it", async () => {
+  let calls = 0;
+  const review = await reviewContentImage(await image(), source, {
+    codex: {
+      baseURL: "http://codex.test/v1",
+      model: "gpt-6-luna",
+      apiKey: "unused",
+    },
+    local: {
+      baseURL: "http://local.test/v1",
+      model: "local",
+      apiKey: "unused",
+    },
+    fetch: async () => {
+      calls += 1;
+      return Response.json({
+        output: [
+          {
+            type: "message",
+            content: [
+              {
+                type: "output_text",
+                text: JSON.stringify(rejectedReview("Make the pipe clear.")),
+              },
+            ],
+          },
+        ],
+      });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(review.decision, "reject");
+});
+
+test("Codex review transport failure retains the local review alternative", async () => {
+  const calls: string[] = [];
+  const review = await reviewContentImage(await image(), source, {
+    codex: {
+      baseURL: "http://codex.test/v1",
+      model: "gpt-6-luna",
+      apiKey: "unused",
+    },
+    local: {
+      baseURL: "http://local.test/v1",
+      model: "local",
+      apiKey: "unused",
+    },
+    fetch: async (url) => {
+      calls.push(String(url));
+      if (String(url).includes("codex.test"))
+        return new Response("unavailable", { status: 503 });
+      return Response.json({
+        choices: [{ message: { content: JSON.stringify(acceptedReview()) } }],
+      });
+    },
+  });
+  assert.deepEqual(calls, [
+    "http://codex.test/v1/responses",
+    "http://local.test/v1/chat/completions",
+  ]);
+  assert.equal(review.reviewModelVersion, "local:local");
+});

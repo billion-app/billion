@@ -7,6 +7,13 @@ import { getTextLlm } from "./provider.js";
 
 export const CONTENT_IMAGE_STYLE_VERSION = "illustrated-fantasy-v2";
 
+/** Retry old rejections after a provider change without invalidating accepted art. */
+export function contentImageReviewStyleVersion(): string {
+  return process.env.SCRAPER_IMAGE_PROVIDER === "codex"
+    ? `${CONTENT_IMAGE_STYLE_VERSION}:codex:${process.env.SCRAPER_IMAGE_MODEL?.trim() || "gpt-image-2"}`
+    : CONTENT_IMAGE_STYLE_VERSION;
+}
+
 export interface ContentVisualSource {
   title: string;
   description: string;
@@ -29,8 +36,14 @@ type VisualPlanner = (
   revisionFeedback?: string,
 ) => Promise<ContentVisualPlan>;
 
-const WRITTEN_MATERIAL =
-  /\b(?:banner|caption|document|headline|label|letter|logo|numeral|poster|reading|screen|sign|text|title|watermark|word|written)\b/i;
+const WRITTEN_OBJECTS =
+  "(?:banners?|captions?|documents?|headlines?|labels?|letters?|logos?|numerals?|posters?|reading|screens?|signs?|text|titles?|watermarks?|words?|written)";
+const WRITTEN_MATERIAL = new RegExp(`\\b${WRITTEN_OBJECTS}\\b`, "i");
+// Exclusions are safety instructions, not requests to draw the excluded objects.
+const EXCLUDED_WRITING = new RegExp(
+  `\\b(?:no|without)\\s+(?:(?:any|readable|written|visible)\\s+)*${WRITTEN_OBJECTS}\\b(?:\\s*(?:,|and|or)\\s*(?:(?:any|readable|written|visible)\\s+)*${WRITTEN_OBJECTS}\\b)*`,
+  "gi",
+);
 
 /** Add policy specifics without copying source-page navigation into the prompt. */
 export function governmentImageDescription(
@@ -72,11 +85,11 @@ export function renderContentImagePrompt(plan: ContentVisualPlan): string {
     .replace(/\s+/g, " ")
     .trim();
   if (!scene) throw new Error("Content image visual plan has no scene");
-  if (WRITTEN_MATERIAL.test(scene)) {
+  if (WRITTEN_MATERIAL.test(scene.replace(EXCLUDED_WRITING, ""))) {
     throw new Error("Content image visual plan includes written material");
   }
 
-  return `NO WORDS OR TYPOGRAPHY ANYWHERE IN THE IMAGE. Full-bleed professional editorial illustration for a serious news article. Scene: ${scene}. Use a restrained, literal composition with one clear subject, accurate real-world objects, natural proportions, calm lighting, and muted but legible color. Keep the key subject and story-specific details within the central 70 percent of the frame so the 2:1 article-header crop and square browse-card crop remain clear when the app uses centered cover crops. Avoid caricature, sensationalism, invented consequences, partisan symbols, generic corporate stock scenes, fantasy scenery, and magazine-cover styling. Avoid storefronts, billboards, banners, paperwork, books, screens, and every other surface that would normally carry writing. Architecture and objects must be blank and unmarked. No letters, words, numerals, captions, signs, labels, documents, screens, logos, borders, UI, or watermark.`;
+  return `NO WORDS OR TYPOGRAPHY ANYWHERE IN THE IMAGE. Full-bleed professional editorial illustration for a serious news article. Scene: ${scene}. Use a restrained, literal composition with one clear subject, accurate real-world objects, natural proportions, calm lighting, and muted but legible color. Keep each whole key subject and story-specific detail within the central 40 percent of the image width and central 70 percent of its height, with ample breathing room so the 2:1 article-header crop and square browse-card crop remain clear when the app uses centered cover crops. Avoid caricature, sensationalism, invented consequences, partisan symbols, generic corporate stock scenes, fantasy scenery, and magazine-cover styling. Avoid storefronts, billboards, banners, paperwork, books, screens, and every other surface that would normally carry writing. Architecture and objects must be blank and unmarked. No letters, words, numerals, captions, signs, labels, documents, screens, logos, borders, UI, or watermark.`;
 }
 
 /**
@@ -91,11 +104,19 @@ export async function planRenderedContentImagePrompt(
   revisionFeedback?: string,
 ): Promise<string> {
   let lastError: unknown;
+  let feedback = revisionFeedback;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return renderContentImagePrompt(await planner(source, revisionFeedback));
+      return renderContentImagePrompt(await planner(source, feedback));
     } catch (error) {
       lastError = error;
+      feedback = [
+        revisionFeedback,
+        error instanceof Error ? error.message : String(error),
+        "Describe only drawable objects and activities. Keep the scene under 700 characters.",
+      ]
+        .filter(Boolean)
+        .join(". ");
     }
   }
   throw lastError;

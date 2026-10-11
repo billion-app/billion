@@ -71,8 +71,38 @@ The supervisor forwards these environment variables to jobs on restart.
 Leaving the URL unset disables this fallback. It covers text and structured briefs. Search fallback requires native search
 support from the endpoint and rejects responses without URL citations. The
 current OAuth proxy with Luna passed live text and JSON checks but did not expose
-native web search; the ordinary hosted search providers are still required. It does not replace image generation
-or vision review. Adding the fallback does not invalidate existing lens caches.
+native web search; the ordinary hosted search providers are still required. Image generation and crop review have a separate provider setting below. Adding the fallback does not invalidate existing lens caches.
+
+## Subscription-backed header artwork
+
+The host OAuth proxy also exposes `/v1/images/generations`. Select it for new
+header artwork and use the text model's native Responses endpoint to review the
+wide and square app crops:
+
+```dotenv
+SCRAPER_IMAGE_PROVIDER=codex
+SCRAPER_IMAGE_MODEL=gpt-image-2
+```
+
+These use the existing `SCRAPER_FALLBACK_BASE_URL` and optional proxy bearer key.
+The proxy owns subscription login and refresh. The scraper requests one image
+at low quality and reads the returned raster's actual dimensions; the proxy may
+return a different size from the requested one. Generation logs the selected
+image model, dimensions and reported usage. Crop review records its successful
+model, including local or DeepSeek outage alternatives.
+
+A transport failure can fall back to local FLUX generation. The scheduled
+header-art job never activates hosted BFL generation. A valid rejection remains
+a rejection; another reviewer cannot override it. Moderation does not activate
+another generator. Changing the image provider or model makes old terminal
+rejections eligible for one new reviewed attempt, while accepted artwork stays
+cached. Native Responses is required for embedded review images: this host's
+proxy chat endpoint failed the same data-URL input in live verification.
+
+Deploy the reviewed, merged image through the normal scraper deployment command
+before restarting with these settings. Verify one reviewed image first using
+`court-image-smoke`; use the job log, the stored image and the review record as
+the evidence. Do not skip suitability review to recover the queue.
 
 ## Free-tier search with Tavily
 

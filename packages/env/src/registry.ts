@@ -630,6 +630,26 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "SCRAPER_IMAGE_PROVIDER",
+    description:
+      "Header-art provider: local FLUX, or subscription-backed Codex images and Responses crop review with local outage alternatives.",
+    group: "AI",
+    secret: false,
+    defaultValue: "local",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["local", "codex"]),
+  }),
+  define({
+    key: "SCRAPER_IMAGE_MODEL",
+    description:
+      "Image model served by the Codex OAuth endpoint when Codex imagery is selected.",
+    group: "AI",
+    secret: false,
+    defaultValue: "gpt-image-2",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "BFL_API_KEY",
     description: "Black Forest Labs key for generated feed-card images.",
     group: "Scraper images",
