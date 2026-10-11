@@ -138,12 +138,6 @@ export default function CandidateDetailScreen() {
   const fetchedAt = usingGuideStatement
     ? query.data?.fetchedAt
     : statementCitation?.fetchedAt;
-  const portraitSource = fromBallot?.photoUrl
-    ? fromBallot.citations?.find((item) => item.field === "photoUrl")?.sourceUrl
-    : guide?.photoUrl
-      ? guide.sourceUrl
-      : undefined;
-
   const previewBrief =
     fromBallot?.name === "Morgan Lee (fictional)"
       ? candidateBriefPreview(params.briefPreview)
@@ -215,8 +209,18 @@ export default function CandidateDetailScreen() {
         sourceUrl: fromBallot?.citations?.find(
           (item) => item.field === "biography",
         )?.sourceUrl,
+        photoUrl: fromBallot?.photoUrl,
       }
     : backgroundQuery.data;
+
+  const portraitUrl = candidate?.photoUrl ?? publicBiography?.photoUrl;
+  const portraitSource = fromBallot?.photoUrl
+    ? fromBallot.citations?.find((item) => item.field === "photoUrl")?.sourceUrl
+    : guide?.photoUrl
+      ? guide.sourceUrl
+      : publicBiography?.photoUrl
+        ? publicBiography.sourceUrl
+        : undefined;
 
   return (
     <View style={s.screen}>
@@ -275,9 +279,9 @@ export default function CandidateDetailScreen() {
                   : "CANDIDATE RESEARCH"}
               </Text>
               <View style={s.identity}>
-                {webUrl(candidate.photoUrl) && !photoFailed ? (
+                {webUrl(portraitUrl) && !photoFailed ? (
                   <Image
-                    source={{ uri: candidate.photoUrl }}
+                    source={{ uri: portraitUrl }}
                     style={s.portrait}
                     onError={() => setPhotoFailed(true)}
                     accessibilityLabel={`Portrait of ${candidate.name}`}
@@ -544,12 +548,14 @@ export default function CandidateDetailScreen() {
                     url={sourceUrl}
                   />
                 ) : null}
-                {candidate.photoUrl && portraitSource ? (
+                {portraitUrl && portraitSource ? (
                   <SourceLink
                     label={
                       fromBallot?.photoUrl
                         ? "Portrait · ballot provider"
-                        : "Portrait · California voter guide"
+                        : guide?.photoUrl
+                          ? "Portrait · California voter guide"
+                          : `Portrait · ${publicBiography?.sourceName ?? "source"}`
                     }
                     url={portraitSource}
                   />

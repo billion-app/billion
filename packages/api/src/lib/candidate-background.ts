@@ -20,6 +20,7 @@ export interface CandidateBackground {
   sourceUrl?: string;
   tier: string;
   official: boolean;
+  photoUrl?: string;
 }
 
 /** The biography field and its citation, or nothing when the merge had no prose. */
@@ -35,6 +36,7 @@ export function biographyFromCanonical(
     sourceUrl: citation.sourceUrl,
     tier: citation.tier,
     official: citation.official,
+    photoUrl: record.photoUrl,
   };
 }
 

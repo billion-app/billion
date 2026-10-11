@@ -25,14 +25,15 @@ function record(
   };
 }
 
-void test("a cited biography is returned", () => {
-  const selected = biographyFromCanonical(
-    record("Served on the city council."),
-  );
+void test("a cited biography and photo are returned", () => {
+  const sample = record("Served on the city council.");
+  sample.photoUrl = "https://example.org/photo.jpg";
+  const selected = biographyFromCanonical(sample);
   assert.ok(selected);
   assert.equal(selected.biography, "Served on the city council.");
   assert.equal(selected.sourceName, "Ballotpedia");
   assert.equal(selected.tier, "ballotpedia");
+  assert.equal(selected.photoUrl, "https://example.org/photo.jpg");
 });
 
 void test("blank prose is ignored", () => {
