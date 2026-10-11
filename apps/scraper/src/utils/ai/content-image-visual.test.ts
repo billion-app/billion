@@ -41,9 +41,9 @@ test("the FLUX prompt contains only the visual plan, never the bill title or sum
   assert.match(prompt, /^NO WORDS OR TYPOGRAPHY/);
   assert.match(prompt, /professional editorial illustration/);
   assert.match(prompt, /restrained, literal composition/);
-  assert.match(prompt, /every other surface that would normally carry writing/);
+  assert.match(prompt, /Every visible surface/);
   assert.match(prompt, /blank and unmarked/);
-  assert.match(prompt, /No letters, words, numerals/);
+  assert.match(prompt, /No readable writing, letters, words, numerals/);
 });
 
 test("a visual plan containing written material is rejected", () => {
@@ -145,7 +145,7 @@ test("planning retries include the validation failure and preserve review guidan
     async (_source, feedback) => {
       feedbacks.push(feedback);
       return feedbacks.length === 1
-        ? { scene: "A city street with signs" }
+        ? { scene: "A city street with signs announcing new rules" }
         : { scene: "A city street with brick homes, trees and bicycles" };
     },
     3,
@@ -180,4 +180,57 @@ test("a provider switch retries old rejections without making accepted image has
     `${CONTENT_IMAGE_STYLE_VERSION}:codex:gpt-image-2`,
   );
   assert.equal(versionContentImageHash("source"), hash);
+});
+
+test("a source-grounded reading activity with blank learning materials is drawable", () => {
+  assert.doesNotThrow(() =>
+    renderContentImagePrompt({
+      scene:
+        "In a public library, a child and adult share a reading activity with an open picture book and colored reading guides. All pages are blank and unmarked, with no visible writing or printed symbols.",
+    }),
+  );
+});
+
+test("blank source-related surfaces do not become requests for readable copy", () => {
+  assert.doesNotThrow(() =>
+    renderContentImagePrompt({
+      scene:
+        "A service plaza with a blank sign beside fuel pumps; an inspector examines an unmarked document, without any printed text or visible logos.",
+    }),
+  );
+});
+
+test("explicit readable copy remains forbidden even when other writing is excluded", () => {
+  for (const scene of [
+    "A library with a sign reading CLARITY, no logos",
+    "A city poster with a headline announcing the new policy",
+    "A courthouse screen covered in words",
+    "Children arrange wooden letter-shaped blocks",
+    "A fuel pump with readable prices and numerals",
+    "A roadside sign that reads STOP beside a red truck",
+    "A courthouse banner bearing JUSTICE FOR ALL above the entrance",
+    "A street with no logos, and signs that read STOP",
+  ]) {
+    assert.throws(
+      () => renderContentImagePrompt({ scene }),
+      /includes written material/,
+      scene,
+    );
+  }
+});
+
+test("common exclusion variants do not make a fuel-pump scene fail", () => {
+  for (const exclusion of [
+    "no visible lettering or logos",
+    "no other text or signage",
+    "no readable text, logos, signs, or numbers",
+    "no legible writing, numbers, logos, or symbols",
+    "no display text",
+  ]) {
+    assert.doesNotThrow(() =>
+      renderContentImagePrompt({
+        scene: `A driver refuels a car beside a blank pump, ${exclusion}.`,
+      }),
+    );
+  }
 });
