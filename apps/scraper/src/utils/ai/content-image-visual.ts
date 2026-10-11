@@ -37,11 +37,16 @@ type VisualPlanner = (
 ) => Promise<ContentVisualPlan>;
 
 const WRITTEN_OBJECTS =
-  "(?:banners?|captions?|documents?|headlines?|labels?|letters?|logos?|numerals?|posters?|reading|screens?|signs?|text|titles?|watermarks?|words?|written)";
-const WRITTEN_MATERIAL = new RegExp(`\\b${WRITTEN_OBJECTS}\\b`, "i");
+  "(?:banners?|captions?|documents?|headlines?|labels?|lettering|letters?|logos?|numbers?|numerals?|posters?|screens?|signage|signs?|symbols?|text|titles?|watermarks?|words?|writing|written)";
+const COPY_ACTION =
+  "(?:(?:that|which)\\s+)?(?:reads?|reading|says?|saying|announces?|announcing|displays?|displaying|bearing|inscribed)";
+const WRITTEN_MATERIAL = new RegExp(
+  `\\b(?:captions?|headlines?|labels?|lettering|letters?|logos?|numbers?|numerals?|symbols?|text|titles?|watermarks?|words?|writing|written)\\b|\\b(?:banners?|posters?|screens?|signs?)\\s+${COPY_ACTION}\\b`,
+  "i",
+);
 // Exclusions are safety instructions, not requests to draw the excluded objects.
 const EXCLUDED_WRITING = new RegExp(
-  `\\b(?:no|without)\\s+(?:(?:any|readable|written|visible)\\s+)*${WRITTEN_OBJECTS}\\b(?:\\s*(?:,|and|or)\\s*(?:(?:any|readable|written|visible)\\s+)*${WRITTEN_OBJECTS}\\b)*`,
+  `\\b(?:no|without)\\s+(?:(?:any|other|readable|legible|written|visible|printed|display)\\s+)*${WRITTEN_OBJECTS}\\b(?!\\s+${COPY_ACTION}\\b)(?:\\s*(?:,\\s*(?:and|or)?|and|or)\\s*(?:(?:any|other|readable|legible|written|visible|printed|display)\\s+)*${WRITTEN_OBJECTS}\\b(?!\\s+${COPY_ACTION}\\b))*`,
   "gi",
 );
 
@@ -76,7 +81,7 @@ Translate the policy into one literal, documentary-like scene, not a poster. Nam
 
 Do not invent policy consequences, dramatic conflict, villains, victims, or generic fantasy scenery. A viewer who has not read the title should still be able to identify the real-world subject from the objects and actions in the illustration.
 
-Write only what an illustrator should draw. Never repeat or paraphrase the title as display copy. Do not include documents, screens, signs, captions, labels, letters, numerals, logos, flags, watermarks, or any other readable material. Avoid podiums, handshakes, conference rooms, and generic people smiling at the camera.${feedback}`;
+Write only what an illustrator should draw. Never repeat or paraphrase the title as display copy. Do not request readable writing, captions, labels, letters, numerals, logos, flags, or watermarks. Books, documents, signs, or screens may appear only when directly relevant to the story, and their surfaces must be blank, wordless, and unmarked. A reading or learning activity can use picture-only materials. Avoid podiums, handshakes, conference rooms, and generic people smiling at the camera.${feedback}`;
 }
 
 export function renderContentImagePrompt(plan: ContentVisualPlan): string {
@@ -89,7 +94,7 @@ export function renderContentImagePrompt(plan: ContentVisualPlan): string {
     throw new Error("Content image visual plan includes written material");
   }
 
-  return `NO WORDS OR TYPOGRAPHY ANYWHERE IN THE IMAGE. Full-bleed professional editorial illustration for a serious news article. Scene: ${scene}. Use a restrained, literal composition with one clear subject, accurate real-world objects, natural proportions, calm lighting, and muted but legible color. Keep each whole key subject and story-specific detail within the central 40 percent of the image width and central 70 percent of its height, with ample breathing room so the 2:1 article-header crop and square browse-card crop remain clear when the app uses centered cover crops. Avoid caricature, sensationalism, invented consequences, partisan symbols, generic corporate stock scenes, fantasy scenery, and magazine-cover styling. Avoid storefronts, billboards, banners, paperwork, books, screens, and every other surface that would normally carry writing. Architecture and objects must be blank and unmarked. No letters, words, numerals, captions, signs, labels, documents, screens, logos, borders, UI, or watermark.`;
+  return `NO WORDS OR TYPOGRAPHY ANYWHERE IN THE IMAGE. Full-bleed professional editorial illustration for a serious news article. Scene: ${scene}. Use a restrained, literal composition with one clear subject, accurate real-world objects, natural proportions, calm lighting, and muted but legible color. Keep each whole key subject and story-specific detail within the central 40 percent of the image width and central 70 percent of its height, with ample breathing room so the 2:1 article-header crop and square browse-card crop remain clear when the app uses centered cover crops. Avoid caricature, sensationalism, invented consequences, partisan symbols, generic corporate stock scenes, fantasy scenery, and magazine-cover styling. Every visible surface must be blank and unmarked; source-related books or documents may contain only nonlinguistic pictures. No readable writing, letters, words, numerals, captions, labels, logos, borders, UI, or watermark.`;
 }
 
 /**

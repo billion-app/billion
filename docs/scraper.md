@@ -269,7 +269,7 @@ providers see the wide 2:1 crop used by the article header and the square crop
 used by browse cards. They compare both crops with the source description and
 check that the subject remains recognizable, the framing stays neutral and
 professional, and the pixels contain no invented consequences, caricature,
-readable text, logos, watermarks, or generation defects.
+readable text, logos, watermarks, or generation defects. Planning allows source-related reading activities and blank books, documents, or signs; it rejects requests for visible copy rather than treating those object names as writing. The rendered image must still pass both crop reviews before publication.
 
 The local review request constrains its response to the decision and reason JSON
 schema. This prevents invented reason labels from unnecessarily depending on the
