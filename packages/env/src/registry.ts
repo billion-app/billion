@@ -537,6 +537,16 @@ export const envRegistry = [
     schema: url,
   }),
   define({
+    key: "SCRAPER_FALLBACK_PRIORITY",
+    description:
+      "Use the Responses endpoint first for scraper text and structured briefs, or only after other providers fail. Search and vision ordering are unchanged.",
+    group: "AI",
+    secret: false,
+    defaultValue: "fallback",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["fallback", "primary"]),
+  }),
+  define({
     key: "SCRAPER_FALLBACK_MODEL",
     description: "Model served by the scraper fallback endpoint.",
     group: "AI",
