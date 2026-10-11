@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
 
 import { searchSearxng } from "../utils/ai/searxng-search.js";
-import { searchTavily } from "../utils/ai/tavily-search.js";
+import { createTavilySearch } from "../utils/ai/tavily-search.js";
 import { retrieveSource } from "./pages.js";
 
 const argv = process.argv.slice(2);
@@ -35,6 +35,7 @@ if (!baseUrl)
 const compareTavily = argv.includes("--tavily");
 if (compareTavily && !process.env.TAVILY_API_KEY)
   throw new Error("--tavily requires TAVILY_API_KEY");
+const searchTavily = createTavilySearch();
 const results: unknown[] = [];
 for (const query of queries) {
   for (const provider of compareTavily

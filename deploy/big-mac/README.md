@@ -81,6 +81,20 @@ search requests `basic` depth with automatic parameter selection disabled,
 which uses one credit, and at most five results. This does not guarantee that
 1,000 credits cover every scheduled job; a research loop may search repeatedly.
 
+Tavily searches share a process-wide budget of ten uncached attempts by default
+(`SCRAPER_TAVILY_MAX_SEARCHES_PER_RUN`). Concurrent identical queries reuse one
+request and successful results stay cached for that job. Failed searches also
+count against the attempt budget. Before the first search, the job reads Tavily's
+account usage and stops at the smaller of the provider's remaining credits and
+the configured monthly ceiling (`SCRAPER_TAVILY_MONTHLY_CREDIT_LIMIT`, default
+800). This reserves 200 credits on the Researcher plan. Zero disables searches.
+The usage check fails closed; a budget stop never activates another search
+provider. Account usage is a starting snapshot, so separate processes or other
+applications sharing the account can spend concurrently. These limits conserve
+quota; they do not guarantee full research coverage or spread usage evenly over
+the month. A bill brief can still use official text when optional research is
+unavailable, while perspectives without supporting citations remain absent.
+
 In `tavily` mode, exhausted credits or an invalid key fail the search without
 switching to a paid provider. Text generation retains its separate provider
 order, including the OAuth fallback. Search returns source URLs and snippets;
