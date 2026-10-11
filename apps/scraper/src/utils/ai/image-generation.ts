@@ -268,7 +268,7 @@ export async function generateImage(
 
   // Local-first: the local FLUX server is free, so it gets the first attempt and
   // the paid BFL API is the fallback for when it is down or unconfigured.
-  const preferredImage = await generateEditorialImage(fullPrompt, 768, 768);
+  const preferredImage = await generateViaLocalFlux(fullPrompt, 768, 768);
   if (preferredImage) return preferredImage;
 
   if (!BFL_API_KEY) {

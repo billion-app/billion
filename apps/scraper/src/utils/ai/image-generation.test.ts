@@ -110,3 +110,15 @@ test("a moderated Codex request never activates another image provider", async (
   assert.equal(await provider.generateEditorialImage("A civic scene"), null);
   assert.equal(calls, 1);
 });
+
+test("legacy hosted-image helper retains local-first routing in Codex header mode", async (t) => {
+  const provider = await setup(t, codex);
+  const data = await png();
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    calls.push(String(url));
+    return new Response(data, { headers: { "content-type": "image/png" } });
+  });
+  assert.ok(await provider.generateImage("A calm civic scene", 0));
+  assert.deepEqual(calls, ["http://local.test/generate"]);
+});
