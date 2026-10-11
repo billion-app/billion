@@ -119,12 +119,16 @@ export async function planRenderedContentImagePrompt(
   revisionFeedback?: string,
 ): Promise<string> {
   let lastError: unknown;
+  let operationalFailure: { error: unknown } | undefined;
   let feedback = revisionFeedback;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       return renderContentImagePrompt(await planner(source, feedback));
     } catch (error) {
       lastError = error;
+      if (!(error instanceof UnsafeContentVisualPlanError)) {
+        operationalFailure = { error };
+      }
       feedback = [
         revisionFeedback,
         error instanceof Error ? error.message : String(error),
@@ -134,6 +138,7 @@ export async function planRenderedContentImagePrompt(
         .join(". ");
     }
   }
+  if (operationalFailure) throw operationalFailure.error;
   if (lastError instanceof UnsafeContentVisualPlanError) {
     throw new UnsafeContentVisualPlanError(lastError.scene, maxAttempts);
   }

@@ -633,3 +633,29 @@ test("unsafe replacement planning retains the completed review count without pub
   assert.match(result.review.description, /No image was published/);
   assert.deepEqual(result.review.rejectionReasons, ["unsafe-visual-plan"]);
 });
+
+test("mixed transport or schema failures never become a terminal unsafe-plan rejection", async () => {
+  const operationalError = new Error("Responses HTTP 503");
+  for (const unsafeAttempts of [
+    [false, false, true],
+    [true, false, true],
+    [true, true, false],
+  ]) {
+    let attempt = 0;
+    const result = await generateContentImage({
+      source,
+      generate: async () => {
+        await planRenderedContentImagePrompt(source, async () => {
+          if (!unsafeAttempts[attempt++]) throw operationalError;
+          return {
+            scene: "A roadside sign that reads STOP beside a red truck",
+          };
+        });
+        return null;
+      },
+    });
+    assert.equal(result.status, "error");
+    if (result.status === "error") assert.equal(result.error, operationalError);
+    assert.equal(attempt, 3);
+  }
+});
