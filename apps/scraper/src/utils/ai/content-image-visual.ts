@@ -31,6 +31,16 @@ const ContentVisualPlanSchema = z.object({
 
 export type ContentVisualPlan = z.infer<typeof ContentVisualPlanSchema>;
 
+export class UnsafeContentVisualPlanError extends Error {
+  constructor(
+    readonly scene: string,
+    readonly planningAttempts = 1,
+  ) {
+    super("Content image visual plan includes written material");
+    this.name = "UnsafeContentVisualPlanError";
+  }
+}
+
 type VisualPlanner = (
   source: ContentVisualSource,
   revisionFeedback?: string,
@@ -91,7 +101,7 @@ export function renderContentImagePrompt(plan: ContentVisualPlan): string {
     .trim();
   if (!scene) throw new Error("Content image visual plan has no scene");
   if (WRITTEN_MATERIAL.test(scene.replace(EXCLUDED_WRITING, ""))) {
-    throw new Error("Content image visual plan includes written material");
+    throw new UnsafeContentVisualPlanError(scene);
   }
 
   return `NO WORDS OR TYPOGRAPHY ANYWHERE IN THE IMAGE. Full-bleed professional editorial illustration for a serious news article. Scene: ${scene}. Use a restrained, literal composition with one clear subject, accurate real-world objects, natural proportions, calm lighting, and muted but legible color. Keep each whole key subject and story-specific detail within the central 40 percent of the image width and central 70 percent of its height, with ample breathing room so the 2:1 article-header crop and square browse-card crop remain clear when the app uses centered cover crops. Avoid caricature, sensationalism, invented consequences, partisan symbols, generic corporate stock scenes, fantasy scenery, and magazine-cover styling. Every visible surface must be blank and unmarked; source-related books or documents may contain only nonlinguistic pictures. No readable writing, letters, words, numerals, captions, labels, logos, borders, UI, or watermark.`;
@@ -109,12 +119,16 @@ export async function planRenderedContentImagePrompt(
   revisionFeedback?: string,
 ): Promise<string> {
   let lastError: unknown;
+  let operationalFailure: { error: unknown } | undefined;
   let feedback = revisionFeedback;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       return renderContentImagePrompt(await planner(source, feedback));
     } catch (error) {
       lastError = error;
+      if (!(error instanceof UnsafeContentVisualPlanError)) {
+        operationalFailure = { error };
+      }
       feedback = [
         revisionFeedback,
         error instanceof Error ? error.message : String(error),
@@ -123,6 +137,10 @@ export async function planRenderedContentImagePrompt(
         .filter(Boolean)
         .join(". ");
     }
+  }
+  if (operationalFailure) throw operationalFailure.error;
+  if (lastError instanceof UnsafeContentVisualPlanError) {
+    throw new UnsafeContentVisualPlanError(lastError.scene, maxAttempts);
   }
   throw lastError;
 }
