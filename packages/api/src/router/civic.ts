@@ -7,6 +7,7 @@ import { BallotProviderError } from "../clients/democracy-works";
 import { getDevBallot } from "../lib/ballot-dev-mocks";
 import { getBallotAvailability } from "../lib/ballot-launch";
 import {
+  getCachedTrillionGraph,
   getCaliforniaGuide,
   getDistrictElectionResults,
   getElectionResults,
@@ -21,6 +22,7 @@ import {
   publishedPropositionConsequences,
 } from "../lib/proposition-consequences";
 import { publishedPropositionContext } from "../lib/proposition-context";
+import { publishedTrillionGraph } from "../lib/trillion";
 import { publicProcedure } from "../trpc";
 
 const STATEWIDE_OFFICE = z.enum(
@@ -61,6 +63,23 @@ export const civicRouter = {
       })),
     };
   }),
+
+  /**
+   * The Trillion argument graph for one statewide proposition, or null.
+   * Reads never generate; the machine gate in `publishedTrillionGraph` decides.
+   */
+  getTrillion: publicProcedure
+    .input(z.object({ number: z.string().regex(/^\d+[A-Z]?$/) }))
+    .query(async ({ input }) => {
+      const guide = await getCaliforniaGuide();
+      if (!guide) return null;
+      return publishedTrillionGraph(
+        guide,
+        input.number,
+        await getCachedTrillionGraph(guide.electionDate, input.number),
+        guide.relationshipSources ?? [],
+      );
+    }),
 
   /**
    * Get a list of upcoming elections

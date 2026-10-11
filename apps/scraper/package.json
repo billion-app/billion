@@ -56,6 +56,7 @@
     "notify-followers": "tsx src/notify-followers-entry.ts",
     "prune-bills": "tsx src/prune-bills-entry.ts",
     "measure-relationships": "tsx src/measure-relationships-entry.ts",
+    "trillion": "tsx src/trillion-entry.ts",
     "search-benchmark": "tsx src/research/benchmark-entry.ts"
   },
   "author": "It's not you it's me",

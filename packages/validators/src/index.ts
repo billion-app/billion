@@ -18,3 +18,4 @@ export * from "./budget-context";
 export * from "./candidate-research";
 export * from "./candidate-research-collection";
 export * from "./proposition-context";
+export * from "./trillion";

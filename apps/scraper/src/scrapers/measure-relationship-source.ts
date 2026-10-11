@@ -38,9 +38,15 @@ export async function fetchRelationshipDocument(url: string): Promise<Buffer> {
 export async function collectRelationshipDocumentHashes(
   electionDate: string,
   revisions?: readonly unknown[],
+  extraUrls: readonly string[] = [],
 ) {
   const hashes: { url: string; hash: string }[] = [];
-  for (const url of relationshipSourceUrls(electionDate, revisions)) {
+  const urls = new Set([
+    ...relationshipSourceUrls(electionDate, revisions),
+    ...extraUrls,
+  ]);
+  if (urls.size > 200) throw new Error("Source registry exceeds 200 documents");
+  for (const url of urls) {
     try {
       const bytes = await fetchRelationshipDocument(url);
       hashes.push({

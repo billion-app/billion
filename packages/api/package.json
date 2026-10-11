@@ -71,6 +71,10 @@
       "types": "./dist/lib/voting-logistics/county-locations-cache.d.ts",
       "default": "./src/lib/voting-logistics/county-locations-cache.ts"
     },
+    "./lib/trillion": {
+      "types": "./dist/lib/trillion.d.ts",
+      "default": "./src/lib/trillion.ts"
+    },
     "./lib/measure-relationships": {
       "types": "./dist/lib/measure-relationships.d.ts",
       "default": "./src/lib/measure-relationships.ts"
