@@ -1,0 +1,2423 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <title>Prop 40 Trillion on iPhone</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+  />
+  <style>
+    /* Layout: phone-first. Focused claim, then category tabs, then a live force-directed map of that
+   category, then its list. At ≥1000px the map fills a canvas beside the reading column.
+   Single dark theme by choice: Billion's navy chrome from packages/ui/src/digest-tokens.ts.
+   Relationship colors reuse Billion's nonpartisan outcome hues and always ship with a written label. */
+    :root {
+      color-scheme: dark;
+      --navy: #0e1530;
+      --slate: #272d3c;
+      --surface: #323848;
+      --hi: #3c4356;
+      --ink: #0a0f22;
+      --paper: #f4efe6;
+      --text: #f7f4ee;
+      --quiet: #8a8fa0;
+      --spark: #d4af37;
+      --primary: #4a7cff;
+      --link: #a5b9ff;
+      --hair1: rgba(255, 255, 255, 0.06);
+      --hair2: rgba(255, 255, 255, 0.1);
+      --hair3: rgba(255, 255, 255, 0.16);
+      --rel-for: #55d6be;
+      --rel-against: #ff9575;
+      --rel-mixed: #b8a1ff;
+      --rel-question: #f4c95d;
+      --rel-applies: #a5b9ff;
+      --display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+      --body: "Albert Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    html,
+    body {
+      height: 100%;
+    }
+    body {
+      margin: 0;
+      background: var(--navy);
+      color: var(--text);
+      font: 15px/1.5 var(--body);
+      -webkit-font-smoothing: antialiased;
+    }
+    button {
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      text-align: left;
+    }
+    button:focus-visible,
+    a:focus-visible,
+    textarea:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--spark);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+    a {
+      color: var(--link);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      height: 100%;
+    }
+    .canvas {
+      display: none;
+    }
+    @media (min-width: 100000px) {
+      .app {
+        grid-template-columns: minmax(0, 1fr) 440px;
+      }
+      .canvas {
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--hair2);
+        min-height: 0;
+        position: relative;
+        background: radial-gradient(
+          ellipse at 50% 55%,
+          #18214a 0%,
+          var(--navy) 70%
+        );
+      }
+      #phone-slot {
+        display: none;
+      }
+    }
+    .canvas-head {
+      padding: 16px 20px 0;
+      display: grid;
+      gap: 2px;
+    }
+    .canvas-head p {
+      margin: 0;
+      color: var(--quiet);
+      font-size: 13px;
+    }
+    #canvas-slot {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+    #map-home {
+      display: none;
+    }
+
+    .reader {
+      overflow-y: auto;
+      min-height: 0;
+      padding-inline: 16px;
+      padding-block: 0 104px;
+    }
+    .proto {
+      margin-inline: -16px;
+      padding: 8px 16px;
+      background: var(--paper);
+      color: #16131a;
+      font-size: 12.5px;
+      line-height: 1.4;
+    }
+    .top {
+      position: sticky;
+      top: env(safe-area-inset-top, 0px);
+      z-index: 5;
+      margin-inline: -16px;
+      padding: 12px 16px 10px;
+      background: color-mix(in srgb, var(--navy) 92%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--hair1);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 12px;
+    }
+    .back {
+      width: 36px;
+      height: 36px;
+      border-radius: 99px;
+      display: grid;
+      place-items: center;
+      background: var(--slate);
+    }
+    .back[disabled] {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--spark);
+    }
+    .rec-title {
+      font: 700 17px/1.2 var(--display);
+    }
+
+    .crumbs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-block: 12px 2px;
+      scrollbar-width: none;
+    }
+    .crumbs::-webkit-scrollbar {
+      display: none;
+    }
+    .crumb {
+      flex: none;
+      max-width: 180px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12.5px;
+      color: var(--quiet);
+      padding: 4px 10px;
+      border-radius: 99px;
+      border: 1px solid var(--hair2);
+    }
+    .crumb:first-child {
+      color: var(--spark);
+      border-color: rgba(212, 175, 55, 0.45);
+      font-weight: 700;
+    }
+    .crumb[aria-current="page"] {
+      color: var(--text);
+      border-color: var(--hair3);
+      background: var(--slate);
+    }
+    .main-link {
+      margin-top: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 99px;
+      border: 1.5px solid var(--spark);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    /* Category tabs drive both the map and the list. */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      margin-top: 18px;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar {
+      display: none;
+    }
+    .tab {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 13px;
+      border-radius: 99px;
+      border: 1px solid var(--hair3);
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--quiet);
+    }
+    .tab .n {
+      font-weight: 600;
+      opacity: 0.8;
+    }
+    .tab .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      background: var(--rel, var(--quiet));
+    }
+    .tab[aria-selected="true"] {
+      color: var(--text);
+      border-color: var(--rel, var(--text));
+      background: color-mix(in srgb, var(--rel, var(--text)) 16%, transparent);
+    }
+
+    /* Map host: one instance that moves between the phone card, the desktop canvas, and full screen. */
+    #phone-slot {
+      margin-top: 10px;
+      height: 300px;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--hair2);
+      background: radial-gradient(
+        ellipse at center,
+        #18214a 0%,
+        var(--navy) 72%
+      );
+      position: relative;
+    }
+    .map {
+      position: absolute;
+      inset: 0;
+    }
+    .map.full {
+      position: fixed;
+      inset: 0;
+      z-index: 25;
+      background: radial-gradient(
+        ellipse at 50% 55%,
+        #18214a 0%,
+        var(--navy) 70%
+      );
+    }
+    #cy {
+      position: absolute;
+      inset: 0;
+    }
+    .map.full #cy {
+      top: calc(56px + env(safe-area-inset-top, 0px));
+      bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+    }
+    .map-main {
+      position: absolute;
+      z-index: 2;
+      left: 10px;
+      top: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 99px;
+      background: color-mix(in srgb, var(--navy) 88%, transparent);
+      border: 1.5px solid var(--spark);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .map.full .map-main {
+      top: calc(66px + env(safe-area-inset-top, 0px));
+    }
+    .map-tools {
+      position: absolute;
+      z-index: 2;
+      right: 10px;
+      bottom: 10px;
+      display: flex;
+      gap: 6px;
+    }
+    .map-tools button {
+      min-width: 36px;
+      height: 36px;
+      padding: 0 10px;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--slate) 92%, transparent);
+      border: 1px solid var(--hair2);
+      font-weight: 700;
+      font-size: 15px;
+      display: grid;
+      place-items: center;
+    }
+    .map-tools .expand {
+      font-size: 13px;
+    }
+    .map-full-head {
+      display: none;
+    }
+    .map.full .map-full-head {
+      display: flex;
+      position: absolute;
+      top: env(safe-area-inset-top, 0px);
+      left: 0;
+      right: 0;
+      height: 56px;
+      padding: 0 16px;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--hair1);
+    }
+    .map.full .map-full-head h2 {
+      margin: 0;
+      font: 600 18px/1 var(--display);
+    }
+    .map.full .map-tools {
+      bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+    }
+    .map.full .expand {
+      display: none;
+    }
+    .legend {
+      position: absolute;
+      z-index: 2;
+      left: 10px;
+      bottom: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      max-width: calc(100% - 190px);
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--quiet);
+    }
+    .legend i {
+      width: 14px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--c);
+    }
+    .map.full .legend {
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      max-width: none;
+      right: 16px;
+      left: 16px;
+    }
+    @media (min-width: 100000px) {
+      .map .expand {
+        display: none;
+      }
+      .legend {
+        max-width: calc(100% - 150px);
+      }
+    }
+
+    .section {
+      margin-top: 12px;
+    }
+    .empty {
+      margin: 0;
+      color: var(--quiet);
+      font-size: 14px;
+    }
+    .more {
+      margin-top: 8px;
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 12px;
+      border: 1px dashed var(--hair3);
+      color: var(--link);
+      font-weight: 700;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .focus {
+      margin-top: 14px;
+      padding: 18px 18px 16px;
+      border-radius: 20px;
+      background: var(--slate);
+      border: 1px solid var(--hair2);
+      display: grid;
+      gap: 12px;
+    }
+    .focus.is-root {
+      background: none;
+      border: 0;
+      padding: 0;
+    }
+    .focus h1 {
+      margin: 0;
+      font: 600 23px/1.28 var(--display);
+      text-wrap: balance;
+    }
+    .focus.is-root h1 {
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .focus h1:focus {
+      outline: none;
+    }
+    .focus .body {
+      margin: 0;
+      color: rgba(247, 244, 238, 0.86);
+      max-width: 62ch;
+    }
+    .note {
+      margin: 0;
+      font-size: 13.5px;
+      color: var(--quiet);
+      border-left: 2px solid var(--hair3);
+      padding-left: 10px;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 8px;
+      align-items: center;
+      font-size: 12.5px;
+      color: var(--quiet);
+    }
+    .kind {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--quiet);
+    }
+    .is-root .kind {
+      color: var(--spark);
+    }
+    .example {
+      font-size: 11px;
+      font-weight: 700;
+      color: #16131a;
+      background: var(--paper);
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+
+    .quote {
+      margin: 0;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: var(--ink);
+      font: 400 15.5px/1.55 var(--display);
+      color: var(--paper);
+      border: 1px solid var(--hair1);
+    }
+    .quote footer {
+      margin-top: 10px;
+      font: 500 12.5px/1.4 var(--body);
+      color: var(--quiet);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      align-items: center;
+    }
+    .linkish {
+      color: var(--link);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      font-weight: 600;
+    }
+    .dup {
+      display: grid;
+      gap: 4px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px dashed var(--hair3);
+      background: rgba(212, 175, 55, 0.06);
+      font-size: 14px;
+    }
+    .dup strong {
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--spark);
+    }
+
+    /* Relationship rows: a colored stripe plus a colored, written relation that opens the link itself. */
+    .rows {
+      display: grid;
+      gap: 8px;
+    }
+    .row {
+      position: relative;
+      display: grid;
+      gap: 6px;
+      padding: 12px 14px 12px 16px;
+      border-radius: 12px;
+      background: var(--slate);
+      border: 1px solid var(--hair1);
+      overflow: hidden;
+    }
+    .row::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--rel, var(--hair3));
+    }
+    .row:hover {
+      background: var(--hi);
+    }
+    .relchip {
+      justify-self: start;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--rel, var(--quiet));
+      padding: 2px 9px 2px 7px;
+      border-radius: 99px;
+      background: color-mix(in srgb, var(--rel, var(--quiet)) 14%, transparent);
+    }
+    .relchip::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 99px;
+      background: var(--rel, var(--quiet));
+    }
+    .relchip.static {
+      cursor: default;
+    }
+    .row .go {
+      display: grid;
+      gap: 3px;
+    }
+    .row .t {
+      font: 600 15.5px/1.35 var(--display);
+    }
+    .row .src {
+      font-size: 12px;
+      color: var(--quiet);
+    }
+    .row .why {
+      font-size: 13.5px;
+      color: rgba(247, 244, 238, 0.74);
+    }
+    .badge-open {
+      font: 700 11px/1.4 var(--body);
+      color: #16131a;
+      background: var(--rel-question);
+      padding: 1px 6px;
+      border-radius: 5px;
+      margin-left: 6px;
+      vertical-align: 2px;
+    }
+    .row.is-global {
+      border-style: dashed;
+      border-color: var(--hair3);
+    }
+    .r-for {
+      --rel: var(--rel-for);
+    }
+    .r-against {
+      --rel: var(--rel-against);
+    }
+    .r-mixed {
+      --rel: var(--rel-mixed);
+    }
+    .r-question {
+      --rel: var(--rel-question);
+    }
+    .r-applies {
+      --rel: var(--rel-applies);
+    }
+    .r-neutral {
+      --rel: var(--hair3);
+    }
+
+    .tiles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .tile {
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--slate);
+      border: 1px solid var(--hair1);
+      display: grid;
+      gap: 6px;
+      align-content: start;
+    }
+    .tile:hover {
+      background: var(--hi);
+    }
+    .tile .t {
+      font: 600 15.5px/1.3 var(--display);
+    }
+    .tile .n {
+      font-size: 12.5px;
+      color: var(--quiet);
+    }
+
+    .edge-pair {
+      display: grid;
+      gap: 6px;
+    }
+    .edge-pair .arrow {
+      font-size: 13px;
+      font-weight: 700;
+      padding-left: 14px;
+      color: var(--rel);
+    }
+    .foot {
+      margin-top: 16px;
+    }
+    .door {
+      margin-top: 22px;
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px dashed rgba(212, 175, 55, 0.45);
+      display: grid;
+      gap: 8px;
+    }
+    .door-t {
+      margin: 0;
+      font: 600 17px/1.35 var(--display);
+    }
+    .door-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .add {
+      position: fixed;
+      z-index: 6;
+      right: 16px;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      padding: 13px 20px;
+      border-radius: 99px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .sheet {
+      width: min(560px, 100%);
+      max-height: 92%;
+      overflow-y: auto;
+      background: var(--navy);
+      border: 1px solid var(--hair2);
+      border-bottom: 0;
+      border-radius: 20px 20px 0 0;
+      padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+    .sheet-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .sheet-head h2 {
+      margin: 0;
+      font: 600 19px/1.3 var(--display);
+    }
+    .close {
+      padding: 6px 12px;
+      border-radius: 99px;
+      background: var(--slate);
+      font-weight: 600;
+      font-size: 14px;
+    }
+    @media (min-width: 700px) {
+      .scrim {
+        align-items: center;
+      }
+      .sheet {
+        border-radius: 20px;
+        border-bottom: 1px solid var(--hair2);
+      }
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .field > span {
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .field small {
+      color: var(--quiet);
+      font-size: 12.5px;
+    }
+    textarea,
+    input[type="text"] {
+      width: 100%;
+      font: inherit;
+      color: var(--text);
+      background: var(--slate);
+      border: 1px solid var(--hair2);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    textarea {
+      min-height: 76px;
+      resize: vertical;
+    }
+    .seg {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .seg label {
+      position: relative;
+    }
+    .seg input {
+      position: absolute;
+      opacity: 0;
+      inset: 0;
+    }
+    .seg span {
+      display: block;
+      padding: 7px 12px;
+      border-radius: 99px;
+      border: 1px solid var(--hair3);
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+    .seg input:checked + span {
+      background: color-mix(in srgb, var(--rel) 22%, transparent);
+      border-color: var(--rel);
+    }
+    .seg input:focus-visible + span {
+      outline: 2px solid var(--spark);
+      outline-offset: 2px;
+    }
+    .target {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--slate);
+      border-left: 3px solid var(--spark);
+      font: 500 14.5px/1.4 var(--display);
+    }
+    .similar {
+      display: grid;
+      gap: 6px;
+    }
+    .similar .s {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--hair2);
+      font-size: 14px;
+    }
+    .similar .s button {
+      color: var(--link);
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 10px 16px;
+      border-radius: 99px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .btn.primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn.ghost {
+      border: 1px solid var(--hair3);
+      color: var(--text);
+    }
+    .preview {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--hair3);
+    }
+    .error {
+      color: var(--rel-against);
+      font-size: 13.5px;
+      margin: 8px 0 0;
+    }
+    .toast {
+      position: fixed;
+      z-index: 40;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+      background: var(--paper);
+      color: #16131a;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 10px 16px;
+      border-radius: 99px;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .page-in {
+        animation: pagein 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      .page-back {
+        animation: pageback 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      @keyframes pagein {
+        from {
+          transform: translateX(18px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      @keyframes pageback {
+        from {
+          transform: translateX(-18px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      .rows > .row {
+        animation: rowin 280ms both cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      .rows > .row:nth-child(2) {
+        animation-delay: 40ms;
+      }
+      .rows > .row:nth-child(3) {
+        animation-delay: 80ms;
+      }
+      @keyframes rowin {
+        from {
+          transform: translateY(6px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+    }
+
+    /* Phone frame: the mockup renders the Expo screen at iPhone size. */
+    html, body { background: #070a16; }
+    .stage { min-height: 100%; display: flex; gap: 48px; align-items: center; justify-content: center; padding: 32px 24px; flex-wrap: wrap; }
+    .phone { position: relative; width: 390px; height: 844px; flex: none; border-radius: 54px; overflow: hidden; background: var(--navy); border: 11px solid #02030a; box-shadow: 0 0 0 2px #2a3150, 0 30px 80px rgba(0,0,0,0.55); transform: translateZ(0); }
+    .phone .app { height: 100%; }
+    .status { position: absolute; z-index: 40; top: 0; left: 0; right: 0; height: 50px; padding: 16px 30px 0; display: flex; justify-content: space-between; font: 600 15px/1 var(--body); color: var(--text); pointer-events: none; }
+    .island { position: absolute; z-index: 41; top: 11px; left: 50%; width: 120px; height: 34px; margin-left: -60px; border-radius: 20px; background: #000; pointer-events: none; }
+    .home-bar { position: absolute; z-index: 41; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: rgba(247,244,238,0.85); pointer-events: none; }
+    .phone .reader { padding-top: 50px; padding-bottom: 40px; }
+    .phone .top { top: 0; grid-template-columns: auto 1fr; }
+    .phone .map.full { padding-top: 50px; }
+    .phone .map.full .map-full-head { top: 50px; }
+    .phone .map.full #cy { top: 106px; }
+    .phone .scrim { position: absolute; }
+    .ai-banner { margin-inline: -16px; padding: 9px 16px; display: flex; gap: 10px; align-items: flex-start; background: rgba(244,201,93,0.10); border-bottom: 1px solid rgba(244,201,93,0.25); font-size: 12.5px; line-height: 1.4; color: rgba(247,244,238,0.86); }
+    .ai-banner b { color: var(--rel-question); }
+    .ai { font: 700 10.5px/1.4 var(--body); letter-spacing: 0.04em; text-transform: uppercase; color: #16131A; background: var(--rel-question); padding: 1px 6px; border-radius: 5px; }
+    .notes { width: 340px; max-width: 100%; color: var(--text); font-size: 14px; line-height: 1.55; }
+    .notes h1 { font: 700 26px/1.2 var(--display); margin: 0 0 6px; }
+    .notes p { margin: 0 0 14px; color: rgba(247,244,238,0.78); }
+    .notes h2 { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--spark); margin: 22px 0 8px; }
+    .jumps { display: grid; gap: 8px; }
+    .jumps button { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--hair3); background: var(--slate); font-weight: 600; }
+    .jumps button:hover { background: var(--hi); }
+    .notes ul { margin: 0; padding-left: 18px; color: rgba(247,244,238,0.78); }
+    @media (max-width: 480px) {
+      .stage { padding: 0; display: block; }
+      .phone { width: 100%; height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
+      .status, .island, .home-bar { display: none; }
+      .phone .reader { padding-top: 0; }
+      .notes { padding: 24px 16px; }
+    }
+  </style>
+
+  <div class="stage">
+  <div class="phone">
+  <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
+  <div class="island" aria-hidden="true"></div>
+  <div class="app">
+    <section class="canvas" aria-label="Argument map">
+      <div class="canvas-head">
+        <div class="eyebrow">Map</div>
+        <p>
+          Drag cards to pull the web around. Pinch, scroll, or use the buttons
+          to zoom.
+        </p>
+      </div>
+      <div id="canvas-slot"></div>
+    </section>
+
+    <main class="reader" id="reader">
+      <header class="top">
+        <button class="back" id="back" aria-label="Back" type="button">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <div>
+          <div class="eyebrow">California · Nov 3, 2026</div>
+          <div class="rec-title">Proposition 40 · The debate</div>
+        </div>
+      </header>
+      <div class="ai-banner" role="note"><span class="ai">AI</span><span><b>AI-generated.</b> Billion built this map from the official voter guide. Quotes are checked word for word against it; the questions, leans, and explanations are AI-written and haven't been checked by a person yet.</span></div>
+      <nav class="crumbs" id="crumbs" aria-label="Your path"></nav>
+      <button type="button" class="main-link" id="main-link" hidden>
+        ← Go back to main case
+      </button>
+      <div id="page"></div>
+    </main>
+  </div>
+
+  <div id="map-home">
+    <div
+      class="map"
+      id="map"
+      role="group"
+      aria-label="Argument map. The list has the same connections."
+    >
+      <div class="map-full-head">
+        <h2>Map</h2>
+        <button class="close" type="button" id="map-close">Close</button>
+      </div>
+      <div id="cy"></div>
+      <button type="button" class="map-main" id="map-main" hidden>
+        ← Go back to main case
+      </button>
+      <div class="legend" aria-hidden="true">
+        <span style="--c: var(--rel-for)"><i></i>supports · leans yes</span>
+        <span style="--c: var(--rel-against)"
+          ><i></i>challenges · leans no</span
+        >
+        <span style="--c: var(--rel-mixed)"><i></i>qualifies · both ways</span>
+        <span style="--c: var(--rel-question)"><i></i>asks</span>
+      </div>
+      <div class="map-tools">
+        <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+        <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+        <button type="button" id="zoom-fit" aria-label="Fit map">⤢</button>
+        <button type="button" class="expand" id="map-expand">Expand</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="layer"></div>
+  <div class="home-bar" aria-hidden="true"></div>
+  </div>
+  <aside class="notes">
+    <h1>Trillion on iPhone</h1>
+    <p>How the Expo screen will look and behave, using the real Prop 40 pilot graph: 54 claims whose quotes all verify against the official guide. Tap around inside the phone.</p>
+    <h2>Jump to</h2>
+    <div class="jumps">
+      <button type="button" data-jump="main">Main case</button>
+      <button type="button" data-jump="disagree">Where people disagree</button>
+      <button type="button" data-jump="crux">A disputed question</button>
+      <button type="button" data-jump="provision">A provision with its quote</button>
+      <button type="button" data-jump="link">A link's own page</button>
+      <button type="button" data-jump="map">Full-screen map</button>
+    </div>
+    <h2>Differences from the design prototype</h2>
+    <ul>
+      <li>No made-up reader contributions and no Add button. Contributions arrive with accounts.</li>
+      <li>An AI-generated notice stays on screen until a person verifies the graph.</li>
+      <li>Every quote opens its official source.</li>
+    </ul>
+  </aside>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.34.3/cytoscape.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script src="prop40-pilot.js"></script>
+  <script>
+    // Adapt the schema graph (docs/evidence/455/prop40-graph.json) to the prototype's shape.
+    (() => {
+      const G = window.TRILLION_PILOT;
+      const src = Object.fromEntries(G.sources.map((s) => [s.id, s]));
+      const KIND = { provision: "text", shared: "global" };
+      const BILLION = new Set(["generated", "crux", "question", "shared", "fact"]);
+      const nodes = {};
+      for (const n of G.nodes) {
+        const q = n.quotes[0];
+        const s = q && src[q.sourceId];
+        let source;
+        if (n.kind === "argument")
+          source = { label: n.attribution.name, signers: n.attribution.signers, locator: q.locator, url: s.url };
+        else if (s)
+          source = {
+            label: s.role === "legal-text" ? (s.number === G.measure.number ? "Measure text" : `Prop ${s.number} text`) : s.role === "official-analysis" ? "Legislative Analyst" : "Official arguments",
+            locator: q.locator,
+            url: s.url,
+          };
+        else if (BILLION.has(n.kind)) source = { generated: true, label: "Generated by Billion", locator: "Written by Billion" };
+        nodes[n.id] = {
+          kind: KIND[n.kind] ?? n.kind,
+          label: n.label,
+          title: n.title,
+          body: n.body,
+          note: n.note,
+          dispute: n.dispute,
+          quote: n.quotes.length ? n.quotes.map((x) => x.text).join(" … ") : undefined,
+          source,
+        };
+      }
+      window.TRILLION_FIXTURE = {
+        record: { rootId: G.rootId },
+        nodes,
+        edges: G.edges.map((e) => ({ ...e, by: e.why ? "generated" : undefined })),
+        edgeResponses: [],
+      };
+    })();
+  </script>
+  <script>
+    (() => {
+      const F = window.TRILLION_FIXTURE;
+      const N = F.nodes;
+      const E = Object.fromEntries(F.edges.map((e) => [e.id, e]));
+      const ROOT = F.record.rootId;
+      const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const PREVIEW = 4; // rows per tab before "Show more"
+
+      const KIND = {
+        root: "Main case",
+        branch: "Start here",
+        text: "Measure text",
+        finding: "Measure findings",
+        analysis: "Legislative Analyst",
+        argument: "Ballot argument",
+        generated: "Generated by Billion",
+        question: "Open question",
+        reader: "Reader contribution",
+        global: "Shared claim",
+        record: "Other record",
+        fact: "Fact",
+        crux: "Where people disagree",
+      };
+      const IN = {
+        supports: "Supports this",
+        challenges: "Challenges this",
+        qualifies: "Qualifies this",
+        appliesTo: "Applies here",
+        asks: "Asks about this",
+        answers: "Answers this",
+        conflicts: "Conflicts with this",
+        crux: "Disputed question",
+      };
+      const OUT = {
+        supports: "Supports",
+        challenges: "Challenges",
+        qualifies: "Qualifies",
+        appliesTo: "Applies to",
+        asks: "Asks about",
+        answers: "Answers",
+        conflicts: "Conflicts with",
+        detail: "Part of",
+        part: "Part of",
+        crux: "Disputed under",
+      };
+      const SHORT = {
+        supports: "supports",
+        challenges: "challenges",
+        qualifies: "qualifies",
+        appliesTo: "applies to",
+        asks: "asks",
+        answers: "answers",
+        conflicts: "conflicts",
+        detail: "",
+        part: "",
+        crux: "",
+      };
+      const TONE = {
+        supports: "for",
+        challenges: "against",
+        qualifies: "mixed",
+        conflicts: "mixed",
+        asks: "question",
+        answers: "question",
+        appliesTo: "applies",
+        detail: "neutral",
+        part: "neutral",
+        crux: "neutral",
+      };
+      // An argument under a disputed question carries its lean toward the vote as a color and a word.
+      const LEAN = {
+        for: "Leans yes",
+        against: "Leans no",
+        mixed: "Cuts both ways",
+      };
+      const tone = (e) => (e.type === "weighs" ? e.stance : TONE[e.type]);
+      const inLabel = (e) =>
+        e.type === "weighs" ? LEAN[e.stance] : IN[e.type];
+      const outLabel = (e) =>
+        e.type === "weighs" ? `${LEAN[e.stance]} on` : OUT[e.type];
+      const short = (e) =>
+        e.type === "weighs" ? LEAN[e.stance].toLowerCase() : SHORT[e.type];
+      const DISPUTE = {
+        facts: "Disputed facts",
+        values: "Mostly values",
+        reading: "Disputed reading of the text",
+        legal: "Depends on courts and other measures",
+      };
+      const TONE_HEX = {
+        for: "#55D6BE",
+        against: "#FF9575",
+        mixed: "#B8A1FF",
+        question: "#F4C95D",
+        applies: "#A5B9FF",
+        neutral: "#4A5068",
+      };
+      const RESTS = new Set(["supports", "appliesTo"]);
+      const RESP = new Set([
+        "challenges",
+        "qualifies",
+        "asks",
+        "answers",
+        "conflicts",
+      ]);
+      const KIDS = new Set(["part", "detail", "crux"]);
+
+      const incoming = (id) => F.edges.filter((e) => e.to === id);
+      const outgoing = (id) => F.edges.filter((e) => e.from === id);
+      const visible = (id) => N[id] && !N[id].hidden;
+      const esc = (s) =>
+        String(s ?? "").replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+        );
+      const titleOf = (id) => N[id].title || "(untitled)";
+
+      // Debate-structure ordering: unanswered first, then evidence-backed, then contested, then the rest.
+      function rank(id) {
+        const inc = incoming(id);
+        const kind = N[id].kind;
+        if (
+          (kind === "question" || kind === "reader" || kind === "argument") &&
+          !inc.some((e) => RESP.has(e.type) || e.type === "supports")
+        )
+          return 0;
+        if (inc.some((e) => e.type === "supports")) return 1;
+        if (inc.some((e) => e.type === "challenges")) return 2;
+        return 3;
+      }
+      const ranked = (edges, dir) =>
+        [...edges]
+          .sort(
+            (a, b) =>
+              rank(dir === "in" ? a.from : a.to) -
+              rank(dir === "in" ? b.from : b.to),
+          )
+          .map((e) => ({ e, dir }));
+
+      // A disputed question's state says where the debate stands without saying who is winning.
+      function cruxState(id) {
+        const args = incoming(id).filter((e) => e.type === "weighs");
+        const open = args.filter((e) => rank(e.from) === 0).length;
+        const sides = new Set(args.map((e) => e.stance));
+        const state = open
+          ? `${open} unanswered`
+          : sides.has("for") && sides.has("against")
+            ? "Contested"
+            : "Few arguments yet";
+        return { open, text: `${DISPUTE[N[id].dispute]} · ${state}` };
+      }
+      // Everything in the record that nobody has responded to yet.
+      function unanswered() {
+        return Object.keys(N)
+          .filter((id) => visible(id) && id !== ROOT && rank(id) === 0)
+          .map((id) => ({
+            e: outgoing(id).find((x) => visible(x.to)),
+            dir: "in",
+          }))
+          .filter((x) => x.e);
+      }
+
+      // Every focus splits its connections into a few tabs so no view shows everything at once.
+      function categories(id) {
+        const inc = incoming(id).filter((e) => visible(e.from));
+        const out = outgoing(id).filter((e) => visible(e.to));
+        if (id === ROOT)
+          return [
+            {
+              key: "basics",
+              label: "Basics",
+              tone: "neutral",
+              items: inc
+                .filter((e) => e.type === "part")
+                .map((e) => ({ e, dir: "in" })),
+            },
+            {
+              key: "disagree",
+              label: "Where people disagree",
+              tone: "neutral",
+              items: inc
+                .filter((e) => e.type === "crux")
+                .sort((a, b) => cruxState(b.from).open - cruxState(a.from).open)
+                .map((e) => ({ e, dir: "in" })),
+            },
+            {
+              key: "open",
+              label: "Still unanswered",
+              tone: "question",
+              items: unanswered(),
+              empty: "Everything here has at least one response.",
+            },
+          ];
+        if (N[id].kind === "crux")
+          return [
+            {
+              key: "args",
+              label: "Arguments",
+              tone: "neutral",
+              items: ranked(
+                inc.filter((e) => e.type === "weighs"),
+                "in",
+              ),
+            },
+            {
+              key: "resp",
+              label: "Questions about this",
+              tone: "question",
+              items: ranked(
+                inc.filter((e) => RESP.has(e.type)),
+                "in",
+              ),
+              empty: "No one has questioned how this dispute is framed.",
+            },
+          ];
+        const cats = [];
+        const kids = inc.filter(
+          (e) => e.type === "part" || e.type === "detail",
+        );
+        if (kids.length)
+          cats.push({
+            key: "inside",
+            label: "Inside",
+            tone: "neutral",
+            items: kids.map((e) => ({ e, dir: "in" })),
+          });
+        if (N[id].kind !== "branch") {
+          cats.push({
+            key: "resp",
+            label: "Responses",
+            tone: "against",
+            items: ranked(
+              inc.filter((e) => RESP.has(e.type)),
+              "in",
+            ),
+            empty: "No one has challenged, qualified, or questioned this yet.",
+          });
+          cats.push({
+            key: "rests",
+            label: "Rests on",
+            tone: "for",
+            items: ranked(
+              inc.filter((e) => RESTS.has(e.type)),
+              "in",
+            ),
+            empty: ["text", "finding"].includes(N[id].kind)
+              ? "This is the measure's own wording. Inspect the source to read it in context."
+              : "No supporting evidence or reasons have been linked yet.",
+          });
+        }
+        if (out.length)
+          cats.push({
+            key: "used",
+            label: "Used in",
+            tone: "applies",
+            items: out.map((e) => ({ e, dir: "out" })),
+          });
+        return cats;
+      }
+      function defaultTab(id) {
+        const cats = categories(id);
+        return (
+          cats.find((c) => c.key === "inside") ||
+          cats.find((c) => c.key === "basics") ||
+          cats.find((c) => c.key === "args") ||
+          cats.find((c) => c.items.length) ||
+          cats[0]
+        )?.key;
+      }
+
+      // ── State ───────────────────────────────────────────────────────────
+      let path = [{ t: "node", id: ROOT }];
+      let tab = defaultTab(ROOT);
+      const shown = new Set(); // tabs expanded past the preview, keyed focus:tab
+      let direction = "in";
+      const cur = () => path[path.length - 1];
+      const focusId = () => (cur().t === "edge" ? E[cur().id].to : cur().id);
+      const activeCat = () =>
+        categories(focusId()).find((c) => c.key === tab) ||
+        categories(focusId())[0];
+
+      function go(target) {
+        const i = path.findIndex((p) => p.t === target.t && p.id === target.id);
+        direction = i >= 0 ? "back" : "in";
+        if (i >= 0) path = path.slice(0, i + 1);
+        else path.push(target);
+        tab = defaultTab(focusId());
+        render(true);
+      }
+      function back() {
+        if (path.length > 1) {
+          path.pop();
+          direction = "back";
+          tab = defaultTab(focusId());
+          render(true);
+        }
+      }
+      function goMain() {
+        path = [path[0]];
+        direction = "back";
+        tab = defaultTab(ROOT);
+        render(true);
+      }
+
+      // ── Reading column ──────────────────────────────────────────────────
+      const $ = (s) => document.querySelector(s);
+      const page = $("#page");
+
+      function srcLabel(n) {
+        const s = n.source || {};
+        if (s.handle) return `${s.handle} · prototype example`;
+        if (n.kind === "argument") return s.label;
+        if (n.kind === "global")
+          return `Shared claim · used in ${n.usedIn} other records (example count)`;
+        return s.label || KIND[n.kind];
+      }
+
+      function row({ e, dir }) {
+        const otherId = dir === "in" ? e.from : e.to;
+        const o = N[otherId];
+        const rel = dir === "in" ? inLabel(e) : outLabel(e);
+        const open =
+          dir === "in" && rank(otherId) === 0
+            ? `<span class="badge-open">Unanswered</span>`
+            : "";
+        const chip = KIDS.has(e.type)
+          ? dir === "out"
+            ? `<span class="relchip static">${esc(rel)}</span>`
+            : ""
+          : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(rel)}. Open this link">${esc(rel)} ›</button>`;
+        return `<div class="row r-${tone(e)}${o.kind === "global" ? " is-global" : ""}">
+      ${chip}
+      <button class="go" type="button" data-node="${otherId}">
+        <span class="t">${esc(titleOf(otherId))}${open}</span>
+        <span class="src">${esc(srcLabel(o))}</span>
+      </button>
+      ${e.why ? `<div class="why">${esc(e.why)}</div>` : ""}
+    </div>`;
+      }
+
+      function tabsHtml(cats) {
+        return `<div class="tabs" role="tablist" aria-label="Connections">${cats
+          .map(
+            (c) =>
+              `<button class="tab r-${c.tone}" role="tab" type="button" data-tab="${c.key}" aria-selected="${c.key === tab}" aria-controls="tabpanel">${c.tone !== "neutral" ? '<span class="dot"></span>' : ""}${esc(c.label)} <span class="n">${c.items.length}</span></button>`,
+          )
+          .join("")}</div>`;
+      }
+
+      function panelHtml(id, cat) {
+        if (!cat) return "";
+        const key = `${id}:${cat.key}`;
+        let body;
+        if (cat.key === "basics") {
+          body = `<div class="tiles">${cat.items
+            .map(({ e }) => {
+              const k = incoming(e.from).filter((x) => KIDS.has(x.type)).length;
+              return `<button class="tile" type="button" data-node="${e.from}"><span class="t">${esc(N[e.from].title)}</span><span class="n">${k} item${k === 1 ? "" : "s"}</span></button>`;
+            })
+            .join("")}</div>`;
+        } else if (cat.key === "disagree") {
+          body = `<div class="rows">${cat.items
+            .map(({ e }) => {
+              const st = cruxState(e.from);
+              return `<div class="row r-question"><span class="relchip static">${esc(st.text)}</span>
+          <button class="go" type="button" data-node="${e.from}"><span class="t">${esc(titleOf(e.from))}</span>
+          <span class="src">${incoming(e.from).filter((x) => x.type === "weighs").length} arguments so far</span></button></div>`;
+            })
+            .join("")}</div>`;
+        } else if (cat.key === "open") {
+          body = cat.items.length
+            ? `<div class="rows">${cat.items
+                .map(
+                  ({
+                    e,
+                  }) => `<div class="row r-question"><span class="relchip static">Unanswered</span>
+          <button class="go" type="button" data-node="${e.from}"><span class="t">${esc(titleOf(e.from))}</span>
+          <span class="src">${esc(srcLabel(N[e.from]))} · on “${esc(titleOf(e.to))}”</span></button></div>`,
+                )
+                .join("")}</div>`
+            : `<p class="empty">${esc(cat.empty)}</p>`;
+        } else if (!cat.items.length) {
+          body = `<p class="empty">${esc(cat.empty || "Nothing here yet.")}</p>`;
+        } else {
+          const rows = shown.has(key) ? cat.items : cat.items.slice(0, PREVIEW);
+          const rest = cat.items.length - rows.length;
+          body = `<div class="rows">${rows.map(row).join("")}</div>${rest > 0 ? `<button class="more" type="button" data-more="${key}">Show ${rest} more</button>` : ""}`;
+        }
+        return `<section class="section" id="tabpanel" role="tabpanel">${body}</section>`;
+      }
+
+      function focusCard(id) {
+        const n = N[id];
+        const src = n.source || {};
+        if (id === ROOT)
+          return `<article class="focus is-root"><div class="kind">${KIND.root}</div><h1 tabindex="-1">${esc(n.title)}</h1><p class="body">${esc(n.body)}</p></article>`;
+        const meta = [
+          `<span class="kind">${esc(n.kind === "argument" ? src.label : KIND[n.kind])}</span>`,
+        ];
+        if (src.handle)
+          meta.push(
+            `<span>${esc(src.handle)}</span><span class="example">Prototype example</span>`,
+          );
+        if (src.generated)
+          meta.push(
+            `<span>${esc(src.locator)} · AI-generated, not yet checked by a person</span>`,
+          );
+        if (n.kind === "global")
+          meta.push(
+            `<span>Used in ${n.usedIn} other records (example count)</span>`,
+          );
+        if (n.kind === "crux")
+          meta.push(`<span>${esc(cruxState(id).text)}</span><span class="ai">AI-written question</span>`);
+        return `<article class="focus">
+      <div class="meta">${meta.join("")}</div>
+      <h1 tabindex="-1">${esc(n.title)}</h1>
+      ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
+      ${n.quote ? `<blockquote class="quote">“${esc(n.quote)}”<footer><span>${esc(src.locator)}</span><button class="linkish" type="button" data-source="${id}">Inspect source</button></footer></blockquote>` : ""}
+      ${n.note ? `<p class="note">${esc(n.note)}</p>` : ""}
+      ${src.signers && n.quote ? `<p class="note">Signed by ${esc(src.signers)}</p>` : ""}
+      ${n.kind === "record" ? `<p class="note">A separate record with its own graph.</p>` : ""}
+      ${n.duplicateOf ? `<div class="dup"><strong>Possible duplicate</strong><span>This looks like <button class="linkish" type="button" data-node="${n.duplicateOf}">${esc(titleOf(n.duplicateOf))}</button>. Duplicates may be merged later, keeping each wording and its context.</span></div>` : ""}
+    </article>`;
+      }
+
+      function renderEdge(eid) {
+        const e = E[eid];
+        const resps = F.edgeResponses.filter((r) => r.edge === eid);
+        const by = !e.by
+          ? ""
+          : e.by === "generated"
+            ? `<span>Link written by AI · not yet checked by a person</span>`
+            : `<span>${esc(e.by)}</span><span class="example">Prototype example</span>`;
+        const card = (id) =>
+          `<div class="row r-neutral"><button class="go" type="button" data-node="${id}"><span class="t">${esc(titleOf(id))}</span><span class="src">${esc(srcLabel(N[id]))}</span></button></div>`;
+        const heading =
+          e.type === "weighs"
+            ? `Why does this ${esc(short(e))}?`
+            : `Why does this ${esc(short(e))} that?`;
+        return `<article class="focus r-${tone(e)}">
+        <div class="meta"><span class="kind">Link</span>${by}</div>
+        <h1 tabindex="-1">${heading}</h1>
+        <div class="edge-pair">${card(e.from)}<div class="arrow">↓ ${esc(short(e))}</div>${card(e.to)}</div>
+        <p class="body">${esc(e.why || "The connection has not been explained.")}</p>
+      </article>
+      <div id="phone-slot"></div>
+      <section class="section foot">
+      ${
+        resps.length
+          ? `<div class="rows">${resps
+              .map(
+                (
+                  r,
+                ) => `<div class="row r-against"><span class="relchip static">Challenges this step</span>
+          <button class="go" type="button" data-node="${r.from}"><span class="t">${esc(titleOf(r.from))}</span><span class="src">${esc(srcLabel(N[r.from]))}</span></button>
+          <div class="why">${esc(N[r.from].body)}</div></div>`,
+              )
+              .join("")}</div>`
+          : `<p class="empty">No one has challenged this step yet. You can accept both claims and still dispute the link between them.</p>`
+      }</section>`;
+      }
+
+      function renderCrumbs() {
+        $("#crumbs").innerHTML = path
+          .map((p, i) => {
+            const label =
+              p.t === "edge"
+                ? `Link: ${short(E[p.id])}`
+                : i === 0
+                  ? "Main case"
+                  : titleOf(p.id);
+            return `<button class="crumb" type="button" data-crumb="${i}"${i === path.length - 1 ? ' aria-current="page"' : ""}>${esc(label)}</button>`;
+          })
+          .join("");
+        $("#crumbs").lastElementChild?.scrollIntoView({
+          block: "nearest",
+          inline: "end",
+        });
+      }
+
+      // The main case never ends in a conclusion; it ends in a way further in.
+      function doorHtml() {
+        const cats = categories(ROOT);
+        const n = (k) => cats.find((c) => c.key === k).items.length;
+        return `<section class="door">
+      <p class="door-t">This is where the debate starts, not where it ends.</p>
+      <p class="empty">Nothing here adds up to an answer, and your own choice stays private.</p>
+      <div class="door-actions">
+        ${tab !== "disagree" ? `<button class="btn ghost" type="button" data-tab="disagree">Where people disagree (${n("disagree")})</button>` : ""}
+        ${tab !== "open" ? `<button class="btn ghost" type="button" data-tab="open">Still unanswered (${n("open")})</button>` : ""}
+      </div>
+    </section>`;
+      }
+
+      function render(moveFocus) {
+        const c = cur();
+        if (page.contains(mapEl)) $("#map-home").appendChild(mapEl); // keep the map alive across re-renders
+        if (c.t === "edge") page.innerHTML = renderEdge(c.id);
+        else {
+          const cats = categories(c.id);
+          page.innerHTML = `${focusCard(c.id)}${cats.length > 1 ? tabsHtml(cats) : ""}<div id="phone-slot"></div>${panelHtml(c.id, activeCat())}
+        ${c.id === ROOT ? doorHtml() : ""}`;
+        }
+        page.className = moveFocus
+          ? direction === "back"
+            ? "page-back"
+            : "page-in"
+          : "";
+        $("#back").disabled = path.length <= 1;
+        const atMain = c.t === "node" && c.id === ROOT;
+        $("#map-main").hidden = atMain;
+        $("#main-link").hidden = atMain;
+        renderCrumbs();
+        placeMap();
+        syncMap(moveFocus);
+        if (moveFocus) {
+          $("#reader").scrollTo({ top: 0 });
+          page.querySelector("h1")?.focus({ preventScroll: true });
+        }
+      }
+
+      // ── Map: Cytoscape draws, a d3 force simulation moves ───────────────
+      // The whole record stays on the map as a gray constellation. Navigation only changes which
+      // cards are lit (main case, focus, previous step, and the selected tab), so cards keep their
+      // places and the camera glides between neighborhoods.
+      function wrapLabel(text, max = 22, lines = 3) {
+        const out = [];
+        let line = "";
+        for (const w of text.split(/\s+/)) {
+          if ((line + " " + w).trim().length > max && line) {
+            out.push(line.trim());
+            line = w;
+          } else line += " " + w;
+        }
+        if (line.trim()) out.push(line.trim());
+        if (out.length > lines) {
+          out.length = lines;
+          out[lines - 1] = out[lines - 1].replace(/\s*\S*$/, "") + "…";
+        }
+        return out;
+      }
+
+      // Size cards from the rendered font, so bold serif labels never clip.
+      const measure = document.createElement("canvas").getContext("2d");
+      function textWidth(text, isRoot) {
+        measure.font = isRoot
+          ? '700 15px "IBM Plex Serif", Georgia, serif'
+          : '400 12px "Albert Sans", sans-serif';
+        return Math.ceil(measure.measureText(text).width);
+      }
+
+      const ALL_IDS = Object.keys(N).filter(visible);
+      function cardData(id) {
+        const isRoot = id === ROOT;
+        const lines = wrapLabel(N[id].label || N[id].title, isRoot ? 20 : 22);
+        const longest = Math.max(...lines.map((l) => textWidth(l, isRoot)));
+        const w = longest + (isRoot ? 36 : 26),
+          h = lines.length * (isRoot ? 19 : 16) + 20;
+        return { id, label: lines.join("\n"), fw: w, fh: h, w, h };
+      }
+
+      // Which cards and links are lit for the current view.
+      function litSet() {
+        const c = cur();
+        const focus = focusId();
+        const nodes = new Set([focus, ROOT]);
+        const edges = new Set();
+        if (c.t === "edge") {
+          nodes.add(E[c.id].from);
+          edges.add(c.id);
+        } else
+          (activeCat()?.items || []).forEach(({ e, dir }) => {
+            nodes.add(dir === "in" ? e.from : e.to);
+            if ((dir === "in" ? e.to : e.from) === focus) edges.add(e.id); // lists like "Still unanswered" have no link to the focus
+          });
+        const prev = path.length > 1 ? path[path.length - 2] : null;
+        if (prev && prev.t === "node") nodes.add(prev.id);
+        return {
+          focus,
+          prev: prev?.t === "node" ? prev.id : null,
+          nodes,
+          edges,
+        };
+      }
+
+      let cy = null,
+        sim = null;
+      const simById = new Map();
+      let follow = 0; // frames left for the camera to glide toward the lit cards
+      let firstView = true;
+      const IDLE = 0.012;
+
+      function initMap() {
+        if (!window.cytoscape) {
+          $("#cy").innerHTML =
+            `<p class="empty" style="padding:16px">The map couldn't load. The list has the same connections.</p>`;
+          return;
+        }
+        const ease = {
+          "transition-duration": REDUCED ? "0ms" : "380ms",
+          "transition-timing-function": "ease-in-out-cubic",
+        };
+        cy = cytoscape({
+          container: $("#cy"),
+          minZoom: 0.15,
+          maxZoom: 2.5,
+          wheelSensitivity: 0.25,
+          boxSelectionEnabled: false,
+          elements: [
+            ...ALL_IDS.map((id) => ({
+              group: "nodes",
+              data: cardData(id),
+              classes: N[id].kind,
+            })),
+            ...F.edges
+              .filter((e) => visible(e.from) && visible(e.to))
+              .map((e) => ({
+                group: "edges",
+                data: {
+                  id: e.id,
+                  source: e.from,
+                  target: e.to,
+                  label: short(e),
+                  color: TONE_HEX[tone(e)],
+                },
+              })),
+          ],
+          style: [
+            {
+              selector: "node",
+              style: {
+                shape: "round-rectangle",
+                width: "data(w)",
+                height: "data(h)",
+                "background-color": "#272D3C",
+                "border-width": 1,
+                "border-color": "rgba(247,244,238,0.18)",
+                label: "data(label)",
+                "text-wrap": "wrap",
+                "text-valign": "center",
+                "text-halign": "center",
+                color: "#F7F4EE",
+                "font-family": "Albert Sans, sans-serif",
+                "font-size": 12,
+                "line-height": 1.3,
+                "underlay-color": "#A5B9FF",
+                "underlay-opacity": 0,
+                "underlay-padding": 6,
+                "underlay-shape": "round-rectangle",
+                "transition-property":
+                  "width, height, background-color, border-color, border-width, opacity, text-opacity, underlay-opacity",
+                ...ease,
+              },
+            },
+            // Ghost cards: small, gray, label only when zoomed in.
+            // Cards outside the current view fade out and stop taking taps.
+            {
+              selector: "node.ghost",
+              style: {
+                opacity: 0,
+                "text-opacity": 0,
+                events: "no",
+                "z-index": 1,
+              },
+            },
+            { selector: "node.lit", style: { "z-index": 10 } },
+            {
+              selector: "node.branch",
+              style: {
+                "background-color": "#1B2244",
+                "border-color": "rgba(212,175,55,0.55)",
+              },
+            },
+            {
+              selector: "node.crux",
+              style: {
+                "background-color": "#2A2A3E",
+                "border-color": "rgba(244,201,93,0.75)",
+                "border-width": 1.5,
+              },
+            },
+            {
+              selector: "node.global",
+              style: {
+                "border-style": "dashed",
+                "border-color": "rgba(247,244,238,0.55)",
+              },
+            },
+            {
+              selector: "node.record",
+              style: {
+                "border-style": "double",
+                "border-width": 4,
+                "border-color": "#4A7CFF",
+              },
+            },
+            { selector: "node.trail", style: { opacity: 0.6 } },
+            {
+              selector: "node.focused",
+              style: {
+                "background-color": "#323848",
+                "border-color": "#D4AF37",
+                "border-width": 2.5,
+                "font-weight": 600,
+                "underlay-color": "#D4AF37",
+                "underlay-opacity": 0.12,
+              },
+            },
+            {
+              selector: "node.root",
+              style: {
+                opacity: 1,
+                "text-opacity": 1,
+                "font-family": "IBM Plex Serif, serif",
+                "font-weight": 700,
+                "font-size": 15,
+                "border-width": 3,
+                "border-color": "#D4AF37",
+                "background-color": "#232B52",
+                "underlay-color": "#D4AF37",
+                "underlay-opacity": 0.14,
+                "underlay-padding": 8,
+                "min-zoomed-font-size": 0,
+              },
+            },
+            { selector: "node:grabbed", style: { "underlay-opacity": 0.22 } },
+            {
+              selector: "edge",
+              style: {
+                width: 1,
+                "curve-style": "straight",
+                "line-color": "#3A4160",
+                opacity: 0,
+                events: "no",
+                "target-arrow-shape": "none",
+                label: "",
+                "transition-property": "opacity, width, line-color",
+                ...ease,
+              },
+            },
+            {
+              selector: "edge.lit",
+              style: {
+                width: 1.7,
+                opacity: 1,
+                events: "yes",
+                "line-color": "data(color)",
+                "target-arrow-shape": "triangle",
+                "target-arrow-color": "data(color)",
+                "arrow-scale": 0.85,
+                label: "data(label)",
+                "font-size": 10.5,
+                "font-weight": 700,
+                "font-family": "Albert Sans, sans-serif",
+                color: "data(color)",
+                "text-background-color": "#0E1530",
+                "text-background-opacity": 1,
+                "text-background-padding": 3,
+                "text-background-shape": "roundrectangle",
+              },
+            },
+            { selector: "edge.current", style: { width: 3.5 } },
+            { selector: "node:selected", style: { "overlay-opacity": 0 } },
+          ],
+        });
+        cy.on("tap", "node", (ev) => {
+          if (ev.target.id() !== focusId())
+            go({ t: "node", id: ev.target.id() });
+        });
+        cy.on("tap", "edge", (ev) => go({ t: "edge", id: ev.target.id() }));
+        // Dragging pins a card to the pointer and lets the rest of the web follow, like Obsidian.
+        cy.on("grab", "node", (ev) => {
+          follow = 0;
+          const s = simById.get(ev.target.id());
+          if (s && sim) {
+            s.fx = s.x;
+            s.fy = s.y;
+            sim.alphaTarget(0.3).restart();
+          }
+        });
+        cy.on("drag", "node", (ev) => {
+          const s = simById.get(ev.target.id());
+          if (s) {
+            const p = ev.target.position();
+            s.fx = p.x;
+            s.fy = p.y;
+          }
+        });
+        cy.on("free", "node", (ev) => {
+          const s = simById.get(ev.target.id());
+          if (!s || !sim) return;
+          if (ev.target.id() !== focusId()) {
+            s.fx = null;
+            s.fy = null;
+          }
+          sim.alphaTarget(REDUCED ? 0 : IDLE);
+        });
+        // Any manual pan or zoom hands the camera back to the reader.
+        $("#cy").addEventListener(
+          "wheel",
+          () => {
+            follow = 0;
+          },
+          { passive: true },
+        );
+        $("#cy").addEventListener(
+          "touchstart",
+          (ev) => {
+            if (ev.touches.length > 1) follow = 0;
+          },
+          { passive: true },
+        );
+        cy.on("dragpan", () => {
+          follow = 0;
+        });
+        $("#zoom-in").addEventListener("click", () => {
+          follow = 0;
+          zoomBy(1.25);
+        });
+        $("#zoom-out").addEventListener("click", () => {
+          follow = 0;
+          zoomBy(0.8);
+        });
+        $("#zoom-fit").addEventListener("click", () => {
+          follow = 0;
+          cy.animate(
+            { fit: { eles: cy.nodes(".lit"), padding: 30 } },
+            { duration: REDUCED ? 0 : 500, easing: "ease-in-out-cubic" },
+          );
+        });
+
+        if (window.d3) {
+          const nodes = ALL_IDS.map((id, i) => {
+            const a = (i / ALL_IDS.length) * Math.PI * 2;
+            const s = {
+              id,
+              phase: Math.random() * Math.PI * 2,
+              x: Math.cos(a) * 400,
+              y: Math.sin(a) * 300,
+              r: 40,
+            };
+            simById.set(id, s);
+            return s;
+          });
+          const links = F.edges
+            .filter((e) => visible(e.from) && visible(e.to))
+            .map((e) => ({ id: e.id, source: e.from, target: e.to }));
+          sim = d3
+            .forceSimulation(nodes)
+            .velocityDecay(0.42)
+            .force(
+              "charge",
+              d3
+                .forceManyBody()
+                .strength((d) => (d.lit ? -300 : 0))
+                .distanceMax(520),
+            )
+            .force(
+              "link",
+              d3.forceLink(links).id((d) => d.id),
+            )
+            .force(
+              "collide",
+              d3
+                .forceCollide()
+                .radius((d) => d.r)
+                .strength(0.8)
+                .iterations(2),
+            )
+            .force(
+              "x",
+              d3.forceX(0).strength((d) => (d.lit ? 0.015 : 0)),
+            )
+            .force(
+              "y",
+              d3.forceY(0).strength((d) => (d.lit ? 0.02 : 0)),
+            )
+            .force("wander", wander)
+            .on("tick", ticked);
+          sim.stop();
+        }
+      }
+
+      function wander() {
+        if (REDUCED || !sim) return;
+        const t = performance.now() / 1000;
+        for (const n of sim.nodes()) {
+          if (n.fx != null || !n.lit) continue;
+          n.vx += Math.sin(t * 0.7 + n.phase) * 0.04;
+          n.vy += Math.cos(t * 0.55 + n.phase * 1.7) * 0.04;
+        }
+      }
+
+      function ticked() {
+        cy.batch(() => {
+          for (const n of sim.nodes()) {
+            const el = cy.getElementById(n.id);
+            if (!el.grabbed()) el.position({ x: n.x, y: n.y });
+          }
+        });
+        if (follow > 0) {
+          follow--;
+          glide(0.09);
+        }
+      }
+
+      // Camera target: frame the lit cards, never closer than reading size.
+      function targetView() {
+        const lit = cy.nodes(".lit");
+        const bb = (lit.nonempty() ? lit : cy.nodes()).boundingBox();
+        const W = cy.width(),
+          H = cy.height(),
+          pad = 40;
+        let z = Math.min(
+          (W - 2 * pad) / Math.max(bb.w, 1),
+          (H - 2 * pad) / Math.max(bb.h, 1),
+        );
+        z = Math.max(cy.minZoom(), Math.min(z, 1.05));
+        return {
+          zoom: z,
+          pan: {
+            x: W / 2 - z * (bb.x1 + bb.w / 2),
+            y: H / 2 - z * (bb.y1 + bb.h / 2),
+          },
+        };
+      }
+      function glide(k) {
+        const t = targetView();
+        const z = cy.zoom(),
+          p = cy.pan();
+        cy.viewport({
+          zoom: z + (t.zoom - z) * k,
+          pan: { x: p.x + (t.pan.x - p.x) * k, y: p.y + (t.pan.y - p.y) * k },
+        });
+      }
+
+      function syncMap(navigated) {
+        if (!cy) return;
+        const { focus, prev, nodes, edges } = litSet();
+        cy.batch(() => {
+          cy.nodes().forEach((n) => {
+            const id = n.id();
+            const lit = nodes.has(id);
+            const d = n.data();
+            n.data({ w: lit ? d.fw : 30, h: lit ? d.fh : 14 });
+            n.classes(
+              [
+                N[id].kind,
+                lit ? "lit" : "ghost",
+                id === focus ? "focused" : "",
+                id === prev && id !== ROOT ? "trail" : "",
+              ].join(" "),
+            );
+          });
+          cy.edges().forEach((e) => {
+            const lit =
+              edges.has(e.id()) ||
+              (nodes.has(e.source().id()) &&
+                nodes.has(e.target().id()) &&
+                (e.source().id() === focus || e.target().id() === focus));
+            e.classes(
+              [
+                lit ? "lit" : "",
+                cur().t === "edge" && cur().id === e.id() ? "current" : "",
+              ].join(" "),
+            );
+          });
+        });
+        if (!sim) {
+          cy.layout({
+            name: "cose",
+            animate: !REDUCED,
+            fit: true,
+            padding: 30,
+          }).run();
+          return;
+        }
+
+        // Newly shown cards start on the card you tapped and spread out from there.
+        const origin = simById.get(focus);
+        for (const s of sim.nodes()) {
+          const lit = nodes.has(s.id);
+          if (lit && !s.lit && s.id !== focus && !firstView && origin) {
+            s.x = origin.x + (Math.random() - 0.5) * 30;
+            s.y = origin.y + (Math.random() - 0.5) * 30;
+            s.vx = 0;
+            s.vy = 0;
+            cy.getElementById(s.id).position({ x: s.x, y: s.y });
+          }
+          s.lit = lit;
+          const d = cy.getElementById(s.id).data();
+          s.r = lit ? (d.w / 2) * 0.92 + 12 : 0;
+          s.fx = s.id === focus ? s.x : null;
+          s.fy = s.id === focus ? s.y : null;
+        }
+        sim.force("charge").strength((d) => (d.lit ? -300 : 0));
+        sim.force("x").strength((d) => (d.lit ? 0.015 : 0));
+        sim.force("y").strength((d) => (d.lit ? 0.02 : 0));
+        sim.force("collide").radius((d) => d.r);
+        sim
+          .force("link")
+          .distance(
+            (l) =>
+              l.source.r +
+              l.target.r +
+              (l.source.id === focus || l.target.id === focus ? 26 : 40),
+          )
+          .strength((l) =>
+            !l.source.lit || !l.target.lit
+              ? 0
+              : l.source.id === focus || l.target.id === focus
+                ? 0.6
+                : 0.12,
+          );
+        // Keep the main case near whatever you're reading.
+        sim.force("tether", (alpha) => {
+          if (focus === ROOT) return;
+          const r = simById.get(ROOT),
+            f = simById.get(focus);
+          if (!r || !f) return;
+          const dx = f.x - r.x,
+            dy = f.y - r.y,
+            dist = Math.hypot(dx, dy) || 1,
+            want = r.r + f.r + 120;
+          if (dist > want) {
+            const k = ((dist - want) / dist) * 0.04 * alpha;
+            r.vx += dx * k;
+            r.vy += dy * k;
+          }
+        });
+
+        if (firstView || REDUCED) {
+          sim.alpha(1);
+          for (let i = 0; i < (firstView ? 400 : 120); i++) sim.tick();
+          ticked();
+          const t = targetView();
+          cy.viewport(t);
+          firstView = false;
+          if (!REDUCED) sim.alpha(0.05).alphaTarget(IDLE).restart();
+          return;
+        }
+        sim
+          .alpha(navigated ? 0.35 : 0.25)
+          .alphaTarget(IDLE)
+          .restart();
+        follow = 110;
+      }
+
+      function fitView() {
+        if (!cy) return;
+        follow = 0;
+        cy.animate(targetView(), {
+          duration: REDUCED ? 0 : 450,
+          easing: "ease-in-out-cubic",
+        });
+      }
+      function zoomBy(f) {
+        cy.animate(
+          {
+            zoom: {
+              level: cy.zoom() * f,
+              renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
+            },
+          },
+          { duration: REDUCED ? 0 : 200 },
+        );
+      }
+
+      // One map instance moves between the phone slot, the desktop canvas, and full screen.
+      const mapEl = $("#map");
+      function placeMap() {
+        if (mapEl.classList.contains("full")) return;
+        const slot = false
+          ? $("#canvas-slot")
+          : $("#phone-slot");
+        if (slot && mapEl.parentElement !== slot) slot.appendChild(mapEl);
+        if (cy) cy.resize();
+      }
+      function setFull(on) {
+        mapEl.classList.toggle("full", on);
+        if (on) document.querySelector(".phone").appendChild(mapEl);
+        else placeMap();
+        if (cy) {
+          cy.resize();
+          fitView();
+        }
+        (on ? $("#map-close") : $("#map-expand")).focus();
+      }
+      $("#map-expand").addEventListener("click", () => setFull(true));
+      $("#map-close").addEventListener("click", () => setFull(false));
+
+      // ── Sheets: source and composer ─────────────────────────────────────
+      let lastTrigger = null;
+      function openSheet(html) {
+        lastTrigger = document.activeElement;
+        $("#layer").innerHTML =
+          `<div class="scrim" data-scrim><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">${html}</div></div>`;
+        $("#layer").querySelector("button, textarea, input")?.focus();
+      }
+      function closeSheet() {
+        $("#layer").innerHTML = "";
+        if (lastTrigger?.isConnected) lastTrigger.focus();
+      }
+
+      function openSource(id) {
+        const n = N[id];
+        const s = n.source;
+        openSheet(`<div class="sheet-head"><h2 id="sheet-title">${esc(s.label)}</h2><button class="close" type="button" data-close>Close</button></div>
+      <p class="meta" style="margin:0 0 10px">${esc(s.locator)}</p>
+      <blockquote class="quote">“${esc(n.quote)}”</blockquote>
+      ${s.signers ? `<p class="note" style="margin-top:12px">Signed by ${esc(s.signers)}</p>` : ""}
+      <p class="empty" style="margin-top:12px">Billion matched this passage to the official document. A matched quote shows what the source says. It does not show that a claim built on it is correct.</p>
+      ${s.url ? `<div class="actions"><a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener">Open official source</a></div>` : ""}`);
+      }
+
+      const ACTIONS = [
+        { v: "supports", label: "A reason", verb: "supports", tone: "for" },
+        {
+          v: "challenges",
+          label: "A challenge",
+          verb: "challenges",
+          tone: "against",
+        },
+        {
+          v: "qualifies",
+          label: "A condition",
+          verb: "qualifies",
+          tone: "mixed",
+        },
+        {
+          v: "asks",
+          label: "A question",
+          verb: "asks about",
+          tone: "question",
+        },
+      ];
+      function openComposer() {
+        const c = cur();
+        const targetText =
+          c.t === "edge"
+            ? `The link: “${titleOf(E[c.id].from)}” ${short(E[c.id])} “${titleOf(E[c.id].to)}”`
+            : titleOf(c.id);
+        openSheet(`<div class="sheet-head"><h2 id="sheet-title">Add to the argument</h2><button class="close" type="button" data-close>Cancel</button></div>
+      <div class="field"><span>You're responding to</span><div class="target">${esc(targetText)}</div></div>
+      <fieldset class="field" style="border:0;padding:0;margin-inline:0"><legend style="font-size:13px;font-weight:700;padding:0;margin-bottom:6px">What are you adding?</legend>
+        <div class="seg">${ACTIONS.map((a, i) => `<label class="r-${a.tone}"><input type="radio" name="act" id="act-${a.v}" value="${a.v}"${i === 1 ? " checked" : ""}><span>${a.label}</span></label>`).join("")}</div>
+      </fieldset>
+      <label class="field" for="claim"><span>Your claim or question</span>
+        <textarea id="claim" placeholder="One statement. Split independent points into separate contributions."></textarea>
+        <small>Already said? Reuse the existing claim so the debate stays in one place.</small>
+      </label>
+      <div class="similar" id="similar"></div>
+      <label class="field" for="why"><span>Why does it connect?</span>
+        <textarea id="why" placeholder="Explain how this bears on the target. Readers will argue with this explanation."></textarea>
+      </label>
+      <label class="field" for="src"><span>Source (optional)</span>
+        <input type="text" id="src" placeholder="Link and the exact passage or page">
+        <small>Leave blank rather than guess. Unsourced claims are labeled as unsourced.</small>
+      </label>
+      <p class="error" id="err" hidden></p>
+      <div class="actions"><button class="btn primary" type="button" id="preview">Preview</button></div>
+      <div id="preview-box"></div>`);
+        let reuse = null;
+        const claim = $("#claim"),
+          sim2 = $("#similar");
+        const words = (s) =>
+          new Set(s.toLowerCase().match(/[a-z0-9$]{4,}/g) || []);
+        claim.addEventListener("input", () => {
+          reuse = null;
+          const w = words(claim.value);
+          if (w.size < 2) {
+            sim2.innerHTML = "";
+            return;
+          }
+          const hits = Object.entries(N)
+            .filter(
+              ([id, n]) => visible(id) && !["branch", "root"].includes(n.kind),
+            )
+            .map(([id, n]) => [
+              id,
+              [...words(n.title)].filter((x) => w.has(x)).length,
+            ])
+            .filter(([, s]) => s >= 2)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3);
+          sim2.innerHTML = hits.length
+            ? `<small style="color:var(--quiet)">Similar claims already here</small>` +
+              hits
+                .map(
+                  ([id]) =>
+                    `<div class="s"><span>${esc(titleOf(id))}</span><button type="button" data-reuse="${id}">Reuse</button></div>`,
+                )
+                .join("")
+            : "";
+        });
+        sim2.addEventListener("click", (ev) => {
+          const id = ev.target.dataset.reuse;
+          if (!id) return;
+          reuse = id;
+          claim.value = titleOf(id);
+          sim2.innerHTML = `<div class="dup"><strong>Reusing an existing claim</strong><span>Its original attribution stays. Explain why it applies to this target.</span></div>`;
+        });
+        $("#preview").addEventListener("click", () => {
+          const act = document.querySelector('input[name="act"]:checked').value;
+          const missing = !claim.value.trim()
+            ? "Write the claim or question you're adding."
+            : act !== "asks" && !$("#why").value.trim()
+              ? "Explain why it connects. A link without a reason can't be examined."
+              : "";
+          $("#err").hidden = !missing;
+          $("#err").textContent = missing;
+          if (missing) return;
+          const a = ACTIONS.find((x) => x.v === act);
+          $("#preview-box").innerHTML = `<div class="preview">
+          <div class="meta"><span class="kind">Reader contribution</span><span>you</span>${reuse ? "<span>· reusing an existing claim</span>" : ""}</div>
+          <div style="font:600 16px/1.35 var(--display)">${esc(claim.value)}</div>
+          <div class="r-${a.tone}"><span class="relchip static">${esc(a.verb)}</span> <span class="meta" style="display:inline">${esc(targetText)}</span></div>
+          ${$("#why").value.trim() ? `<p class="body" style="margin:0">${esc($("#why").value)}</p>` : ""}
+          <p class="empty">Public once published, attributed to your account. In this prototype nothing is published or saved.</p>
+          <div class="actions" style="margin-top:4px"><button class="btn ghost" type="button" data-close>Keep editing later</button><button class="btn primary" type="button" id="publish">Publish contribution</button></div>
+        </div>`;
+          $("#publish").addEventListener("click", () => {
+            closeSheet();
+            toast("Simulated. Nothing was published.");
+          });
+          $("#publish").focus();
+        });
+      }
+      function toast(msg) {
+        const t = document.createElement("div");
+        t.className = "toast";
+        t.setAttribute("role", "status");
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2600);
+      }
+
+      // ── Events ──────────────────────────────────────────────────────────
+      document.addEventListener("click", (ev) => {
+        const t = ev.target.closest(
+          "[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
+        );
+        if (!t) return;
+        if (t.hasAttribute("data-scrim") && ev.target !== t) return;
+        if (t.dataset.node) {
+          if ($("#layer").innerHTML) closeSheet();
+          go({ t: "node", id: t.dataset.node });
+        } else if (t.dataset.edge) go({ t: "edge", id: t.dataset.edge });
+        else if (t.dataset.crumb) {
+          path = path.slice(0, Number(t.dataset.crumb) + 1);
+          direction = "back";
+          tab = defaultTab(focusId());
+          render(true);
+        } else if (t.dataset.source) openSource(t.dataset.source);
+        else if (t.dataset.more) {
+          shown.add(t.dataset.more);
+          render(false);
+        } else if (t.dataset.tab) {
+          tab = t.dataset.tab;
+          render(false);
+          document.querySelector(`[data-tab="${tab}"]`)?.focus();
+        } else closeSheet();
+      });
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") {
+          if ($("#layer").innerHTML) closeSheet();
+          else if (mapEl.classList.contains("full")) setFull(false);
+          return;
+        }
+        const t = ev.target.closest?.("[role=tab]");
+        if (t && (ev.key === "ArrowRight" || ev.key === "ArrowLeft")) {
+          const all = [...document.querySelectorAll("[role=tab]")];
+          const next =
+            all[
+              (all.indexOf(t) +
+                (ev.key === "ArrowRight" ? 1 : all.length - 1)) %
+                all.length
+            ];
+          next.click();
+        }
+      });
+      $("#back").addEventListener("click", back);
+      $("#map-main").addEventListener("click", goMain);
+      $("#main-link").addEventListener("click", goMain);
+      // Mockup controls: jump straight to the states worth reviewing.
+      document.querySelector(".jumps").addEventListener("click", (ev) => {
+        const j = ev.target.closest("[data-jump]")?.dataset.jump;
+        if (!j) return;
+        if (mapEl.classList.contains("full") && j !== "map") setFull(false);
+        const root = { t: "node", id: ROOT };
+        const steps = {
+          main: [[root], "basics"],
+          disagree: [[root], "disagree"],
+          crux: [[root, { t: "node", id: "x-expand" }], "args"],
+          provision: [[root, { t: "node", id: "b-what" }, { t: "node", id: "t-amend" }], null],
+          link: [[root, { t: "node", id: "x-expand" }, { t: "node", id: "a-expand" }, { t: "edge", id: "e72" }], null],
+          map: [[root, { t: "node", id: "x-revenue" }], "args"],
+        }[j];
+        path = steps[0];
+        tab = steps[1] ?? defaultTab(focusId());
+        direction = "in";
+        render(true);
+        if (j === "map") setTimeout(() => setFull(true), 350);
+      });
+      let rt;
+      window.addEventListener("resize", () => {
+        clearTimeout(rt);
+        rt = setTimeout(() => {
+          placeMap();
+          fitView();
+        }, 120);
+      });
+
+      const start = () => {
+        initMap();
+        render(false);
+      };
+      if (document.fonts?.ready) document.fonts.ready.then(start);
+      else start();
+    })();
+  </script>
+</html>
