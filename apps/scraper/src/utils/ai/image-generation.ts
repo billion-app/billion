@@ -1,10 +1,13 @@
 /**
- * AI image generation using a local FLUX HTTP server, with BFL-hosted FLUX as
- * the fallback.
+ * Editorial image generation using selectable Codex OAuth or local FLUX;
+ * the older shared article-image helper also retains hosted BFL fallback.
  */
+
+import sharp from "sharp";
 
 import { trackFluxImage } from "../costs.js";
 import { createLogger } from "../log.js";
+import { getResponsesConfig } from "./provider.js";
 import { AIRateLimitError, setRateLimitHit } from "./text-generation.js";
 
 const logger = createLogger("image");
@@ -174,6 +177,83 @@ export async function generateLocalPhoto(
   return generateViaLocalFlux(prompt, width, height);
 }
 
+/** Header artwork uses subscription-backed GPT when selected, then local FLUX. */
+export async function generateEditorialImage(
+  prompt: string,
+  width = 1024,
+  height = 768,
+): Promise<GeneratedImage | null> {
+  if (process.env.SCRAPER_IMAGE_PROVIDER === "codex") {
+    const config = getResponsesConfig();
+    if (!config)
+      throw new Error("SCRAPER_FALLBACK_BASE_URL is required for Codex images");
+    const model = process.env.SCRAPER_IMAGE_MODEL?.trim() || "gpt-image-2";
+    try {
+      const response = await fetch(`${config.baseURL}/images/generations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          prompt,
+          size: width === height ? "1024x1024" : "1536x1024",
+          quality: "low",
+          n: 1,
+        }),
+        signal: AbortSignal.timeout(3 * 60 * 1000),
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        try {
+          const errorBody = JSON.parse(body) as { error?: { code?: string } };
+          if (errorBody.error?.code === "content_policy_violation")
+            throw new ContentModeratedError(
+              "Codex image request was moderated",
+            );
+        } catch (error) {
+          if (error instanceof ContentModeratedError) throw error;
+        }
+        throw new Error(
+          `Codex image generation failed (${response.status}): ${body.slice(0, 500)}`,
+        );
+      }
+      const result = (await response.json()) as {
+        data?: Array<{ b64_json?: string }>;
+        usage?: unknown;
+      };
+      const encoded = result.data?.[0]?.b64_json;
+      if (!encoded) throw new Error("Codex image response has no base64 image");
+      const data = Buffer.from(encoded, "base64");
+      const metadata = await sharp(data).metadata();
+      if (
+        !metadata.width ||
+        !metadata.height ||
+        !["png", "jpeg", "webp"].includes(metadata.format ?? "")
+      )
+        throw new Error("Codex image response is not a supported raster image");
+      logger.success(
+        `Codex image generated (${model}): ${metadata.width}x${metadata.height}, ${data.length} bytes`,
+      );
+      logger.info(`Codex image usage: ${JSON.stringify(result.usage ?? {})}`);
+      return {
+        data,
+        mimeType: `image/${metadata.format}`,
+        width: metadata.width,
+        height: metadata.height,
+      };
+    } catch (error) {
+      if (error instanceof ContentModeratedError) {
+        logger.warn(error.message);
+        return null;
+      }
+      logger.warn("Codex image generation failed; trying local FLUX", error);
+    }
+  }
+  return generateViaLocalFlux(prompt, width, height);
+}
+
 /**
  * Generate an image using FLUX.2 Klein 9B with retry logic for rate limits
  * @param prompt - Text description of desired image
@@ -188,10 +268,8 @@ export async function generateImage(
 
   // Local-first: the local FLUX server is free, so it gets the first attempt and
   // the paid BFL API is the fallback for when it is down or unconfigured.
-  if (LOCAL_FLUX_BASE_URL) {
-    const localImage = await generateViaLocalFlux(fullPrompt);
-    if (localImage) return localImage;
-  }
+  const preferredImage = await generateEditorialImage(fullPrompt, 768, 768);
+  if (preferredImage) return preferredImage;
 
   if (!BFL_API_KEY) {
     if (!LOCAL_FLUX_BASE_URL) {

@@ -49,8 +49,12 @@ court candidate and stops. Direct CLI imports should be followed by
 processes one batch. Image generation runs serially with ingestion and may wait
 behind higher-priority scheduled jobs.
 
-Every production image job reviews local FLUX output with the configured local
-multimodal model first, then falls back to DeepSeek. The reviewer inspects the
+Every production image job keeps suitability review enabled. With
+`SCRAPER_IMAGE_PROVIDER=codex`, the OAuth proxy generates artwork with
+`gpt-image-2` and its Responses text model reviews both app crops. Generation
+falls back to local FLUX on transport failure; review falls back to the local
+multimodal model and then DeepSeek. The default local image mode retains local
+FLUX and local-first review. The reviewer inspects the
 wide article-header and square browse-card crops, allows one feedback-guided
 regeneration, and records an exhausted rejection so later drains skip it.
 `--skip-review` remains available as an explicit manual outage mode, but no

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   CONTENT_IMAGE_STYLE_VERSION,
+  contentImageReviewStyleVersion,
   contentVisualPlanningPrompt,
   governmentImageDescription,
   planRenderedContentImagePrompt,
@@ -116,4 +117,67 @@ test("source excerpts cannot replace a missing neutral summary", () => {
     governmentImageDescription("A neutral summary.", "Search navigation"),
     "A neutral summary.",
   );
+});
+
+test("a scene excluding written material is safe to render", () => {
+  const prompt = renderContentImagePrompt({
+    scene:
+      "A public library entrance with brick arches and bicycles, no signs, text or logos anywhere",
+  });
+  assert.match(prompt, /public library entrance/);
+});
+
+test("plural written objects are rejected even beside an exclusion", () => {
+  assert.throws(
+    () =>
+      renderContentImagePrompt({
+        scene:
+          "A courthouse with no logos, and signs announcing the new policy",
+      }),
+    /includes written material/,
+  );
+});
+
+test("planning retries include the validation failure and preserve review guidance", async () => {
+  const feedbacks: Array<string | undefined> = [];
+  await planRenderedContentImagePrompt(
+    source,
+    async (_source, feedback) => {
+      feedbacks.push(feedback);
+      return feedbacks.length === 1
+        ? { scene: "A city street with signs" }
+        : { scene: "A city street with brick homes, trees and bicycles" };
+    },
+    3,
+    "Keep the homes prominent",
+  );
+  assert.equal(feedbacks[0], "Keep the homes prominent");
+  assert.match(feedbacks[1]!, /Keep the homes prominent/);
+  assert.match(feedbacks[1]!, /includes written material/);
+});
+
+test("a provider switch retries old rejections without making accepted image hashes stale", (t) => {
+  const before = {
+    provider: process.env.SCRAPER_IMAGE_PROVIDER,
+    model: process.env.SCRAPER_IMAGE_MODEL,
+  };
+  t.after(() => {
+    for (const [key, value] of [
+      ["SCRAPER_IMAGE_PROVIDER", before.provider],
+      ["SCRAPER_IMAGE_MODEL", before.model],
+    ]) {
+      if (value === undefined) delete process.env[key!];
+      else process.env[key!] = value;
+    }
+  });
+  delete process.env.SCRAPER_IMAGE_PROVIDER;
+  const hash = versionContentImageHash("source");
+  assert.equal(contentImageReviewStyleVersion(), CONTENT_IMAGE_STYLE_VERSION);
+  process.env.SCRAPER_IMAGE_PROVIDER = "codex";
+  process.env.SCRAPER_IMAGE_MODEL = "gpt-image-2";
+  assert.equal(
+    contentImageReviewStyleVersion(),
+    `${CONTENT_IMAGE_STYLE_VERSION}:codex:gpt-image-2`,
+  );
+  assert.equal(versionContentImageHash("source"), hash);
 });

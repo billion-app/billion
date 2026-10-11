@@ -95,17 +95,23 @@ function getLocalTextModel(baseURL: string): V3Model {
 }
 
 /** The proxy owns OAuth credentials; scraper processes only know its URL. */
-function getFallbackProvider() {
+export function getResponsesConfig(): LocalLlmConfig | null {
   const baseURL = process.env.SCRAPER_FALLBACK_BASE_URL?.trim().replace(
     /\/$/,
     "",
   );
   return baseURL
-    ? createOpenAI({
+    ? {
         baseURL,
+        model: process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna",
         apiKey: process.env.SCRAPER_FALLBACK_API_KEY?.trim() || "unused",
-      })
+      }
     : null;
+}
+
+function getFallbackProvider() {
+  const config = getResponsesConfig();
+  return config ? createOpenAI(config) : null;
 }
 
 function getFallbackModel(): V3Model | null {
