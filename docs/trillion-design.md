@@ -20,6 +20,8 @@ This document records the decisions made in the October 2026 design review and t
 | Ordering of children            | By debate structure, plus editorial picks on seeded records. Never by popularity or agreement.                               |
 | Duplicates and global promotion | Claims start local. Duplicates are merged into global claims through promotion, later assisted by votes and an AI curator.   |
 | Seeded content                  | Labeled by provenance, open to challenge, and gated by existing editorial review.                                            |
+| Who sets an argument's lean     | Whoever adds the argument. The lean can be challenged like any link; votes may flag a lean for review but never decide it.   |
+| Whole-debate overview           | A Kialo-style sunburst of the disputed questions in Map view, so thin parts of the debate are visible at a glance.           |
 | Moderation (post-prototype)     | An automated structural check before publishing, then post-moderation. The check never judges truth or viewpoint.            |
 
 ## The model
@@ -67,6 +69,16 @@ Beside those, the root branches into **the questions people actually disagree ab
 
 Each disputed question names the kind of disagreement, following the issue's call to distinguish facts, assumptions, and values: "Disputed facts," "Mostly values," "Disputed reading of the text," or "Depends on courts and other measures." Each also shows its state, such as "2 unanswered," "Contested," or "Few arguments yet." The state says where the debate stands, never who is winning. The pipeline seeds disputed questions with provenance labels like any other node, and readers can propose new ones.
 
+### Who sets an argument's lean
+
+A lean says which way an argument points, not whether it is right. "Billionaires will move away, so revenue will fall short" leans no whether or not it is true; its truth is argued in its own Responses. Because the lean is a reading of the argument rather than a judgment of it, it does not need a vote:
+
+- **Seeded arguments:** the pipeline sets the lean when it builds the graph. Most come from the official ballot arguments, so a quote from the argument against leans no.
+- **Reader contributions:** the contributor chooses the lean when linking an argument to a disputed question.
+- **Disagreement:** the lean belongs to the link between the argument and the question, and every link can be challenged. "This actually cuts both ways," with a reason, appears as a response like any other.
+
+A public vote on leans was rejected. It would turn into a vote on the argument, and the leans would add up to a disguised tally of support, which the main case must never show. _Proposed, with accounts:_ votes or karma may flag a contested lean for a closer look, the AI curator may flag a lean that contradicts the argument's text, and a person verifying the graph confirms leans when the "AI generated" notice is removed. None of these decides a lean on its own.
+
 ### One layered view, not a summary
 
 There is no separate simplified mode. The first layer of the graph is the simple view: the question, its four basics, and the disputed questions. Each tap goes one layer deeper. Because the overview is the top of the graph rather than a separately written summary, every line in it leads somewhere further, and nothing in it can drift into a final answer.
@@ -113,6 +125,7 @@ The map is rendered with Cytoscape. On a phone, a small live map sits at the top
 - On navigation, cards that leave fade out and shrink, and new cards grow out of the card the reader tapped. The camera glides toward the visible cards frame by frame. Any manual pan or zoom stops the glide. With reduced motion turned on, the map is laid out once and changes without animation.
 - Readers can pinch, scroll, or use the zoom buttons. Default framing stays at reading size even when only a few cards are shown.
 - Global claims have a dashed border; other records have a blue double border.
+- Map view opens with **the whole debate** as a small sunburst, borrowed from Kialo. The center is the main case. The inner ring holds the disputed questions, the next ring the arguments under them in their lean colors, and the outer ring the responses. A slice's width is the amount of debate beneath it, so a thin question is visible without listing every card. A dashed slot marks a question with almost nothing under it, and a "Least explored" link names the thinnest question. Tapping a slice goes there. The basics are left out, because they are orientation rather than debate and would crowd out the disputes.
 - Map cards show a short summary label, a few words long, written for the map. Selecting a card opens its full statement and verbatim quotes in the reading column. The map never truncates a quote mid-sentence.
 
 The map supports orientation. Every core task can still be completed from the list, without pinching or dragging.
@@ -159,6 +172,19 @@ Every contribution needs a **target**: a claim, a specific edge, or a quoted pas
 An automated check runs before publishing, followed by post-moderation and reports. The check is limited to **structure and safety**: there is a target, the contribution is one claim, the link is explained, and it contains no abuse or personal information. It does not judge whether a claim is true or which side it favors, and its prompt and decisions are auditable. Failures return to the writer with suggested fixes.
 
 Identity, sign-in providers, rate limits, appeals, and revision handling are out of scope for the prototype. Before public contribution launches, those need decisions.
+
+## Prior art: Kialo
+
+[Kialo](https://www.kialo.com) is the closest existing product: one thesis at the top and a tree of pro and con claims beneath it. The comparison shaped several decisions.
+
+| Kialo                                                 | The Trillion                                                                                                                                                                                                   |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Every claim is a pro or a con of its parent.          | Arguments group under disputed questions and carry a lean, because most real arguments are not cleanly for or against. See [the root](#the-root-is-the-readers-question).                                      |
+| Sunburst overview of the whole discussion.            | Adopted for Map view, limited to the disputed questions. See [Map](#map).                                                                                                                                      |
+| Impact voting ranks claims.                           | _Proposed, with accounts._ Ratings may help merge duplicates and flag weak or mislabeled claims, but never order a list or decide a lean, so they cannot become a verdict. See [ordering](#ordering-children). |
+| One claim can be linked into several places.          | The same idea as global claims reached through _applies to_ edges, which must explain why the claim applies.                                                                                                   |
+| Suggested claims wait for moderator approval.         | An automated structural and safety check, then post-moderation, because Billion has no moderator team to approve every contribution. See [moderation](#moderation-after-the-prototype).                        |
+| Claims are contributors' own words; sources optional. | Every seeded claim is tied to a verified verbatim quote from the official record. This is the main thing Kialo cannot offer: it cannot show what the measure actually says.                                    |
 
 ## Prototype: Proposition 40 (November 2026)
 

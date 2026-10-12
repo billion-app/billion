@@ -1189,6 +1189,55 @@
     .crumbs[hidden] {
       display: none;
     }
+    /* Whole-debate overview (Kialo-style sunburst): where the debate is deep and where it is thin. */
+    .overview {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--hair2);
+      background: var(--slate);
+    }
+    .overview svg {
+      flex: none;
+      width: 112px;
+      height: 112px;
+    }
+    .overview path,
+    .overview circle {
+      cursor: pointer;
+      transition: opacity 0.25s;
+    }
+    .overview .dim {
+      opacity: 0.4;
+    }
+    .overview .gap {
+      fill: none;
+      stroke: var(--hair3);
+      stroke-dasharray: 2 2;
+      cursor: default;
+    }
+    .overview h3 {
+      margin: 0 0 3px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .overview p {
+      margin: 0 0 6px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--quiet);
+    }
+    .overview .thin {
+      display: block;
+      text-align: left;
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--link);
+      padding: 2px 0;
+    }
   </style>
 
   <div class="stage">
@@ -1919,13 +1968,117 @@
     </section>`;
       }
 
+      // ── Whole-debate overview: a sunburst, Kialo-style ──────────────────
+      // Only the debate, not the basics: disputed questions, then the arguments weighing on them
+      // (colored by lean), then responses. Slice width is the amount of debate underneath, so thin
+      // spots show at a glance; dashed slots mark questions with almost nothing under them yet.
+      function debateTree() {
+        const kids = new Map();
+        const seen = new Set([ROOT]);
+        const depth = new Map([[ROOT, 0]]);
+        const queue = [ROOT];
+        while (queue.length) {
+          const id = queue.shift();
+          if (depth.get(id) >= 3) continue;
+          const list = incoming(id)
+            .filter(
+              (e) =>
+                visible(e.from) &&
+                !seen.has(e.from) &&
+                (id !== ROOT || e.type === "crux"),
+            )
+            .sort(
+              (a, b) =>
+                (a.type === "part" ? -1 : 0) - (b.type === "part" ? -1 : 0),
+            );
+          kids.set(id, list);
+          for (const e of list) {
+            seen.add(e.from);
+            depth.set(e.from, depth.get(id) + 1);
+            queue.push(e.from);
+          }
+        }
+        return kids;
+      }
+      const TREE = debateTree();
+      const weight = (id) =>
+        Math.max(
+          1,
+          (TREE.get(id) || []).reduce((n, e) => n + weight(e.from), 0),
+        );
+      const RINGS = [
+        [21, 37],
+        [39, 51],
+        [53, 61],
+      ];
+      function arc(r0, r1, a0, a1) {
+        a1 = Math.min(a1, a0 + Math.PI * 2 - 0.001);
+        const p = (r, a) =>
+          `${(r * Math.sin(a)).toFixed(2)} ${(-r * Math.cos(a)).toFixed(2)}`;
+        const large = a1 - a0 > Math.PI ? 1 : 0;
+        return `M${p(r1, a0)}A${r1} ${r1} 0 ${large} 1 ${p(r1, a1)}L${p(r0, a1)}A${r0} ${r0} 0 ${large} 0 ${p(r0, a0)}Z`;
+      }
+      function overviewHtml() {
+        const onPath = new Set(
+          path.filter((p) => p.t === "node").map((p) => p.id),
+        );
+        onPath.add(focusId());
+        const slices = [];
+        const walk = (id, ring, a0, a1) => {
+          const list = TREE.get(id) || [];
+          if (ring === 1 && N[id].kind === "crux" && list.length < 2)
+            slices.push(
+              `<path class="gap" d="${arc(...RINGS[1], a0 + 0.02, a1 - 0.02)}"/>`,
+            );
+          const total = list.reduce((n, e) => n + weight(e.from), 0);
+          let a = a0;
+          for (const e of list) {
+            const b = a + ((a1 - a0) * weight(e.from)) / total;
+            const child = e.from;
+            const color = ring === 0 ? "#7A7F96" : TONE_HEX[tone(e)];
+            const lit = onPath.has(child) || id === focusId();
+            slices.push(
+              `<path d="${arc(...RINGS[ring], a + 0.012, b - 0.012)}" fill="${color}" class="${lit ? "" : "dim"}" data-node="${child}"${child === focusId() ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>${esc(titleOf(child))}</title></path>`,
+            );
+            if (ring < RINGS.length - 1) walk(child, ring + 1, a, b);
+            a = b;
+          }
+        };
+        walk(ROOT, 0, 0, Math.PI * 2);
+        const cruxes = (TREE.get(ROOT) || [])
+          .filter((e) => N[e.from].kind === "crux")
+          .map((e) => e.from);
+        const args = cruxes.reduce(
+          (n, id) => n + incoming(id).filter((e) => e.type === "weighs").length,
+          0,
+        );
+        const size = (id) =>
+          (TREE.get(id) || []).reduce((n, e) => n + 1 + size(e.from), 0);
+        const thin = cruxes
+          .map((id) => ({ id, n: size(id) }))
+          .sort((a, b) => a.n - b.n)
+          .slice(0, 1)
+          .filter((t) => t.id !== focusId());
+        return `<section class="overview" aria-label="The whole debate">
+          <svg viewBox="-64 -64 128 128" role="img" aria-label="Map of the whole debate. Inner ring: basics and disputed questions. Outer rings: what weighs on them and responses.">
+            ${slices.join("")}
+            <circle r="18" fill="#D4AF37" data-node="${ROOT}"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
+          </svg>
+          <div>
+            <h3>The whole debate</h3>
+            <p>Where people disagree: ${cruxes.length} questions · ${args} arguments · ${unanswered().length} unanswered. Tap a slice to go there.</p>
+            ${thin.map((t) => `<button type="button" class="thin" data-node="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
+          </div>
+        </section>`;
+      }
+
       function render(moveFocus) {
         const c = cur();
         if (page.contains(mapEl)) $("#map-home").appendChild(mapEl); // keep the map alive across re-renders
         if (c.t === "edge") page.innerHTML = renderEdge(c.id);
         else {
           const cats = categories(c.id);
-          page.innerHTML = `${focusCard(c.id)}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
+          page.innerHTML = `${focusCard(c.id)}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? overviewHtml() + '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
         ${c.id === ROOT && view === "list" ? doorHtml() : ""}`;
         }
         page.className = moveFocus
