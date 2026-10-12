@@ -962,6 +962,8 @@
       justify-content: space-between;
       font: 600 15px/1 var(--body);
       color: var(--text);
+      /* Opaque like an iOS navigation bar, so scrolled content never shows behind the clock. */
+      background: var(--navy);
       pointer-events: none;
     }
     .island {
