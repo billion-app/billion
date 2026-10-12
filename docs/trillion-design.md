@@ -8,21 +8,22 @@ This document records the decisions made in the October 2026 design review and t
 
 ## Decisions at a glance
 
-| Question                        | Decision                                                                                                                     |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Who writes the graph            | The pipeline seeds source-text claims and anticipated questions. The public adds arguments and questions from launch.        |
-| Primary surface                 | Phone (Expo). Desktop adds a canvas beside the same reading view.                                                            |
-| What a node is                  | A claim. Every edge is typed, carries an explanation, and can itself be challenged.                                          |
-| Graph scope                     | One graph per record. Records link to shared global claims, such as moral frameworks, through edges that must justify reuse. |
-| Root of a record's graph        | The reader's own decision question, worded by record type.                                                                   |
-| Who / What + Why / When / How   | All are branches of the same graph for now. No tabs.                                                                         |
-| First thing a reader sees       | A small live map of the question and its four basics, above the focused claim page. Everything else is revealed on request.  |
-| Ordering of children            | By debate structure, plus editorial picks on seeded records. Never by popularity or agreement.                               |
-| Duplicates and global promotion | Claims start local. Duplicates are merged into global claims through promotion, later assisted by votes and an AI curator.   |
-| Seeded content                  | Labeled by provenance, open to challenge, and gated by existing editorial review.                                            |
-| Who sets an argument's lean     | Whoever adds the argument. The lean can be challenged like any link; votes may flag a lean for review but never decide it.   |
-| Whole-debate overview           | A Kialo-style sunburst of the disputed questions in Map view, so thin parts of the debate are visible at a glance.           |
-| Moderation (post-prototype)     | An automated structural check before publishing, then post-moderation. The check never judges truth or viewpoint.            |
+| Question                        | Decision                                                                                                                                  |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Who writes the graph            | The pipeline seeds source-text claims and anticipated questions. The public adds arguments and questions from launch.                     |
+| Primary surface                 | Phone (Expo). Desktop adds a canvas beside the same reading view.                                                                         |
+| What a node is                  | A claim. Every edge is typed, carries an explanation, and can itself be challenged.                                                       |
+| Graph scope                     | One graph per record. Records link to shared global claims, such as moral frameworks, through edges that must justify reuse.              |
+| Root of a record's graph        | The reader's own decision question, worded by record type.                                                                                |
+| Who / What + Why / When / How   | All are branches of the same graph for now. No tabs.                                                                                      |
+| First thing a reader sees       | A small live map of the question and its four basics, above the focused claim page. Everything else is revealed on request.               |
+| Ordering of children            | By debate structure, plus editorial picks on seeded records. Never by popularity or agreement.                                            |
+| Duplicates and global promotion | Claims start local. Duplicates are merged into global claims through promotion, later assisted by votes and an AI curator.                |
+| Seeded content                  | Labeled by provenance, open to challenge, and gated by existing editorial review.                                                         |
+| Who sets an argument's lean     | Whoever adds the argument. The lean can be challenged like any link; votes may flag a lean for review but never decide it.                |
+| Whole-debate overview           | A Kialo-style sunburst of the disputed questions, opened from the map into a drawer, so thin parts of the debate are visible at a glance. |
+| Moderation (post-prototype)     | An automated structural check before publishing, then post-moderation. The check never judges truth or viewpoint.                         |
+| Historical precedent            | _Proposed._ A seeded "Has this been tried before?" question backed by quoted past guides and audits. Not in the initial seed.             |
 
 ## The model
 
@@ -175,6 +176,18 @@ Every contribution needs a **target**: a claim, a specific edge, or a quoted pas
 An automated check runs before publishing, followed by post-moderation and reports. The check is limited to **structure and safety**: there is a target, the contribution is one claim, the link is explained, and it contains no abuse or personal information. It does not judge whether a claim is true or which side it favors, and its prompt and decisions are auditable. Failures return to the writer with suggested fixes.
 
 Identity, sign-in providers, rate limits, appeals, and revision handling are out of scope for the prototype. Before public contribution launches, those need decisions.
+
+## Historical precedent (proposed)
+
+_Proposed, not implemented._ The initial seed draws only on the current election's official guide: the measure's legal text, the Legislative Analyst's analysis, the ballot arguments, and the legal text of related measures on the same ballot. It cannot answer one of the first questions a voter asks: has this been tried before, and did it work? A 2026 housing bond, for example, follows earlier housing bonds whose spending the State Auditor has reviewed. That record bears directly on arguments such as "the money will reach the people it is meant for."
+
+Precedent follows the same rules as everything else in the seed:
+
+- **Sources are captured and quote-checked.** A new source role, precedent, covers past official voter guides (what an earlier measure promised and its size), State Auditor reports (what happened), and Legislative Analyst follow-up reports. Each is captured, hashed, and checked for freshness like the guide. Every precedent claim quotes its document verbatim with a locator, so the reader sees the auditor's own sentence rather than a summary of it.
+- **It lives in the graph, not beside it.** Most measures get a seeded disputed question, "Has this been tried before, and did it work?", typed as _Disputed facts_. Past measures appear as other-measure cards with an _applies to_ link that must explain why the comparison holds. Audit findings attach as quoted evidence that supports, challenges, or qualifies specific arguments.
+- **A comparison is a claim.** "The 2018 bond is similar to this one" can be challenged like any link. A precedent that differs in size, target, or oversight should say so in the link's explanation.
+
+The hard part is choosing which past measures count as precedent. The pipeline can find this election's guide on its own, but nothing yet tells it which earlier measures, audits, or reports are comparable. The first version would use a curated list of precedent sources per measure, with the Prop 40 pilot's capture and gate extended to cover them. A search step that proposes candidates for review can come later. Until then, readers can add precedent as contributions once those open.
 
 ## Prior art: Kialo
 
