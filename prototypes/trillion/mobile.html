@@ -920,140 +920,438 @@
     }
 
     /* Phone frame: the mockup renders the Expo screen at iPhone size. */
-    html, body { background: #070a16; }
-    .stage { min-height: 100%; display: flex; gap: 48px; align-items: center; justify-content: center; padding: 32px 24px; flex-wrap: wrap; }
-    .phone { position: relative; width: 390px; height: 844px; flex: none; border-radius: 54px; overflow: hidden; background: var(--navy); border: 11px solid #02030a; box-shadow: 0 0 0 2px #2a3150, 0 30px 80px rgba(0,0,0,0.55); transform: translateZ(0); }
-    .phone .app { height: 100%; }
-    .status { position: absolute; z-index: 40; top: 0; left: 0; right: 0; height: 50px; padding: 16px 30px 0; display: flex; justify-content: space-between; font: 600 15px/1 var(--body); color: var(--text); pointer-events: none; }
-    .island { position: absolute; z-index: 41; top: 11px; left: 50%; width: 120px; height: 34px; margin-left: -60px; border-radius: 20px; background: #000; pointer-events: none; }
-    .home-bar { position: absolute; z-index: 41; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: rgba(247,244,238,0.85); pointer-events: none; }
-    .phone .reader { padding-top: 50px; padding-bottom: 40px; }
-    .phone .top { top: 0; grid-template-columns: auto 1fr; }
-    .phone .map.full { padding-top: 50px; }
-    .phone .map.full .map-full-head { top: 50px; }
-    .phone .map.full #cy { top: 106px; }
-    .phone .scrim { position: absolute; }
-    .ai-banner { margin-inline: -16px; padding: 9px 16px; display: flex; gap: 10px; align-items: flex-start; background: rgba(244,201,93,0.10); border-bottom: 1px solid rgba(244,201,93,0.25); font-size: 12.5px; line-height: 1.4; color: rgba(247,244,238,0.86); }
-    .ai-banner b { color: var(--rel-question); }
-    .ai { font: 700 10.5px/1.4 var(--body); letter-spacing: 0.04em; text-transform: uppercase; color: #16131A; background: var(--rel-question); padding: 1px 6px; border-radius: 5px; }
-    .notes { width: 340px; max-width: 100%; color: var(--text); font-size: 14px; line-height: 1.55; }
-    .notes h1 { font: 700 26px/1.2 var(--display); margin: 0 0 6px; }
-    .notes p { margin: 0 0 14px; color: rgba(247,244,238,0.78); }
-    .notes h2 { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--spark); margin: 22px 0 8px; }
-    .jumps { display: grid; gap: 8px; }
-    .jumps button { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--hair3); background: var(--slate); font-weight: 600; }
-    .jumps button:hover { background: var(--hi); }
-    .notes ul { margin: 0; padding-left: 18px; color: rgba(247,244,238,0.78); }
+    html,
+    body {
+      background: #070a16;
+    }
+    .stage {
+      min-height: 100%;
+      display: flex;
+      gap: 48px;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      flex-wrap: wrap;
+    }
+    .phone {
+      position: relative;
+      width: 390px;
+      height: 844px;
+      flex: none;
+      border-radius: 54px;
+      overflow: hidden;
+      background: var(--navy);
+      border: 11px solid #02030a;
+      box-shadow:
+        0 0 0 2px #2a3150,
+        0 30px 80px rgba(0, 0, 0, 0.55);
+      transform: translateZ(0);
+    }
+    .phone .app {
+      height: 100%;
+    }
+    .status {
+      position: absolute;
+      z-index: 40;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      padding: 16px 30px 0;
+      display: flex;
+      justify-content: space-between;
+      font: 600 15px/1 var(--body);
+      color: var(--text);
+      pointer-events: none;
+    }
+    .island {
+      position: absolute;
+      z-index: 41;
+      top: 11px;
+      left: 50%;
+      width: 120px;
+      height: 34px;
+      margin-left: -60px;
+      border-radius: 20px;
+      background: #000;
+      pointer-events: none;
+    }
+    .home-bar {
+      position: absolute;
+      z-index: 41;
+      bottom: 8px;
+      left: 50%;
+      width: 134px;
+      height: 5px;
+      margin-left: -67px;
+      border-radius: 3px;
+      background: rgba(247, 244, 238, 0.85);
+      pointer-events: none;
+    }
+    .phone .reader {
+      padding-top: 50px;
+      padding-bottom: 40px;
+    }
+    .phone .top {
+      top: 0;
+      grid-template-columns: auto 1fr;
+    }
+    .phone .map.full {
+      padding-top: 50px;
+    }
+    .phone .map.full .map-full-head {
+      top: 50px;
+    }
+    .phone .map.full #cy {
+      top: 106px;
+    }
+    .phone .scrim {
+      position: absolute;
+    }
+    .ai-banner {
+      margin-inline: -16px;
+      padding: 9px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      background: rgba(244, 201, 93, 0.1);
+      border-bottom: 1px solid rgba(244, 201, 93, 0.25);
+      font-size: 12.5px;
+      line-height: 1.4;
+      color: rgba(247, 244, 238, 0.86);
+    }
+    .ai-banner b {
+      color: var(--rel-question);
+    }
+    .ai {
+      font: 700 10.5px/1.4 var(--body);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #16131a;
+      background: var(--rel-question);
+      padding: 1px 6px;
+      border-radius: 5px;
+    }
+    .notes {
+      width: 340px;
+      max-width: 100%;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .notes h1 {
+      font: 700 26px/1.2 var(--display);
+      margin: 0 0 6px;
+    }
+    .notes p {
+      margin: 0 0 14px;
+      color: rgba(247, 244, 238, 0.78);
+    }
+    .notes h2 {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--spark);
+      margin: 22px 0 8px;
+    }
+    .jumps {
+      display: grid;
+      gap: 8px;
+    }
+    .jumps button {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--hair3);
+      background: var(--slate);
+      font-weight: 600;
+    }
+    .jumps button:hover {
+      background: var(--hi);
+    }
+    .notes ul {
+      margin: 0;
+      padding-left: 18px;
+      color: rgba(247, 244, 238, 0.78);
+    }
     @media (max-width: 480px) {
-      .stage { padding: 0; display: block; }
-      .phone { width: 100%; height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
-      .status, .island, .home-bar { display: none; }
-      .phone .reader { padding-top: 0; }
-      .notes { padding: 24px 16px; }
+      .stage {
+        padding: 0;
+        display: block;
+      }
+      .phone {
+        width: 100%;
+        height: 100vh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .status,
+      .island,
+      .home-bar {
+        display: none;
+      }
+      .phone .reader {
+        padding-top: 0;
+      }
+      .notes {
+        padding: 24px 16px;
+      }
+    }
+
+    .notice {
+      margin: 12px 0 0;
+      width: 100%;
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      padding: 11px 14px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--hair2);
+    }
+    .notice-icon {
+      color: var(--link);
+      display: flex;
+      padding-top: 1px;
+    }
+    .notice-body {
+      flex: 1;
+      display: grid;
+      gap: 8px;
+    }
+    .notice-head {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .notice-title {
+      flex: 1;
+      font-weight: 500;
+      font-size: 12.5px;
+      line-height: 17px;
+      color: rgba(255, 255, 255, 0.82);
+    }
+    .notice-action {
+      font-weight: 600;
+      font-size: 10.5px;
+      color: var(--link);
+    }
+    .notice .chev {
+      color: var(--link);
+      transition: transform 160ms;
+    }
+    .notice[aria-expanded="true"] .chev {
+      transform: rotate(180deg);
+    }
+    .notice-text {
+      font-size: 11.5px;
+      line-height: 17px;
+      color: rgba(255, 255, 255, 0.64);
+    }
+    .views {
+      display: flex;
+      gap: 4px;
+      margin-top: 10px;
+      padding: 3px;
+      border-radius: 11px;
+      background: var(--slate);
+      border: 1px solid var(--hair1);
+    }
+    .views button {
+      flex: 1;
+      padding: 7px 0;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 13.5px;
+      color: var(--quiet);
+    }
+    .views button[aria-pressed="true"] {
+      background: var(--hi);
+      color: var(--text);
+    }
+    .phone #phone-slot {
+      height: 440px;
+    }
+    .map:not(.full) .map-main {
+      display: none;
+    }
+    .rowhead {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 8px;
+    }
+    .rowhead .src {
+      font-size: 12px;
+      color: var(--quiet);
+    }
+    .crumbs[hidden] {
+      display: none;
     }
   </style>
 
   <div class="stage">
-  <div class="phone">
-  <div class="status" aria-hidden="true"><span>9:41</span><span>5G ▮▮▮</span></div>
-  <div class="island" aria-hidden="true"></div>
-  <div class="app">
-    <section class="canvas" aria-label="Argument map">
-      <div class="canvas-head">
-        <div class="eyebrow">Map</div>
-        <p>
-          Drag cards to pull the web around. Pinch, scroll, or use the buttons
-          to zoom.
-        </p>
+    <div class="phone">
+      <div class="status" aria-hidden="true">
+        <span>9:41</span><span>5G ▮▮▮</span>
       </div>
-      <div id="canvas-slot"></div>
-    </section>
+      <div class="island" aria-hidden="true"></div>
+      <div class="app">
+        <section class="canvas" aria-label="Argument map">
+          <div class="canvas-head">
+            <div class="eyebrow">Map</div>
+            <p>
+              Drag cards to pull the web around. Pinch, scroll, or use the
+              buttons to zoom.
+            </p>
+          </div>
+          <div id="canvas-slot"></div>
+        </section>
 
-    <main class="reader" id="reader">
-      <header class="top">
-        <button class="back" id="back" aria-label="Back" type="button">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
+        <main class="reader" id="reader">
+          <header class="top">
+            <button class="back" id="back" aria-label="Back" type="button">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <div>
+              <div class="eyebrow">California · Nov 3, 2026</div>
+              <div class="rec-title">Proposition 40 · The debate</div>
+            </div>
+          </header>
+          <button
+            class="notice"
+            id="notice"
+            type="button"
+            aria-expanded="false"
+            aria-label="Show details about Billion AI authorship"
           >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <div>
-          <div class="eyebrow">California · Nov 3, 2026</div>
-          <div class="rec-title">Proposition 40 · The debate</div>
-        </div>
-      </header>
-      <div class="ai-banner" role="note"><span class="ai">AI</span><span><b>AI-generated.</b> Billion built this map from the official voter guide. Quotes are checked word for word against it; the questions, leans, and explanations are AI-written and haven't been checked by a person yet.</span></div>
-      <nav class="crumbs" id="crumbs" aria-label="Your path"></nav>
-      <button type="button" class="main-link" id="main-link" hidden>
-        ← Go back to main case
-      </button>
-      <div id="page"></div>
-    </main>
-  </div>
-
-  <div id="map-home">
-    <div
-      class="map"
-      id="map"
-      role="group"
-      aria-label="Argument map. The list has the same connections."
-    >
-      <div class="map-full-head">
-        <h2>Map</h2>
-        <button class="close" type="button" id="map-close">Close</button>
+            <span class="notice-icon"
+              ><svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9L12 2.5zm6.5 11.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9.9-2.6z"
+                /></svg
+            ></span>
+            <span class="notice-body">
+              <span class="notice-head"
+                ><span class="notice-title"
+                  >Written by Billion AI · Always check the source</span
+                ><span class="notice-action">Details</span
+                ><svg
+                  class="chev"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M6 9l6 6 6-6" /></svg
+              ></span>
+              <span class="notice-text" hidden
+                >Built from the official voter guide. Quotes are checked word
+                for word against it; the disputed questions, leans, and link
+                explanations are AI analysis no person has checked yet. Tap any
+                quote to open its source.</span
+              >
+            </span>
+          </button>
+          <nav class="crumbs" id="crumbs" aria-label="Your path"></nav>
+          <div id="page"></div>
+        </main>
       </div>
-      <div id="cy"></div>
-      <button type="button" class="map-main" id="map-main" hidden>
-        ← Go back to main case
-      </button>
-      <div class="legend" aria-hidden="true">
-        <span style="--c: var(--rel-for)"><i></i>supports · leans yes</span>
-        <span style="--c: var(--rel-against)"
-          ><i></i>challenges · leans no</span
+
+      <div id="map-home">
+        <div
+          class="map"
+          id="map"
+          role="group"
+          aria-label="Argument map. The list has the same connections."
         >
-        <span style="--c: var(--rel-mixed)"><i></i>qualifies · both ways</span>
-        <span style="--c: var(--rel-question)"><i></i>asks</span>
+          <div class="map-full-head">
+            <h2>Map</h2>
+            <button class="close" type="button" id="map-close">Close</button>
+          </div>
+          <div id="cy"></div>
+          <button type="button" class="map-main" id="map-main" hidden>
+            ← Go back to main case
+          </button>
+          <div class="legend" aria-hidden="true">
+            <span style="--c: var(--rel-for)"><i></i>supports · leans yes</span>
+            <span style="--c: var(--rel-against)"
+              ><i></i>challenges · leans no</span
+            >
+            <span style="--c: var(--rel-mixed)"
+              ><i></i>qualifies · both ways</span
+            >
+            <span style="--c: var(--rel-question)"><i></i>asks</span>
+          </div>
+          <div class="map-tools">
+            <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+            <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+            <button type="button" id="zoom-fit" aria-label="Fit map">⤢</button>
+            <button type="button" class="expand" id="map-expand">Expand</button>
+          </div>
+        </div>
       </div>
-      <div class="map-tools">
-        <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
-        <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
-        <button type="button" id="zoom-fit" aria-label="Fit map">⤢</button>
-        <button type="button" class="expand" id="map-expand">Expand</button>
-      </div>
-    </div>
-  </div>
 
-  <div id="layer"></div>
-  <div class="home-bar" aria-hidden="true"></div>
-  </div>
-  <aside class="notes">
-    <h1>Trillion on iPhone</h1>
-    <p>How the Expo screen will look and behave, using the real Prop 40 pilot graph: 54 claims whose quotes all verify against the official guide. Tap around inside the phone.</p>
-    <h2>Jump to</h2>
-    <div class="jumps">
-      <button type="button" data-jump="main">Main case</button>
-      <button type="button" data-jump="disagree">Where people disagree</button>
-      <button type="button" data-jump="crux">A disputed question</button>
-      <button type="button" data-jump="provision">A provision with its quote</button>
-      <button type="button" data-jump="link">A link's own page</button>
-      <button type="button" data-jump="map">Full-screen map</button>
+      <div id="layer"></div>
+      <div class="home-bar" aria-hidden="true"></div>
     </div>
-    <h2>Differences from the design prototype</h2>
-    <ul>
-      <li>No made-up reader contributions and no Add button. Contributions arrive with accounts.</li>
-      <li>An AI-generated notice stays on screen until a person verifies the graph.</li>
-      <li>Every quote opens its official source.</li>
-    </ul>
-  </aside>
+    <aside class="notes">
+      <h1>Trillion on iPhone</h1>
+      <p>
+        How the Expo screen will look and behave, using the real Prop 40 pilot
+        graph: 54 claims whose quotes all verify against the official guide. Tap
+        around inside the phone.
+      </p>
+      <h2>Jump to</h2>
+      <div class="jumps">
+        <button type="button" data-jump="main">Main case</button>
+        <button type="button" data-jump="disagree">
+          Where people disagree
+        </button>
+        <button type="button" data-jump="crux">A disputed question</button>
+        <button type="button" data-jump="provision">
+          A provision with its quote
+        </button>
+        <button type="button" data-jump="link">A link's own page</button>
+        <button type="button" data-jump="map">Full-screen map</button>
+      </div>
+      <h2>Differences from the design prototype</h2>
+      <ul>
+        <li>
+          No made-up reader contributions and no Add button. Contributions
+          arrive with accounts.
+        </li>
+        <li>
+          A "Written by Billion AI" notice, matching the bill screen, stays
+          until a person verifies the graph.
+        </li>
+        <li>Every quote opens its official source.</li>
+      </ul>
+    </aside>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.34.3/cytoscape.min.js"></script>
@@ -1065,21 +1363,44 @@
       const G = window.TRILLION_PILOT;
       const src = Object.fromEntries(G.sources.map((s) => [s.id, s]));
       const KIND = { provision: "text", shared: "global" };
-      const BILLION = new Set(["generated", "crux", "question", "shared", "fact"]);
+      const BILLION = new Set([
+        "generated",
+        "crux",
+        "question",
+        "shared",
+        "fact",
+      ]);
       const nodes = {};
       for (const n of G.nodes) {
         const q = n.quotes[0];
         const s = q && src[q.sourceId];
         let source;
         if (n.kind === "argument")
-          source = { label: n.attribution.name, signers: n.attribution.signers, locator: q.locator, url: s.url };
-        else if (s)
           source = {
-            label: s.role === "legal-text" ? (s.number === G.measure.number ? "Measure text" : `Prop ${s.number} text`) : s.role === "official-analysis" ? "Legislative Analyst" : "Official arguments",
+            label: n.attribution.name,
+            signers: n.attribution.signers,
             locator: q.locator,
             url: s.url,
           };
-        else if (BILLION.has(n.kind)) source = { generated: true, label: "Generated by Billion", locator: "Written by Billion" };
+        else if (s)
+          source = {
+            label:
+              s.role === "legal-text"
+                ? s.number === G.measure.number
+                  ? "Measure text"
+                  : `Prop ${s.number} text`
+                : s.role === "official-analysis"
+                  ? "Legislative Analyst"
+                  : "Official arguments",
+            locator: q.locator,
+            url: s.url,
+          };
+        else if (BILLION.has(n.kind))
+          source = {
+            generated: true,
+            label: "Generated by Billion",
+            locator: "Written by Billion",
+          };
         nodes[n.id] = {
           kind: KIND[n.kind] ?? n.kind,
           label: n.label,
@@ -1087,14 +1408,19 @@
           body: n.body,
           note: n.note,
           dispute: n.dispute,
-          quote: n.quotes.length ? n.quotes.map((x) => x.text).join(" … ") : undefined,
+          quote: n.quotes.length
+            ? n.quotes.map((x) => x.text).join(" … ")
+            : undefined,
           source,
         };
       }
       window.TRILLION_FIXTURE = {
         record: { rootId: G.rootId },
         nodes,
-        edges: G.edges.map((e) => ({ ...e, by: e.why ? "generated" : undefined })),
+        edges: G.edges.map((e) => ({
+          ...e,
+          by: e.why ? "generated" : undefined,
+        })),
         edgeResponses: [],
       };
     })();
@@ -1374,6 +1700,9 @@
       let tab = defaultTab(ROOT);
       const shown = new Set(); // tabs expanded past the preview, keyed focus:tab
       let direction = "in";
+      let view = "list"; // the reader's choice persists while navigating
+      const viewsHtml = () =>
+        `<div class="views" role="group" aria-label="Show as"><button type="button" data-view="list" aria-pressed="${view === "list"}">List</button><button type="button" data-view="map" aria-pressed="${view === "map"}">Map</button></div>`;
       const cur = () => path[path.length - 1];
       const focusId = () => (cur().t === "edge" ? E[cur().id].to : cur().id);
       const activeCat = () =>
@@ -1430,10 +1759,9 @@
             : ""
           : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(rel)}. Open this link">${esc(rel)} ›</button>`;
         return `<div class="row r-${tone(e)}${o.kind === "global" ? " is-global" : ""}">
-      ${chip}
+      <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}</span></div>
       <button class="go" type="button" data-node="${otherId}">
         <span class="t">${esc(titleOf(otherId))}${open}</span>
-        <span class="src">${esc(srcLabel(o))}</span>
       </button>
       ${e.why ? `<div class="why">${esc(e.why)}</div>` : ""}
     </div>`;
@@ -1494,7 +1822,7 @@
         const n = N[id];
         const src = n.source || {};
         if (id === ROOT)
-          return `<article class="focus is-root"><div class="kind">${KIND.root}</div><h1 tabindex="-1">${esc(n.title)}</h1><p class="body">${esc(n.body)}</p></article>`;
+          return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1><p class="body">${esc(n.body)}</p></article>`;
         const meta = [
           `<span class="kind">${esc(n.kind === "argument" ? src.label : KIND[n.kind])}</span>`,
         ];
@@ -1502,16 +1830,13 @@
           meta.push(
             `<span>${esc(src.handle)}</span><span class="example">Prototype example</span>`,
           );
-        if (src.generated)
-          meta.push(
-            `<span>${esc(src.locator)} · AI-generated, not yet checked by a person</span>`,
-          );
+
         if (n.kind === "global")
           meta.push(
             `<span>Used in ${n.usedIn} other records (example count)</span>`,
           );
         if (n.kind === "crux")
-          meta.push(`<span>${esc(cruxState(id).text)}</span><span class="ai">AI-written question</span>`);
+          meta.push(`<span>${esc(cruxState(id).text)}</span>`);
         return `<article class="focus">
       <div class="meta">${meta.join("")}</div>
       <h1 tabindex="-1">${esc(n.title)}</h1>
@@ -1530,7 +1855,7 @@
         const by = !e.by
           ? ""
           : e.by === "generated"
-            ? `<span>Link written by AI · not yet checked by a person</span>`
+            ? `<span>Written by Billion AI</span>`
             : `<span>${esc(e.by)}</span><span class="example">Prototype example</span>`;
         const card = (id) =>
           `<div class="row r-neutral"><button class="go" type="button" data-node="${id}"><span class="t">${esc(titleOf(id))}</span><span class="src">${esc(srcLabel(N[id]))}</span></button></div>`;
@@ -1544,8 +1869,8 @@
         <div class="edge-pair">${card(e.from)}<div class="arrow">↓ ${esc(short(e))}</div>${card(e.to)}</div>
         <p class="body">${esc(e.why || "The connection has not been explained.")}</p>
       </article>
-      <div id="phone-slot"></div>
-      <section class="section foot">
+      ${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : ""}
+      <section class="section foot"${view === "map" ? " hidden" : ""}>
       ${
         resps.length
           ? `<div class="rows">${resps
@@ -1562,13 +1887,14 @@
       }
 
       function renderCrumbs() {
+        $("#crumbs").hidden = path.length === 1;
         $("#crumbs").innerHTML = path
           .map((p, i) => {
             const label =
               p.t === "edge"
                 ? `Link: ${short(E[p.id])}`
                 : i === 0
-                  ? "Main case"
+                  ? "← Main case"
                   : titleOf(p.id);
             return `<button class="crumb" type="button" data-crumb="${i}"${i === path.length - 1 ? ' aria-current="page"' : ""}>${esc(label)}</button>`;
           })
@@ -1599,8 +1925,8 @@
         if (c.t === "edge") page.innerHTML = renderEdge(c.id);
         else {
           const cats = categories(c.id);
-          page.innerHTML = `${focusCard(c.id)}${cats.length > 1 ? tabsHtml(cats) : ""}<div id="phone-slot"></div>${panelHtml(c.id, activeCat())}
-        ${c.id === ROOT ? doorHtml() : ""}`;
+          page.innerHTML = `${focusCard(c.id)}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
+        ${c.id === ROOT && view === "list" ? doorHtml() : ""}`;
         }
         page.className = moveFocus
           ? direction === "back"
@@ -1610,7 +1936,6 @@
         $("#back").disabled = path.length <= 1;
         const atMain = c.t === "node" && c.id === ROOT;
         $("#map-main").hidden = atMain;
-        $("#main-link").hidden = atMain;
         renderCrumbs();
         placeMap();
         syncMap(moveFocus);
@@ -2171,9 +2496,7 @@
       const mapEl = $("#map");
       function placeMap() {
         if (mapEl.classList.contains("full")) return;
-        const slot = false
-          ? $("#canvas-slot")
-          : $("#phone-slot");
+        const slot = false ? $("#canvas-slot") : $("#phone-slot");
         if (slot && mapEl.parentElement !== slot) slot.appendChild(mapEl);
         if (cy) cy.resize();
       }
@@ -2338,6 +2661,12 @@
 
       // ── Events ──────────────────────────────────────────────────────────
       document.addEventListener("click", (ev) => {
+        const v = ev.target.closest("[data-view]");
+        if (v) {
+          view = v.dataset.view;
+          render(false);
+          return;
+        }
         const t = ev.target.closest(
           "[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
         );
@@ -2382,7 +2711,18 @@
       });
       $("#back").addEventListener("click", back);
       $("#map-main").addEventListener("click", goMain);
-      $("#main-link").addEventListener("click", goMain);
+      $("#notice").addEventListener("click", () => {
+        const open = $("#notice").getAttribute("aria-expanded") !== "true";
+        $("#notice").setAttribute("aria-expanded", String(open));
+        $("#notice").setAttribute(
+          "aria-label",
+          open
+            ? "Hide details about Billion AI authorship"
+            : "Show details about Billion AI authorship",
+        );
+        $("#notice .notice-text").hidden = !open;
+        $("#notice .notice-action").textContent = open ? "Hide" : "Details";
+      });
       // Mockup controls: jump straight to the states worth reviewing.
       document.querySelector(".jumps").addEventListener("click", (ev) => {
         const j = ev.target.closest("[data-jump]")?.dataset.jump;
@@ -2393,15 +2733,33 @@
           main: [[root], "basics"],
           disagree: [[root], "disagree"],
           crux: [[root, { t: "node", id: "x-expand" }], "args"],
-          provision: [[root, { t: "node", id: "b-what" }, { t: "node", id: "t-amend" }], null],
-          link: [[root, { t: "node", id: "x-expand" }, { t: "node", id: "a-expand" }, { t: "edge", id: "e72" }], null],
+          provision: [
+            [root, { t: "node", id: "b-what" }, { t: "node", id: "t-amend" }],
+            null,
+          ],
+          link: [
+            [
+              root,
+              { t: "node", id: "x-expand" },
+              { t: "node", id: "a-expand" },
+              { t: "edge", id: "e72" },
+            ],
+            null,
+          ],
           map: [[root, { t: "node", id: "x-revenue" }], "args"],
         }[j];
         path = steps[0];
         tab = steps[1] ?? defaultTab(focusId());
         direction = "in";
         render(true);
-        if (j === "map") setTimeout(() => setFull(true), 350);
+        if (j === "map") {
+          view = "map";
+          render(false);
+          setTimeout(() => setFull(true), 350);
+        } else if (view === "map") {
+          view = "list";
+          render(false);
+        }
       });
       let rt;
       window.addEventListener("resize", () => {
