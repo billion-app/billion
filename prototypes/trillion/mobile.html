@@ -1209,18 +1209,16 @@
     }
     .overview svg {
       flex: none;
-      width: 112px;
-      height: 112px;
     }
-    .overview path,
-    .overview circle {
+    .ring-sheet path,
+    .ring-sheet circle {
       cursor: pointer;
       transition: opacity 0.25s;
     }
-    .overview .dim {
+    .ring-sheet .dim {
       opacity: 0.4;
     }
-    .overview .gap {
+    .ring-sheet .gap {
       fill: none;
       stroke: var(--hair3);
       stroke-dasharray: 2 2;
@@ -1294,6 +1292,186 @@
       font-size: 12px;
       line-height: 1.35;
       color: var(--text);
+    }
+    /* Map cards are HTML laid over the Cytoscape canvas, so they carry the same detail as list rows:
+       how the card relates to the focus, its statement, and where it comes from. */
+    #cards {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .map.full #cards {
+      top: calc(56px + env(safe-area-inset-top, 0px));
+      bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+    }
+    .mcard {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 176px;
+      transform-origin: 0 0;
+      padding: 8px 10px 9px;
+      border-radius: 12px;
+      background: var(--slate);
+      border: 1px solid var(--hair3);
+      border-left: 3px solid var(--tone, var(--hair3));
+      opacity: 0;
+      transition:
+        opacity 0.35s,
+        border-color 0.35s,
+        box-shadow 0.35s;
+      will-change: transform;
+    }
+    .mcard.lit {
+      opacity: 1;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .mcard {
+        transition: none;
+      }
+    }
+    .mcard.lit.trail {
+      opacity: 0.6;
+    }
+    .mcard .mrel {
+      font: 700 11px/1.3 var(--body);
+      color: var(--tone);
+      margin-bottom: 3px;
+    }
+    .mcard .mtitle {
+      font: 600 13.5px/1.3 var(--display);
+      color: var(--text);
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
+    }
+    .mcard .mmeta {
+      margin-top: 4px;
+      font: 500 11px/1.3 var(--body);
+      color: var(--quiet);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mcard.branch {
+      background: #1b2244;
+    }
+    .mcard.crux {
+      border-top-color: rgba(244, 201, 93, 0.6);
+      border-right-color: rgba(244, 201, 93, 0.6);
+      border-bottom-color: rgba(244, 201, 93, 0.6);
+    }
+    .mcard.global {
+      border-style: dashed;
+    }
+    .mcard.record {
+      border-color: var(--primary);
+    }
+    .mcard.focused {
+      background: var(--surface);
+      border-color: var(--spark);
+      border-width: 2px 2px 2px 3px;
+    }
+    .mcard.root {
+      width: 200px;
+      background: #232b52;
+      border: 2.5px solid var(--spark);
+      box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.12);
+    }
+    .mcard.root .mtitle {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .mcard.peeked {
+      box-shadow: 0 0 0 2.5px var(--text);
+    }
+    .map:not(.full) .legend {
+      display: none;
+    }
+    .map-ring {
+      position: absolute;
+      z-index: 2;
+      left: 10px;
+      bottom: 10px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 99px;
+      background: color-mix(in srgb, var(--navy) 88%, transparent);
+      border: 1px solid var(--hair3);
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .map-ring svg {
+      width: 16px;
+      height: 16px;
+    }
+    .map.full .map-ring {
+      top: calc(66px + env(safe-area-inset-top, 0px));
+      bottom: auto;
+      left: auto;
+      right: 16px;
+    }
+    .ring-sheet svg {
+      display: block;
+      width: min(240px, 70%);
+      margin: 4px auto 10px;
+    }
+    .ring-sheet .ring-key {
+      margin: 0 0 8px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: var(--quiet);
+    }
+    .peek .ends {
+      display: grid;
+      gap: 4px;
+      margin: 8px 0 4px;
+    }
+    .peek .end {
+      display: grid;
+      gap: 2px;
+      text-align: left;
+      padding: 9px 12px;
+      border-radius: 12px;
+      background: var(--slate);
+      border: 1px solid var(--hair2);
+    }
+    .peek .end-role {
+      font: 700 10.5px/1.2 var(--body);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--quiet);
+    }
+    .peek .end-title {
+      font: 600 14.5px/1.3 var(--display);
+      color: var(--text);
+    }
+    .peek .end-meta {
+      font-size: 12px;
+      color: var(--quiet);
+    }
+    .peek .end-arrow {
+      font: 700 12px/1 var(--body);
+      padding: 2px 12px;
+    }
+    .peek .why {
+      margin: 10px 0 0;
+      font-size: 13.5px;
+      line-height: 1.45;
+      color: var(--text);
+    }
+    .peek .why strong {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--quiet);
+      margin-bottom: 2px;
     }
   </style>
 
@@ -1400,6 +1578,26 @@
             <button class="close" type="button" id="map-close">Close</button>
           </div>
           <div id="cy"></div>
+          <button type="button" class="map-ring" id="map-ring">
+            <svg viewBox="-8 -8 16 16" aria-hidden="true">
+              <circle r="2.6" fill="#D4AF37" />
+              <circle
+                r="5"
+                fill="none"
+                stroke="#B8A1FF"
+                stroke-width="2.2"
+                stroke-dasharray="5 1.5"
+              />
+              <circle
+                r="7.3"
+                fill="none"
+                stroke="#55D6BE"
+                stroke-width="1.4"
+                stroke-dasharray="3 1.5"
+              />
+            </svg>
+            Whole debate
+          </button>
           <button type="button" class="map-main" id="map-main" hidden>
             ← Go back to main case
           </button>
@@ -2075,7 +2273,7 @@
         const large = a1 - a0 > Math.PI ? 1 : 0;
         return `M${p(r1, a0)}A${r1} ${r1} 0 ${large} 1 ${p(r1, a1)}L${p(r0, a1)}A${r0} ${r0} 0 ${large} 0 ${p(r0, a0)}Z`;
       }
-      function overviewHtml() {
+      function openRing() {
         const onPath = new Set(
           path.filter((p) => p.t === "node").map((p) => p.id),
         );
@@ -2116,18 +2314,19 @@
           .sort((a, b) => a.n - b.n)
           .slice(0, 1)
           .filter((t) => t.id !== focusId());
-        return `<section class="overview" aria-label="The whole debate">
-          <svg viewBox="-64 -64 128 128" role="img" aria-label="Map of the whole debate. Inner ring: basics and disputed questions. Outer rings: what weighs on them and responses.">
+        openSheet(
+          `<div class="ring-sheet">
+          <div class="sheet-head"><h2 id="sheet-title">The whole debate</h2><button class="close" type="button" data-close>Close</button></div>
+          <svg viewBox="-64 -64 128 128" role="img" aria-label="Ring map of the disputed questions, the arguments under them, and the responses.">
             ${slices.join("")}
             <circle r="18" fill="#D4AF37" data-peek="${ROOT}"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
           </svg>
-          <div>
-            <h3>The whole debate</h3>
-            <p>Where people disagree: ${cruxes.length} questions · ${args} arguments · ${unanswered().length} unanswered. Tap a slice to preview it.</p>
-            <p class="ov-hover" id="ov-hover" aria-live="polite" hidden></p>
-            ${thin.map((t) => `<button type="button" class="thin" data-peek="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
-          </div>
-        </section>`;
+          <p class="ov-hover" id="ov-hover" aria-live="polite" hidden></p>
+          <p class="ring-key">Gold center: the main case. Inner ring: the ${cruxes.length} disputed questions. Middle ring: their ${args} arguments, colored by lean. Outer ring: responses. Wider slices have more debate beneath them. ${unanswered().length} items are still unanswered. Tap a slice to preview it.</p>
+          ${thin.map((t) => `<button type="button" class="thin" data-peek="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
+          </div>`,
+          true,
+        );
       }
 
       function render(moveFocus) {
@@ -2136,7 +2335,7 @@
         if (c.t === "edge") page.innerHTML = renderEdge(c.id);
         else {
           const cats = categories(c.id);
-          page.innerHTML = `${focusCard(c.id)}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? overviewHtml() + '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
+          page.innerHTML = `${focusCard(c.id)}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
         ${c.id === ROOT && view === "list" ? doorHtml() : ""}`;
         }
         page.className = moveFocus
@@ -2223,9 +2422,84 @@
       let cy = null,
         sim = null;
       const simById = new Map();
-      let follow = 0; // frames left for the camera to glide toward the lit cards
+      let follow = 0; // frames left for the camera to glide toward the lit cards quickly
+      let manual = false; // the reader panned or zoomed; stop framing until they navigate
       let firstView = true;
       const IDLE = 0.012;
+
+      // ── Card layer: HTML cards that follow Cytoscape's geometry ─────────
+      const cardEls = new Map();
+      function cardRel(id) {
+        const f = focusId();
+        if (id === f) return null;
+        const e = F.edges.find(
+          (x) => (x.from === id && x.to === f) || (x.from === f && x.to === id),
+        );
+        if (!e || KIDS.has(e.type)) return null;
+        return {
+          text: e.from === id ? inLabel(e) : outLabel(e),
+          tone: TONE_HEX[tone(e)],
+        };
+      }
+      function cardMeta(id) {
+        const n = N[id];
+        if (id === ROOT) return "Main case";
+        if (n.kind === "crux") return cruxState(id).text;
+        return srcLabel(n);
+      }
+      function cardHtml(id) {
+        const rel = cardRel(id);
+        return `${rel ? `<div class="mrel">${esc(rel.text)}</div>` : ""}<div class="mtitle">${esc(titleOf(id))}</div><div class="mmeta">${esc(cardMeta(id))}</div>`;
+      }
+      function buildCards() {
+        const layer = document.createElement("div");
+        layer.id = "cards";
+        layer.setAttribute("aria-hidden", "true");
+        $("#cy").after(layer);
+        for (const id of ALL_IDS) {
+          const el = document.createElement("div");
+          el.className = `mcard ${N[id].kind}`;
+          layer.appendChild(el);
+          cardEls.set(id, el);
+        }
+      }
+      function placeCards() {
+        const z = cy.zoom();
+        cy.nodes().forEach((n) => {
+          const el = cardEls.get(n.id());
+          if (!el) return;
+          const p = n.renderedPosition();
+          const d = n.data();
+          el.style.transform = `translate(${p.x - (d.fw * z) / 2}px, ${p.y - (d.fh * z) / 2}px) scale(${z})`;
+        });
+      }
+      // Rectangles, not circles: cards pack closely without overlapping.
+      function rectCollide() {
+        if (!sim) return;
+        const lit = sim.nodes().filter((n) => n.lit);
+        const pad = 14;
+        for (let i = 0; i < lit.length; i++)
+          for (let j = i + 1; j < lit.length; j++) {
+            const a = lit[i],
+              b = lit[j];
+            const dx = b.x - a.x || 0.01,
+              dy = b.y - a.y || 0.01;
+            const ox = (a.w + b.w) / 2 + pad - Math.abs(dx);
+            const oy = (a.h + b.h) / 2 + pad - Math.abs(dy);
+            if (ox <= 0 || oy <= 0) continue;
+            const wa = a.fx != null ? 0 : b.fx != null ? 1 : 0.5;
+            const wb = 1 - wa;
+            if (ox < oy) {
+              const m = ox * Math.sign(dx);
+              a.x -= m * wa;
+              b.x += m * wb;
+            } else {
+              const m = oy * Math.sign(dy);
+              a.y -= m * wa;
+              b.y += m * wb;
+            }
+          }
+      }
 
       function initMap() {
         if (!window.cytoscape) {
@@ -2403,8 +2677,22 @@
             },
             { selector: "edge.peeked", style: { width: 4 } },
             { selector: "node:selected", style: { "overlay-opacity": 0 } },
+            // Cytoscape keeps the geometry, taps and drags; the HTML card layer draws the cards.
+            {
+              selector: "node",
+              style: {
+                "background-opacity": 0,
+                "border-opacity": 0,
+                "text-opacity": 0,
+                "underlay-opacity": 0,
+                label: "",
+              },
+            },
+            { selector: "edge", style: { label: "" } },
           ],
         });
+        buildCards();
+        cy.on("render", placeCards);
         cy.on("tap", "node", (ev) => peekNode(ev.target.id()));
         cy.on("tap", "edge", (ev) => peekEdge(ev.target.id()));
         // Dragging pins a card to the pointer and lets the rest of the web follow, like Obsidian.
@@ -2439,29 +2727,37 @@
           "wheel",
           () => {
             follow = 0;
+            manual = true;
           },
           { passive: true },
         );
         $("#cy").addEventListener(
           "touchstart",
           (ev) => {
-            if (ev.touches.length > 1) follow = 0;
+            if (ev.touches.length > 1) {
+              follow = 0;
+              manual = true;
+            }
           },
           { passive: true },
         );
         cy.on("dragpan", () => {
           follow = 0;
+          manual = true;
         });
         $("#zoom-in").addEventListener("click", () => {
           follow = 0;
+          manual = true;
           zoomBy(1.25);
         });
         $("#zoom-out").addEventListener("click", () => {
           follow = 0;
+          manual = true;
           zoomBy(0.8);
         });
         $("#zoom-fit").addEventListener("click", () => {
           follow = 0;
+          manual = false;
           cy.animate(
             { fit: { eles: cy.nodes(".lit"), padding: 30 } },
             { duration: REDUCED ? 0 : 500, easing: "ease-in-out-cubic" },
@@ -2498,14 +2794,7 @@
               "link",
               d3.forceLink(links).id((d) => d.id),
             )
-            .force(
-              "collide",
-              d3
-                .forceCollide()
-                .radius((d) => d.r)
-                .strength(0.8)
-                .iterations(2),
-            )
+            .force("rect", rectCollide)
             .force(
               "x",
               d3.forceX(0).strength((d) => (d.lit ? 0.015 : 0)),
@@ -2540,7 +2829,7 @@
         if (follow > 0) {
           follow--;
           glide(0.09);
-        }
+        } else if (!manual) glide(0.03);
       }
 
       // Camera target: frame the lit cards, never closer than reading size.
@@ -2554,13 +2843,21 @@
           (W - 2 * pad) / Math.max(bb.w, 1),
           (H - 2 * pad) / Math.max(bb.h, 1),
         );
-        z = Math.max(cy.minZoom(), Math.min(z, 1.05));
+        z = Math.min(z, 1);
+        // Below this the card text stops being readable; frame the focus instead and let the rest run off-edge.
+        const READABLE = 0.8;
+        let cx = bb.x1 + bb.w / 2,
+          cyy = bb.y1 + bb.h / 2;
+        if (z < READABLE) {
+          z = READABLE;
+          // Keep the focus in the upper part of the frame so the open tab's cards show beneath it.
+          const f = cy.getElementById(focusId()).position();
+          cx = f.x;
+          cyy = f.y + (H * 0.16) / z;
+        }
         return {
           zoom: z,
-          pan: {
-            x: W / 2 - z * (bb.x1 + bb.w / 2),
-            y: H / 2 - z * (bb.y1 + bb.h / 2),
-          },
+          pan: { x: W / 2 - z * cx, y: H / 2 - z * cyy },
         };
       }
       function glide(k) {
@@ -2576,6 +2873,25 @@
       function syncMap(navigated) {
         if (!cy) return;
         const { focus, prev, nodes, edges } = litSet();
+        for (const [id, el] of cardEls) {
+          const lit = nodes.has(id);
+          el.className = [
+            "mcard",
+            N[id].kind,
+            id === ROOT ? "root" : "",
+            lit ? "lit" : "",
+            id === focus ? "focused" : "",
+            id === prev && id !== ROOT ? "trail" : "",
+          ].join(" ");
+          if (!lit) continue;
+          el.innerHTML = cardHtml(id);
+          el.style.setProperty("--tone", cardRel(id)?.tone || "var(--hair3)");
+          // Measured at scale 1 while visible; the card layer is hidden in list view.
+          if (el.offsetWidth) {
+            const node = cy.getElementById(id);
+            node.data({ fw: el.offsetWidth, fh: el.offsetHeight });
+          }
+        }
         cy.batch(() => {
           cy.nodes().forEach((n) => {
             const id = n.id();
@@ -2616,33 +2932,72 @@
         }
 
         // Newly shown cards start on the card you tapped and spread out from there.
-        const origin = simById.get(focus);
+        const fresh = new Set(); // cards appearing in this view
         for (const s of sim.nodes()) {
           const lit = nodes.has(s.id);
-          if (lit && !s.lit && s.id !== focus && !firstView && origin) {
-            s.x = origin.x + (Math.random() - 0.5) * 30;
-            s.y = origin.y + (Math.random() - 0.5) * 30;
-            s.vx = 0;
-            s.vy = 0;
-            cy.getElementById(s.id).position({ x: s.x, y: s.y });
-          }
+          if (lit && !s.lit) fresh.add(s.id);
           s.lit = lit;
           const d = cy.getElementById(s.id).data();
-          s.r = lit ? (d.w / 2) * 0.92 + 12 : 0;
+          s.r = lit ? Math.min(d.w, d.h * 2) / 2 : 0;
+          s.w = lit ? d.w : 0;
+          s.h = lit ? d.h : 0;
           s.fx = s.id === focus ? s.x : null;
           s.fy = s.id === focus ? s.y : null;
         }
-        sim.force("charge").strength((d) => (d.lit ? -300 : 0));
-        sim.force("x").strength((d) => (d.lit ? 0.015 : 0));
-        sim.force("y").strength((d) => (d.lit ? 0.02 : 0));
-        sim.force("collide").radius((d) => d.r);
+        sim.force("charge").strength((d) => (d.lit ? -60 : 0));
+        // Reads top to bottom: where you came from above, the focus, then the open tab's cards in a
+        // two-column grid below, in tab order. Each card floats around its own spot.
+        const fpos = simById.get(focus) || { x: 0, y: 0 };
+        const spot = new Map([[focus, [fpos.x, fpos.y]]]);
+        const above = [ROOT, prev].filter((id) => id && id !== focus);
+        above.forEach((id, i) =>
+          spot.set(id, [
+            fpos.x + (above.length > 1 ? (i ? 100 : -100) : 0),
+            fpos.y - 150,
+          ]),
+        );
+        const below = [...nodes].filter((id) => !spot.has(id));
+        const order = (activeCat()?.items || []).map(({ e, dir }) =>
+          dir === "in" ? e.from : e.to,
+        );
+        below.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        below.forEach((id, i) =>
+          spot.set(id, [
+            fpos.x + (below.length > 1 ? (i % 2 ? 98 : -98) : 0),
+            fpos.y + 150 + Math.floor(i / 2) * 125,
+          ]),
+        );
+        // New cards grow out of the focus toward their spot. Cards cannot pass through each other,
+        // so a card on the wrong side of the focus starts most of the way to its spot instead.
+        for (const [id, [tx, ty]] of spot) {
+          const s = simById.get(id);
+          if (!s || id === focus) continue;
+          const wrongSide = Math.sign(s.y - fpos.y) !== Math.sign(ty - fpos.y);
+          if (!fresh.has(id) && !wrongSide) continue;
+          s.x = fpos.x + (tx - fpos.x) * 0.75;
+          s.y = fpos.y + (ty - fpos.y) * 0.75;
+          s.vx = 0;
+          s.vy = 0;
+          cy.getElementById(id).position({ x: s.x, y: s.y });
+        }
+        sim.force(
+          "x",
+          d3
+            .forceX((d) => spot.get(d.id)?.[0] ?? 0)
+            .strength((d) => (d.lit ? 0.12 : 0)),
+        );
+        sim.force(
+          "y",
+          d3
+            .forceY((d) => spot.get(d.id)?.[1] ?? 0)
+            .strength((d) => (d.lit ? 0.12 : 0)),
+        );
         sim
           .force("link")
           .distance(
             (l) =>
-              l.source.r +
-              l.target.r +
-              (l.source.id === focus || l.target.id === focus ? 26 : 40),
+              (l.source.h + l.target.h) / 2 +
+              (l.source.id === focus || l.target.id === focus ? 60 : 80),
           )
           .strength((l) =>
             !l.source.lit || !l.target.lit
@@ -2683,6 +3038,7 @@
           .alphaTarget(IDLE)
           .restart();
         follow = 110;
+        manual = false;
       }
 
       function fitView() {
@@ -2739,6 +3095,9 @@
       function closeSheet() {
         $("#layer").innerHTML = "";
         cy?.elements(".peeked").removeClass("peeked");
+        document
+          .querySelectorAll(".mcard.peeked")
+          .forEach((el) => el.classList.remove("peeked"));
         if (lastTrigger?.isConnected) lastTrigger.focus();
       }
 
@@ -2757,7 +3116,7 @@
             : `${outLabel(e).replace(/ on$/, "")} · ${N[e.to].label || titleOf(e.to)}`;
         return `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">${esc(label)}</div>`;
       }
-      function peekNode(id) {
+      function peekNode(id, fromRing = false) {
         const n = N[id];
         const src = n.source || {};
         const counts =
@@ -2767,7 +3126,7 @@
                 .filter((c) => c.items.length)
                 .map((c) => `${c.label} ${c.items.length}`);
         const here = id === focusId();
-        cy?.$id(id).addClass("peeked");
+        cardEls.get(id)?.classList.add("peeked");
         openSheet(
           `${relationTo(id)}
           <p class="meta" style="margin:0 0 6px">${esc(id === ROOT ? "Main case" : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</p>
@@ -2775,17 +3134,30 @@
           ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
           ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
           ${counts.length ? `<p class="counts">${esc(counts.join(" · "))}</p>` : ""}
-          <div class="actions">${here ? `<button class="btn ghost" type="button" data-close>You're here · Close</button>` : `<button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-node="${id}">Go to this ›</button>`}</div>`,
+          ${fromRing ? `<button class="linkish" type="button" data-ring style="margin:0 0 10px">‹ Back to the whole debate</button>` : ""}<div class="actions">${here ? `<button class="btn ghost" type="button" data-close>You're here · Close</button>` : `<button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-node="${id}">Go to this ›</button>`}</div>`,
           true,
         );
+      }
+      // Structural links carry no written reason, so say in plain words what the link means.
+      const STRUCTURE = {
+        part: "One of the four basics every record starts from.",
+        detail: "Part of what this section covers.",
+        crux: "One of the questions people disagree about on this measure.",
+      };
+      function endCard(id, role) {
+        return `<button type="button" class="end" data-peek="${id}"><span class="end-role">${role}</span><span class="end-title">${esc(titleOf(id))}</span><span class="end-meta">${esc(cardMeta(id))}</span></button>`;
       }
       function peekEdge(eid) {
         const e = E[eid];
         cy?.$id(eid).addClass("peeked");
+        const label = e.type === "weighs" ? LEAN[e.stance] : OUT[e.type];
+        const why = e.why || STRUCTURE[e.type] || "";
         openSheet(
-          `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">The link · ${esc(short(e) || OUT[e.type] || "")}</div>
-          <h2 id="sheet-title">${esc(N[e.from].label || titleOf(e.from))} → ${esc(N[e.to].label || titleOf(e.to))}</h2>
-          ${e.why ? `<p class="body">${esc(e.why)}</p>` : ""}
+          `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">The link · ${esc(label)}</div>
+          <h2 id="sheet-title">${esc(label)} “${esc(N[e.to].label || titleOf(e.to))}”</h2>
+          <div class="ends">${endCard(e.from, "From")}<span class="end-arrow" style="color:${TONE_HEX[tone(e)]}" aria-hidden="true">↓ ${esc(label)}</span>${endCard(e.to, "To")}</div>
+          ${why ? `<p class="why"><strong>${e.why ? "Why the link holds" : "What this link means"}</strong>${esc(why)}</p>` : ""}
+          ${e.why ? `<p class="counts">A link is its own claim: it can be challenged even if both cards are true.</p>` : ""}
           <div class="actions"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-edge="${eid}">Open this link ›</button></div>`,
           true,
         );
@@ -2933,11 +3305,13 @@
           return;
         }
         const t = ev.target.closest(
-          "[data-peek],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
+          "[data-peek],[data-ring],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
         );
         if (!t) return;
         if (t.hasAttribute("data-scrim") && ev.target !== t) return;
-        if (t.dataset.peek) peekNode(t.dataset.peek);
+        if (t.dataset.peek)
+          peekNode(t.dataset.peek, !!t.closest(".ring-sheet"));
+        else if (t.hasAttribute("data-ring")) openRing();
         else if (t.dataset.node) {
           if ($("#layer").innerHTML) closeSheet();
           go({ t: "node", id: t.dataset.node });
@@ -2961,7 +3335,7 @@
       });
       // Desktop: hovering a slice names it in place; a click still only previews.
       document.addEventListener("mouseover", (ev) => {
-        const t = ev.target.closest?.(".overview [data-peek]");
+        const t = ev.target.closest?.(".ring-sheet [data-peek]");
         const out = $("#ov-hover");
         if (!out) return;
         out.hidden = !t;
@@ -2987,6 +3361,7 @@
       });
       $("#back").addEventListener("click", back);
       $("#map-main").addEventListener("click", goMain);
+      $("#map-ring").addEventListener("click", openRing);
       $("#notice").addEventListener("click", () => {
         const open = $("#notice").getAttribute("aria-expanded") !== "true";
         $("#notice").setAttribute("aria-expanded", String(open));
