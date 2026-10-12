@@ -1009,6 +1009,11 @@
     }
     .phone .scrim {
       position: absolute;
+      align-items: flex-end;
+    }
+    .phone .sheet {
+      border-radius: 20px 20px 0 0;
+      border-bottom: 0;
     }
     .ai-banner {
       margin-inline: -16px;
@@ -1239,6 +1244,56 @@
       line-height: 1.35;
       color: var(--link);
       padding: 2px 0;
+    }
+    /* Peek drawer: tapping the map or the debate ring previews a card; moving there is a separate tap. */
+    .scrim.light {
+      background: rgba(0, 0, 0, 0.18);
+    }
+    .peek .rel {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--tone);
+      margin-bottom: 6px;
+    }
+    .peek .rel::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      background: var(--tone);
+    }
+    .peek h2 {
+      margin: 0 0 6px;
+      font: 600 19px/1.3 var(--display);
+    }
+    .peek .body,
+    .peek .clamp {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 4;
+      overflow: hidden;
+    }
+    .peek .counts {
+      margin: 10px 0 0;
+      font-size: 12.5px;
+      color: var(--quiet);
+    }
+    .peek .actions {
+      display: flex;
+      gap: 8px;
+    }
+    .peek .actions .btn {
+      flex: 1;
+    }
+    .ov-hover {
+      min-height: 2.7em;
+      margin: 0 0 6px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--text);
     }
   </style>
 
@@ -2040,7 +2095,7 @@
             const color = ring === 0 ? "#7A7F96" : TONE_HEX[tone(e)];
             const lit = onPath.has(child) || id === focusId();
             slices.push(
-              `<path d="${arc(...RINGS[ring], a + 0.012, b - 0.012)}" fill="${color}" class="${lit ? "" : "dim"}" data-node="${child}"${child === focusId() ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>${esc(titleOf(child))}</title></path>`,
+              `<path d="${arc(...RINGS[ring], a + 0.012, b - 0.012)}" fill="${color}" class="${lit ? "" : "dim"}" data-peek="${child}"${child === focusId() ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>${esc(titleOf(child))}</title></path>`,
             );
             if (ring < RINGS.length - 1) walk(child, ring + 1, a, b);
             a = b;
@@ -2064,12 +2119,13 @@
         return `<section class="overview" aria-label="The whole debate">
           <svg viewBox="-64 -64 128 128" role="img" aria-label="Map of the whole debate. Inner ring: basics and disputed questions. Outer rings: what weighs on them and responses.">
             ${slices.join("")}
-            <circle r="18" fill="#D4AF37" data-node="${ROOT}"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
+            <circle r="18" fill="#D4AF37" data-peek="${ROOT}"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
           </svg>
           <div>
             <h3>The whole debate</h3>
-            <p>Where people disagree: ${cruxes.length} questions · ${args} arguments · ${unanswered().length} unanswered. Tap a slice to go there.</p>
-            ${thin.map((t) => `<button type="button" class="thin" data-node="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
+            <p>Where people disagree: ${cruxes.length} questions · ${args} arguments · ${unanswered().length} unanswered. Tap a slice to preview it.</p>
+            <p class="ov-hover" id="ov-hover" aria-live="polite" hidden></p>
+            ${thin.map((t) => `<button type="button" class="thin" data-peek="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
           </div>
         </section>`;
       }
@@ -2341,14 +2397,16 @@
               },
             },
             { selector: "edge.current", style: { width: 3.5 } },
+            {
+              selector: "node.peeked",
+              style: { "border-color": "#F7F4EE", "border-width": 2.5 },
+            },
+            { selector: "edge.peeked", style: { width: 4 } },
             { selector: "node:selected", style: { "overlay-opacity": 0 } },
           ],
         });
-        cy.on("tap", "node", (ev) => {
-          if (ev.target.id() !== focusId())
-            go({ t: "node", id: ev.target.id() });
-        });
-        cy.on("tap", "edge", (ev) => go({ t: "edge", id: ev.target.id() }));
+        cy.on("tap", "node", (ev) => peekNode(ev.target.id()));
+        cy.on("tap", "edge", (ev) => peekEdge(ev.target.id()));
         // Dragging pins a card to the pointer and lets the rest of the web follow, like Obsidian.
         cy.on("grab", "node", (ev) => {
           follow = 0;
@@ -2670,15 +2728,67 @@
 
       // ── Sheets: source and composer ─────────────────────────────────────
       let lastTrigger = null;
-      function openSheet(html) {
+      function openSheet(html, light = false) {
         lastTrigger = document.activeElement;
         $("#layer").innerHTML =
-          `<div class="scrim" data-scrim><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">${html}</div></div>`;
-        $("#layer").querySelector("button, textarea, input")?.focus();
+          `<div class="scrim${light ? " light" : ""}" data-scrim><div class="sheet${light ? " peek" : ""}" role="dialog" aria-modal="true" aria-labelledby="sheet-title">${html}</div></div>`;
+        $("#layer")
+          .querySelector("button, textarea, input")
+          ?.focus({ preventScroll: true });
       }
       function closeSheet() {
         $("#layer").innerHTML = "";
+        cy?.elements(".peeked").removeClass("peeked");
         if (lastTrigger?.isConnected) lastTrigger.focus();
+      }
+
+      // A peek shows what a card says and how it relates to where the reader is, without moving them.
+      function relationTo(id) {
+        const f = focusId();
+        // Prefer the card's link to where the reader is; otherwise say what it bears on.
+        const e =
+          outgoing(id).find((x) => x.to === f) ||
+          outgoing(id).find((x) => visible(x.to) && !KIDS.has(x.type)) ||
+          outgoing(id).find((x) => visible(x.to));
+        if (!e) return "";
+        const label =
+          e.to === f
+            ? inLabel(e)
+            : `${outLabel(e).replace(/ on$/, "")} · ${N[e.to].label || titleOf(e.to)}`;
+        return `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">${esc(label)}</div>`;
+      }
+      function peekNode(id) {
+        const n = N[id];
+        const src = n.source || {};
+        const counts =
+          id === ROOT
+            ? []
+            : categories(id)
+                .filter((c) => c.items.length)
+                .map((c) => `${c.label} ${c.items.length}`);
+        const here = id === focusId();
+        cy?.$id(id).addClass("peeked");
+        openSheet(
+          `${relationTo(id)}
+          <p class="meta" style="margin:0 0 6px">${esc(id === ROOT ? "Main case" : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</p>
+          <h2 id="sheet-title">${esc(titleOf(id))}</h2>
+          ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
+          ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
+          ${counts.length ? `<p class="counts">${esc(counts.join(" · "))}</p>` : ""}
+          <div class="actions">${here ? `<button class="btn ghost" type="button" data-close>You're here · Close</button>` : `<button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-node="${id}">Go to this ›</button>`}</div>`,
+          true,
+        );
+      }
+      function peekEdge(eid) {
+        const e = E[eid];
+        cy?.$id(eid).addClass("peeked");
+        openSheet(
+          `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">The link · ${esc(short(e) || OUT[e.type] || "")}</div>
+          <h2 id="sheet-title">${esc(N[e.from].label || titleOf(e.from))} → ${esc(N[e.to].label || titleOf(e.to))}</h2>
+          ${e.why ? `<p class="body">${esc(e.why)}</p>` : ""}
+          <div class="actions"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-edge="${eid}">Open this link ›</button></div>`,
+          true,
+        );
       }
 
       function openSource(id) {
@@ -2823,15 +2933,18 @@
           return;
         }
         const t = ev.target.closest(
-          "[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
+          "[data-peek],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
         );
         if (!t) return;
         if (t.hasAttribute("data-scrim") && ev.target !== t) return;
-        if (t.dataset.node) {
+        if (t.dataset.peek) peekNode(t.dataset.peek);
+        else if (t.dataset.node) {
           if ($("#layer").innerHTML) closeSheet();
           go({ t: "node", id: t.dataset.node });
-        } else if (t.dataset.edge) go({ t: "edge", id: t.dataset.edge });
-        else if (t.dataset.crumb) {
+        } else if (t.dataset.edge) {
+          if ($("#layer").innerHTML) closeSheet();
+          go({ t: "edge", id: t.dataset.edge });
+        } else if (t.dataset.crumb) {
           path = path.slice(0, Number(t.dataset.crumb) + 1);
           direction = "back";
           tab = defaultTab(focusId());
@@ -2845,6 +2958,14 @@
           render(false);
           document.querySelector(`[data-tab="${tab}"]`)?.focus();
         } else closeSheet();
+      });
+      // Desktop: hovering a slice names it in place; a click still only previews.
+      document.addEventListener("mouseover", (ev) => {
+        const t = ev.target.closest?.(".overview [data-peek]");
+        const out = $("#ov-hover");
+        if (!out) return;
+        out.hidden = !t;
+        if (t) out.textContent = titleOf(t.dataset.peek);
       });
       document.addEventListener("keydown", (ev) => {
         if (ev.key === "Escape") {
