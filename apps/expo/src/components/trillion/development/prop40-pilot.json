@@ -1182,7 +1182,7 @@
       "locator": "Proposition 40, official LAO analysis including image descriptions",
       "retrievedAt": "2026-10-11T20:44:11.462Z",
       "hash": "47a2b42e1f5f7b155ac8f98c9475f66d336d767091f9aa00d71c6015311747c5",
-      "documentHash": "4f940fffaa86124802a1223ba6fc4a92c90ac6af2ad1a42abb23ba985c520762"
+      "documentHash": "47a2b42e1f5f7b155ac8f98c9475f66d336d767091f9aa00d71c6015311747c5"
     },
     {
       "id": "arguments-40",
@@ -1192,7 +1192,7 @@
       "locator": "Proposition 40, official arguments and rebuttals",
       "retrievedAt": "2026-10-11T20:44:11.520Z",
       "hash": "9cdfb4b8ac1bd5c442db2a20d4150d71ccb8925d23d1a4356c50d6c7934a068d",
-      "documentHash": "adc5ee8b607a23d0ff7e61c79d56686deac3291d31b8fa0199980aef09a75b0e"
+      "documentHash": "9cdfb4b8ac1bd5c442db2a20d4150d71ccb8925d23d1a4356c50d6c7934a068d"
     },
     {
       "id": "law-41",
@@ -1218,7 +1218,7 @@
   "generation": {
     "promptVersion": "trillion-design-pilot",
     "model": "claude-opus-5-5 (assembled from the design prototype)",
-    "inputHash": "07ab452fb9e2b35259d4acad2e2fbe184ece70edb1b1fd4f49c78a9817a7d7c9",
-    "generatedAt": "2026-10-11T20:46:42.282Z"
+    "inputHash": "7dd724672de666f946d50d28c8efefade8bcc64ee4ee902fedfd9ab6698f259d",
+    "generatedAt": "2026-10-12T01:41:45.753Z"
   }
 }

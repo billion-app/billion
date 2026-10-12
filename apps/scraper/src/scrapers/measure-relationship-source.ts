@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { load } from "cheerio";
 
 import { relationshipSourceUrls } from "@acme/api/lib/measure-relationships";
 
@@ -34,6 +35,31 @@ export async function fetchRelationshipDocument(url: string): Promise<Buffer> {
   }
   return Buffer.concat(chunks);
 }
+/**
+ * Readable text of an official guide HTML page. The site injects a randomized
+ * bot-protection script on every response, so raw HTML bytes never repeat;
+ * freshness for these pages compares this text instead.
+ */
+export function officialPageText(url: string, html: string): string {
+  const $ = load(html);
+  const text = $("#mainCont").text().replace(/\s+/g, " ").trim();
+  if (!url.endsWith("analysis.htm")) return text;
+  return (
+    text +
+    " " +
+    $("#mainCont img")
+      .map((_, image) => $(image).attr("alt") ?? "")
+      .get()
+      .join(" ")
+  );
+}
+/** PDFs hash their bytes; guide HTML pages hash their readable text. */
+export function documentFreshnessHash(url: string, bytes: Buffer): string {
+  const content = url.endsWith(".htm")
+    ? officialPageText(url, bytes.toString("utf8"))
+    : bytes;
+  return createHash("sha256").update(content).digest("hex");
+}
 /** Refresh only the bounded reviewed registry. Missing sources suppress dependent publication. */
 export async function collectRelationshipDocumentHashes(
   electionDate: string,
@@ -49,10 +75,7 @@ export async function collectRelationshipDocumentHashes(
   for (const url of urls) {
     try {
       const bytes = await fetchRelationshipDocument(url);
-      hashes.push({
-        url,
-        hash: createHash("sha256").update(bytes).digest("hex"),
-      });
+      hashes.push({ url, hash: documentFreshnessHash(url, bytes) });
     } catch {
       /* An omitted hash intentionally invalidates the relationship. */
     }

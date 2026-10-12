@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   collectRelationshipDocumentHashes,
+  documentFreshnessHash,
   fetchRelationshipDocument,
 } from "./measure-relationship-source.js";
 
@@ -67,4 +68,21 @@ void test("document refresh hashes original bytes without substituting extracted
   } finally {
     globalThis.fetch = original;
   }
+});
+
+void test("guide HTML freshness ignores the injected bot-protection script but not wording", () => {
+  const page = (cb: string, words: string) =>
+    Buffer.from(
+      `<div id="mainCont"><p>${words}</p></div><script src="/_Incapsula_Resource?cb=${cb}"></script>`,
+    );
+  const url =
+    "https://voterguide.sos.ca.gov/propositions/40/arguments-rebuttals.htm";
+  assert.equal(
+    documentFreshnessHash(url, page("1", "Vote yes.")),
+    documentFreshnessHash(url, page("2", "Vote yes.")),
+  );
+  assert.notEqual(
+    documentFreshnessHash(url, page("1", "Vote yes.")),
+    documentFreshnessHash(url, page("1", "Vote no.")),
+  );
 });

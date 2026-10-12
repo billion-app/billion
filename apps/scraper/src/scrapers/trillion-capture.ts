@@ -16,6 +16,7 @@ import {
   captureMeasureSources,
   sourceHash,
 } from "./measure-relationship-capture.js";
+import { officialPageText } from "./measure-relationship-source.js";
 
 /** Everything one Trillion generation may cite: the measure, its neighbors' law, and nothing else. */
 export const trillionCorpusSchema = z.object({
@@ -41,7 +42,7 @@ export async function captureArgumentSource(
     $(".propName h2").text().replace(/\s+/g, " ").trim() !== measure.title
   )
     throw new Error("Arguments page election/measure identity mismatch");
-  const text = $("#mainCont").text().replace(/\s+/g, " ").trim();
+  const text = officialPageText(url, html);
   if (text.length < 500) throw new Error("Missing official arguments text");
   return trillionSourceSchema.parse({
     id: `arguments-${measure.number}`,
@@ -52,7 +53,7 @@ export async function captureArgumentSource(
     retrievedAt: new Date().toISOString(),
     snapshot: text,
     hash: sourceHash(text),
-    documentHash: sourceHash(html),
+    documentHash: sourceHash(text),
   });
 }
 
@@ -107,8 +108,17 @@ export async function collectTrillionCorpus(
   }
   const [main, ...others] = guide.measures;
   if (!main) throw new Error("Measure missing");
+  // HTML freshness is judged on readable text; see officialPageText.
+  const textHashed = (source: {
+    url: string;
+    snapshot: string;
+    documentHash: string;
+  }) =>
+    source.url.endsWith(".htm")
+      ? { ...source, documentHash: sourceHash(source.snapshot) }
+      : source;
   const sources = [
-    ...(await dependencies.captureSources(guide, main)),
+    ...(await dependencies.captureSources(guide, main)).map(textHashed),
     await captureArgumentSource(guide, main, dependencies.fetchPage),
   ];
   for (const measure of others)
