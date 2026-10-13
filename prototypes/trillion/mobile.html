@@ -319,10 +319,16 @@
     .map-tools {
       position: absolute;
       z-index: 2;
+      left: 10px;
       right: 10px;
       bottom: 10px;
       display: flex;
+      justify-content: flex-end;
       gap: 6px;
+      pointer-events: none; /* the empty stretch between buttons still pans the map */
+    }
+    .map-tools > * {
+      pointer-events: auto;
     }
     .map-tools button {
       min-width: 36px;
@@ -1392,11 +1398,8 @@
     .map:not(.full) .legend {
       display: none;
     }
-    .map-ring {
-      position: absolute;
-      z-index: 2;
-      left: 10px;
-      bottom: 10px;
+    .map-tools .map-ring {
+      margin-right: auto;
       height: 36px;
       display: inline-flex;
       align-items: center;
@@ -1412,11 +1415,9 @@
       width: 16px;
       height: 16px;
     }
-    .map.full .map-ring {
-      top: calc(66px + env(safe-area-inset-top, 0px));
-      bottom: auto;
-      left: auto;
-      right: 16px;
+    /* The camera frames the cards itself, so the small map drops the fit button for room. */
+    .map:not(.full) #zoom-fit {
+      display: none;
     }
     .ring-sheet svg {
       display: block;
@@ -1615,26 +1616,7 @@
             <button class="close" type="button" id="map-close">Close</button>
           </div>
           <div id="cy"></div>
-          <button type="button" class="map-ring" id="map-ring">
-            <svg viewBox="-8 -8 16 16" aria-hidden="true">
-              <circle r="2.6" fill="#D4AF37" />
-              <circle
-                r="5"
-                fill="none"
-                stroke="#B8A1FF"
-                stroke-width="2.2"
-                stroke-dasharray="5 1.5"
-              />
-              <circle
-                r="7.3"
-                fill="none"
-                stroke="#55D6BE"
-                stroke-width="1.4"
-                stroke-dasharray="3 1.5"
-              />
-            </svg>
-            Whole debate
-          </button>
+
           <button type="button" class="map-main" id="map-main" hidden>
             ← Go back to main case
           </button>
@@ -1649,6 +1631,26 @@
             <span style="--c: var(--rel-question)"><i></i>asks</span>
           </div>
           <div class="map-tools">
+            <button type="button" class="map-ring" id="map-ring">
+              <svg viewBox="-8 -8 16 16" aria-hidden="true">
+                <circle r="2.6" fill="#D4AF37" />
+                <circle
+                  r="5"
+                  fill="none"
+                  stroke="#B8A1FF"
+                  stroke-width="2.2"
+                  stroke-dasharray="5 1.5"
+                />
+                <circle
+                  r="7.3"
+                  fill="none"
+                  stroke="#55D6BE"
+                  stroke-width="1.4"
+                  stroke-dasharray="3 1.5"
+                />
+              </svg>
+              Whole debate
+            </button>
             <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
             <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
             <button type="button" id="zoom-fit" aria-label="Fit map">⤢</button>
@@ -2486,7 +2488,7 @@
       }
       function cardHtml(id) {
         const rel = cardRel(id);
-        return `${rel ? `<div class="mrel">${esc(rel.text)}</div>` : ""}<div class="mtitle">${esc(titleOf(id))}</div><div class="mmeta">${esc(cardMeta(id))}</div>`;
+        return `${rel ? `<div class="mrel">${esc(rel.text)}</div>` : ""}<div class="mtitle">${esc(N[id].label || titleOf(id))}</div><div class="mmeta">${esc(cardMeta(id))}</div>`;
       }
       function buildCards() {
         const layer = document.createElement("div");
@@ -2730,6 +2732,21 @@
         });
         buildCards();
         cy.on("render", placeCards);
+        // Cytoscape caches where its container sits on screen and only refreshes that on window
+        // scroll. The reader scrolls inside its own panel, so without this every tap after
+        // scrolling lands where the map used to be.
+        let remeasure = 0;
+        const refreshOffset = () => {
+          if (remeasure) return;
+          remeasure = requestAnimationFrame(() => {
+            remeasure = 0;
+            cy.resize();
+          });
+        };
+        $("#reader").addEventListener("scroll", refreshOffset, {
+          passive: true,
+        });
+        window.addEventListener("scroll", refreshOffset, { passive: true });
         cy.on("tap", "node", (ev) => peekNode(ev.target.id()));
         cy.on("tap", "edge", (ev) => peekEdge(ev.target.id()));
         // Dragging pins a card to the pointer and lets the rest of the web follow, like Obsidian.
