@@ -6,6 +6,8 @@ export function mountTrillionReader(
   options?: {
     onExit?: () => void;
     onOpenUrl?: (url: string) => void;
+    /** A mention of another proposition was tapped. */
+    onOpenMeasure?: (number: string) => void;
     view?: "list" | "map";
   },
 ): { jump: (state: string) => void; destroy: () => void };

@@ -287,7 +287,20 @@
       42: "Drafted in one model call (gpt-6.1-sol) from the official guide, then checked: every quote verified, nothing edited by hand.",
     };
     const root = document.getElementById("trillion");
-    let reader = TrillionReader.mountTrillionReader(root, graphs[40]);
+    // Mentions of other propositions switch to their graph when the mockup has one.
+    const options = {
+      onOpenMeasure: (n) => {
+        const button = document.querySelector(`[data-measure="${n}"]`);
+        if (graphs[n] && button?.closest("#measures")) button.click();
+        else
+          window.open(
+            `https://voterguide.sos.ca.gov/propositions/${n}/`,
+            "_blank",
+            "noopener",
+          );
+      },
+    };
+    let reader = TrillionReader.mountTrillionReader(root, graphs[40], options);
     document.getElementById("measures").addEventListener("click", (ev) => {
       const b = ev.target.closest("[data-measure]");
       if (!b) return;
@@ -295,7 +308,7 @@
       for (const x of document.querySelectorAll("[data-measure]"))
         x.setAttribute("aria-pressed", String(x === b));
       document.getElementById("measure-note").textContent = notes[n];
-      reader = TrillionReader.mountTrillionReader(root, graphs[n]);
+      reader = TrillionReader.mountTrillionReader(root, graphs[n], options);
       // The jump shortcuts point at specific Prop 40 cards.
       document.getElementById("jumps").hidden = n !== "40";
       document.getElementById("jump-head").hidden = n !== "40";

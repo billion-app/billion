@@ -424,8 +424,22 @@ export function mountTrillionReader(root, graph, options = {}) {
         "giu",
       )
     : null;
+  // Mentions of other propositions link to them; the current one never links to itself.
+  const PROP_MENTION = /\b(Prop(?:osition)?s?\.?\s+)(\d{1,3}[A-Z]?)\b/g;
+  const linkMeasures = (html) =>
+    html.replace(PROP_MENTION, (m, lead, n) =>
+      n === graph.measure.number
+        ? m
+        : `<span class="prop-link" role="link" tabindex="0" data-prop="${n}">${lead}${n}</span>`,
+    );
+  function openMeasure(n) {
+    if (options.onOpenMeasure) return options.onOpenMeasure(n);
+    const url = `https://voterguide.sos.ca.gov/propositions/${n}/`;
+    if (options.onOpenUrl) options.onOpenUrl(url);
+    else window.open(url, "_blank", "noopener");
+  }
   const emphasize = (text) => {
-    let html = esc(text);
+    let html = linkMeasures(esc(text));
     if (termPattern)
       html = html.replace(
         termPattern,
@@ -2083,11 +2097,14 @@ export function mountTrillionReader(root, graph, options = {}) {
       return;
     }
     const t = ev.target.closest(
-      "[data-term],[data-peek],[data-ring],[data-summary-sources],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
+      "[data-prop],[data-term],[data-peek],[data-ring],[data-summary-sources],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
     );
     if (!t) return;
     if (t.hasAttribute("data-scrim") && ev.target !== t) return;
-    if (t.dataset.term) openTerm(t.dataset.term);
+    if (t.dataset.prop) {
+      if ($("#layer").innerHTML) closeSheet();
+      openMeasure(t.dataset.prop);
+    } else if (t.dataset.term) openTerm(t.dataset.term);
     else if (t.dataset.peek)
       peekNode(t.dataset.peek, !!t.closest(".ring-sheet"));
     else if (t.hasAttribute("data-ring")) openRing();
@@ -2125,6 +2142,12 @@ export function mountTrillionReader(root, graph, options = {}) {
       : "Tap a slice to see what it is";
   });
   listen(document).addEventListener("keydown", (ev) => {
+    const measureLink = ev.target.closest?.("[data-prop]");
+    if (measureLink && (ev.key === "Enter" || ev.key === " ")) {
+      ev.preventDefault();
+      openMeasure(measureLink.dataset.prop);
+      return;
+    }
     const term = ev.target.closest?.("[data-term]");
     if (term && (ev.key === "Enter" || ev.key === " ")) {
       ev.preventDefault();

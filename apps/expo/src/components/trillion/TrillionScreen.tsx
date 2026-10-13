@@ -25,6 +25,15 @@ export function TrillionScreen({
         onOpenUrl={async (url) => {
           await Linking.openURL(url);
         }}
+        onOpenMeasure={(number) =>
+          // The proposition page offers its own debate when one exists.
+          Promise.resolve(
+            router.push({
+              pathname: "/proposition-detail",
+              params: { number },
+            }),
+          )
+        }
         dom={{
           style: s.web,
           bounces: false,

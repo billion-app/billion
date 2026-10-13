@@ -1443,3 +1443,10 @@ textarea {
   right: 16px;
   transform: none;
 }
+/* Other propositions are links, like any reference to another record in Billion. */
+.prop-link {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}

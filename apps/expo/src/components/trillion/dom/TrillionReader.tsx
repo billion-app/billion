@@ -19,6 +19,7 @@ export default function TrillionReader({
   graph,
   onExit,
   onOpenUrl,
+  onOpenMeasure,
   view,
 }: {
   graph: PublicTrillionGraph;
@@ -26,6 +27,8 @@ export default function TrillionReader({
   view?: "list" | "map";
   onExit: () => Promise<void>;
   onOpenUrl: (url: string) => Promise<void>;
+  /** Another proposition mentioned in a card was tapped. */
+  onOpenMeasure: (number: string) => Promise<void>;
   dom?: DOMProps;
 }) {
   const root = useRef<HTMLDivElement>(null);
@@ -34,6 +37,7 @@ export default function TrillionReader({
     const reader = mountTrillionReader(root.current, graph, {
       onExit: () => void onExit(),
       onOpenUrl: (url: string) => void onOpenUrl(url),
+      onOpenMeasure: (number: string) => void onOpenMeasure(number),
       view,
     });
     return () => reader.destroy();
