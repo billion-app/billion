@@ -261,10 +261,10 @@ void test("a graph may not run deeper than the depth limit", () => {
     parent = id;
   }
   const result = trillionGraphSchema.safeParse(deep);
-  assert.equal(result.success, false);
+  if (result.success) assert.fail("a graph deeper than the limit parsed");
   assert.ok(
-    result.error?.issues.some((i) =>
-      /steps from the main case/.test(i.message),
+    result.error.issues.some((i) =>
+      i.message.includes("steps from the main case"),
     ),
   );
 });

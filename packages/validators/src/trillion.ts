@@ -288,8 +288,8 @@ export function trillionDepths(graph: {
   }
   const depth = new Map([[graph.rootId, 0]]);
   const queue = [graph.rootId];
-  for (let i = 0; i < queue.length; i++) {
-    const at = queue[i]!;
+  // Iterating the queue picks up nodes appended during the walk.
+  for (const at of queue) {
     for (const n of next.get(at) ?? [])
       if (!depth.has(n)) {
         depth.set(n, (depth.get(at) ?? 0) + 1);
