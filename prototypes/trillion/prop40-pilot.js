@@ -103,7 +103,8 @@ window.TRILLION_PILOT = {
       id: "t-tax",
       kind: "provision",
       label: "5% tax on $1B+ net worth",
-      title: "A 5% tax on net worth of $1 billion or more, for tax year 2026.",
+      title:
+        "A **5% tax on net worth** of $1 billion or more, for tax year 2026.",
       quotes: [
         {
           sourceId: "law-40",
@@ -117,7 +118,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Owed if resident Jan 1, 2026",
       title:
-        "Who owes is fixed on January 1, 2026. Wealth is measured on December 31, 2026.",
+        "Who owes is **fixed on January 1, 2026**. Wealth is measured on December 31, 2026.",
       quotes: [
         {
           sourceId: "law-40",
@@ -136,7 +137,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Optional 5-year payment plan",
       title:
-        "Payers can spread it over five years, with a 7.5% annual charge on the unpaid balance.",
+        "Payers can **spread it over five years**, with a 7.5% annual charge on the unpaid balance.",
       quotes: [
         {
           sourceId: "law-40",
@@ -150,7 +151,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Deferrals bind the estate",
       title:
-        "Illiquid wealth can go into a deferral account that binds the payer's estate until settled.",
+        "Illiquid wealth can go into a **deferral account** that binds the payer's estate until settled.",
       quotes: [
         {
           sourceId: "law-40",
@@ -164,7 +165,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Pensions and IRAs exempt; big Roths aren't",
       title:
-        "Pensions and IRAs are exempt. Roth balances above $10 million are not.",
+        "Pensions and IRAs are exempt. **Roth balances above $10 million** are not.",
       quotes: [
         {
           sourceId: "law-40",
@@ -177,7 +178,7 @@ window.TRILLION_PILOT = {
       id: "t-realestate",
       kind: "provision",
       label: "Real estate excluded",
-      title: "Directly held real estate is left out of net worth.",
+      title: "Directly held **real estate is left out** of net worth.",
       quotes: [
         {
           sourceId: "law-40",
@@ -191,7 +192,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Legislature can amend by 2/3",
       title:
-        "The Legislature can amend the act by a two-thirds vote, within the act's purposes.",
+        "The Legislature can amend the act by a **two-thirds vote**, within the act's purposes.",
       quotes: [
         {
           sourceId: "law-40",
@@ -205,7 +206,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Stated purpose: narrow, one-time",
       title:
-        "The act states its purpose as a narrow, one-time tax on billionaire wealth.",
+        "The act states its purpose as a **narrow, one-time tax** on billionaire wealth.",
       quotes: [
         {
           sourceId: "law-40",
@@ -219,7 +220,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "90% health, 10% schools and food",
       title:
-        "90% goes to a health account, 10% to education and food, appropriated by the Legislature.",
+        "**90% goes to a health account**, 10% to education and food, appropriated by the Legislature.",
       quotes: [
         {
           sourceId: "law-40",
@@ -233,7 +234,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Can't replace existing funding",
       title:
-        "The money can't replace existing health, education, or food funding.",
+        "The money **can't replace existing** health, education, or food funding.",
       quotes: [
         {
           sourceId: "law-40",
@@ -247,7 +248,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Outside spending and school limits",
       title:
-        "The revenue sits outside the state spending limit and the school-funding formula.",
+        "The revenue sits **outside the state spending limit** and the school-funding formula.",
       quotes: [
         {
           sourceId: "law-40",
@@ -261,7 +262,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Wins if it gets more votes",
       title:
-        "Prop 40's own conflict rule: if it gets more yes votes than a conflicting measure, it prevails.",
+        "Prop 40's own conflict rule: if it gets **more yes votes** than a conflicting measure, it prevails.",
       quotes: [
         {
           sourceId: "law-40",
@@ -275,7 +276,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "Courts may push dates later",
       title:
-        "If a court rejects the 2026 dates, it should move the tax to 2027 or later rather than drop it.",
+        "If a court rejects the 2026 dates, it should **move the tax to 2027 or later** rather than drop it.",
       quotes: [
         {
           sourceId: "law-40",
@@ -289,7 +290,7 @@ window.TRILLION_PILOT = {
       kind: "finding",
       label: "~200 billionaires, $2 trillion",
       title:
-        "The measure's findings: about 200 billionaires holding $2 trillion.",
+        "The measure's findings: **about 200 billionaires** holding $2 trillion.",
       quotes: [
         {
           sourceId: "law-40",
@@ -304,7 +305,7 @@ window.TRILLION_PILOT = {
       kind: "finding",
       label: "Billionaires 24% vs. average 30%",
       title:
-        "The measure's findings: billionaires pay 24% of income in all taxes; the average taxpayer pays 30%.",
+        "The measure's findings: billionaires pay **24% of income** in all taxes; the average taxpayer pays 30%.",
       quotes: [
         {
           sourceId: "law-40",
@@ -318,7 +319,7 @@ window.TRILLION_PILOT = {
       id: "l-revenue",
       kind: "analysis",
       label: "LAO: tens of billions",
-      title: "LAO: probably tens of billions, spread across several years.",
+      title: "LAO: probably **tens of billions**, spread across several years.",
       quotes: [
         {
           sourceId: "analysis-40",
@@ -332,7 +333,7 @@ window.TRILLION_PILOT = {
       kind: "analysis",
       label: "LAO: under $1B a year lost",
       title:
-        "LAO: some billionaires may leave, cutting income tax by less than $1 billion a year.",
+        "LAO: **some billionaires may leave**, cutting income tax by less than $1 billion a year.",
       quotes: [
         {
           sourceId: "analysis-40",
@@ -345,7 +346,7 @@ window.TRILLION_PILOT = {
       id: "a-100b",
       kind: "argument",
       label: "Raises ~$100B for health care",
-      title: "It will raise about $100 billion for health care.",
+      title: "It will raise **about $100 billion** for health care.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -363,7 +364,7 @@ window.TRILLION_PILOT = {
       id: "a-fair",
       kind: "argument",
       label: "Billionaires pay lower rates",
-      title: "Billionaires pay lower tax rates than working families.",
+      title: "Billionaires pay **lower tax rates** than working families.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -381,7 +382,8 @@ window.TRILLION_PILOT = {
       id: "a-25b",
       kind: "argument",
       label: "Costs $25B as the rich leave",
-      title: "It will cost California $25 billion as wealthy residents leave.",
+      title:
+        "It will cost California **$25 billion** as wealthy residents leave.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -400,7 +402,7 @@ window.TRILLION_PILOT = {
       kind: "argument",
       label: "Could expand to everyone",
       title:
-        "The Legislature could expand it to everyone's savings, homes, and retirement funds.",
+        "The Legislature could expand it to **everyone's savings, homes, and retirement funds**.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -418,7 +420,7 @@ window.TRILLION_PILOT = {
       id: "a-only",
       kind: "argument",
       label: "Only ever billionaires",
-      title: "It can't be applied to anyone but billionaires.",
+      title: "It can't be applied to **anyone but billionaires**.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -436,7 +438,7 @@ window.TRILLION_PILOT = {
       id: "a-retire",
       kind: "argument",
       label: "First tax on retirement accounts",
-      title: "It would be the first California tax on retirement accounts.",
+      title: "It would be the first California **tax on retirement accounts**.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -454,7 +456,7 @@ window.TRILLION_PILOT = {
       id: "a-schools",
       kind: "argument",
       label: "Shortchanges schools $3B a year",
-      title: "It shortchanges schools by over $3 billion a year.",
+      title: "It **shortchanges schools** by over $3 billion a year.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -472,7 +474,7 @@ window.TRILLION_PILOT = {
       id: "a-safeguards",
       kind: "argument",
       label: "No spending safeguards",
-      title: "Nothing stops the money from going to insurance companies.",
+      title: "Nothing stops the money from **going to insurance companies**.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -490,7 +492,7 @@ window.TRILLION_PILOT = {
       id: "a-onetime",
       kind: "argument",
       label: "One-time money, more taxes later",
-      title: "It's one-time money, so another tax will follow.",
+      title: "It's one-time money, so **another tax will follow**.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -508,7 +510,7 @@ window.TRILLION_PILOT = {
       id: "a-brin",
       kind: "argument",
       label: "One opponent spent $57M+",
-      title: "One billionaire has spent over $57 million opposing it.",
+      title: "One billionaire has spent **over $57 million** opposing it.",
       quotes: [
         {
           sourceId: "arguments-40",
@@ -527,7 +529,7 @@ window.TRILLION_PILOT = {
       id: "g-retire",
       kind: "generated",
       label: "Both partly right on retirement",
-      title: "Both sides are partly right about retirement accounts.",
+      title: "Both sides are **partly right** about retirement accounts.",
       body: "The text exempts qualified pensions and IRAs, so most retirement savings are untouched. It does count Roth balances above a threshold the text sets, which taxes part of some retirement accounts.",
       quotes: [],
     },
@@ -536,7 +538,7 @@ window.TRILLION_PILOT = {
       kind: "generated",
       label: "Fixed 10 months before the vote",
       title:
-        "Who owes is decided by where they lived ten months before the vote.",
+        "Who owes is decided by where they lived **ten months before the vote**.",
       body: "The tax obligation date is January 1, 2026. Voters decide on November 3, 2026. Someone who moved away in 2026 still owes in full.",
       quotes: [],
     },
@@ -545,7 +547,7 @@ window.TRILLION_PILOT = {
       kind: "generated",
       label: "Prop 41 or 42 could cancel it",
       title:
-        "A yes on 40 may not take effect if Prop 41 or 42 gets more yes votes.",
+        "A yes on 40 **may not take effect** if Prop 41 or 42 gets more yes votes.",
       body: "Props 41 and 42 each declare Prop 40 in conflict. Whichever conflicting measure gets more yes votes prevails, so the Prop 40 result depends on two other records.",
       quotes: [],
     },
@@ -554,7 +556,7 @@ window.TRILLION_PILOT = {
       kind: "generated",
       label: "Moving away doesn't help",
       title:
-        "No. Leaving after January 1, 2026 doesn't reduce the tax, with one exception.",
+        "No. Leaving after January 1, 2026 **doesn't reduce the tax**, with one exception.",
       body: "The full tax is apportioned to California regardless of residency history. A payer can petition for a lower share by showing their wealth did not substantially accumulate in, and was not substantially sustained by, California.",
       quotes: [],
     },
@@ -580,7 +582,7 @@ window.TRILLION_PILOT = {
       kind: "shared",
       label: "Taxing untaxed gains is fair",
       title:
-        "Taxing accumulated wealth is fair when gains go untaxed until sale.",
+        "Taxing accumulated wealth is fair when gains go **untaxed until sale**.",
       body: "A shared claim about fairness. It is a value judgment, so evidence can inform it but can't settle it.",
       quotes: [],
     },
@@ -588,7 +590,7 @@ window.TRILLION_PILOT = {
       id: "gl-flight",
       kind: "shared",
       label: "High earners move over taxes",
-      title: "High earners move away in response to state taxes.",
+      title: "High earners **move away** in response to state taxes.",
       body: "A shared empirical claim. How large the effect is depends on the tax and the place.",
       quotes: [],
     },
@@ -596,7 +598,8 @@ window.TRILLION_PILOT = {
       id: "gl-prospective",
       kind: "shared",
       label: "Taxes should only look forward",
-      title: "Taxes should apply only to what happens after they're enacted.",
+      title:
+        "Taxes should apply **only to what happens after** they're enacted.",
       body: "A shared principle about notice and fairness.",
       quotes: [],
     },
@@ -604,7 +607,7 @@ window.TRILLION_PILOT = {
       id: "rec-41",
       kind: "record",
       label: "Prop 41: spending limit",
-      title: "Prop 41: no new taxes exempt from the state spending limit",
+      title: "Prop 41: no new taxes **exempt from the state spending limit**",
       quotes: [
         {
           sourceId: "law-41",
@@ -618,7 +621,8 @@ window.TRILLION_PILOT = {
       id: "rec-42",
       kind: "record",
       label: "Prop 42: no retroactive taxes",
-      title: "Prop 42: no new personal-property taxes and no retroactive taxes",
+      title:
+        "Prop 42: no new personal-property taxes and **no retroactive taxes**",
       quotes: [
         {
           sourceId: "law-42",
@@ -633,7 +637,7 @@ window.TRILLION_PILOT = {
       kind: "fact",
       label: "Who signed for",
       title:
-        "Official argument for: SEIU-UHW, Planned Parenthood of Pacific Southwest, AFT Local 1521 signers.",
+        "Official **argument for**: SEIU-UHW, Planned Parenthood of Pacific Southwest, AFT Local 1521 signers.",
       quotes: [],
     },
     {
@@ -641,14 +645,14 @@ window.TRILLION_PILOT = {
       kind: "fact",
       label: "Who signed against",
       title:
-        "Official argument against: California Medical Association, Primary Care Association, School Boards Association signers.",
+        "Official **argument against**: California Medical Association, Primary Care Association, School Boards Association signers.",
       quotes: [],
     },
     {
       id: "wh-election",
       kind: "fact",
       label: "Election: Nov 3, 2026",
-      title: "Election day is Tuesday, November 3, 2026.",
+      title: "Election day is **Tuesday, November 3, 2026**.",
       quotes: [],
     },
     {
@@ -656,7 +660,7 @@ window.TRILLION_PILOT = {
       kind: "provision",
       label: "60 days to sue",
       title:
-        "Legal challenges must be filed within 60 days; courts aim to rule by November 1, 2027.",
+        "Legal challenges must be filed **within 60 days**; courts aim to rule by November 1, 2027.",
       quotes: [
         {
           sourceId: "law-40",
@@ -669,7 +673,7 @@ window.TRILLION_PILOT = {
       id: "h-vote",
       kind: "fact",
       label: "Vote on Nov 3",
-      title: "Vote on Prop 40 on your November 3, 2026 ballot.",
+      title: "Vote on Prop 40 on your **November 3, 2026 ballot**.",
       body: "Registration and return options are in the official voter guide.",
       quotes: [],
     },
@@ -677,7 +681,7 @@ window.TRILLION_PILOT = {
       id: "h-private",
       kind: "fact",
       label: "Record your choice privately",
-      title: "Record your own choice in ballot prep. It stays private.",
+      title: "Record your own choice in ballot prep. It **stays private**.",
       body: "Your choice is never published or added to the graph.",
       quotes: [],
     },
@@ -695,7 +699,7 @@ window.TRILLION_PILOT = {
       kind: "precedent",
       label: "2004: a tax on the rich for mental health",
       title:
-        "Prop 63 (2004) added a 1 percent tax on incomes over $1 million to expand mental health services.",
+        "Prop 63 (2004) added a **1 percent tax on incomes over $1 million** to expand mental health services.",
       quotes: [
         {
           sourceId: "precedent-mhsa-audit",
@@ -709,7 +713,7 @@ window.TRILLION_PILOT = {
       kind: "precedent",
       label: "Audit: earmarked money sat unspent",
       title:
-        "A 2018 state audit found local agencies had let $231 million in Prop 63 money go unspent, not counting reserves.",
+        "A 2018 state audit found local agencies had let **$231 million** in Prop 63 money go unspent, not counting reserves.",
       quotes: [
         {
           sourceId: "precedent-mhsa-audit",
@@ -723,7 +727,7 @@ window.TRILLION_PILOT = {
       kind: "precedent",
       label: "A temporary tax that was extended",
       title:
-        "Prop 30's tax increases on high earners were set to end after 2018; in 2016 voters approved Prop 55 to extend them through 2030.",
+        "Prop 30's tax increases on high earners were set to end after 2018; in 2016 voters approved Prop 55 to **extend them through 2030**.",
       quotes: [
         {
           sourceId: "precedent-prop55",
@@ -737,7 +741,7 @@ window.TRILLION_PILOT = {
       kind: "precedent",
       label: "Taxes on the rich swing with markets",
       title:
-        "The Legislative Analyst found revenue from high earners hard to predict because it depends on stock and other asset values.",
+        "The Legislative Analyst found revenue from high earners **hard to predict** because it depends on stock and other asset values.",
       quotes: [
         {
           sourceId: "precedent-prop55",

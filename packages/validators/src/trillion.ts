@@ -199,6 +199,41 @@ const graphShape = z.object({
   }),
 });
 
+/**
+ * Emphasis follows the bill briefs: Billion's own prose may wrap one or two
+ * short key phrases in `**`, never a whole statement. Labels and verbatim
+ * quotes carry none.
+ */
+export function trillionEmphasis(
+  text: string,
+): { text: string; bold: boolean }[] {
+  return text
+    .split("**")
+    .map((part, index) => ({ text: part, bold: index % 2 === 1 }))
+    .filter((part) => part.text.length > 0);
+}
+export const plainTrillionText = (text: string) => text.replaceAll("**", "");
+function emphasisProblem(text: string): string | undefined {
+  const marks = text.split("**").length - 1;
+  if (marks === 0) return undefined;
+  if (marks % 2 !== 0) return "unbalanced ** markers";
+  const spans = trillionEmphasis(text).filter((part) => part.bold);
+  if (spans.length > 2) return "more than two bold phrases";
+  if (
+    spans.some(
+      (span) => span.text.trim() !== span.text || span.text.length > 60,
+    )
+  )
+    return "bold phrases must be short and trimmed";
+  if (
+    spans.some(
+      (span) => span.text.length >= plainTrillionText(text).length * 0.8,
+    )
+  )
+    return "bold marks a key phrase, not the whole statement";
+  return undefined;
+}
+
 /** Structural rules shared by the full record and its public projection. */
 function checkStructure(
   value: Pick<
@@ -234,6 +269,18 @@ function checkStructure(
           `${node.id}: precedent nodes, and only they, quote precedent sources.`,
         );
     }
+    for (const [field, text] of [
+      ["title", node.title],
+      ["body", node.body ?? ""],
+    ] as const) {
+      const problem = emphasisProblem(text);
+      if (problem) issue(`${node.id}: ${field} has ${problem}.`);
+    }
+    if (
+      node.label.includes("**") ||
+      node.quotes.some((quote) => quote.text.includes("**"))
+    )
+      issue(`${node.id}: labels and verbatim quotes carry no emphasis.`);
     if (node.kind === "argument" && !node.attribution)
       issue(`${node.id}: arguments keep their published attribution.`);
     if ((node.kind === "crux") !== (node.dispute !== undefined))

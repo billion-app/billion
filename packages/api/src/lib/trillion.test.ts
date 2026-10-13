@@ -6,6 +6,7 @@ import type { TrillionGraph } from "@acme/validators";
 import {
   quoteAppearsIn,
   readingOrderText,
+  trillionEmphasis,
   trillionGraphSchema,
 } from "@acme/validators";
 
@@ -155,4 +156,36 @@ void test("precedent is quoted from archived official PDFs and never stands in f
   );
   assert.equal(publishedTrillionGraph(corpus.guide, "40", graph, stale), null);
   assert.ok(trillionSourceUrls([graph]).includes(precedent.url));
+});
+
+void test("emphasis bolds key phrases only, as bill briefs do", () => {
+  const withTitle = (title: string) => {
+    const g = clone();
+    g.nodes.find((n) => n.id === "a-fair")!.title = title;
+    return trillionGraphSchema.safeParse(g).success;
+  };
+  assert.equal(
+    withTitle("Billionaires pay **lower tax rates** than working families."),
+    true,
+  );
+  assert.equal(
+    withTitle("**Billionaires pay lower tax rates than working families.**"),
+    false,
+  );
+  assert.equal(
+    withTitle("Billionaires pay **lower tax rates than working families."),
+    false,
+  );
+  assert.equal(
+    withTitle("**Billionaires** pay **lower** tax **rates** than families."),
+    false,
+  );
+  const quoted = clone();
+  quoted.nodes.find((n) => n.kind === "argument")!.quotes[0]!.text += " **x**";
+  assert.equal(trillionGraphSchema.safeParse(quoted).success, false);
+  assert.deepEqual(trillionEmphasis("a **b** c"), [
+    { text: "a ", bold: false },
+    { text: "b", bold: true },
+    { text: " c", bold: false },
+  ]);
 });

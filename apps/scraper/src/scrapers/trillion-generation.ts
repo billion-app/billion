@@ -60,6 +60,7 @@ Evidence rules (checked mechanically):
 - Do not invent facts, numbers, sections, names or citations. If something is not in the sources, leave it out.
 - Nodes WITHOUT quotes (root, branch, crux, generated, question, shared, fact) must not state monetary amounts. Amounts appear only inside quoted source text and the titles of the nodes that quote them.
 - label: a few words (max 60 characters) summarizing the node for a map card. title: the full statement (max 300). body: optional plain-language context (max 800).
+- Emphasis is a scan aid, as in Billion's bill briefs: in each statement title, wrap the ONE short, concrete phrase a skimmer most needs in **double asterisks** (two at most, never the whole title, never a verdict or loaded language). Questions (root, branches, cruxes, kind "question") and labels carry no emphasis, and quotes never do: they are verbatim.
 - Keep it focused: about 30 to 60 nodes. Prefer the provisions and arguments that the disputes actually turn on.
 
 Measure: Proposition ${corpus.number}, ${measure.title}

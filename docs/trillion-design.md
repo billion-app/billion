@@ -93,7 +93,7 @@ Who, When, and How are graph branches rather than tabs, to keep the model consis
 
 ## The reading experience on a phone
 
-**Keep text short.** Early reviewers found the first version too wordy. The screen explains the measure, not the app: the main case shows only its question, the AI notice is one line ("AI-written · Check the sources") with details on tap, tab names are one word where possible, and list rows show the relationship, source, and statement without the link's explanation, which lives on the link's own page. Every line that explains how the Trillion works has to earn its place against one more line about the measure.
+**Keep text short.** Early reviewers found the first version too wordy. The screen explains the measure, not the app: the main case shows only its question, the AI notice is one line ("AI-written · Check the sources") with details on tap, tab names are one word where possible, and list rows show the relationship, source, and statement without the link's explanation, which lives on the link's own page. Every line that explains how the Trillion works has to earn its place against one more line about the measure. Statements are set in regular weight with one or two key phrases in bold, the same rule as Billion's bill briefs: the generator wraps the phrase a skimmer most needs in `**`, and the schema rejects a bolded whole statement, more than two bold phrases, or any emphasis inside a label or verbatim quote. Questions stay bold headings. Summaries (map cards, a preview's list of what is inside) use each card's short label.
 
 ### Focused claim page
 

@@ -588,7 +588,7 @@
       gap: 3px;
     }
     .row .t {
-      font: 600 15.5px/1.35 var(--display);
+      font: 400 15.5px/1.35 var(--display);
     }
     .row .src {
       font-size: 12px;
@@ -1348,7 +1348,7 @@
       margin-bottom: 3px;
     }
     .mcard .mtitle {
-      font: 600 13.5px/1.3 var(--display);
+      font: 500 13.5px/1.3 var(--display);
       color: var(--text);
       display: -webkit-box;
       -webkit-box-orient: vertical;
@@ -1511,6 +1511,21 @@
     }
     .ov-hover.is-empty {
       color: var(--quiet);
+    }
+    /* Bold only key phrases, as in bill briefs. Questions stay bold headings. */
+    .focus h1.stmt,
+    .peek h2.stmt {
+      font-weight: 400;
+    }
+    .row .t strong,
+    .focus h1 strong,
+    .peek h2 strong,
+    .peek .end-title strong {
+      font-weight: 700;
+    }
+    .peek .end-title,
+    .peek .inside-row {
+      font-weight: 400;
     }
   </style>
 
@@ -1886,7 +1901,12 @@
           /[&<>"]/g,
           (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
         );
-      const titleOf = (id) => N[id].title || "(untitled)";
+      // Titles mark one or two key phrases with **, as bill briefs do; plain text drops the marks.
+      const titleOf = (id) =>
+        (N[id].title || "(untitled)").replaceAll("**", "");
+      const emphasize = (text) =>
+        esc(text).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      const titleHtml = (id) => emphasize(N[id].title || "(untitled)");
 
       // Debate-structure ordering: unanswered first, then evidence-backed, then contested, then the rest.
       function rank(id) {
@@ -2107,7 +2127,7 @@
         return `<div class="row r-${tone(e)}${o.kind === "global" ? " is-global" : ""}">
       <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}</span></div>
       <button class="go" type="button" data-node="${otherId}">
-        <span class="t">${esc(titleOf(otherId))}${open}</span>
+        <span class="t">${titleHtml(otherId)}${open}</span>
       </button>
     </div>`;
       }
@@ -2137,7 +2157,7 @@
             .map(({ e }) => {
               const st = cruxState(e.from);
               return `<div class="row r-question"><span class="relchip static">${esc(st.text)}</span>
-          <button class="go" type="button" data-node="${e.from}"><span class="t">${esc(titleOf(e.from))}</span>
+          <button class="go" type="button" data-node="${e.from}"><span class="t">${titleHtml(e.from)}</span>
           <span class="src">${incoming(e.from).filter((x) => x.type === "weighs").length} arguments so far</span></button></div>`;
             })
             .join("")}</div>`;
@@ -2148,7 +2168,7 @@
                   ({
                     e,
                   }) => `<div class="row r-question"><span class="relchip static">Unanswered</span>
-          <button class="go" type="button" data-node="${e.from}"><span class="t">${esc(titleOf(e.from))}</span>
+          <button class="go" type="button" data-node="${e.from}"><span class="t">${titleHtml(e.from)}</span>
           <span class="src">${esc(srcLabel(N[e.from]))} · on “${esc(titleOf(e.to))}”</span></button></div>`,
                 )
                 .join("")}</div>`
@@ -2183,7 +2203,7 @@
 
         return `<article class="focus">
       <div class="meta">${meta.join("")}</div>
-      <h1 tabindex="-1">${esc(n.title)}</h1>
+      <h1 tabindex="-1" class="${n.title.includes("**") ? "stmt" : ""}">${titleHtml(id)}</h1>
       ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
       ${n.quote ? `<blockquote class="quote">“${esc(n.quote)}”<footer><span>${esc(src.locator)}</span><button class="linkish" type="button" data-source="${id}">Inspect source</button></footer></blockquote>` : ""}
       ${n.note ? `<p class="note">${esc(n.note)}</p>` : ""}
@@ -2202,7 +2222,7 @@
             ? `<span>Written by Billion AI</span>`
             : `<span>${esc(e.by)}</span><span class="example">Prototype example</span>`;
         const card = (id) =>
-          `<div class="row r-neutral"><button class="go" type="button" data-node="${id}"><span class="t">${esc(titleOf(id))}</span><span class="src">${esc(srcLabel(N[id]))}</span></button></div>`;
+          `<div class="row r-neutral"><button class="go" type="button" data-node="${id}"><span class="t">${titleHtml(id)}</span><span class="src">${esc(srcLabel(N[id]))}</span></button></div>`;
         const heading =
           e.type === "weighs"
             ? `Why does this ${esc(short(e))}?`
@@ -2222,7 +2242,7 @@
                 (
                   r,
                 ) => `<div class="row r-against"><span class="relchip static">Challenges this step</span>
-          <button class="go" type="button" data-node="${r.from}"><span class="t">${esc(titleOf(r.from))}</span><span class="src">${esc(srcLabel(N[r.from]))}</span></button>
+          <button class="go" type="button" data-node="${r.from}"><span class="t">${titleHtml(r.from)}</span><span class="src">${esc(srcLabel(N[r.from]))}</span></button>
           <div class="why">${esc(N[r.from].body)}</div></div>`,
               )
               .join("")}</div>`
@@ -3188,7 +3208,7 @@
                   : dir === "in"
                     ? inLabel(e)
                     : outLabel(e);
-                return `<button type="button" class="inside-row" data-peek="${other}" style="--tone:${TONE_HEX[tone(e)]}">${rel ? `<span class="inside-rel">${esc(rel)}</span>` : ""}<span>${esc(titleOf(other))}</span></button>`;
+                return `<button type="button" class="inside-row" data-peek="${other}" style="--tone:${TONE_HEX[tone(e)]}">${rel ? `<span class="inside-rel">${esc(rel)}</span>` : ""}<span>${esc(N[other].label || titleOf(other))}</span></button>`;
               })
               .join(
                 "",
@@ -3199,7 +3219,7 @@
         openSheet(
           `${relationTo(id)}
           <p class="meta" style="margin:0 0 6px">${esc(id === ROOT ? "Main case" : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</p>
-          <h2 id="sheet-title">${esc(titleOf(id))}</h2>
+          <h2 id="sheet-title" class="${N[id].title?.includes("**") ? "stmt" : ""}">${titleHtml(id)}</h2>
           ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
           ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
           ${inside}
@@ -3214,7 +3234,7 @@
         crux: "One of the questions people disagree about on this measure.",
       };
       function endCard(id, role) {
-        return `<button type="button" class="end" data-peek="${id}"><span class="end-role">${role}</span><span class="end-title">${esc(titleOf(id))}</span><span class="end-meta">${esc(cardMeta(id))}</span></button>`;
+        return `<button type="button" class="end" data-peek="${id}"><span class="end-role">${role}</span><span class="end-title">${titleHtml(id)}</span><span class="end-meta">${esc(cardMeta(id))}</span></button>`;
       }
       function peekEdge(eid) {
         const e = E[eid];
