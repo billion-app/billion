@@ -253,13 +253,14 @@ Watch for wrong-target contributions, lost navigation, and readers who treat the
 
 The prompt was then tuned against `trillion eval`, which scores what the hand-built Prop 40 pilot does well, on Prop 42 and on Prop 41 as a fresh measure:
 
-| Prompt                                                                                    | Disputes              | Arguments per dispute | Titles that describe the source |
-| ----------------------------------------------------------------------------------------- | --------------------- | --------------------- | ------------------------------- |
-| v2                                                                                        | 5 (Prop 42)           | 1–2, all one-sided    | 14                              |
-| v3: split arguments into claims, three or more per dispute, titles state the claim        | 3, compound questions | 5–7                   | 0–1                             |
-| v4: four to six short single-topic questions, a separate question for any ballot conflict | 4 each                | 3–6                   | 0                               |
+| Prompt                                                                                                                                                       | Disputes              | Arguments per dispute | Titles that describe the source |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------- | --------------------- | ------------------------------- |
+| v2                                                                                                                                                           | 5 (Prop 42)           | 1–2, all one-sided    | 14                              |
+| v3: split arguments into claims, three or more per dispute, titles state the claim                                                                           | 3, compound questions | 5–7                   | 0–1                             |
+| v4: four to six short single-topic questions, a separate question for any ballot conflict                                                                    | 4 each                | 3–6                   | 0                               |
+| v7: leans named by vote, measure text first under "What does it actually do?", ballot conflicts linked, summary drafted separately from the legal text alone | 5 and 4               | 4–7                   | 0–1                             |
 
-The v4 graphs pass the gate with every quote verified ([Prop 42](evidence/455/prop42-generated-graph.json), [raw answer](evidence/455/prop42-generated-raw.json), [Prop 41](evidence/455/prop41-generated-graph.json)); verification dropped two Prop 42 cards whose quotes did not match. About half the disputes still lack either a yes-leaning or a no-leaning argument, which mostly reflects sources that argue only one way; the prompt forbids inventing the missing side. Tuning on more varied measures, and with other models, should precede generating at scale.
+The v7 graphs pass the gate with every quote verified and nothing dropped ([Prop 42](evidence/455/prop42-generated-graph.json), [Prop 41](evidence/455/prop41-generated-graph.json), with raw answers alongside). Between v4 and v7, one run built "What does it actually do?" almost entirely from the Legislative Analyst (one measure-text card out of sixteen); v7 requires that branch to quote the measure itself, and the v7 graphs have nine and ten measure-text cards. A transient "server overloaded" response once cost a whole run, so the CLI now retries failed calls. Some disputes still lack a yes-leaning or a no-leaning argument, mostly because the sources argue one way, and the prompt forbids inventing the missing side. Tuning on more varied measures, and with other models, should precede generating at scale.
 
 ## Integration with existing work
 
