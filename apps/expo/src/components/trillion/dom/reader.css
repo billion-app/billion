@@ -1398,7 +1398,7 @@ textarea {
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  color: var(--link);
+  color: var(--quiet);
   list-style: none;
 }
 .summary-more summary::-webkit-details-marker {
