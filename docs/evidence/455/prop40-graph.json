@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "2026-11-03-40-design-pilot-precedent",
+  "revision": "2026-11-03-40-design-pilot-sourced",
   "jurisdiction": "CA",
   "electionDate": "2026-11-03",
   "measure": {
@@ -645,21 +645,26 @@
       "kind": "fact",
       "label": "Who signed for",
       "title": "Official **argument for**: SEIU-UHW, Planned Parenthood of Pacific Southwest, AFT Local 1521 signers.",
-      "quotes": []
+      "quotes": [
+        {
+          "sourceId": "arguments-40",
+          "locator": "Ballot argument for Proposition 40, signers",
+          "text": "Suzanne Jimenez, Chief of Staff SEIU-United Healthcare Workers West Victoria Barron, Patient Access Specialist Planned Parenthood of Pacific Southwest Denise Robb, Ph.D., Member of American Federation of Teachers Local 1521 Los Angeles College Faculty"
+        }
+      ]
     },
     {
       "id": "w-against",
       "kind": "fact",
       "label": "Who signed against",
       "title": "Official **argument against**: California Medical Association, Primary Care Association, School Boards Association signers.",
-      "quotes": []
-    },
-    {
-      "id": "wh-election",
-      "kind": "fact",
-      "label": "Election: Nov 3, 2026",
-      "title": "Election day is **Tuesday, November 3, 2026**.",
-      "quotes": []
+      "quotes": [
+        {
+          "sourceId": "arguments-40",
+          "locator": "Ballot argument against Proposition 40, signers",
+          "text": "René Bravo, M.D., President California Medical Association Francisco Silva, CEO California Primary Care Association Dr. Debra Schade, President California School Boards Association"
+        }
+      ]
     },
     {
       "id": "wh-review",
@@ -673,22 +678,6 @@
           "text": "A validation action shall not be filed more than 60 days after the approval of the act by the voters. … the California Supreme Court shall make every effort to resolve any review proceeding by November 1, 2027, or as soon as possible thereafter."
         }
       ]
-    },
-    {
-      "id": "h-vote",
-      "kind": "fact",
-      "label": "Vote on Nov 3",
-      "title": "Vote on Prop 40 on your **November 3, 2026 ballot**.",
-      "body": "Registration and return options are in the official voter guide.",
-      "quotes": []
-    },
-    {
-      "id": "h-private",
-      "kind": "fact",
-      "label": "Record your choice privately",
-      "title": "Record your own choice in ballot prep. It **stays private**.",
-      "body": "Your choice is never published or added to the graph.",
-      "quotes": []
     },
     {
       "id": "x-history",
@@ -868,12 +857,6 @@
       "type": "detail"
     },
     {
-      "id": "e33",
-      "from": "wh-election",
-      "to": "b-when",
-      "type": "detail"
-    },
-    {
       "id": "e34",
       "from": "t-date",
       "to": "b-when",
@@ -889,18 +872,6 @@
       "id": "e36",
       "from": "t-reform",
       "to": "b-when",
-      "type": "detail"
-    },
-    {
-      "id": "e37",
-      "from": "h-vote",
-      "to": "b-how",
-      "type": "detail"
-    },
-    {
-      "id": "e38",
-      "from": "h-private",
-      "to": "b-how",
       "type": "detail"
     },
     {
@@ -1341,6 +1312,13 @@
       "to": "rec-42",
       "type": "conflicts",
       "why": "Prop 40's conflict rule decides what happens if Prop 42 also passes."
+    },
+    {
+      "id": "eg-movers",
+      "from": "t-date",
+      "to": "g-movers",
+      "type": "supports",
+      "why": "Who owes is fixed by residence on the tax obligation date, before anyone could move."
     }
   ],
   "sources": [

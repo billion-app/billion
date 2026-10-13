@@ -583,14 +583,6 @@
       "label": "Where can I check campaign funding?",
       "title": "Where can I check campaign funding?",
       "quotes": []
-    },
-    {
-      "id": "funding-action",
-      "kind": "generated",
-      "label": "Check campaign disclosures",
-      "title": "Use **campaign contribution disclosures** to examine funding claims",
-      "body": "The official analysis directs readers to sos.ca.gov/campaign-lobbying/cal-access-resources/measure-contributions/2026-ballot-measure-contribution-totals and fppc.ca.gov/transparency/top-contributors.html. Compare those disclosures with the ballot authors' funding claims.",
-      "quotes": []
     }
   ],
   "edges": [
@@ -757,22 +749,10 @@
       "type": "detail"
     },
     {
-      "id": "a2",
-      "from": "funding-action",
-      "to": "act",
-      "type": "detail"
-    },
-    {
       "id": "a3",
       "from": "funding-question",
       "to": "act",
       "type": "asks"
-    },
-    {
-      "id": "a4",
-      "from": "funding-action",
-      "to": "funding-question",
-      "type": "answers"
     },
     {
       "id": "w1",

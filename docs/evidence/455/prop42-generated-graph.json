@@ -574,14 +574,6 @@
       "quotes": []
     },
     {
-      "id": "funding-links",
-      "kind": "generated",
-      "label": "Check committee and contributor disclosures",
-      "title": "Compare **committee disclosures** with the campaign's funding claims",
-      "body": "The Analyst directs readers to sos.ca.gov/campaign-lobbying/cal-access-resources/measure-contributions/2026-ballot-measure-contribution-totals and fppc.ca.gov/transparency/top-contributors.html. The funding claim quoted here is a campaign claim, not an independently verified finding.",
-      "quotes": []
-    },
-    {
       "id": "exception-question",
       "kind": "question",
       "label": "Does it ban every retroactive tax?",
@@ -1017,12 +1009,6 @@
       "type": "asks"
     },
     {
-      "id": "e65",
-      "from": "funding-links",
-      "to": "funding-question",
-      "type": "answers"
-    },
-    {
       "id": "e66",
       "from": "exception-question",
       "to": "retro",
@@ -1039,12 +1025,6 @@
       "from": "emergency",
       "to": "exception-answer",
       "type": "supports"
-    },
-    {
-      "id": "e69",
-      "from": "funding-links",
-      "to": "n-funder",
-      "type": "qualifies"
     }
   ],
   "sources": [

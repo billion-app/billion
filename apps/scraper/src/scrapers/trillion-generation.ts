@@ -14,6 +14,7 @@ import {
   trillionNodeSchema,
   trillionQuoteSchema,
   trillionTermSchema,
+  ungroundedTrillionClaims,
   unverifiedTrillionQuotes,
 } from "@acme/validators";
 
@@ -68,15 +69,15 @@ Graph shape (node ids: lowercase letters, digits and hyphens):
 - Provisions of the measure (kind "provision"), findings the authors wrote (kind "finding"), and the Legislative Analyst (kind "analysis") link to the branch they explain with type "detail", and to claims they bear on with "supports", "challenges" or "qualifies". Readers see each branch's details in the order you write the "detail" edges: put the measure's core change first, then who it covers, then money, then exceptions and procedure. "What does it actually do?" is built from the measure's OWN legal text: give it five to ten provision nodes, each quoting the specific section that does the thing, before any analysis. The Legislative Analyst explains alongside the text; never use an analysis node to stand in for a provision the legal text states directly.
 - Anything about another ballot measure (a conflict clause, the Analyst on how two measures interact) also links to that measure's kind "record" node with type "conflicts" when one could block or override the other, otherwise "appliesTo". Readers see that link on the card.
 - Published ballot arguments and rebuttals are kind "argument" with attribution { name: "Ballot argument for|against" or "Rebuttal for|against", signers: names exactly as printed }. Split each published argument and rebuttal into its distinct claims: one argument node per claim, each quoting its own sentence or sentences (usually 8 to 14 argument nodes in all).
-- Billion's own connective inferences are kind "generated". Questions a reader would likely ask are kind "question", linked with "asks"; a generated node may "answers" them.
+- Billion's own connective inferences are kind "generated", and each must rest on quoted evidence: link at least one provision, finding, analysis or argument to it with "supports" or "qualifies", or leave it out. Questions a reader would likely ask are kind "question", linked with "asks"; a generated node may "answers" them. Plain facts (dates, signers) are kind "fact" and quote their source like any source-backed card.
 - Related measures named in the sources are kind "record" with record.number, quoting the clause that connects them (for example a conflict clause).
 - Edge direction: "from" is the part and "to" is the whole. Branch → root ("part"), crux → root ("crux"), detail node → branch ("detail"), argument → crux ("weighs"), and the node doing the supporting, challenging, asking or answering → its target.
 - Every edge may carry "why": one plain sentence explaining the link in this context.${precedentRule}
 
 Evidence rules (checked mechanically):
-- Every provision, finding, analysis, argument and record node MUST quote its source: quotes[].sourceId must be one of the source ids below, quotes[].locator a precise section/page/paragraph reference, and quotes[].text copied VERBATIM from that source's text. Use "…" between verbatim segments to omit words; segments must appear in source order.
+- Every provision, finding, analysis, argument, record and fact node MUST quote its source: quotes[].sourceId must be one of the source ids below, quotes[].locator a precise section/page/paragraph reference, and quotes[].text copied VERBATIM from that source's text. Use "…" between verbatim segments to omit words; segments must appear in source order.
 - Do not invent facts, numbers, sections, names or citations. If something is not in the sources, leave it out.
-- Nodes WITHOUT quotes (root, branch, crux, generated, question, shared, fact) must not state monetary amounts. Amounts appear only inside quoted source text and the titles of the nodes that quote them.
+- Nodes WITHOUT quotes (root, branch, crux, generated, question, shared) must not state monetary amounts. Amounts appear only inside quoted source text and the titles of the nodes that quote them.
 - label: a few words (max 60 characters) summarizing the node for a map card. title: the full statement (max 300). body: optional plain-language context (max 800).
 - Titles state the claim itself, in plain words a voter would use, with the concrete mechanism, number, date or group. Never describe the source instead: not "The Analyst says revenue could fall" but "State and local revenue could fall, by an amount no one can estimate yet"; not "Supporters argue ownership taxes double-tax savings" but "Taxing what people own taxes money they already paid tax on". The node's kind and attribution already show who said it.
 - Every disputed question needs at least three "weighs" links from different nodes. Draw them from the split ballot arguments and rebuttals, the Legislative Analyst, provisions and findings; evidence that bears on a dispute weighs on it with the lean it supports. When the sources support both a yes-leaning and a no-leaning point on a question, include both. Never invent a side the sources lack: use "mixed" where it fits. A node may weigh on more than one question.
@@ -150,15 +151,25 @@ export function pruneUnverified(
   for (;;) {
     const ids = new Set(nodes.map((n) => n.id));
     edges = edges.filter((e) => ids.has(e.from) && ids.has(e.to));
-    // Keep cards connected to the main case and within the seed depth.
+    // Keep cards connected to the main case, within the seed depth, and,
+    // for Billion's own claims, resting on a quoted source.
     const depth = trillionDepths({ rootId: graph.rootId, edges });
+    const unsourced = new Set(ungroundedTrillionClaims({ nodes, edges }));
     const kept = nodes.filter(
-      (n) => (depth.get(n.id) ?? Infinity) <= TRILLION_SEED_MAX_DEPTH,
+      (n) =>
+        (depth.get(n.id) ?? Infinity) <= TRILLION_SEED_MAX_DEPTH &&
+        !unsourced.has(n.id),
     );
     if (kept.length === nodes.length) break;
     for (const n of nodes)
       if (!kept.includes(n))
-        dropped.push(depth.has(n.id) ? `${n.id} (too deep)` : n.id);
+        dropped.push(
+          unsourced.has(n.id)
+            ? `${n.id} (unsourced)`
+            : depth.has(n.id)
+              ? `${n.id} (too deep)`
+              : n.id,
+        );
     nodes = kept;
   }
   // A summary keeps only verified quotes; with none left it is dropped whole.

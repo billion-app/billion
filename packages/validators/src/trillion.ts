@@ -65,6 +65,7 @@ export const QUOTED_TRILLION_KINDS = new Set<string>([
   "argument",
   "record",
   "precedent",
+  "fact",
 ]);
 export const TRILLION_EDGE_TYPES = [
   "part",
@@ -299,6 +300,41 @@ export function trillionDepths(graph: {
   return depth;
 }
 
+/**
+ * Billion's own claims ("generated") may not stand on assertion: each must
+ * rest, directly or through other cards, on a card that quotes a source.
+ * Questions ask and shared framework claims name assumptions, so they are
+ * exempt.
+ */
+export function ungroundedTrillionClaims(graph: {
+  nodes: { id: string; kind: string }[];
+  edges: { from: string; to: string; type: string }[];
+}): string[] {
+  const kind = new Map(graph.nodes.map((n) => [n.id, n.kind]));
+  const grounded = new Set(
+    graph.nodes
+      .filter((n) => QUOTED_TRILLION_KINDS.has(n.kind))
+      .map((n) => n.id),
+  );
+  // Grow the grounded set through "supports" and "qualifies" until it stops changing.
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const e of graph.edges)
+      if (
+        (e.type === "supports" || e.type === "qualifies") &&
+        grounded.has(e.from) &&
+        !grounded.has(e.to) &&
+        kind.get(e.to) === "generated"
+      ) {
+        grounded.add(e.to);
+        changed = true;
+      }
+  }
+  return graph.nodes
+    .filter((n) => n.kind === "generated" && !grounded.has(n.id))
+    .map((n) => n.id);
+}
+
 /** Structural rules shared by the full record and its public projection. */
 function checkStructure(
   value: Pick<
@@ -431,6 +467,8 @@ function checkStructure(
       issue(
         `${nodeId}: more than ${TRILLION_MAX_DEPTH} steps from the main case.`,
       );
+  for (const nodeId of ungroundedTrillionClaims(value))
+    issue(`${nodeId}: Billion's claims must rest on a quoted source.`);
   const branches = value.nodes.filter((node) => node.kind === "branch");
   if (
     branches.length !== 4 ||

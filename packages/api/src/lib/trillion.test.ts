@@ -268,3 +268,37 @@ void test("a graph may not run deeper than the depth limit", () => {
     ),
   );
 });
+
+void test("Billion's own claims must rest on a quoted source", () => {
+  const unsourced = clone();
+  unsourced.nodes.push({
+    id: "g-bare",
+    kind: "generated",
+    label: "Bare assertion",
+    title: "This would **change everything**.",
+    quotes: [],
+  });
+  unsourced.edges.push({
+    id: "e-bare",
+    from: "g-bare",
+    to: "x-fair",
+    type: "weighs",
+    stance: "for",
+  });
+  const result = trillionGraphSchema.safeParse(unsourced);
+  if (result.success) assert.fail("an unsourced claim parsed");
+  assert.ok(
+    result.error.issues.some((i) =>
+      i.message.includes("rest on a quoted source"),
+    ),
+  );
+
+  const sourced = structuredClone(unsourced);
+  sourced.edges.push({
+    id: "e-src",
+    from: "t-tax",
+    to: "g-bare",
+    type: "supports",
+  });
+  assert.equal(trillionGraphSchema.safeParse(sourced).success, true);
+});
