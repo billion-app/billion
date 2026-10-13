@@ -244,15 +244,6 @@
       <p class="measure-note" id="measure-note">
         Assembled from the design prototype and edited by hand.
       </p>
-      <h2>Main screen</h2>
-      <div class="jumps" id="layouts">
-        <button type="button" data-layout="full" aria-pressed="true">
-          Current: basics, tabs and map
-        </button>
-        <button type="button" data-layout="light" aria-pressed="false">
-          Lighter: disputes first, basics as links
-        </button>
-      </div>
       <h2 id="jump-head">Jump to</h2>
       <div class="jumps" id="jumps">
         <button type="button" data-jump="main">Main case</button>
@@ -298,7 +289,6 @@
     const root = document.getElementById("trillion");
     // Mentions of other propositions switch to their graph when the mockup has one.
     const options = {
-      layout: "full",
       onOpenMeasure: (n) => {
         const button = document.querySelector(`[data-measure="${n}"]`);
         if (graphs[n] && button?.closest("#measures")) button.click();
@@ -322,16 +312,6 @@
       // The jump shortcuts point at specific Prop 40 cards.
       document.getElementById("jumps").hidden = n !== "40";
       document.getElementById("jump-head").hidden = n !== "40";
-    });
-    document.getElementById("layouts").addEventListener("click", (ev) => {
-      const b = ev.target.closest("[data-layout]");
-      if (!b) return;
-      for (const x of document.querySelectorAll("[data-layout]"))
-        x.setAttribute("aria-pressed", String(x === b));
-      options.layout = b.dataset.layout;
-      const n = document.querySelector('[data-measure][aria-pressed="true"]')
-        .dataset.measure;
-      reader = TrillionReader.mountTrillionReader(root, graphs[n], options);
     });
     // Mockup controls: jump straight to the states worth reviewing.
     document.getElementById("jumps").addEventListener("click", (ev) => {

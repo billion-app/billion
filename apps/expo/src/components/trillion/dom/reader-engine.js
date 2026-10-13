@@ -1042,40 +1042,10 @@ export function mountTrillionReader(root, graph, options = {}) {
     </section>`;
   }
 
-  // Lighter main screen: the disputes are the content; the basics become a row of links.
-  const LIGHT_LINK = {
-    "what does it actually do?": "The measure, section by section",
-    "who's behind it?": "Who's behind it",
-    "when?": "When",
-    "how can i act?": "How to vote",
-  };
-  function lightRootHtml() {
-    const cats = categories(ROOT);
-    const disputes = cats.find((k) => k.key === "disagree");
-    const open = cats.find((k) => k.key === "open")?.items.length ?? 0;
-    const branches = cats.find((k) => k.key === "basics")?.items ?? [];
-    return `<section class="section light-disputes" aria-label="Where people disagree">
-      <h2 class="light-h">Where people disagree</h2>
-      ${panelHtml(ROOT, disputes)}
-      ${open ? `<button class="linkish light-open" type="button" data-tab-open>${open} arguments no one has answered yet ›</button>` : ""}
-    </section>
-    <nav class="light-links" aria-label="More about this measure">
-      ${branches
-        .map(
-          ({ e }) =>
-            `<button type="button" data-node="${e.from}">${esc(LIGHT_LINK[titleOf(e.from).toLowerCase()] || titleOf(e.from))}</button>`,
-        )
-        .join("")}
-      <a href="${esc(graph.measure.url)}" target="_blank" rel="noopener">Official guide ↗</a>
-    </nav>`;
-  }
-
   function render(moveFocus) {
     const c = cur();
     if (page.contains(mapEl)) $("#map-home").appendChild(mapEl); // keep the map alive across re-renders
     if (c.t === "edge") page.innerHTML = renderEdge(c.id);
-    else if (c.id === ROOT && options.layout === "light")
-      page.innerHTML = `${focusCard(ROOT)}${lightRootHtml()}`;
     else {
       const cats = categories(c.id);
       page.innerHTML = `${focusCard(c.id)}${isActBranch(c.id) ? votingHtml() : ""}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
@@ -2127,16 +2097,10 @@ export function mountTrillionReader(root, graph, options = {}) {
       return;
     }
     const t = ev.target.closest(
-      "[data-tab-open],[data-prop],[data-term],[data-peek],[data-ring],[data-summary-sources],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
+      "[data-prop],[data-term],[data-peek],[data-ring],[data-summary-sources],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
     );
     if (!t) return;
     if (t.hasAttribute("data-scrim") && ev.target !== t) return;
-    if (t.hasAttribute("data-tab-open")) {
-      options.layout = "full";
-      tab = "open";
-      render(false);
-      return;
-    }
     if (t.dataset.prop) {
       if ($("#layer").innerHTML) closeSheet();
       openMeasure(t.dataset.prop);
