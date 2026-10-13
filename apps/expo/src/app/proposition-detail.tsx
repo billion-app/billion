@@ -19,6 +19,8 @@ import {
   ContextUnavailable,
   PropositionContext,
 } from "~/components/ballot-evidence/PropositionContext";
+import { developmentDebate } from "~/components/trillion/development/pilots";
+import { TrillionScreen } from "~/components/trillion/TrillionScreen";
 import { Icon, NavHeader } from "~/components/ui";
 import {
   fontBody,
@@ -40,7 +42,9 @@ export default function PropositionDetailScreen() {
   const { number } = useLocalSearchParams<{ number?: string }>();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const measure = query.data?.measures.find((item) => item.number === number);
-  // The debate appears only once its graph passes the server's publication gate.
+  // A proposition with a debate is read as its Trillion (#455). The graph
+  // appears only once it passes the server's publication gate; until then, and
+  // for measures without one, the page below is the explanation.
   const debate = useQuery(
     trpc.civic.getTrillion.queryOptions(
       { number: number ?? "" },
@@ -49,6 +53,9 @@ export default function PropositionDetailScreen() {
   );
   const proArguments = submittedGuideArguments(measure?.proArguments);
   const conArguments = submittedGuideArguments(measure?.conArguments);
+  const graph =
+    debate.data ?? (measure ? developmentDebate(measure.number) : undefined);
+  if (graph) return <TrillionScreen graph={graph} />;
 
   return (
     <View style={s.screen}>
@@ -156,27 +163,7 @@ export default function PropositionDetailScreen() {
               number={measure.number}
               relationships={measure.relationships}
             />
-            {debate.data && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityHint="Opens the questions people disagree about, with sourced arguments"
-                onPress={() =>
-                  router.push({
-                    pathname: "/trillion",
-                    params: { number: measure.number },
-                  })
-                }
-                style={s.debate}
-              >
-                <View style={s.debateText}>
-                  <Text style={s.heading}>Explore the debate</Text>
-                  <Text style={s.caption}>
-                    Where people disagree, with every claim tied to its source
-                  </Text>
-                </View>
-                <Icon name="chevR" size={18} color={P.quiet} />
-              </Pressable>
-            )}
+
             <View style={s.record}>
               {measure.officialSummary ||
               measure.fiscalImpact ||
@@ -446,17 +433,6 @@ const s = StyleSheet.create({
     lineHeight: 23,
     color: P.inkOnNight,
   },
-  debate: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: P.card,
-    borderColor: hair[1],
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-  },
-  debateText: { flex: 1, gap: 4 },
   surface: {
     backgroundColor: P.card,
     borderColor: hair[1],
