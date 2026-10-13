@@ -3,6 +3,8 @@ import {
   CA_OFFICIAL_GUIDE_ENDPOINT,
   officialGuideCacheParams,
 } from "@acme/api/lib/official-guide-cache";
+import { TRILLION_ENDPOINT, trillionSourceUrls } from "@acme/api/lib/trillion";
+import { eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
@@ -28,8 +30,16 @@ export const caOfficialGuide: Scraper = {
       );
     if (!payload.measures.length && !payload.candidates.length)
       throw new Error("No official guide content collected");
-    payload.relationshipSources =
-      await collectRelationshipDocumentHashes(electionDate);
+    // Stored Trillion graphs publish only while their source documents still match.
+    const trillionGraphs = await db
+      .select({ responseData: CivicApiCache.responseData })
+      .from(CivicApiCache)
+      .where(eq(CivicApiCache.endpoint, TRILLION_ENDPOINT));
+    payload.relationshipSources = await collectRelationshipDocumentHashes(
+      electionDate,
+      undefined,
+      trillionSourceUrls(trillionGraphs.map((row) => row.responseData)),
+    );
     const fetchedAt = new Date(payload.fetchedAt);
     const values = {
       addressHash: CA_OFFICIAL_GUIDE_ADDRESS_HASH,

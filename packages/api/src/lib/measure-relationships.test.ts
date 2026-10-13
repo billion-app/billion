@@ -214,6 +214,9 @@ void test("captured pilot stays pending; reviewed copy must match all four docum
     await import("./measure-relationship-revisions/ca-2026-pilot.json");
   const { measureRelationshipSchema } = await import("@acme/validators");
   const draft = measureRelationshipSchema.parse(capture.draft);
+  // Guide pages carry a random bot-protection script, so they are fingerprinted by text.
+  for (const s of draft.sources.filter((s) => s.url.endsWith(".htm")))
+    assert.equal(s.documentHash, s.hash);
   const guide: OfficialGuidePayload = {
     electionDate: draft.electionDate,
     jurisdiction: "CA",

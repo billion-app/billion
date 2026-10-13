@@ -196,6 +196,28 @@ export const jobs: readonly JobDefinition[] = [
     maxRuntimeHours: 24,
   },
   {
+    id: "trillion-propositions-daily",
+    description:
+      "Keep a quote-verified Trillion debate for every proposition in the California guide",
+    script: "trillion-propositions.js",
+    // Unchanged propositions reuse their stored graph without a model call, so
+    // most days this only re-fetches sources. Each new or changed graph costs
+    // two calls; the budget bounds a day when many sources change at once.
+    args: ["--max-model-calls", "24"],
+    env: {
+      CA_GUIDE_ELECTION_DATE: "2026-11-03",
+      // The prompt was tuned on this model through the host's Codex proxy, which
+      // big-mac already uses as its primary provider (SCRAPER_FALLBACK_PRIORITY).
+      SCRAPER_FALLBACK_MODEL: "gpt-6.1-sol",
+    },
+    // Before the guide job, which fingerprints the sources of newly stored
+    // graphs so readers can see them the same morning.
+    schedule: { kind: "daily", hour: 4, minute: 0 },
+    priority: 13,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "ca-official-guide-daily",
     description: "Refresh the November 2026 official California ballot guide",
     script: "main.js",

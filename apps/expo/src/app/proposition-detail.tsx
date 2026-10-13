@@ -19,6 +19,8 @@ import {
   ContextUnavailable,
   PropositionContext,
 } from "~/components/ballot-evidence/PropositionContext";
+import { developmentDebate } from "~/components/trillion/development/pilots";
+import { TrillionScreen } from "~/components/trillion/TrillionScreen";
 import { Icon, NavHeader } from "~/components/ui";
 import {
   fontBody,
@@ -40,8 +42,20 @@ export default function PropositionDetailScreen() {
   const { number } = useLocalSearchParams<{ number?: string }>();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const measure = query.data?.measures.find((item) => item.number === number);
+  // A proposition with a debate is read as its Trillion (#455). The graph
+  // appears only once it passes the server's publication gate; until then, and
+  // for measures without one, the page below is the explanation.
+  const debate = useQuery(
+    trpc.civic.getTrillion.queryOptions(
+      { number: number ?? "" },
+      { enabled: !!measure },
+    ),
+  );
   const proArguments = submittedGuideArguments(measure?.proArguments);
   const conArguments = submittedGuideArguments(measure?.conArguments);
+  const graph =
+    debate.data ?? (measure ? developmentDebate(measure.number) : undefined);
+  if (graph) return <TrillionScreen graph={graph} />;
 
   return (
     <View style={s.screen}>
@@ -149,6 +163,7 @@ export default function PropositionDetailScreen() {
               number={measure.number}
               relationships={measure.relationships}
             />
+
             <View style={s.record}>
               {measure.officialSummary ||
               measure.fiscalImpact ||

@@ -18,7 +18,10 @@ import {
   parseGuideMeasure,
 } from "./ca-official-guide-parser.js";
 import { fetchGuidePage } from "./ca-official-guide-source.js";
-import { fetchRelationshipDocument } from "./measure-relationship-source.js";
+import {
+  fetchRelationshipDocument,
+  officialPageText,
+} from "./measure-relationship-source.js";
 
 export const relationshipCorpusSchema = z.object({
   guide: officialGuidePayloadSchema,
@@ -44,13 +47,7 @@ export async function captureMeasureSources(
     $(".propName h2").text().replace(/\s+/g, " ").trim() !== measure.title
   )
     throw new Error("Analysis election/measure identity mismatch");
-  const analysis =
-    $("#mainCont").text().replace(/\s+/g, " ").trim() +
-    " " +
-    $("#mainCont img")
-      .map((_, image) => $(image).attr("alt") ?? "")
-      .get()
-      .join(" ");
+  const analysis = officialPageText(url, html);
   if (analysis.length < 250) throw new Error("Missing official analysis text");
   const bytes = await fetchRelationshipDocument(measure.fullTextUrl);
   const directory = await mkdtemp(join(tmpdir(), "billion-relationship-"));
@@ -88,7 +85,8 @@ export async function captureMeasureSources(
       retrievedAt,
       snapshot: analysis,
       hash: sourceHash(analysis),
-      documentHash: sourceHash(html),
+      // The page is judged on its text: the site injects a random script into every response.
+      documentHash: sourceHash(analysis),
     },
   ];
 }

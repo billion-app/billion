@@ -356,6 +356,29 @@ The older two-measure `measure-relationship-preview.ts` remains a read-only
 recapture tool for an existing authored draft; it is not the discovery workflow.
 The [source-captured pilot](../../docs/evidence/447/README.md) is still pending.
 
+### Trillion argument graphs
+
+`trillion` seeds the argument graph for one measure ([design](../../docs/trillion-design.md)). Graphs publish without human review: every read re-runs a machine gate (schema, verbatim quotes, source freshness) and the app labels the graph AI-written until a person verifies it.
+
+```bash
+pnpm --filter @acme/scraper trillion collect 2026-11-03 40 /tmp/prop40-corpus.json --related 41,42
+pnpm --filter @acme/scraper trillion generate /tmp/prop40-corpus.json /tmp/prop40-graph.json --max-model-calls 1
+pnpm --filter @acme/scraper trillion check /tmp/prop40-graph.json /tmp/prop40-corpus.json
+pnpm --filter @acme/scraper trillion eval /tmp/prop40-graph.json
+pnpm --filter @acme/scraper trillion store /tmp/prop40-graph.json
+```
+
+`collect` fetches the measure's legal text, Legislative Analyst analysis and ballot arguments, the legal text of `--related` measures, and any curated historical precedent for that measure in [`trillion-precedents.ts`](src/scrapers/trillion-precedents.ts). Precedent entries are archived official PDFs (State Auditor, Legislative Analyst, past voter guides) with an optional page range that keeps the prompt bounded. It makes no model calls and no database writes. `generate` makes one paid model call and drops any quote that fails verification; an unchanged corpus reuses the existing output without a call. `generate --base-url <url> --model <id>` uses any OpenAI-compatible endpoint instead of the configured providers, and saves the model's raw answer to `<output>.raw.json`. `check` runs the publication gate offline. `eval` prints quality signals used to tune the prompt: disputes with fewer than three arguments or only one side, ballot arguments left outside any dispute, evidence not wired into the debate, and titles that describe the source instead of stating the claim. `store` writes to the selected database's `civic_api_cache`, so check the target first; a stored graph appears only after the next guide job has refreshed its source hashes.
+
+**In production,** the supervisor's `trillion-propositions-daily` job (4:00, before the guide job) keeps a graph for every proposition in the current guide:
+
+```bash
+pnpm --filter @acme/scraper trillion-propositions --dry-run
+pnpm --filter @acme/scraper trillion-propositions --only 41 --max-model-calls 2
+```
+
+It captures each proposition's sources, adds the law of any other proposition its text or analysis names, and reuses the stored graph when the sources, prompt and model are unchanged, so most runs make no model calls and write nothing. A new or changed proposition costs two calls within the run's `--max-model-calls` budget, and only graphs that pass the publication gate are stored. A failed input is remembered in `civic_api_cache` (`trillion-v1-failed`) and not retried for seven days unless something changes. The job writes to the selected database, so check the target first; the guide job that follows fingerprints new graphs' sources, after which readers see them. On big-mac it uses the host's Codex proxy, pinned to `gpt-6.1-sol` for this job. The scraper image includes `poppler-utils` for `pdftotext`.
+
 ### Search research verification
 
 [Shared research](../../docs/scraper-research.md) supplies bill history, further

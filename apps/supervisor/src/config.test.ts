@@ -188,3 +188,20 @@ void test("scheduled jobs outrank the manual backfills", () => {
     "a manual backfill can outrank a scheduled run",
   );
 });
+
+void test("Trillion debates refresh daily, before the guide fingerprints their sources", () => {
+  const trillion = findJob("trillion-propositions-daily");
+  const guide = findJob("ca-official-guide-daily");
+  assert.ok(trillion, "daily Trillion job is missing");
+  assert.ok(guide, "daily guide job is missing");
+  assert.equal(trillion.script, "trillion-propositions.js");
+  assert.deepEqual(trillion.args, ["--max-model-calls", "24"]);
+  assert.equal(trillion.env?.SCRAPER_FALLBACK_MODEL, "gpt-6.1-sol");
+  assert.equal(trillion.schedule.kind, "daily");
+  assert.equal(guide.schedule.kind, "daily");
+  if (trillion.schedule.kind === "daily" && guide.schedule.kind === "daily")
+    assert.ok(
+      trillion.schedule.hour * 60 + trillion.schedule.minute <
+        guide.schedule.hour * 60 + guide.schedule.minute,
+    );
+});

@@ -56,6 +56,9 @@ export default defineConfig({
         "prune-bills": fileURLToPath(
           new URL("./src/prune-bills.ts", import.meta.url),
         ),
+        "trillion-propositions": fileURLToPath(
+          new URL("./src/trillion-propositions.ts", import.meta.url),
+        ),
       },
       output: {
         chunkFileNames: "chunks/[name]-[hash].js",
