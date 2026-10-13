@@ -151,3 +151,22 @@ void test("the summary is drafted from the measure's legal text alone", async ()
   );
   assert.match(prompt, /not "one-time"|"one-time"/);
 });
+
+void test("one bad summary quote never discards the cards' good quotes", async () => {
+  const misquoted = summary();
+  misquoted.quotes = [
+    misquoted.quotes[0]!,
+    {
+      sourceId: "law-40",
+      locator: "made up",
+      text: "The tax applies to everyone who owns a home in California.",
+    },
+  ];
+  const result = await generateTrillionGraph(corpus, {
+    ...options,
+    assess: () => Promise.resolve(authored()),
+    assessSummary: () => Promise.resolve(misquoted),
+  });
+  assert.equal(result.graph.nodes.length, pilot.nodes.length);
+  assert.equal(result.graph.summary?.quotes.length, 1);
+});

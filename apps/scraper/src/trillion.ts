@@ -27,6 +27,7 @@ import {
   trillionSummarySchema,
 } from "./scrapers/trillion-generation.js";
 import { trillionPrecedents } from "./scrapers/trillion-precedents.js";
+import { generateStagedTrillionGraph } from "./scrapers/trillion-staged.js";
 import { getStructuredLlmCandidates } from "./utils/ai/provider.js";
 import { trackLLMUsage } from "./utils/costs.js";
 
@@ -68,7 +69,7 @@ await yargs(hideBin(process.argv))
   )
   .command(
     "generate <corpus> <output>",
-    "Draft a graph and its summary with two paid model calls; quotes that fail verification are dropped. No DB",
+    "Draft a graph and its summary: two paid model calls, or about a dozen with --pipeline staged; quotes that fail verification are dropped. No DB",
     (y) =>
       y
         .positional("corpus", { type: "string", demandOption: true })
@@ -83,6 +84,12 @@ await yargs(hideBin(process.argv))
         .option("model", {
           type: "string",
           describe: "Model id at --base-url",
+        })
+        .option("pipeline", {
+          choices: ["single", "staged"] as const,
+          default: "single" as const,
+          describe:
+            "single: one call drafts the whole graph. staged: plan, expand each branch and dispute, check leans",
         }),
     async (args) => {
       let previous: unknown;
@@ -102,6 +109,51 @@ await yargs(hideBin(process.argv))
             modelVersion: `openai-compatible:${args.model}`,
           }
         : getStructuredLlmCandidates()[0]!;
+      if (args.pipeline === "staged") {
+        let inputTokens = 0;
+        let outputTokens = 0;
+        const started = Date.now();
+        const result = await generateStagedTrillionGraph(
+          await readJson(args.corpus),
+          {
+            model: candidate.modelVersion,
+            maxModelCalls: args.maxModelCalls,
+            maxPromptChars: args.maxPromptChars,
+            previous,
+            onStage: (stage, value) =>
+              save(`${args.output}.${stage}.json`, value),
+            call: async (prompt, schema, maxOutputTokens) => {
+              const response = await generateText({
+                model: candidate.model,
+                output: Output.object({ schema }),
+                prompt,
+                maxOutputTokens,
+                // Overloaded or failed calls return nothing, so a retry spends no output.
+                maxRetries: 2,
+                abortSignal: AbortSignal.timeout(300000),
+              });
+              inputTokens += response.usage.inputTokens ?? 0;
+              outputTokens += response.usage.outputTokens ?? 0;
+              trackLLMUsage(
+                response.usage.inputTokens,
+                response.usage.outputTokens,
+              );
+              return response.output;
+            },
+          },
+        );
+        await save(args.output, result.graph);
+        console.log(
+          result.reused
+            ? "Input unchanged; reused the existing graph without a model call."
+            : [
+                `Drafted ${result.graph.nodes.length} nodes and ${result.graph.edges.length} links in ${result.calls} model calls (${inputTokens} input and ${outputTokens} output tokens, ${Math.round((Date.now() - started) / 1000)}s).`,
+                `Leans corrected: ${result.corrected.length ? `\n  ${result.corrected.join("\n  ")}` : "none"}`,
+                `Dropped: ${result.dropped.length ? result.dropped.join(", ") : "none"}`,
+              ].join("\n"),
+        );
+        return;
+      }
       const result = await generateTrillionGraph(await readJson(args.corpus), {
         model: candidate.modelVersion,
         maxModelCalls: args.maxModelCalls,

@@ -723,7 +723,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       body = `<div class="tiles">${cat.items
         .map(({ e }) => {
           const k = incoming(e.from).filter((x) => KIDS.has(x.type)).length;
-          return `<button class="tile" type="button" data-node="${e.from}"><span class="t">${esc(N[e.from].title)}</span><span class="n">${k} item${k === 1 ? "" : "s"}</span></button>`;
+          return `<button class="tile" type="button" data-node="${e.from}"><span class="t">${esc(N[e.from].title)}</span><span class="n">${isActBranch(e.from) && graph.jurisdiction === "CA" ? (k ? `Voting basics · ${k} more` : "Voting basics") : `${k} item${k === 1 ? "" : "s"}`}</span></button>`;
         })
         .join("")}</div>`;
     } else if (cat.key === "disagree") {

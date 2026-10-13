@@ -129,6 +129,8 @@ export function pruneUnverified(
       const ok =
         unverifiedTrillionQuotes({
           ...graph,
+          // Judge this one quote alone: the summary is checked separately below.
+          summary: undefined,
           nodes: [{ ...node, quotes: [quote] }],
           edges: [],
         } as TrillionGraph).length === 0;
@@ -194,7 +196,17 @@ export function orientStructuralEdges(
     flipped.push(edge.id);
     return { ...edge, from: edge.to, to: edge.from };
   });
-  return { authored: { ...authored, edges }, flipped };
+  // Kind-specific fields on the wrong kind ("record" on a provision) are
+  // dropped rather than failing the graph; nothing the reader sees changes.
+  const nodes = authored.nodes.map((node) => {
+    const { record, dispute, ...rest } = node;
+    return {
+      ...rest,
+      ...(node.kind === "record" && record ? { record } : {}),
+      ...(node.kind === "crux" && dispute ? { dispute } : {}),
+    };
+  });
+  return { authored: { ...authored, nodes, edges }, flipped };
 }
 
 /** One bounded model call per measure; unchanged input reuses the previous graph. */
