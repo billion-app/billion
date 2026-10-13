@@ -96,3 +96,20 @@ void test("curated precedent is captured as PDFs and seeds a precedent question"
   });
   assert.doesNotMatch(withoutPrecedent, /tried before/);
 });
+
+void test("the evaluator flags thin, one-sided disputes and titles that describe the source", async () => {
+  const { assessTrillionGraph } = await import("./trillion-generation.js");
+  const { trillionGraphSchema } = await import("@acme/validators");
+  const graph = trillionGraphSchema.parse(structuredClone(pilot));
+  const report = assessTrillionGraph(graph);
+  assert.equal(report.thinCruxes, 0);
+  assert.equal(report.nodes, graph.nodes.length);
+  const argument = graph.nodes.find((n) => n.id === "a-fair");
+  assert.ok(argument);
+  argument.title = "Supporters argue billionaires pay **lower rates**.";
+  assert.ok(
+    assessTrillionGraph(graph).metaTitles.includes(
+      "Supporters argue billionaires pay lower rates.",
+    ),
+  );
+});

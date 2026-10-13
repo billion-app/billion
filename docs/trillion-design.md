@@ -247,7 +247,17 @@ Watch for wrong-target contributions, lost navigation, and readers who treat the
 
 **In the app.** [`/trillion?number=40`](../apps/expo/src/app/trillion.tsx) loads `civic.getTrillion` and shows the reader full screen; native code handles leaving the screen and opening sources in the browser. The proposition page shows "Explore the debate" only when the server's publication gate returns a graph. In development, [`/trillion-preview?number=40`](../apps/expo/src/app/trillion-preview.tsx) shows the pilot graphs without the API (`&view=map` opens on the map). The web view loads Billion's typefaces from Google Fonts, because the app's native fonts are not visible to it.
 
-**Generation in practice.** The first real run used `gpt-6.1-sol` through an OpenAI-compatible endpoint (`trillion generate --base-url … --model …`) on Prop 42. The first attempt was rejected outright: the model wrote structural links backwards (main case → branch), so the four branches and the disputes did not attach. Flipping a backwards structural link adds no content, so the pipeline now repairs it, states the direction rule in the prompt, saves the model's raw answer next to the output, and lists every failed check. The second attempt passed with 34 cards, 50 links and no dropped quotes ([graph](evidence/455/prop42-generated-graph.json), [raw answer](evidence/455/prop42-generated-raw.json)). It is usable but thinner than the hand-built Prop 40 pilot: few arguments sit under each dispute, and some titles are abstract. Prompt tuning on a few more measures should precede generating at scale.
+**Generation in practice.** The first real run used `gpt-6.1-sol` through an OpenAI-compatible endpoint (`trillion generate --base-url … --model …`) on Prop 42. The first attempt was rejected outright: the model wrote structural links backwards (main case → branch). Flipping such a link adds no content, so the pipeline now repairs it, states the direction rule in the prompt, saves the model's raw answer, and lists every failed check.
+
+The prompt was then tuned against `trillion eval`, which scores what the hand-built Prop 40 pilot does well, on Prop 42 and on Prop 41 as a fresh measure:
+
+| Prompt                                                                                    | Disputes              | Arguments per dispute | Titles that describe the source |
+| ----------------------------------------------------------------------------------------- | --------------------- | --------------------- | ------------------------------- |
+| v2                                                                                        | 5 (Prop 42)           | 1–2, all one-sided    | 14                              |
+| v3: split arguments into claims, three or more per dispute, titles state the claim        | 3, compound questions | 5–7                   | 0–1                             |
+| v4: four to six short single-topic questions, a separate question for any ballot conflict | 4 each                | 3–6                   | 0                               |
+
+The v4 graphs pass the gate with every quote verified ([Prop 42](evidence/455/prop42-generated-graph.json), [raw answer](evidence/455/prop42-generated-raw.json), [Prop 41](evidence/455/prop41-generated-graph.json)); verification dropped two Prop 42 cards whose quotes did not match. About half the disputes still lack either a yes-leaning or a no-leaning argument, which mostly reflects sources that argue only one way; the prompt forbids inventing the missing side. Tuning on more varied measures, and with other models, should precede generating at scale.
 
 ## Integration with existing work
 

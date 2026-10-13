@@ -11,6 +11,8 @@ const pilots = __DEV__
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       "40": require("~/components/trillion/development/prop40-pilot.json") as unknown,
       // eslint-disable-next-line @typescript-eslint/no-require-imports
+      "41": require("~/components/trillion/development/prop41-generated.json") as unknown,
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       "42": require("~/components/trillion/development/prop42-generated.json") as unknown,
     }
   : {};

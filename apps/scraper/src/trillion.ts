@@ -20,6 +20,7 @@ import {
   trillionCorpusSchema,
 } from "./scrapers/trillion-capture.js";
 import {
+  assessTrillionGraph,
   generateTrillionGraph,
   trillionAuthoredSchema,
 } from "./scrapers/trillion-generation.js";
@@ -150,6 +151,15 @@ await yargs(hideBin(process.argv))
         `${graph.nodes.length} nodes, ${graph.edges.length} links; unverified quotes: ${unverified.length ? unverified.join(", ") : "none"}; publication gate: ${published ? "passes" : "fails"}.`,
       );
       if (!published) process.exitCode = 1;
+    },
+  )
+  .command(
+    "eval <graph>",
+    "Print quality signals used to tune generation; no network, model or DB",
+    (y) => y.positional("graph", { type: "string", demandOption: true }),
+    async (args) => {
+      const graph = trillionGraphSchema.parse(await readJson(args.graph));
+      console.log(JSON.stringify(assessTrillionGraph(graph), null, 2));
     },
   )
   .command(

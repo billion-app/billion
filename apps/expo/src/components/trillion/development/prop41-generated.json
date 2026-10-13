@@ -1,0 +1,1069 @@
+{
+  "schemaVersion": 1,
+  "revision": "2026-11-03-41-f891eb9f99f6ede3",
+  "jurisdiction": "CA",
+  "electionDate": "2026-11-03",
+  "measure": {
+    "number": "41",
+    "title": "PROHIBITS NEW STATE TAXES THAT EXCLUDE REVENUES FROM STATE SPENDING LIMIT. REQUIRES AUDITS FOR NEW STATE SPECIAL TAXES. INITIATIVE CONSTITUTIONAL AMENDMENT.",
+    "url": "https://voterguide.sos.ca.gov/propositions/41/",
+    "guideHash": "7db4c3f03cf0521d08966e8f05c280762c7898514a5a7c0012eb3574ad251a3c"
+  },
+  "rootId": "root",
+  "nodes": [
+    {
+      "id": "root",
+      "kind": "root",
+      "label": "How should I vote on Prop 41?",
+      "title": "How should I vote on Prop 41?",
+      "quotes": []
+    },
+    {
+      "id": "does",
+      "kind": "branch",
+      "label": "What does it actually do?",
+      "title": "What does it actually do?",
+      "quotes": []
+    },
+    {
+      "id": "behind",
+      "kind": "branch",
+      "label": "Who's behind it?",
+      "title": "Who's behind it?",
+      "quotes": []
+    },
+    {
+      "id": "when",
+      "kind": "branch",
+      "label": "When?",
+      "title": "When?",
+      "quotes": []
+    },
+    {
+      "id": "act",
+      "kind": "branch",
+      "label": "How can I act?",
+      "title": "How can I act?",
+      "quotes": []
+    },
+    {
+      "id": "results",
+      "kind": "crux",
+      "label": "Would audits improve public services?",
+      "title": "Would audits improve public services?",
+      "quotes": [],
+      "dispute": "facts"
+    },
+    {
+      "id": "cost",
+      "kind": "crux",
+      "label": "Would the audits pay for themselves?",
+      "title": "Would the audits pay for themselves?",
+      "quotes": [],
+      "dispute": "facts"
+    },
+    {
+      "id": "cap",
+      "kind": "crux",
+      "label": "Should new taxes stay within the spending limit?",
+      "title": "Should new taxes stay within the spending limit?",
+      "quotes": [],
+      "dispute": "values"
+    },
+    {
+      "id": "conflict",
+      "kind": "crux",
+      "label": "Could Prop 41 prevent Prop 40 from taking effect?",
+      "title": "Could Prop 41 prevent Prop 40 from taking effect?",
+      "quotes": [],
+      "dispute": "legal"
+    },
+    {
+      "id": "a1",
+      "kind": "argument",
+      "label": "Audits could improve outcomes",
+      "title": "Independent public audits could improve **program outcomes**",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Argument in favor, opening paragraph",
+          "text": "Prop. 41 requires the State Auditor to conduct independent public audits of programs funded by proposed new taxes in order to increase transparency and accountability and drive better outcomes."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Denise LeDuc Froemming, Tom Hayes, Robert Gutierrez"
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "argument",
+      "label": "Homelessness spending lacks results",
+      "title": "Spending on **homelessness efforts** has produced too little",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Argument in favor, opening discussion of spending",
+          "text": "Billions of our tax dollars have flowed into state programs like homelessness efforts, with too little to show for it."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Denise LeDuc Froemming, Tom Hayes, Robert Gutierrez"
+      }
+    },
+    {
+      "id": "a3",
+      "kind": "argument",
+      "label": "Information before voting",
+      "title": "Publishing audit findings gives voters **independent information** about new taxes",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Argument in favor, independent public information section",
+          "text": "Under Prop. 41, the Auditor’s findings must be posted publicly and in the Voter Information Guide—so voters can make informed decisions about new taxes without having to rely on information from special interests or politicians."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Denise LeDuc Froemming, Tom Hayes, Robert Gutierrez"
+      }
+    },
+    {
+      "id": "a4",
+      "kind": "argument",
+      "label": "Spending limit protects taxpayers",
+      "title": "Keeping taxes within the spending limit protects **excess-revenue refunds**",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Argument in favor, better deal for taxpayers, second bullet",
+          "text": "Requires all taxes to comply with the state’s voter-approved spending limit—including its requirement that excess revenues get refunded to taxpayers."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Denise LeDuc Froemming, Tom Hayes, Robert Gutierrez"
+      }
+    },
+    {
+      "id": "a5",
+      "kind": "argument",
+      "label": "Designed to undo Prop 40",
+      "title": "Prop 41 is designed to undo **the billionaire tax**",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Argument against, opening paragraph",
+          "text": "This is a billionaire-funded initiative designed specifically to undo the California Billionaire Tax, Prop. 40."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument against",
+        "signers": "Suzanne Jimenez"
+      }
+    },
+    {
+      "id": "a6",
+      "kind": "argument",
+      "label": "Healthcare funding at risk",
+      "title": "Defeating the billionaire tax could put **working people's healthcare** at risk",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Argument against, cancel out the billionaire tax section",
+          "text": "It’s about defeating one specific tax that billionaires want to avoid, because they’d rather millions of working people lose healthcare than pay a modest, one-time tax on their extreme wealth."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument against",
+        "signers": "Suzanne Jimenez"
+      }
+    },
+    {
+      "id": "a7",
+      "kind": "argument",
+      "label": "Sergey Brin funding claim",
+      "title": "**Sergey Brin** is one of Prop 41's main funders",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Argument against, funded by billionaires section",
+          "text": "One of Prop. 41’s main funders is Google founder and Trump donor Sergey Brin, whose wealth has DOUBLED to nearly $300 billion since Trump’s election."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument against",
+        "signers": "Suzanne Jimenez"
+      }
+    },
+    {
+      "id": "a8",
+      "kind": "argument",
+      "label": "Audits would cost resources",
+      "title": "Prop 41 would consume **state time and money**",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Rebuttal to argument in favor, cancel out the billionaire tax section",
+          "text": "To add insult to injury, Prop. 41 isn’t just a scheme, it’s an expensive one—it would cost the state time and money."
+        }
+      ],
+      "attribution": {
+        "name": "Rebuttal against",
+        "signers": "Suzanne Jimenez"
+      }
+    },
+    {
+      "id": "a9",
+      "kind": "argument",
+      "label": "Tax enforcement targeted",
+      "title": "Prop 41 aims to make **a billionaire tax** impossible to enforce",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Rebuttal to argument in favor, donors section",
+          "text": "This sham initiative was created to trick voters like you into making a billionaire tax impossible to enforce."
+        }
+      ],
+      "attribution": {
+        "name": "Rebuttal against",
+        "signers": "Suzanne Jimenez"
+      }
+    },
+    {
+      "id": "a10",
+      "kind": "argument",
+      "label": "Poor results hurt service users",
+      "title": "Programs that fail hurt **people relying on services**",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Rebuttal to argument against, opening sentence",
+          "text": "When state government programs don’t deliver, it hurts the people who rely on those services and the taxpayers who fund them."
+        }
+      ],
+      "attribution": {
+        "name": "Rebuttal for",
+        "signers": "Pat Fong Kushida, Steve Westly, Robert Gutierrez"
+      }
+    },
+    {
+      "id": "a11",
+      "kind": "argument",
+      "label": "Waste displaces useful spending",
+      "title": "Reducing waste leaves resources to **help someone**",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Rebuttal to argument against, taxpayers deserve better results section",
+          "text": "Every dollar wasted is one that could go to help someone."
+        }
+      ],
+      "attribution": {
+        "name": "Rebuttal for",
+        "signers": "Pat Fong Kushida, Steve Westly, Robert Gutierrez"
+      }
+    },
+    {
+      "id": "a12",
+      "kind": "argument",
+      "label": "Reviews expose mismanagement",
+      "title": "Public reviews would expose **waste or mismanagement** and recommend improvements",
+      "quotes": [
+        {
+          "sourceId": "arguments-41",
+          "locator": "Rebuttal to argument against, public audits section",
+          "text": "Under Prop. 41, the independent State Auditor publicly reviews the programs that new taxes would fund, exposes any waste or mismanagement, and recommends program improvements."
+        }
+      ],
+      "attribution": {
+        "name": "Rebuttal for",
+        "signers": "Pat Fong Kushida, Steve Westly, Robert Gutierrez"
+      }
+    },
+    {
+      "id": "independent",
+      "kind": "analysis",
+      "label": "Independent auditor",
+      "title": "The State Auditor is **independent and nonpartisan**",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Background, California State Auditor’s Office, sentence 1",
+          "text": "The State Auditor is an independent and nonpartisan office in state government."
+        }
+      ]
+    },
+    {
+      "id": "early",
+      "kind": "analysis",
+      "label": "Audits start before qualification",
+      "title": "Audits start after **25 percent of signatures**, before ballot qualification is known",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Proposal, one-time audits, sentence 2",
+          "text": "This audit would occur after supporters collect 25 percent of the signatures needed to qualify a measure for the ballot, which is before it is known whether the initiative will qualify for the ballot."
+        }
+      ]
+    },
+    {
+      "id": "savings",
+      "kind": "analysis",
+      "label": "Savings depend on implementation",
+      "title": "Savings require policymakers to **implement effective recommendations**",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Fiscal effects, possible savings, sentence 2",
+          "text": "Proposition 41 could result in savings or improved services if policymakers implement the State Auditor’s recommendations and those recommendations prove effective."
+        }
+      ]
+    },
+    {
+      "id": "audit-cost",
+      "kind": "analysis",
+      "label": "Audit costs grow over time",
+      "title": "Audit costs would likely start in the **low millions of dollars per year** and grow",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Fiscal effects, increased State Auditor costs, sentence 3",
+          "text": "These costs likely would be in the range of the low millions of dollars per year but would grow over time."
+        }
+      ]
+    },
+    {
+      "id": "failed-cost",
+      "kind": "analysis",
+      "label": "General Fund pays for failed initiatives",
+      "title": "The **General Fund** pays audit costs for tax initiatives that fail",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Fiscal effects, increased State Auditor costs, sentence 5",
+          "text": "One-time audit costs associated with special taxes that do not ultimately appear on the ballot or are rejected by voters would be paid from the state’s General Fund."
+        }
+      ]
+    },
+    {
+      "id": "mail-cost",
+      "kind": "analysis",
+      "label": "Longer guides cost more",
+      "title": "Audit summaries increase printing and mailing costs by **a few hundred thousand dollars** per qualified initiative",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Fiscal effects, higher costs to print and mail VIG, sentence 2",
+          "text": "These audit summaries could add several pages to the VIG, which would increase state printing and mailing costs by a few hundred thousand dollars per qualified initiative."
+        }
+      ]
+    },
+    {
+      "id": "net",
+      "kind": "analysis",
+      "label": "Net fiscal effect unknown",
+      "title": "The **net fiscal effect** depends on future decisions and is unknown",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Fiscal effects, net effect not known",
+          "text": "The net fiscal effect of Proposition 41 is unknown as it depends on future decisions by voters, the Legislature, and other policymakers."
+        }
+      ]
+    },
+    {
+      "id": "exclusions",
+      "kind": "analysis",
+      "label": "Existing spending exclusions",
+      "title": "Some spending, including **infrastructure**, is currently excluded from the limit",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Proposal, State Appropriations Limit, sentence 3",
+          "text": "However, certain types of spending, for example for infrastructure, are excluded from this limit."
+        }
+      ]
+    },
+    {
+      "id": "new-limit",
+      "kind": "analysis",
+      "label": "New spending exclusions uncertain",
+      "title": "The state might lose exclusions for **new special tax spending**",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Proposal, State Appropriations Limit, sentence 4",
+          "text": "Under Proposition 41, the state might not be able to exclude new special tax spending from the limit."
+        }
+      ]
+    },
+    {
+      "id": "court-conflict",
+      "kind": "analysis",
+      "label": "Courts could stop Prop 40",
+      "title": "Prop 40 could be stopped if **Prop 41 receives more yes votes** and courts find a conflict",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Figure 1, sentences 1–2",
+          "text": "If Proposition 41 receives more “yes” votes than Proposition 40 on this same ballot, then Proposition 40 could be stopped from becoming law even if it gets yes votes from a majority of voters. This is because the courts could find that Proposition 41 conflicts with Proposition 40."
+        }
+      ]
+    },
+    {
+      "id": "goals",
+      "kind": "provision",
+      "label": "Audits assess outcomes",
+      "title": "Audits must assess whether programs achieve **intended goals and outcomes**",
+      "quotes": [
+        {
+          "sourceId": "law-41",
+          "locator": "Section 4, Article XXIV, Section 1(b)(3), p. 148",
+          "text": "achieving its intended goals and outcomes."
+        }
+      ]
+    },
+    {
+      "id": "four-years",
+      "kind": "provision",
+      "label": "Reviews every four years",
+      "title": "Ongoing audits must be completed **every four years**",
+      "quotes": [
+        {
+          "sourceId": "law-41",
+          "locator": "Section 4, Article XXIV, Section 2(a)(2), p. 149",
+          "text": "completed every four years."
+        }
+      ]
+    },
+    {
+      "id": "public-input",
+      "kind": "provision",
+      "label": "Public input on standards",
+      "title": "The auditor must invite **public input** on program-effectiveness standards",
+      "body": "The provision specifies input from the public to inform standards for measuring effectiveness and determining how taxes can be spent more effectively.",
+      "quotes": [
+        {
+          "sourceId": "law-41",
+          "locator": "Section 4, Article XXIV, Section 2(c)(2), p. 149",
+          "text": "The California State Auditor shall also invite input"
+        }
+      ]
+    },
+    {
+      "id": "ban",
+      "kind": "provision",
+      "label": "Cannot collect excluded new taxes",
+      "title": "The state cannot **collect excluded taxes** enacted or effective on or after January 1, 2026",
+      "body": "The prohibition covers enforcing these taxes too, if they are exempted or excluded from the Government Spending Limitation.",
+      "quotes": [
+        {
+          "sourceId": "law-41",
+          "locator": "Section 4, Article XXIV, Section 3(b), p. 149",
+          "text": "The State of California shall not impose, collect, or"
+        }
+      ]
+    },
+    {
+      "id": "whole-conflict",
+      "kind": "provision",
+      "label": "Entire conflicting measure void",
+      "title": "More affirmative votes for Prop 41 could void **an entire conflicting measure**",
+      "body": "The conflict clause covers different special-tax audit rules and state taxes excluded from the spending limit.",
+      "quotes": [
+        {
+          "sourceId": "law-41",
+          "locator": "Section 5(a)(1), p. 150",
+          "text": "other measure shall be null and void."
+        }
+      ]
+    },
+    {
+      "id": "effective",
+      "kind": "provision",
+      "label": "Operative upon taking effect",
+      "title": "Prop 41 becomes operative **the day it takes effect**",
+      "quotes": [
+        {
+          "sourceId": "law-41",
+          "locator": "Section 7, p. 150",
+          "text": "same day it takes effect."
+        }
+      ]
+    },
+    {
+      "id": "record40",
+      "kind": "record",
+      "label": "Prop 40 spending-limit exclusion",
+      "title": "Prop 40 excludes **Reserve Fund appropriations** from the spending limit",
+      "body": "This exclusion connects Prop 40 to Prop 41's prohibition and conflict clause.",
+      "quotes": [
+        {
+          "sourceId": "law-40",
+          "locator": "Section 4, Article XIII, Section 37(f), p. 137",
+          "text": "not include appropriations of revenue from the Reserve"
+        }
+      ],
+      "record": {
+        "number": "40"
+      }
+    },
+    {
+      "id": "funders",
+      "kind": "question",
+      "label": "How can I check campaign funding?",
+      "title": "How can I check campaign funding?",
+      "quotes": []
+    },
+    {
+      "id": "funding-links",
+      "kind": "analysis",
+      "label": "Official contribution resources",
+      "title": "Check **campaign contribution records** to examine who funds each side",
+      "quotes": [
+        {
+          "sourceId": "analysis-41",
+          "locator": "Contribution resources following fiscal effects",
+          "text": "Visit sos.ca.gov/campaign-lobbying/cal-access-resources/measure-contributions/2026-ballot-measure-contribution-totals for a list of committees primarily formed to support or oppose this measure. Visit fppc.ca.gov/transparency/top-contributors.html to access the committee's top 10 contributors."
+        }
+      ]
+    },
+    {
+      "id": "recommendations",
+      "kind": "question",
+      "label": "Are recommended savings automatic?",
+      "title": "Are recommended savings automatic?",
+      "quotes": []
+    },
+    {
+      "id": "not-automatic",
+      "kind": "generated",
+      "label": "Recommendations need follow-through",
+      "title": "An audit recommendation is not **an implemented program change**",
+      "body": "Distinguish requiring audits from ensuring policymakers act on their findings. The projected benefits depend on implementation and effectiveness.",
+      "quotes": []
+    },
+    {
+      "id": "election",
+      "kind": "generated",
+      "label": "Election date",
+      "title": "Prop 41 is on the **November 3, 2026** ballot",
+      "quotes": []
+    },
+    {
+      "id": "read-together",
+      "kind": "generated",
+      "label": "Read the measures together",
+      "title": "Explore **Prop 40's exclusion** alongside Prop 41's conflict rules",
+      "body": "The legal interaction is separate from whether audits improve services. Consider each question independently.",
+      "quotes": []
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "does",
+      "to": "root",
+      "type": "part"
+    },
+    {
+      "id": "e2",
+      "from": "behind",
+      "to": "root",
+      "type": "part"
+    },
+    {
+      "id": "e3",
+      "from": "when",
+      "to": "root",
+      "type": "part"
+    },
+    {
+      "id": "e4",
+      "from": "act",
+      "to": "root",
+      "type": "part"
+    },
+    {
+      "id": "e5",
+      "from": "results",
+      "to": "root",
+      "type": "crux"
+    },
+    {
+      "id": "e6",
+      "from": "cost",
+      "to": "root",
+      "type": "crux"
+    },
+    {
+      "id": "e7",
+      "from": "cap",
+      "to": "root",
+      "type": "crux"
+    },
+    {
+      "id": "e8",
+      "from": "conflict",
+      "to": "root",
+      "type": "crux"
+    },
+    {
+      "id": "e9",
+      "from": "a1",
+      "to": "results",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e10",
+      "from": "a2",
+      "to": "results",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e11",
+      "from": "a3",
+      "to": "results",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e12",
+      "from": "a4",
+      "to": "cap",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e13",
+      "from": "a5",
+      "to": "conflict",
+      "type": "weighs",
+      "stance": "against"
+    },
+    {
+      "id": "e14",
+      "from": "a6",
+      "to": "cap",
+      "type": "weighs",
+      "stance": "against",
+      "why": "Opponents connect blocking the excluded billionaire tax to healthcare funding risks."
+    },
+    {
+      "id": "e15",
+      "from": "a7",
+      "to": "conflict",
+      "type": "weighs",
+      "stance": "against",
+      "why": "The funding allegation supplies context for opponents' claimed purpose, not proof of the legal outcome."
+    },
+    {
+      "id": "e16",
+      "from": "a8",
+      "to": "cost",
+      "type": "weighs",
+      "stance": "against"
+    },
+    {
+      "id": "e17",
+      "from": "a9",
+      "to": "conflict",
+      "type": "weighs",
+      "stance": "against"
+    },
+    {
+      "id": "e18",
+      "from": "a10",
+      "to": "results",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e19",
+      "from": "a11",
+      "to": "cost",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e20",
+      "from": "a12",
+      "to": "results",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e21",
+      "from": "savings",
+      "to": "results",
+      "type": "weighs",
+      "stance": "mixed"
+    },
+    {
+      "id": "e22",
+      "from": "savings",
+      "to": "cost",
+      "type": "weighs",
+      "stance": "mixed"
+    },
+    {
+      "id": "e23",
+      "from": "audit-cost",
+      "to": "cost",
+      "type": "weighs",
+      "stance": "against"
+    },
+    {
+      "id": "e24",
+      "from": "net",
+      "to": "cost",
+      "type": "weighs",
+      "stance": "mixed"
+    },
+    {
+      "id": "e25",
+      "from": "exclusions",
+      "to": "cap",
+      "type": "weighs",
+      "stance": "mixed"
+    },
+    {
+      "id": "e26",
+      "from": "new-limit",
+      "to": "cap",
+      "type": "weighs",
+      "stance": "mixed"
+    },
+    {
+      "id": "e27",
+      "from": "court-conflict",
+      "to": "conflict",
+      "type": "weighs",
+      "stance": "mixed"
+    },
+    {
+      "id": "e28",
+      "from": "whole-conflict",
+      "to": "conflict",
+      "type": "weighs",
+      "stance": "mixed"
+    },
+    {
+      "id": "e29",
+      "from": "independent",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e30",
+      "from": "early",
+      "to": "when",
+      "type": "detail"
+    },
+    {
+      "id": "e31",
+      "from": "savings",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e32",
+      "from": "audit-cost",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e33",
+      "from": "failed-cost",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e34",
+      "from": "mail-cost",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e35",
+      "from": "net",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e36",
+      "from": "exclusions",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e37",
+      "from": "new-limit",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e38",
+      "from": "court-conflict",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e39",
+      "from": "goals",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e40",
+      "from": "four-years",
+      "to": "when",
+      "type": "detail"
+    },
+    {
+      "id": "e41",
+      "from": "public-input",
+      "to": "act",
+      "type": "detail"
+    },
+    {
+      "id": "e42",
+      "from": "ban",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e43",
+      "from": "whole-conflict",
+      "to": "does",
+      "type": "detail"
+    },
+    {
+      "id": "e44",
+      "from": "effective",
+      "to": "when",
+      "type": "detail"
+    },
+    {
+      "id": "e45",
+      "from": "funding-links",
+      "to": "act",
+      "type": "detail"
+    },
+    {
+      "id": "e46",
+      "from": "funders",
+      "to": "behind",
+      "type": "asks"
+    },
+    {
+      "id": "e47",
+      "from": "funding-links",
+      "to": "funders",
+      "type": "answers"
+    },
+    {
+      "id": "e48",
+      "from": "recommendations",
+      "to": "results",
+      "type": "asks"
+    },
+    {
+      "id": "e49",
+      "from": "not-automatic",
+      "to": "recommendations",
+      "type": "answers"
+    },
+    {
+      "id": "e50",
+      "from": "savings",
+      "to": "not-automatic",
+      "type": "supports"
+    },
+    {
+      "id": "e51",
+      "from": "goals",
+      "to": "a1",
+      "type": "supports"
+    },
+    {
+      "id": "e52",
+      "from": "independent",
+      "to": "a3",
+      "type": "supports"
+    },
+    {
+      "id": "e53",
+      "from": "savings",
+      "to": "a1",
+      "type": "qualifies"
+    },
+    {
+      "id": "e54",
+      "from": "audit-cost",
+      "to": "a8",
+      "type": "supports"
+    },
+    {
+      "id": "e55",
+      "from": "failed-cost",
+      "to": "a8",
+      "type": "supports"
+    },
+    {
+      "id": "e56",
+      "from": "mail-cost",
+      "to": "a8",
+      "type": "supports"
+    },
+    {
+      "id": "e57",
+      "from": "net",
+      "to": "a11",
+      "type": "qualifies"
+    },
+    {
+      "id": "e58",
+      "from": "new-limit",
+      "to": "a4",
+      "type": "qualifies"
+    },
+    {
+      "id": "e59",
+      "from": "ban",
+      "to": "a9",
+      "type": "supports"
+    },
+    {
+      "id": "e60",
+      "from": "whole-conflict",
+      "to": "a5",
+      "type": "supports"
+    },
+    {
+      "id": "e61",
+      "from": "court-conflict",
+      "to": "a5",
+      "type": "qualifies"
+    },
+    {
+      "id": "e62",
+      "from": "record40",
+      "to": "conflict",
+      "type": "supports"
+    },
+    {
+      "id": "e63",
+      "from": "a7",
+      "to": "behind",
+      "type": "detail"
+    },
+    {
+      "id": "e64",
+      "from": "a1",
+      "to": "behind",
+      "type": "detail"
+    },
+    {
+      "id": "e65",
+      "from": "election",
+      "to": "when",
+      "type": "detail"
+    },
+    {
+      "id": "e66",
+      "from": "read-together",
+      "to": "act",
+      "type": "detail"
+    },
+    {
+      "id": "e67",
+      "from": "record40",
+      "to": "read-together",
+      "type": "supports"
+    },
+    {
+      "id": "e68",
+      "from": "whole-conflict",
+      "to": "read-together",
+      "type": "supports"
+    },
+    {
+      "id": "e69",
+      "from": "four-years",
+      "to": "a12",
+      "type": "supports"
+    },
+    {
+      "id": "e70",
+      "from": "public-input",
+      "to": "a1",
+      "type": "supports"
+    }
+  ],
+  "sources": [
+    {
+      "id": "law-41",
+      "number": "41",
+      "role": "legal-text",
+      "url": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop41-text-proposed-laws.pdf",
+      "locator": "Proposition 41, full proposed law; see claim-specific section locators",
+      "retrievedAt": "2026-10-13T04:13:30.011Z",
+      "hash": "85d26c25345f4e5464210fab1a5d62360271be67c6ff1e65d4d15a9f5c678fd9",
+      "documentHash": "c5126121aa12fa592bb5a430f12270a4f2c6962fd22f8106c95089062275b9e8"
+    },
+    {
+      "id": "analysis-41",
+      "number": "41",
+      "role": "official-analysis",
+      "url": "https://voterguide.sos.ca.gov/propositions/41/analysis.htm",
+      "locator": "Proposition 41, official LAO analysis including image descriptions",
+      "retrievedAt": "2026-10-13T04:13:30.011Z",
+      "hash": "5fee807f3178be9112ad172a7455a00b8097e0cb5f3ed40ec675e05dedef08bd",
+      "documentHash": "5fee807f3178be9112ad172a7455a00b8097e0cb5f3ed40ec675e05dedef08bd"
+    },
+    {
+      "id": "arguments-41",
+      "number": "41",
+      "role": "official-arguments",
+      "url": "https://voterguide.sos.ca.gov/propositions/41/arguments-rebuttals.htm",
+      "locator": "Proposition 41, official arguments and rebuttals",
+      "retrievedAt": "2026-10-13T04:13:30.169Z",
+      "hash": "171fbfec47dd8e29ff212189b91aad25985479177f5df791fbf31147973517c1",
+      "documentHash": "171fbfec47dd8e29ff212189b91aad25985479177f5df791fbf31147973517c1"
+    },
+    {
+      "id": "law-40",
+      "number": "40",
+      "role": "legal-text",
+      "url": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop40-text-proposed-laws.pdf",
+      "locator": "Proposition 40, full proposed law; see claim-specific section locators",
+      "retrievedAt": "2026-10-13T04:13:30.446Z",
+      "hash": "a2de24bb944c10590e83bae595461c0c21962a720b6c3459f6650d28d5d293da",
+      "documentHash": "07afc5d301b6d0612440ed094d27acb2ff3ab813fb44b374aa8479a210890c68"
+    },
+    {
+      "id": "law-42",
+      "number": "42",
+      "role": "legal-text",
+      "url": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop42-text-proposed-laws.pdf",
+      "locator": "Proposition 42, full proposed law; see claim-specific section locators",
+      "retrievedAt": "2026-10-13T04:13:30.694Z",
+      "hash": "2c97f4b91c8e1394dd673058332c265c17239a37db234897bd5a333680a8bc6f",
+      "documentHash": "21c9d7e166220d9609eb0e9e85d050c2f0a8dedfc15b07e4690d2a5ed48bb111"
+    }
+  ],
+  "verification": {
+    "state": "unverified"
+  },
+  "generation": {
+    "promptVersion": "trillion-v4",
+    "model": "openai-compatible:gpt-6.1-sol",
+    "inputHash": "f891eb9f99f6ede3736577eb0c9a429858448e13bc85b8ccbd98654380e137ce",
+    "generatedAt": "2026-10-13T04:18:23.666Z"
+  }
+}

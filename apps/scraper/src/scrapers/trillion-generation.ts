@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 import type { TrillionGraph } from "@acme/validators";
 import { propositionGuideHash } from "@acme/api/lib/measure-relationships";
 import {
+  plainTrillionText,
   QUOTED_TRILLION_KINDS,
   readingOrderText,
   trillionEdgeSchema,
@@ -15,7 +16,7 @@ import type { TrillionCorpus } from "./trillion-capture.js";
 import { sourceHash } from "./measure-relationship-capture.js";
 import { trillionCorpusSchema } from "./trillion-capture.js";
 
-export const TRILLION_PROMPT_VERSION = "trillion-v2";
+export const TRILLION_PROMPT_VERSION = "trillion-v4";
 export const trillionAuthoredSchema = z.object({
   nodes: z.array(trillionNodeSchema).min(5).max(150),
   edges: z.array(trillionEdgeSchema).max(500),
@@ -47,10 +48,10 @@ Purpose: help a voter explore the reasoning, find where people actually disagree
 Graph shape (node ids: lowercase letters, digits and hyphens):
 - Exactly one root, id "root", kind "root", title and label "How should I vote on Prop ${corpus.number}?".
 - Exactly four kind "branch" nodes linked to root with type "part": "What does it actually do?", "Who's behind it?", "When?", "How can I act?".
-- Three to six kind "crux" nodes: the specific questions people genuinely disagree about, phrased as neutral questions (for example "How much money would it actually raise?"). Each links to root with type "crux" and names its dispute: "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures).
+- Four to six kind "crux" nodes: the specific questions people genuinely disagree about, phrased as short neutral questions about ONE thing (at most 12 words, for example "How much money would it actually raise?"). Never join two questions with "and", "or" or "rather than"; split them. When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question. Each links to root with type "crux" and names its dispute: "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures).
 - Arguments link to a crux with type "weighs" and a stance toward a Yes vote: "for", "against" or "mixed". Group by question, never into pro and con lists.
 - Provisions of the measure (kind "provision"), findings the authors wrote (kind "finding"), and the Legislative Analyst (kind "analysis") link to the branch they explain with type "detail", and to claims they bear on with "supports", "challenges" or "qualifies".
-- Published ballot arguments and rebuttals are kind "argument" with attribution { name: "Ballot argument for|against" or "Rebuttal for|against", signers: names exactly as printed }.
+- Published ballot arguments and rebuttals are kind "argument" with attribution { name: "Ballot argument for|against" or "Rebuttal for|against", signers: names exactly as printed }. Split each published argument and rebuttal into its distinct claims: one argument node per claim, each quoting its own sentence or sentences (usually 8 to 14 argument nodes in all).
 - Billion's own connective inferences are kind "generated". Questions a reader would likely ask are kind "question", linked with "asks"; a generated node may "answers" them.
 - Related measures named in the sources are kind "record" with record.number, quoting the clause that connects them (for example a conflict clause).
 - Edge direction: "from" is the part and "to" is the whole. Branch → root ("part"), crux → root ("crux"), detail node → branch ("detail"), argument → crux ("weighs"), and the node doing the supporting, challenging, asking or answering → its target.
@@ -61,8 +62,10 @@ Evidence rules (checked mechanically):
 - Do not invent facts, numbers, sections, names or citations. If something is not in the sources, leave it out.
 - Nodes WITHOUT quotes (root, branch, crux, generated, question, shared, fact) must not state monetary amounts. Amounts appear only inside quoted source text and the titles of the nodes that quote them.
 - label: a few words (max 60 characters) summarizing the node for a map card. title: the full statement (max 300). body: optional plain-language context (max 800).
+- Titles state the claim itself, in plain words a voter would use, with the concrete mechanism, number, date or group. Never describe the source instead: not "The Analyst says revenue could fall" but "State and local revenue could fall, by an amount no one can estimate yet"; not "Supporters argue ownership taxes double-tax savings" but "Taxing what people own taxes money they already paid tax on". The node's kind and attribution already show who said it.
+- Every disputed question needs at least three "weighs" links from different nodes. Draw them from the split ballot arguments and rebuttals, the Legislative Analyst, provisions and findings; evidence that bears on a dispute weighs on it with the lean it supports. When the sources support both a yes-leaning and a no-leaning point on a question, include both. Never invent a side the sources lack: use "mixed" where it fits. A node may weigh on more than one question.
 - Emphasis is a scan aid, as in Billion's bill briefs: in each statement title, wrap the ONE short, concrete phrase a skimmer most needs in **double asterisks** (two at most, never the whole title, never a verdict or loaded language). Questions (root, branches, cruxes, kind "question") and labels carry no emphasis, and quotes never do: they are verbatim.
-- Keep it focused: about 30 to 60 nodes. Prefer the provisions and arguments that the disputes actually turn on.
+- Keep it focused: about 40 to 60 nodes. Prefer the provisions and arguments that the disputes actually turn on.
 
 Measure: Proposition ${corpus.number}, ${measure.title}
 Election: ${corpus.guide.electionDate}
@@ -211,5 +214,77 @@ export async function generateTrillionGraph(
     graph: checked.data,
     reused: false,
     dropped: [...dropped, ...flipped.map((id) => `${id} (direction repaired)`)],
+  };
+}
+
+/** Title openings that describe a source instead of stating the claim. */
+const META_TITLE =
+  /^(the (legislative )?analyst|the (lao|measure|act|section|text|proposition|ownership|exception|restriction|ban|ballot argument)|supporters|opponents|proponents|critics|it (says|states|describes)|this (section|provision))\b/i;
+
+/**
+ * Quality signals for tuning generation; none of these gate publication.
+ * They measure what the hand-built pilot does well: disputes with arguments
+ * on more than one side, evidence wired into the debate, and concrete titles.
+ */
+export function assessTrillionGraph(graph: TrillionGraph) {
+  const kinds: Record<string, number> = {};
+  for (const n of graph.nodes) kinds[n.kind] = (kinds[n.kind] ?? 0) + 1;
+  const cruxes = graph.nodes.filter((n) => n.kind === "crux");
+  const perCrux = cruxes.map((crux) => {
+    const weighs = graph.edges.filter(
+      (e) => e.type === "weighs" && e.to === crux.id,
+    );
+    return {
+      id: crux.id,
+      title: plainTrillionText(crux.title),
+      arguments: weighs.length,
+      sides: [...new Set(weighs.map((e) => e.stance))].sort().join("/"),
+    };
+  });
+  const evidence = graph.nodes.filter((n) =>
+    ["provision", "finding", "analysis", "precedent"].includes(n.kind),
+  );
+  const debating = (id: string) =>
+    graph.edges.some(
+      (e) =>
+        e.from === id &&
+        ["weighs", "supports", "challenges", "qualifies"].includes(e.type),
+    );
+  const statements = graph.nodes.filter(
+    (n) =>
+      !["root", "branch", "crux", "question"].includes(n.kind) &&
+      !n.title.trim().endsWith("?"),
+  );
+  return {
+    nodes: graph.nodes.length,
+    links: graph.edges.length,
+    kinds,
+    cruxes: perCrux,
+    thinCruxes: perCrux.filter((c) => c.arguments < 3).length,
+    compoundCruxes: perCrux
+      .filter(
+        (c) =>
+          /\b(and|or|rather than)\b|, (and|including)/i.test(c.title) ||
+          c.title.split(/\s+/).length > 12,
+      )
+      .map((c) => c.title),
+    oneSidedCruxes: perCrux.filter(
+      (c) => !(c.sides.includes("for") && c.sides.includes("against")),
+    ).length,
+    argumentsOutsideDisputes: graph.nodes.filter(
+      (n) =>
+        n.kind === "argument" &&
+        !graph.edges.some((e) => e.from === n.id && e.type === "weighs"),
+    ).length,
+    evidenceInDebate: `${evidence.filter((n) => debating(n.id)).length}/${evidence.length}`,
+    metaTitles: statements
+      .filter((n) => META_TITLE.test(plainTrillionText(n.title)))
+      .map((n) => plainTrillionText(n.title)),
+    unemphasized: statements.filter((n) => !n.title.includes("**")).length,
+    unanswered: graph.nodes.filter(
+      (n) =>
+        n.kind === "question" &&
+        !graph.edges.some((e) => e.to === n.id && e.type === "answers"),
+    ).length,
   };
 }
