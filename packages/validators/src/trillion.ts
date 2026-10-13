@@ -127,6 +127,16 @@ export const trillionQuoteSchema = z.object({
   text: z.string().trim().min(12).max(1500),
 });
 
+/**
+ * Jargon a voter may not know ("spending limit"), defined in one everyday
+ * sentence. Like the bill briefs' terms, readers see the term in blue and tap
+ * it for the meaning. Definitions are Billion's explanation, not quotes.
+ */
+export const trillionTermSchema = z.object({
+  term: z.string().trim().min(2).max(60),
+  plain: z.string().trim().min(10).max(250),
+});
+
 export const trillionNodeSchema = z.object({
   id,
   kind: z.enum(TRILLION_NODE_KINDS),
@@ -170,6 +180,7 @@ const graphShape = z.object({
     guideHash: hash,
   }),
   rootId: id,
+  terms: z.array(trillionTermSchema).max(8).default([]),
   /**
    * What the measure does, in two or three plain sentences under the reader's
    * question. Billion writes it, so it must quote the measure's own legal text
@@ -177,7 +188,10 @@ const graphShape = z.object({
    */
   summary: z
     .object({
-      text: z.string().trim().min(40).max(600),
+      /** One short sentence: the core change. */
+      text: z.string().trim().min(15).max(140),
+      /** Optional detail behind "Read more": who it covers, where money goes. */
+      more: z.string().trim().min(20).max(400).optional(),
       quotes: z.array(trillionQuoteSchema).min(1).max(6),
       /** Drafted in its own model call that saw only the legal text. */
       generation: z
@@ -264,6 +278,7 @@ function checkStructure(
     | "revision"
     | "verification"
     | "summary"
+    | "terms"
   > & { sources: { id: string; number: string; role: string }[] },
   ctx: z.RefinementCtx,
 ) {
@@ -282,9 +297,23 @@ function checkStructure(
     value.sources.filter((s) => s.role === "precedent").map((s) => s.id),
   );
 
+  const termKeys = value.terms.map((t) => t.term.toLowerCase());
+  if (new Set(termKeys).size !== termKeys.length)
+    issue("Each term is defined once.");
+  for (const t of value.terms) {
+    if (contextMoneyMentions(t.plain).length > 0)
+      issue(`term "${t.term}": definitions may not state monetary amounts.`);
+    if (t.term.includes("**") || emphasisProblem(t.plain))
+      issue(
+        `term "${t.term}": emphasis only marks a short phrase of the definition.`,
+      );
+  }
+
   if (value.summary) {
-    const problem = emphasisProblem(value.summary.text);
-    if (problem) issue(`summary has ${problem}.`);
+    for (const text of [value.summary.text, value.summary.more ?? ""]) {
+      const problem = emphasisProblem(text);
+      if (problem) issue(`summary has ${problem}.`);
+    }
     for (const quote of value.summary.quotes) {
       const source = value.sources.find((s) => s.id === quote.sourceId);
       // The summary describes this measure, so only its own legal text counts.

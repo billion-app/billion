@@ -10,39 +10,45 @@
     "guideHash": "370afb3d71e103ea0f88cfe44836b16ab4ee9bcbb1bbe7aca753cf4211d03ea2"
   },
   "rootId": "root",
+  "terms": [
+    {
+      "term": "personal assets",
+      "plain": "These include retirement savings, investments, business interests, belongings, and other property besides real estate."
+    },
+    {
+      "term": "constitutional provisions",
+      "plain": "These are rules in California’s Constitution."
+    }
+  ],
   "summary": {
-    "text": "Bars **ownership taxes** on retirement holdings, individually owned assets and personal savings, and **retroactive taxes**, under state laws or constitutional provisions enacted from January 1, 2026. Taxes in effect, imposed and first collected by December 31, 2025, and real-property taxation remain unchanged. General Fund money funds legal defense if the Governor and Attorney General refuse.",
+    "text": "Bans new taxes on owning personal assets and taxes based on past activities or status.",
+    "more": "Applies to state laws and constitutional provisions enacted from January 1, 2026; leaves existing taxes and real estate taxation unchanged. Emergency taxes may reach back 365 days, with revenue going to the declared emergency response.",
     "quotes": [
       {
         "sourceId": "law-42",
-        "locator": "Section 4, Article VIII, Section 1(a)",
-        "text": "No state law and no provision of this Constitution … enacted on or after January 1, 2026, may enact, create, impose, or authorize collection of a tax on the ownership or control of retirement holdings, individually owned assets, and other forms of personal savings, whether held directly or indirectly."
+        "locator": "Section 4, Article VIII, Section 1(a)–(c)",
+        "text": "No state law and no provision of this Constitution … enacted on or after January 1, 2026, may enact, create, impose, or authorize collection of a tax on the ownership or control of retirement holdings, individually owned assets, and other forms of personal savings, whether held directly or indirectly. … Nothing in this section shall alter or limit the imposition or collection of any tax that was in effect, imposed, and first collected on or before December 31, 2025. … Nothing in this section shall alter or affect the … taxation of real property as provided in other provisions … of this Constitution."
       },
       {
         "sourceId": "law-42",
-        "locator": "Section 4, Article VIII, Section 2(a)(1)",
-        "text": "No state law and no provision of this Constitution enacted on or after January 1, 2026, may enact, create, impose, or authorize collection of a tax that operates retroactively to result in tax liability based on conduct, activities, or a status that occurred or was present prior to the effective date of the state law or constitutional provision."
+        "locator": "Section 4, Article VIII, Section 2(a)–(b)",
+        "text": "No state law and no provision of this Constitution enacted on or after January 1, 2026, may enact, create, impose, or authorize collection of a tax that operates retroactively to result in tax liability based on conduct, activities, or a status that occurred or was present prior to the effective date of the state law or constitutional provision. … Nothing in subdivision (a) shall alter or limit the imposition or collection of any tax that was in effect, imposed, and first collected on or before December 31, 2025."
       },
       {
         "sourceId": "law-42",
-        "locator": "Section 4, Article VIII, Section 1(b)–(c)",
-        "text": "Nothing in this section shall alter or limit the imposition or collection of any tax that was in effect, imposed, and first collected on or before December 31, 2025. … Nothing in this section shall alter or affect the … taxation of real property as provided in other provisions … of this Constitution."
+        "locator": "Section 4, Article VIII, Section 2(c)",
+        "text": "Subdivision (a) shall not apply to a tax imposed by a … statute passed by the Legislature on or after January 1, … 2026, where both of the following apply: … The tax does not apply retroactively for more than … 365 days prior to the date the statute takes effect. … At least one of the following conditions exists: … The Governor declares an emergency as a result of … a fire, flood, storm, civil disorder, earthquake, volcanic … eruption, or actual or imminent attack by a foreign … enemy, and the use of the revenues from the tax are … expressly limited by the statute to responding to the … emergency. … The Governor declares a fiscal emergency pursuant … to subdivision (f) of Section 10 of Article IV and the use … of the revenues from the tax are expressly limited by the … statute to responding to the fiscal emergency."
       },
       {
         "sourceId": "law-42",
-        "locator": "Section 4, Article VIII, Section 2(b)",
-        "text": "Nothing in subdivision (a) shall alter or limit the imposition or collection of any tax that was in effect, imposed, and first collected on or before December 31, 2025."
-      },
-      {
-        "sourceId": "law-42",
-        "locator": "Section 9(c)",
-        "text": "In order to support the defense of this act in … instances where the Governor and Attorney General fail … to do so despite the will of the voters, a continuous … appropriation is hereby made from the General Fund to … the Controller, without regard to fiscal years, in an … amount necessary to cover the costs of retaining … independent counsel to faithfully and vigorously defend … this act on behalf of the State of California to the fullest … extent possible."
+        "locator": "Section 4, Article VIII, Section 3(a)",
+        "text": "“Retirement holdings, individually owned assets, … and other forms of personal savings” means pensions; … retirement accounts including, but not limited to, … 401(k) accounts, 403(b) accounts, and all other … individual retirement accounts; mutual funds; and all … personal property, whether tangible or intangible, … including, but not limited to, financial assets, … investment accounts, business interests, digital assets, … intellectual property, personal belongings, and other … assets used to produce or collect income or savings for … retirement or financial planning."
       }
     ],
     "generation": {
-      "promptVersion": "trillion-summary-v1",
+      "promptVersion": "trillion-summary-v4",
       "model": "openai-compatible:gpt-6.1-sol",
-      "generatedAt": "2026-10-13T14:04:31.173Z"
+      "generatedAt": "2026-10-13T14:16:26.153Z"
     }
   },
   "nodes": [

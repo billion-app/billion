@@ -1391,3 +1391,35 @@ textarea {
   font-size: 12px;
   color: var(--quiet);
 }
+.summary-more {
+  margin: 0 0 6px;
+}
+.summary-more summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--link);
+  list-style: none;
+}
+.summary-more summary::-webkit-details-marker {
+  display: none;
+}
+.summary-more[open] summary {
+  display: none;
+}
+.summary-more p {
+  margin: 0;
+  font: 400 15px/1.45 var(--display);
+  color: rgba(247, 244, 238, 0.86);
+}
+.fact-src {
+  font-size: 12px;
+  white-space: nowrap;
+}
+/* Defined terms, as in Billion's bill briefs: blue, dotted, tappable. */
+.term {
+  color: var(--link);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}

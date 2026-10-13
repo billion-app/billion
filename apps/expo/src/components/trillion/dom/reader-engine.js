@@ -18,6 +18,20 @@ import {
 
 const d3 = { forceLink, forceManyBody, forceSimulation, forceX, forceY };
 
+const MONTH_SLUG = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+];
 const MONTHS = [
   "Jan",
   "Feb",
@@ -395,8 +409,42 @@ export function mountTrillionReader(root, graph, options = {}) {
     );
   // Titles mark one or two key phrases with **, as bill briefs do; plain text drops the marks.
   const titleOf = (id) => (N[id].title || "(untitled)").replaceAll("**", "");
-  const emphasize = (text) =>
-    esc(text).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  // Defined terms show in blue, as in Billion's bill briefs; tapping one explains it.
+  const TERMS = new Map(
+    (graph.terms || []).map((t) => [t.term.toLowerCase(), t]),
+  );
+  const termPattern = TERMS.size
+    ? new RegExp(
+        `(?<![\\p{L}\\p{N}_])(${[...TERMS.values()]
+          .map((t) => esc(t.term))
+          .sort((a, b) => b.length - a.length)
+          .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+          .join("|")})(?![\\p{L}\\p{N}_])`,
+        "giu",
+      )
+    : null;
+  const emphasize = (text) => {
+    let html = esc(text);
+    if (termPattern)
+      html = html.replace(
+        termPattern,
+        (m) =>
+          `<span class="term" role="button" tabindex="0" data-term="${esc(m.toLowerCase())}">${m}</span>`,
+      );
+    return html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  };
+  function openTerm(key) {
+    const t = TERMS.get(key);
+    if (!t) return;
+    openSheet(
+      `<p class="meta" style="margin:0 0 4px">What this means</p>
+      <h2 id="sheet-title">${esc(t.term)}</h2>
+      <p class="body">${esc(t.plain).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>
+      <p class="counts">Billion's plain-language explanation.</p>
+      <div class="actions"><button class="btn ghost" type="button" data-close>Close</button></div>`,
+      true,
+    );
+  }
   const titleHtml = (id) => emphasize(N[id].title || "(untitled)");
 
   // Debate-structure ordering: unanswered first, then evidence-backed, then contested, then the rest.
@@ -918,6 +966,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     return `<section class="summary" aria-label="What it does">
       <p class="summary-k">What it does</p>
       <p class="summary-t">${emphasize(sm.text)}</p>
+      ${sm.more ? `<details class="summary-more"><summary>Read more</summary><p>${emphasize(sm.more)}</p></details>` : ""}
       <button class="linkish" type="button" data-summary-sources>From the measure text · ${sm.quotes.length} ${sm.quotes.length === 1 ? "quote" : "quotes"}</button>
     </section>`;
   }
@@ -950,6 +999,13 @@ export function mountTrillionReader(root, graph, options = {}) {
         day: "numeric",
         timeZone: "UTC",
       });
+    // Each fact links to the Secretary of State page that states it (checked October 2026).
+    const KEY_DATES = `https://www.sos.ca.gov/elections/upcoming-elections/general-election-${MONTH_SLUG[m - 1]}-${d}-${y}/key-dates-deadlines`;
+    const REGISTER = "https://www.sos.ca.gov/elections/voter-registration";
+    const MAIL =
+      "https://www.sos.ca.gov/elections/voter-registration/vote-mail";
+    const src = (href) =>
+      ` <a class="fact-src" href="${href}" target="_blank" rel="noopener">Source</a>`;
     const links = [
       ["Check your registration", "https://voterstatus.sos.ca.gov/"],
       ["Register to vote", "https://registertovote.ca.gov/"],
@@ -962,12 +1018,12 @@ export function mountTrillionReader(root, graph, options = {}) {
     return `<section class="voting" aria-label="Voting in California">
       <p class="summary-k">Voting in California</p>
       <ul class="voting-facts">
-        <li><strong>Election day:</strong> ${day(0)}. Polls are open 7 a.m. to 8 p.m.</li>
-        <li><strong>Register by ${day(-15)}.</strong> After that, you can still register and vote the same day at a county voting location.</li>
-        <li><strong>Voting by mail:</strong> every active voter is mailed a ballot. Return it by election day, by mail (postmarked) or at a drop box.</li>
+        <li><strong>Election day:</strong> ${day(0)}. Polls are open 7 a.m. to 8 p.m.${src(KEY_DATES)}</li>
+        <li><strong>Register by ${day(-15)}.</strong> After that, you can still register "conditionally" and vote a provisional ballot at your county elections office.${src(REGISTER)}</li>
+        <li><strong>Voting by mail:</strong> every active registered voter is mailed a ballot. Mail it postmarked by election day (it must arrive within 7 days), or drop it off by 8 p.m. on election day.${src(MAIL)}</li>
       </ul>
       <div class="voting-links">${links.map(([label, href]) => `<a href="${href}" target="_blank" rel="noopener">${label} ›</a>`).join("")}</div>
-      <p class="voting-src">From California election law and the Secretary of State. Not part of the debate.</p>
+      <p class="voting-src">From the California Secretary of State. Not part of the debate.</p>
     </section>`;
   }
 
@@ -2015,11 +2071,13 @@ export function mountTrillionReader(root, graph, options = {}) {
       return;
     }
     const t = ev.target.closest(
-      "[data-peek],[data-ring],[data-summary-sources],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
+      "[data-term],[data-peek],[data-ring],[data-summary-sources],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
     );
     if (!t) return;
     if (t.hasAttribute("data-scrim") && ev.target !== t) return;
-    if (t.dataset.peek) peekNode(t.dataset.peek, !!t.closest(".ring-sheet"));
+    if (t.dataset.term) openTerm(t.dataset.term);
+    else if (t.dataset.peek)
+      peekNode(t.dataset.peek, !!t.closest(".ring-sheet"));
     else if (t.hasAttribute("data-ring")) openRing();
     else if (t.dataset.node) {
       if ($("#layer").innerHTML) closeSheet();
@@ -2055,6 +2113,12 @@ export function mountTrillionReader(root, graph, options = {}) {
       : "Tap a slice to see what it is";
   });
   listen(document).addEventListener("keydown", (ev) => {
+    const term = ev.target.closest?.("[data-term]");
+    if (term && (ev.key === "Enter" || ev.key === " ")) {
+      ev.preventDefault();
+      openTerm(term.dataset.term);
+      return;
+    }
     if (ev.key === "Escape") {
       if ($("#layer").innerHTML) closeSheet();
       else if (mapEl.classList.contains("full")) setFull(false);

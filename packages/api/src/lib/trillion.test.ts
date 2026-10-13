@@ -219,3 +219,28 @@ void test("the summary quotes the measure's own text, verbatim", () => {
     null,
   );
 });
+
+void test("defined terms explain jargon without stating amounts", () => {
+  const withTerms = (terms: TrillionGraph["terms"]) =>
+    trillionGraphSchema.safeParse({ ...clone(), terms }).success;
+  assert.equal(
+    withTerms([
+      {
+        term: "spending limit",
+        plain: "A cap on how much the state can spend each year.",
+      },
+    ]),
+    true,
+  );
+  assert.equal(
+    withTerms([
+      { term: "net worth", plain: "Everything you own, over $1 billion here." },
+    ]),
+    false,
+  );
+  const twice = {
+    term: "special tax",
+    plain: "Tax money set aside for a named purpose.",
+  };
+  assert.equal(withTerms([twice, { ...twice, term: "Special Tax" }]), false);
+});

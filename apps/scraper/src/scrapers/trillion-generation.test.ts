@@ -18,8 +18,8 @@ const pilot = evidence("prop40-graph.json") as TrillionGraph;
 const authored = () =>
   structuredClone({ nodes: pilot.nodes, edges: pilot.edges });
 const summary = () => {
-  const { text, quotes } = structuredClone(pilot.summary)!;
-  return { text, quotes };
+  const { text, more, quotes } = structuredClone(pilot.summary)!;
+  return { text, more, quotes };
 };
 const options = {
   model: "test-model",
@@ -139,11 +139,15 @@ void test("a summary that misquotes the measure is dropped, not published", asyn
 });
 
 void test("the summary is drafted from the measure's legal text alone", async () => {
-  const { buildTrillionSummaryPrompt } = await import("./trillion-generation.js");
+  const { buildTrillionSummaryPrompt } =
+    await import("./trillion-generation.js");
   const { trillionCorpusSchema } = await import("./trillion-capture.js");
   const prompt = buildTrillionSummaryPrompt(trillionCorpusSchema.parse(corpus));
   assert.match(prompt, /sourceId "law-40"/);
   // Neither campaign's arguments nor the Analyst reach the summary call.
-  assert.doesNotMatch(prompt, /arguments-40|analysis-40|SEIU|Legislative Analyst/);
+  assert.doesNotMatch(
+    prompt,
+    /arguments-40|analysis-40|SEIU|Legislative Analyst/,
+  );
   assert.match(prompt, /not "one-time"|"one-time"/);
 });

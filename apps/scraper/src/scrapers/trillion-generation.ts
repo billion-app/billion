@@ -11,6 +11,7 @@ import {
   trillionGraphSchema,
   trillionNodeSchema,
   trillionQuoteSchema,
+  trillionTermSchema,
   unverifiedTrillionQuotes,
 } from "@acme/validators";
 
@@ -18,13 +19,17 @@ import type { TrillionCorpus } from "./trillion-capture.js";
 import { sourceHash } from "./measure-relationship-capture.js";
 import { trillionCorpusSchema } from "./trillion-capture.js";
 
-export const TRILLION_PROMPT_VERSION = "trillion-v7";
-export const TRILLION_SUMMARY_PROMPT_VERSION = "trillion-summary-v1";
+export const TRILLION_PROMPT_VERSION = "trillion-v9";
+export const TRILLION_SUMMARY_PROMPT_VERSION = "trillion-summary-v4";
+const termsField = z.array(trillionTermSchema).max(8).default([]);
 export const trillionSummarySchema = z.object({
-  text: z.string().trim().min(40).max(600),
+  terms: termsField,
+  text: z.string().trim().min(15).max(140),
+  more: z.string().trim().min(20).max(400).optional(),
   quotes: z.array(trillionQuoteSchema).min(1).max(6),
 });
 export const trillionAuthoredSchema = z.object({
+  terms: termsField,
   nodes: z.array(trillionNodeSchema).min(5).max(150),
   edges: z.array(trillionEdgeSchema).max(500),
 });
@@ -57,6 +62,7 @@ Graph shape (node ids: lowercase letters, digits and hyphens):
 - Exactly four kind "branch" nodes linked to root with type "part": "What does it actually do?", "Who's behind it?", "When?", "How can I act?".
 - Four to six kind "crux" nodes: the specific questions people genuinely disagree about, phrased as short neutral questions about ONE thing (at most 12 words, for example "How much money would it actually raise?"). Never join two questions with "and", "or" or "rather than"; split them. When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question. Each links to root with type "crux" and names its dispute: "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures).
 - Arguments link to a crux with type "weighs" and a stance toward a Yes vote ON THIS MEASURE: "for", "against" or "mixed". The stance is NOT the answer to the question. Under "Could Prop 41 prevent Prop 40 from taking effect?", the opponents' claim "Prop 41 was designed to undo Prop 40" answers the question yes but argues for a No vote on Prop 41, so its stance is "against". Group by question, never into pro and con lists.
+- When an argument's lean depends on a value framework rather than on facts (whether taxing wealth is fair depends on views about desert, need or equal treatment), give it stance "mixed" and surface the assumption: a kind "shared" node states the framework as a claim ("Taxing accumulated wealth is fair when gains go untaxed until sale"), linked to the argument with type "appliesTo", whose "why" says which way the argument cuts under that framework. Add a second framework node when a common rival view cuts the other way. Do this only where the sources' arguments actually turn on such an assumption.
 - Provisions of the measure (kind "provision"), findings the authors wrote (kind "finding"), and the Legislative Analyst (kind "analysis") link to the branch they explain with type "detail", and to claims they bear on with "supports", "challenges" or "qualifies". Readers see each branch's details in the order you write the "detail" edges: put the measure's core change first, then who it covers, then money, then exceptions and procedure. "What does it actually do?" is built from the measure's OWN legal text: give it five to ten provision nodes, each quoting the specific section that does the thing, before any analysis. The Legislative Analyst explains alongside the text; never use an analysis node to stand in for a provision the legal text states directly.
 - Anything about another ballot measure (a conflict clause, the Analyst on how two measures interact) also links to that measure's kind "record" node with type "conflicts" when one could block or override the other, otherwise "appliesTo". Readers see that link on the card.
 - Published ballot arguments and rebuttals are kind "argument" with attribution { name: "Ballot argument for|against" or "Rebuttal for|against", signers: names exactly as printed }. Split each published argument and rebuttal into its distinct claims: one argument node per claim, each quoting its own sentence or sentences (usually 8 to 14 argument nodes in all).
@@ -72,6 +78,7 @@ Evidence rules (checked mechanically):
 - label: a few words (max 60 characters) summarizing the node for a map card. title: the full statement (max 300). body: optional plain-language context (max 800).
 - Titles state the claim itself, in plain words a voter would use, with the concrete mechanism, number, date or group. Never describe the source instead: not "The Analyst says revenue could fall" but "State and local revenue could fall, by an amount no one can estimate yet"; not "Supporters argue ownership taxes double-tax savings" but "Taxing what people own taxes money they already paid tax on". The node's kind and attribution already show who said it.
 - Every disputed question needs at least three "weighs" links from different nodes. Draw them from the split ballot arguments and rebuttals, the Legislative Analyst, provisions and findings; evidence that bears on a dispute weighs on it with the lean it supports. When the sources support both a yes-leaning and a no-leaning point on a question, include both. Never invent a side the sources lack: use "mixed" where it fits. A node may weigh on more than one question.
+- "terms": jargon in your titles that a general reader might have to look up (such as "spending limit", "special tax", "provisional ballot"), each with "plain": one everyday sentence saying what it means in practice (no amounts). Only terms that actually appear in titles, at most six, written exactly as they appear. Readers see them in blue and tap for the meaning.
 - Emphasis is a scan aid, as in Billion's bill briefs: in each statement title, wrap the ONE short, concrete phrase a skimmer most needs in **double asterisks** (two at most, never the whole title, never a verdict or loaded language). Questions (root, branches, cruxes, kind "question") and labels carry no emphasis, and quotes never do: they are verbatim.
 - Keep it focused: about 40 to 60 nodes. Prefer the provisions and arguments that the disputes actually turn on.
 
@@ -96,7 +103,11 @@ export function buildTrillionSummaryPrompt(corpus: TrillionCorpus): string {
   if (!law) throw new Error("Corpus lacks the measure's legal text");
   return `Summarize California Proposition ${corpus.number} for voters using ONLY its legal text below.
 
-Write "text": two or three plain sentences, at most 60 words, that a voter can read in ten seconds: what the measure changes, who it covers, and where any money goes. Leave out fine print such as phase-ins, exemption lists and administrative steps; the rest of the graph covers those. State mechanics the way the text does: amounts, dates, who is covered, what is excluded. Do not use characterizations that supporters or opponents would dispute, such as "one-time", "only", "just", "protects", "closes a loophole", "targets" or "unfair"; write "for tax year 2026", not "one-time". No benefits, harms, predictions or verdicts. Bold one or two short key phrases with **double asterisks**, never a whole sentence.
+Write "text": a headline of at most 15 words in everyday language saying the core change, in the style of "Raises the minimum wage to $18 an hour." No dates, legal qualifiers or cross-references ("enacted on or after…", "with exceptions", "under state laws or constitutional provisions"); those go in "more". Most readers stop here.
+Write "more": one or two short sentences (at most 40 words) with the next things a voter would want: who is covered or excluded, and where any money goes. Leave out fine print such as phase-ins and administrative steps; the rest of the graph covers those.
+In both, state mechanics the way the text does: amounts, dates, who is covered. Do not use characterizations that supporters or opponents would dispute, such as "one-time", "only", "just", "protects", "closes a loophole", "targets" or "unfair"; write "for tax year 2026", not "one-time". No benefits, harms, predictions or verdicts. Bold at most one short key phrase in each with **double asterisks**, never a whole sentence.
+
+Write "terms": the jargon a general reader might have to look up in "text" or "more", such as "spending limit" or "special tax", each with "plain": one everyday sentence saying what it means in practice (no amounts; you may bold one short phrase of the meaning). Only terms that actually appear, at most five; use the term exactly as written. If nothing needs defining, return an empty list.
 
 Write "quotes" (two to five): for every point in the text, a verbatim quote from the legal text (sourceId "${law.id}", locator naming the section), copied exactly. Use "…" between verbatim segments to omit words; segments must appear in order.
 
@@ -232,7 +243,7 @@ export async function generateTrillionGraph(
     trillionAuthoredSchema.parse(raw),
     "root",
   );
-  const summary = trillionSummarySchema.parse(
+  const { terms: summaryTerms, ...summary } = trillionSummarySchema.parse(
     await options.assessSummary(summaryPrompt),
   );
   const { graph, dropped } = pruneUnverified({
@@ -256,6 +267,7 @@ export async function generateTrillionGraph(
         generatedAt: new Date().toISOString(),
       },
     },
+    terms: mergeTerms(summaryTerms, authored.terms),
     nodes: authored.nodes,
     edges: authored.edges,
     sources: corpus.sources,
@@ -360,6 +372,16 @@ export function assessTrillionGraph(graph: TrillionGraph) {
   };
 }
 
+/** One definition per term; the first wording wins, and the total stays within limits. */
+export function mergeTerms(
+  ...lists: { term: string; plain: string }[][]
+): { term: string; plain: string }[] {
+  const seen = new Map<string, { term: string; plain: string }>();
+  for (const t of lists.flat())
+    if (!seen.has(t.term.toLowerCase())) seen.set(t.term.toLowerCase(), t);
+  return [...seen.values()].slice(0, 8);
+}
+
 /**
  * Draft (or redraft) only the summary of an existing graph, from the measure's
  * legal text alone. Used for graphs assembled by hand, such as the Prop 40 pilot.
@@ -374,7 +396,11 @@ export async function summarizeTrillionGraph(
   },
 ): Promise<{ graph: TrillionGraph; dropped: string[] }> {
   const corpus = trillionCorpusSchema.parse(corpusValue);
-  const graph = trillionGraphSchema.parse(graphValue);
+  // The summary is being replaced, so an older one need not meet today's limits.
+  const graph = trillionGraphSchema.parse({
+    ...(graphValue as object),
+    summary: undefined,
+  });
   if (options.maxModelCalls < 1)
     throw new Error("Summarizing needs a model call; maxModelCalls is 0");
   const drafted = trillionSummarySchema.parse(
@@ -393,8 +419,10 @@ export async function summarizeTrillionGraph(
   return {
     graph: trillionGraphSchema.parse({
       ...graph,
+      terms: mergeTerms(drafted.terms, graph.terms),
       summary: {
         text: drafted.text,
+        ...(drafted.more ? { more: drafted.more } : {}),
         quotes,
         generation: {
           promptVersion: TRILLION_SUMMARY_PROMPT_VERSION,

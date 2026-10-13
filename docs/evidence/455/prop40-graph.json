@@ -10,34 +10,45 @@
     "guideHash": "0003f350db84766d1d5e24ab784cdc9d40dfe08b0799bea0b47c60ba2b51401c"
   },
   "rootId": "root",
+  "terms": [
+    {
+      "term": "net worth",
+      "plain": "The value of counted assets minus allowed debts."
+    },
+    {
+      "term": "trusts",
+      "plain": "Legal arrangements in which property is held and managed for someone."
+    }
+  ],
   "summary": {
-    "text": "Proposition 40 imposes a **5% net-worth tax** for tax year 2026 on individuals with $1 billion or more who are California residents on January 1, 2026, and applicable trusts. Wealth is valued December 31, 2026. After administrative expenses, **90% goes to health care** and 10% to education and food assistance.",
+    "text": "Adds a **5% tax** on billionaires’ net worth.",
+    "more": "Applies for tax year 2026 to California residents as of January 1, 2026, and certain trusts. After administrative costs, 90% goes to health care and 10% to public education and food assistance.",
     "quotes": [
       {
         "sourceId": "law-40",
-        "locator": "SEC. 7, Revenue and Taxation Code §50301(a)–(b)",
-        "text": "An excise tax is imposed for tax year 2026 … on the activity of sustaining excessive accumulations of … wealth by applicable individuals with net worth of one … billion dollars ($1,000,000,000) or more, and on … applicable trusts. … the tax imposed is 5 percent of … the net worth of such individual or trust."
+        "locator": "Section 7, Revenue and Taxation Code Section 50301(a)–(b)",
+        "text": "An excise tax is imposed for tax year 2026\non the activity of sustaining excessive accumulations of\nwealth by applicable individuals with net worth of one\nbillion dollars ($1,000,000,000) or more, and on\napplicable trusts.…For individuals and trusts on whom tax is imposed\nunder subdivision (a), the tax imposed is 5 percent of\nthe net worth of such individual or trust."
       },
       {
         "sourceId": "law-40",
-        "locator": "SEC. 7, Revenue and Taxation Code §50308(a), (n)–(o)",
-        "text": "“Applicable individual” means, for the 2026 tax … year, any individual who is a resident of this state, within … the meaning of Sections 17014 and 17015.5, as of the … tax obligation date specified in subdivision (n). … “Tax obligation date” means January 1, 2026. … “Valuation date” means December 31, 2026."
+        "locator": "Section 7, Revenue and Taxation Code Section 50308(a), (n)",
+        "text": "“Applicable individual” means, for the 2026 tax\nyear, any individual who is a resident of this state, within\nthe meaning of Sections 17014 and 17015.5, as of the\ntax obligation date specified in subdivision (n).…“Tax obligation date” means January 1, 2026."
       },
       {
         "sourceId": "law-40",
-        "locator": "SEC. 7, Revenue and Taxation Code §50301(a)",
-        "text": "the amount of net worth subject to tax is … measured as of the valuation date."
+        "locator": "Section 5, Government Code Section 16355(b)(1)–(2)",
+        "text": "After accounting for administrative expenses as\nprovided in subdivision (e), the Controller shall allocate\nand transfer the remaining moneys in the Reserve Fund…Ninety percent shall be allocated to the Billionaire\nTax Health Account for health care funding…Ten percent shall be allocated to the Billionaire Tax\nEducation and Food Assistance Account for education-\nrelated and food assistance expenditures"
       },
       {
         "sourceId": "law-40",
-        "locator": "SEC. 5, Government Code §16355(b)(1)–(2)",
-        "text": "After accounting for administrative expenses as … provided in subdivision (e), the Controller shall allocate … and transfer the remaining moneys in the Reserve Fund … as follows: … Ninety percent shall be allocated to the Billionaire … Tax Health Account for health care funding … Ten percent shall be allocated to the Billionaire Tax … Education and Food Assistance Account for education- … related and food assistance expenditures"
+        "locator": "Section 5, Government Code Section 16355(b)(2)(A)",
+        "text": "Education-related expenditures to restore or\naddress any reductions in federal funding or state\nappropriations, or to make investments to protect or\nenhance the kindergarten through grade 14 public\neducation system."
       }
     ],
     "generation": {
-      "promptVersion": "trillion-summary-v1",
+      "promptVersion": "trillion-summary-v4",
       "model": "openai-compatible:gpt-6.1-sol",
-      "generatedAt": "2026-10-13T13:57:53.542Z"
+      "generatedAt": "2026-10-13T14:16:32.508Z"
     }
   },
   "nodes": [
