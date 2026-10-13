@@ -42,6 +42,17 @@ const FONTS =
   "https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap";
 
 export function mountTrillionReader(root, graph, options = {}) {
+  // One reader per root: a new graph replaces the old reader entirely, so no
+  // stale listener or animation can act on cards that no longer exist.
+  root.__trillion?.destroy();
+  const lifetime = new AbortController();
+  const listen = (target) => ({
+    addEventListener: (type, handler, opts) =>
+      target.addEventListener(type, handler, {
+        ...(typeof opts === "object" ? opts : { capture: !!opts }),
+        signal: lifetime.signal,
+      }),
+  });
   // Billion's typefaces; the app's native fonts are not visible inside a web view.
   if (
     ![...document.querySelectorAll("link[rel=stylesheet]")].some((l) =>
@@ -1270,7 +1281,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     $("#reader").addEventListener("scroll", refreshOffset, {
       passive: true,
     });
-    window.addEventListener("scroll", refreshOffset, { passive: true });
+    listen(window).addEventListener("scroll", refreshOffset, { passive: true });
     cy.on("tap", "node", (ev) => peekNode(ev.target.id()));
     cy.on("tap", "edge", (ev) => peekEdge(ev.target.id()));
     // Dragging pins a card to the pointer and lets the rest of the web follow, like Obsidian.
@@ -1903,7 +1914,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
 
   // ── Events ──────────────────────────────────────────────────────────
-  document.addEventListener("click", (ev) => {
+  listen(document).addEventListener("click", (ev) => {
     const v = ev.target.closest("[data-view]");
     if (v) {
       view = v.dataset.view;
@@ -1939,7 +1950,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     } else closeSheet();
   });
   // Desktop: hovering a slice names it in place; a click still only previews.
-  document.addEventListener("mouseover", (ev) => {
+  listen(document).addEventListener("mouseover", (ev) => {
     const t = ev.target.closest?.(".ring-sheet [data-peek]");
     const out = $("#ov-hover");
     if (!out) return;
@@ -1949,7 +1960,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       ? titleOf(t.dataset.peek)
       : "Tap a slice to see what it is";
   });
-  document.addEventListener("keydown", (ev) => {
+  listen(document).addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
       if ($("#layer").innerHTML) closeSheet();
       else if (mapEl.classList.contains("full")) setFull(false);
@@ -2018,7 +2029,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     }
   }
   let rt;
-  window.addEventListener("resize", () => {
+  listen(window).addEventListener("resize", () => {
     clearTimeout(rt);
     rt = setTimeout(() => {
       placeMap();
@@ -2041,5 +2052,14 @@ export function mountTrillionReader(root, graph, options = {}) {
     }
   });
   if (graph.verification?.state === "verified") $("#notice").hidden = true;
-  return { jump };
+  function destroy() {
+    lifetime.abort();
+    sim?.stop();
+    cy?.destroy();
+    root.innerHTML = "";
+    delete root.__trillion;
+  }
+  const api = { jump, destroy };
+  root.__trillion = api;
+  return api;
 }

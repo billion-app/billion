@@ -31,12 +31,13 @@ export default function TrillionReader({
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!root.current) return;
-    mountTrillionReader(root.current, graph, {
+    const reader = mountTrillionReader(root.current, graph, {
       onExit: () => void onExit(),
       onOpenUrl: (url: string) => void onOpenUrl(url),
       view,
     });
-    // The engine owns the DOM below the root; a new graph remounts the screen.
+    return () => reader.destroy();
+    // The engine owns the DOM below the root; a new graph replaces the reader.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph]);
   return <div ref={root} style={{ height: "100vh" }} />;

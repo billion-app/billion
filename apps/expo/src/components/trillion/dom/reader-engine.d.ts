@@ -8,4 +8,4 @@ export function mountTrillionReader(
     onOpenUrl?: (url: string) => void;
     view?: "list" | "map";
   },
-): { jump: (state: string) => void };
+): { jump: (state: string) => void; destroy: () => void };
