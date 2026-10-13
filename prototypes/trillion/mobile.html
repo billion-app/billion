@@ -201,6 +201,14 @@
         padding: 24px 16px;
       }
     }
+    .jumps button[aria-pressed="true"] {
+      border-color: var(--spark);
+      background: var(--hi);
+    }
+    .measure-note {
+      margin-top: 10px !important;
+      font-size: 13px;
+    }
     #trillion {
       height: 100%;
     }
@@ -217,12 +225,27 @@
     <aside class="notes">
       <h1>Trillion on iPhone</h1>
       <p>
-        How the Expo screen will look and behave, using the real Prop 40 pilot
-        graph: 54 claims whose quotes all verify against the official guide. Tap
-        around inside the phone.
+        How the Expo screen looks and behaves. It runs the same reader code as
+        the app. Every quote in every graph is checked against the official
+        guide. Tap around inside the phone.
       </p>
-      <h2>Jump to</h2>
-      <div class="jumps">
+      <h2>Measure</h2>
+      <div class="jumps" id="measures">
+        <button type="button" data-measure="40" aria-pressed="true">
+          Prop 40 · hand-built pilot
+        </button>
+        <button type="button" data-measure="41" aria-pressed="false">
+          Prop 41 · AI-generated (prompt v4)
+        </button>
+        <button type="button" data-measure="42" aria-pressed="false">
+          Prop 42 · AI-generated (prompt v4)
+        </button>
+      </div>
+      <p class="measure-note" id="measure-note">
+        Assembled from the design prototype and edited by hand.
+      </p>
+      <h2 id="jump-head">Jump to</h2>
+      <div class="jumps" id="jumps">
         <button type="button" data-jump="main">Main case</button>
         <button type="button" data-jump="disagree">
           Where people disagree
@@ -250,14 +273,35 @@
   </div>
 
   <script src="prop40-pilot.js"></script>
+  <script src="prop41-generated.js"></script>
+  <script src="prop42-generated.js"></script>
   <script src="reader.bundle.js"></script>
   <script>
-    const reader = TrillionReader.mountTrillionReader(
-      document.getElementById("trillion"),
-      window.TRILLION_PILOT,
-    );
+    const graphs = {
+      40: window.TRILLION_PILOT,
+      ...window.TRILLION_GENERATED,
+    };
+    const notes = {
+      40: "Assembled from the design prototype and edited by hand.",
+      41: "Drafted in one model call (gpt-6.1-sol) from the official guide, then checked: every quote verified, nothing edited by hand.",
+      42: "Drafted in one model call (gpt-6.1-sol) from the official guide, then checked: two cards whose quotes did not match were dropped, nothing edited by hand.",
+    };
+    const root = document.getElementById("trillion");
+    let reader = TrillionReader.mountTrillionReader(root, graphs[40]);
+    document.getElementById("measures").addEventListener("click", (ev) => {
+      const b = ev.target.closest("[data-measure]");
+      if (!b) return;
+      const n = b.dataset.measure;
+      for (const x of document.querySelectorAll("[data-measure]"))
+        x.setAttribute("aria-pressed", String(x === b));
+      document.getElementById("measure-note").textContent = notes[n];
+      reader = TrillionReader.mountTrillionReader(root, graphs[n]);
+      // The jump shortcuts point at specific Prop 40 cards.
+      document.getElementById("jumps").hidden = n !== "40";
+      document.getElementById("jump-head").hidden = n !== "40";
+    });
     // Mockup controls: jump straight to the states worth reviewing.
-    document.querySelector(".jumps").addEventListener("click", (ev) => {
+    document.getElementById("jumps").addEventListener("click", (ev) => {
       const j = ev.target.closest("[data-jump]")?.dataset.jump;
       if (j) reader.jump(j);
     });
