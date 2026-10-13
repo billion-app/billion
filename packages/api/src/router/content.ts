@@ -26,6 +26,7 @@ import { parseBillBriefRecord, parseCourtBriefRecord } from "@acme/validators";
 
 import type { ContentJurisdiction } from "../lib/content-jurisdiction";
 import { toBillTimelineActions } from "../lib/bill-actions";
+import { billDiscoveryCondition } from "../lib/bill-discovery";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { projectBillStatus } from "../lib/bill-status";
 import {
@@ -385,6 +386,7 @@ export const contentRouter = {
     const bills = await db
       .select()
       .from(Bill)
+      .where(billDiscoveryCondition)
       .orderBy(desc(BILL_ACTIVITY_AT))
       .limit(20);
     const governmentContent = await db
@@ -449,7 +451,7 @@ export const contentRouter = {
           })
           .from(FeaturedBill)
           .innerJoin(Bill, eq(Bill.id, FeaturedBill.billId))
-          .where(jurisdictionCondition)
+          .where(and(jurisdictionCondition, billDiscoveryCondition))
           .orderBy(
             FeaturedBill.displayOrder,
             desc(FeaturedBill.updatedAt),
@@ -468,6 +470,7 @@ export const contentRouter = {
           .where(
             and(
               jurisdictionCondition,
+              billDiscoveryCondition,
               eq(BillInterest.contentHash, Bill.contentHash),
             ),
           );
@@ -577,7 +580,12 @@ export const contentRouter = {
               activityAt: BILL_ACTIVITY_AT.as("activity_at"),
             })
             .from(Bill)
-            .where(billJurisdictionCondition(jurisdiction)),
+            .where(
+              and(
+                billJurisdictionCondition(jurisdiction),
+                billDiscoveryCondition,
+              ),
+            ),
           db
             .select({
               id: GovernmentContent.id,
@@ -657,7 +665,12 @@ export const contentRouter = {
         const bills = await db
           .select()
           .from(Bill)
-          .where(billJurisdictionCondition(jurisdiction))
+          .where(
+            and(
+              billJurisdictionCondition(jurisdiction),
+              billDiscoveryCondition,
+            ),
+          )
           .orderBy(desc(BILL_ACTIVITY_AT))
           .limit(limit + 1)
           .offset(cursor);
@@ -772,7 +785,13 @@ export const contentRouter = {
         const bills = await db
           .select()
           .from(Bill)
-          .where(and(billMatch, billJurisdictionCondition(jurisdiction)))
+          .where(
+            and(
+              billMatch,
+              billJurisdictionCondition(jurisdiction),
+              billDiscoveryCondition,
+            ),
+          )
           .orderBy(desc(billRank))
           .limit(limit);
         const items: ContentCard[] = bills.map(toBillCard);
@@ -845,7 +864,13 @@ export const contentRouter = {
             rank: billRank.as("rank"),
           })
           .from(Bill)
-          .where(and(billMatch, billJurisdictionCondition(jurisdiction))),
+          .where(
+            and(
+              billMatch,
+              billJurisdictionCondition(jurisdiction),
+              billDiscoveryCondition,
+            ),
+          ),
         db
           .select({
             id: GovernmentContent.id,

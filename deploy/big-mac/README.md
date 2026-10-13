@@ -37,10 +37,10 @@ the repo for the same kind of thing — host configuration. Anything describing
 what runs on `big-mac` belongs in one place, next to the FLUX plist that was
 already here.
 
-## Optional OAuth-backed fallback
+## OAuth-backed text and brief provider
 
-The scraper can use a Responses-compatible proxy on this host after its usual
-providers fail. The proxy owns login and token refresh; scraper containers do
+The scraper can use a Responses-compatible proxy on this host for text and
+structured briefs. The proxy owns login and token refresh; scraper containers do
 not receive OAuth credentials. Keep the proxy running across logouts and host
 restarts using its own service configuration.
 
@@ -49,7 +49,17 @@ Add these settings to `~/.config/billion/scraper.env`:
 ```dotenv
 SCRAPER_FALLBACK_BASE_URL=http://host.docker.internal:10531/v1
 SCRAPER_FALLBACK_MODEL=gpt-6-luna
+SCRAPER_FALLBACK_PRIORITY=primary
 ```
+
+`primary` puts this endpoint before the local LLM and hosted text providers,
+including callers that normally request local structured generation first.
+Other configured providers remain outage alternatives; search and vision keep
+their own provider selection. Omit the priority setting or use `fallback` for
+the previous outage-only behavior. Primary mode requires the endpoint URL.
+Existing lens caches remain valid, so this changes new generation without
+starting an archive-wide regeneration. Text jobs log their provider order;
+structured generation records the selected provider in its existing provenance.
 
 The container's `127.0.0.1` refers to itself. Verify the host endpoint from the
 running container before enabling it; OrbStack exposes the host through
@@ -61,8 +71,38 @@ The supervisor forwards these environment variables to jobs on restart.
 Leaving the URL unset disables this fallback. It covers text and structured briefs. Search fallback requires native search
 support from the endpoint and rejects responses without URL citations. The
 current OAuth proxy with Luna passed live text and JSON checks but did not expose
-native web search; the ordinary hosted search providers are still required. It does not replace image generation
-or vision review. Adding the fallback does not invalidate existing lens caches.
+native web search; the ordinary hosted search providers are still required. Image generation and crop review have a separate provider setting below. Adding the fallback does not invalidate existing lens caches.
+
+## Subscription-backed header artwork
+
+The host OAuth proxy also exposes `/v1/images/generations`. Select it for new
+header artwork and use the text model's native Responses endpoint to review the
+wide and square app crops:
+
+```dotenv
+SCRAPER_IMAGE_PROVIDER=codex
+SCRAPER_IMAGE_MODEL=gpt-image-2
+```
+
+These use the existing `SCRAPER_FALLBACK_BASE_URL` and optional proxy bearer key.
+The proxy owns subscription login and refresh. The scraper requests one image
+at low quality and reads the returned raster's actual dimensions; the proxy may
+return a different size from the requested one. Generation logs the selected
+image model, dimensions and reported usage. Crop review records its successful
+model, including local or DeepSeek outage alternatives.
+
+A transport failure can fall back to local FLUX generation. The scheduled
+header-art job never activates hosted BFL generation. A valid rejection remains
+a rejection; another reviewer cannot override it. Moderation does not activate
+another generator. Changing the image provider or model makes old terminal
+rejections eligible for one new reviewed attempt, while accepted artwork stays
+cached. Native Responses is required for embedded review images: this host's
+proxy chat endpoint failed the same data-URL input in live verification.
+
+Deploy the reviewed, merged image through the normal scraper deployment command
+before restarting with these settings. Verify one reviewed image first using
+`court-image-smoke`; use the job log, the stored image and the review record as
+the evidence. Do not skip suitability review to recover the queue.
 
 ## Free-tier search with Tavily
 

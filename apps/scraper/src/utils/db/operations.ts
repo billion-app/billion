@@ -1136,7 +1136,7 @@ export async function buildBillBriefRecord(args: {
     return null;
   }
 
-  const modelVersion = getTextModelVersion();
+  const modelVersion = generated.modelVersion;
   return {
     brief: {
       ...generated,

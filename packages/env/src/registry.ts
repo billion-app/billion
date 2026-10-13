@@ -537,6 +537,16 @@ export const envRegistry = [
     schema: url,
   }),
   define({
+    key: "SCRAPER_FALLBACK_PRIORITY",
+    description:
+      "Use the Responses endpoint first for scraper text and structured briefs, or only after other providers fail. Search and vision ordering are unchanged.",
+    group: "AI",
+    secret: false,
+    defaultValue: "fallback",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["fallback", "primary"]),
+  }),
+  define({
     key: "SCRAPER_FALLBACK_MODEL",
     description: "Model served by the scraper fallback endpoint.",
     group: "AI",
@@ -617,6 +627,26 @@ export const envRegistry = [
     secret: true,
     setupUrl: "https://www.courtlistener.com/sign-in/",
     requirements: {},
+    schema: string,
+  }),
+  define({
+    key: "SCRAPER_IMAGE_PROVIDER",
+    description:
+      "Header-art provider: local FLUX, or subscription-backed Codex images and Responses crop review with local outage alternatives.",
+    group: "AI",
+    secret: false,
+    defaultValue: "local",
+    requirements: { scraper: "optional" },
+    schema: z.enum(["local", "codex"]),
+  }),
+  define({
+    key: "SCRAPER_IMAGE_MODEL",
+    description:
+      "Image model served by the Codex OAuth endpoint when Codex imagery is selected.",
+    group: "AI",
+    secret: false,
+    defaultValue: "gpt-image-2",
+    requirements: { scraper: "optional" },
     schema: string,
   }),
   define({

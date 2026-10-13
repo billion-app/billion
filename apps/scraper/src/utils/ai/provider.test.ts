@@ -10,6 +10,7 @@ const keys = [
   "DEEPSEEK_API_KEY",
   "SCRAPER_FALLBACK_BASE_URL",
   "SCRAPER_FALLBACK_MODEL",
+  "SCRAPER_FALLBACK_PRIORITY",
   "SCRAPER_FALLBACK_API_KEY",
   "TAVILY_API_KEY",
   "SCRAPER_SEARCH_PROVIDER",
@@ -111,6 +112,10 @@ test("structured generation falls back with JSON schema", async (t) => {
     maxRetries: 0,
   });
   assert.deepEqual(result.output, { answer: "yes" });
+  assert.equal(
+    provider.getGeneratedModelVersion(result),
+    "fallback:gpt-6-luna",
+  );
   assert.equal(
     provider.getStructuredLlmCandidates().at(-1)?.modelVersion,
     "fallback:gpt-6-luna",
@@ -471,5 +476,131 @@ test("SearXNG without an endpoint fails before requesting any provider", async (
   await assert.rejects(
     provider.generateWebSearch("analysis"),
     /SCRAPER_SEARXNG_BASE_URL is required/,
+  );
+});
+
+test("primary Responses endpoint leads text and both structured orders", async (t) => {
+  const provider = await setup(t, {
+    ...fallback,
+    SCRAPER_FALLBACK_PRIORITY: "primary",
+    LOCAL_LLM_BASE_URL: "http://local.test/v1",
+    OPENROUTER_API_KEY: "test",
+    DEEPSEEK_API_KEY: "test",
+  });
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    calls.push(String(url));
+    assert.equal(String(url), "http://proxy.test/v1/responses");
+    return response('{"answer":"yes"}');
+  });
+  await generateText({
+    model: provider.getTextLlm(),
+    prompt: "hello",
+    maxRetries: 0,
+  });
+  const result = await generateText({
+    model: provider.getStructuredLlm(),
+    prompt: "hello",
+    maxRetries: 0,
+    output: Output.object({ schema: z.object({ answer: z.string() }) }),
+  });
+  assert.deepEqual(result.output, { answer: "yes" });
+  assert.equal(
+    provider.getGeneratedModelVersion(result),
+    "fallback:gpt-6-luna",
+  );
+  assert.equal(calls.length, 2);
+  for (const options of [undefined, { localFirst: true }]) {
+    const candidates = provider.getStructuredLlmCandidates(options);
+    assert.equal(candidates[0]?.modelVersion, "fallback:gpt-6-luna");
+    assert.equal(candidates.length, 4);
+  }
+  assert.ok(!provider.getTextModelVersion().includes("fallback:"));
+});
+
+test("primary Responses outage still tries the local text provider", async (t) => {
+  const provider = await setup(t, {
+    ...fallback,
+    SCRAPER_FALLBACK_PRIORITY: "primary",
+    LOCAL_LLM_BASE_URL: "http://local.test/v1",
+  });
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    calls.push(String(url));
+    if (String(url).startsWith("http://proxy.test/"))
+      return new Response("unavailable", { status: 503 });
+    return Response.json({
+      id: "chat_test",
+      model: "local",
+      created: 1,
+      choices: [
+        {
+          index: 0,
+          message: { role: "assistant", content: "local works" },
+          finish_reason: "stop",
+        },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+    });
+  });
+  const result = await generateText({
+    model: provider.getTextLlm(),
+    prompt: "hello",
+    maxRetries: 0,
+  });
+  assert.equal(result.text, "local works");
+  assert.deepEqual(calls, [
+    "http://proxy.test/v1/responses",
+    "http://local.test/v1/chat/completions",
+  ]);
+});
+
+test("primary Responses priority requires an endpoint", async (t) => {
+  const provider = await setup(t, {
+    SCRAPER_FALLBACK_PRIORITY: "primary",
+    DEEPSEEK_API_KEY: "test",
+  });
+  assert.throws(
+    () => provider.getTextLlm(),
+    /SCRAPER_FALLBACK_BASE_URL is required/,
+  );
+  assert.throws(
+    () => provider.getStructuredLlmCandidates(),
+    /SCRAPER_FALLBACK_BASE_URL is required/,
+  );
+});
+
+test("structured provenance identifies the successful outage alternative", async (t) => {
+  const provider = await setup(t, {
+    ...fallback,
+    SCRAPER_FALLBACK_PRIORITY: "primary",
+    DEEPSEEK_API_KEY: "test",
+  });
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    if (String(url).startsWith("http://proxy.test/"))
+      return new Response("unavailable", { status: 503 });
+    return Response.json({
+      id: "chat_test",
+      model: "deepseek-v4-flash",
+      created: 1,
+      choices: [
+        {
+          index: 0,
+          message: { role: "assistant", content: '{"answer":"yes"}' },
+          finish_reason: "stop",
+        },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+    });
+  });
+  const result = await generateText({
+    model: provider.getStructuredLlm(),
+    prompt: "hello",
+    maxRetries: 0,
+    output: Output.object({ schema: z.object({ answer: z.string() }) }),
+  });
+  assert.equal(
+    provider.getGeneratedModelVersion(result),
+    "deepseek:deepseek-v4-flash",
   );
 });

@@ -95,22 +95,34 @@ function getLocalTextModel(baseURL: string): V3Model {
 }
 
 /** The proxy owns OAuth credentials; scraper processes only know its URL. */
-function getFallbackProvider() {
+export function getResponsesConfig(): LocalLlmConfig | null {
   const baseURL = process.env.SCRAPER_FALLBACK_BASE_URL?.trim().replace(
     /\/$/,
     "",
   );
   return baseURL
-    ? createOpenAI({
+    ? {
         baseURL,
+        model: process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna",
         apiKey: process.env.SCRAPER_FALLBACK_API_KEY?.trim() || "unused",
-      })
+      }
     : null;
+}
+
+function getFallbackProvider() {
+  const config = getResponsesConfig();
+  return config ? createOpenAI(config) : null;
 }
 
 function getFallbackModel(): V3Model | null {
   const provider = getFallbackProvider();
-  if (!provider) return null;
+  if (!provider) {
+    if (process.env.SCRAPER_FALLBACK_PRIORITY === "primary")
+      throw new Error(
+        "SCRAPER_FALLBACK_BASE_URL is required when its priority is primary",
+      );
+    return null;
+  }
   return wrapLanguageModel({
     model: customProvider({ fallbackProvider: provider }).languageModel(
       process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna",
@@ -231,8 +243,15 @@ export function getTextLlm(): LanguageModel {
     });
   }
   const fallback = getFallbackModel();
-  if (fallback)
-    candidates.push({ label: "configured fallback", model: fallback });
+  if (fallback) {
+    const candidate = { label: "Responses endpoint", model: fallback };
+    if (process.env.SCRAPER_FALLBACK_PRIORITY === "primary")
+      candidates.unshift(candidate);
+    else candidates.push(candidate);
+  }
+  logger.info(
+    `Text provider order: ${candidates.map((candidate) => candidate.label).join(" -> ")}`,
+  );
   textLlm = withFallbacks(candidates);
   return textLlm;
 }
@@ -245,8 +264,8 @@ export interface StructuredLlmCandidate {
 /**
  * Return structured-output providers separately so callers can retry another
  * provider without losing the model provenance stored with generated content.
- * Hosted providers retain their historical priority unless a caller has
- * explicitly validated its workload against the configured local model.
+ * A primary Responses endpoint leads both orders; otherwise hosted providers
+ * lead unless the caller explicitly requests the local model first.
  */
 export function getStructuredLlmCandidates(options?: {
   localFirst?: boolean;
@@ -281,26 +300,56 @@ export function getStructuredLlmCandidates(options?: {
     (candidate): candidate is StructuredLlmCandidate => candidate !== null,
   );
   const fallback = getFallbackModel();
-  if (fallback)
-    configured.push({
+  if (fallback) {
+    const candidate = {
       model: fallback,
       modelVersion: `fallback:${process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna"}`,
-    });
+    };
+    if (process.env.SCRAPER_FALLBACK_PRIORITY === "primary")
+      configured.unshift(candidate);
+    else configured.push(candidate);
+  }
   if (configured.length === 0) {
     throw new Error("No scraper text provider is configured");
   }
   return configured;
 }
 
-/** Resolve the historical hosted-first structured-output default. */
+/** Resolve structured output with the configured Responses priority. */
 export function getStructuredLlm(): LanguageModel {
   structuredLlm ??= withFallbacks(
     getStructuredLlmCandidates().map((candidate) => ({
       label: candidate.modelVersion,
-      model: candidate.model,
+      model: wrapLanguageModel({
+        model: candidate.model,
+        middleware: {
+          specificationVersion: "v3",
+          wrapGenerate: async ({ doGenerate }) => {
+            const result = await doGenerate();
+            logger.info(`Structured generation used ${candidate.modelVersion}`);
+            return {
+              ...result,
+              providerMetadata: {
+                ...result.providerMetadata,
+                scraper: { modelVersion: candidate.modelVersion },
+              },
+            };
+          },
+        },
+      }),
     })),
   );
   return structuredLlm;
+}
+
+/** Successful structured provider, including an outage alternative. */
+export function getGeneratedModelVersion(result: {
+  providerMetadata?: Record<string, Record<string, unknown>>;
+}): string {
+  const version = result.providerMetadata?.scraper?.modelVersion;
+  if (typeof version !== "string")
+    throw new Error("Structured generation did not report its provider");
+  return version;
 }
 
 /**

@@ -5,10 +5,12 @@ import type { GeneratedImage } from "./image-generation.js";
 import type { LocalLlmConfig } from "./provider.js";
 import { trackDeepSeekVisionUsage } from "../costs.js";
 import { createLogger } from "../log.js";
+import { UnsafeContentVisualPlanError } from "./content-image-visual.js";
 import {
   DEEPSEEK_VISION_MODEL,
   getDeepSeekVisionApiKey,
   getLocalLlmConfig,
+  getResponsesConfig,
 } from "./provider.js";
 
 const logger = createLogger("content-image-review");
@@ -25,6 +27,7 @@ export const CONTENT_IMAGE_REVIEW_REASONS = [
   "invented-consequences",
   "artifacts",
   "insufficient-source-description",
+  "unsafe-visual-plan",
 ] as const;
 
 export type ContentImageReviewReason =
@@ -178,13 +181,23 @@ async function reviewImageDataUrls(image: GeneratedImage): Promise<string[]> {
 }
 
 interface ChatCompletionResponse {
+  model?: string;
   choices?: Array<{ message?: { content?: string | null } }>;
   usage?: { prompt_tokens?: number; completion_tokens?: number };
+}
+
+interface ResponsesReviewResponse {
+  model?: string;
+  output?: Array<{
+    type: string;
+    content?: Array<{ type: string; text?: string }>;
+  }>;
 }
 
 type FetchLike = typeof fetch;
 
 interface ReviewProvider {
+  format?: "responses";
   label: string;
   endpoint: string;
   model: string;
@@ -235,24 +248,50 @@ async function reviewWithProvider(
       Authorization: `Bearer ${provider.apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: provider.model,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: contentImageReviewPrompt(source) },
-            ...imageDataUrls.map((url) => ({
-              type: "image_url" as const,
-              image_url: { url, detail: "high" as const },
-            })),
-          ],
-        },
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 500,
-      ...provider.body,
-    }),
+    body: JSON.stringify(
+      provider.format === "responses"
+        ? {
+            model: provider.model,
+            store: false,
+            reasoning: { effort: "none" },
+            input: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "input_text",
+                    text: contentImageReviewPrompt(source),
+                  },
+                  ...imageDataUrls.map((url) => ({
+                    type: "input_image",
+                    image_url: url,
+                    detail: "high",
+                  })),
+                ],
+              },
+            ],
+            text: { format: { type: "json_object" } },
+            max_output_tokens: 500,
+          }
+        : {
+            model: provider.model,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: contentImageReviewPrompt(source) },
+                  ...imageDataUrls.map((url) => ({
+                    type: "image_url" as const,
+                    image_url: { url, detail: "high" as const },
+                  })),
+                ],
+              },
+            ],
+            response_format: { type: "json_object" },
+            max_tokens: 500,
+            ...provider.body,
+          },
+    ),
     signal: AbortSignal.timeout(provider.timeoutMs),
   });
 
@@ -278,7 +317,15 @@ async function reviewWithProvider(
     );
   }
 
-  const content = parsedResponse.choices?.[0]?.message?.content;
+  const content =
+    provider.format === "responses"
+      ? (parsedResponse as ResponsesReviewResponse).output
+          ?.filter((item) => item.type === "message")
+          .flatMap((item) => item.content ?? [])
+          .filter((item) => item.type === "output_text")
+          .map((item) => item.text ?? "")
+          .join("")
+      : parsedResponse.choices?.[0]?.message?.content;
   if (!content) {
     throw new ContentImageReviewError(
       `${provider.label} review returned no message content`,
@@ -304,12 +351,17 @@ async function reviewWithProvider(
       `${provider.label} review failed schema validation: ${result.error.message}`,
     );
   }
-  return { ...result.data, reviewModelVersion: provider.modelVersion };
+  const modelVersion =
+    provider.format === "responses"
+      ? `codex:${parsedResponse.model ?? provider.model}`
+      : provider.modelVersion;
+  logger.info(`Image review used ${modelVersion}: ${result.data.decision}`);
+  return { ...result.data, reviewModelVersion: modelVersion };
 }
 
 /**
- * Review one image through the local multimodal model first, then fall back to
- * DeepSeek. Every provider uses the same strict schema: a transport failure or
+ * Codex image mode reviews through native Responses first; local mode starts
+ * with the local multimodal model. DeepSeek remains the final outage alternative. Every provider uses the same strict schema: a transport failure or
  * malformed model output is never an implicit approval. The local model may
  * add extra rejection labels; known labels are retained only for rejections,
  * while accepted images remain strictly validated.
@@ -321,10 +373,41 @@ export async function reviewContentImage(
     fetch?: FetchLike;
     apiKey?: string;
     local?: LocalLlmConfig | null;
+    codex?: LocalLlmConfig | null;
   } = {},
 ): Promise<ContentImageReview> {
   const request = options.fetch ?? fetch;
   const imageDataUrls = await reviewImageDataUrls(image);
+  const codex =
+    options.codex === undefined
+      ? process.env.SCRAPER_IMAGE_PROVIDER === "codex"
+        ? getResponsesConfig()
+        : null
+      : options.codex;
+  if (codex) {
+    try {
+      return await reviewWithProvider(
+        {
+          format: "responses",
+          label: "Codex image",
+          endpoint: `${codex.baseURL}/responses`,
+          model: codex.model,
+          apiKey: codex.apiKey,
+          modelVersion: `codex:${codex.model}`,
+          timeoutMs: 60_000,
+          trackUsage: false,
+        },
+        imageDataUrls,
+        source,
+        request,
+      );
+    } catch (error) {
+      logger.warn(
+        "Codex image review failed; trying local/DeepSeek review",
+        error,
+      );
+    }
+  }
   const local =
     options.local === undefined ? getLocalLlmConfig() : options.local;
   let localError: unknown;
@@ -420,6 +503,26 @@ export async function reviewContentImage(
  * feedback. The caller owns persistence, so rejected or errored images cannot
  * be published by this function.
  */
+function generationFailure(
+  error: unknown,
+  reviewAttempts: number,
+): ReviewedImageResult {
+  if (error instanceof UnsafeContentVisualPlanError) {
+    return {
+      status: "rejected",
+      reviewAttempts,
+      review: {
+        decision: "reject",
+        description: `No image was published because the scene failed the readable-copy check after ${error.planningAttempts} planning attempts.`,
+        rejectionReasons: ["unsafe-visual-plan"],
+        feedback: `Rejected visual plan: ${error.scene.slice(0, 500)}`,
+        reviewModelVersion: "visual-plan-validation-v1",
+      },
+    };
+  }
+  return { status: "error", error, reviewAttempts };
+}
+
 export async function generateReviewedContentImage(args: {
   source: ContentImageReviewSource;
   generate: ImageGenerator;
@@ -446,7 +549,7 @@ export async function generateReviewedContentImage(args: {
     try {
       generated = await args.generate(feedback);
     } catch (error) {
-      return { status: "error", error, reviewAttempts };
+      return generationFailure(error, reviewAttempts);
     }
     if (!generated) {
       return {
@@ -514,6 +617,6 @@ export async function generateContentImage(args: {
     }
     return { status: "unreviewed", generated };
   } catch (error) {
-    return { status: "error", error, reviewAttempts: 0 };
+    return generationFailure(error, 0);
   }
 }
