@@ -15,7 +15,7 @@ import type { TrillionCorpus } from "./trillion-capture.js";
 import { sourceHash } from "./measure-relationship-capture.js";
 import { trillionCorpusSchema } from "./trillion-capture.js";
 
-export const TRILLION_PROMPT_VERSION = "trillion-v1";
+export const TRILLION_PROMPT_VERSION = "trillion-v2";
 export const trillionAuthoredSchema = z.object({
   nodes: z.array(trillionNodeSchema).min(5).max(150),
   edges: z.array(trillionEdgeSchema).max(500),
@@ -29,12 +29,17 @@ export function buildTrillionPrompt(corpus: TrillionCorpus): string {
     id: source.id,
     measure: source.number,
     role: source.role,
+    ...(source.title ? { title: source.title } : {}),
     locator: source.locator,
     text:
       source.role === "legal-text"
         ? readingOrderText(source.snapshot)
         : source.snapshot,
   }));
+  const precedentRule = corpus.sources.some((s) => s.role === "precedent")
+    ? `
+- Historical precedent: sources with role "precedent" are archived documents about EARLIER measures (past analyses, State Auditor reports). Add one crux "Has this been tried before, and did it work?" with dispute "facts". Each precedent claim is kind "precedent", quotes ONLY a precedent source, and links to that crux with "weighs" and a stance. A precedent node may also "supports", "challenges" or "qualifies" a specific argument; its "why" must say how the earlier measure is similar AND how it differs. Never present a precedent document as describing this measure, and never quote a precedent source from any other kind of node.`
+    : "";
   return `You are drafting the seed of a public argument graph ("the Trillion") for one California ballot measure. It is published WITHOUT human review, so every rule below is enforced by machine checks and anything that fails is discarded.
 
 Purpose: help a voter explore the reasoning, find where people actually disagree, and form their own view. Billion begins the reader's thinking; it never concludes. Never recommend a vote, tally sides, or say who is winning.
@@ -48,7 +53,7 @@ Graph shape (node ids: lowercase letters, digits and hyphens):
 - Published ballot arguments and rebuttals are kind "argument" with attribution { name: "Ballot argument for|against" or "Rebuttal for|against", signers: names exactly as printed }.
 - Billion's own connective inferences are kind "generated". Questions a reader would likely ask are kind "question", linked with "asks"; a generated node may "answers" them.
 - Related measures named in the sources are kind "record" with record.number, quoting the clause that connects them (for example a conflict clause).
-- Every edge may carry "why": one plain sentence explaining the link in this context.
+- Every edge may carry "why": one plain sentence explaining the link in this context.${precedentRule}
 
 Evidence rules (checked mechanically):
 - Every provision, finding, analysis, argument and record node MUST quote its source: quotes[].sourceId must be one of the source ids below, quotes[].locator a precise section/page/paragraph reference, and quotes[].text copied VERBATIM from that source's text. Use "…" between verbatim segments to omit words; segments must appear in source order.

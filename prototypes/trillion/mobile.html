@@ -1287,7 +1287,9 @@
       flex: 1;
     }
     .ov-hover {
-      min-height: 2.7em;
+      height: 2.7em;
+      overflow: hidden;
+      text-align: center;
       margin: 0 0 6px;
       font-size: 12px;
       line-height: 1.35;
@@ -1504,6 +1506,9 @@
     .peek .inside-more {
       margin: 0;
       font-size: 12px;
+      color: var(--quiet);
+    }
+    .ov-hover.is-empty {
       color: var(--quiet);
     }
   </style>
@@ -1727,7 +1732,9 @@
                   : `Prop ${s.number} text`
                 : s.role === "official-analysis"
                   ? "Legislative Analyst"
-                  : "Official arguments",
+                  : s.role === "precedent"
+                    ? `Past record · ${s.title.split(":")[0]}`
+                    : "Official arguments",
             locator: q.locator,
             url: s.url,
           };
@@ -1784,6 +1791,7 @@
         record: "Other record",
         fact: "Fact",
         crux: "Where people disagree",
+        precedent: "Past record",
       };
       const IN = {
         supports: "Supports this",
@@ -2350,8 +2358,8 @@
             ${slices.join("")}
             <circle r="18" fill="#D4AF37" data-peek="${ROOT}"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
           </svg>
-          <p class="ov-hover" id="ov-hover" aria-live="polite" hidden></p>
-          <p class="ring-key">${cruxes.length} disputes · ${args} arguments · ${unanswered().length} unanswered. Wider slices have more debate. Tap one to preview.</p>
+          <p class="ov-hover is-empty" id="ov-hover" aria-live="polite">Tap a slice to see what it is</p>
+          <p class="ring-key">${cruxes.length} disputes · ${args} arguments · ${unanswered().length} unanswered. Wider slices have more debate.</p>
           ${thin.map((t) => `<button type="button" class="thin" data-peek="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
           </div>`,
           true,
@@ -3382,8 +3390,11 @@
         const t = ev.target.closest?.(".ring-sheet [data-peek]");
         const out = $("#ov-hover");
         if (!out) return;
-        out.hidden = !t;
-        if (t) out.textContent = titleOf(t.dataset.peek);
+        // The line is always present, so the drawer never shifts while hovering.
+        out.classList.toggle("is-empty", !t);
+        out.textContent = t
+          ? titleOf(t.dataset.peek)
+          : "Tap a slice to see what it is";
       });
       document.addEventListener("keydown", (ev) => {
         if (ev.key === "Escape") {

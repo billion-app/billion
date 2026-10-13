@@ -22,6 +22,7 @@ import {
   generateTrillionGraph,
   trillionAuthoredSchema,
 } from "./scrapers/trillion-generation.js";
+import { trillionPrecedents } from "./scrapers/trillion-precedents.js";
 import { getStructuredLlmCandidates } from "./utils/ai/provider.js";
 import { trackLLMUsage } from "./utils/costs.js";
 
@@ -37,7 +38,7 @@ await yargs(hideBin(process.argv))
   .demandCommand(1)
   .command(
     "collect <election> <number> <output>",
-    "Capture one measure's law, analysis and arguments (plus related measures' law); no model or DB",
+    "Capture one measure's law, analysis and arguments, related measures' law, and its curated precedent; no model or DB",
     (y) =>
       y
         .positional("election", { type: "string", demandOption: true })
@@ -46,16 +47,18 @@ await yargs(hideBin(process.argv))
         .option("related", { type: "string", default: "" }),
     async (args) => {
       const related = args.related.split(",").filter(Boolean);
+      const precedents = trillionPrecedents(args.election, args.number);
       const corpus = await collectTrillionCorpus(
         args.election,
         args.number,
         related,
+        precedents,
       );
       await writeFile(args.output, JSON.stringify(corpus, null, 2) + "\n", {
         flag: "wx",
       });
       console.log(
-        `Captured ${corpus.sources.length} sources for Proposition ${corpus.number}.`,
+        `Captured ${corpus.sources.length} sources for Proposition ${corpus.number}, including ${precedents.length} curated precedent documents.`,
       );
     },
   )

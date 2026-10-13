@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "2026-11-03-40-design-pilot",
+  "revision": "2026-11-03-40-design-pilot-precedent",
   "jurisdiction": "CA",
   "electionDate": "2026-11-03",
   "measure": {
@@ -10,9 +10,6 @@
     "guideHash": "0003f350db84766d1d5e24ab784cdc9d40dfe08b0799bea0b47c60ba2b51401c"
   },
   "rootId": "root",
-  "verification": {
-    "state": "unverified"
-  },
   "nodes": [
     {
       "id": "root",
@@ -60,8 +57,8 @@
       "label": "How much would it raise?",
       "title": "How much money would it actually raise?",
       "body": "A dispute about facts and estimates. The campaigns' numbers and the Legislative Analyst's differ by tens of billions.",
-      "dispute": "facts",
-      "quotes": []
+      "quotes": [],
+      "dispute": "facts"
     },
     {
       "id": "x-fair",
@@ -69,8 +66,8 @@
       "label": "Is it fair?",
       "title": "Is it fair to tax wealth instead of income?",
       "body": "Mostly a values question. Evidence can inform it, but people weigh fairness differently.",
-      "dispute": "values",
-      "quotes": []
+      "quotes": [],
+      "dispute": "values"
     },
     {
       "id": "x-expand",
@@ -78,8 +75,8 @@
       "label": "Could it spread?",
       "title": "Could it spread beyond billionaires?",
       "body": "A dispute about how to read the measure's amendment clause and its exemptions.",
-      "dispute": "reading",
-      "quotes": []
+      "quotes": [],
+      "dispute": "reading"
     },
     {
       "id": "x-money",
@@ -87,8 +84,8 @@
       "label": "Where does the money go?",
       "title": "Where would the money go?",
       "body": "A dispute about what the spending rules require and what they leave to the Legislature.",
-      "dispute": "reading",
-      "quotes": []
+      "quotes": [],
+      "dispute": "reading"
     },
     {
       "id": "x-effect",
@@ -96,8 +93,8 @@
       "label": "Will it take effect?",
       "title": "Would it take effect, and for how long?",
       "body": "Depends on Props 41 and 42, on court rulings, and on how long payments stretch.",
-      "dispute": "legal",
-      "quotes": []
+      "quotes": [],
+      "dispute": "legal"
     },
     {
       "id": "t-tax",
@@ -278,28 +275,28 @@
       "kind": "finding",
       "label": "~200 billionaires, $2 trillion",
       "title": "The measure's findings: about 200 billionaires holding $2 trillion.",
-      "note": "This is a finding the measure's authors wrote, not a calculation in the operative law.",
       "quotes": [
         {
           "sourceId": "law-40",
           "locator": "Prop 40 Findings, Sec. 2(r) · Voter guide p. 135",
           "text": "California has around 200 billionaires who collectively possess an astonishing $2 trillion in wealth."
         }
-      ]
+      ],
+      "note": "This is a finding the measure's authors wrote, not a calculation in the operative law."
     },
     {
       "id": "f-rates",
       "kind": "finding",
       "label": "Billionaires 24% vs. average 30%",
       "title": "The measure's findings: billionaires pay 24% of income in all taxes; the average taxpayer pays 30%.",
-      "note": "Cites Balkir, Saez, Yagan & Zucman, NBER Working Paper No. 34170 (2025).",
       "quotes": [
         {
           "sourceId": "law-40",
           "locator": "Prop 40 Findings, Sec. 2(s) · Voter guide p. 135",
           "text": "According to economic analysis and including all taxes at all levels of government, billionaires pay 24% of their income in taxes while the average taxpayer pays 30%."
         }
-      ]
+      ],
+      "note": "Cites Balkir, Saez, Yagan & Zucman, NBER Working Paper No. 34170 (2025)."
     },
     {
       "id": "l-revenue",
@@ -485,7 +482,6 @@
       "kind": "argument",
       "label": "One opponent spent $57M+",
       "title": "One billionaire has spent over $57 million opposing it.",
-      "note": "No campaign-finance record is attached in this prototype. Spending figures should cite state filings before they count as evidence.",
       "quotes": [
         {
           "sourceId": "arguments-40",
@@ -496,7 +492,8 @@
       "attribution": {
         "name": "Ballot argument for",
         "signers": "Suzanne Jimenez (SEIU-UHW), Victoria Barron (Planned Parenthood of Pacific Southwest), Denise Robb (AFT Local 1521)"
-      }
+      },
+      "note": "No campaign-finance record is attached in this prototype. Spending figures should cite state filings before they count as evidence."
     },
     {
       "id": "g-retire",
@@ -575,32 +572,32 @@
       "kind": "record",
       "label": "Prop 41: spending limit",
       "title": "Prop 41: no new taxes exempt from the state spending limit",
-      "record": {
-        "number": "41"
-      },
       "quotes": [
         {
           "sourceId": "law-41",
           "locator": "Prop 41 Sec. 5(a)(1) · Voter guide p. 150",
           "text": "In the event that this initiative measure appears on the same statewide election ballot as another initiative measure that … (B) contains a state tax that is exempted or excluded from the Government Spending Limitation, then that other initiative measure shall be deemed to be in conflict with this measure."
         }
-      ]
+      ],
+      "record": {
+        "number": "41"
+      }
     },
     {
       "id": "rec-42",
       "kind": "record",
       "label": "Prop 42: no retroactive taxes",
       "title": "Prop 42: no new personal-property taxes and no retroactive taxes",
-      "record": {
-        "number": "42"
-      },
       "quotes": [
         {
           "sourceId": "law-42",
           "locator": "Prop 42 Art. VIII §2(a)(2) · Voter guide p. 151",
           "text": "This subdivision also applies to a tax that is imposed on a taxpayer based upon their residency status on a date prior to the effective date of the tax."
         }
-      ]
+      ],
+      "record": {
+        "number": "42"
+      }
     },
     {
       "id": "w-for",
@@ -651,6 +648,67 @@
       "title": "Record your own choice in ballot prep. It stays private.",
       "body": "Your choice is never published or added to the graph.",
       "quotes": []
+    },
+    {
+      "id": "x-history",
+      "kind": "crux",
+      "label": "Has this been tried before?",
+      "title": "Has this been tried before, and did it work?",
+      "body": "California has taxed its highest earners for a set purpose before. How those taxes raised and spent money bears on what this one would do, though none was a tax on wealth itself.",
+      "quotes": [],
+      "dispute": "facts"
+    },
+    {
+      "id": "p-mhsa",
+      "kind": "precedent",
+      "label": "2004: a tax on the rich for mental health",
+      "title": "Prop 63 (2004) added a 1 percent tax on incomes over $1 million to expand mental health services.",
+      "quotes": [
+        {
+          "sourceId": "precedent-mhsa-audit",
+          "locator": "Report 2017-117, Summary, page 1",
+          "text": "In 2004 California voters approved Proposition 63—the Mental Health Services Act (MHSA)—to expand services and treatment for those who suffer from mental illness or are at risk of mental illness. The MHSA imposes a 1 percent income tax on individuals earning more than $1 million a year"
+        }
+      ]
+    },
+    {
+      "id": "p-unspent",
+      "kind": "precedent",
+      "label": "Audit: earmarked money sat unspent",
+      "title": "A 2018 state audit found local agencies had let $231 million in Prop 63 money go unspent, not counting reserves.",
+      "quotes": [
+        {
+          "sourceId": "precedent-mhsa-audit",
+          "locator": "Report 2017-117, Summary, page 1",
+          "text": "Health Care Services has not developed a process—known as reversion—to recover unspent MHSA funds from local mental health agencies after the statutory time frames for spending the funds have elapsed. As a result, the local mental health agencies have had less incentive to spend MHSA funds in a timely manner and had amassed unspent funds of $231 million—not including reserves—as of the end of fiscal year 2015–16"
+        }
+      ]
+    },
+    {
+      "id": "p-temporary",
+      "kind": "precedent",
+      "label": "A temporary tax that was extended",
+      "title": "Prop 30's tax increases on high earners were set to end after 2018; in 2016 voters approved Prop 55 to extend them through 2030.",
+      "quotes": [
+        {
+          "sourceId": "precedent-prop55",
+          "locator": "Proposition 55 analysis, Yes/No statement",
+          "text": "A YES vote on this measure means: Income tax increases on high-income taxpayers, which are scheduled to end after 2018, would instead be extended through 2030."
+        }
+      ]
+    },
+    {
+      "id": "p-volatile",
+      "kind": "precedent",
+      "label": "Taxes on the rich swing with markets",
+      "title": "The Legislative Analyst found revenue from high earners hard to predict because it depends on stock and other asset values.",
+      "quotes": [
+        {
+          "sourceId": "precedent-prop55",
+          "locator": "Proposition 55 analysis, Fiscal Effects: Taxes",
+          "text": "A large share of high-income taxpayers’ earnings comes from capital gains. These revenues depend heavily on future stock market and other asset values, which are difficult to predict."
+        }
+      ]
     }
   ],
   "edges": [
@@ -1161,6 +1219,73 @@
       "to": "rec-41",
       "type": "supports",
       "why": "This is the exclusion Prop 41 targets."
+    },
+    {
+      "id": "eh0",
+      "from": "x-history",
+      "to": "root",
+      "type": "crux"
+    },
+    {
+      "id": "eh1",
+      "from": "p-mhsa",
+      "to": "x-history",
+      "type": "weighs",
+      "stance": "mixed",
+      "why": "California has dedicated a tax on its highest earners to health services before; it was a tax on income, not on wealth."
+    },
+    {
+      "id": "eh2",
+      "from": "p-unspent",
+      "to": "x-history",
+      "type": "weighs",
+      "stance": "against",
+      "why": "The earlier earmarked tax raised money, but the state did not make sure it was spent on time."
+    },
+    {
+      "id": "eh3",
+      "from": "p-temporary",
+      "to": "x-history",
+      "type": "weighs",
+      "stance": "against",
+      "why": "A tax sold as temporary was later extended by voters."
+    },
+    {
+      "id": "eh4",
+      "from": "p-volatile",
+      "to": "x-history",
+      "type": "weighs",
+      "stance": "mixed",
+      "why": "Earlier taxes on the richest Californians raised money, but how much moved with the markets."
+    },
+    {
+      "id": "eh5",
+      "from": "p-unspent",
+      "to": "a-safeguards",
+      "type": "supports",
+      "why": "Both measures earmark a tax on the very rich for health. The audit shows earmarked money can sit unused when oversight is weak; Prop 40's spending rules differ, so it shows a risk, not an outcome."
+    },
+    {
+      "id": "eh6",
+      "from": "p-temporary",
+      "to": "a-onetime",
+      "type": "supports",
+      "why": "Prop 30 was written as temporary and was extended at the ballot. Prop 40 is written as a one-time tax, so the parallel is to later political pressure, not to anything in its text."
+    },
+    {
+      "id": "eh7",
+      "from": "p-volatile",
+      "to": "a-100b",
+      "type": "qualifies",
+      "why": "Prop 55 taxed income and Prop 40 taxes wealth, but both depend on what the richest Californians' assets are worth, which moves with markets."
+    },
+    {
+      "id": "eh8",
+      "from": "p-unspent",
+      "to": "x-money",
+      "type": "weighs",
+      "stance": "against",
+      "why": "The closest earlier case of a tax on the very rich set aside for health, where the audit found money left unspent."
     }
   ],
   "sources": [
@@ -1213,8 +1338,33 @@
       "retrievedAt": "2026-10-11T20:44:11.800Z",
       "hash": "2c97f4b91c8e1394dd673058332c265c17239a37db234897bd5a333680a8bc6f",
       "documentHash": "21c9d7e166220d9609eb0e9e85d050c2f0a8dedfc15b07e4690d2a5ed48bb111"
+    },
+    {
+      "id": "precedent-mhsa-audit",
+      "number": "40",
+      "role": "precedent",
+      "url": "https://information.auditor.ca.gov/pdfs/reports/2017-117.pdf",
+      "title": "State Auditor, Report 2017-117: Mental Health Services Act (February 2018)",
+      "locator": "Summary, report pages 1–2 (PDF pages 7–8)",
+      "retrievedAt": "2026-10-13T02:33:11.006Z",
+      "hash": "0f17264380a68a411d4e7bedeb40f616731064fc58a80c0bd31f43b55ef37848",
+      "documentHash": "3cdcf511350fab40ba689ead8d0e97dfba077040c32d928297b7509d75583a6e"
+    },
+    {
+      "id": "precedent-prop55",
+      "number": "40",
+      "role": "precedent",
+      "url": "https://www.lao.ca.gov/ballot/2016/Prop55-110816.pdf",
+      "title": "Legislative Analyst, Proposition 55 analysis (November 2016 ballot)",
+      "locator": "Yes/No statement and fiscal analysis",
+      "retrievedAt": "2026-10-13T02:33:11.301Z",
+      "hash": "49e016d0e38bfc5eab649e9659b7dac89f2773d090670e141f744deb4cb4e302",
+      "documentHash": "01dd70a635a49d7db279a44a217c536f35c2b61af35e1382982dcaedfb6ef820"
     }
   ],
+  "verification": {
+    "state": "unverified"
+  },
   "generation": {
     "promptVersion": "trillion-design-pilot",
     "model": "claude-opus-5-5 (assembled from the design prototype)",

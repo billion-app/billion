@@ -43,6 +43,7 @@ export const KIND_LABEL: Record<TrillionNode["kind"], string> = {
   shared: "Shared claim",
   record: "Other measure",
   fact: "Fact",
+  precedent: "Past record",
 };
 /** Billion wrote these itself; unverified graphs label them AI-generated. */
 export const BILLION_AUTHORED = new Set<TrillionNode["kind"]>([

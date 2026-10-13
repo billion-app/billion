@@ -72,3 +72,27 @@ void test("budgets fail before any model call", async () => {
     /prompt budget/,
   );
 });
+
+void test("curated precedent is captured as PDFs and seeds a precedent question", async () => {
+  const { trillionPrecedents } = await import("./trillion-precedents.js");
+  const { capturePrecedentSource, trillionCorpusSchema } =
+    await import("./trillion-capture.js");
+  const { buildTrillionPrompt } = await import("./trillion-generation.js");
+  const entries = trillionPrecedents("2026-11-03", "40");
+  assert.ok(entries.length > 0);
+  assert.deepEqual(trillionPrecedents("2026-11-03", "41"), []);
+  await assert.rejects(
+    capturePrecedentSource("40", entries[0]!, () =>
+      Promise.resolve(Buffer.from("<html>not a pdf</html>")),
+    ),
+    /not a PDF/,
+  );
+  const parsed = trillionCorpusSchema.parse(corpus);
+  const prompt = buildTrillionPrompt(parsed);
+  assert.match(prompt, /Has this been tried before, and did it work\?/);
+  const withoutPrecedent = buildTrillionPrompt({
+    ...parsed,
+    sources: parsed.sources.filter((s) => s.role !== "precedent"),
+  });
+  assert.doesNotMatch(withoutPrecedent, /tried before/);
+});

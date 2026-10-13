@@ -123,3 +123,36 @@ void test("freshness URLs come from stored graphs", () => {
     corpus.sources.map((s) => s.url).sort(),
   );
 });
+
+void test("precedent is quoted from archived official PDFs and never stands in for the measure", () => {
+  const precedent = graph.sources.find((s) => s.role === "precedent")!;
+  assert.ok(precedent.title);
+  assert.ok(graph.nodes.some((n) => n.kind === "precedent"));
+
+  const offHost = clone();
+  offHost.sources.find((s) => s.role === "precedent")!.url =
+    "https://example.com/report.pdf";
+  assert.equal(trillionGraphSchema.safeParse(offHost).success, false);
+
+  const notPdf = clone();
+  notPdf.sources.find((s) => s.role === "precedent")!.url =
+    "https://lao.ca.gov/ballot/2004/63_11_2004.htm";
+  assert.equal(trillionGraphSchema.safeParse(notPdf).success, false);
+
+  // A provision may not quote an old audit, and a precedent may not quote the bill.
+  const crossed = clone();
+  const provision = crossed.nodes.find((n) => n.kind === "provision")!;
+  provision.quotes[0]!.sourceId = precedent.id;
+  assert.equal(trillionGraphSchema.safeParse(crossed).success, false);
+  const borrowed = clone();
+  borrowed.nodes.find((n) => n.kind === "precedent")!.quotes[0]!.sourceId =
+    "law-40";
+  assert.equal(trillionGraphSchema.safeParse(borrowed).success, false);
+
+  // Precedent freshness is enforced like any other source.
+  const stale = current.map((s) =>
+    s.url === precedent.url ? { ...s, hash: "0".repeat(64) } : s,
+  );
+  assert.equal(publishedTrillionGraph(corpus.guide, "40", graph, stale), null);
+  assert.ok(trillionSourceUrls([graph]).includes(precedent.url));
+});

@@ -356,6 +356,19 @@ The older two-measure `measure-relationship-preview.ts` remains a read-only
 recapture tool for an existing authored draft; it is not the discovery workflow.
 The [source-captured pilot](../../docs/evidence/447/README.md) is still pending.
 
+### Trillion argument graphs
+
+`trillion` seeds the argument graph for one measure ([design](../../docs/trillion-design.md)). Graphs publish without human review: every read re-runs a machine gate (schema, verbatim quotes, source freshness) and the app labels the graph AI-written until a person verifies it.
+
+```bash
+pnpm --filter @acme/scraper trillion collect 2026-11-03 40 /tmp/prop40-corpus.json --related 41,42
+pnpm --filter @acme/scraper trillion generate /tmp/prop40-corpus.json /tmp/prop40-graph.json --max-model-calls 1
+pnpm --filter @acme/scraper trillion check /tmp/prop40-graph.json /tmp/prop40-corpus.json
+pnpm --filter @acme/scraper trillion store /tmp/prop40-graph.json
+```
+
+`collect` fetches the measure's legal text, Legislative Analyst analysis and ballot arguments, the legal text of `--related` measures, and any curated historical precedent for that measure in [`trillion-precedents.ts`](src/scrapers/trillion-precedents.ts). Precedent entries are archived official PDFs (State Auditor, Legislative Analyst, past voter guides) with an optional page range that keeps the prompt bounded. It makes no model calls and no database writes. `generate` makes one paid model call and drops any quote that fails verification; an unchanged corpus reuses the existing output without a call. `check` runs the publication gate offline. `store` writes to the selected database's `civic_api_cache`, so check the target first; a stored graph appears only after the next guide job has refreshed its source hashes.
+
 ### Search research verification
 
 [Shared research](../../docs/scraper-research.md) supplies bill history, further

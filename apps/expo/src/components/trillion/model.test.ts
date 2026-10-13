@@ -1,19 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { publicTrillionGraphSchema } from "@acme/validators";
 
+import pilot from "./development/prop40-pilot.json";
 import { TrillionModel } from "./model";
 
-const graph = publicTrillionGraphSchema.parse(
-  JSON.parse(
-    readFileSync(
-      new URL("./development/prop40-pilot.json", import.meta.url),
-      "utf8",
-    ),
-  ),
-);
+const graph = publicTrillionGraphSchema.parse(pilot);
 const model = new TrillionModel(graph);
 
 void test("the main case opens on its basics and never on a pro/con split", () => {
@@ -24,14 +17,18 @@ void test("the main case opens on its basics and never on a pro/con split", () =
   );
   assert.equal(model.defaultTab(graph.rootId), "basics");
   assert.equal(cats[0]!.items.length, 4);
-  assert.ok(cats[1]!.items.every(({ edge }) => model.node(edge.from).kind === "crux"));
+  assert.ok(
+    cats[1]!.items.every(({ edge }) => model.node(edge.from).kind === "crux"),
+  );
 });
 
 void test("a disputed question groups every side together with its lean", () => {
   const crux = model.categories(graph.rootId)[1]!.items[0]!.edge.from;
   const args = model.categories(crux).find((c) => c.key === "args")!;
   assert.ok(args.items.length > 1);
-  assert.ok(args.items.every(({ edge }) => edge.type === "weighs" && edge.stance));
+  assert.ok(
+    args.items.every(({ edge }) => edge.type === "weighs" && edge.stance),
+  );
   assert.match(model.cruxState(crux).text, /^(Disputed|Mostly|Depends)/);
 });
 

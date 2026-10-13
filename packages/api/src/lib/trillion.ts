@@ -24,7 +24,7 @@ const sha256 = (text: string) =>
 /** The official URL each source role must come from, for the cited measure. */
 export function expectedTrillionSourceUrl(
   measure: OfficialGuidePayload["measures"][number],
-  role: TrillionGraph["sources"][number]["role"],
+  role: Exclude<TrillionGraph["sources"][number]["role"], "precedent">,
 ): string | undefined {
   if (role === "legal-text") return measure.fullTextUrl;
   if (role === "official-analysis") return `${measure.sourceUrl}analysis.htm`;
@@ -66,7 +66,11 @@ export function publishedTrillionGraph(
     const cited = guide.measures.find((m) => m.number === source.number);
     if (
       !cited ||
-      expectedTrillionSourceUrl(cited, source.role) !== source.url ||
+      // Precedent comes from archived official PDFs the schema allowlists, and
+      // only for the measure this graph is about.
+      (source.role === "precedent"
+        ? source.number !== number
+        : expectedTrillionSourceUrl(cited, source.role) !== source.url) ||
       sha256(source.snapshot) !== source.hash ||
       !currentSources.some(
         (current) =>

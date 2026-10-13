@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { load } from "cheerio";
 import { z } from "zod/v4";
 
@@ -5,6 +9,7 @@ import type { OfficialGuidePayload } from "@acme/api/lib/official-guide-cache";
 import { officialGuidePayloadSchema } from "@acme/api/lib/official-guide-cache";
 import { trillionSourceSchema } from "@acme/validators";
 
+import type { TrillionPrecedent } from "./trillion-precedents.js";
 import {
   GUIDE_BASE,
   guideElectionDate,
@@ -16,9 +21,12 @@ import {
   captureMeasureSources,
   sourceHash,
 } from "./measure-relationship-capture.js";
-import { officialPageText } from "./measure-relationship-source.js";
+import {
+  fetchRelationshipDocument,
+  officialPageText,
+} from "./measure-relationship-source.js";
 
-/** Everything one Trillion generation may cite: the measure, its neighbors' law, and nothing else. */
+/** Everything one Trillion generation may cite: the measure, its neighbors' law, curated precedent, and nothing else. */
 export const trillionCorpusSchema = z.object({
   number: z.string().regex(/^\d+[A-Z]?$/),
   guide: officialGuidePayloadSchema,
@@ -57,6 +65,53 @@ export async function captureArgumentSource(
   });
 }
 
+/** Text of a PDF in layout mode, optionally limited to a page range. */
+async function pdfText(bytes: Buffer, pages?: readonly [number, number]) {
+  const directory = await mkdtemp(join(tmpdir(), "billion-trillion-"));
+  try {
+    const path = join(directory, "source.pdf");
+    await writeFile(path, bytes);
+    const range = pages ? ["-f", String(pages[0]), "-l", String(pages[1])] : [];
+    return execFileSync("pdftotext", ["-layout", ...range, path, "-"], {
+      maxBuffer: 2_000_000,
+    }).toString("utf8");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+/**
+ * One curated precedent document. Freshness compares the whole PDF's bytes;
+ * the snapshot keeps only the chosen pages, which is what quotes are checked
+ * against.
+ */
+export async function capturePrecedentSource(
+  number: string,
+  precedent: TrillionPrecedent,
+  fetchDocument: (url: string) => Promise<Buffer> = fetchRelationshipDocument,
+) {
+  const bytes = await fetchDocument(precedent.url);
+  if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-")
+    throw new Error(`Precedent is not a PDF: ${precedent.url}`);
+  const text = await pdfText(bytes, precedent.pages);
+  if (text.replace(/\s+/g, "").length < 500)
+    throw new Error(`Precedent text missing: ${precedent.url}`);
+  return trillionSourceSchema.parse({
+    id: precedent.id,
+    number,
+    role: "precedent",
+    url: precedent.url,
+    title: precedent.title,
+    locator: precedent.pages
+      ? `${precedent.locator} (PDF pages ${precedent.pages[0]}–${precedent.pages[1]})`
+      : precedent.locator,
+    retrievedAt: new Date().toISOString(),
+    snapshot: text,
+    hash: sourceHash(text),
+    documentHash: sourceHash(bytes),
+  });
+}
+
 /**
  * Capture one measure's law, analysis and arguments, plus the legal text of
  * explicitly named related measures (for example, conflicting propositions).
@@ -66,9 +121,11 @@ export async function collectTrillionCorpus(
   electionDate: string,
   number: string,
   related: readonly string[],
+  precedents: readonly TrillionPrecedent[] = [],
   dependencies = {
     fetchPage: fetchGuidePage,
     captureSources: captureMeasureSources,
+    fetchDocument: fetchRelationshipDocument,
   },
 ): Promise<TrillionCorpus> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(electionDate))
@@ -125,6 +182,14 @@ export async function collectTrillionCorpus(
     sources.push(
       ...(await dependencies.captureSources(guide, measure)).filter(
         (source) => source.role === "legal-text",
+      ),
+    );
+  for (const precedent of precedents)
+    sources.push(
+      await capturePrecedentSource(
+        number,
+        precedent,
+        dependencies.fetchDocument,
       ),
     );
   return trillionCorpusSchema.parse({ number, guide, sources });

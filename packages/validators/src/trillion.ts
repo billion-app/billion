@@ -28,6 +28,20 @@ const officialUrl = z
     "Trillion sources must be official California guide documents.",
   );
 
+/**
+ * Historical precedent comes from archived official PDFs: the State Auditor,
+ * the Legislative Analyst, and past voter guides. PDFs only, so freshness can
+ * compare document bytes.
+ */
+export const TRILLION_PRECEDENT_HOSTS = [
+  "information.auditor.ca.gov",
+  "www.lao.ca.gov",
+  "lao.ca.gov",
+  "vigarchive.sos.ca.gov",
+] as const;
+const precedentUrl =
+  /^https:\/\/(?:information\.auditor\.ca\.gov|(?:www\.)?lao\.ca\.gov|vigarchive\.sos\.ca\.gov)\/[^\s@?#]*\.pdf$/;
+
 export const TRILLION_NODE_KINDS = [
   "root",
   "branch",
@@ -41,6 +55,7 @@ export const TRILLION_NODE_KINDS = [
   "shared",
   "record",
   "fact",
+  "precedent",
 ] as const;
 /** Nodes that speak for a source and therefore must quote it. */
 export const QUOTED_TRILLION_KINDS = new Set<string>([
@@ -49,6 +64,7 @@ export const QUOTED_TRILLION_KINDS = new Set<string>([
   "analysis",
   "argument",
   "record",
+  "precedent",
 ]);
 export const TRILLION_EDGE_TYPES = [
   "part",
@@ -64,17 +80,45 @@ export const TRILLION_EDGE_TYPES = [
   "conflicts",
 ] as const;
 
-export const trillionSourceSchema = z.object({
-  id,
-  number: measureNumber,
-  role: z.enum(["legal-text", "official-analysis", "official-arguments"]),
-  url: officialUrl,
-  locator: z.string().trim().min(1).max(300),
-  retrievedAt: z.iso.datetime(),
-  snapshot: z.string().min(1).max(400_000),
-  hash,
-  documentHash: hash,
-});
+export const trillionSourceSchema = z
+  .object({
+    id,
+    /** The measure the source belongs to; for precedent, the measure it informs. */
+    number: measureNumber,
+    role: z.enum([
+      "legal-text",
+      "official-analysis",
+      "official-arguments",
+      "precedent",
+    ]),
+    url: z.url(),
+    /** Precedent documents name themselves, e.g. "State Auditor, Report 2017-117 (2018)". */
+    title: z.string().trim().min(1).max(200).optional(),
+    locator: z.string().trim().min(1).max(300),
+    retrievedAt: z.iso.datetime(),
+    snapshot: z.string().min(1).max(400_000),
+    hash,
+    documentHash: hash,
+  })
+  .superRefine((source, ctx) => {
+    const precedent = source.role === "precedent";
+    if (
+      precedent
+        ? !precedentUrl.test(source.url)
+        : !officialUrl.safeParse(source.url).success
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: precedent
+          ? "Precedent sources must be archived official PDFs (State Auditor, LAO, or past guides)."
+          : "Trillion sources must be official California guide documents.",
+      });
+    if (precedent !== (source.title !== undefined))
+      ctx.addIssue({
+        code: "custom",
+        message: "Precedent sources, and only they, carry a title.",
+      });
+  });
 
 export const trillionQuoteSchema = z.object({
   sourceId: id,
@@ -160,7 +204,7 @@ function checkStructure(
   value: Pick<
     z.infer<typeof graphShape>,
     "rootId" | "nodes" | "edges" | "measure" | "revision" | "verification"
-  > & { sources: { id: string; number: string }[] },
+  > & { sources: { id: string; number: string; role: string }[] },
   ctx: z.RefinementCtx,
 ) {
   const issue = (message: string) => ctx.addIssue({ code: "custom", message });
@@ -174,13 +218,22 @@ function checkStructure(
   if (roots.length !== 1 || roots[0]?.id !== value.rootId)
     issue("Exactly one root node, matching rootId, is required.");
   const sourceIds = new Set(value.sources.map((s) => s.id));
+  const precedentSources = new Set(
+    value.sources.filter((s) => s.role === "precedent").map((s) => s.id),
+  );
 
   for (const node of value.nodes) {
     if (QUOTED_TRILLION_KINDS.has(node.kind) && node.quotes.length === 0)
       issue(`${node.id}: source-backed nodes must quote their source.`);
-    for (const quote of node.quotes)
+    for (const quote of node.quotes) {
       if (!sourceIds.has(quote.sourceId))
         issue(`${node.id}: quote cites unknown source ${quote.sourceId}.`);
+      // A past document must never read as this measure's text, and vice versa.
+      if ((node.kind === "precedent") !== precedentSources.has(quote.sourceId))
+        issue(
+          `${node.id}: precedent nodes, and only they, quote precedent sources.`,
+        );
+    }
     if (node.kind === "argument" && !node.attribution)
       issue(`${node.id}: arguments keep their published attribution.`);
     if ((node.kind === "crux") !== (node.dispute !== undefined))
@@ -253,14 +306,28 @@ export type TrillionNode = z.infer<typeof trillionNodeSchema>;
 export type TrillionEdge = z.infer<typeof trillionEdgeSchema>;
 export type TrillionSource = z.infer<typeof trillionSourceSchema>;
 
+const publicTrillionSourceSchema = z.object({
+  id,
+  number: measureNumber,
+  role: z.enum([
+    "legal-text",
+    "official-analysis",
+    "official-arguments",
+    "precedent",
+  ]),
+  url: z.url(),
+  title: z.string().trim().min(1).max(200).optional(),
+  locator: z.string().trim().min(1).max(300),
+  retrievedAt: z.iso.datetime(),
+  hash,
+  documentHash: hash,
+});
+
 /** What clients receive: source snapshots stay on the server. */
 export const publicTrillionGraphSchema = graphShape
   .omit({ sources: true })
   .extend({
-    sources: z
-      .array(trillionSourceSchema.omit({ snapshot: true }))
-      .min(1)
-      .max(12),
+    sources: z.array(publicTrillionSourceSchema).min(1).max(12),
   })
   .superRefine(checkStructure);
 export type PublicTrillionGraph = z.infer<typeof publicTrillionGraphSchema>;

@@ -1,6 +1,6 @@
 # The Trillion: interaction design
 
-Status: **proposed design** for [vision issue #455](https://github.com/billion-app/billion/issues/455). Nothing here is implemented. The [prototype](../prototypes/trillion/index.html) is a static HTML fixture with no API, database, or account behind it.
+Status: **in progress** for [vision issue #455](https://github.com/billion-app/billion/issues/455). Implemented: the graph schema and machine publication gate (`packages/validators`, `packages/api/src/lib/trillion.ts`), the read-only `civic.getTrillion` API, the seeding pipeline with curated historical precedent ([CLI guide](../apps/scraper/README.md#trillion-argument-graphs)), and a quote-verified Prop 40 pilot graph ([evidence](evidence/455/)). Not yet implemented: the Expo screens (the [phone mockup](../prototypes/trillion/mobile.html) shows the intended behavior), public contributions, accounts, and moderation. The [design prototype](../prototypes/trillion/index.html) is a static HTML fixture.
 
 The Trillion (Tree of Arguments Within Billion) is how a reader works through the reasoning about a record. It replaces "summary cards plus a comment thread" with a graph of claims a reader can follow, question, and extend. Billion starts the reader's thinking; the graph never ends in a verdict or a voting recommendation.
 
@@ -23,7 +23,7 @@ This document records the decisions made in the October 2026 design review and t
 | Who sets an argument's lean     | Whoever adds the argument. The lean can be challenged like any link; votes may flag a lean for review but never decide it.                |
 | Whole-debate overview           | A Kialo-style sunburst of the disputed questions, opened from the map into a drawer, so thin parts of the debate are visible at a glance. |
 | Moderation (post-prototype)     | An automated structural check before publishing, then post-moderation. The check never judges truth or viewpoint.                         |
-| Historical precedent            | _Proposed._ A seeded "Has this been tried before?" question backed by quoted past guides and audits. Not in the initial seed.             |
+| Historical precedent            | A seeded "Has this been tried before?" question backed by curated, quote-verified past audits and analyses.                               |
 
 ## The model
 
@@ -179,17 +179,15 @@ An automated check runs before publishing, followed by post-moderation and repor
 
 Identity, sign-in providers, rate limits, appeals, and revision handling are out of scope for the prototype. Before public contribution launches, those need decisions.
 
-## Historical precedent (proposed)
+## Historical precedent
 
-_Proposed, not implemented._ The initial seed draws only on the current election's official guide: the measure's legal text, the Legislative Analyst's analysis, the ballot arguments, and the legal text of related measures on the same ballot. It cannot answer one of the first questions a voter asks: has this been tried before, and did it work? A 2026 housing bond, for example, follows earlier housing bonds whose spending the State Auditor has reviewed. That record bears directly on arguments such as "the money will reach the people it is meant for."
+The guide alone cannot answer one of the first questions a voter asks: has this been tried before, and did it work? So each measure can carry curated precedent, held to the same rules as the rest of the seed.
 
-Precedent follows the same rules as everything else in the seed:
+- **Sources are archived official PDFs, chosen by a person.** A precedent source comes from the State Auditor, the Legislative Analyst, or a past voter guide, and must be a PDF so freshness can compare document bytes. The pipeline finds the current guide on its own, but nothing yet tells it which earlier measures are comparable, so a curated list per measure names them ([`trillion-precedents.ts`](../apps/scraper/src/scrapers/trillion-precedents.ts)). An entry can limit capture to a page range, so a long audit contributes only its findings to the prompt. A search step that proposes candidates for review is future work.
+- **Quotes stay separated.** Precedent claims are their own node kind, quote only precedent sources, and only they may quote precedent sources. A past audit can never read as this measure's text, and the measure's text can never pass as history. Every precedent quote is verified verbatim, so the reader sees the auditor's own sentence rather than a summary of it.
+- **It lives in the graph.** Precedent seeds one disputed question, "Has this been tried before, and did it work?", typed as _Disputed facts_. Each precedent card weighs on it with a lean, and may support, challenge, or qualify a specific argument. That link's explanation must say how the earlier measure is similar and how it differs, and readers can challenge the comparison like any other link.
 
-- **Sources are captured and quote-checked.** A new source role, precedent, covers past official voter guides (what an earlier measure promised and its size), State Auditor reports (what happened), and Legislative Analyst follow-up reports. Each is captured, hashed, and checked for freshness like the guide. Every precedent claim quotes its document verbatim with a locator, so the reader sees the auditor's own sentence rather than a summary of it.
-- **It lives in the graph, not beside it.** Most measures get a seeded disputed question, "Has this been tried before, and did it work?", typed as _Disputed facts_. Past measures appear as other-measure cards with an _applies to_ link that must explain why the comparison holds. Audit findings attach as quoted evidence that supports, challenges, or qualifies specific arguments.
-- **A comparison is a claim.** "The 2018 bond is similar to this one" can be challenged like any link. A precedent that differs in size, target, or oversight should say so in the link's explanation.
-
-The hard part is choosing which past measures count as precedent. The pipeline can find this election's guide on its own, but nothing yet tells it which earlier measures, audits, or reports are comparable. The first version would use a curated list of precedent sources per measure, with the Prop 40 pilot's capture and gate extended to cover them. A search step that proposes candidates for review can come later. Until then, readers can add precedent as contributions once those open.
+The Prop 40 pilot cites two documents. The [State Auditor's 2018 report](https://information.auditor.ca.gov/pdfs/reports/2017-117.pdf) on Proposition 63 (2004), a 1 percent tax on incomes over $1 million set aside for mental health, found that local agencies had let a large amount of that money go unspent. It supports the argument that nothing stops Prop 40's money from being misdirected, and weighs on "Where would the money go?". The [Legislative Analyst's Prop 55 analysis](https://www.lao.ca.gov/ballot/2016/Prop55-110816.pdf) shows a tax on high earners sold as temporary being extended, which supports the "one-time money" argument. It also shows that revenue from the richest taxpayers swings with markets, which qualifies the revenue estimate.
 
 ## Prior art: Kialo
 

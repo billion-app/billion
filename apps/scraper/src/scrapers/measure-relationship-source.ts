@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { load } from "cheerio";
 
 import { relationshipSourceUrls } from "@acme/api/lib/measure-relationships";
+import { TRILLION_PRECEDENT_HOSTS } from "@acme/validators";
 
 /** Bounded original document bytes; redirect and host checks preserve source identity. */
 export async function fetchRelationshipDocument(url: string): Promise<Buffer> {
@@ -11,7 +12,12 @@ export async function fetchRelationshipDocument(url: string): Promise<Buffer> {
     parsed.username ||
     parsed.password ||
     parsed.port ||
-    !["voterguide.sos.ca.gov", "vig.cdn.sos.ca.gov"].includes(parsed.hostname)
+    ![
+      "voterguide.sos.ca.gov",
+      "vig.cdn.sos.ca.gov",
+      // Trillion precedent: archived official PDFs.
+      ...TRILLION_PRECEDENT_HOSTS,
+    ].includes(parsed.hostname)
   )
     throw new Error("Unexpected relationship source host");
   const response = await fetch(url, {
