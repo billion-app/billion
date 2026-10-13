@@ -179,6 +179,7 @@ export function mountTrillionReader(root, graph, options = {}) {
             <button class="close" type="button" id="map-close">Close</button>
           </div>
           <div id="cy"></div>
+          <button type="button" class="map-more" id="map-more" hidden></button>
 
           <button type="button" class="map-main" id="map-main" hidden>
             ← Go back to main case
@@ -1094,6 +1095,9 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
 
   // Which cards and links are lit for the current view.
+  // The map shows at most this many cards from the open tab; the list has the rest.
+  const MAP_MAX = 8;
+  const mapItems = () => (activeCat()?.items || []).slice(0, MAP_MAX);
   function litSet() {
     const c = cur();
     const focus = focusId();
@@ -1103,7 +1107,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       nodes.add(E[c.id].from);
       edges.add(c.id);
     } else
-      (activeCat()?.items || []).forEach(({ e, dir }) => {
+      mapItems().forEach(({ e, dir }) => {
         nodes.add(dir === "in" ? e.from : e.to);
         if ((dir === "in" ? e.to : e.from) === focus) edges.add(e.id); // lists like "Still unanswered" have no link to the focus
       });
@@ -1113,7 +1117,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     // deeper, chosen the same way that card's own page would open (its default tab, first item).
     const hints = new Map();
     if (c.t === "node")
-      for (const { e, dir } of activeCat()?.items || []) {
+      for (const { e, dir } of mapItems()) {
         const child = dir === "in" ? e.from : e.to;
         const cat = categories(child).find((k) => k.key === defaultTab(child));
         const first = (cat?.items || [])
@@ -1583,15 +1587,14 @@ export function mountTrillionReader(root, graph, options = {}) {
     );
     z = Math.min(z, 1);
     // Below this the card text stops being readable; frame the focus instead and let the rest run off-edge.
-    const READABLE = 0.8;
+    const READABLE = 0.6;
     let cx = bb.x1 + bb.w / 2,
       cyy = bb.y1 + bb.h / 2;
     if (z < READABLE) {
       z = READABLE;
-      // Keep the focus in the upper part of the frame so the open tab's cards show beneath it.
       const f = cy.getElementById(focusId()).position();
       cx = f.x;
-      cyy = f.y + (H * 0.16) / z;
+      cyy = f.y;
     }
     return {
       zoom: z,
@@ -1611,6 +1614,10 @@ export function mountTrillionReader(root, graph, options = {}) {
   function syncMap(navigated) {
     if (!cy) return;
     const { focus, prev, nodes, edges, hints } = litSet();
+    const extra =
+      cur().t === "node" ? (activeCat()?.items.length ?? 0) - MAP_MAX : 0;
+    $("#map-more").hidden = extra <= 0;
+    $("#map-more").textContent = `+${extra} more in List`;
     for (const [id, { edge }] of hints) {
       nodes.add(id);
       edges.add(edge);
@@ -1690,42 +1697,47 @@ export function mountTrillionReader(root, graph, options = {}) {
       s.fx = s.id === focus ? s.x : null;
       s.fy = s.id === focus ? s.y : null;
     }
-    sim.force("charge").strength((d) => (d.lit ? -60 : 0));
-    // Reads top to bottom: where you came from above, the focus, then the open tab's cards in a
-    // two-column grid below, in tab order. Each card floats around its own spot.
+    sim.force("charge").strength((d) => (d.lit ? -240 : 0));
+    // Radial: the focus in the middle, where you came from above it, and the open tab's cards in
+    // a ring around it in tab order, each grayed grandchild further out on the same spoke.
     const fpos = simById.get(focus) || { x: 0, y: 0 };
     const spot = new Map([[focus, [fpos.x, fpos.y]]]);
+    const at = (deg, r) => [
+      fpos.x + r * Math.cos((deg * Math.PI) / 180),
+      fpos.y + r * Math.sin((deg * Math.PI) / 180) * 0.9,
+    ];
     const above = [ROOT, prev].filter((id) => id && id !== focus);
     above.forEach((id, i) =>
-      spot.set(id, [
-        fpos.x + (above.length > 1 ? (i ? 100 : -100) : 0),
-        fpos.y - 150,
-      ]),
+      spot.set(id, at(-90 + (above.length > 1 ? (i ? 22 : -22) : 0), 190)),
     );
-    const below = [...nodes].filter((id) => !spot.has(id) && !hints.has(id));
+    const ring = [...nodes].filter((id) => !spot.has(id) && !hints.has(id));
     const order = (activeCat()?.items || []).map(({ e, dir }) =>
       dir === "in" ? e.from : e.to,
     );
-    below.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-    // Rows leave room for each card's grayed grandchild directly beneath it.
-    const rowGap = hints.size ? 225 : 125;
-    below.forEach((id, i) =>
-      spot.set(id, [
-        fpos.x + (below.length > 1 ? (i % 2 ? 98 : -98) : 0),
-        fpos.y + 150 + Math.floor(i / 2) * rowGap,
-      ]),
-    );
-    for (const [id, { parent }] of hints) {
-      const [px, py] = spot.get(parent) || [fpos.x, fpos.y + 150];
-      spot.set(id, [px, py + 100]);
-    }
+    ring.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    // Leave the top of the circle to the context cards when there are any.
+    const gap = above.length ? 50 : 0;
+    const span = 360 - 2 * gap;
+    const radius = Math.max(210, ring.length * 52);
+    const angleOf = new Map();
+    ring.forEach((id, i) => {
+      const deg =
+        ring.length === 1
+          ? 90
+          : -90 + gap + (span * (i + (above.length ? 0.5 : 0))) / ring.length;
+      angleOf.set(id, deg);
+      spot.set(id, at(deg, radius));
+    });
+    for (const [id, { parent }] of hints)
+      spot.set(id, at(angleOf.get(parent) ?? 90, radius + 175));
     // New cards grow out of the focus toward their spot. Cards cannot pass through each other,
-    // so a card on the wrong side of the focus starts most of the way to its spot instead.
+    // so a card on the far side of the focus from its spot starts most of the way there instead.
     for (const [id, [tx, ty]] of spot) {
       const s = simById.get(id);
       if (!s || id === focus) continue;
-      const wrongSide = Math.sign(s.y - fpos.y) !== Math.sign(ty - fpos.y);
-      if (!fresh.has(id) && !wrongSide) continue;
+      const across =
+        (s.x - fpos.x) * (tx - fpos.x) + (s.y - fpos.y) * (ty - fpos.y) < 0;
+      if (!fresh.has(id) && !across) continue;
       s.x = fpos.x + (tx - fpos.x) * 0.75;
       s.y = fpos.y + (ty - fpos.y) * 0.75;
       s.vx = 0;
@@ -2138,6 +2150,11 @@ export function mountTrillionReader(root, graph, options = {}) {
   $("#back").addEventListener("click", back);
   $("#map-main").addEventListener("click", goMain);
   $("#map-ring").addEventListener("click", openRing);
+  $("#map-more").addEventListener("click", () => {
+    if (mapEl.classList.contains("full")) setFull(false);
+    view = "list";
+    render(false);
+  });
   $("#notice").addEventListener("click", () => {
     const open = $("#notice").getAttribute("aria-expanded") !== "true";
     $("#notice").setAttribute("aria-expanded", String(open));

@@ -1423,3 +1423,23 @@ textarea {
   text-underline-offset: 3px;
   cursor: pointer;
 }
+.map-more {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--navy) 88%, transparent);
+  border: 1px solid var(--hair3);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--quiet);
+}
+.map.full .map-more {
+  top: calc(66px + env(safe-area-inset-top, 0px));
+  left: auto;
+  right: 16px;
+  transform: none;
+}
