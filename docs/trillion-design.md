@@ -1,6 +1,6 @@
 # The Trillion: interaction design
 
-Status: **in progress** for [vision issue #455](https://github.com/billion-app/billion/issues/455). Implemented: the graph schema and machine publication gate (`packages/validators`, `packages/api/src/lib/trillion.ts`), the read-only `civic.getTrillion` API, the seeding pipeline with curated historical precedent ([CLI guide](../apps/scraper/README.md#trillion-argument-graphs)), the Expo reader (see [Implementation](#implementation)), and a quote-verified Prop 40 pilot graph ([evidence](evidence/455/)). Not yet implemented: public contributions, accounts, and moderation. The [design prototype](../prototypes/trillion/index.html) is a static HTML fixture.
+Status: **shipped for California propositions** ([#459](https://github.com/billion-app/billion/pull/459)) under [vision issue #455](https://github.com/billion-app/billion/issues/455). Implemented: the graph schema and machine publication gate (`packages/validators`, `packages/api/src/lib/trillion.ts`), the read-only `civic.getTrillion` API, the seeding pipeline with curated historical precedent and a daily supervisor job ([CLI guide](../apps/scraper/README.md#trillion-argument-graphs)), the Expo reader as the proposition page (see [Implementation](#implementation)), and quote-verified evidence graphs ([evidence](evidence/455/)). Not yet implemented: public contributions, accounts and verification, moderation, frameworks ([#464](https://github.com/billion-app/billion/issues/464)), ordering signals ([#465](https://github.com/billion-app/billion/issues/465)), and Trillions for other records ([#467](https://github.com/billion-app/billion/issues/467)). The [design prototype](../prototypes/trillion/index.html) is a static HTML fixture.
 
 The Trillion (Tree of Arguments Within Billion) is how a reader works through the reasoning about a record. It replaces "summary cards plus a comment thread" with a graph of claims a reader can follow, question, and extend. Billion starts the reader's thinking; the graph never ends in a verdict or a voting recommendation.
 
@@ -8,22 +8,30 @@ This document records the decisions made in the October 2026 design review and t
 
 ## Decisions at a glance
 
-| Question                        | Decision                                                                                                                                  |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Who writes the graph            | The pipeline seeds source-text claims and anticipated questions. The public adds arguments and questions from launch.                     |
-| Primary surface                 | Phone (Expo). Desktop adds a canvas beside the same reading view.                                                                         |
-| What a node is                  | A claim. Every edge is typed, carries an explanation, and can itself be challenged.                                                       |
-| Graph scope                     | One graph per record. Records link to shared global claims, such as moral frameworks, through edges that must justify reuse.              |
-| Root of a record's graph        | The reader's own decision question, worded by record type.                                                                                |
-| Who / What + Why / When / How   | All are branches of the same graph for now. No tabs.                                                                                      |
-| First thing a reader sees       | A small live map of the question and its four basics, above the focused claim page. Everything else is revealed on request.               |
-| Ordering of children            | By debate structure, plus editorial picks on seeded records. Never by popularity or agreement.                                            |
-| Duplicates and global promotion | Claims start local. Duplicates are merged into global claims through promotion, later assisted by votes and an AI curator.                |
-| Seeded content                  | Labeled by provenance, open to challenge, and gated by existing editorial review.                                                         |
-| Who sets an argument's lean     | Whoever adds the argument. The lean can be challenged like any link; votes may flag a lean for review but never decide it.                |
-| Whole-debate overview           | A Kialo-style sunburst of the disputed questions, opened from the map into a drawer, so thin parts of the debate are visible at a glance. |
-| Moderation (post-prototype)     | An automated structural check before publishing, then post-moderation. The check never judges truth or viewpoint.                         |
-| Historical precedent            | A seeded "Has this been tried before?" question backed by curated, quote-verified past audits and analyses.                               |
+| Question                        | Decision                                                                                                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Who writes the graph            | The pipeline seeds source-text claims and anticipated questions. The public adds arguments and questions from launch.                                                    |
+| Primary surface                 | Phone (Expo). Desktop adds a canvas beside the same reading view.                                                                                                        |
+| What a node is                  | A claim. Every edge is typed, carries an explanation, and can itself be challenged.                                                                                      |
+| Graph scope                     | One graph per record. Records link to shared global claims, such as moral frameworks, through edges that must justify reuse.                                             |
+| Root of a record's graph        | The reader's own decision question, worded by record type.                                                                                                               |
+| Who / What + Why / When / How   | All are branches of the same graph for now. No tabs.                                                                                                                     |
+| First thing a reader sees       | The question, a one-line summary of what the measure does, and three tabs (Basics, Disputes, Unanswered) with a List/Map switch. Everything else is revealed on request. |
+| Ordering of children            | By debate structure, plus editorial picks on seeded records. Never by popularity or agreement.                                                                           |
+| Duplicates and global promotion | Claims start local. Duplicates are merged into global claims through promotion, later assisted by votes and an AI curator.                                               |
+| Seeded content                  | Labeled by provenance and open to challenge. Published without human review behind a machine gate; an "AI-written" notice shows until a person verifies a revision.      |
+| Who sets an argument's lean     | Whoever adds the argument. The lean can be challenged like any link; votes may flag a lean for review but never decide it.                                               |
+| Whole-debate overview           | A Kialo-style sunburst of the disputed questions, opened from the map into a drawer, so thin parts of the debate are visible at a glance.                                |
+| Moderation (post-prototype)     | An automated structural check before publishing, then post-moderation. The check never judges truth or viewpoint.                                                        |
+| Historical precedent            | A seeded "Has this been tried before?" question backed by curated, quote-verified past audits and analyses.                                                              |
+| What it does                    | A summary of at most 15 words drafted from the measure's legal text alone, every point quoted; detail behind Read more.                                                  |
+| Jargon                          | Defined terms appear in blue, as in bill briefs; a tap gives one everyday sentence.                                                                                      |
+| Lean labels                     | Name the vote ("Favors Yes on 40"), because "Leans no" read as an answer to the question above it.                                                                       |
+| Billion's own claims            | Must rest on a quoted source; the gate rejects unsourced ones and the generator prunes them.                                                                             |
+| Depth                           | At most five steps from the main case; generated seeds stop at four.                                                                                                     |
+| Other propositions              | Mentions link to that proposition; cards about another measure say "Conflicts with Prop N".                                                                              |
+| Where readers find it           | A proposition with a debate is read as its Trillion, in place of the article; others keep the article.                                                                   |
+| Keeping it current              | A daily supervisor job generates or reuses a graph for every proposition in the guide.                                                                                   |
 
 ## The model
 
@@ -59,7 +67,7 @@ Every record's graph starts from the decision the reader actually faces, worded 
 
 The root never shows a tally, a lean, or a verdict. A reader's choice stays in private preparation ([#445](https://github.com/billion-app/billion/issues/445), [#454](https://github.com/billion-app/billion/issues/454)) and never becomes a public contribution.
 
-Under the question, the main case says **what the measure does** in one plain sentence of at most 25 words. "Read more" adds one or two sentences on who is covered and where any money goes; most readers stop at the first sentence. The summary is drafted in its own model call that sees **only the measure's legal text**: not the ballot arguments, the Legislative Analyst, or the official summary, which can mislead about what a measure actually does. That keeps either campaign's framing out of the first thing a reader sees. It states mechanics the way the text does ("a 5% net-worth tax for tax year 2026") and avoids words that are themselves in dispute ("one-time," "only billionaires"), with no benefits, harms, or verdict. Every point quotes the legal text, "From the measure text" opens those passages, and a summary whose quotes fail verification is dropped rather than shown. `trillion summarize` redrafts the summary of an existing graph this way; the Prop 40 pilot's summary came from it.
+Under the question, the main case says **what the measure does** in one plain headline of at most 15 words. "Read more" adds one or two sentences on who is covered and where any money goes; most readers stop at the first sentence. The summary is drafted in its own model call that sees **only the measure's legal text**: not the ballot arguments, the Legislative Analyst, or the official summary, which can mislead about what a measure actually does. That keeps either campaign's framing out of the first thing a reader sees. It states mechanics the way the text does ("a 5% net-worth tax for tax year 2026") and avoids words that are themselves in dispute ("one-time," "only billionaires"), with no benefits, harms, or verdict. Every point quotes the legal text, "From the measure text" opens those passages, and a summary whose quotes fail verification is dropped rather than shown. `trillion summarize` redrafts the summary of an existing graph this way; the Prop 40 pilot's summary came from it.
 
 The root has four fixed **orientation branches** that every record shares, so readers learn one skeleton:
 
@@ -125,7 +133,7 @@ A first-time reader should not face every argument at once. The graph reveals it
 
 ### Map
 
-The map is rendered with Cytoscape. On a phone, a small live map sits at the top of the page and expands to full screen. On desktop, it fills the canvas beside the reading column.
+The map is rendered with Cytoscape. On a phone, the List/Map switch under the tabs shows the open tab as a map instead of a list, and the map expands to full screen. On desktop, it fills the canvas beside the reading column.
 
 - Cards float in a force simulation, similar to Obsidian's graph view. Cytoscape draws the cards, and d3-force moves them. Links pull connected cards together, cards repel each other, and each one drifts slowly once the map settles.
 - Dragging a card pulls its neighbors along. Releasing it lets the map settle again. The focused claim stays pinned.
@@ -168,13 +176,13 @@ A debate can always go one level deeper, so the graph has a floor. No card may s
 
 Every claim shows where it came from:
 
-| Provenance          | Label                               | Rule                                                                         |
-| ------------------- | ----------------------------------- | ---------------------------------------------------------------------------- |
-| Source text         | "From the measure text §50310"      | Verbatim quote with a locator to the official record                         |
-| Official analysis   | "Legislative Analyst"               | Quoted, attributed, and kept separate from Billion's explanation             |
-| Published argument  | "Ballot argument against · signers" | Attributed to its signers exactly as published                               |
-| Billion-generated   | "Generated by Billion · cites X"    | AI disclosure, citations required, editorial review before public visibility |
-| Reader contribution | Contributor's handle                | Public, attributed, and reportable                                           |
+| Provenance          | Label                               | Rule                                                                                       |
+| ------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------ |
+| Source text         | "From the measure text §50310"      | Verbatim quote with a locator to the official record                                       |
+| Official analysis   | "Legislative Analyst"               | Quoted, attributed, and kept separate from Billion's explanation                           |
+| Published argument  | "Ballot argument against · signers" | Attributed to its signers exactly as published                                             |
+| Billion-generated   | "Generated by Billion · cites X"    | AI disclosure ("AI-written · Check the sources"), resting on quoted sources, machine-gated |
+| Reader contribution | Contributor's handle                | Public, attributed, and reportable                                                         |
 
 Billion's own claims never stand on assertion: every "generated" card must rest, directly or through other cards, on a card that quotes a source (via "supports" or "qualifies"), and plain facts such as signer lists quote their source like any other source-backed card. The gate rejects a graph that breaks this, and the generator prunes such cards instead of failing. Questions and shared framework claims are exempt: one asks, the other names an assumption.
 
@@ -256,6 +264,8 @@ Watch for wrong-target contributions, lost navigation, and readers who treat the
 **One reader, two hosts.** The phone reader (list, tabs, Cytoscape map, previews, drawers) is a single engine, [`reader-engine.js`](../apps/expo/src/components/trillion/dom/reader-engine.js) with [`reader.css`](../apps/expo/src/components/trillion/dom/reader.css). The app renders it as an Expo DOM component ([`TrillionReader.tsx`](../apps/expo/src/components/trillion/dom/TrillionReader.tsx)) inside the bundled `@expo/dom-webview`, so it ships over the air with no new native code. The [phone mockup](../prototypes/trillion/mobile.html) loads a bundle of the same engine (`node prototypes/trillion/build.mjs`), so the mockup and the app cannot drift apart. The engine works on the DOM directly because it began as the mockup's script; [`model.ts`](../apps/expo/src/components/trillion/model.ts) holds the same reading rules in typed form for tests and future native work.
 
 **In the app.** A proposition with a debate is read as its Trillion: [`proposition-detail.tsx`](../apps/expo/src/app/proposition-detail.tsx) loads `civic.getTrillion` and, when the server's publication gate returns a graph, shows the reader full screen in place of the article. Measures without a debate keep the article. Native code handles leaving the screen, opening sources in the browser, and opening other propositions mentioned in a card. In development, bundled pilot graphs for Props 40–42 stand in when the server has none, and [`/trillion-preview?number=40`](../apps/expo/src/app/trillion-preview.tsx) opens one directly (`&view=map` opens on the map). The web view loads Billion's typefaces from Google Fonts, because the app's native fonts are not visible to it. _Proposed in [#467](https://github.com/billion-app/billion/issues/467):_ every record Billion covers, such as bills and court cases, gets a Trillion.
+
+**Keeping it current.** The supervisor's `trillion-propositions-daily` job runs at 4:00, before the guide job, through big-mac's Codex proxy pinned to `gpt-6.1-sol`, the model the prompt was tuned on. It reuses a stored graph when its sources, prompt and model are unchanged, generates within a daily call budget otherwise, stores only graphs that pass the gate, and remembers failed inputs for a week. `generate --pipeline staged` (plan, per-branch expansion, per-dispute lean check) remains an experiment: it cost several times more calls and crowded disputes, though its lean check corrected 10–20 leans per measure.
 
 **Generation in practice.** The first real run used `gpt-6.1-sol` through an OpenAI-compatible endpoint (`trillion generate --base-url … --model …`) on Prop 42. The first attempt was rejected outright: the model wrote structural links backwards (main case → branch). Flipping such a link adds no content, so the pipeline now repairs it, states the direction rule in the prompt, saves the model's raw answer, and lists every failed check.
 
