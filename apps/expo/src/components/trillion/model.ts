@@ -132,7 +132,6 @@ export const shortLabel = (e: TrillionEdge) =>
     ? LEAN[e.stance].toLowerCase()
     : SHORT[e.type];
 
-const KIDS = new Set(["part", "detail", "crux"]);
 const RESTS = new Set(["supports", "appliesTo"]);
 const RESP = new Set([
   "challenges",
@@ -336,14 +335,14 @@ export class TrillionModel {
     edges: string[];
     hints: string[];
   } {
-    const current = path[path.length - 1]!;
-    const focus =
-      current.t === "edge" ? this.edges.get(current.id)!.to : current.id;
+    const current = path.at(-1) ?? { t: "node" as const, id: this.rootId };
+    const step = current.t === "edge" ? this.edges.get(current.id) : undefined;
+    const focus = step ? step.to : current.id;
     const nodes = new Set([focus, this.rootId]);
     const edges = new Set<string>();
-    if (current.t === "edge") {
-      nodes.add(this.edges.get(current.id)!.from);
-      edges.add(current.id);
+    if (step) {
+      nodes.add(step.from);
+      edges.add(step.id);
     } else {
       const cat = this.categories(focus).find((c) => c.key === tab);
       for (const { edge, dir } of cat?.items ?? []) {

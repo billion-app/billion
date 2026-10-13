@@ -40,6 +40,13 @@ export default function PropositionDetailScreen() {
   const { number } = useLocalSearchParams<{ number?: string }>();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const measure = query.data?.measures.find((item) => item.number === number);
+  // The debate appears only once its graph passes the server's publication gate.
+  const debate = useQuery(
+    trpc.civic.getTrillion.queryOptions(
+      { number: number ?? "" },
+      { enabled: !!measure },
+    ),
+  );
   const proArguments = submittedGuideArguments(measure?.proArguments);
   const conArguments = submittedGuideArguments(measure?.conArguments);
 
@@ -149,6 +156,27 @@ export default function PropositionDetailScreen() {
               number={measure.number}
               relationships={measure.relationships}
             />
+            {debate.data && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityHint="Opens the questions people disagree about, with sourced arguments"
+                onPress={() =>
+                  router.push({
+                    pathname: "/trillion",
+                    params: { number: measure.number },
+                  })
+                }
+                style={s.debate}
+              >
+                <View style={s.debateText}>
+                  <Text style={s.heading}>Explore the debate</Text>
+                  <Text style={s.caption}>
+                    Where people disagree, with every claim tied to its source
+                  </Text>
+                </View>
+                <Icon name="chevR" size={18} color={P.quiet} />
+              </Pressable>
+            )}
             <View style={s.record}>
               {measure.officialSummary ||
               measure.fiscalImpact ||
@@ -418,6 +446,17 @@ const s = StyleSheet.create({
     lineHeight: 23,
     color: P.inkOnNight,
   },
+  debate: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: P.card,
+    borderColor: hair[1],
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+  },
+  debateText: { flex: 1, gap: 4 },
   surface: {
     backgroundColor: P.card,
     borderColor: hair[1],

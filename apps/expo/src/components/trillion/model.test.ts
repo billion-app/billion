@@ -16,15 +16,18 @@ void test("the main case opens on its basics and never on a pro/con split", () =
     ["basics", "disagree", "open"],
   );
   assert.equal(model.defaultTab(graph.rootId), "basics");
-  assert.equal(cats[0]!.items.length, 4);
+  assert.equal(cats[0]?.items.length, 4);
   assert.ok(
-    cats[1]!.items.every(({ edge }) => model.node(edge.from).kind === "crux"),
+    (cats[1]?.items ?? []).every(
+      ({ edge }) => model.node(edge.from).kind === "crux",
+    ),
   );
 });
 
 void test("a disputed question groups every side together with its lean", () => {
-  const crux = model.categories(graph.rootId)[1]!.items[0]!.edge.from;
-  const args = model.categories(crux).find((c) => c.key === "args")!;
+  const crux = model.categories(graph.rootId)[1]?.items[0]?.edge.from ?? "";
+  const args = model.categories(crux).find((c) => c.key === "args");
+  assert.ok(args);
   assert.ok(args.items.length > 1);
   assert.ok(
     args.items.every(({ edge }) => edge.type === "weighs" && edge.stance),

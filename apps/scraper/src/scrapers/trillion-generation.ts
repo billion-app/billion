@@ -53,6 +53,7 @@ Graph shape (node ids: lowercase letters, digits and hyphens):
 - Published ballot arguments and rebuttals are kind "argument" with attribution { name: "Ballot argument for|against" or "Rebuttal for|against", signers: names exactly as printed }.
 - Billion's own connective inferences are kind "generated". Questions a reader would likely ask are kind "question", linked with "asks"; a generated node may "answers" them.
 - Related measures named in the sources are kind "record" with record.number, quoting the clause that connects them (for example a conflict clause).
+- Edge direction: "from" is the part and "to" is the whole. Branch → root ("part"), crux → root ("crux"), detail node → branch ("detail"), argument → crux ("weighs"), and the node doing the supporting, challenging, asking or answering → its target.
 - Every edge may carry "why": one plain sentence explaining the link in this context.${precedentRule}
 
 Evidence rules (checked mechanically):
@@ -112,6 +113,32 @@ export function pruneUnverified(
   return { graph: { ...graph, nodes, edges }, dropped };
 }
 
+/**
+ * Structural links point from the part to the whole (branch → root, crux →
+ * root, detail → branch). Models often write them the other way; flipping one
+ * is lossless and adds no content, so it is repaired rather than discarded.
+ */
+export function orientStructuralEdges(
+  authored: TrillionAuthored,
+  rootId: string,
+): { authored: TrillionAuthored; flipped: string[] } {
+  const kinds = new Map(authored.nodes.map((n) => [n.id, n.kind]));
+  const flipped: string[] = [];
+  const edges = authored.edges.map((edge) => {
+    const backwards =
+      ((edge.type === "part" || edge.type === "crux") &&
+        edge.from === rootId &&
+        edge.to !== rootId) ||
+      (edge.type === "detail" &&
+        kinds.get(edge.from) === "branch" &&
+        kinds.get(edge.to) !== "branch");
+    if (!backwards) return edge;
+    flipped.push(edge.id);
+    return { ...edge, from: edge.to, to: edge.from };
+  });
+  return { authored: { ...authored, edges }, flipped };
+}
+
 /** One bounded model call per measure; unchanged input reuses the previous graph. */
 export async function generateTrillionGraph(
   corpusValue: unknown,
@@ -121,6 +148,8 @@ export async function generateTrillionGraph(
     maxPromptChars: number;
     assess: (prompt: string) => Promise<unknown>;
     previous?: unknown;
+    /** Receives the model's raw answer before any checks, for diagnosis. */
+    onAuthored?: (value: unknown) => Promise<void>;
   },
 ): Promise<{ graph: TrillionGraph; reused: boolean; dropped: string[] }> {
   const corpus = trillionCorpusSchema.parse(corpusValue);
@@ -144,7 +173,12 @@ export async function generateTrillionGraph(
     return { graph: previous.data, reused: true, dropped: [] };
   if (options.maxModelCalls < 1)
     throw new Error("Generation needs a model call; maxModelCalls is 0");
-  const authored = trillionAuthoredSchema.parse(await options.assess(prompt));
+  const raw = await options.assess(prompt);
+  await options.onAuthored?.(raw);
+  const { authored, flipped } = orientStructuralEdges(
+    trillionAuthoredSchema.parse(raw),
+    "root",
+  );
   const { graph, dropped } = pruneUnverified({
     schemaVersion: 1,
     revision: `${corpus.guide.electionDate}-${corpus.number}-${inputHash.slice(0, 16)}`,
@@ -168,5 +202,14 @@ export async function generateTrillionGraph(
       generatedAt: new Date().toISOString(),
     },
   });
-  return { graph: trillionGraphSchema.parse(graph), reused: false, dropped };
+  const checked = trillionGraphSchema.safeParse(graph);
+  if (!checked.success)
+    throw new Error(
+      `Generated graph fails the structure checks:\n${checked.error.issues.map((i) => `- ${i.message}`).join("\n")}`,
+    );
+  return {
+    graph: checked.data,
+    reused: false,
+    dropped: [...dropped, ...flipped.map((id) => `${id} (direction repaired)`)],
+  };
 }

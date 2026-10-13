@@ -13,6 +13,12 @@ import {
 import type { OfficialGuidePayload } from "./official-guide-cache";
 import { publishedTrillionGraph, trillionSourceUrls } from "./trillion";
 
+/** Narrow a value the fixture guarantees, failing the test if it is missing. */
+function must<T>(value: T | undefined): T {
+  assert.ok(value !== undefined);
+  return value;
+}
+
 const evidence = (name: string) =>
   JSON.parse(
     readFileSync(
@@ -40,8 +46,8 @@ void test("the Prop 40 pilot passes the machine gate and strips snapshots", () =
 
 void test("an altered quote, a changed document or a changed guide entry fails closed", () => {
   const altered = clone();
-  const provision = altered.nodes.find((n) => n.kind === "provision")!;
-  provision.quotes[0]!.text = provision.quotes[0]!.text.replace(
+  const provision = must(altered.nodes.find((n) => n.kind === "provision"));
+  must(provision.quotes[0]).text = must(provision.quotes[0]).text.replace(
     "5 percent",
     "2 percent",
   );
@@ -56,7 +62,7 @@ void test("an altered quote, a changed document or a changed guide entry fails c
   assert.equal(publishedTrillionGraph(corpus.guide, "40", graph, stale), null);
 
   const guide = structuredClone(corpus.guide);
-  guide.measures[0]!.title += " (amended)";
+  must(guide.measures[0]).title += " (amended)";
   assert.equal(publishedTrillionGraph(guide, "40", graph, current), null);
   assert.equal(
     publishedTrillionGraph(corpus.guide, "41", graph, current),
@@ -71,11 +77,11 @@ void test("structure rules keep the graph shaped like the design", () => {
   assert.equal(trillionGraphSchema.safeParse(noCrux).success, false);
 
   const unstanced = clone();
-  delete unstanced.edges.find((e) => e.type === "weighs")!.stance;
+  delete must(unstanced.edges.find((e) => e.type === "weighs")).stance;
   assert.equal(trillionGraphSchema.safeParse(unstanced).success, false);
 
   const money = clone();
-  money.nodes.find((n) => n.kind === "generated")!.title =
+  must(money.nodes.find((n) => n.kind === "generated")).title =
     "It raises about $5 billion.";
   assert.equal(trillionGraphSchema.safeParse(money).success, false);
 
@@ -93,7 +99,7 @@ void test("structure rules keep the graph shaped like the design", () => {
   );
 
   const unquoted = clone();
-  unquoted.nodes.find((n) => n.kind === "argument")!.quotes = [];
+  must(unquoted.nodes.find((n) => n.kind === "argument")).quotes = [];
   assert.equal(trillionGraphSchema.safeParse(unquoted).success, false);
 });
 
@@ -126,28 +132,29 @@ void test("freshness URLs come from stored graphs", () => {
 });
 
 void test("precedent is quoted from archived official PDFs and never stands in for the measure", () => {
-  const precedent = graph.sources.find((s) => s.role === "precedent")!;
+  const precedent = must(graph.sources.find((s) => s.role === "precedent"));
   assert.ok(precedent.title);
   assert.ok(graph.nodes.some((n) => n.kind === "precedent"));
 
   const offHost = clone();
-  offHost.sources.find((s) => s.role === "precedent")!.url =
+  must(offHost.sources.find((s) => s.role === "precedent")).url =
     "https://example.com/report.pdf";
   assert.equal(trillionGraphSchema.safeParse(offHost).success, false);
 
   const notPdf = clone();
-  notPdf.sources.find((s) => s.role === "precedent")!.url =
+  must(notPdf.sources.find((s) => s.role === "precedent")).url =
     "https://lao.ca.gov/ballot/2004/63_11_2004.htm";
   assert.equal(trillionGraphSchema.safeParse(notPdf).success, false);
 
   // A provision may not quote an old audit, and a precedent may not quote the bill.
   const crossed = clone();
-  const provision = crossed.nodes.find((n) => n.kind === "provision")!;
-  provision.quotes[0]!.sourceId = precedent.id;
+  const provision = must(crossed.nodes.find((n) => n.kind === "provision"));
+  must(provision.quotes[0]).sourceId = precedent.id;
   assert.equal(trillionGraphSchema.safeParse(crossed).success, false);
   const borrowed = clone();
-  borrowed.nodes.find((n) => n.kind === "precedent")!.quotes[0]!.sourceId =
-    "law-40";
+  must(
+    must(borrowed.nodes.find((n) => n.kind === "precedent")).quotes[0],
+  ).sourceId = "law-40";
   assert.equal(trillionGraphSchema.safeParse(borrowed).success, false);
 
   // Precedent freshness is enforced like any other source.
@@ -161,7 +168,7 @@ void test("precedent is quoted from archived official PDFs and never stands in f
 void test("emphasis bolds key phrases only, as bill briefs do", () => {
   const withTitle = (title: string) => {
     const g = clone();
-    g.nodes.find((n) => n.id === "a-fair")!.title = title;
+    must(g.nodes.find((n) => n.id === "a-fair")).title = title;
     return trillionGraphSchema.safeParse(g).success;
   };
   assert.equal(
@@ -181,7 +188,8 @@ void test("emphasis bolds key phrases only, as bill briefs do", () => {
     false,
   );
   const quoted = clone();
-  quoted.nodes.find((n) => n.kind === "argument")!.quotes[0]!.text += " **x**";
+  must(must(quoted.nodes.find((n) => n.kind === "argument")).quotes[0]).text +=
+    " **x**";
   assert.equal(trillionGraphSchema.safeParse(quoted).success, false);
   assert.deepEqual(trillionEmphasis("a **b** c"), [
     { text: "a ", bold: false },

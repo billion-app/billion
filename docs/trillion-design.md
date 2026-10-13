@@ -1,6 +1,6 @@
 # The Trillion: interaction design
 
-Status: **in progress** for [vision issue #455](https://github.com/billion-app/billion/issues/455). Implemented: the graph schema and machine publication gate (`packages/validators`, `packages/api/src/lib/trillion.ts`), the read-only `civic.getTrillion` API, the seeding pipeline with curated historical precedent ([CLI guide](../apps/scraper/README.md#trillion-argument-graphs)), and a quote-verified Prop 40 pilot graph ([evidence](evidence/455/)). Not yet implemented: the Expo screens (the [phone mockup](../prototypes/trillion/mobile.html) shows the intended behavior), public contributions, accounts, and moderation. The [design prototype](../prototypes/trillion/index.html) is a static HTML fixture.
+Status: **in progress** for [vision issue #455](https://github.com/billion-app/billion/issues/455). Implemented: the graph schema and machine publication gate (`packages/validators`, `packages/api/src/lib/trillion.ts`), the read-only `civic.getTrillion` API, the seeding pipeline with curated historical precedent ([CLI guide](../apps/scraper/README.md#trillion-argument-graphs)), the Expo reader (see [Implementation](#implementation)), and a quote-verified Prop 40 pilot graph ([evidence](evidence/455/)). Not yet implemented: public contributions, accounts, and moderation. The [design prototype](../prototypes/trillion/index.html) is a static HTML fixture.
 
 The Trillion (Tree of Arguments Within Billion) is how a reader works through the reasoning about a record. It replaces "summary cards plus a comment thread" with a graph of claims a reader can follow, question, and extend. Billion starts the reader's thinking; the graph never ends in a verdict or a voting recommendation.
 
@@ -240,6 +240,14 @@ Ask readers to:
 5. Add a challenge to a specific step.
 
 Watch for wrong-target contributions, lost navigation, and readers who treat the graph as complete or as Billion's verdict. Any of those is a design failure, even if every control works.
+
+## Implementation
+
+**One reader, two hosts.** The phone reader (list, tabs, Cytoscape map, previews, drawers) is a single engine, [`reader-engine.js`](../apps/expo/src/components/trillion/dom/reader-engine.js) with [`reader.css`](../apps/expo/src/components/trillion/dom/reader.css). The app renders it as an Expo DOM component ([`TrillionReader.tsx`](../apps/expo/src/components/trillion/dom/TrillionReader.tsx)) inside the bundled `@expo/dom-webview`, so it ships over the air with no new native code. The [phone mockup](../prototypes/trillion/mobile.html) loads a bundle of the same engine (`node prototypes/trillion/build.mjs`), so the mockup and the app cannot drift apart. The engine works on the DOM directly because it began as the mockup's script; [`model.ts`](../apps/expo/src/components/trillion/model.ts) holds the same reading rules in typed form for tests and future native work.
+
+**In the app.** [`/trillion?number=40`](../apps/expo/src/app/trillion.tsx) loads `civic.getTrillion` and shows the reader full screen; native code handles leaving the screen and opening sources in the browser. The proposition page shows "Explore the debate" only when the server's publication gate returns a graph. In development, [`/trillion-preview?number=40`](../apps/expo/src/app/trillion-preview.tsx) shows the pilot graphs without the API (`&view=map` opens on the map). The web view loads Billion's typefaces from Google Fonts, because the app's native fonts are not visible to it.
+
+**Generation in practice.** The first real run used `gpt-6.1-sol` through an OpenAI-compatible endpoint (`trillion generate --base-url … --model …`) on Prop 42. The first attempt was rejected outright: the model wrote structural links backwards (main case → branch), so the four branches and the disputes did not attach. Flipping a backwards structural link adds no content, so the pipeline now repairs it, states the direction rule in the prompt, saves the model's raw answer next to the output, and lists every failed check. The second attempt passed with 34 cards, 50 links and no dropped quotes ([graph](evidence/455/prop42-generated-graph.json), [raw answer](evidence/455/prop42-generated-raw.json)). It is usable but thinner than the hand-built Prop 40 pilot: few arguments sit under each dispute, and some titles are abstract. Prompt tuning on a few more measures should precede generating at scale.
 
 ## Integration with existing work
 

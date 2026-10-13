@@ -1,4 +1,5 @@
 import { readFile, rename, writeFile } from "node:fs/promises";
+import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
@@ -70,7 +71,16 @@ await yargs(hideBin(process.argv))
         .positional("corpus", { type: "string", demandOption: true })
         .positional("output", { type: "string", demandOption: true })
         .option("max-model-calls", { type: "number", demandOption: true })
-        .option("max-prompt-chars", { type: "number", default: 400000 }),
+        .option("max-prompt-chars", { type: "number", default: 400000 })
+        .option("base-url", {
+          type: "string",
+          describe:
+            "Use this OpenAI-compatible endpoint instead of the configured scraper providers",
+        })
+        .option("model", {
+          type: "string",
+          describe: "Model id at --base-url",
+        }),
     async (args) => {
       let previous: unknown;
       try {
@@ -78,12 +88,23 @@ await yargs(hideBin(process.argv))
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
-      const candidate = getStructuredLlmCandidates()[0]!;
+      if ((args.baseUrl === undefined) !== (args.model === undefined))
+        throw new Error("--base-url and --model go together");
+      const candidate = args.baseUrl
+        ? {
+            model: createOpenAI({
+              baseURL: args.baseUrl.replace(/\/$/, ""),
+              apiKey: process.env.TRILLION_MODEL_API_KEY?.trim() || "unused",
+            })(args.model!),
+            modelVersion: `openai-compatible:${args.model}`,
+          }
+        : getStructuredLlmCandidates()[0]!;
       const result = await generateTrillionGraph(await readJson(args.corpus), {
         model: candidate.modelVersion,
         maxModelCalls: args.maxModelCalls,
         maxPromptChars: args.maxPromptChars,
         previous,
+        onAuthored: (value) => save(`${args.output}.raw.json`, value),
         assess: async (prompt) => {
           const response = await generateText({
             model: candidate.model,
