@@ -321,11 +321,21 @@ export class TrillionModel {
     );
   }
 
-  /** The cards the map shows: main case, focus, previous step and the open tab. */
+  /**
+   * The cards the map shows: main case, focus, previous step and the open tab,
+   * plus one grayed grandchild under each tab card (`hints`, also in `nodes`)
+   * chosen the way that card's own page would open.
+   */
   lit(
     path: Step[],
     tab: string,
-  ): { focus: string; prev: string | null; nodes: string[]; edges: string[] } {
+  ): {
+    focus: string;
+    prev: string | null;
+    nodes: string[];
+    edges: string[];
+    hints: string[];
+  } {
     const current = path[path.length - 1]!;
     const focus =
       current.t === "edge" ? this.edges.get(current.id)!.to : current.id;
@@ -351,6 +361,32 @@ export class TrillionModel {
         (e.from === focus || e.to === focus)
       )
         edges.add(e.id);
-    return { focus, prev, nodes: [...nodes], edges: [...edges] };
+    const hints: string[] = [];
+    if (current.t === "node")
+      for (const { edge, dir } of this.categories(focus).find(
+        (c) => c.key === tab,
+      )?.items ?? []) {
+        const child = dir === "in" ? edge.from : edge.to;
+        const first = (
+          this.categories(child).find((c) => c.key === this.defaultTab(child))
+            ?.items ?? []
+        )
+          .map((item) => ({
+            id: item.dir === "in" ? item.edge.from : item.edge.to,
+            edge: item.edge.id,
+          }))
+          .find((g) => !nodes.has(g.id) && !hints.includes(g.id));
+        if (first) {
+          hints.push(first.id);
+          edges.add(first.edge);
+        }
+      }
+    return {
+      focus,
+      prev,
+      nodes: [...nodes, ...hints],
+      edges: [...edges],
+      hints,
+    };
   }
 }

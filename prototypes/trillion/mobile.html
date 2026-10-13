@@ -1527,6 +1527,12 @@
     .peek .inside-row {
       font-weight: 400;
     }
+    /* A grandchild hint: what is one level deeper, grayed until the reader goes there. */
+    .mcard.lit.hint {
+      opacity: 0.4;
+      filter: grayscale(1);
+      border-left-color: var(--hair3);
+    }
   </style>
 
   <div class="stage">
@@ -2470,11 +2476,31 @@
           });
         const prev = path.length > 1 ? path[path.length - 2] : null;
         if (prev && prev.t === "node") nodes.add(prev.id);
+        // One grayed-out grandchild under each card in the open tab: a hint of what is one level
+        // deeper, chosen the same way that card's own page would open (its default tab, first item).
+        const hints = new Map();
+        if (c.t === "node")
+          for (const { e, dir } of activeCat()?.items || []) {
+            const child = dir === "in" ? e.from : e.to;
+            const cat = categories(child).find(
+              (k) => k.key === defaultTab(child),
+            );
+            const first = (cat?.items || [])
+              .map((it) => ({
+                id: it.dir === "in" ? it.e.from : it.e.to,
+                edge: it.e.id,
+              }))
+              .find(
+                (g) => visible(g.id) && !nodes.has(g.id) && !hints.has(g.id),
+              );
+            if (first) hints.set(first.id, { parent: child, edge: first.edge });
+          }
         return {
           focus,
           prev: prev?.t === "node" ? prev.id : null,
           nodes,
           edges,
+          hints,
         };
       }
 
@@ -2731,6 +2757,15 @@
             },
             { selector: "edge.current", style: { width: 3.5 } },
             {
+              selector: "edge.lit.hint",
+              style: {
+                opacity: 0.35,
+                "line-color": "#4A5068",
+                "target-arrow-color": "#4A5068",
+                "line-style": "dashed",
+              },
+            },
+            {
               selector: "node.peeked",
               style: { "border-color": "#F7F4EE", "border-width": 2.5 },
             },
@@ -2946,7 +2981,11 @@
 
       function syncMap(navigated) {
         if (!cy) return;
-        const { focus, prev, nodes, edges } = litSet();
+        const { focus, prev, nodes, edges, hints } = litSet();
+        for (const [id, { edge }] of hints) {
+          nodes.add(id);
+          edges.add(edge);
+        }
         for (const [id, el] of cardEls) {
           const lit = nodes.has(id);
           el.className = [
@@ -2956,6 +2995,7 @@
             lit ? "lit" : "",
             id === focus ? "focused" : "",
             id === prev && id !== ROOT ? "trail" : "",
+            hints.has(id) ? "hint" : "",
           ].join(" ");
           if (!lit) continue;
           el.innerHTML = cardHtml(id);
@@ -2989,6 +3029,9 @@
                 (e.source().id() === focus || e.target().id() === focus));
             e.classes(
               [
+                hints.has(e.source().id()) || hints.has(e.target().id())
+                  ? "hint"
+                  : "",
                 lit ? "lit" : "",
                 cur().t === "edge" && cur().id === e.id() ? "current" : "",
               ].join(" "),
@@ -3030,17 +3073,25 @@
             fpos.y - 150,
           ]),
         );
-        const below = [...nodes].filter((id) => !spot.has(id));
+        const below = [...nodes].filter(
+          (id) => !spot.has(id) && !hints.has(id),
+        );
         const order = (activeCat()?.items || []).map(({ e, dir }) =>
           dir === "in" ? e.from : e.to,
         );
         below.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        // Rows leave room for each card's grayed grandchild directly beneath it.
+        const rowGap = hints.size ? 225 : 125;
         below.forEach((id, i) =>
           spot.set(id, [
             fpos.x + (below.length > 1 ? (i % 2 ? 98 : -98) : 0),
-            fpos.y + 150 + Math.floor(i / 2) * 125,
+            fpos.y + 150 + Math.floor(i / 2) * rowGap,
           ]),
         );
+        for (const [id, { parent }] of hints) {
+          const [px, py] = spot.get(parent) || [fpos.x, fpos.y + 150];
+          spot.set(id, [px, py + 100]);
+        }
         // New cards grow out of the focus toward their spot. Cards cannot pass through each other,
         // so a card on the wrong side of the focus starts most of the way to its spot instead.
         for (const [id, [tx, ty]] of spot) {

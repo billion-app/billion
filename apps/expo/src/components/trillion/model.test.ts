@@ -34,7 +34,7 @@ void test("a disputed question groups every side together with its lean", () => 
 
 void test("the map lights the main case, the focus and only the open tab", () => {
   const root = model.lit([{ t: "node", id: graph.rootId }], "basics");
-  assert.equal(root.nodes.length, 5);
+  assert.equal(root.nodes.length - root.hints.length, 5);
   const deep = model.lit(
     [
       { t: "node", id: graph.rootId },
@@ -44,5 +44,19 @@ void test("the map lights the main case, the focus and only the open tab", () =>
   );
   assert.ok(deep.nodes.includes(graph.rootId));
   assert.ok(deep.nodes.includes("a-expand"));
-  assert.ok(deep.nodes.length < graph.nodes.length / 4);
+  assert.ok(deep.nodes.length - deep.hints.length < graph.nodes.length / 4);
+});
+
+void test("each card in the open tab hints at one grayed grandchild", () => {
+  const view = model.lit([{ t: "node", id: graph.rootId }], "disagree");
+  assert.ok(view.hints.length > 0);
+  for (const hint of view.hints) {
+    assert.ok(view.nodes.includes(hint));
+    assert.ok(
+      graph.edges.some(
+        (e) => (e.from === hint || e.to === hint) && view.edges.includes(e.id),
+      ),
+    );
+  }
+  assert.equal(new Set(view.hints).size, view.hints.length);
 });
