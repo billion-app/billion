@@ -9,7 +9,13 @@ import type {
  * a published graph. Kept free of React so the list, the map and tests agree.
  */
 
-export type Tone = "for" | "against" | "mixed" | "question" | "applies" | "neutral";
+export type Tone =
+  | "for"
+  | "against"
+  | "mixed"
+  | "question"
+  | "applies"
+  | "neutral";
 export interface Item {
   edge: TrillionEdge;
   /** "in": the other node points at the focus; "out": the focus points at it. */
@@ -115,15 +121,25 @@ export const TONE_COLOR: Record<Tone, string> = {
 export const tone = (e: TrillionEdge): Tone =>
   e.type === "weighs" && e.stance ? e.stance : TONE[e.type];
 export const inLabel = (e: TrillionEdge) =>
-  e.type === "weighs" && e.stance ? LEAN[e.stance] : (IN[e.type] ?? OUT[e.type]);
+  e.type === "weighs" && e.stance
+    ? LEAN[e.stance]
+    : (IN[e.type] ?? OUT[e.type]);
 export const outLabel = (e: TrillionEdge) =>
   e.type === "weighs" && e.stance ? `${LEAN[e.stance]} on` : OUT[e.type];
 export const shortLabel = (e: TrillionEdge) =>
-  e.type === "weighs" && e.stance ? LEAN[e.stance].toLowerCase() : SHORT[e.type];
+  e.type === "weighs" && e.stance
+    ? LEAN[e.stance].toLowerCase()
+    : SHORT[e.type];
 
 const KIDS = new Set(["part", "detail", "crux"]);
 const RESTS = new Set(["supports", "appliesTo"]);
-const RESP = new Set(["challenges", "qualifies", "asks", "answers", "conflicts"]);
+const RESP = new Set([
+  "challenges",
+  "qualifies",
+  "asks",
+  "answers",
+  "conflicts",
+]);
 
 export class TrillionModel {
   readonly nodes: Map<string, TrillionNode>;
@@ -178,7 +194,10 @@ export class TrillionModel {
         ? "Contested"
         : "Few arguments yet";
     const dispute = this.node(id).dispute;
-    return { open, text: `${dispute ? DISPUTE_LABEL[dispute] : "Disputed"} · ${state}` };
+    return {
+      open,
+      text: `${dispute ? DISPUTE_LABEL[dispute] : "Disputed"} · ${state}`,
+    };
   }
 
   /** Everything in the record nobody has responded to yet, shown against its target. */
@@ -200,20 +219,25 @@ export class TrillionModel {
           key: "basics",
           label: "Basics",
           tone: "neutral",
-          items: inc.filter((e) => e.type === "part").map((edge) => ({ edge, dir: "in" })),
+          items: inc
+            .filter((e) => e.type === "part")
+            .map((edge) => ({ edge, dir: "in" })),
         },
         {
           key: "disagree",
-          label: "Where people disagree",
+          label: "Disputes",
           tone: "neutral",
           items: inc
             .filter((e) => e.type === "crux")
-            .sort((a, b) => this.cruxState(b.from).open - this.cruxState(a.from).open)
+            .sort(
+              (a, b) =>
+                this.cruxState(b.from).open - this.cruxState(a.from).open,
+            )
             .map((edge) => ({ edge, dir: "in" })),
         },
         {
           key: "open",
-          label: "Still unanswered",
+          label: "Unanswered",
           tone: "question",
           items: this.unanswered(),
           empty: "Everything here has at least one response.",
@@ -226,13 +250,19 @@ export class TrillionModel {
           key: "args",
           label: "Arguments",
           tone: "neutral",
-          items: this.ranked(inc.filter((e) => e.type === "weighs"), "in"),
+          items: this.ranked(
+            inc.filter((e) => e.type === "weighs"),
+            "in",
+          ),
         },
         {
           key: "resp",
           label: "Questions about this",
           tone: "question",
-          items: this.ranked(inc.filter((e) => RESP.has(e.type)), "in"),
+          items: this.ranked(
+            inc.filter((e) => RESP.has(e.type)),
+            "in",
+          ),
           empty: "No one has questioned how this dispute is framed.",
         },
       ];
@@ -250,14 +280,20 @@ export class TrillionModel {
         key: "resp",
         label: "Responses",
         tone: "against",
-        items: this.ranked(inc.filter((e) => RESP.has(e.type)), "in"),
+        items: this.ranked(
+          inc.filter((e) => RESP.has(e.type)),
+          "in",
+        ),
         empty: "No one has challenged, qualified, or questioned this yet.",
       });
       categories.push({
         key: "rests",
         label: "Rests on",
         tone: "for",
-        items: this.ranked(inc.filter((e) => RESTS.has(e.type)), "in"),
+        items: this.ranked(
+          inc.filter((e) => RESTS.has(e.type)),
+          "in",
+        ),
         empty: ["provision", "finding"].includes(kind)
           ? "This is the measure's own wording. Read the source to see it in context."
           : "No supporting evidence or reasons have been linked yet.",
@@ -276,16 +312,22 @@ export class TrillionModel {
   defaultTab(id: string): string {
     const cats = this.categories(id);
     return (
-      cats.find((c) => ["inside", "basics", "args"].includes(c.key)) ??
-      cats.find((c) => c.items.length) ??
-      cats[0]
-    )?.key ?? "";
+      (
+        cats.find((c) => ["inside", "basics", "args"].includes(c.key)) ??
+        cats.find((c) => c.items.length) ??
+        cats[0]
+      )?.key ?? ""
+    );
   }
 
   /** The cards the map shows: main case, focus, previous step and the open tab. */
-  lit(path: Step[], tab: string): { focus: string; prev: string | null; nodes: string[]; edges: string[] } {
+  lit(
+    path: Step[],
+    tab: string,
+  ): { focus: string; prev: string | null; nodes: string[]; edges: string[] } {
     const current = path[path.length - 1]!;
-    const focus = current.t === "edge" ? this.edges.get(current.id)!.to : current.id;
+    const focus =
+      current.t === "edge" ? this.edges.get(current.id)!.to : current.id;
     const nodes = new Set([focus, this.rootId]);
     const edges = new Set<string>();
     if (current.t === "edge") {

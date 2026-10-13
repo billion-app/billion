@@ -1473,6 +1473,39 @@
       color: var(--quiet);
       margin-bottom: 2px;
     }
+    .peek .inside {
+      margin-top: 12px;
+      display: grid;
+      gap: 6px;
+    }
+    .peek .inside-h {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--quiet);
+    }
+    .peek .inside-row {
+      display: grid;
+      gap: 1px;
+      text-align: left;
+      padding: 8px 11px;
+      border-radius: 10px;
+      background: var(--slate);
+      border-left: 3px solid var(--tone);
+      font: 600 14px/1.3 var(--display);
+      color: var(--text);
+    }
+    .peek .inside-rel {
+      font: 700 11px/1.3 var(--body);
+      color: var(--tone);
+    }
+    .peek .inside-more {
+      margin: 0;
+      font-size: 12px;
+      color: var(--quiet);
+    }
   </style>
 
   <div class="stage">
@@ -1536,8 +1569,7 @@
             ></span>
             <span class="notice-body">
               <span class="notice-head"
-                ><span class="notice-title"
-                  >Written by Billion AI · Always check the source</span
+                ><span class="notice-title">AI-written · Check the sources</span
                 ><span class="notice-action">Details</span
                 ><svg
                   class="chev"
@@ -1907,7 +1939,7 @@
             },
             {
               key: "disagree",
-              label: "Where people disagree",
+              label: "Disputes",
               tone: "neutral",
               items: inc
                 .filter((e) => e.type === "crux")
@@ -1916,7 +1948,7 @@
             },
             {
               key: "open",
-              label: "Still unanswered",
+              label: "Unanswered",
               tone: "question",
               items: unanswered(),
               empty: "Everything here has at least one response.",
@@ -2067,7 +2099,6 @@
       <button class="go" type="button" data-node="${otherId}">
         <span class="t">${esc(titleOf(otherId))}${open}</span>
       </button>
-      ${e.why ? `<div class="why">${esc(e.why)}</div>` : ""}
     </div>`;
       }
 
@@ -2126,9 +2157,9 @@
         const n = N[id];
         const src = n.source || {};
         if (id === ROOT)
-          return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1><p class="body">${esc(n.body)}</p></article>`;
+          return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1></article>`;
         const meta = [
-          `<span class="kind">${esc(n.kind === "argument" ? src.label : KIND[n.kind])}</span>`,
+          `<span class="kind">${esc(n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
         ];
         if (src.handle)
           meta.push(
@@ -2139,8 +2170,7 @@
           meta.push(
             `<span>Used in ${n.usedIn} other records (example count)</span>`,
           );
-        if (n.kind === "crux")
-          meta.push(`<span>${esc(cruxState(id).text)}</span>`);
+
         return `<article class="focus">
       <div class="meta">${meta.join("")}</div>
       <h1 tabindex="-1">${esc(n.title)}</h1>
@@ -2214,11 +2244,10 @@
         const cats = categories(ROOT);
         const n = (k) => cats.find((c) => c.key === k).items.length;
         return `<section class="door">
-      <p class="door-t">This is where the debate starts, not where it ends.</p>
-      <p class="empty">Nothing here adds up to an answer, and your own choice stays private.</p>
+      <p class="door-t">The debate starts here, not ends.</p>
       <div class="door-actions">
-        ${tab !== "disagree" ? `<button class="btn ghost" type="button" data-tab="disagree">Where people disagree (${n("disagree")})</button>` : ""}
-        ${tab !== "open" ? `<button class="btn ghost" type="button" data-tab="open">Still unanswered (${n("open")})</button>` : ""}
+        ${tab !== "disagree" ? `<button class="btn ghost" type="button" data-tab="disagree">Disputes (${n("disagree")})</button>` : ""}
+        ${tab !== "open" ? `<button class="btn ghost" type="button" data-tab="open">Unanswered (${n("open")})</button>` : ""}
       </div>
     </section>`;
       }
@@ -2322,7 +2351,7 @@
             <circle r="18" fill="#D4AF37" data-peek="${ROOT}"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
           </svg>
           <p class="ov-hover" id="ov-hover" aria-live="polite" hidden></p>
-          <p class="ring-key">Gold center: the main case. Inner ring: the ${cruxes.length} disputed questions. Middle ring: their ${args} arguments, colored by lean. Outer ring: responses. Wider slices have more debate beneath them. ${unanswered().length} items are still unanswered. Tap a slice to preview it.</p>
+          <p class="ring-key">${cruxes.length} disputes · ${args} arguments · ${unanswered().length} unanswered. Wider slices have more debate. Tap one to preview.</p>
           ${thin.map((t) => `<button type="button" class="thin" data-peek="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
           </div>`,
           true,
@@ -3088,9 +3117,10 @@
         lastTrigger = document.activeElement;
         $("#layer").innerHTML =
           `<div class="scrim${light ? " light" : ""}" data-scrim><div class="sheet${light ? " peek" : ""}" role="dialog" aria-modal="true" aria-labelledby="sheet-title">${html}</div></div>`;
-        $("#layer")
-          .querySelector("button, textarea, input")
-          ?.focus({ preventScroll: true });
+        (
+          $("#layer").querySelector(".peek .actions .btn") ||
+          $("#layer").querySelector("button, textarea, input")
+        )?.focus({ preventScroll: true });
       }
       function closeSheet() {
         $("#layer").innerHTML = "";
@@ -3114,17 +3144,31 @@
           e.to === f
             ? inLabel(e)
             : `${outLabel(e).replace(/ on$/, "")} · ${N[e.to].label || titleOf(e.to)}`;
+        if (!label) return ""; // structural links like "Part of" the focus say nothing new
         return `<div class="rel" style="--tone:${TONE_HEX[tone(e)]}">${esc(label)}</div>`;
       }
       function peekNode(id, fromRing = false) {
         const n = N[id];
         const src = n.source || {};
-        const counts =
-          id === ROOT
-            ? []
-            : categories(id)
-                .filter((c) => c.items.length)
-                .map((c) => `${c.label} ${c.items.length}`);
+        // Show what is inside, not just how much: the first few cards of its opening tab.
+        const cats = categories(id).filter((c) => c.items.length);
+        const open = cats.find((c) => c.key === defaultTab(id)) || cats[0];
+        const inside = open
+          ? `<div class="inside"><p class="inside-h">${esc(open.label)} · ${open.items.length}</p>${open.items
+              .slice(0, 3)
+              .map(({ e, dir }) => {
+                const other = dir === "in" ? e.from : e.to;
+                const rel = KIDS.has(e.type)
+                  ? ""
+                  : dir === "in"
+                    ? inLabel(e)
+                    : outLabel(e);
+                return `<button type="button" class="inside-row" data-peek="${other}" style="--tone:${TONE_HEX[tone(e)]}">${rel ? `<span class="inside-rel">${esc(rel)}</span>` : ""}<span>${esc(titleOf(other))}</span></button>`;
+              })
+              .join(
+                "",
+              )}${open.items.length > 3 ? `<p class="inside-more">+${open.items.length - 3} more</p>` : ""}</div>`
+          : "";
         const here = id === focusId();
         cardEls.get(id)?.classList.add("peeked");
         openSheet(
@@ -3133,7 +3177,7 @@
           <h2 id="sheet-title">${esc(titleOf(id))}</h2>
           ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
           ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
-          ${counts.length ? `<p class="counts">${esc(counts.join(" · "))}</p>` : ""}
+          ${inside}
           ${fromRing ? `<button class="linkish" type="button" data-ring style="margin:0 0 10px">‹ Back to the whole debate</button>` : ""}<div class="actions">${here ? `<button class="btn ghost" type="button" data-close>You're here · Close</button>` : `<button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-node="${id}">Go to this ›</button>`}</div>`,
           true,
         );

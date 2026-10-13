@@ -87,11 +87,13 @@ There is no separate simplified mode. The first layer of the graph is the simple
 Two cues keep the first layer from reading as the conclusion (the Bradbury principle):
 
 1. Every disputed question shows its state, so "Unanswered" and "Contested" are visible before the reader goes deeper.
-2. The main case ends in a door, not a takeaway: "This is where the debate starts, not where it ends," with links to the disputed questions and to everything still unanswered.
+2. The main case ends in a door, not a takeaway: "The debate starts here, not ends," with links to the disputes and to everything still unanswered.
 
 Who, When, and How are graph branches rather than tabs, to keep the model consistent while it is unproven. Their facts can also serve as evidence inside the debate, for example when a funding record is attached to a claim about a sponsor's incentives. _Open:_ common lookups such as deadlines may later earn a fixed tab or a reader-customizable shortcut.
 
 ## The reading experience on a phone
+
+**Keep text short.** Early reviewers found the first version too wordy. The screen explains the measure, not the app: the main case shows only its question, the AI notice is one line ("AI-written · Check the sources") with details on tap, tab names are one word where possible, and list rows show the relationship, source, and statement without the link's explanation, which lives on the link's own page. Every line that explains how the Trillion works has to earn its place against one more line about the measure.
 
 ### Focused claim page
 
@@ -111,7 +113,7 @@ Empty sections describe coverage, not consensus: "No one has challenged this yet
 
 A first-time reader should not face every argument at once. The graph reveals itself as the reader asks for more:
 
-- Connections are split into **category tabs**, and the map and the list both show only the selected tab. The main case has Basics, Where people disagree, and Still unanswered. A disputed question has Arguments and Questions about this. Other claims have Responses, Rests on, and Used in (branches show Inside). An earlier Case for yes / Case for no split was rejected because it made picking a side the reader's first move.
+- Connections are split into **category tabs**, and the map and the list both show only the selected tab. The main case has Basics, Disputes, and Unanswered. A disputed question has Arguments and Questions about this. Other claims have Responses, Rests on, and Used in (branches show Inside). An earlier Case for yes / Case for no split was rejected because it made picking a side the reader's first move.
 - The main case opens on Basics, so a new reader sees the question and four cards.
 - The map shows only the main case, the current claim, the previous step, and the selected tab's cards. Everything else is hidden rather than grayed out; a full gray constellation was prototyped and rejected as too busy. Lists show four rows, then "Show N more."
 - The main case is always on the map, drawn bold with a gold border, and never dims. "Go back to main case" appears on the map and in the reading column whenever the reader is elsewhere, and the first breadcrumb is always "Main case."
