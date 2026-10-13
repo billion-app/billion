@@ -213,6 +213,42 @@ export function orientStructuralEdges(
   return { authored: { ...authored, nodes, edges }, flipped };
 }
 
+/**
+ * A "record" card stands for another ballot measure and names it. Models
+ * sometimes type an ordinary card "record" without a measure. The card's own
+ * quote settles it: quoting another measure makes it that measure's record;
+ * quoting this measure's sources re-types it by the source it quotes.
+ */
+export function repairRecordKinds(
+  nodes: TrillionAuthored["nodes"],
+  sources: { id: string; number: string; role: string }[],
+  number: string,
+): { nodes: TrillionAuthored["nodes"]; retyped: string[] } {
+  const byId = new Map(sources.map((s) => [s.id, s]));
+  const retyped: string[] = [];
+  const kindFor: Record<string, TrillionAuthored["nodes"][number]["kind"]> = {
+    "legal-text": "provision",
+    "official-analysis": "analysis",
+    "official-arguments": "argument",
+    precedent: "precedent",
+  };
+  const out = nodes.map((node) => {
+    if (node.kind !== "record" || node.record) return node;
+    const source = byId.get(node.quotes[0]?.sourceId ?? "");
+    if (!source) return node;
+    if (source.number !== number) {
+      retyped.push(`${node.id} (record for Prop ${source.number})`);
+      return { ...node, record: { number: source.number } };
+    }
+    const kind = kindFor[source.role] ?? "provision";
+    // An argument keeps its published attribution, so it needs one to be retyped.
+    if (kind === "argument" && !node.attribution) return node;
+    retyped.push(`${node.id} (record → ${kind})`);
+    return { ...node, kind };
+  });
+  return { nodes: out, retyped };
+}
+
 /** One bounded model call per measure; unchanged input reuses the previous graph. */
 export async function generateTrillionGraph(
   corpusValue: unknown,
@@ -255,10 +291,17 @@ export async function generateTrillionGraph(
 
   const raw = await options.assess(prompt);
   await options.onAuthored?.(raw);
-  const { authored, flipped } = orientStructuralEdges(
+  const oriented = orientStructuralEdges(
     trillionAuthoredSchema.parse(raw),
     "root",
   );
+  const flipped = oriented.flipped;
+  const repaired = repairRecordKinds(
+    oriented.authored.nodes,
+    corpus.sources,
+    corpus.number,
+  );
+  const authored = { ...oriented.authored, nodes: repaired.nodes };
   const { terms: summaryTerms, ...summary } = trillionSummarySchema.parse(
     await options.assessSummary(summaryPrompt),
   );
@@ -302,7 +345,11 @@ export async function generateTrillionGraph(
   return {
     graph: checked.data,
     reused: false,
-    dropped: [...dropped, ...flipped.map((id) => `${id} (direction repaired)`)],
+    dropped: [
+      ...dropped,
+      ...flipped.map((id) => `${id} (direction repaired)`),
+      ...repaired.retyped,
+    ],
   };
 }
 

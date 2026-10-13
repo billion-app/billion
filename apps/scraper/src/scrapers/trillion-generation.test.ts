@@ -193,3 +193,32 @@ void test("seed cards deeper than the seed depth are pruned, not published", asy
   assert.ok(result.dropped.some((d) => d.endsWith("(too deep)")));
   assert.ok(!result.graph.nodes.some((n) => n.id === "deep-3"));
 });
+
+void test("a record card missing its measure is repaired from the source it quotes", async () => {
+  const { repairRecordKinds } = await import("./trillion-generation.js");
+  const sources = [
+    { id: "law-40", number: "40", role: "legal-text" },
+    { id: "law-41", number: "41", role: "legal-text" },
+    { id: "analysis-40", number: "40", role: "official-analysis" },
+  ];
+  const card = (id: string, sourceId: string) => ({
+    id,
+    kind: "record" as const,
+    label: id,
+    title: id,
+    quotes: [{ sourceId, locator: "§1", text: "quoted text here" }],
+  });
+  const { nodes, retyped } = repairRecordKinds(
+    [
+      card("other", "law-41"),
+      card("own", "law-40"),
+      card("lao", "analysis-40"),
+    ],
+    sources,
+    "40",
+  );
+  assert.deepEqual(nodes[0]?.record, { number: "41" });
+  assert.equal(nodes[1]?.kind, "provision");
+  assert.equal(nodes[2]?.kind, "analysis");
+  assert.equal(retyped.length, 3);
+});

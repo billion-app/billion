@@ -18,6 +18,7 @@ import {
   mergeTerms,
   orientStructuralEdges,
   pruneUnverified,
+  repairRecordKinds,
   TRILLION_SUMMARY_PROMPT_VERSION,
   trillionSummarySchema,
 } from "./trillion-generation.js";
@@ -156,7 +157,7 @@ Plan:
   - "home" is where the card lives: a branch key or a crux id. "What does it actually do?" ("what") is built from the measure's OWN legal text: five to ten "provision" cards, core change first, then who it covers, then money, then exceptions and procedure; the Legislative Analyst ("analysis") explains alongside, never in place of the text.
   - Split each published argument and rebuttal into its distinct claims, one "argument" card each (usually 8 to 14), home in the dispute it bears on most.
   - "weighsOn": the crux ids the card bears on. Every crux needs at least three cards weighing on it, from both sides when the sources support both; never invent a side the sources lack.
-  - Add a "record" card for each other ballot measure the sources connect to this one${precedent ? ', and "precedent" cards (quoting only precedent sources) for the earlier measures' : ""}.
+  - Add a "record" card for each OTHER ballot measure the sources connect to this one, and use kind "record" for nothing else (signer lists are "argument", this measure's text is "provision")${precedent ? ', and "precedent" cards (quoting only precedent sources) for the earlier measures' : ""}.
   - Add a "shared" card for a value framework only where an argument's lean turns on it.
   - About 35 to 55 cards in all.
 
@@ -442,10 +443,14 @@ export async function generateStagedTrillionGraph(
       .flatMap((x) => x.edges)
       .map((e, i) => ({ ...e, id: `x${i}-${e.id}`.slice(0, 80) })),
   ];
-  const { authored, flipped } = orientStructuralEdges(
-    { terms: [], nodes, edges },
-    "root",
+  const oriented = orientStructuralEdges({ terms: [], nodes, edges }, "root");
+  const flipped = oriented.flipped;
+  const repaired = repairRecordKinds(
+    oriented.authored.nodes,
+    corpus.sources,
+    corpus.number,
   );
+  const authored = { ...oriented.authored, nodes: repaired.nodes };
 
   // 3. Check every lean in one focused call per dispute.
   const corrected: string[] = [];
@@ -547,6 +552,7 @@ export async function generateStagedTrillionGraph(
       ...dropped,
       ...pruned.dropped,
       ...flipped.map((e) => `${e} (direction repaired)`),
+      ...repaired.retyped,
     ],
     corrected,
     calls,
