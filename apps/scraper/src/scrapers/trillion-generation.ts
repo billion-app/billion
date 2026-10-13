@@ -7,6 +7,8 @@ import {
   quoteAppearsIn,
   QUOTED_TRILLION_KINDS,
   readingOrderText,
+  TRILLION_SEED_MAX_DEPTH,
+  trillionDepths,
   trillionEdgeSchema,
   trillionGraphSchema,
   trillionNodeSchema,
@@ -148,14 +150,16 @@ export function pruneUnverified(
   for (;;) {
     const ids = new Set(nodes.map((n) => n.id));
     edges = edges.filter((e) => ids.has(e.from) && ids.has(e.to));
-    const connected = nodes.filter(
-      (n) =>
-        n.id === graph.rootId ||
-        edges.some((e) => e.from === n.id || e.to === n.id),
+    // Keep cards connected to the main case and within the seed depth.
+    const depth = trillionDepths({ rootId: graph.rootId, edges });
+    const kept = nodes.filter(
+      (n) => (depth.get(n.id) ?? Infinity) <= TRILLION_SEED_MAX_DEPTH,
     );
-    if (connected.length === nodes.length) break;
-    for (const n of nodes) if (!connected.includes(n)) dropped.push(n.id);
-    nodes = connected;
+    if (kept.length === nodes.length) break;
+    for (const n of nodes)
+      if (!kept.includes(n))
+        dropped.push(depth.has(n.id) ? `${n.id} (too deep)` : n.id);
+    nodes = kept;
   }
   // A summary keeps only verified quotes; with none left it is dropped whole.
   const sources = new Map(graph.sources.map((s) => [s.id, s]));

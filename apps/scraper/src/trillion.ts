@@ -85,6 +85,12 @@ await yargs(hideBin(process.argv))
           type: "string",
           describe: "Model id at --base-url",
         })
+        .option("max-input-tokens", {
+          type: "number",
+          default: 400000,
+          describe:
+            "Staged only: stop before any call once this many input tokens are spent",
+        })
         .option("pipeline", {
           choices: ["single", "staged"] as const,
           default: "single" as const,
@@ -123,6 +129,10 @@ await yargs(hideBin(process.argv))
             onStage: (stage, value) =>
               save(`${args.output}.${stage}.json`, value),
             call: async (prompt, schema, maxOutputTokens) => {
+              if (inputTokens >= args.maxInputTokens)
+                throw new Error(
+                  `Input-token budget of ${args.maxInputTokens} spent (${inputTokens})`,
+                );
               const response = await generateText({
                 model: candidate.model,
                 output: Output.object({ schema }),

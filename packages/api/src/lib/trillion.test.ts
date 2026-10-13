@@ -244,3 +244,27 @@ void test("defined terms explain jargon without stating amounts", () => {
   };
   assert.equal(withTerms([twice, { ...twice, term: "Special Tax" }]), false);
 });
+
+void test("a graph may not run deeper than the depth limit", () => {
+  const deep = clone();
+  let parent = "a-fair";
+  for (let i = 0; i < 6; i++) {
+    const id = `deep-${i}`;
+    deep.nodes.push({
+      id,
+      kind: "question",
+      label: `Deeper ${i}`,
+      title: `Is step ${i} true?`,
+      quotes: [],
+    });
+    deep.edges.push({ id: `deep-e${i}`, from: id, to: parent, type: "asks" });
+    parent = id;
+  }
+  const result = trillionGraphSchema.safeParse(deep);
+  assert.equal(result.success, false);
+  assert.ok(
+    result.error?.issues.some((i) =>
+      /steps from the main case/.test(i.message),
+    ),
+  );
+});

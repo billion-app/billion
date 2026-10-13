@@ -160,6 +160,10 @@ On seeded records, editors may pin a few items as featured. Quality ratings were
 
 Desktop shows the canvas and the focused claim page side by side. Selecting a node on either updates both. The canvas is never the only way to reach anything.
 
+### Limits
+
+A debate can always go one level deeper, so the graph has a floor. No card may sit more than five steps from the main case, counting links either way; a graph that does fails the publication gate. Generated seeds stop at four steps, leaving a level for readers, and the generator prunes deeper cards instead of failing. Today's graphs reach at most four. Generation is also capped in cost: `--max-model-calls` is required, the staged pipeline checks its plan against that budget before expanding anything, and `--max-input-tokens` stops a staged run before any call once its token budget is spent.
+
 ## Provenance
 
 Every claim shows where it came from:

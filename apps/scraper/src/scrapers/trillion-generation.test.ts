@@ -170,3 +170,26 @@ void test("one bad summary quote never discards the cards' good quotes", async (
   assert.equal(result.graph.nodes.length, pilot.nodes.length);
   assert.equal(result.graph.summary?.quotes.length, 1);
 });
+
+void test("seed cards deeper than the seed depth are pruned, not published", async () => {
+  const output = authored();
+  let parent = "a-fair";
+  for (let i = 0; i < 4; i++) {
+    const id = `deep-${i}`;
+    output.nodes.push({
+      id,
+      kind: "question",
+      label: `Deeper ${i}`,
+      title: `Is step ${i} true?`,
+      quotes: [],
+    });
+    output.edges.push({ id: `deep-e${i}`, from: id, to: parent, type: "asks" });
+    parent = id;
+  }
+  const result = await generateTrillionGraph(corpus, {
+    ...options,
+    assess: () => Promise.resolve(output),
+  });
+  assert.ok(result.dropped.some((d) => d.endsWith("(too deep)")));
+  assert.ok(!result.graph.nodes.some((n) => n.id === "deep-3"));
+});

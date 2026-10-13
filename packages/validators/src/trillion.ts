@@ -267,6 +267,38 @@ function emphasisProblem(text: string): string | undefined {
   return undefined;
 }
 
+/**
+ * How far a card may sit from the main case, counting links either way. A
+ * debate can always go one level deeper (a response to a response to a
+ * response…); past this point the reader is lost, so graphs stop here.
+ * Generation seeds stay one level shallower, leaving room for readers.
+ */
+export const TRILLION_MAX_DEPTH = 5;
+export const TRILLION_SEED_MAX_DEPTH = 4;
+
+/** Steps from the root to each node, following links in either direction. */
+export function trillionDepths(graph: {
+  rootId: string;
+  edges: { from: string; to: string }[];
+}): Map<string, number> {
+  const next = new Map<string, string[]>();
+  for (const e of graph.edges) {
+    next.set(e.from, [...(next.get(e.from) ?? []), e.to]);
+    next.set(e.to, [...(next.get(e.to) ?? []), e.from]);
+  }
+  const depth = new Map([[graph.rootId, 0]]);
+  const queue = [graph.rootId];
+  for (let i = 0; i < queue.length; i++) {
+    const at = queue[i]!;
+    for (const n of next.get(at) ?? [])
+      if (!depth.has(n)) {
+        depth.set(n, (depth.get(at) ?? 0) + 1);
+        queue.push(n);
+      }
+  }
+  return depth;
+}
+
 /** Structural rules shared by the full record and its public projection. */
 function checkStructure(
   value: Pick<
@@ -394,6 +426,11 @@ function checkStructure(
     if (edge.why && contextMoneyMentions(edge.why).length > 0)
       issue(`${edge.id}: link explanations may not state monetary amounts.`);
   }
+  for (const [nodeId, d] of trillionDepths(value))
+    if (d > TRILLION_MAX_DEPTH)
+      issue(
+        `${nodeId}: more than ${TRILLION_MAX_DEPTH} steps from the main case.`,
+      );
   const branches = value.nodes.filter((node) => node.kind === "branch");
   if (
     branches.length !== 4 ||
