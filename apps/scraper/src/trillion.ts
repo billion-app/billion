@@ -22,7 +22,9 @@ import {
 import {
   assessTrillionGraph,
   generateTrillionGraph,
+  summarizeTrillionGraph,
   trillionAuthoredSchema,
+  trillionSummarySchema,
 } from "./scrapers/trillion-generation.js";
 import { trillionPrecedents } from "./scrapers/trillion-precedents.js";
 import { getStructuredLlmCandidates } from "./utils/ai/provider.js";
@@ -66,7 +68,7 @@ await yargs(hideBin(process.argv))
   )
   .command(
     "generate <corpus> <output>",
-    "Draft a graph with one paid model call; quotes that fail verification are dropped. No DB",
+    "Draft a graph and its summary with two paid model calls; quotes that fail verification are dropped. No DB",
     (y) =>
       y
         .positional("corpus", { type: "string", demandOption: true })
@@ -112,7 +114,24 @@ await yargs(hideBin(process.argv))
             output: Output.object({ schema: trillionAuthoredSchema }),
             prompt,
             maxOutputTokens: 32000,
-            maxRetries: 0,
+            // Overloaded or failed calls return nothing, so a retry spends no output.
+            maxRetries: 2,
+            abortSignal: AbortSignal.timeout(300000),
+          });
+          trackLLMUsage(
+            response.usage.inputTokens,
+            response.usage.outputTokens,
+          );
+          return response.output;
+        },
+        assessSummary: async (prompt) => {
+          const response = await generateText({
+            model: candidate.model,
+            output: Output.object({ schema: trillionSummarySchema }),
+            prompt,
+            maxOutputTokens: 4000,
+            // Overloaded or failed calls return nothing, so a retry spends no output.
+            maxRetries: 2,
             abortSignal: AbortSignal.timeout(300000),
           });
           trackLLMUsage(
@@ -151,6 +170,58 @@ await yargs(hideBin(process.argv))
         `${graph.nodes.length} nodes, ${graph.edges.length} links; unverified quotes: ${unverified.length ? unverified.join(", ") : "none"}; publication gate: ${published ? "passes" : "fails"}.`,
       );
       if (!published) process.exitCode = 1;
+    },
+  )
+  .command(
+    "summarize <graph> <corpus>",
+    "Redraft only the summary of a graph, from the measure's legal text alone; one paid model call. No DB",
+    (y) =>
+      y
+        .positional("graph", { type: "string", demandOption: true })
+        .positional("corpus", { type: "string", demandOption: true })
+        .option("max-model-calls", { type: "number", demandOption: true })
+        .option("base-url", { type: "string" })
+        .option("model", { type: "string" }),
+    async (args) => {
+      if ((args.baseUrl === undefined) !== (args.model === undefined))
+        throw new Error("--base-url and --model go together");
+      const candidate = args.baseUrl
+        ? {
+            model: createOpenAI({
+              baseURL: args.baseUrl.replace(/\/$/, ""),
+              apiKey: process.env.TRILLION_MODEL_API_KEY?.trim() || "unused",
+            })(args.model!),
+            modelVersion: `openai-compatible:${args.model}`,
+          }
+        : getStructuredLlmCandidates()[0]!;
+      const { graph, dropped } = await summarizeTrillionGraph(
+        await readJson(args.corpus),
+        await readJson(args.graph),
+        {
+          model: candidate.modelVersion,
+          maxModelCalls: args.maxModelCalls,
+          assessSummary: async (prompt) => {
+            const response = await generateText({
+              model: candidate.model,
+              output: Output.object({ schema: trillionSummarySchema }),
+              prompt,
+              maxOutputTokens: 4000,
+              // Overloaded or failed calls return nothing, so a retry spends no output.
+              maxRetries: 2,
+              abortSignal: AbortSignal.timeout(300000),
+            });
+            trackLLMUsage(
+              response.usage.inputTokens,
+              response.usage.outputTokens,
+            );
+            return response.output;
+          },
+        },
+      );
+      await save(args.graph, graph);
+      console.log(
+        `Summary: ${graph.summary?.text}\nDropped: ${dropped.join(", ") || "none"}`,
+      );
     },
   )
   .command(

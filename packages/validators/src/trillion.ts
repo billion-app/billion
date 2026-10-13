@@ -170,6 +170,25 @@ const graphShape = z.object({
     guideHash: hash,
   }),
   rootId: id,
+  /**
+   * What the measure does, in two or three plain sentences under the reader's
+   * question. Billion writes it, so it must quote the measure's own legal text
+   * for every point; the official summary is not used, because it can mislead.
+   */
+  summary: z
+    .object({
+      text: z.string().trim().min(40).max(600),
+      quotes: z.array(trillionQuoteSchema).min(1).max(6),
+      /** Drafted in its own model call that saw only the legal text. */
+      generation: z
+        .object({
+          promptVersion: z.string().min(1).max(100),
+          model: z.string().min(1).max(200),
+          generatedAt: z.iso.datetime(),
+        })
+        .optional(),
+    })
+    .optional(),
   nodes: z.array(trillionNodeSchema).min(5).max(150),
   edges: z.array(trillionEdgeSchema).max(500),
   sources: z.array(trillionSourceSchema).min(1).max(12),
@@ -238,7 +257,13 @@ function emphasisProblem(text: string): string | undefined {
 function checkStructure(
   value: Pick<
     z.infer<typeof graphShape>,
-    "rootId" | "nodes" | "edges" | "measure" | "revision" | "verification"
+    | "rootId"
+    | "nodes"
+    | "edges"
+    | "measure"
+    | "revision"
+    | "verification"
+    | "summary"
   > & { sources: { id: string; number: string; role: string }[] },
   ctx: z.RefinementCtx,
 ) {
@@ -256,6 +281,22 @@ function checkStructure(
   const precedentSources = new Set(
     value.sources.filter((s) => s.role === "precedent").map((s) => s.id),
   );
+
+  if (value.summary) {
+    const problem = emphasisProblem(value.summary.text);
+    if (problem) issue(`summary has ${problem}.`);
+    for (const quote of value.summary.quotes) {
+      const source = value.sources.find((s) => s.id === quote.sourceId);
+      // The summary describes this measure, so only its own legal text counts.
+      if (
+        source?.role !== "legal-text" ||
+        source.number !== value.measure.number
+      )
+        issue("summary must quote this measure's own legal text.");
+      if (quote.text.includes("**"))
+        issue("labels and verbatim quotes carry no emphasis.");
+    }
+  }
 
   for (const node of value.nodes) {
     if (QUOTED_TRILLION_KINDS.has(node.kind) && node.quotes.length === 0)
@@ -447,6 +488,11 @@ export function unverifiedTrillionQuotes(graph: TrillionGraph): string[] {
       if (!source || !quoteAppearsIn(source.snapshot, quote.text))
         failures.push(`${node.id}#${index}`);
     });
+  graph.summary?.quotes.forEach((quote, index) => {
+    const source = sources.get(quote.sourceId);
+    if (!source || !quoteAppearsIn(source.snapshot, quote.text))
+      failures.push(`summary#${index}`);
+  });
   return failures;
 }
 

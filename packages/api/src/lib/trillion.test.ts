@@ -197,3 +197,25 @@ void test("emphasis bolds key phrases only, as bill briefs do", () => {
     { text: " c", bold: false },
   ]);
 });
+
+void test("the summary quotes the measure's own text, verbatim", () => {
+  assert.ok(graph.summary);
+  assert.ok(
+    publishedTrillionGraph(corpus.guide, "40", graph, current)?.summary,
+  );
+
+  const fromAnalysis = clone();
+  must(fromAnalysis.summary).quotes[0] = {
+    ...must(must(fromAnalysis.summary).quotes[0]),
+    sourceId: "analysis-40",
+  };
+  assert.equal(trillionGraphSchema.safeParse(fromAnalysis).success, false);
+
+  const misquoted = clone();
+  must(must(misquoted.summary).quotes[0]).text =
+    "An excise tax is imposed on every Californian who owns a home.";
+  assert.equal(
+    publishedTrillionGraph(corpus.guide, "40", misquoted, current),
+    null,
+  );
+});

@@ -1339,3 +1339,55 @@ textarea {
   border-radius: 20px 20px 0 0;
   border-bottom: 0;
 }
+
+/* What it does, under the reader's question; and the fixed voting basics. */
+.summary,
+.voting {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--slate);
+  border: 1px solid var(--hair2);
+}
+.summary-k {
+  margin: 0 0 4px;
+  font: 700 11px/1.3 var(--body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--spark);
+}
+.summary-t {
+  margin: 0 0 6px;
+  font: 400 15.5px/1.45 var(--display);
+  color: var(--text);
+}
+.summary-t strong {
+  font-weight: 700;
+}
+.focus.is-root .summary .linkish {
+  font-size: 13px;
+}
+.voting-facts {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.voting-facts li + li {
+  margin-top: 4px;
+}
+.voting-links {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.voting-links a {
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+.voting-src {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--quiet);
+}

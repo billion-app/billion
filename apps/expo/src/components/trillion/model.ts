@@ -102,7 +102,14 @@ const TONE: Record<TrillionEdge["type"], Tone> = {
   crux: "neutral",
   weighs: "neutral",
 };
-const LEAN = { for: "Leans yes", against: "Leans no", mixed: "Cuts both ways" };
+/** Leans name the vote: under a yes/no question, "Leans no" would read as an answer. */
+export const leanLabel = (
+  stance: "for" | "against" | "mixed",
+  measure: string,
+) =>
+  stance === "mixed"
+    ? "Cuts both ways"
+    : `Favors ${stance === "for" ? "Yes" : "No"} on ${measure}`;
 export const DISPUTE_LABEL = {
   facts: "Disputed facts",
   values: "Mostly values",
@@ -121,15 +128,15 @@ export const TONE_COLOR: Record<Tone, string> = {
 
 export const tone = (e: TrillionEdge): Tone =>
   e.type === "weighs" && e.stance ? e.stance : TONE[e.type];
-export const inLabel = (e: TrillionEdge) =>
+export const inLabel = (e: TrillionEdge, measure: string) =>
   e.type === "weighs" && e.stance
-    ? LEAN[e.stance]
+    ? leanLabel(e.stance, measure)
     : (IN[e.type] ?? OUT[e.type]);
-export const outLabel = (e: TrillionEdge) =>
-  e.type === "weighs" && e.stance ? `${LEAN[e.stance]} on` : OUT[e.type];
-export const shortLabel = (e: TrillionEdge) =>
+export const outLabel = (e: TrillionEdge, measure: string) =>
+  e.type === "weighs" && e.stance ? leanLabel(e.stance, measure) : OUT[e.type];
+export const shortLabel = (e: TrillionEdge, measure: string) =>
   e.type === "weighs" && e.stance
-    ? LEAN[e.stance].toLowerCase()
+    ? leanLabel(e.stance, measure)
     : SHORT[e.type];
 
 const RESTS = new Set(["supports", "appliesTo"]);

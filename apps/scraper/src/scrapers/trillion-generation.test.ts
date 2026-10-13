@@ -17,10 +17,15 @@ const corpus = evidence("prop40-corpus.json");
 const pilot = evidence("prop40-graph.json") as TrillionGraph;
 const authored = () =>
   structuredClone({ nodes: pilot.nodes, edges: pilot.edges });
+const summary = () => {
+  const { text, quotes } = structuredClone(pilot.summary)!;
+  return { text, quotes };
+};
 const options = {
   model: "test-model",
-  maxModelCalls: 1,
+  maxModelCalls: 2,
   maxPromptChars: 400000,
+  assessSummary: () => Promise.resolve(summary()),
 };
 
 void test("a fabricated quote is dropped along with the node that relied on it", async () => {
@@ -112,4 +117,33 @@ void test("the evaluator flags thin, one-sided disputes and titles that describe
       "Supporters argue billionaires pay lower rates.",
     ),
   );
+});
+
+void test("a summary that misquotes the measure is dropped, not published", async () => {
+  const output = authored();
+  const misquoted = summary();
+  misquoted.quotes = [
+    {
+      sourceId: "law-40",
+      locator: "made up",
+      text: "The tax applies to everyone who owns a home in California.",
+    },
+  ];
+  const result = await generateTrillionGraph(corpus, {
+    ...options,
+    assess: () => Promise.resolve(output),
+    assessSummary: () => Promise.resolve(misquoted),
+  });
+  assert.equal(result.graph.summary, undefined);
+  assert.ok(result.dropped.includes("summary"));
+});
+
+void test("the summary is drafted from the measure's legal text alone", async () => {
+  const { buildTrillionSummaryPrompt } = await import("./trillion-generation.js");
+  const { trillionCorpusSchema } = await import("./trillion-capture.js");
+  const prompt = buildTrillionSummaryPrompt(trillionCorpusSchema.parse(corpus));
+  assert.match(prompt, /sourceId "law-40"/);
+  // Neither campaign's arguments nor the Analyst reach the summary call.
+  assert.doesNotMatch(prompt, /arguments-40|analysis-40|SEIU|Legislative Analyst/);
+  assert.match(prompt, /not "one-time"|"one-time"/);
 });

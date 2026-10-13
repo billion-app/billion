@@ -170,9 +170,9 @@ export function mountTrillionReader(root, graph, options = {}) {
             ← Go back to main case
           </button>
           <div class="legend" aria-hidden="true">
-            <span style="--c: var(--rel-for)"><i></i>supports · leans yes</span>
+            <span style="--c: var(--rel-for)"><i></i>supports · favors yes</span>
             <span style="--c: var(--rel-against)"
-              ><i></i>challenges · leans no</span
+              ><i></i>challenges · favors no</span
             >
             <span style="--c: var(--rel-mixed)"
               ><i></i>qualifies · both ways</span
@@ -264,6 +264,7 @@ export function mountTrillionReader(root, graph, options = {}) {
         body: n.body,
         note: n.note,
         dispute: n.dispute,
+        record: n.record,
         quote: n.quotes.length
           ? n.quotes.map((x) => x.text).join(" … ")
           : undefined,
@@ -350,17 +351,16 @@ export function mountTrillionReader(root, graph, options = {}) {
     crux: "neutral",
   };
   // An argument under a disputed question carries its lean toward the vote as a color and a word.
+  // The label names the vote, because under a yes/no question "Leans no" reads as an answer to it.
   const LEAN = {
-    for: "Leans yes",
-    against: "Leans no",
+    for: `Favors Yes on ${graph.measure.number}`,
+    against: `Favors No on ${graph.measure.number}`,
     mixed: "Cuts both ways",
   };
   const tone = (e) => (e.type === "weighs" ? e.stance : TONE[e.type]);
   const inLabel = (e) => (e.type === "weighs" ? LEAN[e.stance] : IN[e.type]);
-  const outLabel = (e) =>
-    e.type === "weighs" ? `${LEAN[e.stance]} on` : OUT[e.type];
-  const short = (e) =>
-    e.type === "weighs" ? LEAN[e.stance].toLowerCase() : SHORT[e.type];
+  const outLabel = (e) => (e.type === "weighs" ? LEAN[e.stance] : OUT[e.type]);
+  const short = (e) => (e.type === "weighs" ? LEAN[e.stance] : SHORT[e.type]);
   const DISPUTE = {
     facts: "Disputed facts",
     values: "Mostly values",
@@ -504,7 +504,12 @@ export function mountTrillionReader(root, graph, options = {}) {
         key: "inside",
         label: "Inside",
         tone: "neutral",
-        items: kids.map((e) => ({ e, dir: "in" })),
+        // The measure's own text first, then its findings, then the Analyst, keeping the
+        // drafted order (most important first) within each.
+        items: kids
+          .map((e, i) => ({ e, i, p: INSIDE_ORDER[N[e.from]?.kind] ?? 9 }))
+          .sort((a, b) => a.p - b.p || a.i - b.i)
+          .map(({ e }) => ({ e, dir: "in" })),
       });
     if (N[id].kind !== "branch") {
       cats.push({
@@ -604,6 +609,31 @@ export function mountTrillionReader(root, graph, options = {}) {
     return s.label || KIND[n.kind];
   }
 
+  const INSIDE_ORDER = { text: 0, finding: 1, analysis: 2, record: 3 };
+  // A card about another ballot measure says so, whatever tab it appears in.
+  function measureLink(id) {
+    if (N[id].kind === "record") return "";
+    const conflicts = new Set();
+    const affects = new Set();
+    for (const x of F.edges) {
+      if (x.from !== id && x.to !== id) continue;
+      const other = N[x.from === id ? x.to : x.from];
+      if (other?.kind !== "record" || !other.record) continue;
+      (x.type === "conflicts" ? conflicts : affects).add(other.record.number);
+    }
+    const props = (set) => {
+      const n = [...set].sort();
+      return `Prop${n.length > 1 ? "s" : ""} ${n.length > 1 ? `${n.slice(0, -1).join(", ")} and ${n.at(-1)}` : n[0]}`;
+    };
+    for (const n of conflicts) affects.delete(n);
+    return [
+      conflicts.size ? `Conflicts with ${props(conflicts)}` : "",
+      affects.size ? `Affects ${props(affects)}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
   function row({ e, dir }) {
     const otherId = dir === "in" ? e.from : e.to;
     const o = N[otherId];
@@ -612,10 +642,13 @@ export function mountTrillionReader(root, graph, options = {}) {
       dir === "in" && rank(otherId) === 0
         ? `<span class="badge-open">Unanswered</span>`
         : "";
+    const about = measureLink(otherId);
     const chip = KIDS.has(e.type)
       ? dir === "out"
         ? `<span class="relchip static">${esc(rel)}</span>`
-        : ""
+        : about
+          ? `<span class="relchip static r-mixed">${esc(about)}</span>`
+          : ""
       : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(rel)}. Open this link">${esc(rel)} ›</button>`;
     return `<div class="row r-${tone(e)}${o.kind === "global" ? " is-global" : ""}">
       <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}</span></div>
@@ -680,7 +713,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const n = N[id];
     const src = n.source || {};
     if (id === ROOT)
-      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1></article>`;
+      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>`;
     const meta = [
       `<span class="kind">${esc(n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
     ];
@@ -878,13 +911,73 @@ export function mountTrillionReader(root, graph, options = {}) {
     );
   }
 
+  // ── What it does: a short summary, each point quoting the measure's own text ──
+  function summaryHtml() {
+    const sm = graph.summary;
+    if (!sm) return "";
+    return `<section class="summary" aria-label="What it does">
+      <p class="summary-k">What it does</p>
+      <p class="summary-t">${emphasize(sm.text)}</p>
+      <button class="linkish" type="button" data-summary-sources>From the measure text · ${sm.quotes.length} ${sm.quotes.length === 1 ? "quote" : "quotes"}</button>
+    </section>`;
+  }
+  function openSummarySources() {
+    const sources = Object.fromEntries(graph.sources.map((s) => [s.id, s]));
+    const url = sources[graph.summary.quotes[0].sourceId]?.url;
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">What the measure says</h2><button class="close" type="button" data-close>Close</button></div>
+      ${graph.summary.quotes
+        .map(
+          (q) =>
+            `<blockquote class="quote">“${esc(q.text)}”<footer><span>${esc(q.locator)}</span></footer></blockquote>`,
+        )
+        .join("")}
+      <p class="empty" style="margin-top:12px">Billion wrote the summary; these are the passages of the measure it rests on, matched word for word.</p>
+      ${url ? `<div class="actions"><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">Open the measure text</a></div>` : ""}`);
+  }
+
+  // ── How can I act: voting basics, always present, never generated ────────
+  // These come from state election law and official sites, not from the graph,
+  // so every measure shows them however its graph was drafted.
+  const isActBranch = (id) =>
+    N[id]?.kind === "branch" && /^how can i act/i.test(titleOf(id));
+  function votingHtml() {
+    if (graph.jurisdiction !== "CA") return "";
+    const [y, m, d] = graph.electionDate.split("-").map(Number);
+    const day = (offset) =>
+      new Date(Date.UTC(y, m - 1, d + offset)).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        timeZone: "UTC",
+      });
+    const links = [
+      ["Check your registration", "https://voterstatus.sos.ca.gov/"],
+      ["Register to vote", "https://registertovote.ca.gov/"],
+      [
+        "Find a drop box or voting location",
+        "https://caearlyvoting.sos.ca.gov/",
+      ],
+      ["Track your mail ballot", "https://california.ballottrax.net/voter/"],
+    ];
+    return `<section class="voting" aria-label="Voting in California">
+      <p class="summary-k">Voting in California</p>
+      <ul class="voting-facts">
+        <li><strong>Election day:</strong> ${day(0)}. Polls are open 7 a.m. to 8 p.m.</li>
+        <li><strong>Register by ${day(-15)}.</strong> After that, you can still register and vote the same day at a county voting location.</li>
+        <li><strong>Voting by mail:</strong> every active voter is mailed a ballot. Return it by election day, by mail (postmarked) or at a drop box.</li>
+      </ul>
+      <div class="voting-links">${links.map(([label, href]) => `<a href="${href}" target="_blank" rel="noopener">${label} ›</a>`).join("")}</div>
+      <p class="voting-src">From California election law and the Secretary of State. Not part of the debate.</p>
+    </section>`;
+  }
+
   function render(moveFocus) {
     const c = cur();
     if (page.contains(mapEl)) $("#map-home").appendChild(mapEl); // keep the map alive across re-renders
     if (c.t === "edge") page.innerHTML = renderEdge(c.id);
     else {
       const cats = categories(c.id);
-      page.innerHTML = `${focusCard(c.id)}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
+      page.innerHTML = `${focusCard(c.id)}${isActBranch(c.id) ? votingHtml() : ""}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
         ${c.id === ROOT && view === "list" ? doorHtml() : ""}`;
     }
     page.className = moveFocus
@@ -1922,7 +2015,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       return;
     }
     const t = ev.target.closest(
-      "[data-peek],[data-ring],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
+      "[data-peek],[data-ring],[data-summary-sources],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
     );
     if (!t) return;
     if (t.hasAttribute("data-scrim") && ev.target !== t) return;
@@ -1940,6 +2033,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       tab = defaultTab(focusId());
       render(true);
     } else if (t.dataset.source) openSource(t.dataset.source);
+    else if (t.hasAttribute("data-summary-sources")) openSummarySources();
     else if (t.dataset.more) {
       shown.add(t.dataset.more);
       render(false);
