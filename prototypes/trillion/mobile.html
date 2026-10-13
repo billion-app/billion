@@ -235,10 +235,10 @@
           Prop 40 · hand-built pilot
         </button>
         <button type="button" data-measure="41" aria-pressed="false">
-          Prop 41 · AI-generated (prompt v4)
+          Prop 41 · AI-generated (prompt v7)
         </button>
         <button type="button" data-measure="42" aria-pressed="false">
-          Prop 42 · AI-generated (prompt v4)
+          Prop 42 · AI-generated (prompt v7)
         </button>
       </div>
       <p class="measure-note" id="measure-note">
@@ -284,7 +284,7 @@
     const notes = {
       40: "Assembled from the design prototype and edited by hand.",
       41: "Drafted in one model call (gpt-6.1-sol) from the official guide, then checked: every quote verified, nothing edited by hand.",
-      42: "Drafted in one model call (gpt-6.1-sol) from the official guide, then checked: two cards whose quotes did not match were dropped, nothing edited by hand.",
+      42: "Drafted in one model call (gpt-6.1-sol) from the official guide, then checked: every quote verified, nothing edited by hand.",
     };
     const root = document.getElementById("trillion");
     let reader = TrillionReader.mountTrillionReader(root, graphs[40]);

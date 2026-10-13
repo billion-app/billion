@@ -8,7 +8,7 @@
       "quotes": []
     },
     {
-      "id": "what",
+      "id": "does",
       "kind": "branch",
       "label": "What does it actually do?",
       "title": "What does it actually do?",
@@ -38,44 +38,266 @@
     {
       "id": "savings",
       "kind": "crux",
-      "label": "Are savings protections needed?",
-      "title": "Do retirement savings need protection from future ownership taxes?",
+      "label": "Do ordinary savers need protection?",
+      "title": "Do ordinary savers need protection?",
+      "quotes": [],
+      "dispute": "facts"
+    },
+    {
+      "id": "double",
+      "kind": "crux",
+      "label": "Is taxing asset ownership unfair?",
+      "title": "Is taxing asset ownership unfair?",
       "quotes": [],
       "dispute": "values"
     },
     {
       "id": "retro",
       "kind": "crux",
-      "label": "Should retroactive taxes be restricted?",
-      "title": "Should California restrict retroactive taxes?",
+      "label": "How broadly should retroactive taxes be restricted?",
+      "title": "How broadly should retroactive taxes be restricted?",
       "quotes": [],
       "dispute": "values"
     },
     {
       "id": "revenue",
       "kind": "crux",
-      "label": "What happens to public services?",
-      "title": "How would restricting future taxes affect public services?",
+      "label": "What would limiting future revenue mean for services?",
+      "title": "What would limiting future revenue mean for services?",
       "quotes": [],
       "dispute": "facts"
     },
     {
       "id": "interaction",
       "kind": "crux",
-      "label": "What happens to Prop 40?",
-      "title": "Could Prop 42 prevent Prop 40 from taking effect?",
+      "label": "Could Prop 42 block Prop 40?",
+      "title": "Could Prop 42 block Prop 40?",
       "quotes": [],
       "dispute": "legal"
     },
     {
-      "id": "a1",
+      "id": "ownership",
+      "kind": "provision",
+      "label": "New ownership taxes prohibited",
+      "title": "State laws enacted from **January 1, 2026** cannot tax ownership of savings or personal assets",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 4, Article VIII, Section 1(a), p. 151",
+          "text": "may enact, create,\nimpose, or authorize collection of a tax on the ownership\nor control of retirement holdings, individually owned\nassets, and other forms of personal savings, whether\nheld directly or indirectly."
+        }
+      ]
+    },
+    {
+      "id": "retro-ban",
+      "kind": "provision",
+      "label": "Past activity cannot create new tax liability",
+      "title": "New state taxes cannot generally create liability for **past activity**",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 4, Article VIII, Section 2(a)(1), p. 151",
+          "text": "a tax\nthat operates retroactively to result in tax liability based\non conduct, activities, or a status that occurred or was\npresent prior to the effective date of the state law or\nconstitutional provision."
+        }
+      ]
+    },
+    {
+      "id": "coverage",
+      "kind": "provision",
+      "label": "Coverage extends beyond retirement",
+      "title": "The protection covers **all personal property**, not just retirement accounts",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 4, Article VIII, Section 3(a), p. 152",
+          "text": "and all        \n      personal property, whether tangible or intangible,"
+        }
+      ]
+    },
+    {
+      "id": "residency",
+      "kind": "provision",
+      "label": "Past residency also covered",
+      "title": "The retroactive-tax restriction includes **past residency status**",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 4, Article VIII, Section 2(a)(2), p. 151",
+          "text": "This subdivision also applies to a tax that is imposed\non a taxpayer based upon their residency status on a\ndate prior to the effective date of the tax."
+        }
+      ]
+    },
+    {
+      "id": "old",
+      "kind": "provision",
+      "label": "Existing ownership taxes remain",
+      "title": "Ownership taxes first collected by **December 31, 2025** remain protected",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 4, Article VIII, Section 1(b), p. 151",
+          "text": "Nothing in this section shall alter or limit the\nimposition or collection of any tax that was in effect,\nimposed, and first collected on or before December 31,\n2025."
+        }
+      ]
+    },
+    {
+      "id": "real",
+      "kind": "provision",
+      "label": "Real estate rules unchanged",
+      "title": "Prop 42 leaves **real property taxation** unchanged",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 4, Article VIII, Section 1(c), p. 151",
+          "text": "taxation of real property as provided in other provisions\n\nof this Constitution."
+        }
+      ]
+    },
+    {
+      "id": "emergency",
+      "kind": "provision",
+      "label": "Emergency exception",
+      "title": "Emergency legislation can reach back **365 days** under specified conditions",
+      "body": "The exception is for legislative statutes. It also permits specified disaster or attack emergencies, with revenue restricted to the emergency response.",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 4, Article VIII, Section 2(c)(1)–(2)(B), p. 152",
+          "text": "The tax does not apply retroactively for more than       \n      365 days prior to the date the statute takes effect."
+        },
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 4, Article VIII, Section 2(c)(2)(B), p. 152",
+          "text": "The Governor declares a fiscal emergency pursuant        \n      to subdivision (f) of Section 10 of Article IV and the use   \n      of the revenues from the tax are expressly limited by the    \n      statute to responding to the fiscal emergency."
+        }
+      ]
+    },
+    {
+      "id": "same-ballot",
+      "kind": "provision",
+      "label": "Same-election initiatives covered",
+      "title": "The restrictions apply to initiatives on **the same ballot**",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 4, Article VIII, Section 4, p. 152",
+          "text": "including measures that appear on the ballot at the\n                                                                   \n      same election at which the measure adding this article\n                                                                   \n      is approved by the electors."
+        }
+      ]
+    },
+    {
+      "id": "conflict",
+      "kind": "provision",
+      "label": "Conflicting initiative can be nullified",
+      "title": "Prop 42 can nullify a conflicting initiative if it receives **more affirmative votes**",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 5(a)(1), p. 152",
+          "text": "that this initiative measure receives a greater number       \n      of affirmative votes, the provisions of this measure shall   \n      prevail in their entirety, and all the provisions of the     \n      other measure shall be null and void."
+        }
+      ]
+    },
+    {
+      "id": "effective",
+      "kind": "provision",
+      "label": "Effective and operative together",
+      "title": "Prop 42 becomes operative **when it takes effect** under constitutional timing rules",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 7, p. 152",
+          "text": "This act shall become operative on the\nsame day it takes effect."
+        }
+      ]
+    },
+    {
+      "id": "untaxed",
+      "kind": "analysis",
+      "label": "Financial ownership is not currently taxed",
+      "title": "California currently taxes financial income, not **simply owning financial assets**",
+      "quotes": [
+        {
+          "sourceId": "analysis-42",
+          "locator": "Background, Ownership of Financial Assets Is Not Taxed",
+          "text": "Although the state does tax income people make from their financial assets, there is no tax for simply owning those assets."
+        }
+      ]
+    },
+    {
+      "id": "existing",
+      "kind": "analysis",
+      "label": "Some personal property already taxed",
+      "title": "Vehicle fees and business equipment taxes already tax **personal property ownership**",
+      "quotes": [
+        {
+          "sourceId": "analysis-42",
+          "locator": "Background, Certain Personal Property Is Taxed in California",
+          "text": "One example of these kinds of taxes is the vehicle license fee that car and truck owners pay to the Department of Motor Vehicles each year. Another example is the property taxes owners of business equipment pay to the county each year."
+        }
+      ]
+    },
+    {
+      "id": "fiscal",
+      "kind": "analysis",
+      "label": "Future revenue could be lower",
+      "title": "Future tax revenue could be lower, with **timing and size unclear**",
+      "quotes": [
+        {
+          "sourceId": "analysis-42",
+          "locator": "Fiscal Effects, Possibility That Tax Revenues Will Be Lower in the Future",
+          "text": "This could reduce future tax revenues. When and by how much future revenues would be reduced is unclear."
+        }
+      ]
+    },
+    {
+      "id": "court",
+      "kind": "analysis",
+      "label": "Courts could find a conflict with Prop 40",
+      "title": "Prop 40 could be stopped if courts find a conflict and Prop 42 gets **more yes votes**",
+      "quotes": [
+        {
+          "sourceId": "analysis-42",
+          "locator": "Potential Interactions With Other Propositions",
+          "text": "If Proposition 42 receives more “yes” votes than Proposition 40 on this same ballot, then Proposition 40 could be stopped from becoming law even if it gets yes votes from a majority of voters. This is because the courts could find that Proposition 42 conflicts with Proposition 40."
+        }
+      ]
+    },
+    {
+      "id": "planning",
+      "kind": "finding",
+      "label": "Advance notice supports planning",
+      "title": "Financial planning depends on **advance notice** of tax obligations",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 2(f), pp. 151–152",
+          "text": "The ability of Californians to organize and achieve       \n      their financial and retirement goals depends on having        \n      advance notice of the tax obligations that apply to           \n      them."
+        }
+      ]
+    },
+    {
+      "id": "pension-risk",
+      "kind": "finding",
+      "label": "Pension value could be taxed before payment",
+      "title": "Workers could face taxes on **future pension benefits** before receiving them",
+      "quotes": [
+        {
+          "sourceId": "law-42",
+          "locator": "Sec. 2(c)(1), p. 151",
+          "text": "They could be taxed on the future value of          \n      their pension benefits and forced to pay the\n                                                              \n      government before they ever collect a dime in pension\npay."
+        }
+      ]
+    },
+    {
+      "id": "a-double",
       "kind": "argument",
-      "label": "Income could be taxed again",
-      "title": "An ownership tax could tax **saved income** a second time",
+      "label": "Income could be taxed twice",
+      "title": "Taxing savings ownership taxes **the same money twice**",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Argument in favor, CALIFORNIA CONSTITUTION CURRENTLY ALLOWS DOUBLE TAXATION, sentence 2",
+          "locator": "Argument in favor, California Constitution Currently Allows Double Taxation",
           "text": "This means politicians can tax the same money twice: once when you earn it, and again when it is sitting in your retirement funds or savings accounts."
         }
       ],
@@ -85,14 +307,14 @@
       }
     },
     {
-      "id": "a2",
+      "id": "a-proposals",
       "kind": "argument",
-      "label": "Earlier tax proposals",
-      "title": "Six recent proposals would tax **retirement and savings accounts**",
+      "label": "Six proposals targeted savings",
+      "title": "Recent proposals have sought to tax **retirement and savings accounts**",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Argument in favor, CALIFORNIA CONSTITUTION CURRENTLY ALLOWS DOUBLE TAXATION, sentence 4",
+          "locator": "Argument in favor, California Constitution Currently Allows Double Taxation",
           "text": "In the last few years alone, the Legislature and special interests have introduced six separate proposals that would tax retirement and savings accounts."
         }
       ],
@@ -102,14 +324,14 @@
       }
     },
     {
-      "id": "a3",
+      "id": "a-broad",
       "kind": "argument",
-      "label": "Broad savings protection",
+      "label": "Ordinary savers would be protected",
       "title": "Prop 42 protects **401ks, pensions, IRAs and personal savings** from new taxes",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Argument in favor, PROP. 42 PROTECTS ALL FORMS OF RETIREMENT FUNDS AND SAVINGS FROM NEW TAXES, sentence 2",
+          "locator": "Argument in favor, Protects All Forms of Retirement Funds and Savings",
           "text": "This measure protects all forms of personal property from new taxes, including 401ks, pensions, IRAs and personal savings."
         }
       ],
@@ -119,14 +341,14 @@
       }
     },
     {
-      "id": "a4",
+      "id": "a-retro",
       "kind": "argument",
-      "label": "Past earnings should be protected",
-      "title": "New taxes should not reach **past earnings**",
+      "label": "Past earnings should not face new taxes",
+      "title": "New taxes should not reach **money earned in the past**",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Argument in favor, PROP. 42 PROHIBITS UNFAIR RETROACTIVE TAXES, sentence 1",
+          "locator": "Argument in favor, Prohibits Unfair Retroactive Taxes",
           "text": "The state should not be able to pass new taxes that apply retroactively to money that taxpayers earned in the past."
         }
       ],
@@ -136,10 +358,10 @@
       }
     },
     {
-      "id": "a5",
+      "id": "a-coalition",
       "kind": "argument",
-      "label": "Named supporting groups",
-      "title": "Support includes **firefighters and disabled veterans groups**",
+      "label": "Supporters include worker and veterans groups",
+      "title": "The supporting coalition includes **firefighters and disabled veterans groups**",
       "quotes": [
         {
           "sourceId": "arguments-42",
@@ -153,14 +375,14 @@
       }
     },
     {
-      "id": "a6",
+      "id": "r-undo",
       "kind": "argument",
-      "label": "Purpose is blocking Prop 40",
-      "title": "Prop 42 is designed to undo **the California Billionaire Tax**",
+      "label": "Designed to undo Prop 40",
+      "title": "Prop 42 was designed to **undo Prop 40's billionaire tax**",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Rebuttal to argument in favor, PROP. 42 WOULD CANCEL OUT THE BILLIONAIRE TAX, sentence 1",
+          "locator": "Rebuttal to argument in favor, Would Cancel Out the Billionaire Tax",
           "text": "Prop. 42 is a billionaire-funded scheme designed specifically to undo the California Billionaire Tax, Prop. 40."
         }
       ],
@@ -170,14 +392,14 @@
       }
     },
     {
-      "id": "a7",
+      "id": "r-target",
       "kind": "argument",
-      "label": "Prop 40 targets billionaires",
-      "title": "The California Billionaires Tax applies **only to billionaires**",
+      "label": "Prop 40 targets only billionaires",
+      "title": "Prop 40's tax applies **only to billionaires**",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Rebuttal to argument in favor, PROP. 40 WOULD ONLY TAX BILLIONAIRES’ $2 TRILLION IN WEALTH, sentence 3",
+          "locator": "Rebuttal to argument in favor, Prop 40 Would Only Tax Billionaires",
           "text": "The California Billionaires Tax ONLY applies to billionaires."
         }
       ],
@@ -187,15 +409,32 @@
       }
     },
     {
-      "id": "a8",
+      "id": "r-health",
       "kind": "argument",
-      "label": "Healthcare tradeoff",
-      "title": "Preventing the billionaire tax could put **working people's healthcare** at risk",
+      "label": "Healthcare is at stake",
+      "title": "Blocking the billionaire tax puts **working people's healthcare** at risk",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Argument against, PROP. 42 WOULD CANCEL OUT THE BILLIONAIRE TAX, final sentence",
-          "text": "It’s about preventing one specific tax that billionaires want to avoid, because they’d rather millions of working people lose healthcare than pay a modest, one-time tax on their extreme wealth."
+          "locator": "Rebuttal to argument in favor, Would Cancel Out the Billionaire Tax",
+          "text": "They’d rather millions of working people lose healthcare than pay a modest, one-time tax on their extreme wealth."
+        }
+      ],
+      "attribution": {
+        "name": "Rebuttal against",
+        "signers": "Suzanne Jimenez"
+      }
+    },
+    {
+      "id": "n-purpose",
+      "kind": "argument",
+      "label": "One specific tax is the target",
+      "title": "Prop 42 targets **one specific billionaire tax**, not ordinary retirement savings",
+      "quotes": [
+        {
+          "sourceId": "arguments-42",
+          "locator": "Argument against, Would Cancel Out the Billionaire Tax",
+          "text": "Prop. 42 isn’t about preventing new taxes on personal property. It’s about preventing one specific tax that billionaires want to avoid, because they’d rather millions of working people lose healthcare than pay a modest, one-time tax on their extreme wealth."
         }
       ],
       "attribution": {
@@ -204,14 +443,14 @@
       }
     },
     {
-      "id": "a9",
+      "id": "n-funder",
       "kind": "argument",
-      "label": "Sergey Brin funding claim",
-      "title": "**Sergey Brin** is one of Prop 42's main funders",
+      "label": "Sergey Brin named as a funder",
+      "title": "Google founder **Sergey Brin** is one of Prop 42's main funders",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Argument against, PROP. 42 WAS FUNDED BY BILLIONAIRES WHO WANT YOU TO PAY MORE FOR HEALTHCARE, sentence 1",
+          "locator": "Argument against, Funded by Billionaires",
           "text": "One of Prop. 42’s main funders is Google founder and Trump donor Sergey Brin, whose wealth has DOUBLED to nearly $300 billion since Trump’s election."
         }
       ],
@@ -221,31 +460,14 @@
       }
     },
     {
-      "id": "a10",
+      "id": "y-scope",
       "kind": "argument",
-      "label": "Healthcare funding opportunity",
-      "title": "A billionaire tax could keep **hospitals open** and healthcare affordable",
+      "label": "Protection covers legislation and initiatives",
+      "title": "The ownership-tax ban covers **legislation and ballot measures** now and in the future",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Argument against, VOTE NO ON PROP. 42 IF YOU SUPPORT THE BILLIONAIRE TAX, sentence 1",
-          "text": "We have a chance to make billionaires pay their fair share to keep hospitals open and healthcare affordable for California’s working families."
-        }
-      ],
-      "attribution": {
-        "name": "Ballot argument against",
-        "signers": "Suzanne Jimenez"
-      }
-    },
-    {
-      "id": "a11",
-      "kind": "argument",
-      "label": "Protection across tax routes",
-      "title": "Prop 42 blocks new ownership taxes through **legislation or ballot measures**",
-      "quotes": [
-        {
-          "sourceId": "arguments-42",
-          "locator": "Rebuttal to argument against, CALIFORNIA IS EXPENSIVE ENOUGH WITHOUT DOUBLE TAXATION, sentence 1",
+          "locator": "Rebuttal to argument against, California Is Expensive Enough Without Double Taxation",
           "text": "Prop. 42 prohibits this double taxation by PROHIBITING ALL NEW TAXES ON RETIREMENT AND SAVINGS ACCOUNTS and other personal property, whether proposed by legislation or ballot measure, including proposals on this year’s ballot and in the future."
         }
       ],
@@ -255,14 +477,14 @@
       }
     },
     {
-      "id": "a12",
+      "id": "y-benefit",
       "kind": "argument",
-      "label": "Working families benefit",
-      "title": "Protection reaches **young workers, pensioners and retirees**",
+      "label": "Workers and retirees benefit",
+      "title": "The protections extend to **young workers, pension holders and retirees**",
       "quotes": [
         {
           "sourceId": "arguments-42",
-          "locator": "Rebuttal to argument against, WHO BENEFITS FROM PROP. 42, sentence 1",
+          "locator": "Rebuttal to argument against, Who Benefits From Prop 42",
           "text": "Prop. 42 protects the retirement and savings for all Californians—young workers just beginning to save; teachers, firefighters and police officers with pensions; retirees and veterans who depend on their savings for financial security."
         }
       ],
@@ -272,224 +494,20 @@
       }
     },
     {
-      "id": "la-assets",
-      "kind": "analysis",
-      "label": "No current financial ownership tax",
-      "title": "California taxes financial income, but not **simply owning financial assets**",
-      "quotes": [
-        {
-          "sourceId": "analysis-42",
-          "locator": "Background, Ownership of Financial Assets Is Not Taxed, final sentence",
-          "text": "Although the state does tax income people make from their financial assets, there is no tax for simply owning those assets."
-        }
-      ]
-    },
-    {
-      "id": "la-ban",
-      "kind": "analysis",
-      "label": "New ownership taxes prohibited",
-      "title": "New taxes on **financial assets or other personal property** would be prohibited",
-      "quotes": [
-        {
-          "sourceId": "analysis-42",
-          "locator": "Proposal, Prohibits New Taxes on Financial Assets or Other Personal Property",
-          "text": "Under Proposition 42, new taxes on the ownership of financial assets or other personal property would not be allowed."
-        }
-      ]
-    },
-    {
-      "id": "la-retro",
-      "kind": "analysis",
-      "label": "Retroactive options limited",
-      "title": "Prop 42 limits **retroactive tax increases** by legislators and ballot measures",
-      "quotes": [
-        {
-          "sourceId": "analysis-42",
-          "locator": "Proposal, Limits Retroactive Taxes, sentence 1",
-          "text": "Proposition 42 limits the situations that a ballot measure or the Legislature can raise any tax retroactively."
-        }
-      ]
-    },
-    {
-      "id": "la-revenue",
-      "kind": "analysis",
-      "label": "Future revenue uncertain",
-      "title": "Future tax revenue could fall by **an unclear amount**",
-      "quotes": [
-        {
-          "sourceId": "analysis-42",
-          "locator": "Fiscal Effects, Possibility That Tax Revenues Will Be Lower in the Future",
-          "text": "Proposition 42 restricts the options the state has to raise taxes in the future. This could make it somewhat harder for the state to raise taxes. This could reduce future tax revenues. When and by how much future revenues would be reduced is unclear."
-        }
-      ]
-    },
-    {
-      "id": "la-conflict",
-      "kind": "analysis",
-      "label": "Courts could find a conflict",
-      "title": "Prop 40 could be blocked if Prop 42 receives **more yes votes**",
-      "quotes": [
-        {
-          "sourceId": "analysis-42",
-          "locator": "Potential Interactions With Other Propositions",
-          "text": "If Proposition 42 receives more “yes” votes than Proposition 40 on this same ballot, then Proposition 40 could be stopped from becoming law even if it gets yes votes from a majority of voters. This is because the courts could find that Proposition 42 conflicts with Proposition 40."
-        }
-      ]
-    },
-    {
-      "id": "la-disclosure",
-      "kind": "analysis",
-      "label": "Find campaign disclosures",
-      "title": "State disclosure sites identify **committees and top contributors**",
-      "quotes": [
-        {
-          "sourceId": "analysis-42",
-          "locator": "Fiscal Effects, disclosure links",
-          "text": "Visit sos.ca.gov/campaign-lobbying/cal-access-resources/measure-contributions/2026-ballot-measure-contribution-totals for a list of committees primarily formed to support or oppose this measure. Visit fppc.ca.gov/transparency/top-contributors.html to access the committee's top 10 contributors."
-        }
-      ]
-    },
-    {
-      "id": "p-existing",
-      "kind": "provision",
-      "label": "Existing taxes preserved",
-      "title": "The ownership-tax ban preserves taxes first collected by **December 31, 2025**",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 4, Article VIII, Section 1(b), page 151",
-          "text": "Nothing in this section shall alter or limit the … 2025."
-        }
-      ]
-    },
-    {
-      "id": "p-real",
-      "kind": "provision",
-      "label": "Real property unchanged",
-      "title": "Prop 42 leaves **real-property taxation** unchanged",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 4, Article VIII, Section 1(c), page 151",
-          "text": "Nothing in this section shall alter or affect the … of this Constitution."
-        }
-      ]
-    },
-    {
-      "id": "p-residency",
-      "kind": "provision",
-      "label": "Past residency covered",
-      "title": "The retroactive ban also covers **past residency status**",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 4, Article VIII, Section 2(a)(2), page 151",
-          "text": "This subdivision also applies to a tax that is imposed … date prior to the effective date of the tax."
-        }
-      ]
-    },
-    {
-      "id": "p-emergency",
-      "kind": "provision",
-      "label": "Emergency exception",
-      "title": "Emergency statutes can reach back **up to 365 days** under specified conditions",
-      "body": "The exception requires a declared emergency and revenue limited to responding to it.",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 4, Article VIII, Section 2(c)(1)–(2), page 152",
-          "text": "The tax does not apply retroactively for more than … At least one of the following conditions exists:"
-        }
-      ]
-    },
-    {
-      "id": "p-fiscal",
-      "kind": "provision",
-      "label": "Fiscal emergency condition",
-      "title": "A declared **fiscal emergency** can qualify for the retroactive-tax exception",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 4, Article VIII, Section 2(c)(2)(B), page 152",
-          "text": "The Governor declares a fiscal emergency pursuant … statute to responding to the fiscal emergency."
-        }
-      ]
-    },
-    {
-      "id": "p-application",
-      "kind": "provision",
-      "label": "Same-election measures covered",
-      "title": "The article applies to initiatives submitted from **January 1, 2026**",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 4, Article VIII, Section 4, page 152",
-          "text": "This article applies to all statewide initiative measures … is approved by the electors."
-        }
-      ]
-    },
-    {
-      "id": "p-conflict",
-      "kind": "provision",
-      "label": "Conflict rule",
-      "title": "Prop 42 can nullify a conflicting measure with **fewer affirmative votes**",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 4, Article VIII, Section 5(a)(1), page 152",
-          "text": "that other initiative measure shall be … other measure shall be null and void."
-        }
-      ]
-    },
-    {
-      "id": "p-effective",
-      "kind": "provision",
-      "label": "Effective and operative together",
-      "title": "Prop 42 becomes operative **the day it takes effect**",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 7, page 152",
-          "text": "This act shall become operative on the\nsame day it takes effect."
-        }
-      ]
-    },
-    {
-      "id": "f-fairness",
-      "kind": "finding",
-      "label": "Advance notice for planning",
-      "title": "Financial planning depends on **advance notice of tax obligations**",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 2(f), pages 151–152",
-          "text": "The ability of Californians to organize and achieve … them."
-        }
-      ]
-    },
-    {
-      "id": "f-savings",
-      "kind": "finding",
-      "label": "Retirement risks identified",
-      "title": "Ownership taxes could reduce **retirement nest eggs**",
-      "quotes": [
-        {
-          "sourceId": "law-42",
-          "locator": "Section 2(c)(2), page 151",
-          "text": "This could cost workers some of\ntheir hard-earned savings, causing them to put off … vulnerable later in life."
-        }
-      ]
-    },
-    {
-      "id": "record-40",
+      "id": "prop40",
       "kind": "record",
-      "label": "Related measure: Prop 40",
-      "title": "Prop 40 has its own **conflicting-measure rule**",
+      "label": "Prop 40: potential conflict",
+      "title": "Prop 40's **net-worth tax** has its own same-ballot conflict rule",
       "quotes": [
         {
           "sourceId": "law-40",
-          "locator": "Section 8, page 147",
-          "text": "This act provides for a tax on net worth, not income, of\nbillionaires. … provisions of this measure shall prevail in their entirety,\nand any conflicting provisions of the other measure or\nmeasures shall be null and void."
+          "locator": "Sec. 8, p. 147",
+          "text": "This act provides for a tax on net worth, not income, of\nbillionaires."
+        },
+        {
+          "sourceId": "law-40",
+          "locator": "Sec. 8, p. 147",
+          "text": "In the event that this\nmeasure receives a greater number of affirmative votes\nthan a measure deemed to be in conflict with it, the\nprovisions of this measure shall prevail in their entirety,\nand any conflicting provisions of the other measure or\nmeasures shall be null and void."
         }
       ],
       "record": {
@@ -497,63 +515,40 @@
       }
     },
     {
-      "id": "q-funding",
+      "id": "funding-question",
       "kind": "question",
-      "label": "How do I verify campaign funding?",
-      "title": "How can I check who funded the campaigns?",
+      "label": "How can I check campaign funding?",
+      "title": "How can I check campaign funding?",
       "quotes": []
     },
     {
-      "id": "g-funding",
+      "id": "funding-links",
       "kind": "generated",
-      "label": "Check disclosure records",
-      "title": "Use **state campaign disclosures** to examine funding claims",
-      "body": "The ballot arguments name supporters and make funding allegations. The Analyst points to committee and contributor disclosures; those are a separate route for checking the claims.",
+      "label": "Check committee and contributor disclosures",
+      "title": "Compare **committee disclosures** with the campaign's funding claims",
+      "body": "The Analyst directs readers to sos.ca.gov/campaign-lobbying/cal-access-resources/measure-contributions/2026-ballot-measure-contribution-totals and fppc.ca.gov/transparency/top-contributors.html. The funding claim quoted here is a campaign claim, not an independently verified finding.",
       "quotes": []
     },
     {
-      "id": "q-current",
+      "id": "exception-question",
       "kind": "question",
-      "label": "Are savings already taxed?",
-      "title": "Is simply owning my savings already taxed?",
+      "label": "Does it ban every retroactive tax?",
+      "title": "Does it ban every retroactive tax?",
       "quotes": []
     },
     {
-      "id": "g-current",
+      "id": "exception-answer",
       "kind": "generated",
-      "label": "Ownership differs from income",
-      "title": "Distinguish **owning savings** from receiving taxable income",
-      "body": "The current absence of a financial-asset ownership tax does not mean income from those assets is untaxed. The dispute concerns removing a future taxing option.",
-      "quotes": []
-    },
-    {
-      "id": "q-timing",
-      "kind": "question",
-      "label": "What date does the ban cover?",
-      "title": "Does the ban only cover taxes enacted after election day?",
-      "quotes": []
-    },
-    {
-      "id": "g-timing",
-      "kind": "generated",
-      "label": "Coverage predates the election",
-      "title": "The coverage reaches **the start of 2026**, not just election day",
-      "body": "The application provision reaches initiatives submitted on or after January 1, 2026, including measures at the same election. That coverage date is distinct from the measure's effective date.",
-      "quotes": []
-    },
-    {
-      "id": "g-tradeoff",
-      "kind": "generated",
-      "label": "Protection versus flexibility",
-      "title": "Explore **taxpayer predictability** alongside future revenue flexibility",
-      "body": "A restriction can protect people against a future tax while also removing a state revenue option. The sources do not establish exactly how future public services would change.",
+      "label": "Emergency exceptions limit the ban",
+      "title": "The retroactive-tax ban has **emergency exceptions**",
+      "body": "Compare the campaign's broad prohibition language with the legislative emergency exception in the legal text.",
       "quotes": []
     }
   ],
   "edges": [
     {
       "id": "e1",
-      "from": "what",
+      "from": "does",
       "to": "root",
       "type": "part"
     },
@@ -583,413 +578,421 @@
     },
     {
       "id": "e6",
-      "from": "retro",
+      "from": "double",
       "to": "root",
       "type": "crux"
     },
     {
       "id": "e7",
-      "from": "revenue",
+      "from": "retro",
       "to": "root",
       "type": "crux"
     },
     {
       "id": "e8",
-      "from": "interaction",
+      "from": "revenue",
       "to": "root",
       "type": "crux"
     },
     {
       "id": "e9",
-      "from": "a1",
-      "to": "savings",
-      "type": "weighs",
-      "stance": "for"
+      "from": "interaction",
+      "to": "root",
+      "type": "crux"
     },
     {
       "id": "e10",
-      "from": "a2",
-      "to": "savings",
-      "type": "weighs",
-      "stance": "for"
+      "from": "ownership",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e11",
-      "from": "a3",
-      "to": "savings",
-      "type": "weighs",
-      "stance": "for"
+      "from": "retro-ban",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e12",
-      "from": "a7",
-      "to": "savings",
-      "type": "weighs",
-      "stance": "against",
-      "why": "The opponents distinguish the current billionaire proposal from a threat to ordinary savers."
+      "from": "coverage",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e13",
-      "from": "la-assets",
-      "to": "savings",
-      "type": "weighs",
-      "stance": "mixed",
-      "why": "There is no current financial-asset ownership tax, but this does not settle whether future protection is needed."
+      "from": "residency",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e14",
-      "from": "a12",
-      "to": "savings",
-      "type": "weighs",
-      "stance": "for"
+      "from": "old",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e15",
-      "from": "a4",
-      "to": "retro",
-      "type": "weighs",
-      "stance": "for"
+      "from": "real",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e16",
-      "from": "f-fairness",
-      "to": "retro",
-      "type": "weighs",
-      "stance": "for"
+      "from": "emergency",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e17",
-      "from": "p-emergency",
-      "to": "retro",
-      "type": "weighs",
-      "stance": "mixed",
-      "why": "The measure preserves a limited emergency exception instead of prohibiting every retroactive tax."
+      "from": "same-ballot",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e18",
-      "from": "la-retro",
-      "to": "retro",
-      "type": "weighs",
-      "stance": "mixed"
+      "from": "conflict",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e19",
-      "from": "la-revenue",
-      "to": "revenue",
-      "type": "weighs",
-      "stance": "against"
+      "from": "effective",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e20",
-      "from": "a8",
-      "to": "revenue",
-      "type": "weighs",
-      "stance": "against"
+      "from": "untaxed",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e21",
-      "from": "a10",
-      "to": "revenue",
-      "type": "weighs",
-      "stance": "against"
+      "from": "existing",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e22",
-      "from": "p-fiscal",
-      "to": "revenue",
-      "type": "weighs",
-      "stance": "mixed",
-      "why": "Some fiscal-emergency retroactive taxation would remain available."
+      "from": "fiscal",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e23",
-      "from": "a6",
-      "to": "interaction",
-      "type": "weighs",
-      "stance": "against"
+      "from": "court",
+      "to": "when",
+      "type": "detail"
     },
     {
       "id": "e24",
-      "from": "la-conflict",
-      "to": "interaction",
-      "type": "weighs",
-      "stance": "mixed"
+      "from": "effective",
+      "to": "when",
+      "type": "detail"
     },
     {
       "id": "e25",
-      "from": "p-conflict",
-      "to": "interaction",
-      "type": "weighs",
-      "stance": "mixed"
+      "from": "planning",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e26",
-      "from": "a11",
-      "to": "interaction",
-      "type": "weighs",
-      "stance": "for",
-      "why": "Supporters favor coverage of ownership-tax proposals on this year's ballot."
+      "from": "pension-risk",
+      "to": "does",
+      "type": "detail"
     },
     {
       "id": "e27",
-      "from": "a5",
+      "from": "a-coalition",
       "to": "who",
       "type": "detail"
     },
     {
       "id": "e28",
-      "from": "a9",
+      "from": "n-funder",
       "to": "who",
       "type": "detail"
     },
     {
       "id": "e29",
-      "from": "la-assets",
-      "to": "what",
-      "type": "detail"
+      "from": "a-proposals",
+      "to": "savings",
+      "type": "weighs",
+      "stance": "for"
     },
     {
       "id": "e30",
-      "from": "la-ban",
-      "to": "what",
-      "type": "detail"
+      "from": "a-broad",
+      "to": "savings",
+      "type": "weighs",
+      "stance": "for"
     },
     {
       "id": "e31",
-      "from": "la-retro",
-      "to": "what",
-      "type": "detail"
+      "from": "y-benefit",
+      "to": "savings",
+      "type": "weighs",
+      "stance": "for"
     },
     {
       "id": "e32",
-      "from": "la-revenue",
-      "to": "what",
-      "type": "detail"
+      "from": "untaxed",
+      "to": "savings",
+      "type": "weighs",
+      "stance": "mixed",
+      "why": "There is no current ownership tax on financial assets, but the question concerns future protection."
     },
     {
       "id": "e33",
-      "from": "la-conflict",
-      "to": "when",
-      "type": "detail"
+      "from": "r-target",
+      "to": "savings",
+      "type": "weighs",
+      "stance": "against"
     },
     {
       "id": "e34",
-      "from": "la-disclosure",
-      "to": "act",
-      "type": "detail"
+      "from": "n-purpose",
+      "to": "savings",
+      "type": "weighs",
+      "stance": "against"
     },
     {
       "id": "e35",
-      "from": "p-existing",
-      "to": "what",
-      "type": "detail"
+      "from": "a-double",
+      "to": "double",
+      "type": "weighs",
+      "stance": "for"
     },
     {
       "id": "e36",
-      "from": "p-real",
-      "to": "what",
-      "type": "detail"
+      "from": "y-scope",
+      "to": "double",
+      "type": "weighs",
+      "stance": "for"
     },
     {
       "id": "e37",
-      "from": "p-residency",
-      "to": "what",
-      "type": "detail"
+      "from": "r-health",
+      "to": "double",
+      "type": "weighs",
+      "stance": "against",
+      "why": "This claim places funding healthcare above protecting extreme wealth from an ownership tax."
     },
     {
       "id": "e38",
-      "from": "p-emergency",
-      "to": "what",
-      "type": "detail"
+      "from": "existing",
+      "to": "double",
+      "type": "weighs",
+      "stance": "mixed",
+      "why": "Existing ownership taxes provide context without resolving whether the tax principle is fair."
     },
     {
       "id": "e39",
-      "from": "p-fiscal",
-      "to": "what",
-      "type": "detail"
+      "from": "a-retro",
+      "to": "retro",
+      "type": "weighs",
+      "stance": "for"
     },
     {
       "id": "e40",
-      "from": "p-application",
-      "to": "when",
-      "type": "detail"
+      "from": "planning",
+      "to": "retro",
+      "type": "weighs",
+      "stance": "for"
     },
     {
       "id": "e41",
-      "from": "p-conflict",
-      "to": "when",
-      "type": "detail"
+      "from": "emergency",
+      "to": "retro",
+      "type": "weighs",
+      "stance": "mixed",
+      "why": "The text preserves limited retroactivity for emergency response."
     },
     {
       "id": "e42",
-      "from": "p-effective",
-      "to": "when",
-      "type": "detail"
+      "from": "retro-ban",
+      "to": "retro",
+      "type": "weighs",
+      "stance": "for"
     },
     {
       "id": "e43",
-      "from": "f-fairness",
-      "to": "what",
-      "type": "detail"
+      "from": "fiscal",
+      "to": "revenue",
+      "type": "weighs",
+      "stance": "against",
+      "why": "Restricting revenue options could constrain future funding, though the scale is unclear."
     },
     {
       "id": "e44",
-      "from": "f-savings",
-      "to": "what",
-      "type": "detail"
+      "from": "r-health",
+      "to": "revenue",
+      "type": "weighs",
+      "stance": "against"
     },
     {
       "id": "e45",
-      "from": "record-40",
-      "to": "interaction",
-      "type": "appliesTo"
+      "from": "n-purpose",
+      "to": "revenue",
+      "type": "weighs",
+      "stance": "against"
     },
     {
       "id": "e46",
-      "from": "la-ban",
-      "to": "a3",
-      "type": "qualifies",
-      "why": "The restriction concerns new ownership taxes, not every tax involving savings."
+      "from": "a-broad",
+      "to": "revenue",
+      "type": "weighs",
+      "stance": "for",
+      "why": "Protecting savers is the claimed benefit of giving up these revenue options."
     },
     {
       "id": "e47",
-      "from": "p-existing",
-      "to": "a3",
-      "type": "qualifies"
+      "from": "court",
+      "to": "interaction",
+      "type": "weighs",
+      "stance": "mixed"
     },
     {
       "id": "e48",
-      "from": "p-emergency",
-      "to": "a4",
-      "type": "qualifies"
+      "from": "r-undo",
+      "to": "interaction",
+      "type": "weighs",
+      "stance": "against"
     },
     {
       "id": "e49",
-      "from": "p-fiscal",
-      "to": "a4",
-      "type": "qualifies"
+      "from": "y-scope",
+      "to": "interaction",
+      "type": "weighs",
+      "stance": "for"
     },
     {
       "id": "e50",
-      "from": "la-revenue",
-      "to": "a8",
-      "type": "qualifies",
-      "why": "The fiscal analysis does not quantify revenue losses or establish a specific healthcare outcome."
+      "from": "conflict",
+      "to": "interaction",
+      "type": "weighs",
+      "stance": "mixed"
     },
     {
       "id": "e51",
-      "from": "la-conflict",
-      "to": "a6",
-      "type": "qualifies",
-      "why": "The Analyst describes a possible court finding and a relative-vote condition, not automatic cancellation."
+      "from": "court",
+      "to": "prop40",
+      "type": "conflicts"
     },
     {
       "id": "e52",
-      "from": "f-savings",
-      "to": "a3",
-      "type": "supports"
+      "from": "conflict",
+      "to": "prop40",
+      "type": "conflicts",
+      "why": "The Analyst identifies Prop 40 as a potential application of this conflict rule."
     },
     {
       "id": "e53",
-      "from": "p-residency",
-      "to": "la-retro",
-      "type": "supports"
+      "from": "r-undo",
+      "to": "prop40",
+      "type": "conflicts"
     },
     {
       "id": "e54",
-      "from": "p-application",
-      "to": "a11",
-      "type": "supports"
+      "from": "r-target",
+      "to": "prop40",
+      "type": "appliesTo"
     },
     {
       "id": "e55",
-      "from": "p-effective",
-      "to": "g-timing",
-      "type": "qualifies"
+      "from": "n-purpose",
+      "to": "prop40",
+      "type": "conflicts"
     },
     {
       "id": "e56",
-      "from": "p-real",
-      "to": "la-ban",
-      "type": "qualifies"
+      "from": "r-health",
+      "to": "prop40",
+      "type": "conflicts",
+      "why": "This claim concerns the healthcare consequences of blocking the billionaire tax."
     },
     {
       "id": "e57",
-      "from": "f-fairness",
-      "to": "a4",
+      "from": "ownership",
+      "to": "a-broad",
       "type": "supports"
     },
     {
       "id": "e58",
-      "from": "la-disclosure",
-      "to": "g-funding",
+      "from": "coverage",
+      "to": "y-benefit",
       "type": "supports"
     },
     {
       "id": "e59",
-      "from": "la-assets",
-      "to": "g-current",
-      "type": "supports"
+      "from": "pension-risk",
+      "to": "a-proposals",
+      "type": "supports",
+      "why": "The finding describes the kind of risk the campaign claims proposals create, without verifying those proposals."
     },
     {
       "id": "e60",
-      "from": "p-application",
-      "to": "g-timing",
-      "type": "supports"
+      "from": "untaxed",
+      "to": "a-double",
+      "type": "qualifies",
+      "why": "The claimed double taxation is a future possibility, not a current tax on financial ownership."
     },
     {
       "id": "e61",
-      "from": "q-funding",
-      "to": "who",
-      "type": "asks"
+      "from": "emergency",
+      "to": "a-retro",
+      "type": "qualifies"
     },
     {
       "id": "e62",
-      "from": "g-funding",
-      "to": "q-funding",
-      "type": "answers"
+      "from": "fiscal",
+      "to": "r-health",
+      "type": "qualifies",
+      "why": "The analysis identifies possible lower revenue but does not estimate healthcare losses."
     },
     {
       "id": "e63",
-      "from": "q-current",
-      "to": "savings",
-      "type": "asks"
+      "from": "court",
+      "to": "r-undo",
+      "type": "qualifies",
+      "why": "Blocking Prop 40 is a conditional legal possibility, not an assured outcome."
     },
     {
       "id": "e64",
-      "from": "g-current",
-      "to": "q-current",
-      "type": "answers"
-    },
-    {
-      "id": "e65",
-      "from": "q-timing",
-      "to": "when",
+      "from": "funding-question",
+      "to": "act",
       "type": "asks"
     },
     {
-      "id": "e66",
-      "from": "g-timing",
-      "to": "q-timing",
+      "id": "e65",
+      "from": "funding-links",
+      "to": "funding-question",
       "type": "answers"
     },
     {
+      "id": "e66",
+      "from": "exception-question",
+      "to": "retro",
+      "type": "asks"
+    },
+    {
       "id": "e67",
-      "from": "g-tradeoff",
-      "to": "revenue",
-      "type": "detail"
+      "from": "exception-answer",
+      "to": "exception-question",
+      "type": "answers"
     },
     {
       "id": "e68",
-      "from": "la-revenue",
-      "to": "g-tradeoff",
+      "from": "emergency",
+      "to": "exception-answer",
       "type": "supports"
     },
     {
       "id": "e69",
-      "from": "f-fairness",
-      "to": "g-tradeoff",
-      "type": "supports"
+      "from": "funding-links",
+      "to": "n-funder",
+      "type": "qualifies"
     }
   ]
 }
