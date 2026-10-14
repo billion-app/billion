@@ -2,6 +2,7 @@ import {
   CA_OFFICIAL_GUIDE_ADDRESS_HASH,
   CA_OFFICIAL_GUIDE_ENDPOINT,
   officialGuideCacheParams,
+  officialGuidePayloadSchema,
 } from "@acme/api/lib/official-guide-cache";
 import { TRILLION_ENDPOINT, trillionSourceUrls } from "@acme/api/lib/trillion";
 import { eq } from "@acme/db";
@@ -40,6 +41,16 @@ export const caOfficialGuide: Scraper = {
       undefined,
       trillionSourceUrls(trillionGraphs.map((row) => row.responseData)),
     );
+    // Readers parse this row on every request; one invalid field hides the
+    // whole guide, so it is never written unless it parses.
+    const checked = officialGuidePayloadSchema.safeParse(payload);
+    if (!checked.success)
+      throw new Error(
+        `Refusing to cache a guide readers cannot parse: ${checked.error.issues
+          .slice(0, 3)
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ")}`,
+      );
     const fetchedAt = new Date(payload.fetchedAt);
     const values = {
       addressHash: CA_OFFICIAL_GUIDE_ADDRESS_HASH,
