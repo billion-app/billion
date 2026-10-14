@@ -181,7 +181,7 @@ const graphShape = z.object({
     guideHash: hash,
   }),
   rootId: id,
-  terms: z.array(trillionTermSchema).max(8).default([]),
+  terms: z.array(trillionTermSchema).max(12).default([]),
   /**
    * What the measure does, in two or three plain sentences under the reader's
    * question. Billion writes it, so it must quote the measure's own legal text

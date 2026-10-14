@@ -22,6 +22,8 @@ Relationship colors reuse Billion's nonpartisan outcome hues and always ship wit
   --rel-for: #55d6be;
   --rel-against: #ff9575;
   --rel-mixed: #b8a1ff;
+  --vote-yes: #6fa8ff;
+  --vote-no: #ff7aa8;
   --rel-question: #f4c95d;
   --rel-applies: #a5b9ff;
   --display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
@@ -602,6 +604,12 @@ a {
 }
 .r-mixed {
   --rel: var(--rel-mixed);
+}
+.r-yes {
+  --rel: var(--vote-yes);
+}
+.r-no {
+  --rel: var(--vote-no);
 }
 .r-question {
   --rel: var(--rel-question);
