@@ -10,9 +10,11 @@ import TrillionReader from "./dom/TrillionReader";
 export function TrillionScreen({
   graph,
   view,
+  ballot,
 }: {
   graph: PublicTrillionGraph;
   view?: "list" | "map";
+  ballot?: string[];
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -21,6 +23,7 @@ export function TrillionScreen({
       <TrillionReader
         graph={graph}
         view={view}
+        ballot={ballot}
         onExit={() => Promise.resolve(router.back())}
         onOpenUrl={async (url) => {
           await Linking.openURL(url);

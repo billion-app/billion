@@ -556,6 +556,16 @@ export const envRegistry = [
     schema: string,
   }),
   define({
+    key: "SCRAPER_FALLBACK_REASONING_EFFORT",
+    description:
+      "Reasoning effort sent to the fallback endpoint; models differ in which values they accept.",
+    group: "AI",
+    secret: false,
+    defaultValue: "none",
+    requirements: { scraper: "optional" },
+    schema: string,
+  }),
+  define({
     key: "SCRAPER_FALLBACK_API_KEY",
     description:
       "Optional bearer token for the fallback proxy; OAuth credentials stay with the proxy.",

@@ -428,7 +428,8 @@ export function mountTrillionReader(root, graph, options = {}) {
   const PROP_MENTION = /\b(Prop(?:osition)?s?\.?\s+)(\d{1,3}[A-Z]?)\b/g;
   const linkMeasures = (html) =>
     html.replace(PROP_MENTION, (m, lead, n) =>
-      n === graph.measure.number
+      n === graph.measure.number ||
+      (options.ballot && !options.ballot.includes(n))
         ? m
         : `<span class="prop-link" role="link" tabindex="0" data-prop="${n}">${lead}${n}</span>`,
     );

@@ -55,7 +55,13 @@ export default function PropositionDetailScreen() {
   const conArguments = submittedGuideArguments(measure?.conArguments);
   const graph =
     debate.data ?? (measure ? developmentDebate(measure.number) : undefined);
-  if (graph) return <TrillionScreen graph={graph} />;
+  if (graph)
+    return (
+      <TrillionScreen
+        graph={graph}
+        ballot={query.data?.measures.map((item) => item.number)}
+      />
+    );
 
   return (
     <View style={s.screen}>

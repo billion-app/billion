@@ -195,8 +195,10 @@ void test("Trillion debates refresh daily, before the guide fingerprints their s
   assert.ok(trillion, "daily Trillion job is missing");
   assert.ok(guide, "daily guide job is missing");
   assert.equal(trillion.script, "trillion-propositions.js");
-  assert.deepEqual(trillion.args, ["--max-model-calls", "24"]);
+  assert.deepEqual(trillion.args, ["--max-model-calls", "48"]);
   assert.equal(trillion.env?.SCRAPER_FALLBACK_MODEL, "gpt-6.1-sol");
+  // gpt-6.1-sol rejects the host's default reasoning effort ("none").
+  assert.equal(trillion.env?.SCRAPER_FALLBACK_REASONING_EFFORT, "medium");
   assert.equal(trillion.schedule.kind, "daily");
   assert.equal(guide.schedule.kind, "daily");
   if (trillion.schedule.kind === "daily" && guide.schedule.kind === "daily")
