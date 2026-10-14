@@ -22,6 +22,8 @@ Relationship colors reuse Billion's nonpartisan outcome hues and always ship wit
   --rel-for: #55d6be;
   --rel-against: #ff9575;
   --rel-mixed: #b8a1ff;
+  --vote-yes: #6fa8ff;
+  --vote-no: #ff7aa8;
   --rel-question: #f4c95d;
   --rel-applies: #a5b9ff;
   --display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
@@ -602,6 +604,12 @@ a {
 }
 .r-mixed {
   --rel: var(--rel-mixed);
+}
+.r-yes {
+  --rel: var(--vote-yes);
+}
+.r-no {
+  --rel: var(--vote-no);
 }
 .r-question {
   --rel: var(--rel-question);
@@ -1449,4 +1457,49 @@ textarea {
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+/* The lead disagreement under the main case's summary. Unlabeled: its border
+   runs from the Yes color to the No color, unlike any other card. */
+.pinned-dispute {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 12px 0 4px;
+  padding: 14px 16px;
+  text-align: left;
+  color: var(--text);
+  border: 1.5px solid transparent;
+  border-radius: 14px;
+  background:
+    linear-gradient(var(--slate), var(--slate)) padding-box,
+    linear-gradient(120deg, var(--vote-yes), var(--vote-no)) border-box;
+}
+.pinned-dispute:hover,
+.pinned-dispute:focus-visible {
+  background:
+    linear-gradient(var(--hi), var(--hi)) padding-box,
+    linear-gradient(120deg, var(--vote-yes), var(--vote-no)) border-box;
+}
+.pd-title {
+  font: 600 19px/1.3 var(--display);
+}
+.pd-meta {
+  font-size: 13px;
+  color: rgba(247, 244, 238, 0.7);
+}
+
+/* How it works today: set apart from the summary, and its heading stays
+   when open, since it names what the paragraph is. */
+.summary-more.background {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair1);
+}
+.summary-more.background[open] summary {
+  display: block;
+  margin-bottom: 6px;
+}
+.summary-more.background p {
+  margin-bottom: 6px;
 }

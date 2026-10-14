@@ -181,7 +181,7 @@ const graphShape = z.object({
     guideHash: hash,
   }),
   rootId: id,
-  terms: z.array(trillionTermSchema).max(8).default([]),
+  terms: z.array(trillionTermSchema).max(12).default([]),
   /**
    * What the measure does, in two or three plain sentences under the reader's
    * question. Billion writes it, so it must quote the measure's own legal text
@@ -202,6 +202,17 @@ const graphShape = z.object({
           generatedAt: z.iso.datetime(),
         })
         .optional(),
+    })
+    .optional(),
+  /**
+   * How things work today, for a reader new to state government: a few plain
+   * sentences drawn only from the official analysis's Background section, so
+   * the change in the summary has something to change from.
+   */
+  background: z
+    .object({
+      text: z.string().trim().min(20).max(360),
+      quotes: z.array(trillionQuoteSchema).min(1).max(4),
     })
     .optional(),
   nodes: z.array(trillionNodeSchema).min(5).max(150),
@@ -346,6 +357,7 @@ function checkStructure(
     | "revision"
     | "verification"
     | "summary"
+    | "background"
     | "terms"
   > & { sources: { id: string; number: string; role: string }[] },
   ctx: z.RefinementCtx,
@@ -392,6 +404,22 @@ function checkStructure(
         issue("summary must quote this measure's own legal text.");
       if (quote.text.includes("**"))
         issue("labels and verbatim quotes carry no emphasis.");
+    }
+  }
+
+  if (value.background) {
+    const problem = emphasisProblem(value.background.text);
+    if (problem) issue(`background has ${problem}.`);
+    for (const quote of value.background.quotes) {
+      const source = value.sources.find((s) => s.id === quote.sourceId);
+      // Background is the nonpartisan account of today, not the measure.
+      if (
+        source?.role !== "official-analysis" ||
+        source.number !== value.measure.number
+      )
+        issue("background must quote this measure's official analysis.");
+      if (quote.text.includes("**"))
+        issue("background: verbatim quotes carry no emphasis.");
     }
   }
 
@@ -596,6 +624,11 @@ export function unverifiedTrillionQuotes(graph: TrillionGraph): string[] {
     const source = sources.get(quote.sourceId);
     if (!source || !quoteAppearsIn(source.snapshot, quote.text))
       failures.push(`summary#${index}`);
+  });
+  graph.background?.quotes.forEach((quote, index) => {
+    const source = sources.get(quote.sourceId);
+    if (!source || !quoteAppearsIn(source.snapshot, quote.text))
+      failures.push(`background#${index}`);
   });
   return failures;
 }

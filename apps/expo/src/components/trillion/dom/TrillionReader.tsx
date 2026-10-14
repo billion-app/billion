@@ -21,10 +21,13 @@ export default function TrillionReader({
   onOpenUrl,
   onOpenMeasure,
   view,
+  ballot,
 }: {
   graph: PublicTrillionGraph;
   /** Which view opens first; the reader can switch afterwards. */
   view?: "list" | "map";
+  /** Measures on this ballot; mentions of others are left as plain text. */
+  ballot?: string[];
   onExit: () => Promise<void>;
   onOpenUrl: (url: string) => Promise<void>;
   /** Another proposition mentioned in a card was tapped. */
@@ -39,6 +42,7 @@ export default function TrillionReader({
       onOpenUrl: (url: string) => void onOpenUrl(url),
       onOpenMeasure: (number: string) => void onOpenMeasure(number),
       view,
+      ballot,
     });
     return () => reader.destroy();
     // The engine owns the DOM below the root; a new graph replaces the reader.

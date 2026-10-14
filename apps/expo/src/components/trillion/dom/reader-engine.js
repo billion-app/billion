@@ -239,6 +239,17 @@ export function mountTrillionReader(root, graph, options = {}) {
       "shared",
       "fact",
     ]);
+    // Name a ballot argument by who wrote it, from its official heading.
+    const ballotSide = (locator = "") => {
+      const l = locator.toLowerCase();
+      if (/rebuttal to (the )?argument in favor/.test(l))
+        return "Opponents' rebuttal";
+      if (/rebuttal to (the )?argument against/.test(l))
+        return "Supporters' rebuttal";
+      if (/argument against/.test(l)) return "Opponents' argument";
+      if (/argument in favor/.test(l)) return "Supporters' argument";
+      return null;
+    };
     const nodes = {};
     for (const n of G.nodes) {
       const q = n.quotes[0];
@@ -246,7 +257,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       let source;
       if (n.kind === "argument")
         source = {
-          label: n.attribution.name,
+          label: ballotSide(q.locator) ?? n.attribution.name,
           signers: n.attribution.signers,
           locator: q.locator,
           url: s.url,
@@ -320,7 +331,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     precedent: "Past record",
   };
   const IN = {
-    supports: "Supports this",
+    supports: "Backs this up",
     challenges: "Challenges this",
     qualifies: "Qualifies this",
     appliesTo: "Applies here",
@@ -330,7 +341,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     crux: "Disputed question",
   };
   const OUT = {
-    supports: "Supports",
+    supports: "Backs up",
     challenges: "Challenges",
     qualifies: "Qualifies",
     appliesTo: "Applies to",
@@ -342,7 +353,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     crux: "Disputed under",
   };
   const SHORT = {
-    supports: "supports",
+    supports: "backs up",
     challenges: "challenges",
     qualifies: "qualifies",
     appliesTo: "applies to",
@@ -368,11 +379,15 @@ export function mountTrillionReader(root, graph, options = {}) {
   // An argument under a disputed question carries its lean toward the vote as a color and a word.
   // The label names the vote, because under a yes/no question "Leans no" reads as an answer to it.
   const LEAN = {
-    for: `Favors Yes on ${graph.measure.number}`,
-    against: `Favors No on ${graph.measure.number}`,
+    for: `Argues Yes on ${graph.measure.number}`,
+    against: `Argues No on ${graph.measure.number}`,
     mixed: "Cuts both ways",
   };
-  const tone = (e) => (e.type === "weighs" ? e.stance : TONE[e.type]);
+  // Leans toward the vote have their own colors, so green and red only ever
+  // mean backing up or challenging another card.
+  const VOTE_TONE = { for: "yes", against: "no", mixed: "mixed" };
+  const tone = (e) =>
+    e.type === "weighs" ? VOTE_TONE[e.stance] : TONE[e.type];
   const inLabel = (e) => (e.type === "weighs" ? LEAN[e.stance] : IN[e.type]);
   const outLabel = (e) => (e.type === "weighs" ? LEAN[e.stance] : OUT[e.type]);
   const short = (e) => (e.type === "weighs" ? LEAN[e.stance] : SHORT[e.type]);
@@ -389,6 +404,8 @@ export function mountTrillionReader(root, graph, options = {}) {
     question: "#F4C95D",
     applies: "#A5B9FF",
     neutral: "#4A5068",
+    yes: "#6FA8FF",
+    no: "#FF7AA8",
   };
   const RESTS = new Set(["supports", "appliesTo"]);
   const RESP = new Set([
@@ -414,12 +431,19 @@ export function mountTrillionReader(root, graph, options = {}) {
   const TERMS = new Map(
     (graph.terms || []).map((t) => [t.term.toLowerCase(), t]),
   );
-  const termPattern = TERMS.size
+  // Singular and plural forms link to the same definition ("reserve" → "reserves").
+  const TERM_FORMS = new Map();
+  for (const key of TERMS.keys()) {
+    const stem = /[^s]s$/.test(key) && key.length > 3 ? key.slice(0, -1) : key;
+    for (const form of [key, stem, `${stem}s`, `${stem}es`])
+      if (!TERM_FORMS.has(form)) TERM_FORMS.set(form, key);
+  }
+  for (const key of TERMS.keys()) TERM_FORMS.set(key, key);
+  const termPattern = TERM_FORMS.size
     ? new RegExp(
-        `(?<![\\p{L}\\p{N}_])(${[...TERMS.values()]
-          .map((t) => esc(t.term))
+        `(?<![\\p{L}\\p{N}_])(${[...TERM_FORMS.keys()]
           .sort((a, b) => b.length - a.length)
-          .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+          .map((t) => esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
           .join("|")})(?![\\p{L}\\p{N}_])`,
         "giu",
       )
@@ -428,7 +452,8 @@ export function mountTrillionReader(root, graph, options = {}) {
   const PROP_MENTION = /\b(Prop(?:osition)?s?\.?\s+)(\d{1,3}[A-Z]?)\b/g;
   const linkMeasures = (html) =>
     html.replace(PROP_MENTION, (m, lead, n) =>
-      n === graph.measure.number
+      n === graph.measure.number ||
+      (options.ballot && !options.ballot.includes(n))
         ? m
         : `<span class="prop-link" role="link" tabindex="0" data-prop="${n}">${lead}${n}</span>`,
     );
@@ -444,7 +469,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       html = html.replace(
         termPattern,
         (m) =>
-          `<span class="term" role="button" tabindex="0" data-term="${esc(m.toLowerCase())}">${m}</span>`,
+          `<span class="term" role="button" tabindex="0" data-term="${esc(TERM_FORMS.get(m.toLowerCase()) ?? m.toLowerCase())}">${m}</span>`,
       );
     return html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   };
@@ -527,7 +552,7 @@ export function mountTrillionReader(root, graph, options = {}) {
           tone: "neutral",
           items: inc
             .filter((e) => e.type === "crux")
-            .sort((a, b) => cruxState(b.from).open - cruxState(a.from).open)
+            .sort((a, b) => disputeOrder(a.from) - disputeOrder(b.from))
             .map((e) => ({ e, dir: "in" })),
         },
         {
@@ -772,11 +797,46 @@ export function mountTrillionReader(root, graph, options = {}) {
     return `<section class="section" id="tabpanel" role="tabpanel">${body}</section>`;
   }
 
+  // The generator lists disputed questions most consequential first. The first
+  // is shown under the summary in the Yes-to-No colors, unlabeled: the color
+  // draws the eye without Billion declaring which disagreement matters most.
+  function disputeIds() {
+    return Object.keys(N).filter((id) => N[id].kind === "crux");
+  }
+  function disputeOrder(id) {
+    return disputeIds().indexOf(id);
+  }
+  function disputeSides(id) {
+    const args = incoming(id).filter((x) => x.type === "weighs");
+    const yes = args.filter((x) => x.stance === "for").length;
+    const no = args.filter((x) => x.stance === "against").length;
+    const both = args.filter((x) => x.stance === "mixed").length;
+    return { yes, no, both, total: args.length };
+  }
+  function leadDisputeHtml() {
+    const id = disputeIds().find(
+      (c) => visible(c) && incoming(ROOT).some((e) => e.from === c),
+    );
+    if (!id) return "";
+    const d = disputeSides(id);
+    const sides = [
+      d.yes ? `${d.yes} Yes` : "",
+      d.no ? `${d.no} No` : "",
+      d.both ? `${d.both} both ways` : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    return `<button class="pinned-dispute" type="button" data-node="${id}">
+      <span class="pd-title">${titleHtml(id)}</span>
+      <span class="pd-meta">${d.total} argument${d.total === 1 ? "" : "s"}${sides ? ` · ${sides}` : ""} ›</span>
+    </button>`;
+  }
+
   function focusCard(id) {
     const n = N[id];
     const src = n.source || {};
     if (id === ROOT)
-      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>`;
+      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>${leadDisputeHtml()}`;
     const meta = [
       `<span class="kind">${esc(n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
     ];
@@ -983,20 +1043,33 @@ export function mountTrillionReader(root, graph, options = {}) {
       <p class="summary-t">${emphasize(sm.text)}</p>
       ${sm.more ? `<details class="summary-more"><summary>Read more</summary><p>${emphasize(sm.more)}</p></details>` : ""}
       <button class="linkish" type="button" data-summary-sources>From the measure text · ${sm.quotes.length} ${sm.quotes.length === 1 ? "quote" : "quotes"}</button>
+      ${backgroundHtml()}
     </section>`;
   }
-  function openSummarySources() {
+  // How things work today, for readers new to state government. It comes from
+  // the Legislative Analyst's Background section, never from the measure.
+  function backgroundHtml() {
+    const bg = graph.background;
+    if (!bg) return "";
+    return `<details class="summary-more background"><summary>New to this? How it works today</summary>
+      <p>${emphasize(bg.text)}</p>
+      <button class="linkish" type="button" data-summary-sources="background">From the Legislative Analyst · ${bg.quotes.length} ${bg.quotes.length === 1 ? "quote" : "quotes"}</button>
+    </details>`;
+  }
+  function openSummarySources(which) {
+    const bg = which === "background";
+    const part = bg ? graph.background : graph.summary;
     const sources = Object.fromEntries(graph.sources.map((s) => [s.id, s]));
-    const url = sources[graph.summary.quotes[0].sourceId]?.url;
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">What the measure says</h2><button class="close" type="button" data-close>Close</button></div>
-      ${graph.summary.quotes
+    const url = sources[part.quotes[0].sourceId]?.url;
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${bg ? "What the Legislative Analyst says" : "What the measure says"}</h2><button class="close" type="button" data-close>Close</button></div>
+      ${part.quotes
         .map(
           (q) =>
             `<blockquote class="quote">“${esc(q.text)}”<footer><span>${esc(q.locator)}</span></footer></blockquote>`,
         )
         .join("")}
-      <p class="empty" style="margin-top:12px">Billion wrote the summary; these are the passages of the measure it rests on, matched word for word.</p>
-      ${url ? `<div class="actions"><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">Open the measure text</a></div>` : ""}`);
+      <p class="empty" style="margin-top:12px">${bg ? "Billion wrote this background; these are the passages of the Legislative Analyst's nonpartisan analysis it rests on, matched word for word." : "Billion wrote the summary; these are the passages of the measure it rests on, matched word for word."}</p>
+      ${url ? `<div class="actions"><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">${bg ? "Open the analysis" : "Open the measure text"}</a></div>` : ""}`);
   }
 
   // ── How can I act: voting basics, always present, never generated ────────
@@ -2120,7 +2193,8 @@ export function mountTrillionReader(root, graph, options = {}) {
       tab = defaultTab(focusId());
       render(true);
     } else if (t.dataset.source) openSource(t.dataset.source);
-    else if (t.hasAttribute("data-summary-sources")) openSummarySources();
+    else if (t.hasAttribute("data-summary-sources"))
+      openSummarySources(t.dataset.summarySources);
     else if (t.dataset.more) {
       shown.add(t.dataset.more);
       render(false);
