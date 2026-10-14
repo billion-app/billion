@@ -234,6 +234,8 @@ export function repairRecordKinds(
   nodes: TrillionAuthored["nodes"],
   sources: { id: string; number: string; role: string }[],
   number: string,
+  /** Measures on this ballot; a record may only name one of these. */
+  ballot?: readonly string[],
 ): { nodes: TrillionAuthored["nodes"]; retyped: string[] } {
   const byId = new Map(sources.map((s) => [s.id, s]));
   const retyped: string[] = [];
@@ -244,20 +246,127 @@ export function repairRecordKinds(
     precedent: "precedent",
   };
   const out = nodes.map((node) => {
-    if (node.kind !== "record" || node.record) return node;
+    if (node.kind !== "record") return node;
+    // A record naming a measure not on this ballot (a historical "Prop 13") is
+    // re-typed below by the source it quotes, like a record with no measure.
+    const offBallot =
+      node.record && ballot ? !ballot.includes(node.record.number) : false;
+    if (node.record && !offBallot) return node;
     const source = byId.get(node.quotes[0]?.sourceId ?? "");
-    if (!source) return node;
+    if (!source) {
+      // Off the ballot and quoting nothing we captured: nothing can ground it.
+      if (offBallot) {
+        retyped.push(
+          `${node.id} (dropped: Prop ${node.record?.number} is not on this ballot)`,
+        );
+        return null;
+      }
+      return node;
+    }
     if (source.number !== number) {
       retyped.push(`${node.id} (record for Prop ${source.number})`);
       return { ...node, record: { number: source.number } };
     }
     const kind = kindFor[source.role] ?? "provision";
     // An argument keeps its published attribution, so it needs one to be retyped.
-    if (kind === "argument" && !node.attribution) return node;
+    if (kind === "argument" && !node.attribution) {
+      if (!offBallot) return node;
+      retyped.push(
+        `${node.id} (dropped: Prop ${node.record?.number} is not on this ballot)`,
+      );
+      return null;
+    }
     retyped.push(`${node.id} (record → ${kind})`);
-    return { ...node, kind };
+    const { record: _record, ...rest } = node;
+    return { ...rest, kind };
   });
-  return { nodes: out, retyped };
+  return {
+    nodes: out.filter(
+      (node): node is NonNullable<typeof node> => node !== null,
+    ),
+    retyped,
+  };
+}
+
+/**
+ * Keeps every card, link and term that parses on its own. One malformed card
+ * costs only that card; its links go with it during pruning.
+ */
+export function salvageAuthored(raw: unknown): {
+  authored: TrillionAuthored;
+  dropped: string[];
+} {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  const dropped: string[] = [];
+  const keep = <T>(
+    items: unknown,
+    schema: z.ZodType<T>,
+    label: (item: unknown, index: number) => string,
+  ): T[] =>
+    (Array.isArray(items) ? items : []).flatMap((item, index) => {
+      const parsed = schema.safeParse(item);
+      if (parsed.success) return [parsed.data];
+      dropped.push(`${label(item, index)} (malformed)`);
+      return [];
+    });
+  const named = (prefix: string) => (item: unknown, index: number) => {
+    const id = (item as { id?: unknown } | null)?.id;
+    return typeof id === "string" ? id : `${prefix}#${index}`;
+  };
+  const authored = trillionAuthoredSchema.parse({
+    terms: keep(value.terms, trillionTermSchema, (_, i) => `term#${i}`),
+    nodes: keep(value.nodes, trillionNodeSchema, named("node")),
+    edges: keep(value.edges, trillionEdgeSchema, named("edge")),
+  });
+  return { authored, dropped };
+}
+
+/**
+ * Drops the cards, links, terms or summary that a structure check names, then
+ * prunes what they leave unconnected, until the graph passes or a failure
+ * names nothing removable (a missing branch, no disputed question).
+ */
+export function dropFailingParts(
+  graph: Parameters<typeof pruneUnverified>[0],
+): { graph: Parameters<typeof pruneUnverified>[0]; dropped: string[] } {
+  const dropped: string[] = [];
+  let current = graph;
+  for (let round = 0; round < 20; round++) {
+    const checked = trillionGraphSchema.safeParse(current);
+    if (checked.success) break;
+    const nodeIds = new Set(current.nodes.map((n) => n.id));
+    const edgeIds = new Set(current.edges.map((e) => e.id));
+    const nodes = new Set<string>();
+    const edges = new Set<string>();
+    const terms = new Set<string>();
+    let summary = false;
+    for (const { message } of checked.error.issues) {
+      const term = /^term "(.+?)":/.exec(message)?.[1];
+      if (term) terms.add(term);
+      else if (message.startsWith("summary")) summary = true;
+      else {
+        const id = /^([a-z0-9-]+):/.exec(message)?.[1];
+        if (id && id !== current.rootId && nodeIds.has(id)) nodes.add(id);
+        else if (id && edgeIds.has(id)) edges.add(id);
+      }
+    }
+    if (!nodes.size && !edges.size && !terms.size && !summary) break;
+    dropped.push(
+      ...[...nodes, ...edges].map((id) => `${id} (failed checks)`),
+      ...[...terms].map((t) => `term "${t}"`),
+      ...(summary ? ["summary (failed checks)"] : []),
+    );
+    const pruned = pruneUnverified({
+      ...current,
+      summary: summary ? undefined : current.summary,
+      terms: current.terms.filter((t) => !terms.has(t.term)),
+      nodes: current.nodes.filter((n) => !nodes.has(n.id)),
+      edges: current.edges.filter((e) => !edges.has(e.id)),
+    });
+    dropped.push(...pruned.dropped);
+    current = pruned.graph;
+  }
+  return { graph: current, dropped };
 }
 
 /** One bounded model call per measure; unchanged input reuses the previous graph. */
@@ -271,6 +380,8 @@ export async function generateTrillionGraph(
     /** Second call: the summary, from the legal text only. */
     assessSummary: (prompt: string) => Promise<unknown>;
     previous?: unknown;
+    /** Measures on this ballot; defaults to the ones the corpus captured. */
+    ballot?: readonly string[];
     /** Receives the model's raw answer before any checks, for diagnosis. */
     onAuthored?: (value: unknown) => Promise<void>;
   },
@@ -302,21 +413,20 @@ export async function generateTrillionGraph(
 
   const raw = await options.assess(prompt);
   await options.onAuthored?.(raw);
-  const oriented = orientStructuralEdges(
-    trillionAuthoredSchema.parse(raw),
-    "root",
-  );
+  const salvaged = salvageAuthored(raw);
+  const oriented = orientStructuralEdges(salvaged.authored, "root");
   const flipped = oriented.flipped;
   const repaired = repairRecordKinds(
     oriented.authored.nodes,
     corpus.sources,
     corpus.number,
+    options.ballot ?? corpus.guide.measures.map((m) => m.number),
   );
   const authored = { ...oriented.authored, nodes: repaired.nodes };
   const { terms: summaryTerms, ...summary } = trillionSummarySchema.parse(
     await options.assessSummary(summaryPrompt),
   );
-  const { graph, dropped } = pruneUnverified({
+  const pruned = pruneUnverified({
     schemaVersion: 1,
     revision: `${corpus.guide.electionDate}-${corpus.number}-${inputHash.slice(0, 16)}`,
     jurisdiction: "CA",
@@ -348,7 +458,9 @@ export async function generateTrillionGraph(
       generatedAt: new Date().toISOString(),
     },
   });
-  const checked = trillionGraphSchema.safeParse(graph);
+  const settled = dropFailingParts(pruned.graph);
+  const dropped = [...salvaged.dropped, ...pruned.dropped, ...settled.dropped];
+  const checked = trillionGraphSchema.safeParse(settled.graph);
   if (!checked.success)
     throw new Error(
       `Generated graph fails the structure checks:\n${checked.error.issues.map((i) => `- ${i.message}`).join("\n")}`,

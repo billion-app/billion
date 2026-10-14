@@ -9,5 +9,7 @@ export function mountTrillionReader(
     /** A mention of another proposition was tapped. */
     onOpenMeasure?: (number: string) => void;
     view?: "list" | "map";
+    /** Measures on this ballot; only these are linked when they are mentioned. */
+    ballot?: string[];
   },
 ): { jump: (state: string) => void; destroy: () => void };

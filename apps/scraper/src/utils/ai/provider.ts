@@ -142,7 +142,10 @@ function getFallbackModel(): V3Model | null {
           ...params.providerOptions,
           openai: {
             store: false,
-            reasoningEffort: "none",
+            // Models differ in what they accept (gpt-6.1-sol rejects "none"), so
+            // a job pinning another model sets a value that model supports.
+            reasoningEffort:
+              process.env.SCRAPER_FALLBACK_REASONING_EFFORT?.trim() || "none",
             strictJsonSchema: false,
           },
         },

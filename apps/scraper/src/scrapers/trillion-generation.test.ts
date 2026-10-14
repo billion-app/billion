@@ -222,3 +222,90 @@ void test("a record card missing its measure is repaired from the source it quot
   assert.equal(nodes[2]?.kind, "analysis");
   assert.equal(retyped.length, 3);
 });
+
+void test("a record for a measure not on this ballot becomes the card its quote supports", async () => {
+  const { repairRecordKinds } = await import("./trillion-generation.js");
+  const { nodes } = repairRecordKinds(
+    [
+      {
+        id: "record-13",
+        kind: "record",
+        label: "Prop 13",
+        title: "Prop 13 limits property taxes",
+        record: { number: "13" },
+        quotes: [
+          { sourceId: "law-43", locator: "§1", text: "quoted text here" },
+        ],
+      },
+      {
+        id: "record-44",
+        kind: "record",
+        label: "Prop 44",
+        title: "Prop 44 conflicts",
+        record: { number: "44" },
+        quotes: [
+          { sourceId: "law-44", locator: "§1", text: "quoted text here" },
+        ],
+      },
+    ],
+    [
+      { id: "law-43", number: "43", role: "legal-text" },
+      { id: "law-44", number: "44", role: "legal-text" },
+    ],
+    "43",
+    ["43", "44"],
+  );
+  assert.equal(nodes[0]?.kind, "provision");
+  assert.equal(nodes[0]?.record, undefined);
+  assert.equal(nodes[1]?.kind, "record");
+});
+
+void test("an off-ballot record quoting an unattributed argument is dropped", async () => {
+  const { repairRecordKinds } = await import("./trillion-generation.js");
+  const { nodes, retyped } = repairRecordKinds(
+    [
+      {
+        id: "record-13",
+        kind: "record",
+        label: "Prop 13",
+        title: "Supporters connect Prop 43 to Prop 13",
+        record: { number: "13" },
+        quotes: [
+          { sourceId: "arguments-43", locator: "§1", text: "quoted text" },
+        ],
+      },
+    ],
+    [{ id: "arguments-43", number: "43", role: "official-arguments" }],
+    "43",
+    ["43"],
+  );
+  assert.equal(nodes.length, 0);
+  assert.match(retyped[0] ?? "", /record-13 \(dropped/);
+});
+
+void test("a malformed card costs only itself", async () => {
+  const output = authored() as { nodes: unknown[]; edges: unknown[] };
+  const index = output.nodes.findIndex(
+    (n) => (n as { id: string }).id === "a-brin",
+  );
+  output.nodes[index] = { id: "a-brin", kind: "nonsense" };
+  const result = await generateTrillionGraph(corpus, {
+    ...options,
+    assess: () => Promise.resolve(output),
+  });
+  assert.ok(result.dropped.includes("a-brin (malformed)"));
+  assert.ok(!result.graph.nodes.some((n) => n.id === "a-brin"));
+  assert.ok(result.graph.nodes.length > 10);
+});
+
+void test("a card failing a structure check is dropped, not the graph", async () => {
+  const output = authored();
+  const argument = output.nodes.find((n) => n.id === "a-brin")!;
+  delete argument.attribution;
+  const result = await generateTrillionGraph(corpus, {
+    ...options,
+    assess: () => Promise.resolve(output),
+  });
+  assert.ok(result.dropped.includes("a-brin (failed checks)"));
+  assert.ok(!result.graph.nodes.some((n) => n.id === "a-brin"));
+});

@@ -1,14 +1,15 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { z } from "zod/v4";
 
+import { getCaliforniaGuide } from "@acme/api/lib/civic";
 import {
-  publishedTrillionGraph,
   TRILLION_ADDRESS_HASH,
   TRILLION_ENDPOINT,
   trillionCacheParams,
+  trillionGateProblem,
 } from "@acme/api/lib/trillion";
 import { and, eq } from "@acme/db";
 import { db } from "@acme/db/client";
@@ -47,6 +48,10 @@ import { createLogger } from "./utils/log.js";
 const logger = createLogger("trillion-propositions");
 const FAILURE_ENDPOINT = "trillion-v1-failed";
 const FAILURE_RETRY_DAYS = 7;
+/** Attempts per proposition before a content failure is recorded. */
+const ATTEMPTS = 3;
+const PROVIDER_ERROR =
+  /invalid_request_error|No completed response|APICallError|Failed after \d+ attempts|overloaded|rate.?limit|\b(?:429|5\d\d)\b|ECONN|ETIMEDOUT|fetch failed|aborted|timed? ?out/i;
 
 const argv = await yargs(hideBin(process.argv))
   .option("election", {
@@ -169,8 +174,25 @@ const call = async (
     // Overloaded or failed calls return nothing, so a retry spends no output.
     maxRetries: 2,
     abortSignal: AbortSignal.timeout(300000),
+  }).catch(async (error: unknown) => {
+    if (!NoObjectGeneratedError.isInstance(error) || !error.text) throw error;
+    // For diagnosis: keep an answer that failed the schema, with the reason.
+    if (process.env.TRILLION_DEBUG_DIR) {
+      const { writeFile } = await import("node:fs/promises");
+      await writeFile(
+        `${process.env.TRILLION_DEBUG_DIR}/rejected-${Date.now()}.txt`,
+        `${String(error.cause)}\n\n${error.text}`,
+      );
+    }
+    // One malformed card should not cost the rest: the generator keeps every
+    // part that parses on its own and checks the whole again.
+    try {
+      return { output: JSON.parse(error.text) as unknown, usage: error.usage };
+    } catch {
+      throw error;
+    }
   });
-  trackLLMUsage(response.usage.inputTokens, response.usage.outputTokens);
+  trackLLMUsage(response.usage?.inputTokens, response.usage?.outputTokens);
   return response.output;
 };
 
@@ -181,6 +203,13 @@ const wanted = argv.only
 logger.info(
   `${argv.election}: ${numbers.length} propositions; working on ${wanted.join(", ")} with ${candidate.modelVersion}`,
 );
+
+// The stored guide the API checks against; absent locally, the capture stands in.
+const fullGuide = await getCaliforniaGuide().catch(() => null);
+if (fullGuide && fullGuide.electionDate !== argv.election)
+  throw new Error(
+    `Stored guide is for ${fullGuide.electionDate}, not ${argv.election}`,
+  );
 
 let calls = 0;
 const tally = { reused: 0, stored: 0, failed: 0, skipped: 0 };
@@ -230,6 +259,8 @@ for (const number of wanted) {
         prompt: TRILLION_PROMPT_VERSION,
         summary: TRILLION_SUMMARY_PROMPT_VERSION,
         model: candidate.modelVersion,
+        // Bumped when what counts as a failure changes, so stale records stop matching.
+        failureRules: 2,
       }),
     );
     const failure = await readRow(FAILURE_ENDPOINT, number);
@@ -252,44 +283,85 @@ for (const number of wanted) {
       );
       continue;
     }
-    if (calls + 2 > argv.maxModelCalls) {
+    // A bad answer is often a one-off, so a failure is recorded only after
+    // every attempt fails. Provider errors end the attempts and are retried next run.
+    let stored = false;
+    let lastError: string | undefined;
+    let providerError = false;
+    let attempt = 0;
+    for (; attempt < ATTEMPTS && !stored; attempt++) {
+      if (calls + 2 > argv.maxModelCalls) break;
+      calls += 2;
+      try {
+        const result = await generateTrillionGraph(corpus, {
+          model: candidate.modelVersion,
+          maxModelCalls: 2,
+          maxPromptChars: argv.maxPromptChars,
+          ballot: numbers,
+          // For diagnosis: keep the model's raw answer when asked to.
+          onAuthored: process.env.TRILLION_DEBUG_DIR
+            ? async (value) => {
+                const { writeFile } = await import("node:fs/promises");
+                await writeFile(
+                  `${process.env.TRILLION_DEBUG_DIR}/prop${number}.raw.json`,
+                  JSON.stringify(value, null, 2),
+                );
+              }
+            : undefined,
+          assess: (prompt) => call(prompt, trillionAuthoredSchema, 32000),
+          assessSummary: (prompt) => call(prompt, trillionSummarySchema, 4000),
+        });
+        // The gate as the API runs it: the full stored guide (cards may name any
+        // measure on the ballot), with this run's captures as current sources,
+        // since the guide job fingerprints them only after this job.
+        const problem = trillionGateProblem(
+          fullGuide ?? corpus.guide,
+          number,
+          result.graph,
+          corpus.sources.map((s) => ({ url: s.url, hash: s.documentHash })),
+        );
+        if (problem)
+          throw new Error(
+            `generated graph fails the publication gate: ${problem}`,
+          );
+        await writeRow(TRILLION_ENDPOINT, number, result.graph);
+        tally.stored++;
+        logger.info(
+          `Prop ${number}: stored ${result.graph.nodes.length} cards; dropped ${result.dropped.length}${result.dropped.length ? ` (${result.dropped.slice(0, 8).join(", ")})` : ""}`,
+        );
+        stored = true;
+      } catch (error) {
+        lastError = (error as Error).message;
+        logger.warn(
+          `Prop ${number}: attempt ${attempt + 1} of ${ATTEMPTS} failed: ${lastError.slice(0, 300)}`,
+        );
+        if (PROVIDER_ERROR.test(lastError)) {
+          providerError = true;
+          break;
+        }
+      }
+    }
+    if (stored) continue;
+    if (lastError === undefined) {
       tally.skipped++;
       logger.info(`Prop ${number}: run budget spent; next run picks it up`);
       continue;
     }
-
-    calls += 2;
-    try {
-      const result = await generateTrillionGraph(corpus, {
-        model: candidate.modelVersion,
-        maxModelCalls: 2,
-        maxPromptChars: argv.maxPromptChars,
-        assess: (prompt) => call(prompt, trillionAuthoredSchema, 32000),
-        assessSummary: (prompt) => call(prompt, trillionSummarySchema, 4000),
-      });
-      const published = publishedTrillionGraph(
-        corpus.guide,
-        number,
-        result.graph,
-        corpus.sources.map((s) => ({ url: s.url, hash: s.documentHash })),
-      );
-      if (!published)
-        throw new Error("generated graph does not pass the publication gate");
-      await writeRow(TRILLION_ENDPOINT, number, result.graph);
-      tally.stored++;
-      logger.info(
-        `Prop ${number}: stored ${result.graph.nodes.length} cards; dropped ${result.dropped.length}${result.dropped.length ? ` (${result.dropped.slice(0, 8).join(", ")})` : ""}`,
-      );
-    } catch (error) {
-      tally.failed++;
-      await writeRow(FAILURE_ENDPOINT, number, {
-        inputHash,
-        error: (error as Error).message.slice(0, 2000),
-      });
-      logger.warn(
-        `Prop ${number}: generation failed; not retried for ${FAILURE_RETRY_DAYS} days unless a source changes: ${(error as Error).message.slice(0, 300)}`,
-      );
+    tally.failed++;
+    // Only a failure of the content is worth remembering. Request, provider
+    // and network errors say nothing about this input and are retried next run;
+    // so is an input whose attempts the run budget cut short.
+    if (providerError || attempt < ATTEMPTS) {
+      logger.warn(`Prop ${number}: not recorded as failed; retried next run`);
+      continue;
     }
+    await writeRow(FAILURE_ENDPOINT, number, {
+      inputHash,
+      error: lastError.slice(0, 2000),
+    });
+    logger.warn(
+      `Prop ${number}: all ${ATTEMPTS} attempts failed; not retried for ${FAILURE_RETRY_DAYS} days unless a source changes`,
+    );
   } catch (error) {
     tally.failed++;
     logger.warn(

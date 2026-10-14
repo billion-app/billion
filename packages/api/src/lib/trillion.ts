@@ -42,18 +42,23 @@ export interface TrillionSourceHash {
  * the current guide entry, quote its captured sources verbatim, and those
  * source documents must still hash to what was captured.
  */
-export function publishedTrillionGraph(
+/** Why a stored graph may not be published, or null when it may. */
+export function trillionGateProblem(
   guide: OfficialGuidePayload,
   number: string,
   value: unknown,
   currentSources: readonly TrillionSourceHash[],
-): PublicTrillionGraph | null {
+): string | null {
   const parsed = trillionGraphSchema.safeParse(value);
-  if (!parsed.success) return null;
+  if (!parsed.success)
+    return `schema: ${parsed.error.issues
+      .slice(0, 3)
+      .map((i) => i.message)
+      .join("; ")}`;
   const graph = parsed.data;
   const measure = guide.measures.find((m) => m.number === number);
+  if (!measure) return `Proposition ${number} is not in the guide`;
   if (
-    !measure ||
     graph.electionDate !== guide.electionDate ||
     graph.measure.number !== measure.number ||
     graph.measure.title !== measure.title ||
@@ -61,36 +66,51 @@ export function publishedTrillionGraph(
     graph.measure.guideHash !==
       propositionGuideHash(guide.electionDate, measure)
   )
-    return null;
+    return "the guide entry changed since the graph was made";
   for (const source of graph.sources) {
     const cited = guide.measures.find((m) => m.number === source.number);
+    if (!cited) return `source ${source.id} cites a measure not in the guide`;
+    // Precedent comes from archived official PDFs the schema allowlists, and
+    // only for the measure this graph is about.
     if (
-      !cited ||
-      // Precedent comes from archived official PDFs the schema allowlists, and
-      // only for the measure this graph is about.
-      (source.role === "precedent"
+      source.role === "precedent"
         ? source.number !== number
-        : expectedTrillionSourceUrl(cited, source.role) !== source.url) ||
-      sha256(source.snapshot) !== source.hash ||
+        : expectedTrillionSourceUrl(cited, source.role) !== source.url
+    )
+      return `source ${source.id} is not the expected official document`;
+    if (sha256(source.snapshot) !== source.hash)
+      return `source ${source.id} snapshot does not match its hash`;
+    if (
       !currentSources.some(
         (current) =>
           current.url === source.url && current.hash === source.documentHash,
       )
     )
-      return null;
+      return `source ${source.id} has no current matching fingerprint`;
   }
   for (const node of graph.nodes)
     if (
       node.record &&
       !guide.measures.some((m) => m.number === node.record?.number)
     )
-      return null;
+      return `${node.id} names Proposition ${node.record.number}, which is not in the guide`;
   if (
     !graph.sources.some((s) => s.number === number && s.role === "legal-text")
   )
-    return null;
-  if (unverifiedTrillionQuotes(graph).length > 0) return null;
-  return publicTrillionGraph(graph);
+    return "the measure's legal text is missing";
+  const unverified = unverifiedTrillionQuotes(graph);
+  if (unverified.length) return `unverified quotes: ${unverified.join(", ")}`;
+  return null;
+}
+
+export function publishedTrillionGraph(
+  guide: OfficialGuidePayload,
+  number: string,
+  value: unknown,
+  currentSources: readonly TrillionSourceHash[],
+): PublicTrillionGraph | null {
+  if (trillionGateProblem(guide, number, value, currentSources)) return null;
+  return publicTrillionGraph(trillionGraphSchema.parse(value));
 }
 
 /** Source documents whose bytes the guide job must re-hash for freshness. */
