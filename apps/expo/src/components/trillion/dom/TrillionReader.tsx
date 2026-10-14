@@ -48,5 +48,7 @@ export default function TrillionReader({
     // The engine owns the DOM below the root; a new graph replaces the reader.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph]);
-  return <div ref={root} style={{ height: "100vh" }} />;
+  return (
+    <div ref={root} style={{ height: "100vh", width: "100%", minWidth: 0 }} />
+  );
 }

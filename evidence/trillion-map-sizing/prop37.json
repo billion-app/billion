@@ -1,0 +1,925 @@
+{
+  "schemaVersion": 1,
+  "revision": "2026-11-03-37-5e28cef0bbaec0ac",
+  "jurisdiction": "CA",
+  "electionDate": "2026-11-03",
+  "measure": {
+    "number": "37",
+    "title": "CREATES LOAN PROGRAM FOR MIDDLE-INCOME BUYERS OF QUALIFIED NEW HOMES. INITIATIVE STATUTE.",
+    "url": "https://voterguide.sos.ca.gov/propositions/37/",
+    "guideHash": "b7a695f95b3c9d04a66e6e2cd420899ebfc9c95b4ff5e96229b63bb9add31ef2"
+  },
+  "rootId": "root",
+  "terms": [
+    {
+      "term": "median family income",
+      "plain": "The middle income level among local families, with half earning more and half earning less."
+    },
+    {
+      "term": "down payment",
+      "plain": "The part of a home's price a buyer pays up front instead of financing with the main mortgage."
+    },
+    {
+      "term": "revenue bonds",
+      "plain": "Borrowing that is repaid from specified payments, such as borrowers' loan payments."
+    },
+    {
+      "term": "fixed-rate",
+      "plain": "The loan's interest rate stays the same rather than changing over time."
+    },
+    {
+      "term": "construction defect",
+      "plain": "A problem with how a home was built that may violate required building standards."
+    },
+    {
+      "term": "contingency fees",
+      "plain": "Lawyers' fees paid as a share of the money recovered for their clients."
+    },
+    {
+      "term": "area median income",
+      "plain": "The income level in the middle of a local area's income distribution, adjusted for household size."
+    }
+  ],
+  "summary": {
+    "text": "Creates a **loan program** for middle-income buyers of new homes.",
+    "more": "The loan program\u2014legally the Middle-Class Home Ownership Loan Program\u2014finances up to 17% of a home's price. Buyers must contribute at least 3%, occupy the home, and earn no more than twice local median family income for their family size.",
+    "quotes": [
+      {
+        "sourceId": "law-37",
+        "locator": "Section 2, Health and Safety Code 51515(a)(1), (b)(10)",
+        "text": "Establish middle-class home ownership loans to make home financing more affordable for the purchase of a newly constructed single-family home, with no cost to taxpayers. \u2026 \u201cProgram\u201d means the Middle-Class Home Ownership Loan Program."
+      },
+      {
+        "sourceId": "law-37",
+        "locator": "Section 2, Health and Safety Code 51515.05(b)",
+        "text": "shall finance no more than 17 percent of the purchase price of a qualified new home that is ordinarily covered by the homeowner\u2019s downpayment, where the applicant contributes no less than 3 percent of the purchase price of a qualified new home."
+      },
+      {
+        "sourceId": "law-37",
+        "locator": "Section 2, Health and Safety Code 51515.01(a)(1)(B)\u2013(D)",
+        "text": "The applicant shall agree to occupy the qualified new home as the applicant\u2019s primary residence within 60 days of closing. \u2026 The applicant shall have a family income that does not exceed 200 percent of the area median income for a family of the same size in the county or metropolitan statistical area where the qualified new home is located, adjusted for family size by the agency. \u2026 The applicant shall agree to pay no less than 3 percent of the purchase price of the qualified new home from a source other than a grant or borrowed money."
+      }
+    ],
+    "generation": {
+      "promptVersion": "trillion-summary-v6",
+      "model": "fallback:gpt-6.1-sol",
+      "generatedAt": "2026-10-14T03:15:26.936Z"
+    }
+  },
+  "background": {
+    "text": "A down payment is the part of a home's price buyers pay up front. California's housing finance agency already offers loans to help eligible buyers make that payment; those loans must be repaid.",
+    "quotes": [
+      {
+        "sourceId": "analysis-37",
+        "locator": "Legislative Analyst, Background",
+        "text": "When purchasing a home, most people pay some of the cost up front\u2014typically 3 percent to 20 percent of the home price. The up-front payment is known as a down payment."
+      },
+      {
+        "sourceId": "analysis-37",
+        "locator": "Legislative Analyst, Background",
+        "text": "CalHFA has a few programs that provide down payment assistance to homebuyers. The down payment assistance programs are loans that must be repaid under certain terms and conditions."
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "root",
+      "kind": "root",
+      "label": "How should I vote on Prop 37?",
+      "title": "How should I vote on Prop 37?",
+      "quotes": []
+    },
+    {
+      "id": "what",
+      "kind": "branch",
+      "label": "What does it actually do?",
+      "title": "What does it actually do?",
+      "quotes": []
+    },
+    {
+      "id": "who",
+      "kind": "branch",
+      "label": "Who's behind it?",
+      "title": "Who's behind it?",
+      "quotes": []
+    },
+    {
+      "id": "when",
+      "kind": "branch",
+      "label": "When?",
+      "title": "When?",
+      "quotes": []
+    },
+    {
+      "id": "act",
+      "kind": "branch",
+      "label": "How can I act?",
+      "title": "How can I act?",
+      "quotes": []
+    },
+    {
+      "id": "affordability",
+      "kind": "crux",
+      "label": "Would the loans make buying a home more affordable?",
+      "title": "Would the loans make buying a home more affordable?",
+      "quotes": [],
+      "dispute": "facts"
+    },
+    {
+      "id": "taxpayer-risk",
+      "kind": "crux",
+      "label": "Would taxpayers bear any costs?",
+      "title": "Would taxpayers bear any costs?",
+      "quotes": [],
+      "dispute": "facts"
+    },
+    {
+      "id": "supply",
+      "kind": "crux",
+      "label": "Would the program lead to more homes being built?",
+      "title": "Would the program lead to more homes being built?",
+      "quotes": [],
+      "dispute": "facts"
+    },
+    {
+      "id": "loan",
+      "kind": "provision",
+      "label": "A second loan for part of the purchase",
+      "title": "A second mortgage could finance **up to 17 percent** of a qualified new home's price",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.05(b)",
+          "text": "Each middle-class home ownership loan shall be secured by a secondary mortgage, shall be used solely \u2026 to finance a portion of the purchase price of a qualified new home, and shall finance no more than 17 percent of the purchase price of a qualified new home that is ordinarily covered by the homeowner\u2019s downpayment,"
+        }
+      ]
+    },
+    {
+      "id": "buyers",
+      "kind": "provision",
+      "label": "Residency, income, occupancy and savings",
+      "title": "Buyers must meet **residency, income and down payment requirements** and live in the home",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.01(a)(1)(A)-(D)",
+          "text": "be a resident of the State of California for at least one year prior to the time of application. \u2026 applicant\u2019s primary residence within 60 days of closing. \u2026 family income that does not exceed 200 percent of the area median income for a family of the same size in the county or metropolitan statistical area where the qualified new home is located, adjusted for family size by the agency. \u2026 agree to pay no less than 3 percent of the purchase price of the qualified new home from a source other than a grant or borrowed money."
+        }
+      ]
+    },
+    {
+      "id": "homes",
+      "kind": "provision",
+      "label": "New homes and converted residential units",
+      "title": "Eligible homes must have a **first purchaser** and meet a locally indexed price limit",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.01(b)(1)(A)-(B), (2)",
+          "text": "A newly constructed home, townhome, row house, condominium, or manufactured home where the borrower is the first purchaser. \u2026 A condominium or other residential unit in a building that was a nonresidential structure and was retrofitted or repurposed for residential use where the borrower is the first purchaser. \u2026 The maximum sales price for a qualified new home shall not exceed 125 percent of the conforming loan limit for a one-unit property in the county in which the qualified new home is located,"
+        }
+      ]
+    },
+    {
+      "id": "bonds",
+      "kind": "provision",
+      "label": "Revenue bonds fund the program",
+      "title": "The housing agency could issue **up to $25 billion** in revenue bonds, excluding refunding bonds",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.06(a)(1)",
+          "text": "provided that the principal amount of any bonds issued and sold pursuant to this chapter shall not exceed twenty-five billion dollars ($25,000,000,000), not including the amount of any refunding bonds issued pursuant to paragraph (2)."
+        }
+      ]
+    },
+    {
+      "id": "repayment-law",
+      "kind": "provision",
+      "label": "Loan terms must cover program obligations",
+      "title": "Loan payments are intended to cover **bond repayment and administration**",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.05(c)",
+          "text": "agency determines practical and favorable to applicants \u2026 and at levels necessary, to the greatest extent possible, to pay the principal, interest, and other amounts due with respect to the bonds issued pursuant to this chapter, including amounts necessary to defray all costs of administration incurred by the agency pursuant to this chapter."
+        }
+      ]
+    },
+    {
+      "id": "lending-protections",
+      "kind": "provision",
+      "label": "Fixed rates and no early payment penalties",
+      "title": "Loans must be **fixed-rate**, with lender fee limits and no early payment penalties",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.04(a)(1)-(3)",
+          "text": "Limits on lenders fees associated with the origination of middle-class home ownership loans. \u2026 A prohibition on early payment penalties. \u2026 A requirement that middle-class home ownership loans be fixed-rate mortgage loans."
+        }
+      ]
+    },
+    {
+      "id": "builder-option",
+      "kind": "provision",
+      "label": "Optional builder participation",
+      "title": "Builders may choose an **optional participation route** with specified labor obligations",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.02(a)",
+          "text": "A housing developer may voluntarily opt into the option by certifying to the agency that the construction of a new home or homes will satisfy the requirements established in subdivision (b) of Section 51515.01."
+        },
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.02(b)(1)",
+          "text": "Be subject to the labor and enforcement provisions in paragraphs (2), (3), if the project and construction craft conditions specified in that paragraph are met, (4), and (5) of subdivision (d) of Section 21080.66 of the Public Resources Code."
+        }
+      ]
+    },
+    {
+      "id": "defect-procedures",
+      "kind": "provision",
+      "label": "Changes to repair claims and lawyer fees",
+      "title": "Construction defect claims face **changed procedures**, including limits on contingency fees",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.04(e)(1)(B)(i)",
+          "text": "written notice required shall identify each homeowner by address or other description sufficient to apprise the builder of the location of each residence, shall identify the nature and location of each alleged violation in each residence, and shall be signed by each homeowner alleging a violation."
+        },
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.04(e)(1)(B)(iii)",
+          "text": "The homeowner may voluntarily execute a release of claims related solely to the repaired deficiencies. That release shall be in writing, executed knowingly and voluntarily, and shall not extend to any defects or claims not addressed by the repairs."
+        },
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.04(e)(2)",
+          "text": "the maximum allowable attorney contingency fee shall not exceed 30 percent of the total recovery obtained through settlement, mediation, arbitration, judicial reference, or judgment, unless a court approves a higher award"
+        }
+      ]
+    },
+    {
+      "id": "audit",
+      "kind": "provision",
+      "label": "Independent annual audit",
+      "title": "An **independent annual audit** must check how bond proceeds are used",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.05(g)",
+          "text": "The agency shall provide for an independent annual audit of the program to ensure that bond proceeds are used in a manner consistent with the requirements of this chapter and any other applicable laws."
+        }
+      ]
+    },
+    {
+      "id": "implementation",
+      "kind": "provision",
+      "label": "Implementation deadline",
+      "title": "The agency must implement the program **within one year** after the act takes effect",
+      "quotes": [
+        {
+          "sourceId": "law-37",
+          "locator": "Health and Safety Code \u00a751515.05(a)",
+          "text": "The agency shall implement the program no later than one year after the effective date of this act."
+        }
+      ]
+    },
+    {
+      "id": "barrier-argument",
+      "kind": "argument",
+      "label": "Down payments keep workers from buying",
+      "title": "Workers who can afford monthly mortgages are blocked by **down payment requirements**",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, paragraph beginning 'Teachers, nurses'",
+          "text": "Teachers, nurses, veterans, and firefighters work hard and pay their bills. They can afford monthly mortgage payments but are locked out of homeownership in the communities where they live and work because down payment requirements are too high."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "affordable-loans-argument",
+      "kind": "argument",
+      "label": "Low-interest purchase assistance",
+      "title": "Low-interest **downpayment assistance loans** would help qualified residents buy newly built homes",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, KEEPING HOMEOWNERSHIP WITHIN REACH",
+          "text": "It makes consumer-friendly, low-interest downpayment assistance loans available to qualified California residents for purchasing a newly built home, with no cost to taxpayers."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "repay-argument",
+      "kind": "argument",
+      "label": "Borrowers must qualify and repay",
+      "title": "Buyers must qualify for a mortgage and **fully repay their loans**",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, KEEPING HOMEOWNERSHIP WITHIN REACH",
+          "text": "Homebuyers must qualify for a mortgage, meet income requirements, pay at least 3% down, occupy the home as their primary residence, make monthly payments, and fully repay their loans."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "target-argument",
+      "kind": "argument",
+      "label": "Help for working families between programs",
+      "title": "The loans would help families who earn too much for rental aid but **cannot save a down payment**",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, KEEPING HOMEOWNERSHIP WITHIN REACH",
+          "text": "Prop. 37 is designed for renters, first-time homebuyers, and working families who earn too much to qualify for renter assistance programs, but not enough to save the massive down payment required to buy a home."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "construction-argument",
+      "kind": "argument",
+      "label": "Buyer assistance could spur construction",
+      "title": "Helping buyers purchase new homes would **accelerate construction**",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, BUILDS MORE HOMES, CREATES GOOD JOBS",
+          "text": "By helping qualified buyers purchase newly built homes, Prop. 37 will help accelerate construction, creating thousands of good-paying jobs and generating economic investment."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "jobs-argument",
+      "kind": "argument",
+      "label": "Construction jobs and investment",
+      "title": "New-home purchases would create **thousands of good-paying jobs** and economic investment",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, BUILDS MORE HOMES, CREATES GOOD JOBS",
+          "text": "By helping qualified buyers purchase newly built homes, Prop. 37 will help accelerate construction, creating thousands of good-paying jobs and generating economic investment."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "tax-argument",
+      "kind": "argument",
+      "label": "Borrowers, not taxpayers, repay investors",
+      "title": "**Home borrowers, not taxpayers**, would repay private bond investors",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, ZERO COST TO TAXPAYERS",
+          "text": "Loans are funded by private bond investors and repaid by home borrowers\u2014not taxpayers."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "accountability-argument",
+      "kind": "argument",
+      "label": "Audits and construction accountability",
+      "title": "**Annual audits and accountability standards** would protect the program",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, STRICT ACCOUNTABILITY AND CONSUMER PROTECTIONS",
+          "text": "Prop. 37 includes fiscal accountability and transparency requirements, construction accountability standards, and annual audits detailing the status of loans made and the fund\u2019s financial condition."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "consumer-argument",
+      "kind": "argument",
+      "label": "Below-market loans and lending safeguards",
+      "title": "Buyers would get **below-market, fixed-rate loans** with fee limits and early repayment protection",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, STRICT ACCOUNTABILITY AND CONSUMER PROTECTIONS",
+          "text": "Consumer benefits include below-market, fixed-rate loans, protections from unfair lending practices, strict limits on lender fees, and no penalty for early repayment."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "coalition-argument",
+      "kind": "argument",
+      "label": "Claimed cross-party and organizational support",
+      "title": "The supporting coalition includes **labor, business and housing advocates**",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "Argument in favor, BROAD, BIPARTISAN SUPPORT",
+          "text": "Proposition 37 is supported by Democrats & Republicans, labor and businesses, construction workers, taxpayer and housing advocates, veterans, the California Teachers Association, and United Nurses Association of California."
+        }
+      ],
+      "attribution": {
+        "name": "Ballot argument for",
+        "signers": "Danny Curtin, Director California Conference of Carpenters; Fiona Ma, Boardmember California Housing Finance Agency (CalHFA); David West, Chair California State Commanders Veterans Council"
+      }
+    },
+    {
+      "id": "cost-analysis",
+      "kind": "analysis",
+      "label": "No direct state or local costs",
+      "title": "Borrower payments mean **no direct state or local costs**",
+      "quotes": [
+        {
+          "sourceId": "analysis-37",
+          "locator": "FISCAL EFFECTS, No Direct State or Local Costs",
+          "text": "Because Proposition 37 uses the payments from homebuyers to repay bond investors, it would not result in direct state or local costs."
+        }
+      ]
+    },
+    {
+      "id": "uncertainty-analysis",
+      "kind": "analysis",
+      "label": "Investor demand and loan costs remain unknown",
+      "title": "The program's impact depends on **investor demand, loan costs and construction response**",
+      "quotes": [
+        {
+          "sourceId": "analysis-37",
+          "locator": "FISCAL EFFECTS, Other Potential Effects",
+          "text": "A number of factors, which are unknown at this time, could affect Proposition 37\u2019s scope and impact. These include (1) the extent to which investors want to buy the bond, (2) how much the loans available under this proposed program cost homebuyers compared with other down payment assistance options, and (3) whether the program results in increased home construction and homebuying."
+        }
+      ]
+    },
+    {
+      "id": "tradeoff-analysis",
+      "kind": "analysis",
+      "label": "Higher labor standards, more builder flexibility",
+      "title": "Optional higher labor standards come with **more flexible construction defect rules** for builders",
+      "quotes": [
+        {
+          "sourceId": "analysis-37",
+          "locator": "PROPOSAL, Housing Developer Options",
+          "text": "Developers that chose this option would be required to meet higher labor standards, such as using workers with a certain type of training for certain types of housing projects. In exchange, developers would be subject to different construction defect rules, which generally aim to provide more flexibility to developers."
+        }
+      ]
+    },
+    {
+      "id": "interest-analysis",
+      "kind": "analysis",
+      "label": "Low interest must coexist with repayment",
+      "title": "Loan payments must cover program costs while **interest costs stay as low as possible**",
+      "quotes": [
+        {
+          "sourceId": "analysis-37",
+          "locator": "PROPOSAL, Revenue Bond to Pay for a New Down Payment Assistance Program",
+          "text": "Homeowners\u2019 monthly payments on their loan would be designed to repay the bonds over time and cover the program\u2019s administrative costs. CalHFA also would be required to keep interest costs for homebuyers as low as possible."
+        }
+      ]
+    },
+    {
+      "id": "current-defects-analysis",
+      "kind": "analysis",
+      "label": "Existing construction standards and claims process",
+      "title": "Existing law requires **building standards and a pre-lawsuit process** for construction defect claims",
+      "quotes": [
+        {
+          "sourceId": "analysis-37",
+          "locator": "BACKGROUND, Construction Defect Law",
+          "text": "To try to prevent construction defects, state law sets minimum standards that builders must follow for new residential construction. Current law also establishes a process that homeowners and housing builders must follow before a homeowner is able to sue a builder for alleged violations of those minimum standards."
+        }
+      ]
+    },
+    {
+      "id": "existing-assistance-analysis",
+      "kind": "analysis",
+      "label": "Other assistance loans already exist",
+      "title": "The state housing agency already offers **repayable down payment assistance**",
+      "quotes": [
+        {
+          "sourceId": "analysis-37",
+          "locator": "BACKGROUND, California Housing Finance Agency (CalHFA)",
+          "text": "CalHFA has a few programs that provide down payment assistance to homebuyers. The down payment assistance programs are loans that must be repaid under certain terms and conditions."
+        }
+      ]
+    },
+    {
+      "id": "no-opposition",
+      "kind": "fact",
+      "label": "No published argument against",
+      "title": "**No argument against Proposition 37** was submitted",
+      "quotes": [
+        {
+          "sourceId": "arguments-37",
+          "locator": "ARGUMENT AGAINST PROPOSITION 37",
+          "text": "NO ARGUMENT AGAINST PROPOSITION 37 WAS SUBMITTED."
+        }
+      ]
+    },
+    {
+      "id": "contribution-resources",
+      "kind": "fact",
+      "label": "Where to investigate campaign funding",
+      "title": "Official contribution resources list **campaign committees and top contributors**",
+      "quotes": [
+        {
+          "sourceId": "analysis-37",
+          "locator": "Closing campaign contribution resources",
+          "text": "Visit sos.ca.gov/campaign-lobbying/cal-access-resources/measure-contributions/2026-ballot-measure-contribution-totals for a list of committees primarily formed to support or oppose this measure. Visit fppc.ca.gov/transparency/top-contributors.html to access the committee's top 10 contributors."
+        }
+      ]
+    },
+    {
+      "id": "loan-question",
+      "kind": "question",
+      "label": "Is this a grant?",
+      "title": "Would buyers have to repay the assistance?",
+      "quotes": []
+    },
+    {
+      "id": "timing-question",
+      "kind": "question",
+      "label": "When would loans become available?",
+      "title": "Does the implementation deadline guarantee when I could get a loan?",
+      "quotes": []
+    },
+    {
+      "id": "loan-answer",
+      "kind": "generated",
+      "label": "Assistance is another loan",
+      "title": "The assistance is **another mortgage**, not a grant",
+      "body": "It helps finance the purchase but adds a repayment obligation.",
+      "quotes": []
+    },
+    {
+      "id": "timing-answer",
+      "kind": "generated",
+      "label": "Implementation is not an individual loan promise",
+      "title": "The implementation deadline is **not a guaranteed loan date** for an individual buyer",
+      "body": "The agency's implementation deadline does not specify when each buyer will receive financing. Bond issuance and investor participation affect the program's rollout.",
+      "quotes": []
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "what", "to": "root", "type": "part" },
+    { "id": "e2", "from": "who", "to": "root", "type": "part" },
+    { "id": "e3", "from": "when", "to": "root", "type": "part" },
+    { "id": "e4", "from": "act", "to": "root", "type": "part" },
+    { "id": "e5", "from": "affordability", "to": "root", "type": "crux" },
+    { "id": "e6", "from": "taxpayer-risk", "to": "root", "type": "crux" },
+    { "id": "e7", "from": "supply", "to": "root", "type": "crux" },
+    { "id": "e9", "from": "loan", "to": "what", "type": "detail" },
+    { "id": "e10", "from": "buyers", "to": "what", "type": "detail" },
+    { "id": "e11", "from": "homes", "to": "what", "type": "detail" },
+    { "id": "e12", "from": "bonds", "to": "what", "type": "detail" },
+    { "id": "e13", "from": "repayment-law", "to": "what", "type": "detail" },
+    {
+      "id": "e14",
+      "from": "lending-protections",
+      "to": "what",
+      "type": "detail"
+    },
+    { "id": "e15", "from": "builder-option", "to": "what", "type": "detail" },
+    {
+      "id": "e16",
+      "from": "defect-procedures",
+      "to": "what",
+      "type": "detail"
+    },
+    { "id": "e17", "from": "audit", "to": "what", "type": "detail" },
+    { "id": "e18", "from": "cost-analysis", "to": "what", "type": "detail" },
+    {
+      "id": "e19",
+      "from": "interest-analysis",
+      "to": "what",
+      "type": "detail"
+    },
+    {
+      "id": "e20",
+      "from": "uncertainty-analysis",
+      "to": "what",
+      "type": "detail"
+    },
+    {
+      "id": "e21",
+      "from": "tradeoff-analysis",
+      "to": "what",
+      "type": "detail"
+    },
+    {
+      "id": "e22",
+      "from": "current-defects-analysis",
+      "to": "what",
+      "type": "detail"
+    },
+    {
+      "id": "e23",
+      "from": "existing-assistance-analysis",
+      "to": "what",
+      "type": "detail"
+    },
+    {
+      "id": "e24",
+      "from": "coalition-argument",
+      "to": "who",
+      "type": "detail"
+    },
+    {
+      "id": "e25",
+      "from": "no-opposition",
+      "to": "who",
+      "type": "detail",
+      "why": "The supplied guide contains no opposing ballot argument, not evidence that nobody objects."
+    },
+    { "id": "e26", "from": "implementation", "to": "when", "type": "detail" },
+    {
+      "id": "e27",
+      "from": "contribution-resources",
+      "to": "act",
+      "type": "detail"
+    },
+    {
+      "id": "e28",
+      "from": "barrier-argument",
+      "to": "affordability",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e29",
+      "from": "affordable-loans-argument",
+      "to": "affordability",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e30",
+      "from": "target-argument",
+      "to": "affordability",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e31",
+      "from": "consumer-argument",
+      "to": "affordability",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e32",
+      "from": "loan",
+      "to": "affordability",
+      "type": "weighs",
+      "stance": "for",
+      "why": "The loan can replace part of the cash buyers otherwise need up front."
+    },
+    {
+      "id": "e33",
+      "from": "uncertainty-analysis",
+      "to": "affordability",
+      "type": "weighs",
+      "stance": "mixed",
+      "why": "The relative cost of these loans is unknown."
+    },
+    {
+      "id": "e34",
+      "from": "interest-analysis",
+      "to": "affordability",
+      "type": "weighs",
+      "stance": "mixed",
+      "why": "Keeping interest low must coexist with covering the program's obligations."
+    },
+    {
+      "id": "e35",
+      "from": "tax-argument",
+      "to": "taxpayer-risk",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e36",
+      "from": "repay-argument",
+      "to": "taxpayer-risk",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e37",
+      "from": "cost-analysis",
+      "to": "taxpayer-risk",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e38",
+      "from": "repayment-law",
+      "to": "taxpayer-risk",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e39",
+      "from": "construction-argument",
+      "to": "supply",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e40",
+      "from": "jobs-argument",
+      "to": "supply",
+      "type": "weighs",
+      "stance": "for"
+    },
+    {
+      "id": "e41",
+      "from": "homes",
+      "to": "supply",
+      "type": "weighs",
+      "stance": "for",
+      "why": "Restricting assistance to first purchases of new or converted homes directs demand toward added housing."
+    },
+    {
+      "id": "e42",
+      "from": "uncertainty-analysis",
+      "to": "supply",
+      "type": "weighs",
+      "stance": "mixed",
+      "why": "Whether the program increases construction is not yet known."
+    },
+    {
+      "id": "e46",
+      "from": "loan",
+      "to": "affordable-loans-argument",
+      "type": "supports"
+    },
+    {
+      "id": "e47",
+      "from": "buyers",
+      "to": "repay-argument",
+      "type": "supports"
+    },
+    {
+      "id": "e48",
+      "from": "repayment-law",
+      "to": "tax-argument",
+      "type": "supports"
+    },
+    {
+      "id": "e49",
+      "from": "cost-analysis",
+      "to": "tax-argument",
+      "type": "qualifies",
+      "why": "The fiscal conclusion specifies no direct state or local costs."
+    },
+    {
+      "id": "e50",
+      "from": "lending-protections",
+      "to": "consumer-argument",
+      "type": "supports"
+    },
+    {
+      "id": "e51",
+      "from": "audit",
+      "to": "accountability-argument",
+      "type": "supports"
+    },
+    {
+      "id": "e52",
+      "from": "defect-procedures",
+      "to": "accountability-argument",
+      "type": "qualifies",
+      "why": "Construction accountability includes altered procedures for homeowner claims."
+    },
+    {
+      "id": "e53",
+      "from": "builder-option",
+      "to": "tradeoff-analysis",
+      "type": "supports"
+    },
+    {
+      "id": "e54",
+      "from": "uncertainty-analysis",
+      "to": "construction-argument",
+      "type": "qualifies"
+    },
+    {
+      "id": "e55",
+      "from": "uncertainty-analysis",
+      "to": "jobs-argument",
+      "type": "qualifies",
+      "why": "The construction response underlying the jobs claim is uncertain."
+    },
+    {
+      "id": "e56",
+      "from": "existing-assistance-analysis",
+      "to": "affordable-loans-argument",
+      "type": "qualifies",
+      "why": "These loans would join existing assistance options rather than create the first such assistance."
+    },
+    { "id": "e57", "from": "loan-question", "to": "what", "type": "asks" },
+    { "id": "e58", "from": "loan", "to": "loan-answer", "type": "supports" },
+    {
+      "id": "e59",
+      "from": "repay-argument",
+      "to": "loan-answer",
+      "type": "supports"
+    },
+    {
+      "id": "e60",
+      "from": "loan-answer",
+      "to": "loan-question",
+      "type": "answers"
+    },
+    { "id": "e61", "from": "timing-question", "to": "when", "type": "asks" },
+    {
+      "id": "e62",
+      "from": "implementation",
+      "to": "timing-answer",
+      "type": "supports"
+    },
+    {
+      "id": "e63",
+      "from": "uncertainty-analysis",
+      "to": "timing-answer",
+      "type": "supports"
+    },
+    {
+      "id": "e64",
+      "from": "timing-answer",
+      "to": "timing-question",
+      "type": "answers"
+    }
+  ],
+  "sources": [
+    {
+      "id": "law-37",
+      "number": "37",
+      "role": "legal-text",
+      "url": "https://vig.cdn.sos.ca.gov/2026/general/pdf/prop37-text-proposed-laws.pdf",
+      "locator": "Proposition 37, full proposed law; see claim-specific section locators",
+      "retrievedAt": "2026-10-14T03:11:20.939Z",
+      "hash": "3dfc2518db8532bad9b184c227fb67e4faadd483667fc43ca6ec089d9ab338b7",
+      "documentHash": "22fa3050627c8638301ec94bc3df10a0043cc8fbcfa94c5acc50b0a37f9c9671"
+    },
+    {
+      "id": "analysis-37",
+      "number": "37",
+      "role": "official-analysis",
+      "url": "https://voterguide.sos.ca.gov/propositions/37/analysis.htm",
+      "locator": "Proposition 37, official LAO analysis including image descriptions",
+      "retrievedAt": "2026-10-14T03:11:20.939Z",
+      "hash": "8d82385e4b6f022f9ba2e7ab1e8fa7bacb33866586d2bfce2cfe360eb03d787e",
+      "documentHash": "8d82385e4b6f022f9ba2e7ab1e8fa7bacb33866586d2bfce2cfe360eb03d787e"
+    },
+    {
+      "id": "arguments-37",
+      "number": "37",
+      "role": "official-arguments",
+      "url": "https://voterguide.sos.ca.gov/propositions/37/arguments-rebuttals.htm",
+      "locator": "Proposition 37, official arguments and rebuttals",
+      "retrievedAt": "2026-10-14T03:11:21.013Z",
+      "hash": "2e4a8e701ce942d0d1558886f4614e8d1267c061aa373ec68f42bdb805a8ade3",
+      "documentHash": "2e4a8e701ce942d0d1558886f4614e8d1267c061aa373ec68f42bdb805a8ade3"
+    }
+  ],
+  "verification": { "state": "unverified" },
+  "generation": {
+    "promptVersion": "trillion-v11",
+    "model": "fallback:gpt-6.1-sol",
+    "inputHash": "5e28cef0bbaec0ac384f91ad768389d404c444f77b2bf2820e24c750a151c7de",
+    "generatedAt": "2026-10-14T03:15:26.936Z"
+  }
+}
