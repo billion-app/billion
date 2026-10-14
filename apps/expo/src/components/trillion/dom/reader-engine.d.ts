@@ -11,5 +11,12 @@ export function mountTrillionReader(
     view?: "list" | "map";
     /** Measures on this ballot; only these are linked when they are mentioned. */
     ballot?: string[];
+    /** True while back stays inside the reader; false when it would leave the screen. */
+    onBackState?: (inside: boolean) => void;
   },
-): { jump: (state: string) => void; destroy: () => void };
+): {
+  jump: (state: string) => void;
+  /** Back as the edge swipe does it: close a sheet or the full map, else step back. */
+  goBack: () => void;
+  destroy: () => void;
+};

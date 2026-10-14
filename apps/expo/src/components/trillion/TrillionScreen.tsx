@@ -1,9 +1,11 @@
-import { Linking, StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { BackHandler, Linking, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 
 import type { PublicTrillionGraph } from "@acme/validators";
 
+import type { TrillionReaderHandle } from "./dom/TrillionReader";
 import TrillionReader from "./dom/TrillionReader";
 
 /** Full-screen host for the reader; the web view draws its own header. */
@@ -17,10 +19,31 @@ export function TrillionScreen({
   ballot?: string[];
 }) {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const reader = useRef<TrillionReaderHandle>(null);
+  // Back stays inside the reader below the main case or with a sheet or the full map open.
+  // Then the edge swipe and Android's back action step back like the reader's back button,
+  // instead of the stack leaving the whole debate.
+  const [backInside, setBackInside] = useState(false);
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !backInside });
+  }, [navigation, backInside]);
+  useEffect(() => {
+    if (!backInside || Platform.OS !== "android") return;
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        reader.current?.goBack();
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [backInside]);
   return (
     <View style={[s.screen, { paddingTop: insets.top }]}>
       <TrillionReader
+        ref={reader}
         graph={graph}
         view={view}
         ballot={ballot}
@@ -37,6 +60,7 @@ export function TrillionScreen({
             }),
           )
         }
+        onBackState={(inside) => Promise.resolve(setBackInside(inside))}
         dom={{
           style: s.web,
           bounces: false,

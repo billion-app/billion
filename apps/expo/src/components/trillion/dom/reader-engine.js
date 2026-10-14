@@ -50,6 +50,9 @@ const MONTHS = [
 /**
  * Mount the reader into `root`.
  * options.onExit: called by the back button on the main case.
+ * options.onBackState: called with true while back stays inside the reader (a step below the
+ *   main case, or a sheet or full-screen map open), so native code can hand the edge swipe and
+ *   the system back action to goBack() instead of leaving the screen.
  * options.onOpenUrl: called instead of following an external link.
  */
 const FONTS =
@@ -677,6 +680,23 @@ export function mountTrillionReader(root, graph, options = {}) {
       render(true);
     }
   }
+  // The edge swipe and the system back action: close what covers the page, then step back
+  // the way the back button does.
+  function goBack() {
+    if ($("#layer").innerHTML) closeSheet();
+    else if (mapEl.classList.contains("full")) setFull(false);
+    else back();
+  }
+  let backInside = null;
+  function reportBack() {
+    const inside =
+      path.length > 1 ||
+      !!$("#layer").innerHTML ||
+      mapEl.classList.contains("full");
+    if (inside === backInside) return;
+    backInside = inside;
+    options.onBackState?.(inside);
+  }
   function goMain() {
     path = [path[0]];
     direction = "back";
@@ -1130,6 +1150,7 @@ export function mountTrillionReader(root, graph, options = {}) {
         : "page-in"
       : "";
     $("#back").disabled = path.length <= 1 && !options.onExit;
+    reportBack();
     const atMain = c.t === "node" && c.id === ROOT;
     $("#map-main").hidden = atMain;
     renderCrumbs();
@@ -1929,6 +1950,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       fitView();
     }
     (on ? $("#map-close") : $("#map-expand")).focus();
+    reportBack();
   }
   $("#map-expand").addEventListener("click", () => setFull(true));
   $("#map-close").addEventListener("click", () => setFull(false));
@@ -1943,6 +1965,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       $("#layer").querySelector(".peek .actions .btn") ||
       $("#layer").querySelector("button, textarea, input")
     )?.focus({ preventScroll: true });
+    reportBack();
   }
   function closeSheet() {
     $("#layer").innerHTML = "";
@@ -1951,6 +1974,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       .querySelectorAll(".mcard.peeked")
       .forEach((el) => el.classList.remove("peeked"));
     if (lastTrigger?.isConnected) lastTrigger.focus();
+    reportBack();
   }
 
   // A peek shows what a card says and how it relates to where the reader is, without moving them.
@@ -2245,6 +2269,70 @@ export function mountTrillionReader(root, graph, options = {}) {
     }
   });
   $("#back").addEventListener("click", back);
+  // Swiping right from the left edge goes back, like the back button. On the main case with
+  // nothing open, native code keeps the system swipe, which leaves the screen.
+  {
+    const EDGE = 24;
+    let swipe = null;
+    const reset = (el) => {
+      if (!el) return;
+      el.style.transition = "transform 180ms ease-out";
+      el.style.transform = "";
+      setTimeout(() => (el.style.transition = ""), 200);
+    };
+    listen(root).addEventListener(
+      "touchstart",
+      (ev) => {
+        const t = ev.touches[0];
+        swipe = null;
+        if (ev.touches.length !== 1 || t.clientX > EDGE || !backInside) return;
+        // The covering layer moves with the finger: the sheet, the full map, or the page.
+        const el =
+          $("#layer .sheet") ||
+          (mapEl.classList.contains("full") ? mapEl : $("#reader"));
+        swipe = { x: t.clientX, y: t.clientY, dx: 0, horizontal: null, el };
+        ev.stopPropagation(); // the map must not pan from the edge strip
+      },
+      { capture: true, passive: true },
+    );
+    listen(root).addEventListener(
+      "touchmove",
+      (ev) => {
+        if (!swipe) return;
+        const t = ev.touches[0];
+        const dx = t.clientX - swipe.x;
+        const dy = t.clientY - swipe.y;
+        if (swipe.horizontal === null && Math.hypot(dx, dy) > 8)
+          swipe.horizontal = dx > Math.abs(dy);
+        if (!swipe.horizontal) {
+          if (swipe.horizontal === false) swipe = null;
+          return;
+        }
+        ev.preventDefault();
+        ev.stopPropagation();
+        swipe.dx = Math.max(0, dx);
+        swipe.el.style.transform = `translateX(${swipe.dx * 0.4}px)`;
+      },
+      { capture: true, passive: false },
+    );
+    const end = () => {
+      if (!swipe) return;
+      const { dx, el, horizontal } = swipe;
+      swipe = null;
+      el.style.transform = "";
+      if (horizontal && dx > 70) goBack();
+      else reset(el);
+    };
+    listen(root).addEventListener("touchend", end, { capture: true });
+    listen(root).addEventListener(
+      "touchcancel",
+      () => {
+        if (swipe) reset(swipe.el);
+        swipe = null;
+      },
+      { capture: true },
+    );
+  }
   $("#map-main").addEventListener("click", goMain);
   $("#map-ring").addEventListener("click", openRing);
   $("#map-more").addEventListener("click", () => {
@@ -2331,7 +2419,8 @@ export function mountTrillionReader(root, graph, options = {}) {
     root.innerHTML = "";
     delete root.__trillion;
   }
-  const api = { jump, destroy };
+  reportBack();
+  const api = { jump, goBack, destroy };
   root.__trillion = api;
   return api;
 }
