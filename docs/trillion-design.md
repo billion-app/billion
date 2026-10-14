@@ -109,7 +109,7 @@ One claim fills the screen:
 4. **What responds to it.** Challenges, qualifications, answers, and downstream uses, ordered as described below. Each row names its edge type in words.
 5. **Add.** Add a reason, challenge a specific point, add a condition, attach evidence, or ask a question.
 
-Tapping a row moves focus to that claim. Tapping an edge label opens the edge's own page. Back returns along the breadcrumb.
+Tapping a row moves focus to that claim. Tapping an edge label opens the edge's own page. Back returns along the breadcrumb. Swiping right from the left edge, and Android's back action, do the same: they first close an open sheet or the full-screen map, then step back. Only on the main case do they leave the debate, because readers reach for the system gesture expecting the back button, not an exit from the whole graph. The reader reports when back stays inside it (`onBackState`), and `TrillionScreen` turns off the stack's own swipe while it does.
 
 Empty sections describe coverage, not consensus: "No one has challenged this yet." Counts describe connections, never agreement or credibility.
 
