@@ -239,6 +239,17 @@ export function mountTrillionReader(root, graph, options = {}) {
       "shared",
       "fact",
     ]);
+    // Name a ballot argument by who wrote it, from its official heading.
+    const ballotSide = (locator = "") => {
+      const l = locator.toLowerCase();
+      if (/rebuttal to (the )?argument in favor/.test(l))
+        return "Opponents' rebuttal";
+      if (/rebuttal to (the )?argument against/.test(l))
+        return "Supporters' rebuttal";
+      if (/argument against/.test(l)) return "Opponents' argument";
+      if (/argument in favor/.test(l)) return "Supporters' argument";
+      return null;
+    };
     const nodes = {};
     for (const n of G.nodes) {
       const q = n.quotes[0];
@@ -246,7 +257,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       let source;
       if (n.kind === "argument")
         source = {
-          label: n.attribution.name,
+          label: ballotSide(q.locator) ?? n.attribution.name,
           signers: n.attribution.signers,
           locator: q.locator,
           url: s.url,
@@ -320,7 +331,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     precedent: "Past record",
   };
   const IN = {
-    supports: "Supports this",
+    supports: "Backs this up",
     challenges: "Challenges this",
     qualifies: "Qualifies this",
     appliesTo: "Applies here",
@@ -330,7 +341,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     crux: "Disputed question",
   };
   const OUT = {
-    supports: "Supports",
+    supports: "Backs up",
     challenges: "Challenges",
     qualifies: "Qualifies",
     appliesTo: "Applies to",
@@ -342,7 +353,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     crux: "Disputed under",
   };
   const SHORT = {
-    supports: "supports",
+    supports: "backs up",
     challenges: "challenges",
     qualifies: "qualifies",
     appliesTo: "applies to",
@@ -368,11 +379,15 @@ export function mountTrillionReader(root, graph, options = {}) {
   // An argument under a disputed question carries its lean toward the vote as a color and a word.
   // The label names the vote, because under a yes/no question "Leans no" reads as an answer to it.
   const LEAN = {
-    for: `Favors Yes on ${graph.measure.number}`,
-    against: `Favors No on ${graph.measure.number}`,
+    for: `Argues Yes on ${graph.measure.number}`,
+    against: `Argues No on ${graph.measure.number}`,
     mixed: "Cuts both ways",
   };
-  const tone = (e) => (e.type === "weighs" ? e.stance : TONE[e.type]);
+  // Leans toward the vote have their own colors, so green and red only ever
+  // mean backing up or challenging another card.
+  const VOTE_TONE = { for: "yes", against: "no", mixed: "mixed" };
+  const tone = (e) =>
+    e.type === "weighs" ? VOTE_TONE[e.stance] : TONE[e.type];
   const inLabel = (e) => (e.type === "weighs" ? LEAN[e.stance] : IN[e.type]);
   const outLabel = (e) => (e.type === "weighs" ? LEAN[e.stance] : OUT[e.type]);
   const short = (e) => (e.type === "weighs" ? LEAN[e.stance] : SHORT[e.type]);
@@ -389,6 +404,8 @@ export function mountTrillionReader(root, graph, options = {}) {
     question: "#F4C95D",
     applies: "#A5B9FF",
     neutral: "#4A5068",
+    yes: "#6FA8FF",
+    no: "#FF7AA8",
   };
   const RESTS = new Set(["supports", "appliesTo"]);
   const RESP = new Set([
@@ -414,12 +431,19 @@ export function mountTrillionReader(root, graph, options = {}) {
   const TERMS = new Map(
     (graph.terms || []).map((t) => [t.term.toLowerCase(), t]),
   );
-  const termPattern = TERMS.size
+  // Singular and plural forms link to the same definition ("reserve" → "reserves").
+  const TERM_FORMS = new Map();
+  for (const key of TERMS.keys()) {
+    const stem = /[^s]s$/.test(key) && key.length > 3 ? key.slice(0, -1) : key;
+    for (const form of [key, stem, `${stem}s`, `${stem}es`])
+      if (!TERM_FORMS.has(form)) TERM_FORMS.set(form, key);
+  }
+  for (const key of TERMS.keys()) TERM_FORMS.set(key, key);
+  const termPattern = TERM_FORMS.size
     ? new RegExp(
-        `(?<![\\p{L}\\p{N}_])(${[...TERMS.values()]
-          .map((t) => esc(t.term))
+        `(?<![\\p{L}\\p{N}_])(${[...TERM_FORMS.keys()]
           .sort((a, b) => b.length - a.length)
-          .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+          .map((t) => esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
           .join("|")})(?![\\p{L}\\p{N}_])`,
         "giu",
       )
@@ -445,7 +469,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       html = html.replace(
         termPattern,
         (m) =>
-          `<span class="term" role="button" tabindex="0" data-term="${esc(m.toLowerCase())}">${m}</span>`,
+          `<span class="term" role="button" tabindex="0" data-term="${esc(TERM_FORMS.get(m.toLowerCase()) ?? m.toLowerCase())}">${m}</span>`,
       );
     return html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   };

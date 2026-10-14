@@ -55,7 +55,7 @@ export const BILLION_AUTHORED = new Set<TrillionNode["kind"]>([
 ]);
 
 const IN: Partial<Record<TrillionEdge["type"], string>> = {
-  supports: "Supports this",
+  supports: "Backs this up",
   challenges: "Challenges this",
   qualifies: "Qualifies this",
   appliesTo: "Applies here",
@@ -64,7 +64,7 @@ const IN: Partial<Record<TrillionEdge["type"], string>> = {
   conflicts: "Conflicts with this",
 };
 const OUT: Record<TrillionEdge["type"], string> = {
-  supports: "Supports",
+  supports: "Backs up",
   challenges: "Challenges",
   qualifies: "Qualifies",
   appliesTo: "Applies to",
@@ -109,7 +109,7 @@ export const leanLabel = (
 ) =>
   stance === "mixed"
     ? "Cuts both ways"
-    : `Favors ${stance === "for" ? "Yes" : "No"} on ${measure}`;
+    : `Argues ${stance === "for" ? "Yes" : "No"} on ${measure}`;
 export const DISPUTE_LABEL = {
   facts: "Disputed facts",
   values: "Mostly values",

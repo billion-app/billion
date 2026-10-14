@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 import type { TrillionGraph } from "@acme/validators";
 import { propositionGuideHash } from "@acme/api/lib/measure-relationships";
 import {
+  normalizeQuoteText,
   plainTrillionText,
   quoteAppearsIn,
   QUOTED_TRILLION_KINDS,
@@ -22,8 +23,8 @@ import type { TrillionCorpus } from "./trillion-capture.js";
 import { sourceHash } from "./measure-relationship-capture.js";
 import { trillionCorpusSchema } from "./trillion-capture.js";
 
-export const TRILLION_PROMPT_VERSION = "trillion-v9";
-export const TRILLION_SUMMARY_PROMPT_VERSION = "trillion-summary-v4";
+export const TRILLION_PROMPT_VERSION = "trillion-v10";
+export const TRILLION_SUMMARY_PROMPT_VERSION = "trillion-summary-v5";
 const termsField = z.array(trillionTermSchema).max(8).default([]);
 export const trillionSummarySchema = z.object({
   terms: termsField,
@@ -75,13 +76,13 @@ Graph shape (node ids: lowercase letters, digits and hyphens):
 - Every edge may carry "why": one plain sentence explaining the link in this context.${precedentRule}
 
 Evidence rules (checked mechanically):
-- Every provision, finding, analysis, argument, record and fact node MUST quote its source: quotes[].sourceId must be one of the source ids below, quotes[].locator a precise section/page/paragraph reference, and quotes[].text copied VERBATIM from that source's text. Use "…" between verbatim segments to omit words; segments must appear in source order.
+- Every provision, finding, analysis, argument, record and fact node MUST quote its source: quotes[].sourceId must be one of the source ids below, quotes[].locator a precise section/page/paragraph reference, and quotes[].text copied VERBATIM from that source's text. Use "…" between verbatim segments only where you leave words out, never for a line break; segments must appear in source order.
 - Do not invent facts, numbers, sections, names or citations. If something is not in the sources, leave it out.
 - Nodes WITHOUT quotes (root, branch, crux, generated, question, shared) must not state monetary amounts. Amounts appear only inside quoted source text and the titles of the nodes that quote them.
 - label: a few words (max 60 characters) summarizing the node for a map card. title: the full statement (max 300). body: optional plain-language context (max 800).
 - Titles state the claim itself, in plain words a voter would use, with the concrete mechanism, number, date or group. Never describe the source instead: not "The Analyst says revenue could fall" but "State and local revenue could fall, by an amount no one can estimate yet"; not "Supporters argue ownership taxes double-tax savings" but "Taxing what people own taxes money they already paid tax on". The node's kind and attribution already show who said it.
 - Every disputed question needs at least three "weighs" links from different nodes. Draw them from the split ballot arguments and rebuttals, the Legislative Analyst, provisions and findings; evidence that bears on a dispute weighs on it with the lean it supports. When the sources support both a yes-leaning and a no-leaning point on a question, include both. Never invent a side the sources lack: use "mixed" where it fits. A node may weigh on more than one question.
-- "terms": jargon in your titles that a general reader might have to look up (such as "spending limit", "special tax", "provisional ballot"), each with "plain": one everyday sentence saying what it means in practice (no amounts). Only terms that actually appear in titles, at most six, written exactly as they appear. Readers see them in blue and tap for the meaning.
+- "terms": jargon in your titles that a general reader might have to look up (such as "spending limit", "special tax", "provisional ballot"), each with "plain": one everyday sentence saying what it means in practice (no amounts). Only terms that actually appear in titles, at most eight, written exactly as they appear. Choose first the words a disputed question or argument turns on (in a dispute about "rebates", define "rebate") and the measure's main subject. Readers see them in blue and tap for the meaning.
 - Emphasis is a scan aid, as in Billion's bill briefs: in each statement title, wrap the ONE short, concrete phrase a skimmer most needs in **double asterisks** (two at most, never the whole title, never a verdict or loaded language). Questions (root, branches, cruxes, kind "question") and labels carry no emphasis, and quotes never do: they are verbatim.
 - Keep it focused: about 40 to 60 nodes. Prefer the provisions and arguments that the disputes actually turn on.
 
@@ -104,15 +105,19 @@ export function buildTrillionSummaryPrompt(corpus: TrillionCorpus): string {
     (s) => s.role === "legal-text" && s.number === corpus.number,
   );
   if (!law) throw new Error("Corpus lacks the measure's legal text");
+  const title = corpus.guide.measures.find(
+    (m) => m.number === corpus.number,
+  )?.title;
   return `Summarize California Proposition ${corpus.number} for voters using ONLY its legal text below.
+${title ? `\nVoters know it by its official ballot title: "${title}". Call the main thing it changes by the title's everyday name (for example "the rainy day fund"), not a different technical name, and if the text uses another name for it, say once that they are the same thing. Use one name for each thing throughout.\n` : ""}
 
 Write "text": a headline of at most 15 words in everyday language saying the core change, in the style of "Raises the minimum wage to $18 an hour." No dates, legal qualifiers or cross-references ("enacted on or after…", "with exceptions", "under state laws or constitutional provisions"); those go in "more". Most readers stop here.
-Write "more": one or two short sentences (at most 40 words) with the next things a voter would want: who is covered or excluded, and where any money goes. Leave out fine print such as phase-ins and administrative steps; the rest of the graph covers those.
+Write "more": one or two short sentences (at most 40 words) with the next things a voter would want: what the rule is today when the text states it ("now 10%"), who is covered or excluded, and where any money goes. Leave out fine print such as phase-ins and administrative steps; the rest of the graph covers those.
 In both, state mechanics the way the text does: amounts, dates, who is covered. Do not use characterizations that supporters or opponents would dispute, such as "one-time", "only", "just", "protects", "closes a loophole", "targets" or "unfair"; write "for tax year 2026", not "one-time". No benefits, harms, predictions or verdicts. Bold at most one short key phrase in each with **double asterisks**, never a whole sentence.
 
 Write "terms": the jargon a general reader might have to look up in "text" or "more", such as "spending limit" or "special tax", each with "plain": one everyday sentence saying what it means in practice (no amounts; you may bold one short phrase of the meaning). Only terms that actually appear, at most five; use the term exactly as written. If nothing needs defining, return an empty list.
 
-Write "quotes" (two to five): for every point in the text, a verbatim quote from the legal text (sourceId "${law.id}", locator naming the section), copied exactly. Use "…" between verbatim segments to omit words; segments must appear in order.
+Write "quotes" (two to five): for every point in the text, a verbatim quote from the legal text (sourceId "${law.id}", locator naming the section), copied exactly. Use "…" between verbatim segments only where you leave words out, never for a line break; segments must appear in order.
 
 Prompt version: ${TRILLION_SUMMARY_PROMPT_VERSION}
 
@@ -121,14 +126,48 @@ ${readingOrderText(law.snapshot)}`;
 }
 
 /** Drop unverifiable quotes and anything left without support or connection. */
+/**
+ * Removes an ellipsis that omits nothing: models often mark a line break in
+ * the source as an omission. Merging the two sides is exact, since the joined
+ * text appears in the source as it stands; real omissions are kept.
+ */
+export function closeEmptyElisions(sourceText: string, quote: string): string {
+  const parts = quote.split("…").map((part) => part.trim());
+  if (parts.length < 2) return quote;
+  const haystack = normalizeQuoteText(readingOrderText(sourceText));
+  const merged = [parts[0] ?? ""];
+  let at = 0;
+  for (const part of parts.slice(1)) {
+    const last = merged[merged.length - 1] ?? "";
+    const joined = normalizeQuoteText(`${last} ${part}`);
+    const found = joined ? haystack.indexOf(joined, at) : -1;
+    if (found >= 0) merged[merged.length - 1] = `${last} ${part}`;
+    else {
+      const previous = haystack.indexOf(normalizeQuoteText(last), at);
+      if (previous >= 0) at = previous + normalizeQuoteText(last).length;
+      merged.push(part);
+    }
+  }
+  return merged.join(" … ");
+}
+
 export function pruneUnverified(
   graph: Omit<TrillionGraph, "nodes" | "edges" | "summary"> &
     Omit<TrillionAuthored, "summary"> & { summary?: TrillionGraph["summary"] },
 ): { graph: typeof graph; dropped: string[] } {
   const dropped: string[] = [];
+  const snapshots = new Map(graph.sources.map((s) => [s.id, s.snapshot]));
+  const closed = <Q extends { sourceId: string; text: string }>(
+    quote: Q,
+  ): Q => {
+    const snapshot = snapshots.get(quote.sourceId);
+    return snapshot
+      ? { ...quote, text: closeEmptyElisions(snapshot, quote.text) }
+      : quote;
+  };
   let nodes = graph.nodes.map((node) => ({
     ...node,
-    quotes: node.quotes.filter((quote, index) => {
+    quotes: node.quotes.map(closed).filter((quote, index) => {
       const ok =
         unverifiedTrillionQuotes({
           ...graph,
@@ -174,12 +213,14 @@ export function pruneUnverified(
   }
   // A summary keeps only verified quotes; with none left it is dropped whole.
   const sources = new Map(graph.sources.map((s) => [s.id, s]));
-  const summaryQuotes = (graph.summary?.quotes ?? []).filter((quote) => {
-    const source = sources.get(quote.sourceId);
-    const ok = !!source && quoteAppearsIn(source.snapshot, quote.text);
-    if (!ok) dropped.push(`summary#${quote.sourceId}`);
-    return ok;
-  });
+  const summaryQuotes = (graph.summary?.quotes ?? [])
+    .map(closed)
+    .filter((quote) => {
+      const source = sources.get(quote.sourceId);
+      const ok = !!source && quoteAppearsIn(source.snapshot, quote.text);
+      if (!ok) dropped.push(`summary#${quote.sourceId}`);
+      return ok;
+    });
   const summary =
     graph.summary && summaryQuotes.length
       ? { ...graph.summary, quotes: summaryQuotes }
@@ -565,7 +606,7 @@ export function mergeTerms(
   const seen = new Map<string, { term: string; plain: string }>();
   for (const t of lists.flat())
     if (!seen.has(t.term.toLowerCase())) seen.set(t.term.toLowerCase(), t);
-  return [...seen.values()].slice(0, 8);
+  return [...seen.values()].slice(0, 12);
 }
 
 /**

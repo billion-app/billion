@@ -309,3 +309,23 @@ void test("a card failing a structure check is dropped, not the graph", async ()
   assert.ok(result.dropped.includes("a-brin (failed checks)"));
   assert.ok(!result.graph.nodes.some((n) => n.id === "a-brin"));
 });
+
+void test("an ellipsis that omits nothing is closed; a real omission stays", async () => {
+  const { closeEmptyElisions } = await import("./trillion-generation.js");
+  const source =
+    "Appropriations shall not include revenue from the Reserve\nFund. Other text follows here. The audit shall be completed every four years.";
+  assert.equal(
+    closeEmptyElisions(
+      source,
+      "shall not include revenue from the Reserve … Fund.",
+    ),
+    "shall not include revenue from the Reserve Fund.",
+  );
+  assert.equal(
+    closeEmptyElisions(
+      source,
+      "revenue from the Reserve Fund. … The audit shall be completed",
+    ),
+    "revenue from the Reserve Fund. … The audit shall be completed",
+  );
+});
