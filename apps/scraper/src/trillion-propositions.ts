@@ -4,7 +4,12 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { z } from "zod/v4";
 
-import { getCaliforniaGuide } from "@acme/api/lib/civic";
+import {
+  CA_OFFICIAL_GUIDE_ADDRESS_HASH,
+  CA_OFFICIAL_GUIDE_ENDPOINT,
+  currentCaliforniaGuide,
+  officialGuideCacheParams,
+} from "@acme/api/lib/official-guide-cache";
 import {
   TRILLION_ADDRESS_HASH,
   TRILLION_ENDPOINT,
@@ -205,7 +210,19 @@ logger.info(
 );
 
 // The stored guide the API checks against; absent locally, the capture stands in.
-const fullGuide = await getCaliforniaGuide().catch(() => null);
+// Read directly: the API's civic module pulls in AI providers this image lacks.
+const [guideRow] = await db
+  .select({ data: CivicApiCache.responseData })
+  .from(CivicApiCache)
+  .where(
+    and(
+      eq(CivicApiCache.addressHash, CA_OFFICIAL_GUIDE_ADDRESS_HASH),
+      eq(CivicApiCache.endpoint, CA_OFFICIAL_GUIDE_ENDPOINT),
+      eq(CivicApiCache.params, officialGuideCacheParams(argv.election)),
+    ),
+  )
+  .limit(1);
+const fullGuide = currentCaliforniaGuide(guideRow?.data);
 if (fullGuide && fullGuide.electionDate !== argv.election)
   throw new Error(
     `Stored guide is for ${fullGuide.electionDate}, not ${argv.election}`,
