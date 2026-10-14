@@ -552,7 +552,7 @@ export function mountTrillionReader(root, graph, options = {}) {
           tone: "neutral",
           items: inc
             .filter((e) => e.type === "crux")
-            .sort((a, b) => cruxState(b.from).open - cruxState(a.from).open)
+            .sort((a, b) => disputeOrder(a.from) - disputeOrder(b.from))
             .map((e) => ({ e, dir: "in" })),
         },
         {
@@ -797,11 +797,46 @@ export function mountTrillionReader(root, graph, options = {}) {
     return `<section class="section" id="tabpanel" role="tabpanel">${body}</section>`;
   }
 
+  // The generator lists disputed questions most consequential first. The first
+  // is shown under the summary in the Yes-to-No colors, unlabeled: the color
+  // draws the eye without Billion declaring which disagreement matters most.
+  function disputeIds() {
+    return Object.keys(N).filter((id) => N[id].kind === "crux");
+  }
+  function disputeOrder(id) {
+    return disputeIds().indexOf(id);
+  }
+  function disputeSides(id) {
+    const args = incoming(id).filter((x) => x.type === "weighs");
+    const yes = args.filter((x) => x.stance === "for").length;
+    const no = args.filter((x) => x.stance === "against").length;
+    const both = args.filter((x) => x.stance === "mixed").length;
+    return { yes, no, both, total: args.length };
+  }
+  function leadDisputeHtml() {
+    const id = disputeIds().find(
+      (c) => visible(c) && incoming(ROOT).some((e) => e.from === c),
+    );
+    if (!id) return "";
+    const d = disputeSides(id);
+    const sides = [
+      d.yes ? `${d.yes} Yes` : "",
+      d.no ? `${d.no} No` : "",
+      d.both ? `${d.both} both ways` : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    return `<button class="pinned-dispute" type="button" data-node="${id}">
+      <span class="pd-title">${titleHtml(id)}</span>
+      <span class="pd-meta">${d.total} argument${d.total === 1 ? "" : "s"}${sides ? ` · ${sides}` : ""} ›</span>
+    </button>`;
+  }
+
   function focusCard(id) {
     const n = N[id];
     const src = n.source || {};
     if (id === ROOT)
-      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>`;
+      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>${leadDisputeHtml()}`;
     const meta = [
       `<span class="kind">${esc(n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
     ];
@@ -1008,20 +1043,33 @@ export function mountTrillionReader(root, graph, options = {}) {
       <p class="summary-t">${emphasize(sm.text)}</p>
       ${sm.more ? `<details class="summary-more"><summary>Read more</summary><p>${emphasize(sm.more)}</p></details>` : ""}
       <button class="linkish" type="button" data-summary-sources>From the measure text · ${sm.quotes.length} ${sm.quotes.length === 1 ? "quote" : "quotes"}</button>
+      ${backgroundHtml()}
     </section>`;
   }
-  function openSummarySources() {
+  // How things work today, for readers new to state government. It comes from
+  // the Legislative Analyst's Background section, never from the measure.
+  function backgroundHtml() {
+    const bg = graph.background;
+    if (!bg) return "";
+    return `<details class="summary-more background"><summary>New to this? How it works today</summary>
+      <p>${emphasize(bg.text)}</p>
+      <button class="linkish" type="button" data-summary-sources="background">From the Legislative Analyst · ${bg.quotes.length} ${bg.quotes.length === 1 ? "quote" : "quotes"}</button>
+    </details>`;
+  }
+  function openSummarySources(which) {
+    const bg = which === "background";
+    const part = bg ? graph.background : graph.summary;
     const sources = Object.fromEntries(graph.sources.map((s) => [s.id, s]));
-    const url = sources[graph.summary.quotes[0].sourceId]?.url;
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">What the measure says</h2><button class="close" type="button" data-close>Close</button></div>
-      ${graph.summary.quotes
+    const url = sources[part.quotes[0].sourceId]?.url;
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${bg ? "What the Legislative Analyst says" : "What the measure says"}</h2><button class="close" type="button" data-close>Close</button></div>
+      ${part.quotes
         .map(
           (q) =>
             `<blockquote class="quote">“${esc(q.text)}”<footer><span>${esc(q.locator)}</span></footer></blockquote>`,
         )
         .join("")}
-      <p class="empty" style="margin-top:12px">Billion wrote the summary; these are the passages of the measure it rests on, matched word for word.</p>
-      ${url ? `<div class="actions"><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">Open the measure text</a></div>` : ""}`);
+      <p class="empty" style="margin-top:12px">${bg ? "Billion wrote this background; these are the passages of the Legislative Analyst's nonpartisan analysis it rests on, matched word for word." : "Billion wrote the summary; these are the passages of the measure it rests on, matched word for word."}</p>
+      ${url ? `<div class="actions"><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">${bg ? "Open the analysis" : "Open the measure text"}</a></div>` : ""}`);
   }
 
   // ── How can I act: voting basics, always present, never generated ────────
@@ -2145,7 +2193,8 @@ export function mountTrillionReader(root, graph, options = {}) {
       tab = defaultTab(focusId());
       render(true);
     } else if (t.dataset.source) openSource(t.dataset.source);
-    else if (t.hasAttribute("data-summary-sources")) openSummarySources();
+    else if (t.hasAttribute("data-summary-sources"))
+      openSummarySources(t.dataset.summarySources);
     else if (t.dataset.more) {
       shown.add(t.dataset.more);
       render(false);
