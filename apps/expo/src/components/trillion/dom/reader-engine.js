@@ -552,7 +552,7 @@ export function mountTrillionReader(root, graph, options = {}) {
           tone: "neutral",
           items: inc
             .filter((e) => e.type === "crux")
-            .sort((a, b) => disputeSize(b.from) - disputeSize(a.from))
+            .sort((a, b) => disputeOrder(a.from) - disputeOrder(b.from))
             .map((e) => ({ e, dir: "in" })),
         },
         {
@@ -797,8 +797,15 @@ export function mountTrillionReader(root, graph, options = {}) {
     return `<section class="section" id="tabpanel" role="tabpanel">${body}</section>`;
   }
 
-  // The disagreement with arguments on both sides and the most arguments overall
-  // is pinned under the summary, so the heart of the debate is never a tab away.
+  // The generator lists disputed questions most consequential first. The first
+  // is shown under the summary in the Yes-to-No colors, unlabeled: the color
+  // draws the eye without Billion declaring which disagreement matters most.
+  function disputeIds() {
+    return Object.keys(N).filter((id) => N[id].kind === "crux");
+  }
+  function disputeOrder(id) {
+    return disputeIds().indexOf(id);
+  }
   function disputeSides(id) {
     const args = incoming(id).filter((x) => x.type === "weighs");
     const yes = args.filter((x) => x.stance === "for").length;
@@ -806,32 +813,21 @@ export function mountTrillionReader(root, graph, options = {}) {
     const both = args.filter((x) => x.stance === "mixed").length;
     return { yes, no, both, total: args.length };
   }
-  function disputeSize(id) {
+  function leadDisputeHtml() {
+    const id = disputeIds().find(
+      (c) => visible(c) && incoming(ROOT).some((e) => e.from === c),
+    );
+    if (!id) return "";
     const d = disputeSides(id);
-    return (d.yes && d.no ? 1000 : 0) + d.total;
-  }
-  function biggestDispute() {
-    let best = null;
-    for (const e of incoming(ROOT)) {
-      if (e.type !== "crux" || !visible(e.from)) continue;
-      if (!best || disputeSize(e.from) > disputeSize(best.id))
-        best = { id: e.from, ...disputeSides(e.from) };
-    }
-    return best;
-  }
-  function biggestDisputeHtml() {
-    const d = biggestDispute();
-    if (!d) return "";
     const sides = [
-      d.yes ? `${d.yes} for Yes` : "",
-      d.no ? `${d.no} for No` : "",
+      d.yes ? `${d.yes} Yes` : "",
+      d.no ? `${d.no} No` : "",
       d.both ? `${d.both} both ways` : "",
     ]
       .filter(Boolean)
-      .join(" · ");
-    return `<button class="pinned-dispute" type="button" data-node="${d.id}">
-      <span class="pd-kicker">The biggest disagreement</span>
-      <span class="pd-title">${titleHtml(d.id)}</span>
+      .join(", ");
+    return `<button class="pinned-dispute" type="button" data-node="${id}">
+      <span class="pd-title">${titleHtml(id)}</span>
       <span class="pd-meta">${d.total} argument${d.total === 1 ? "" : "s"}${sides ? ` · ${sides}` : ""} ›</span>
     </button>`;
   }
@@ -840,7 +836,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const n = N[id];
     const src = n.source || {};
     if (id === ROOT)
-      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>${biggestDisputeHtml()}`;
+      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>${leadDisputeHtml()}`;
     const meta = [
       `<span class="kind">${esc(n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
     ];
