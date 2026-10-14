@@ -138,18 +138,22 @@ void test("a summary that misquotes the measure is dropped, not published", asyn
   assert.ok(result.dropped.includes("summary"));
 });
 
-void test("the summary is drafted from the measure's legal text alone", async () => {
-  const { buildTrillionSummaryPrompt } =
+void test("the summary is drafted from the legal text; background from the Analyst's Background only", async () => {
+  const { analysisBackground, buildTrillionSummaryPrompt } =
     await import("./trillion-generation.js");
   const { trillionCorpusSchema } = await import("./trillion-capture.js");
-  const prompt = buildTrillionSummaryPrompt(trillionCorpusSchema.parse(corpus));
+  const parsed = trillionCorpusSchema.parse(corpus);
+  const prompt = buildTrillionSummaryPrompt(parsed);
   assert.match(prompt, /sourceId "law-40"/);
-  // Neither campaign's arguments nor the Analyst reach the summary call.
-  assert.doesNotMatch(
-    prompt,
-    /arguments-40|analysis-40|SEIU|Legislative Analyst/,
-  );
   assert.match(prompt, /not "one-time"|"one-time"/);
+  // Neither campaign's arguments reach the summary call.
+  assert.doesNotMatch(prompt, /arguments-40|SEIU/);
+  // The Analyst appears only as the Background section, for "background".
+  const analysis = parsed.sources.find((s) => s.role === "official-analysis")!;
+  const background = analysisBackground(analysis.snapshot);
+  const [beforeBackground] = prompt.split("BACKGROUND, from the Legislative");
+  assert.doesNotMatch(beforeBackground ?? "", /FISCAL EFFECTS|PROPOSAL/);
+  if (background) assert.ok(prompt.endsWith(background));
 });
 
 void test("one bad summary quote never discards the cards' good quotes", async () => {
@@ -328,4 +332,42 @@ void test("an ellipsis that omits nothing is closed; a real omission stays", asy
     ),
     "revenue from the Reserve Fund. … The audit shall be completed",
   );
+});
+
+void test("background keeps only verified analysis quotes, or is dropped", async () => {
+  const graphCorpus = corpus as { sources: { id: string; role: string }[] };
+  const analysis = graphCorpus.sources.find(
+    (s) => s.role === "official-analysis",
+  )!;
+  const result = await generateTrillionGraph(corpus, {
+    ...options,
+    assess: () => Promise.resolve(authored()),
+    assessSummary: () =>
+      Promise.resolve({
+        ...summary(),
+        background: {
+          text: "Today the state already taxes very large fortunes every year.",
+          quotes: [
+            {
+              sourceId: analysis.id,
+              locator: "Legislative Analyst, Background",
+              text: "The state already taxes very large fortunes every year.",
+            },
+          ],
+        },
+      }),
+  });
+  assert.equal(result.graph.background, undefined);
+  assert.ok(result.dropped.includes("background"));
+});
+
+void test("the analysis background section ends before the proposal", async () => {
+  const { analysisBackground } = await import("./trillion-generation.js");
+  assert.equal(
+    analysisBackground(
+      "Intro. BACKGROUND How it works now. PROPOSAL What changes.",
+    ),
+    "BACKGROUND How it works now.",
+  );
+  assert.equal(analysisBackground("No such heading here."), null);
 });
