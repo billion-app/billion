@@ -314,6 +314,26 @@ export function mountTrillionReader(root, graph, options = {}) {
   const N = F.nodes;
   const E = Object.fromEntries(F.edges.map((e) => [e.id, e]));
   const ROOT = F.record.rootId;
+  const localKey = `billion.trillion.${graph.electionDate}.${graph.measure.number}`;
+  let local = { saved: [], flags: {} };
+  try {
+    local =
+      JSON.parse(
+        (options.localState ?? localStorage.getItem(localKey)) || "null",
+      ) || local;
+  } catch {}
+  const saved = new Set(
+    Array.isArray(local.saved) ? local.saved.filter((id) => N[id]) : [],
+  );
+  const flags =
+    local.flags && typeof local.flags === "object" ? local.flags : {};
+  function persistLocal() {
+    const value = JSON.stringify({ saved: [...saved], flags });
+    try {
+      localStorage.setItem(localKey, value);
+    } catch {}
+    return Promise.resolve(options.onLocalState?.(value));
+  }
   const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const PREVIEW = 4; // rows per tab before "Show more"
 
@@ -396,7 +416,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   const short = (e) => (e.type === "weighs" ? LEAN[e.stance] : SHORT[e.type]);
   const DISPUTE = {
     facts: "Disputed facts",
-    values: "Mostly values",
+    values: "Values debate",
     reading: "Disputed reading of the text",
     legal: "Depends on courts and other measures",
   };
@@ -489,6 +509,11 @@ export function mountTrillionReader(root, graph, options = {}) {
     );
   }
   const titleHtml = (id) => emphasize(N[id].title || "(untitled)");
+  const cardTitle = (id) =>
+    esc(N[id].title || "(untitled)").replace(
+      /\*\*(.+?)\*\*/g,
+      "<strong>$1</strong>",
+    );
 
   // Debate-structure ordering: unanswered first, then evidence-backed, then contested, then the rest.
   function rank(id) {
@@ -761,7 +786,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     return `<div class="row r-${tone(e)}${o.kind === "global" ? " is-global" : ""}">
       <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}</span></div>
       <button class="go" type="button" data-node="${otherId}">
-        <span class="t">${titleHtml(otherId)}${open}</span>
+        <span class="t">${cardTitle(otherId)}${open}</span>
       </button>
     </div>`;
   }
@@ -790,8 +815,8 @@ export function mountTrillionReader(root, graph, options = {}) {
       body = `<div class="rows">${cat.items
         .map(({ e }) => {
           const st = cruxState(e.from);
-          return `<div class="row r-question"><span class="relchip static">${esc(st.text)}</span>
-          <button class="go" type="button" data-node="${e.from}"><span class="t">${titleHtml(e.from)}</span>
+          return `<div class="row r-question${N[e.from].dispute === "values" ? " values-dispute" : ""}"><span class="relchip static">${esc(st.text)}</span>
+          <button class="go" type="button" data-node="${e.from}"><span class="t">${cardTitle(e.from)}</span>
           <span class="src">${incoming(e.from).filter((x) => x.type === "weighs").length} arguments so far</span></button></div>`;
         })
         .join("")}</div>`;
@@ -802,7 +827,7 @@ export function mountTrillionReader(root, graph, options = {}) {
               ({
                 e,
               }) => `<div class="row r-question"><span class="relchip static">Unanswered</span>
-          <button class="go" type="button" data-node="${e.from}"><span class="t">${titleHtml(e.from)}</span>
+          <button class="go" type="button" data-node="${e.from}"><span class="t">${cardTitle(e.from)}</span>
           <span class="src">${esc(srcLabel(N[e.from]))} · on “${esc(titleOf(e.to))}”</span></button></div>`,
             )
             .join("")}</div>`
@@ -847,18 +872,43 @@ export function mountTrillionReader(root, graph, options = {}) {
       .filter(Boolean)
       .join(", ");
     return `<button class="pinned-dispute" type="button" data-node="${id}">
-      <span class="pd-title">${titleHtml(id)}</span>
+      <span class="pd-title">${cardTitle(id)}</span>
       <span class="pd-meta">${d.total} argument${d.total === 1 ? "" : "s"}${sides ? ` · ${sides}` : ""} ›</span>
     </button>`;
   }
 
+  function claimTools(id) {
+    if (["root", "branch", "record"].includes(N[id].kind)) return "";
+    const n = N[id];
+    const grounding = incoming(id).some((e) => RESTS.has(e.type));
+    return `<div class="claim-tools">
+      ${!n.quote ? '<strong class="evidence-warning">No source</strong>' : ""}
+      ${!grounding && !n.quote ? '<strong class="evidence-warning">No link to supporting evidence</strong>' : ""}
+      <button class="btn ghost" type="button" data-save="${id}" aria-pressed="${saved.has(id)}">${saved.has(id) ? "Saved · Remove bookmark" : "Save decisive argument"}</button>
+      <button class="linkish" type="button" data-flag="${id}">${flags[id] ? `Flagged: ${esc(flags[id])} · Edit` : "Flag an argument fault"}</button>
+      <span class="counts">Bookmarks and flags stay on this device. Flags are your assessment.</span>
+    </div>`;
+  }
+  function openFlag(id) {
+    const choices = [
+      "Unsupported premise",
+      "Does not follow",
+      "Misrepresents the argument",
+      "Personal attack",
+      "False choice",
+      "Clear flag",
+    ];
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">Flag an argument fault</h2><button class="close" type="button" data-close>Close</button></div>
+      <p class="body">${esc(titleOf(id))}</p><p class="counts">Your assessment, saved only on this device. A value disagreement alone is not a logical fault.</p>
+      ${choices.map((label) => `<button class="btn ghost fault-choice" type="button" data-fault="${label}" data-target="${id}">${label}</button>`).join("")}`);
+  }
   function focusCard(id) {
     const n = N[id];
     const src = n.source || {};
     if (id === ROOT)
       return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>${leadDisputeHtml()}`;
     const meta = [
-      `<span class="kind">${esc(n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
+      `<span class="kind">${esc(n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
     ];
     if (src.handle)
       meta.push(
@@ -875,7 +925,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       <h1 tabindex="-1" class="${n.title.includes("**") ? "stmt" : ""}">${titleHtml(id)}</h1>
       ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
       ${n.quote ? `<blockquote class="quote">“${esc(n.quote)}”<footer><span>${esc(src.locator)}</span><button class="linkish" type="button" data-source="${id}">Inspect source</button></footer></blockquote>` : ""}
-      ${n.note ? `<p class="note">${esc(n.note)}</p>` : ""}
+      ${n.note ? `<p class="note">${esc(n.note)}</p>` : ""}${claimTools(id)}
       ${src.signers && n.quote ? `<p class="note">Signed by ${esc(src.signers)}</p>` : ""}
       ${n.kind === "record" ? `<p class="note">A separate record with its own graph.</p>` : ""}
       ${n.duplicateOf ? `<div class="dup"><strong>Possible duplicate</strong><span>This looks like <button class="linkish" type="button" data-node="${n.duplicateOf}">${esc(titleOf(n.duplicateOf))}</button>. Duplicates may be merged later, keeping each wording and its context.</span></div>` : ""}
@@ -891,7 +941,7 @@ export function mountTrillionReader(root, graph, options = {}) {
         ? `<span>Written by Billion AI</span>`
         : `<span>${esc(e.by)}</span><span class="example">Prototype example</span>`;
     const card = (id) =>
-      `<div class="row r-neutral"><button class="go" type="button" data-node="${id}"><span class="t">${titleHtml(id)}</span><span class="src">${esc(srcLabel(N[id]))}</span></button></div>`;
+      `<div class="row r-neutral"><button class="go" type="button" data-node="${id}"><span class="t">${cardTitle(id)}</span><span class="src">${esc(srcLabel(N[id]))}</span></button></div>`;
     const heading =
       e.type === "weighs"
         ? `Why does this ${esc(short(e))}?`
@@ -1015,10 +1065,15 @@ export function mountTrillionReader(root, graph, options = {}) {
       for (const e of list) {
         const b = a + ((a1 - a0) * weight(e.from)) / total;
         const child = e.from;
-        const color = ring === 0 ? "#7A7F96" : TONE_HEX[tone(e)];
+        const color =
+          ring === 0
+            ? N[child].dispute === "values"
+              ? "#B8A1FF"
+              : "#7A7F96"
+            : TONE_HEX[tone(e)];
         const lit = onPath.has(child) || id === focusId();
         slices.push(
-          `<path d="${arc(...RINGS[ring], a + 0.012, b - 0.012)}" fill="${color}" class="${lit ? "" : "dim"}" data-peek="${child}"${child === focusId() ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>${esc(titleOf(child))}</title></path>`,
+          `<path d="${arc(...RINGS[ring], a + 0.012, b - 0.012)}" fill="${color}" class="${lit ? "" : "dim"}" data-peek="${child}" tabindex="0" role="button" aria-label="${esc(titleOf(child))}"${child === focusId() ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>${esc(titleOf(child))}</title></path>`,
         );
         if (ring < RINGS.length - 1) walk(child, ring + 1, a, b);
         a = b;
@@ -1044,10 +1099,10 @@ export function mountTrillionReader(root, graph, options = {}) {
           <div class="sheet-head"><h2 id="sheet-title">The whole debate</h2><button class="close" type="button" data-close>Close</button></div>
           <svg viewBox="-64 -64 128 128" role="img" aria-label="Ring map of the disputed questions, the arguments under them, and the responses.">
             ${slices.join("")}
-            <circle r="18" fill="#D4AF37" data-peek="${ROOT}"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
+            <circle r="18" fill="#D4AF37" data-peek="${ROOT}" tabindex="0" role="button" aria-label="Main case"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
           </svg>
-          <p class="ov-hover is-empty" id="ov-hover" aria-live="polite">Tap a slice to see what it is</p>
-          <p class="ring-key">${cruxes.length} disputes · ${args} arguments · ${unanswered().length} unanswered. Wider slices have more debate.</p>
+          <p class="ov-hover is-empty" id="ov-hover" aria-live="polite">Drag over slices to explore · Tap to open</p>
+          <p class="ring-key">${cruxes.length} disputes · ${args} arguments · ${unanswered().length} unanswered. Wider slices have more debate. Purple inner slices are values debates.</p>
           ${thin.map((t) => `<button type="button" class="thin" data-peek="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
           </div>`,
       true,
@@ -1141,7 +1196,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     if (c.t === "edge") page.innerHTML = renderEdge(c.id);
     else {
       const cats = categories(c.id);
-      page.innerHTML = `${focusCard(c.id)}${isActBranch(c.id) ? votingHtml() : ""}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
+      page.innerHTML = `${focusCard(c.id)}${isActBranch(c.id) ? votingHtml() : ""}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${c.id === ROOT && saved.size ? `<section class="saved-arguments"><h2>Saved on this device</h2>${[...saved].map((id) => `<button class="btn ghost" type="button" data-node="${id}">${cardTitle(id)}</button>`).join("")}</section>` : ""}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
         ${c.id === ROOT && view === "list" ? doorHtml() : ""}`;
     }
     page.className = moveFocus
@@ -2019,7 +2074,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     cardEls.get(id)?.classList.add("peeked");
     openSheet(
       `${relationTo(id)}
-          <p class="meta" style="margin:0 0 6px">${esc(id === ROOT ? "Main case" : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</p>
+          <p class="meta" style="margin:0 0 6px">${esc(id === ROOT ? "Main case" : n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</p>
           <h2 id="sheet-title" class="${N[id].title?.includes("**") ? "stmt" : ""}">${titleHtml(id)}</h2>
           ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
           ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
@@ -2035,7 +2090,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     crux: "One of the questions people disagree about on this measure.",
   };
   function endCard(id, role) {
-    return `<button type="button" class="end" data-peek="${id}"><span class="end-role">${role}</span><span class="end-title">${titleHtml(id)}</span><span class="end-meta">${esc(cardMeta(id))}</span></button>`;
+    return `<button type="button" class="end" data-peek="${id}"><span class="end-role">${role}</span><span class="end-title">${cardTitle(id)}</span><span class="end-meta">${esc(cardMeta(id))}</span></button>`;
   }
   function peekEdge(eid) {
     const e = E[eid];
@@ -2194,11 +2249,28 @@ export function mountTrillionReader(root, graph, options = {}) {
       return;
     }
     const t = ev.target.closest(
-      "[data-prop],[data-term],[data-peek],[data-ring],[data-summary-sources],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
+      "[data-save],[data-flag],[data-fault],[data-prop],[data-term],[data-peek],[data-ring],[data-summary-sources],[data-node],[data-edge],[data-crumb],[data-source],[data-close],[data-scrim],[data-more],[data-tab]",
     );
     if (!t) return;
     if (t.hasAttribute("data-scrim") && ev.target !== t) return;
-    if (t.dataset.prop) {
+    if (t.dataset.save) {
+      const id = t.dataset.save;
+      if (saved.has(id)) saved.delete(id);
+      else saved.add(id);
+      void persistLocal().catch(() =>
+        toast("Could not save on this device. Please try again."),
+      );
+      render(false);
+    } else if (t.dataset.flag) openFlag(t.dataset.flag);
+    else if (t.dataset.fault) {
+      if (t.dataset.fault === "Clear flag") delete flags[t.dataset.target];
+      else flags[t.dataset.target] = t.dataset.fault;
+      void persistLocal().catch(() =>
+        toast("Could not save on this device. Please try again."),
+      );
+      closeSheet();
+      render(false);
+    } else if (t.dataset.prop) {
       if ($("#layer").innerHTML) closeSheet();
       openMeasure(t.dataset.prop);
     } else if (t.dataset.term) openTerm(t.dataset.term);
@@ -2237,9 +2309,56 @@ export function mountTrillionReader(root, graph, options = {}) {
     out.classList.toggle("is-empty", !t);
     out.textContent = t
       ? titleOf(t.dataset.peek)
-      : "Tap a slice to see what it is";
+      : "Drag over slices to explore · Tap to open";
   });
+  let ringDrag = null;
+  let ringScrubbed = false;
+  function nameSlice(el) {
+    const slice = el?.closest?.(".ring-sheet svg [data-peek]");
+    const out = $("#ov-hover");
+    if (!out || !slice) return;
+    out.classList.remove("is-empty");
+    out.textContent = `${N[slice.dataset.peek].kind === "crux" ? DISPUTE[N[slice.dataset.peek].dispute] + " · " : ""}${titleOf(slice.dataset.peek)}`;
+  }
+  listen(root).addEventListener("pointerdown", (ev) => {
+    ringScrubbed = false;
+    if (!ev.target.closest?.(".ring-sheet svg")) return;
+    ringDrag = { x: ev.clientX, y: ev.clientY };
+    nameSlice(ev.target);
+  });
+  listen(root).addEventListener("pointermove", (ev) => {
+    if (!ringDrag) return;
+    nameSlice(document.elementFromPoint(ev.clientX, ev.clientY));
+  });
+  listen(document).addEventListener("pointerup", (ev) => {
+    if (!ringDrag) return;
+    if (Math.hypot(ev.clientX - ringDrag.x, ev.clientY - ringDrag.y) > 8) {
+      // A scrub leaves the map open; the next deliberate tap previews a slice.
+      ringScrubbed = true;
+    }
+    ringDrag = null;
+  });
+  listen(root).addEventListener(
+    "click",
+    (ev) => {
+      if (!ringScrubbed || !ev.target.closest?.(".ring-sheet svg")) return;
+      ringScrubbed = false;
+      ev.preventDefault();
+      ev.stopPropagation();
+    },
+    { capture: true },
+  );
+  listen(document).addEventListener("pointercancel", () => {
+    ringDrag = null;
+  });
+  listen(root).addEventListener("focusin", (ev) => nameSlice(ev.target));
   listen(document).addEventListener("keydown", (ev) => {
+    const slice = ev.target.closest?.(".ring-sheet svg [data-peek]");
+    if (slice && (ev.key === "Enter" || ev.key === " ")) {
+      ev.preventDefault();
+      peekNode(slice.dataset.peek, true);
+      return;
+    }
     const measureLink = ev.target.closest?.("[data-prop]");
     if (measureLink && (ev.key === "Enter" || ev.key === " ")) {
       ev.preventDefault();
@@ -2401,10 +2520,15 @@ export function mountTrillionReader(root, graph, options = {}) {
     initMap();
     render(false);
   };
-  if (document.fonts?.ready) document.fonts.ready.then(start);
-  else start();
+  start();
+  document.fonts?.ready.then(() => {
+    if (!lifetime.signal.aborted) {
+      cy?.resize();
+      fitView();
+    }
+  });
   // In the app, external links open in the system browser.
-  root.addEventListener("click", (ev) => {
+  listen(root).addEventListener("click", (ev) => {
     const a = ev.target.closest?.("a[href^='http']");
     if (a && options.onOpenUrl) {
       ev.preventDefault();

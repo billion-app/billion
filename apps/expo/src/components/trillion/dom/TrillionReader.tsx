@@ -25,6 +25,8 @@ export interface TrillionReaderHandle extends DOMImperativeFactory {
  */
 export default function TrillionReader({
   graph,
+  localState,
+  onLocalState,
   onExit,
   onOpenUrl,
   onOpenMeasure,
@@ -34,6 +36,8 @@ export default function TrillionReader({
   ref,
 }: {
   graph: PublicTrillionGraph;
+  localState: string;
+  onLocalState: (value: string) => Promise<void>;
   /** Which view opens first; the reader can switch afterwards. */
   view?: "list" | "map";
   /** Measures on this ballot; mentions of others are left as plain text. */
@@ -47,6 +51,7 @@ export default function TrillionReader({
   ref?: Ref<TrillionReaderHandle>;
   dom?: DOMProps;
 }) {
+  const local = useRef(localState);
   const root = useRef<HTMLDivElement>(null);
   const reader = useRef<ReturnType<typeof mountTrillionReader>>(null);
   useDOMImperativeHandle(
@@ -61,6 +66,11 @@ export default function TrillionReader({
       onOpenUrl: (url: string) => void onOpenUrl(url),
       onOpenMeasure: (number: string) => void onOpenMeasure(number),
       onBackState: (inside: boolean) => void onBackState(inside),
+      localState: local.current,
+      onLocalState: async (value: string) => {
+        local.current = value;
+        await onLocalState(value);
+      },
       view,
       ballot,
     });

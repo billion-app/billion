@@ -23,7 +23,7 @@ import {
   DigestPalette as P,
   planes,
 } from "~/styles";
-import { trpc } from "~/utils/api";
+import { queryClient, trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
 import { propositionDetailRoute } from "~/utils/proposition-explainers";
@@ -87,7 +87,12 @@ function MeasureCard({ measure }: { measure: Measure }) {
         accessibilityLabel={`Proposition ${measure.number}, ${measure.title}`}
         accessibilityState={{ expanded }}
         activeOpacity={0.8}
-        onPress={() => setExpanded(!expanded)}
+        onPress={() => {
+          setExpanded(!expanded);
+          void queryClient.prefetchQuery(
+            trpc.civic.getTrillion.queryOptions({ number: measure.number }),
+          );
+        }}
         style={s.cardHeader}
       >
         <View style={s.measureNumber}>
@@ -123,6 +128,11 @@ function MeasureCard({ measure }: { measure: Measure }) {
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={`Read Proposition ${measure.number} detail`}
+          onPressIn={() => {
+            void queryClient.prefetchQuery(
+              trpc.civic.getTrillion.queryOptions({ number: measure.number }),
+            );
+          }}
           onPress={() => router.push(propositionDetailRoute(measure.number))}
           style={s.detailAction}
         >

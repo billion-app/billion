@@ -1,13 +1,6 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
@@ -20,6 +13,7 @@ import {
   PropositionContext,
 } from "~/components/ballot-evidence/PropositionContext";
 import { developmentDebate } from "~/components/trillion/development/pilots";
+import { TrillionLoading } from "~/components/trillion/TrillionLoading";
 import { TrillionScreen } from "~/components/trillion/TrillionScreen";
 import { Icon, NavHeader } from "~/components/ui";
 import {
@@ -48,7 +42,7 @@ export default function PropositionDetailScreen() {
   const debate = useQuery(
     trpc.civic.getTrillion.queryOptions(
       { number: number ?? "" },
-      { enabled: !!measure },
+      { enabled: !!number },
     ),
   );
   const proArguments = submittedGuideArguments(measure?.proArguments);
@@ -63,6 +57,18 @@ export default function PropositionDetailScreen() {
       />
     );
 
+  if (query.isPending || (!!measure && debate.isPending))
+    return (
+      <View style={s.screen}>
+        <NavHeader
+          title={`Proposition ${number ?? ""}`}
+          tone="dark"
+          onBack={() => router.back()}
+        />
+        <TrillionLoading />
+      </View>
+    );
+
   return (
     <View style={s.screen}>
       <NavHeader
@@ -71,12 +77,7 @@ export default function PropositionDetailScreen() {
         onBack={() => router.back()}
       />
       <ScrollView contentContainerStyle={s.content}>
-        {query.isPending ? (
-          <View style={s.surface}>
-            <ActivityIndicator color={P.quiet} />
-            <Text style={s.body}>Loading the official proposition guide…</Text>
-          </View>
-        ) : query.isError ? (
+        {query.isError ? (
           <StateCard
             title="Could not load the guide"
             detail="Try again, or open California’s official voter guide."

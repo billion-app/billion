@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { BackHandler, Linking, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { PublicTrillionGraph } from "@acme/validators";
 
 import type { TrillionReaderHandle } from "./dom/TrillionReader";
+import { queryClient, trpc } from "~/utils/api";
 import TrillionReader from "./dom/TrillionReader";
+import { TrillionLoading } from "./TrillionLoading";
 
 /** Full-screen host for the reader; the web view draws its own header. */
 export function TrillionScreen({
@@ -21,6 +24,24 @@ export function TrillionScreen({
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const storageKey = `billion.trillion.${graph.electionDate}.${graph.measure.number}`;
+  const [stored, setStored] = useState<{ key: string; value: string } | null>(
+    null,
+  );
+  useEffect(() => {
+    let active = true;
+    void AsyncStorage.getItem(storageKey).then(
+      (value) => {
+        if (active) setStored({ key: storageKey, value: value ?? "" });
+      },
+      () => {
+        if (active) setStored({ key: storageKey, value: "" });
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [storageKey]);
   const reader = useRef<TrillionReaderHandle>(null);
   // Back stays inside the reader below the main case or with a sheet or the full map open.
   // Then the edge swipe and Android's back action step back like the reader's back button,
@@ -42,31 +63,41 @@ export function TrillionScreen({
   }, [backInside]);
   return (
     <View style={[s.screen, { paddingTop: insets.top }]}>
-      <TrillionReader
-        ref={reader}
-        graph={graph}
-        view={view}
-        ballot={ballot}
-        onExit={() => Promise.resolve(router.back())}
-        onOpenUrl={async (url) => {
-          await Linking.openURL(url);
-        }}
-        onOpenMeasure={(number) =>
-          // The proposition page offers its own debate when one exists.
-          Promise.resolve(
+      {stored?.key === storageKey ? (
+        <TrillionReader
+          key={storageKey}
+          localState={stored.value}
+          onLocalState={async (value) => {
+            await AsyncStorage.setItem(storageKey, value);
+          }}
+          ref={reader}
+          graph={graph}
+          view={view}
+          ballot={ballot}
+          onExit={() => Promise.resolve(router.back())}
+          onOpenUrl={async (url) => {
+            await Linking.openURL(url);
+          }}
+          onOpenMeasure={(number) => {
+            void queryClient.prefetchQuery(
+              trpc.civic.getTrillion.queryOptions({ number }),
+            );
             router.push({
               pathname: "/proposition-detail",
               params: { number },
-            }),
-          )
-        }
-        onBackState={(inside) => Promise.resolve(setBackInside(inside))}
-        dom={{
-          style: s.web,
-          bounces: false,
-          contentInsetAdjustmentBehavior: "never",
-        }}
-      />
+            });
+            return Promise.resolve();
+          }}
+          onBackState={(inside) => Promise.resolve(setBackInside(inside))}
+          dom={{
+            style: s.web,
+            bounces: false,
+            contentInsetAdjustmentBehavior: "never",
+          }}
+        />
+      ) : (
+        <TrillionLoading />
+      )}
     </View>
   );
 }

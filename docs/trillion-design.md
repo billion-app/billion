@@ -281,3 +281,28 @@ The v7 graphs pass the gate with every quote verified and nothing dropped ([Prop
 Measure context ([#444](https://github.com/billion-app/billion/issues/444)), measure relationships ([#447](https://github.com/billion-app/billion/issues/447)), and candidate research ([#443](https://github.com/billion-app/billion/issues/443)) are interim entry points. Their outputs become seeded claims and relationships in the graph. Person profiles ([#452](https://github.com/billion-app/billion/issues/452)) feed the Who branch. Mobile data access continues through tRPC, as described in [architecture](architecture.md). The visual language follows [content-detail design](content-detail-design.md) and [Expo styling](expo-styling.md).
 
 _Open:_ the persistence schema, the generation pipeline for seeded claims, and the ranking implementation. These wait until the interaction model holds up with readers.
+
+### Device-local debate tools
+
+The reader saves decisive-argument bookmarks and reader-reported argument faults
+on the device, scoped to the election and proposition. The main case lists saved
+arguments. Fault labels are the reader's assessment, not an AI verdict or a public
+moderation action. Missing source quotes and supporting links are highlighted as
+coverage gaps. Values disputes have a purple treatment and an explicit label in
+the disputes list and inner ring. Card titles use the card's navigation action;
+glossary and proposition links remain interactive on the focused claim page.
+The ring supports touch scrubbing to name slices, tapping to preview, and keyboard
+focus with Enter or Space.
+
+The Expo host persists bookmarks and flags through AsyncStorage across WebView
+recreation; the standalone mockup uses browser local storage. Counts do not
+aggregate bookmarks across devices or imply which argument is most credible.
+AI-created private draft nodes are future work, tracked in [issue #476](https://github.com/billion-app/billion/issues/476).
+
+The proposition route starts guide and debate queries together and waits for both
+before choosing the debate or official-guide view. Expanding a guide measure
+starts fetching its debate. A navy skeleton holds the layout while loading.
+
+Run the shared reader's browser regression with
+`node --test prototypes/trillion/reader.test.mjs` after rebuilding the mockup with
+`node prototypes/trillion/build.mjs`.
