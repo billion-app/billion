@@ -1504,40 +1504,213 @@ textarea {
   margin-bottom: 6px;
 }
 
-/* Missing evidence describes coverage, never whether a claim is true. */
-.evidence-warning {
-  color: #ff9575;
-  font-weight: 700;
-  font-size: 14px;
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
-.claim-tools,
-.saved-arguments {
+
+/* A missing quote sits where the quote would be: an empty, dashed slot.
+   It describes coverage, never whether the claim is true. */
+.evidence-gap {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--hair3);
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: rgba(247, 244, 238, 0.74);
+}
+.gap-mark {
+  flex: none;
+  height: 0.9em;
+  font: 700 26px/1.1 var(--display);
+  color: var(--hair3);
+}
+.evidence-gap strong {
+  color: var(--text);
+}
+
+/* Reader tools: icon buttons at the foot of the card. Only the reader sees them. */
+.claim-tools {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  margin: 0 -8px -8px;
+}
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 99px;
+  color: var(--quiet);
+  font-size: 13px;
+  font-weight: 600;
+}
+.tool svg {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.tool:active {
+  background: var(--hair2);
+}
+@media (hover: hover) {
+  .tool:not(.is-on):hover {
+    background: var(--hair1);
+    color: var(--text);
+  }
+}
+.tool.is-on {
+  color: var(--spark);
+}
+.tool.is-on svg path:not(.pole) {
+  fill: currentColor;
+}
+/* A flag is the reader's own reading, so it stays neutral rather than taking a relation color. */
+.tool.has-label {
+  color: var(--text);
+  background: var(--hair1);
+  padding: 0 14px 0 12px;
+}
+.tool.has-label svg {
+  color: var(--quiet);
+}
+
+/* The flag sheet: one tap picks a fault; the current one is checked. */
+.flag-target {
+  margin: 0 0 14px;
+  font: 400 16px/1.4 var(--display);
+  color: rgba(247, 244, 238, 0.86);
+}
+.fault-list {
   display: grid;
-  gap: 12px;
-  margin-block: 18px;
-}
-.saved-arguments h2 {
-  font: 600 18px var(--display);
+  border-radius: 14px;
+  background: var(--slate);
+  border: 1px solid var(--hair1);
+  overflow: hidden;
 }
 .fault-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 16px;
+}
+.fault-choice + .fault-choice {
+  border-top: 1px solid var(--hair1);
+}
+.fault-choice:active {
+  background: var(--hi);
+}
+@media (hover: hover) {
+  .fault-choice:hover {
+    background: var(--hi);
+  }
+}
+.fc-text {
+  flex: 1;
+  display: grid;
+  gap: 1px;
+}
+.fc-name {
+  font-weight: 600;
+}
+.fc-why {
+  font-size: 13px;
+  color: var(--quiet);
+}
+.fault-choice svg {
+  flex: none;
+  fill: none;
+  stroke: var(--spark);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.flag-note {
+  margin: 12px 2px 0;
+  font-size: 12.5px;
+  color: var(--quiet);
+}
+.flag-clear {
   display: block;
-  margin-block: 10px;
+  margin: 12px 2px 0;
+  padding: 6px 0;
 }
-.values-dispute {
-  --rel: var(--rel-mixed);
-  border-color: var(--rel-mixed);
-  background: rgba(184, 161, 255, 0.1);
+
+/* Saved arguments: the reader's own list, kicker-labeled like the summary. */
+.saved-arguments {
+  margin-top: 26px;
 }
-.values-dispute .relchip {
-  color: var(--rel-mixed);
+.saved-arguments h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--spark);
 }
+.saved-arguments h2 svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.r-saved {
+  --rel: var(--spark);
+}
+
+/* Values debates: purple stripe and label, matching the inner ring. Factual,
+   textual and legal disputes keep the question yellow. */
+.r-values {
+  --rel: var(--rel-mixed);
+}
+.kind.is-values {
+  color: var(--rel-mixed);
+}
+.ring-sheet .ring-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--quiet);
+}
+.ring-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ring-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--c);
+}
+
 .ring-sheet svg {
   touch-action: none;
+}
+.ring-sheet [data-peek]:focus {
+  outline: none;
 }
 .ring-sheet [data-peek]:focus-visible {
   stroke: var(--text);
   stroke-width: 2;
-  outline: none;
   opacity: 1;
 }

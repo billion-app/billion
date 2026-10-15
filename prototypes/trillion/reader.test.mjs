@@ -90,9 +90,16 @@ await test("Trillion cards, touch ring and device persistence", async () => {
       /Values debate/,
     );
     await page.locator(".values-dispute [data-node]").first().click();
+    assert.match(
+      await page.locator(".focus .kind").textContent(),
+      /Values debate/,
+    );
+    await page
+      .locator(".rows .go", { hasText: "ten months before the vote" })
+      .click();
     assert.equal(
       await page.locator(".evidence-warning").first().textContent(),
-      "No source",
+      "No source quote",
     );
     await page.locator('[data-measure="41"]').click();
     await page.locator('[data-view="map"]').first().click();

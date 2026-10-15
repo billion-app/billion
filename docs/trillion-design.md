@@ -285,11 +285,17 @@ _Open:_ the persistence schema, the generation pipeline for seeded claims, and t
 ### Device-local debate tools
 
 The reader saves decisive-argument bookmarks and reader-reported argument faults
-on the device, scoped to the election and proposition. The main case lists saved
-arguments. Fault labels are the reader's assessment, not an AI verdict or a public
-moderation action. Missing source quotes and supporting links are highlighted as
-coverage gaps. Values disputes have a purple treatment and an explicit label in
-the disputes list and inner ring. Card titles use the card's navigation action;
+on the device, scoped to the election and proposition. Both are icon buttons at
+the foot of the focused card: the bookmark fills gold when saved, and a flag
+shows its label as "Your flag" in neutral colors so it never reads as a verdict.
+The flag sheet lists each fault with a one-line description. The main case lists
+saved arguments below its tabs. Fault labels are the reader's assessment, not an
+AI verdict or a public moderation action. A claim without a source quote shows
+an empty dashed slot where the quote would be, naming the missing quote and,
+when absent, the missing supporting link. Questions carry no quote, so they show
+no slot. In Disputes, a values debate has a purple stripe and a "Values debate"
+label; factual, textual and legal disputes keep the question yellow. The inner
+ring uses the same purple, with a legend. Card titles use the card's navigation action;
 glossary and proposition links remain interactive on the focused claim page.
 The ring supports touch scrubbing to name slices, tapping to preview, and keyboard
 focus with Enter or Space.

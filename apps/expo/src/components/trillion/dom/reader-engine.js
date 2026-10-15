@@ -547,7 +547,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       : sides.has("for") && sides.has("against")
         ? "Contested"
         : "Few arguments yet";
-    return { open, text: `${DISPUTE[N[id].dispute]} · ${state}` };
+    return { open, state, text: `${DISPUTE[N[id].dispute]} · ${state}` };
   }
   // Everything in the record that nobody has responded to yet.
   function unanswered() {
@@ -814,10 +814,12 @@ export function mountTrillionReader(root, graph, options = {}) {
     } else if (cat.key === "disagree") {
       body = `<div class="rows">${cat.items
         .map(({ e }) => {
+          // The chip names the kind of disagreement; how far it has got is secondary.
           const st = cruxState(e.from);
-          return `<div class="row r-question${N[e.from].dispute === "values" ? " values-dispute" : ""}"><span class="relchip static">${esc(st.text)}</span>
+          const k = incoming(e.from).filter((x) => x.type === "weighs").length;
+          return `<div class="row ${N[e.from].dispute === "values" ? "r-values values-dispute" : "r-question"}"><span class="relchip static">${esc(DISPUTE[N[e.from].dispute])}</span>
           <button class="go" type="button" data-node="${e.from}"><span class="t">${cardTitle(e.from)}</span>
-          <span class="src">${incoming(e.from).filter((x) => x.type === "weighs").length} arguments so far</span></button></div>`;
+          <span class="src">${esc(st.state)} · ${k} argument${k === 1 ? "" : "s"}</span></button></div>`;
         })
         .join("")}</div>`;
     } else if (cat.key === "open") {
@@ -877,30 +879,51 @@ export function mountTrillionReader(root, graph, options = {}) {
     </button>`;
   }
 
+  // Reader tools drawn as line icons; filled when on.
+  const ICON = {
+    bookmark:
+      '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6.5 4.5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v15.6l-5.5-3.6-5.5 3.6z"/></svg>',
+    flag: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="pole" d="M5.5 21V4"/><path d="M5.5 4.5h11.8l-2.6 4.2 2.6 4.3H5.5z"/></svg>',
+    check:
+      '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  };
+  // Missing quotes and links describe coverage, never whether a claim is true.
+  // Questions carry no quote of their own, so only claims show the gap.
+  function evidenceGap(id) {
+    const n = N[id];
+    if (n.quote || ["root", "branch", "record", "crux"].includes(n.kind))
+      return "";
+    const grounded = incoming(id).some((e) => RESTS.has(e.type));
+    return `<div class="evidence-gap"><span class="gap-mark" aria-hidden="true">“</span><span><strong class="evidence-warning">No source quote</strong>${grounded ? "" : ' · <span class="evidence-warning">No link to supporting evidence</span>'}</span></div>`;
+  }
   function claimTools(id) {
     if (["root", "branch", "record"].includes(N[id].kind)) return "";
-    const n = N[id];
-    const grounding = incoming(id).some((e) => RESTS.has(e.type));
+    const flag = flags[id];
     return `<div class="claim-tools">
-      ${!n.quote ? '<strong class="evidence-warning">No source</strong>' : ""}
-      ${!grounding && !n.quote ? '<strong class="evidence-warning">No link to supporting evidence</strong>' : ""}
-      <button class="btn ghost" type="button" data-save="${id}" aria-pressed="${saved.has(id)}">${saved.has(id) ? "Saved · Remove bookmark" : "Save decisive argument"}</button>
-      <button class="linkish" type="button" data-flag="${id}">${flags[id] ? `Flagged: ${esc(flags[id])} · Edit` : "Flag an argument fault"}</button>
-      <span class="counts">Bookmarks and flags stay on this device. Flags are your assessment.</span>
+      <button class="tool${saved.has(id) ? " is-on" : ""}" type="button" data-save="${id}" aria-pressed="${saved.has(id)}">${ICON.bookmark}<span class="sr">Save as a decisive argument</span></button>
+      <button class="tool${flag ? " is-on has-label" : ""}" type="button" data-flag="${id}" aria-haspopup="dialog">${ICON.flag}${flag ? `<span><span class="sr">Your flag: </span>${esc(flag)}</span>` : '<span class="sr">Flag an argument fault</span>'}</button>
     </div>`;
   }
-  function openFlag(id) {
-    const choices = [
-      "Unsupported premise",
-      "Does not follow",
+  const FAULTS = [
+    ["Unsupported premise", "Leans on a claim nobody has backed up."],
+    ["Does not follow", "The conclusion doesn't come from the reasons."],
+    [
       "Misrepresents the argument",
-      "Personal attack",
-      "False choice",
-      "Clear flag",
-    ];
+      "Answers a weaker version of what was said.",
+    ],
+    ["Personal attack", "Goes after people, not the reasoning."],
+    ["False choice", "Offers two options when there are more."],
+  ];
+  function openFlag(id) {
+    const current = flags[id];
     openSheet(`<div class="sheet-head"><h2 id="sheet-title">Flag an argument fault</h2><button class="close" type="button" data-close>Close</button></div>
-      <p class="body">${esc(titleOf(id))}</p><p class="counts">Your assessment, saved only on this device. A value disagreement alone is not a logical fault.</p>
-      ${choices.map((label) => `<button class="btn ghost fault-choice" type="button" data-fault="${label}" data-target="${id}">${label}</button>`).join("")}`);
+      <p class="flag-target">${cardTitle(id)}</p>
+      <div class="fault-list" role="group" aria-label="Fault">${FAULTS.map(
+        ([label, why]) =>
+          `<button class="fault-choice" type="button" data-fault="${label}" data-target="${id}" aria-pressed="${current === label}"><span class="fc-text"><span class="fc-name">${label}</span><span class="fc-why">${why}</span></span>${current === label ? ICON.check : ""}</button>`,
+      ).join("")}</div>
+      <p class="flag-note">Your own assessment, kept on this device. Disagreeing on values isn't a fault.</p>
+      ${current ? `<button class="linkish flag-clear" type="button" data-fault="Clear flag" data-target="${id}">Remove flag</button>` : ""}`);
   }
   function focusCard(id) {
     const n = N[id];
@@ -908,7 +931,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     if (id === ROOT)
       return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>${leadDisputeHtml()}`;
     const meta = [
-      `<span class="kind">${esc(n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
+      `<span class="kind${n.dispute === "values" ? " is-values" : ""}">${esc(n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
     ];
     if (src.handle)
       meta.push(
@@ -924,11 +947,12 @@ export function mountTrillionReader(root, graph, options = {}) {
       <div class="meta">${meta.join("")}</div>
       <h1 tabindex="-1" class="${n.title.includes("**") ? "stmt" : ""}">${titleHtml(id)}</h1>
       ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
-      ${n.quote ? `<blockquote class="quote">“${esc(n.quote)}”<footer><span>${esc(src.locator)}</span><button class="linkish" type="button" data-source="${id}">Inspect source</button></footer></blockquote>` : ""}
-      ${n.note ? `<p class="note">${esc(n.note)}</p>` : ""}${claimTools(id)}
+      ${n.quote ? `<blockquote class="quote">“${esc(n.quote)}”<footer><span>${esc(src.locator)}</span><button class="linkish" type="button" data-source="${id}">Inspect source</button></footer></blockquote>` : evidenceGap(id)}
+      ${n.note ? `<p class="note">${esc(n.note)}</p>` : ""}
       ${src.signers && n.quote ? `<p class="note">Signed by ${esc(src.signers)}</p>` : ""}
       ${n.kind === "record" ? `<p class="note">A separate record with its own graph.</p>` : ""}
       ${n.duplicateOf ? `<div class="dup"><strong>Possible duplicate</strong><span>This looks like <button class="linkish" type="button" data-node="${n.duplicateOf}">${esc(titleOf(n.duplicateOf))}</button>. Duplicates may be merged later, keeping each wording and its context.</span></div>` : ""}
+      ${claimTools(id)}
     </article>`;
   }
 
@@ -1073,7 +1097,7 @@ export function mountTrillionReader(root, graph, options = {}) {
             : TONE_HEX[tone(e)];
         const lit = onPath.has(child) || id === focusId();
         slices.push(
-          `<path d="${arc(...RINGS[ring], a + 0.012, b - 0.012)}" fill="${color}" class="${lit ? "" : "dim"}" data-peek="${child}" tabindex="0" role="button" aria-label="${esc(titleOf(child))}"${child === focusId() ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>${esc(titleOf(child))}</title></path>`,
+          `<path d="${arc(...RINGS[ring], a + 0.012, b - 0.012)}" fill="${color}" class="${lit ? "" : "dim"}" data-peek="${child}" tabindex="0" role="button" aria-label="${ring === 0 && N[child].dispute ? `${esc(DISPUTE[N[child].dispute])}: ` : ""}${esc(titleOf(child))}"${child === focusId() ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>${esc(titleOf(child))}</title></path>`,
         );
         if (ring < RINGS.length - 1) walk(child, ring + 1, a, b);
         a = b;
@@ -1102,7 +1126,8 @@ export function mountTrillionReader(root, graph, options = {}) {
             <circle r="18" fill="#D4AF37" data-peek="${ROOT}" tabindex="0" role="button" aria-label="Main case"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
           </svg>
           <p class="ov-hover is-empty" id="ov-hover" aria-live="polite">Drag over slices to explore · Tap to open</p>
-          <p class="ring-key">${cruxes.length} disputes · ${args} arguments · ${unanswered().length} unanswered. Wider slices have more debate. Purple inner slices are values debates.</p>
+          <p class="ring-key">${cruxes.length} disputes · ${args} arguments · ${unanswered().length} unanswered. Wider slices have more debate.</p>
+          <p class="ring-legend"><span style="--c:#B8A1FF"><i></i>Values debate</span><span style="--c:#7A7F96"><i></i>Facts, text or law</span></p>
           ${thin.map((t) => `<button type="button" class="thin" data-peek="${t.id}">Least explored: ${esc(N[t.id].label || titleOf(t.id))} ›</button>`).join("")}
           </div>`,
       true,
@@ -1190,14 +1215,28 @@ export function mountTrillionReader(root, graph, options = {}) {
     </section>`;
   }
 
+  // The reader's own bookmarks, below the case they came from.
+  function savedHtml() {
+    if (!saved.size) return "";
+    return `<section class="saved-arguments" aria-labelledby="saved-head">
+      <h2 id="saved-head">${ICON.bookmark}Saved on this device</h2>
+      <div class="rows">${[...saved]
+        .map(
+          (id) =>
+            `<div class="row r-saved"><button class="go" type="button" data-node="${id}"><span class="t">${cardTitle(id)}</span><span class="src">${esc(cardMeta(id))}${flags[id] ? ` · Your flag: ${esc(flags[id])}` : ""}</span></button></div>`,
+        )
+        .join("")}</div>
+    </section>`;
+  }
+
   function render(moveFocus) {
     const c = cur();
     if (page.contains(mapEl)) $("#map-home").appendChild(mapEl); // keep the map alive across re-renders
     if (c.t === "edge") page.innerHTML = renderEdge(c.id);
     else {
       const cats = categories(c.id);
-      page.innerHTML = `${focusCard(c.id)}${isActBranch(c.id) ? votingHtml() : ""}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${c.id === ROOT && saved.size ? `<section class="saved-arguments"><h2>Saved on this device</h2>${[...saved].map((id) => `<button class="btn ghost" type="button" data-node="${id}">${cardTitle(id)}</button>`).join("")}</section>` : ""}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
-        ${c.id === ROOT && view === "list" ? doorHtml() : ""}`;
+      page.innerHTML = `${focusCard(c.id)}${isActBranch(c.id) ? votingHtml() : ""}${cats.length > 1 ? tabsHtml(cats) : ""}${viewsHtml()}${view === "map" ? '<div id="phone-slot"></div>' : panelHtml(c.id, activeCat())}
+        ${c.id === ROOT ? savedHtml() : ""}${c.id === ROOT && view === "list" ? doorHtml() : ""}`;
     }
     page.className = moveFocus
       ? direction === "back"
@@ -2257,8 +2296,11 @@ export function mountTrillionReader(root, graph, options = {}) {
       const id = t.dataset.save;
       if (saved.has(id)) saved.delete(id);
       else saved.add(id);
-      void persistLocal().catch(() =>
-        toast("Could not save on this device. Please try again."),
+      const on = saved.has(id);
+      void persistLocal().then(
+        () =>
+          toast(on ? "Saved on this device" : "Removed from saved arguments"),
+        () => toast("Could not save on this device. Please try again."),
       );
       render(false);
     } else if (t.dataset.flag) openFlag(t.dataset.flag);
