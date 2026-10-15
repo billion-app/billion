@@ -298,7 +298,10 @@ label; factual, textual and legal disputes keep the question yellow. The inner
 ring uses the same purple, with a legend. Card titles use the card's navigation action;
 glossary and proposition links remain interactive on the focused claim page.
 The ring supports touch scrubbing to name slices, tapping to preview, and keyboard
-focus with Enter or Space.
+focus with Enter or Space. The DOM adapter replaces the reader only when the
+election, proposition or published revision changes. Native back-state updates
+serialize graph props again; treating that new object as a new graph would reset
+the reader to the main case on the first navigation.
 
 The Expo host persists bookmarks and flags through AsyncStorage across WebView
 recreation; the standalone mockup uses browser local storage. Counts do not
@@ -310,5 +313,5 @@ before choosing the debate or official-guide view. Expanding a guide measure
 starts fetching its debate. A navy skeleton holds the layout while loading.
 
 Run the shared reader's browser regression with
-`node --test prototypes/trillion/reader.test.mjs` after rebuilding the mockup with
+`node --test prototypes/trillion/reader*.test.mjs` after rebuilding the mockup with
 `node prototypes/trillion/build.mjs`.

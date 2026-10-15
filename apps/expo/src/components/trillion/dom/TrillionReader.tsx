@@ -79,8 +79,9 @@ export default function TrillionReader({
       reader.current = null;
       mounted.destroy();
     };
-    // The engine owns the DOM below the root; a new graph replaces the reader.
+    // Native prop updates serialize the graph into a new object. Only a new
+    // published revision replaces the reader; back-state updates must keep its path.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph]);
+  }, [graph.electionDate, graph.measure.number, graph.revision]);
   return <div ref={root} style={{ height: "100vh" }} />;
 }
