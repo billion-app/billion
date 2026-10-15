@@ -1,6 +1,6 @@
 import type { RenderRules } from "@ronradtke/react-native-markdown-display";
 import type { LayoutChangeEvent } from "react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { BillBriefData, BriefQuote } from "~/components/ui";
 import type { ShareSurface } from "~/utils/share";
+import { ListenBar } from "~/components/ListenBar";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { ShareSheet } from "~/components/ShareSheet";
 import { Text } from "~/components/Themed";
@@ -36,6 +37,8 @@ import {
   Segmented,
 } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useArticleSpeech } from "~/hooks/useArticleSpeech";
+import { useLanguage } from "~/hooks/useLanguage";
 import { useReadContent } from "~/hooks/useReadContent";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import { useScreenshotDetection } from "~/hooks/useScreenshotDetection";
@@ -56,6 +59,7 @@ import { formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 import { findSourcePassage } from "~/utils/source-passage";
+import { buildSpeechChunks } from "~/utils/speech-script";
 
 export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
@@ -137,6 +141,78 @@ export default function ArticleDetailScreen() {
     ? `${content.title}:${headerImageUri ?? "local"}`
     : undefined;
 
+  // Spanish and Chinese readers get Billion's explanation translated. English
+  // renders first; the translation replaces it when it arrives. Source text
+  // (original documents and quotes) is never translated.
+  const { language, t: tr } = useLanguage();
+  const translationLanguage = language === "en" ? null : language;
+  const translationQuery = useQuery({
+    ...trpc.content.getTranslation.queryOptions({
+      id: articleId ?? "__missing__",
+      language: translationLanguage ?? "es",
+      supportsMassachusetts: true,
+    }),
+    enabled: !!articleId && !!content && !!translationLanguage,
+    staleTime: Infinity,
+  });
+  const translation =
+    translationLanguage &&
+    translationQuery.data?.status === "translated" &&
+    translationQuery.data.language === translationLanguage
+      ? translationQuery.data
+      : null;
+  const translationPending =
+    !!translationLanguage && !!content && translationQuery.isFetching;
+  const translationFailed =
+    !!translationLanguage &&
+    !translationPending &&
+    (translationQuery.isError ||
+      translationQuery.data?.status === "unavailable");
+
+  // Listen reads what is on screen, in the language it is written in.
+  const speechChunks = useMemo(() => {
+    if (!content) return [];
+    if (mode === "source") {
+      return buildSpeechChunks({
+        title: content.title,
+        body: content.originalContent,
+      });
+    }
+    return buildSpeechChunks({
+      title: translation?.title ?? content.title,
+      description: translation?.description ?? content.description,
+      brief:
+        translation?.brief ??
+        ("brief" in content ? (content.brief as BillBriefData | null) : null),
+      courtBrief:
+        translation?.courtBrief ??
+        (content.type === "court_case" ? content.courtBrief : null),
+      body: translation?.articleContent ?? content.articleContent,
+    });
+  }, [content, translation, mode]);
+  const speech = useArticleSpeech({
+    chunks: speechChunks,
+    // A record whose body is source text keeps an English voice even when its
+    // title was translated.
+    language:
+      mode !== "source" &&
+      translation &&
+      (translation.brief ??
+        translation.courtBrief ??
+        translation.articleContent)
+        ? translation.language
+        : "en",
+    contentId: content?.id,
+  });
+  const stopSpeech = speech.stop;
+  useFocusEffect(useCallback(() => stopSpeech, [stopSpeech]));
+
+  const handleListen = () => {
+    if (speech.status === "idle") speech.play();
+    else if (speech.status === "playing") speech.pause();
+    else speech.resume();
+  };
+
   const { isSaved, toggleSave } = useSavedContent();
   const saved = !!articleId && isSaved(articleId);
 
@@ -165,7 +241,7 @@ export default function ArticleDetailScreen() {
     return (
       <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
         <ActivityIndicator size="large" color={colors.white} />
-        <Text style={s.loadingText}>Loading content…</Text>
+        <Text style={s.loadingText}>{tr("article.loading")}</Text>
       </View>
     );
   }
@@ -174,10 +250,10 @@ export default function ArticleDetailScreen() {
     return (
       <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
         <Text style={s.errorTitle}>
-          {error ? "Failed to load content" : "Content not found"}
+          {error ? tr("article.loadFailed") : tr("article.notFound")}
         </Text>
         <PrimaryButton
-          label="Go Back"
+          label={tr("common.goBack")}
           onPress={() => router.back()}
           style={{ width: 160, marginTop: 16 }}
         />
@@ -270,12 +346,21 @@ export default function ArticleDetailScreen() {
 
   // Bill and court briefs keep their own types; older records retain the explainer.
   const brief: BillBriefData | null =
-    "brief" in content ? (content.brief as BillBriefData | null) : null;
-  const courtBrief = content.type === "court_case" ? content.courtBrief : null;
+    (translation?.brief as BillBriefData | null | undefined) ??
+    ("brief" in content ? (content.brief as BillBriefData | null) : null);
+  const courtBrief =
+    translation?.courtBrief ??
+    (content.type === "court_case" ? content.courtBrief : null);
+  const displayTitle = translation?.title ?? content.title;
+  const displayDescription = translation?.description ?? content.description;
+  const dateLocale =
+    language === "es" ? "es-US" : language === "zh" ? "zh-CN" : "en-US";
   const hasBrief = Boolean(brief ?? courtBrief);
 
   const rawContent =
-    mode === "source" ? content.originalContent : content.articleContent;
+    mode === "source"
+      ? content.originalContent
+      : (translation?.articleContent ?? content.articleContent);
   // The types say this is a string, but the router has no `.output()` schema,
   // so nothing enforces that at runtime. `.includes`/`.length` on a null would
   // take the whole app down rather than render an empty article.
@@ -363,11 +448,34 @@ export default function ArticleDetailScreen() {
         onBack={() => router.back()}
         action={
           <>
+            {speech.available ? (
+              <TouchableOpacity
+                onPress={handleListen}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  speech.status === "playing"
+                    ? tr("listen.pause")
+                    : speech.status === "paused"
+                      ? tr("listen.resume")
+                      : tr("listen.start")
+                }
+                testID="article-listen"
+              >
+                <Icon
+                  name="headphones"
+                  size={20}
+                  color={
+                    speech.status === "idle" ? colors.textSecondary : t.color
+                  }
+                />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               onPress={() => setShareSurface("article_header")}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Share this record"
+              accessibilityLabel={tr("article.share")}
               testID="article-share"
             >
               <Icon name="share" size={20} color={colors.textSecondary} />
@@ -377,7 +485,7 @@ export default function ArticleDetailScreen() {
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={
-                saved ? "Remove from saved" : "Save to read later"
+                saved ? tr("article.unsave") : tr("article.save")
               }
               testID="article-save"
             >
@@ -436,7 +544,7 @@ export default function ArticleDetailScreen() {
         ) : null}
 
         <Text style={s.title} testID="article-title">
-          {content.title}
+          {displayTitle}
         </Text>
 
         {/* Older API deployments may omit dates while the OTA rolls out. */}
@@ -444,16 +552,16 @@ export default function ArticleDetailScreen() {
         {content.createdAt && content.updatedAt ? (
           <View style={{ gap: 4, marginBottom: 16 }} testID="article-dates">
             <Text style={s.articleDate}>
-              Created{" "}
-              {content.createdAt.toLocaleDateString("en-US", {
+              {tr("article.created")}{" "}
+              {content.createdAt.toLocaleDateString(dateLocale, {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
               })}
             </Text>
             <Text style={s.articleDate}>
-              Last updated{" "}
-              {content.updatedAt.toLocaleDateString("en-US", {
+              {tr("article.updated")}{" "}
+              {content.updatedAt.toLocaleDateString(dateLocale, {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
@@ -462,9 +570,9 @@ export default function ArticleDetailScreen() {
           </View>
         ) : null}
 
-        {content.description ? (
+        {displayDescription ? (
           <Text style={s.desc} testID="article-description">
-            {content.description}
+            {displayDescription}
           </Text>
         ) : null}
 
@@ -483,7 +591,7 @@ export default function ArticleDetailScreen() {
               size={44}
             />
             <View style={s.sponsorBody}>
-              <Text style={s.sponsorLabel}>Sponsored by</Text>
+              <Text style={s.sponsorLabel}>{tr("article.sponsoredBy")}</Text>
               <Text style={s.sponsorName} numberOfLines={1}>
                 {sponsor.name}
               </Text>
@@ -513,23 +621,27 @@ export default function ArticleDetailScreen() {
                 id: "explainer",
                 label:
                   content.type === "court_case"
-                    ? "Case brief"
+                    ? tr("article.caseBrief")
                     : hasBrief
-                      ? "The brief"
-                      : "Plain explainer",
+                      ? tr("article.theBrief")
+                      : tr("article.plainExplainer"),
                 icon: "sparkle",
               },
               ...(content.type === "court_case" && courtBrief?.opinions.length
                 ? ([
-                    { id: "opinions", label: "Opinions", icon: "message" },
+                    {
+                      id: "opinions",
+                      label: tr("article.opinions"),
+                      icon: "message",
+                    },
                   ] as const)
                 : []),
               {
                 id: "source",
                 label:
                   content.type === "court_case"
-                    ? "Court record"
-                    : "Original text",
+                    ? tr("article.courtRecord")
+                    : tr("article.originalText"),
                 icon: "doc",
               },
             ]}
@@ -552,11 +664,9 @@ export default function ArticleDetailScreen() {
             <Icon name="sparkle" size={17} color={t.color} />
             <View style={s.disclaimerBody}>
               <View style={s.disclaimerHead}>
-                <Text style={s.disclaimerTitle}>
-                  Written by Billion AI · Always check the source
-                </Text>
+                <Text style={s.disclaimerTitle}>{tr("article.writtenBy")}</Text>
                 <Text style={[s.disclaimerAction, { color: t.color }]}>
-                  {provenanceOpen ? "Hide" : "Details"}
+                  {provenanceOpen ? tr("article.hide") : tr("article.details")}
                 </Text>
                 <View style={provenanceOpen ? s.chevFlip : undefined}>
                   <Icon name="chevD" size={14} color={t.color} />
@@ -578,6 +688,25 @@ export default function ArticleDetailScreen() {
             </View>
           </TouchableOpacity>
         )}
+
+        {translationLanguage ? (
+          <View style={s.translationNote} testID="article-translation-note">
+            {translationPending && mode !== "source" ? (
+              <ActivityIndicator size="small" color={colors.textSecondary} />
+            ) : (
+              <Icon name="globe" size={14} color={colors.textSecondary} />
+            )}
+            <Text style={s.translationNoteText}>
+              {mode === "source"
+                ? tr("article.sourceStaysEnglish")
+                : translationPending
+                  ? tr("article.translating")
+                  : translationFailed
+                    ? tr("article.translationUnavailable")
+                    : tr("article.translated")}
+            </Text>
+          </View>
+        ) : null}
 
         {mode === "source" && sourceUrl && (
           <PrimaryButton
@@ -657,7 +786,9 @@ export default function ArticleDetailScreen() {
         {/* Legislative stages apply only to bills. Court posture lives in its brief. */}
         {content.type === "bill" ? (
           <>
-            <Kicker style={s.timelineKicker}>Where it stands</Kicker>
+            <Kicker style={s.timelineKicker}>
+              {tr("article.whereItStands")}
+            </Kicker>
             <Card style={{ marginBottom: 24 }}>
               {timeline.map((step, i) => {
                 const expandable =
@@ -755,15 +886,15 @@ export default function ArticleDetailScreen() {
           <View style={s.exit}>
             <Text style={s.exitTitle}>
               {content.type === "court_case"
-                ? "Check the court record."
-                : "Don't take our word for it."}
+                ? tr("article.checkCourtRecord")
+                : tr("article.dontTakeOurWord")}
             </Text>
             <Text style={s.exitSub}>
               {content.type === "court_case"
                 ? independentCourtSource
                   ? "Read the archived docket and check the court for the latest status."
                   : "Read the court's published documents and verify the procedural posture for yourself."
-                : "Read the full, unedited text and track every action on the official record."}
+                : tr("article.dontTakeOurWordSub")}
             </Text>
             <PrimaryButton
               label={
@@ -771,21 +902,32 @@ export default function ArticleDetailScreen() {
                   ? independentCourtSource
                     ? "Open court record archive"
                     : "Open official court record"
-                  : "Open the source"
+                  : tr("article.openSource")
               }
               icon="external"
               onPress={handleOpenOriginal}
             />
             {content.type !== "court_case" ? (
               <GhostButton
-                label="View all related records"
+                label={tr("article.viewRelated")}
                 onPress={handleOpenOriginal}
                 style={{ width: "100%", marginTop: 6 }}
               />
             ) : null}
           </View>
         ) : null}
+        {speech.status !== "idle" ? <View style={{ height: 76 }} /> : null}
       </ScrollView>
+
+      <ListenBar
+        status={speech.status}
+        index={speech.index}
+        total={speech.total}
+        accent={t.color}
+        onPause={speech.pause}
+        onResume={speech.resume}
+        onStop={speech.stop}
+      />
 
       {shareSurface ? (
         <ShareSheet
@@ -982,6 +1124,21 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
+  },
+  translationNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: -8,
+    marginBottom: 16,
+    paddingHorizontal: 2,
+  },
+  translationNoteText: {
+    flex: 1,
+    fontFamily: fontBody.medium,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
   },
   disclaimerTitle: {
     flex: 1,

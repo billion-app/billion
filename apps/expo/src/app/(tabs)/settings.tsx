@@ -4,10 +4,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
+import type { StringKey } from "~/i18n/strings";
 import { SettingsCrest } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { Kicker, SettingsRow, TabScreen } from "~/components/ui";
+import { useLanguage } from "~/hooks/useLanguage";
 import { useOnboarding } from "~/hooks/useOnboarding";
+import { LANGUAGE_OPTIONS } from "~/i18n/language";
 import {
   DigestSpace,
   fontBody,
@@ -23,51 +26,53 @@ interface Item {
   route: Href;
 }
 
-function buildGroups(): { title: string; items: Item[] }[] {
+function buildGroups(
+  t: (key: StringKey) => string,
+): { title: string; items: Item[] }[] {
   return [
     {
-      title: "Alerts",
+      title: t("settings.alerts"),
       items: [
         {
           icon: "bell",
-          label: "Notifications",
-          sub: "Stay informed without being overwhelmed.",
+          label: t("settings.notifications"),
+          sub: t("settings.notificationsSub"),
           route: "/settings/notifications" as Href,
         },
       ],
     },
     {
-      title: "Library",
+      title: t("settings.library"),
       items: [
         {
           icon: "bookmark",
-          label: "Saved",
+          label: t("settings.saved"),
           route: "/settings/saved-articles",
         },
       ],
     },
     {
-      title: "Privacy",
+      title: t("settings.privacy"),
       items: [
         {
           icon: "shield",
-          label: "Privacy",
+          label: t("settings.privacy"),
           route: "/settings/privacy",
         },
       ],
     },
     {
-      title: "Support",
+      title: t("settings.support"),
       items: [
-        { icon: "help", label: "Help", route: "/settings/help" },
+        { icon: "help", label: t("settings.help"), route: "/settings/help" },
         {
           icon: "message",
-          label: "Feedback",
+          label: t("settings.feedback"),
           route: "/settings/feedback",
         },
         {
           icon: "info",
-          label: "About",
+          label: t("settings.about"),
           sub: getAppVersion(),
           route: "/settings/about",
         },
@@ -80,39 +85,39 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const onboarding = useOnboarding();
+  const { language, t } = useLanguage();
+  const languageName =
+    LANGUAGE_OPTIONS.find((option) => option.id === language)?.nativeName ??
+    "English";
 
   const confirmResetPreferences = () => {
-    Alert.alert(
-      "Reset preferences?",
-      "This clears your current topics, government choices, and alert preferences, then starts onboarding again.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: onboarding.reset,
-        },
-      ],
-    );
+    Alert.alert(t("settings.resetTitle"), t("settings.resetBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("common.reset"),
+        style: "destructive",
+        onPress: onboarding.reset,
+      },
+    ]);
   };
 
   return (
-    <TabScreen title="Settings" contentStyle={{ gap: 8 }}>
+    <TabScreen title={t("settings.title")} contentStyle={{ gap: 8 }}>
       <View style={s.section}>
         <View
           style={s.identity}
           accessibilityRole="text"
-          accessibilityLabel="Guest account. No account features yet"
+          accessibilityLabel={`${t("settings.guest")}. ${t("settings.guestMeta")}`}
         >
           <SettingsCrest size={56} />
           <View style={{ flex: 1 }}>
-            <Text style={s.profileName}>Guest</Text>
-            <Text style={s.profileMeta}>No account features yet</Text>
+            <Text style={s.profileName}>{t("settings.guest")}</Text>
+            <Text style={s.profileMeta}>{t("settings.guestMeta")}</Text>
           </View>
         </View>
       </View>
 
-      {buildGroups().map((g) => (
+      {buildGroups(t).map((g) => (
         <View key={g.title} style={s.section}>
           <Kicker style={s.sectionKicker}>{g.title}</Kicker>
           {g.items.map((it, i) => (
@@ -129,11 +134,17 @@ export default function SettingsScreen() {
       ))}
 
       <View style={s.section}>
-        <Kicker style={s.sectionKicker}>Preferences</Kicker>
+        <Kicker style={s.sectionKicker}>{t("settings.preferences")}</Kicker>
+        <SettingsRow
+          icon="globe"
+          label={t("settings.language")}
+          sub={languageName}
+          onPress={() => router.push("/settings/language" as Href)}
+        />
         <SettingsRow
           icon="undo"
-          label="Reset preferences"
-          sub="Start onboarding again"
+          label={t("settings.resetPreferences")}
+          sub={t("settings.resetPreferencesSub")}
           danger
           last
           onPress={confirmResetPreferences}
