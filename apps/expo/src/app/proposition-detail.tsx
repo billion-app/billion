@@ -4,6 +4,8 @@ import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { trillionEmphasis } from "@acme/validators";
+
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { MeasureRelationships } from "~/components/ballot-evidence/MeasureRelationships";
 import { webUrl } from "~/components/ballot-evidence/model";
@@ -106,7 +108,14 @@ export default function PropositionDetailScreen() {
             {!measure.consequences && measure.plainTitle && (
               <View style={s.lead}>
                 <Text accessibilityRole="header" style={s.plainTitle}>
-                  {measure.plainTitle}
+                  {trillionEmphasis(measure.plainTitle).map((part, index) => (
+                    <Text
+                      key={index}
+                      style={part.bold ? s.plainTitleBold : undefined}
+                    >
+                      {part.text}
+                    </Text>
+                  ))}
                 </Text>
                 <Text style={s.caption}>
                   AI-written headline · official title below
@@ -448,8 +457,9 @@ const s = StyleSheet.create({
     color: "rgba(255,255,255,0.70)",
   },
   record: { gap: 14 },
+  plainTitleBold: { fontFamily: fontDisplay.bold },
   plainTitle: {
-    fontFamily: fontDisplay.bold,
+    fontFamily: fontDisplay.regular,
     fontSize: 28,
     lineHeight: 33,
     letterSpacing: -0.5,

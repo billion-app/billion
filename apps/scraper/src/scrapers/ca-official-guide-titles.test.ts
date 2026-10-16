@@ -7,6 +7,7 @@ import {
   addPlainTitles,
   buildPlainTitlePrompt,
   cleanPlainTitle,
+  PLAIN_TITLE_PROMPT_VERSION,
 } from "./ca-official-guide-titles.js";
 
 type Measure = OfficialGuidePayload["measures"][number];
@@ -25,9 +26,13 @@ test("unchanged official text reuses the stored title without a model call", asy
   const counts = await addPlainTitles(
     measures,
     [
-      measure("1", { plainTitle: "$11.25B bond for affordable housing" }),
+      measure("1", {
+        plainTitle: "$11.25B bond for affordable housing",
+        plainTitlePrompt: PLAIN_TITLE_PROMPT_VERSION,
+      }),
       measure("2", {
         plainTitle: "Old title",
+        plainTitlePrompt: PLAIN_TITLE_PROMPT_VERSION,
         officialSummary: "A different summary.",
       }),
     ],
@@ -86,4 +91,39 @@ test("the prompt is grounded only in the official title and summary", () => {
   assert.match(prompt, /Official title: AUTHORIZES BONDS/);
   assert.match(prompt, /Official summary: Authorizes \$11\.25 billion/);
   assert.match(prompt, /untrusted data/);
+});
+
+test("a title from an older prompt is rewritten", async () => {
+  const measures = [measure("1")];
+  await addPlainTitles(
+    measures,
+    [measure("1", { plainTitle: "Unmarked old title" })],
+    () => Promise.resolve("**Housing bond** for veterans"),
+  );
+  assert.equal(measures[0]!.plainTitle, "**Housing bond** for veterans");
+  assert.equal(measures[0]!.plainTitlePrompt, PLAIN_TITLE_PROMPT_VERSION);
+});
+
+test("one short bold phrase is kept; bad markup falls back to plain text", () => {
+  assert.equal(
+    cleanPlainTitle("**$11B bond** for affordable housing"),
+    "**$11B bond** for affordable housing",
+  );
+  assert.equal(
+    cleanPlainTitle("**$11B bond** for **affordable housing**"),
+    "$11B bond for affordable housing",
+  );
+  assert.equal(
+    cleanPlainTitle("**Bans new state taxes**"),
+    "Bans new state taxes",
+  );
+  assert.equal(
+    cleanPlainTitle("**$11B bond for housing"),
+    "$11B bond for housing",
+  );
+  // Markers do not count toward the length limit.
+  assert.equal(
+    cleanPlainTitle(`**${"x".repeat(10)}** ${"y".repeat(49)}`)?.length,
+    64,
+  );
 });

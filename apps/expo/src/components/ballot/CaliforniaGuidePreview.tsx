@@ -11,6 +11,8 @@ import {
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { plainTrillionText, trillionEmphasis } from "@acme/validators";
+
 import type { IconName } from "~/components/ui";
 import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
@@ -124,7 +126,7 @@ function MeasureRow({ measure }: { measure: Measure }) {
       accessibilityRole="button"
       accessibilityLabel={[
         `Proposition ${measure.number}`,
-        measure.plainTitle,
+        measure.plainTitle && plainTrillionText(measure.plainTitle),
         `Official title: ${measure.title}`,
       ]
         .filter(Boolean)
@@ -140,7 +142,13 @@ function MeasureRow({ measure }: { measure: Measure }) {
       </View>
       <View style={s.rowCopy}>
         {measure.plainTitle ? (
-          <Text style={s.rowTitle}>{measure.plainTitle}</Text>
+          <Text style={[s.rowTitle, s.headline17]}>
+            {trillionEmphasis(measure.plainTitle).map((part, index) => (
+              <Text key={index} style={part.bold ? s.bold : undefined}>
+                {part.text}
+              </Text>
+            ))}
+          </Text>
         ) : (
           <Text style={s.officialTitle}>{official.subject}</Text>
         )}
@@ -434,6 +442,10 @@ const s = StyleSheet.create({
     lineHeight: 22,
     color: P.inkOnNight,
   },
+  /** Regular weight so the one `**key phrase**` can stand out in bold. */
+  /** Same pairing as Trillion rows: Plex 400 with the key phrase at 700. */
+  headline17: { fontFamily: fontDisplay.regular, fontSize: 17, lineHeight: 23 },
+  bold: { fontFamily: fontDisplay.bold },
   /** Fallback when no generated headline exists: the state's own wording. */
   officialTitle: {
     fontFamily: fontBody.semibold,

@@ -39,10 +39,12 @@ export const officialGuidePayloadSchema = z.object({
         title: text,
         /**
          * Generated short label for list rows, written from `title` and
-         * `officialSummary` only. Readers label it as generated and keep the
+         * `officialSummary` only. May wrap one key phrase in `**`. Readers label it as generated and keep the
          * official title one tap away; it is not part of the guide hash.
          */
         plainTitle: z.string().min(1).max(PLAIN_TITLE_MAX).optional(),
+        /** Prompt version that wrote `plainTitle`; reuse requires a match. */
+        plainTitlePrompt: z.string().max(40).optional(),
         sourceUrl: url,
         officialSummary: text.optional(),
         voteMeaningYes: text.optional(),
