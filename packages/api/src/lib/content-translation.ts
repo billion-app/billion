@@ -28,7 +28,7 @@ const LANGUAGE_NAME: Record<TranslationLanguage, string> = {
 };
 
 /** Bumped when the prompt or segmenting changes, so cached rows refresh. */
-export const TRANSLATION_PROMPT_VERSION = "translate-v1";
+export const TRANSLATION_PROMPT_VERSION = "translate-v2";
 
 type Path = (string | number)[];
 
@@ -125,18 +125,17 @@ export function applySegments<T>(
   if (value === null || value === undefined) return value;
   const copy = structuredClone(value);
   for (const [key, text] of Object.entries(translations)) {
-    const parts = key.split(".");
-    if (parts[0] !== prefix) continue;
+    const [root, ...parts] = key.split(".");
+    const last = parts.pop();
+    if (root !== prefix || last === undefined) continue;
     let node: unknown = copy;
-    for (let i = 1; i < parts.length - 1; i++) {
-      const part = parts[i] as string;
+    for (const part of parts) {
       node = Array.isArray(node)
         ? node[Number(part)]
         : isRecord(node)
           ? node[part]
           : undefined;
     }
-    const last = parts[parts.length - 1] as string;
     if (Array.isArray(node)) {
       const index = Number(last);
       if (typeof node[index] === "string") node[index] = text;
@@ -155,6 +154,27 @@ export interface TranslationSource {
   articleContent: string | null;
   brief: unknown;
   courtBrief: unknown;
+}
+
+export function readerTranslationSource(detail: {
+  title: string;
+  description: string;
+  articleContent: string;
+  originalContent: string;
+  brief?: unknown;
+  courtBrief?: unknown;
+}): TranslationSource {
+  return {
+    title: detail.title,
+    description: detail.description,
+    articleContent:
+      detail.articleContent !== detail.originalContent &&
+      detail.articleContent !== "No content available"
+        ? detail.articleContent
+        : null,
+    brief: detail.brief ?? null,
+    courtBrief: detail.courtBrief ?? null,
+  };
 }
 
 export function sourceSegments(source: TranslationSource): Segment[] {
@@ -176,6 +196,14 @@ export function hashSegments(segments: Segment[]): string {
   return createHash("sha256")
     .update(TRANSLATION_PROMPT_VERSION)
     .update(JSON.stringify(segments))
+    .digest("hex");
+}
+
+/** Client overlays also contain source quotes and metadata from this revision. */
+export function hashReaderSource(source: TranslationSource): string {
+  return createHash("sha256")
+    .update(TRANSLATION_PROMPT_VERSION)
+    .update(JSON.stringify(source))
     .digest("hex");
 }
 
@@ -233,7 +261,23 @@ export async function translateSegments(
   language: TranslationLanguage,
   translateBatch: TranslateBatch,
 ): Promise<Record<string, string>> {
-  const pieces = splitIntoPieces(segments);
+  // Never send source passages to the model. Reject output that loses or
+  // duplicates a placeholder rather than publishing an altered quotation.
+  const protectedText = new Map<string, { key: string; text: string }>();
+  let prefix = "BILLION_KEEP_";
+  while (segments.some(({ text }) => text.includes(prefix))) prefix += "X";
+  const protectedSegments = segments.map(({ key, text }) => ({
+    key,
+    text: text.replace(
+      /```[\s\S]*?```|^[ \t]{0,3}>[^\n]*(?:\n(?![ \t]*\n)[^\n]*)*|!?\[[^\]\n]*\]\([^\n]*?\)|!?\[[^\]\n]*\]\[[^\]\n]*\]|https?:\/\/[^\s<>]+|“[^”]+”|"[^"]+"|‘[^’]+’|(?<!\w)'[^']+'(?!\w)/gm,
+      (original) => {
+        const token = `${prefix}${protectedText.size}_END`;
+        protectedText.set(token, { key, text: original });
+        return token;
+      },
+    ),
+  }));
+  const pieces = splitIntoPieces(protectedSegments);
   const translatedPieces: Piece[] = [];
   for (const batch of batchPieces(pieces)) {
     const texts = batch.map((piece) => piece.text);
@@ -243,6 +287,9 @@ export async function translateSegments(
         `Translation returned ${result.length} items for ${texts.length}`,
       );
     }
+    if (result.some((text) => !text.trim())) {
+      throw new Error("Translation returned an empty passage");
+    }
     batch.forEach((piece, index) =>
       translatedPieces.push({ key: piece.key, text: result[index] ?? "" }),
     );
@@ -251,6 +298,17 @@ export async function translateSegments(
   for (const piece of translatedPieces) {
     out[piece.key] =
       piece.key in out ? `${out[piece.key]}\n\n${piece.text}` : piece.text;
+  }
+  for (const [token, original] of protectedText) {
+    const occurrences = Object.values(out).reduce(
+      (count, text) => count + text.split(token).length - 1,
+      0,
+    );
+    if (occurrences !== 1 || !out[original.key]?.includes(token))
+      throw new Error("Translation altered protected text");
+    for (const [key, text] of Object.entries(out)) {
+      out[key] = text.replace(token, () => original.text);
+    }
   }
   return out;
 }
@@ -278,6 +336,7 @@ Rules:
 - Return {"translations": [...]} with exactly ${texts.length} strings, in the same order.
 - Translate meaning faithfully and neutrally. Do not add, remove, soften, or explain anything.
 - Keep markdown exactly: headings, lists, links, and **bold** markers stay around the matching translated words.
+- Copy every BILLION_KEEP_..._END placeholder exactly once, unchanged, in its original position. These stand for source passages and citations, which must not be translated.
 - Keep URLs, bill numbers, section numbers, dollar amounts, dates, and proper names of people and organizations as written.
 - Keep U.S. legal terms accurate; when a term has no standard equivalent, translate it and leave the English in parentheses once.
 

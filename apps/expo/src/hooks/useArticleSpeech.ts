@@ -73,8 +73,9 @@ export function useArticleSpeech(options: {
   chunks: string[];
   language: AppLanguage;
   contentId?: string;
+  mode: "explainer" | "opinions" | "source";
 }) {
-  const { chunks, language, contentId } = options;
+  const { chunks, language, contentId, mode } = options;
   const available = loadSpeech() !== null;
   const [status, setStatus] = useState<SpeechStatus>("idle");
   const [index, setIndex] = useState(0);
@@ -156,8 +157,7 @@ export function useArticleSpeech(options: {
   }, [halt]);
 
   // New text (mode or language switch) invalidates the current reading.
-  const textKey = `${language}:${chunks.length}:${chunks[0] ?? ""}`;
-  useEffect(() => stop, [textKey, stop]);
+  useEffect(() => stop, [contentId, mode, language, chunks, stop]);
 
   return {
     available: available && chunks.length > 0,

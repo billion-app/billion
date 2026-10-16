@@ -6,7 +6,9 @@ import {
   applySegments,
   BILL_BRIEF_FIELDS,
   collectSegments,
+  hashReaderSource,
   hashSegments,
+  readerTranslationSource,
   sourceSegments,
   splitIntoPieces,
   translateSegments,
@@ -72,14 +74,18 @@ void test("applies translations without touching source fields", async () => {
     await translateSegments(segments, "es", upper),
     "brief",
   );
-  assert.equal(translated.changes[0]?.title, "ROAD MONEY FOR STATES");
+  const [change] = translated.changes;
+  const [original] = brief.changes;
+  const [reading] = translated.reading;
+  assert.ok(change && original && reading);
+  assert.equal(change.title, "ROAD MONEY FOR STATES");
   assert.equal(translated.unknowns[0], "WHO DECIDES THE FORMULA?");
-  assert.deepEqual(translated.changes[0]?.quote, brief.changes[0]?.quote);
-  assert.equal(translated.changes[0]?.imageUri, brief.changes[0]?.imageUri);
-  assert.equal(translated.reading[0]?.title, "A Real Headline");
-  assert.equal(translated.reading[0]?.url, "https://example.com/a");
+  assert.deepEqual(change.quote, original.quote);
+  assert.equal(change.imageUri, original.imageUri);
+  assert.equal(reading.title, "A Real Headline");
+  assert.equal(reading.url, "https://example.com/a");
   // The English input is not mutated.
-  assert.equal(brief.changes[0]?.title, "Road money for states");
+  assert.equal(original.title, "Road money for states");
 });
 
 void test("skips paths that no longer exist instead of creating them", () => {
@@ -128,4 +134,103 @@ void test("hash changes when English text changes", () => {
   const a = hashSegments([{ key: "title", text: "A" }]);
   const b = hashSegments([{ key: "title", text: "B" }]);
   assert.notEqual(a, b);
+});
+
+void test("preserves Markdown quotes, cited headlines, and URLs exactly", async () => {
+  const body =
+    "An explanation.\n\n> shall provide notice\nlazy continuation\n\nSee [A Real Headline](https://example.com/MixedCase). The source says “shall apply”.";
+  const out = await translateSegments(
+    [{ key: "articleContent", text: body }],
+    "es",
+    upper,
+  );
+  assert.equal(
+    out.articleContent,
+    "AN EXPLANATION.\n\n> shall provide notice\nlazy continuation\n\nSEE [A Real Headline](https://example.com/MixedCase). THE SOURCE SAYS “shall apply”.",
+  );
+});
+
+void test("rejects translations that lose protected source passages", async () => {
+  await assert.rejects(
+    translateSegments(
+      [{ key: "brief.deepDive.body", text: "Explanation.\n\n> source quote" }],
+      "zh",
+      (texts) =>
+        Promise.resolve(texts.map(() => "translation without the quote")),
+    ),
+  );
+});
+
+void test("client revision changes with source quotes while prose can reuse its translation", () => {
+  const original = readerTranslationSource({
+    title: "T",
+    description: "D",
+    articleContent: "Explanation",
+    originalContent: "Original",
+    brief,
+  });
+  const changed = structuredClone(original);
+  changed.brief = {
+    ...brief,
+    changes: [
+      {
+        ...brief.changes[0],
+        quote: { text: "a different source passage", locator: "Sec. 4" },
+      },
+    ],
+  };
+  assert.notEqual(hashReaderSource(original), hashReaderSource(changed));
+  assert.equal(
+    hashSegments(sourceSegments(original)),
+    hashSegments(sourceSegments(changed)),
+  );
+  const sourceOnly = readerTranslationSource({
+    title: "T",
+    description: "D",
+    articleContent: "Original",
+    originalContent: "Original",
+  });
+  assert.equal(sourceOnly.articleContent, null);
+});
+
+void test("rejects duplicate source placeholders and empty translations", async () => {
+  await assert.rejects(
+    translateSegments(
+      [{ key: "articleContent", text: "> original" }],
+      "es",
+      (texts) => Promise.resolve(texts.map((text) => text + text)),
+    ),
+  );
+  await assert.rejects(
+    translateSegments([{ key: "title", text: "A title" }], "es", () =>
+      Promise.resolve([" "]),
+    ),
+  );
+});
+
+void test("protected source passages cannot move to another field", async () => {
+  await assert.rejects(
+    translateSegments(
+      [
+        { key: "title", text: "The source says “original wording”" },
+        { key: "articleContent", text: "An explanation" },
+      ],
+      "es",
+      (texts) => Promise.resolve([...texts].reverse()),
+    ),
+  );
+});
+
+void test("wrapped quotations and reference headlines remain verbatim", async () => {
+  const original =
+    "Explanation: “first line\nsecond line”. See [Real Headline][source].";
+  const out = await translateSegments(
+    [{ key: "articleContent", text: original }],
+    "zh",
+    upper,
+  );
+  assert.equal(
+    out.articleContent,
+    "EXPLANATION: “first line\nsecond line”. SEE [Real Headline][source].",
+  );
 });

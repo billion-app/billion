@@ -60,6 +60,7 @@ import { contentImageSource } from "~/utils/editorial-visuals";
 import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 import { findSourcePassage } from "~/utils/source-passage";
 import { buildSpeechChunks } from "~/utils/speech-script";
+import { translationCachePolicy } from "~/utils/translation-cache";
 
 export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
@@ -108,6 +109,7 @@ export default function ArticleDetailScreen() {
     data: content,
     isLoading,
     error,
+    refetch: refetchContent,
   } = useQuery({
     ...trpc.content.getById.queryOptions({
       id: articleId ?? "__missing__",
@@ -150,35 +152,44 @@ export default function ArticleDetailScreen() {
     ...trpc.content.getTranslation.queryOptions({
       id: articleId ?? "__missing__",
       language: translationLanguage ?? "es",
+      sourceHash: content?.translationSourceHash,
       supportsMassachusetts: true,
     }),
     enabled: !!articleId && !!content && !!translationLanguage,
-    staleTime: Infinity,
+    ...translationCachePolicy,
   });
+  useEffect(() => {
+    if (translationQuery.data?.status === "stale") void refetchContent();
+  }, [translationQuery.data, refetchContent]);
   const translation =
     translationLanguage &&
     translationQuery.data?.status === "translated" &&
-    translationQuery.data.language === translationLanguage
+    translationQuery.data.language === translationLanguage &&
+    translationQuery.data.sourceHash === content?.translationSourceHash
       ? translationQuery.data
       : null;
   const translationPending =
     !!translationLanguage && !!content && translationQuery.isFetching;
-  const translationFailed =
-    !!translationLanguage &&
-    !translationPending &&
-    (translationQuery.isError ||
-      translationQuery.data?.status === "unavailable");
 
-  // Listen reads what is on screen, in the language it is written in.
+  const speechLanguage =
+    mode !== "source" &&
+    translation &&
+    (translation.brief ?? translation.courtBrief ?? translation.articleContent)
+      ? translation.language
+      : "en";
+  // Narration follows the selected section, with context for listening.
   const speechChunks = useMemo(() => {
     if (!content) return [];
     if (mode === "source") {
       return buildSpeechChunks({
         title: content.title,
+        mode,
         body: content.originalContent,
       });
     }
     return buildSpeechChunks({
+      mode,
+      language: speechLanguage,
       title: translation?.title ?? content.title,
       description: translation?.description ?? content.description,
       brief:
@@ -189,19 +200,11 @@ export default function ArticleDetailScreen() {
         (content.type === "court_case" ? content.courtBrief : null),
       body: translation?.articleContent ?? content.articleContent,
     });
-  }, [content, translation, mode]);
+  }, [content, translation, mode, speechLanguage]);
   const speech = useArticleSpeech({
     chunks: speechChunks,
-    // A record whose body is source text keeps an English voice even when its
-    // title was translated.
-    language:
-      mode !== "source" &&
-      translation &&
-      (translation.brief ??
-        translation.courtBrief ??
-        translation.articleContent)
-        ? translation.language
-        : "en",
+    language: speechLanguage,
+    mode,
     contentId: content?.id,
   });
   const stopSpeech = speech.stop;
@@ -701,9 +704,9 @@ export default function ArticleDetailScreen() {
                 ? tr("article.sourceStaysEnglish")
                 : translationPending
                   ? tr("article.translating")
-                  : translationFailed
-                    ? tr("article.translationUnavailable")
-                    : tr("article.translated")}
+                  : translation
+                    ? tr("article.translated")
+                    : tr("article.translationUnavailable")}
             </Text>
           </View>
         ) : null}

@@ -40,6 +40,8 @@ import {
 } from "../lib/content-jurisdiction";
 import {
   applySegments,
+  hashReaderSource,
+  readerTranslationSource,
   TRANSLATION_LANGUAGES,
 } from "../lib/content-translation";
 import { getTranslations } from "../lib/content-translation-store";
@@ -1128,7 +1130,15 @@ export const contentRouter = {
         supportsMassachusetts: z.boolean().optional(),
       }),
     )
-    .query(({ input }) => loadContentDetail(input)),
+    .query(async ({ input }) => {
+      const detail = await loadContentDetail(input);
+      return {
+        ...detail,
+        translationSourceHash: hashReaderSource(
+          readerTranslationSource(detail),
+        ),
+      };
+    }),
 
   // Spanish or Chinese reading of the reader payload. Only Billion-authored
   // prose is translated; quotes, original text, and citations stay as
@@ -1138,36 +1148,43 @@ export const contentRouter = {
       z.object({
         id: z.string(),
         language: z.enum(TRANSLATION_LANGUAGES),
+        sourceHash: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
         supportsMassachusetts: z.boolean().optional(),
       }),
     )
     .query(async ({ input }) => {
       const detail = await loadContentDetail(input);
+      const source = readerTranslationSource(detail);
+      const sourceHash = hashReaderSource(source);
+      if (input.sourceHash && input.sourceHash !== sourceHash) {
+        return {
+          status: "stale" as const,
+          language: input.language,
+          sourceHash,
+        };
+      }
       const brief = "brief" in detail ? detail.brief : null;
       const courtBrief = "courtBrief" in detail ? detail.courtBrief : null;
-      // `articleContent` falls back to the source's full text when nothing was
-      // generated; that is source text and stays in English.
-      const explainerIsGenerated =
-        detail.articleContent !== detail.originalContent &&
-        detail.articleContent !== "No content available";
       const translations = await getTranslations({
         contentId: detail.id,
         contentType: detail.type,
         language: input.language,
-        source: {
-          title: detail.title,
-          description: detail.description,
-          articleContent: explainerIsGenerated ? detail.articleContent : null,
-          brief,
-          courtBrief,
-        },
+        source,
       });
       if (!translations) {
-        return { status: "unavailable" as const, language: input.language };
+        return {
+          status: "unavailable" as const,
+          language: input.language,
+          sourceHash,
+        };
       }
       return {
         status: "translated" as const,
         language: input.language,
+        sourceHash,
         title: translations.title ?? detail.title,
         description: translations.description ?? detail.description,
         articleContent: translations.articleContent ?? null,
