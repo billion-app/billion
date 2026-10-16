@@ -126,8 +126,9 @@ function MeasureRow({ measure }: { measure: Measure }) {
       accessibilityRole="button"
       accessibilityLabel={[
         `Proposition ${measure.number}`,
-        measure.plainTitle && plainTrillionText(measure.plainTitle),
-        `Official title: ${measure.title}`,
+        measure.displayTitle
+          ? plainTrillionText(measure.displayTitle)
+          : measure.title,
       ]
         .filter(Boolean)
         .join(". ")}
@@ -141,9 +142,9 @@ function MeasureRow({ measure }: { measure: Measure }) {
         <Text style={s.tileText}>{measure.number}</Text>
       </View>
       <View style={s.rowCopy}>
-        {measure.plainTitle ? (
+        {measure.displayTitle ? (
           <Text style={[s.rowTitle, s.headline17]}>
-            {trillionEmphasis(measure.plainTitle).map((part, index) => (
+            {trillionEmphasis(measure.displayTitle).map((part, index) => (
               <Text key={index} style={part.bold ? s.bold : undefined}>
                 {part.text}
               </Text>
@@ -183,7 +184,7 @@ export function CaliforniaGuidePreview({
   const [tab, setTab] = useState<GuideTab>("candidates");
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.isError ? undefined : query.data;
-  const hasGeneratedTitles = !!guide?.measures.some((m) => m.plainTitle);
+  const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
   return (
     <View style={{ flex: 1, backgroundColor: P.canvas }}>
       <NavHeader title="California guide" onBack={onBack} />
@@ -302,11 +303,11 @@ export function CaliforniaGuidePreview({
               </View>
             ) : (
               <View style={s.list}>
-                {hasGeneratedTitles && (
+                {hasBoldedTitles && (
                   <View style={s.aiNote}>
                     <Icon name="sparkle" size={13} color={P.quiet} />
                     <Text style={s.note}>
-                      AI headlines · tap for the official text
+                      Official titles · bold added by Billion
                     </Text>
                   </View>
                 )}

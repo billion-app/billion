@@ -31,6 +31,7 @@ import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import {
   officialVoteMeaning,
+  splitOfficialTitle,
   submittedGuideArguments,
 } from "~/utils/proposition-explainers";
 
@@ -105,31 +106,35 @@ export default function PropositionDetailScreen() {
                 California · {ballotElectionDate(query.data.electionDate)}
               </Text>
             </View>
-            {!measure.consequences && measure.plainTitle && (
-              <View style={s.lead}>
-                <Text accessibilityRole="header" style={s.plainTitle}>
-                  {trillionEmphasis(measure.plainTitle).map((part, index) => (
-                    <Text
-                      key={index}
-                      style={part.bold ? s.plainTitleBold : undefined}
-                    >
-                      {part.text}
-                    </Text>
-                  ))}
+            {!measure.consequences &&
+              (measure.displayTitle ? (
+                <View style={s.lead}>
+                  <Text accessibilityRole="header" style={s.displayTitle}>
+                    {trillionEmphasis(measure.displayTitle).map(
+                      (part, index) => (
+                        <Text
+                          key={index}
+                          style={part.bold ? s.displayTitleBold : undefined}
+                        >
+                          {part.text}
+                        </Text>
+                      ),
+                    )}
+                  </Text>
+                  <Text style={s.caption}>
+                    {[
+                      splitOfficialTitle(measure.title).kind,
+                      "Official title, bold added by Billion",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                </View>
+              ) : (
+                <Text accessibilityRole="header" style={s.recordTitle}>
+                  {measure.title}
                 </Text>
-                <Text style={s.caption}>
-                  AI-written headline · official title below
-                </Text>
-              </View>
-            )}
-            {!measure.consequences && (
-              <Text
-                accessibilityRole={measure.plainTitle ? undefined : "header"}
-                style={s.recordTitle}
-              >
-                {measure.title}
-              </Text>
-            )}
+              ))}
             {measure.consequences ? (
               <PropositionConsequences analysis={measure.consequences} />
             ) : (
@@ -457,8 +462,8 @@ const s = StyleSheet.create({
     color: "rgba(255,255,255,0.70)",
   },
   record: { gap: 14 },
-  plainTitleBold: { fontFamily: fontDisplay.bold },
-  plainTitle: {
+  displayTitleBold: { fontFamily: fontDisplay.bold },
+  displayTitle: {
     fontFamily: fontDisplay.regular,
     fontSize: 28,
     lineHeight: 33,

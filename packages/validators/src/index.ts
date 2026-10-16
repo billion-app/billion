@@ -19,3 +19,4 @@ export * from "./candidate-research";
 export * from "./candidate-research-collection";
 export * from "./proposition-context";
 export * from "./trillion";
+export * from "./official-title";

@@ -12,7 +12,7 @@ import { CivicApiCache } from "@acme/db/schema";
 import type { Scraper } from "../utils/types.js";
 import { createLogger } from "../utils/log.js";
 import { collectOfficialGuide } from "./ca-official-guide-source.js";
-import { addPlainTitles } from "./ca-official-guide-titles.js";
+import { addDisplayTitles } from "./ca-official-guide-titles.js";
 import { caOfficialGuideConfig } from "./ca-official-guide.config.js";
 import { collectRelationshipDocumentHashes } from "./measure-relationship-source.js";
 
@@ -46,12 +46,12 @@ export const caOfficialGuide: Scraper = {
     const previous = officialGuidePayloadSchema.safeParse(
       previousRow?.responseData,
     );
-    const titles = await addPlainTitles(
+    const titles = await addDisplayTitles(
       payload.measures,
       previous.success ? previous.data.measures : [],
     );
     logger.info(
-      `Short titles: ${titles.reused} reused, ${titles.generated} generated, ${titles.failed} without`,
+      `Display titles: ${titles.reused} reused, ${titles.generated} formatted, ${titles.failed} without`,
     );
     // Stored Trillion graphs publish only while their source documents still match.
     const trillionGraphs = await db
