@@ -7,11 +7,18 @@ import {
   pgTable,
   primaryKey,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-import type { BillBriefRecord, CourtBriefRecord } from "@acme/validators";
+import type {
+  BillBriefRecord,
+  CandidateBrief,
+  CandidateRaceManifest,
+  CandidateResearchCollectionDocument,
+  CourtBriefRecord,
+} from "@acme/validators";
 
 // Custom bytea type for binary data storage
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
@@ -654,6 +661,9 @@ export const PushDevice = pgTable(
     userId: t.text("user_id"),
     breaking: t.boolean().notNull().default(true),
     following: t.boolean().notNull().default(true),
+    executiveOrdersSubscribedAt: t.timestamp("executive_orders_subscribed_at", {
+      withTimezone: true,
+    }),
     brief: t.boolean().notNull().default(false),
     recap: t.boolean().notNull().default(false),
     quietHours: t.boolean("quiet_hours").notNull().default(true),
@@ -748,6 +758,9 @@ export const NotificationOutbox = pgTable(
       table.notBefore,
     ),
     deviceIdx: index("notification_outbox_device_id_idx").on(table.deviceId),
+    executiveUnique: uniqueIndex("notification_outbox_executive_unique")
+      .on(table.deviceId, table.contentId)
+      .where(sql`${table.kind} = 'executive'`),
   }),
 );
 
@@ -1329,3 +1342,110 @@ export const BriefChangeImage = pgTable(
 );
 
 export * from "./auth-schema";
+
+/** Append-only editorial revisions; identity does not depend on normalized ballots. */
+export const CandidateBriefRevision = pgTable(
+  "candidate_brief_revision",
+  (t) => ({
+    id: t.uuid().primaryKey(),
+    identityKey: t.text().notNull(),
+    revisionDigest: t.text().notNull().unique(),
+    document: t.jsonb().$type<CandidateBrief>().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+);
+/** Append-only review/withdrawal audit events. No public mutation procedure. */
+export const CandidateBriefReviewEvent = pgTable(
+  "candidate_brief_review_event",
+  (t) => ({
+    id: t.uuid().primaryKey().defaultRandom(),
+    revisionId: t
+      .uuid()
+      .notNull()
+      .references(() => CandidateBriefRevision.id),
+    actorId: t.text().notNull(),
+    action: t.text().notNull(),
+    policyVersion: t.text().notNull(),
+    reason: t.text().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+);
+
+/** A bounded, source-checked race snapshot. Revocation removes the whole race. */
+export const CandidateRaceRelease = pgTable("candidate_race_release", (t) => ({
+  id: t.uuid().primaryKey(),
+  document: t.jsonb().$type<CandidateRaceManifest>().notNull(),
+  revokedReason: t.text(),
+  createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+}));
+
+/** Complete source snapshots and draft revisions. Access is restricted to editors. */
+export const CandidateResearchCollection = pgTable(
+  "candidate_research_collection",
+  (t) => ({
+    id: t.uuid().primaryKey().defaultRandom(),
+    pilotKey: t.text().notNull(),
+    sourceDigest: t.text().notNull(),
+    document: t.jsonb().$type<CandidateResearchCollectionDocument>().notNull(),
+    checkedAt: t.timestamp({ withTimezone: true }).notNull(),
+    failure: t.text(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+  (table) => [
+    index("candidate_research_collection_pilot_idx").on(
+      table.pilotKey,
+      table.createdAt,
+    ),
+  ],
+);
+
+/** Provisioned by a trusted operator; users cannot grant themselves access. */
+export const CandidateResearchEditor = pgTable(
+  "candidate_research_editor",
+  (t) => ({
+    userId: t.text().primaryKey(),
+    canPublish: t.boolean().default(false).notNull(),
+    grantedBy: t.text().notNull(),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+);
+
+/** Explicit human policy decisions. An empty table leaves publication closed. */
+export const CandidateResearchPolicy = pgTable(
+  "candidate_research_policy",
+  (t) => ({
+    version: t.text().primaryKey(),
+    approvedBy: t.text().notNull(),
+    statement: t.text().notNull(),
+    revokedAt: t.timestamp({ withTimezone: true }),
+    createdAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+  }),
+);
+
+/** Retrieved source material, never generated explanation. Server-only research library. */
+export const ResearchDocument = pgTable(
+  "research_document",
+  (t) => ({
+    id: t.text().primaryKey(),
+    url: t.text().notNull(),
+    title: t.text().notNull(),
+    body: t.text().notNull(),
+    sourceHash: t.text().notNull(),
+    fetchedAt: t.timestamp({ withTimezone: true }).notNull(),
+    expiresAt: t.timestamp({ withTimezone: true }).notNull(),
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      sql`to_tsvector('english', coalesce(title, '') || ' ' || coalesce(body, ''))`,
+    ),
+  }),
+  (table) => [
+    index("research_document_search_idx").using("gin", table.searchVector),
+    index("research_document_url_idx").on(table.url),
+  ],
+).enableRLS();
+
+/** Versioned discovery results and shared research notes; original text stays above. */
+export const ResearchCache = pgTable("research_cache", (t) => ({
+  key: t.text().primaryKey(),
+  value: t.jsonb().notNull().$type<unknown>(),
+  expiresAt: t.timestamp({ withTimezone: true }).notNull(),
+})).enableRLS();

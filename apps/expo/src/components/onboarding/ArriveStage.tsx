@@ -101,7 +101,7 @@ export function ArriveStage({
 
       <Choice
         title="When it moves"
-        hint="Only for things you saved"
+        hint="Saved bills & new executive orders you follow"
         selected={instant}
         onPress={onInstant}
       />

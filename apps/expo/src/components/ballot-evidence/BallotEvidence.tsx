@@ -5,13 +5,17 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 import type { BallotCitation, BallotEvidence, LanguageEvidence } from "./model";
 import { Icon } from "~/components/ui/Icon";
 import {
+  colors,
   DigestHair,
   fontBody,
   fontEditorial,
+  hair,
   DigestPalette as P,
+  planes,
   sp,
 } from "~/styles";
 import { BallotText as Text } from "./BallotText";
+import { freshnessLabel } from "./election-status";
 import {
   ballotStatus,
   citationFieldLabel,
@@ -24,7 +28,9 @@ export function SourceLink({
   label,
   url,
   prominence = "secondary",
+  reader = false,
 }: {
+  reader?: boolean;
   label: string;
   url?: string;
   prominence?: "primary" | "secondary";
@@ -37,7 +43,11 @@ export function SourceLink({
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={label}
-        style={[s.link, prominence === "primary" && s.primary]}
+        style={[
+          s.link,
+          prominence === "primary" && s.primary,
+          reader && s.readerLink,
+        ]}
         onPress={() => {
           void Linking.openURL(href).then(
             () => setFailed(false),
@@ -45,14 +55,16 @@ export function SourceLink({
           );
         }}
       >
-        <Text style={[s.linkText, prominence === "primary" && s.primaryText]}>
+        <Text
+          style={[
+            s.linkText,
+            prominence === "primary" && s.primaryText,
+            reader && s.readerLinkText,
+          ]}
+        >
           {label}
         </Text>
-        <Icon
-          name="external"
-          size={16}
-          color={prominence === "primary" ? P.canvas : P.primary}
-        />
+        <Icon name="external" size={16} color={colors.bill} />
       </Pressable>
       {failed && (
         <Text accessibilityRole="alert" style={s.secondary}>
@@ -65,10 +77,12 @@ export function SourceLink({
 
 export function ElectionOfficeLink({
   prominence = "secondary",
-}: { prominence?: "primary" | "secondary" } = {}) {
+  reader = false,
+}: { prominence?: "primary" | "secondary"; reader?: boolean } = {}) {
   return (
     <SourceLink
       label="Find your election office"
+      reader={reader}
       prominence={prominence}
       url="https://www.usa.gov/state-election-office"
     />
@@ -95,7 +109,7 @@ function Retry({
   );
 }
 
-function Disclosure({
+export function BallotDisclosure({
   title,
   detail,
   children,
@@ -121,6 +135,38 @@ function Disclosure({
         <Icon name={expanded ? "chevD" : "chevR"} size={16} color={P.quiet} />
       </Pressable>
       {expanded && <View style={s.disclosureBody}>{children}</View>}
+    </View>
+  );
+}
+
+/** Routine provenance belongs behind a named disclosure; consequential warnings stay visible. */
+export function BallotProvenanceRows({
+  sourceName,
+  sourceUrl,
+  fetchedAt,
+}: {
+  sourceName?: string;
+  sourceUrl?: string;
+  fetchedAt?: string;
+}) {
+  return (
+    <View style={s.citation}>
+      <Text style={s.secondary}>
+        Ballot source: {sourceName?.trim() ? sourceName.trim() : "unavailable"}
+      </Text>
+      {!!sourceUrl && (
+        <SourceLink label="View ballot data source" url={sourceUrl} />
+      )}
+      <Text style={s.secondary}>
+        {fetchedAt && Number.isFinite(Date.parse(fetchedAt))
+          ? `Retrieved ${new Date(fetchedAt).toLocaleDateString("en-US", { timeZone: "UTC" })}`
+          : "Retrieval date unavailable"}
+      </Text>
+      <Text style={s.secondary}>Human verification date unavailable</Text>
+      <Text style={s.secondary}>
+        Provider listing does not verify eligibility for your address. Confirm
+        your official ballot with your election office.
+      </Text>
     </View>
   );
 }
@@ -219,11 +265,11 @@ export function BallotSources({
       {contentKind === "ai-summary" && <AiSummaryLabel />}
       {citations.length === 0 ? (
         <Text style={[s.secondary, s.unavailable]}>
-          Source information unavailable
+          Content source information unavailable
         </Text>
       ) : (
-        <Disclosure
-          title="Sources"
+        <BallotDisclosure
+          title="Content sources"
           detail={`${citations.length} reference${citations.length === 1 ? "" : "s"}`}
         >
           {citations.map((citation, index) => (
@@ -241,12 +287,21 @@ export function BallotSources({
                 url={citation.sourceUrl}
               />
               <Text style={s.secondary}>{verificationLabel(citation)}</Text>
+              {freshnessLabel(citation) && (
+                <View>
+                  <Text style={s.secondary}>{freshnessLabel(citation)}</Text>
+                  {(citation.conflicting === true ||
+                    citation.staleAfter !== undefined) && (
+                    <ElectionOfficeLink />
+                  )}
+                </View>
+              )}
               {citation.fetchedAt && (
                 <Text style={s.secondary}>Retrieved {citation.fetchedAt}</Text>
               )}
             </View>
           ))}
-        </Disclosure>
+        </BallotDisclosure>
       )}
       {showRecovery &&
         (missing || citations.length === 0) &&
@@ -273,12 +328,12 @@ export function BallotLanguages({
   const verified = verifiedLanguages(items);
   return (
     <View>
-      <Disclosure
+      <BallotDisclosure
         title="Language help"
         detail={
           verified.length
             ? `${verified.length} verified material${verified.length === 1 ? "" : "s"}`
-            : "Availability unknown"
+            : "Materials and assistance"
         }
       >
         <Text style={s.secondary}>
@@ -308,7 +363,7 @@ export function BallotLanguages({
               <ElectionOfficeLink />
             )
           ) : null)}
-      </Disclosure>
+      </BallotDisclosure>
     </View>
   );
 }
@@ -337,6 +392,20 @@ export function BallotDetailEvidence({
 }
 
 const s = StyleSheet.create({
+  readerLink: {
+    minHeight: 48,
+    paddingHorizontal: 13,
+    backgroundColor: planes.surface,
+    borderColor: hair[1],
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  readerLinkText: {
+    fontFamily: fontBody.medium,
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: colors.white,
+  },
   footer: { marginTop: sp[3] },
   unavailable: { paddingVertical: sp[3] },
   actions: { gap: sp[3], marginTop: sp[3] },
@@ -347,17 +416,15 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
   },
   primary: {
-    backgroundColor: P.inkOnNight,
-    paddingHorizontal: sp[5],
+    backgroundColor: planes.slate,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: hair[1],
     borderRadius: 10,
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 44,
   },
-  primaryText: {
-    textDecorationLine: "none",
-    fontFamily: fontBody.semibold,
-    color: P.canvas,
-  },
+  primaryText: { fontFamily: fontBody.semibold, color: colors.white },
   disclosure: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: DigestHair.sectionRule,
@@ -388,24 +455,19 @@ const s = StyleSheet.create({
   },
   link: {
     minHeight: 44,
-    paddingVertical: sp[2],
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "stretch",
     justifyContent: "space-between",
-    paddingHorizontal: sp[4],
-    backgroundColor: P.canvas,
-    borderWidth: 1,
-    borderColor: DigestHair.cardBorder,
-    borderRadius: 10,
-    gap: sp[2],
+    gap: 8,
   },
   linkText: {
-    textDecorationLine: "none",
     flexShrink: 1,
-    fontFamily: fontBody.medium,
-    fontSize: 16,
-    color: P.primary,
+    fontFamily: fontBody.semibold,
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.white,
   },
   recoveryCard: {
     backgroundColor: P.card,

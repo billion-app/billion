@@ -2,7 +2,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import { trackLLMUsage } from "../costs.js";
-import { getStructuredLlm, getTextModelVersion } from "./provider.js";
+import { getGeneratedModelVersion, getStructuredLlm } from "./provider.js";
 
 export const BillInterestAssessmentSchema = z.object({
   interestScore: z.number().int().min(0).max(100),
@@ -63,6 +63,6 @@ export async function generateBillInterest(
   return {
     ...result.output,
     reason: result.output.reason.slice(0, 240),
-    modelVersion: getTextModelVersion(),
+    modelVersion: getGeneratedModelVersion(result),
   };
 }

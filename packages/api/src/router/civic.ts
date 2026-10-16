@@ -5,7 +5,9 @@ import { z } from "zod/v4";
 import { caSosResultsClient } from "../clients/ca-sos-results";
 import { BallotProviderError } from "../clients/democracy-works";
 import { getDevBallot } from "../lib/ballot-dev-mocks";
+import { getBallotAvailability } from "../lib/ballot-launch";
 import {
+  getCachedTrillionGraph,
   getCaliforniaGuide,
   getDistrictElectionResults,
   getElectionResults,
@@ -14,6 +16,13 @@ import {
 } from "../lib/civic";
 import { CivicReadUnavailableError } from "../lib/civic-read-guard";
 import { getElectedOfficials } from "../lib/elected-officials";
+import { publishedMeasureRelationships } from "../lib/measure-relationships";
+import {
+  publicPropositionConsequences,
+  publishedPropositionConsequences,
+} from "../lib/proposition-consequences";
+import { publishedPropositionContext } from "../lib/proposition-context";
+import { publishedTrillionGraph } from "../lib/trillion";
 import { publicProcedure } from "../trpc";
 
 const STATEWIDE_OFFICE = z.enum(
@@ -30,7 +39,48 @@ const DISTRICT_REF = z.object({
 });
 
 export const civicRouter = {
-  getCaliforniaGuide: publicProcedure.query(() => getCaliforniaGuide()),
+  /** Public release state; does not expose credentials or infer provider coverage. */
+  getBallotAvailability: publicProcedure.query(() => getBallotAvailability()),
+  getCaliforniaGuide: publicProcedure.query(async () => {
+    const guide = await getCaliforniaGuide();
+    if (!guide) return null;
+    return {
+      ...guide,
+      measures: guide.measures.map((measure) => ({
+        ...measure,
+        relationships: publishedMeasureRelationships(
+          guide,
+          measure.number,
+          guide.relationshipSources ?? [],
+        ),
+        contextualExplanation: publishedPropositionContext(
+          guide.electionDate,
+          measure,
+        ),
+        consequences: publicPropositionConsequences(
+          publishedPropositionConsequences(guide.electionDate, measure),
+        ),
+      })),
+    };
+  }),
+
+  /**
+   * The Trillion argument graph for one statewide proposition, or null.
+   * Reads never generate; the machine gate in `publishedTrillionGraph` decides.
+   */
+  getTrillion: publicProcedure
+    .input(z.object({ number: z.string().regex(/^\d+[A-Z]?$/) }))
+    .query(async ({ input }) => {
+      const guide = await getCaliforniaGuide();
+      if (!guide) return null;
+      return publishedTrillionGraph(
+        guide,
+        input.number,
+        await getCachedTrillionGraph(guide.electionDate, input.number),
+        guide.relationshipSources ?? [],
+      );
+    }),
+
   /**
    * Get a list of upcoming elections
    */

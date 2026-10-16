@@ -29,7 +29,7 @@ const ballot: BallotResponse = {
   },
   contests: [
     {
-      type: "General",
+      type: "candidate",
       office: "City Council, District 2",
       district: { name: "Example District 2" },
       candidates: [
@@ -112,7 +112,7 @@ export const ballotFixtures = {
     contests: [
       {
         office: "Governor",
-        type: "General",
+        type: "candidate",
         candidates: [
           {
             name: "Alexandra Example-Sullivan",

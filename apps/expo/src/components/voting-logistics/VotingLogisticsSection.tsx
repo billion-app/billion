@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 13,
     letterSpacing: 0.8,
-    color: colors.textSecondary,
+    color: "rgba(255,255,255,0.70)",
   },
   factText: { fontFamily: fontBody.regular, fontSize: 14, lineHeight: 20 },
   body: { fontFamily: fontBody.regular, fontSize: 16, lineHeight: 24 },

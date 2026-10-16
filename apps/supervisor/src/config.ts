@@ -10,6 +10,18 @@ import type { JobDefinition } from "./types.js";
  */
 export const jobs: readonly JobDefinition[] = [
   {
+    id: "candidate-research-twice-daily",
+    description:
+      "Refresh one complete CA-17 research race; revoke on source change or failure",
+    script: "main.js",
+    args: ["candidate-research", "--max-items", "1", "--concurrency", "1"],
+    env: { SCRAPER_MAX_NEW_ITEMS_PER_RUN: "0" },
+    schedule: { kind: "interval", everyMinutes: 720 },
+    priority: 12,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
+  },
+  {
     id: "congress-daily",
     description:
       "Refresh federal bills and retain 90 active days plus category leaders",
@@ -84,7 +96,7 @@ export const jobs: readonly JobDefinition[] = [
   },
   {
     id: "notify-followers-hourly",
-    description: "Send lock-screen alerts for bills a reader asked us to watch",
+    description: "Send opted-in bill updates and new executive-order alerts",
     script: "notify-followers.js",
     args: [],
     schedule: { kind: "interval", everyMinutes: 60 },
@@ -182,6 +194,30 @@ export const jobs: readonly JobDefinition[] = [
     priority: 12,
     idleTimeoutMinutes: 60,
     maxRuntimeHours: 24,
+  },
+  {
+    id: "trillion-propositions-daily",
+    description:
+      "Keep a quote-verified Trillion debate for every proposition in the California guide",
+    script: "trillion-propositions.js",
+    // Unchanged propositions reuse their stored graph without a model call, so
+    // most days this only re-fetches sources. Each new or changed graph costs
+    // two calls; the budget bounds a day when many sources change at once.
+    args: ["--max-model-calls", "48"],
+    env: {
+      CA_GUIDE_ELECTION_DATE: "2026-11-03",
+      // The prompt was tuned on this model through the host's Codex proxy, which
+      // big-mac already uses as its primary provider (SCRAPER_FALLBACK_PRIORITY).
+      SCRAPER_FALLBACK_MODEL: "gpt-6.1-sol",
+      // gpt-6.1-sol rejects the host default of "none".
+      SCRAPER_FALLBACK_REASONING_EFFORT: "medium",
+    },
+    // Before the guide job, which fingerprints the sources of newly stored
+    // graphs so readers can see them the same morning.
+    schedule: { kind: "daily", hour: 4, minute: 0 },
+    priority: 13,
+    idleTimeoutMinutes: 30,
+    maxRuntimeHours: 12,
   },
   {
     id: "ca-official-guide-daily",

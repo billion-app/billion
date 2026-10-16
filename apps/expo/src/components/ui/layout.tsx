@@ -1,7 +1,7 @@
 /**
  * Shared screen layout: kicker, card, search field, tab scaffold.
  */
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import type {
   StyleProp,
   TextInputProps,
@@ -73,12 +73,15 @@ export function TabScreen({
   action,
   children,
   contentStyle,
+  scrollRef,
 }: {
   title?: string;
   headerExtra?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
+  /** Optional navigation anchor for inline disclosures. */
+  scrollRef?: Ref<ScrollView>;
 }) {
   const insets = useSafeAreaInsets();
   // Tab bar chrome (~72) + home indicator + breath — last rows must clear fold.
@@ -102,6 +105,7 @@ export function TabScreen({
         </View>
       )}
       <ScrollView
+        ref={scrollRef}
         style={l.scroll}
         contentContainerStyle={[
           {

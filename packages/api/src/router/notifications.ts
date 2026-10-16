@@ -2,7 +2,7 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { and, desc, eq, inArray, isNotNull, isNull } from "@acme/db";
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
   Bill,
@@ -25,6 +25,7 @@ const TokenInput = z
 const PrefsInput = z.object({
   breaking: z.boolean(),
   following: z.boolean(),
+  executiveOrders: z.boolean().optional(),
   brief: z.boolean(),
   recap: z.boolean(),
   quietHours: z.boolean(),
@@ -73,43 +74,54 @@ export const notificationsRouter = {
         quietEndMin: clampMinutes(input.prefs.quietEndMin),
       };
       const userId = ctx.session?.user.id ?? null;
-      const [existing] = await db
-        .select({ id: PushDevice.id })
-        .from(PushDevice)
-        .where(eq(PushDevice.expoPushToken, input.token))
-        .limit(1);
-
-      let deviceId = existing?.id;
-      if (deviceId) {
-        await db
-          .update(PushDevice)
-          .set({
+      const executiveOrdersSubscribedAt =
+        input.prefs.executiveOrders === undefined
+          ? undefined
+          : input.prefs.executiveOrders
+            ? sql`coalesce(${PushDevice.executiveOrdersSubscribedAt}, now())`
+            : null;
+      const [device] = await db
+        .insert(PushDevice)
+        .values({
+          expoPushToken: input.token,
+          platform: input.platform,
+          timezone: input.timezone,
+          userId,
+          ...prefs,
+          executiveOrdersSubscribedAt: input.prefs.executiveOrders
+            ? new Date()
+            : null,
+        })
+        .onConflictDoUpdate({
+          target: PushDevice.expoPushToken,
+          set: {
             platform: input.platform,
             timezone: input.timezone,
             userId,
             ...prefs,
+            executiveOrdersSubscribedAt,
             lastSeenAt: new Date(),
             disabledAt: null,
-          })
-          .where(eq(PushDevice.id, deviceId));
-      } else {
-        const [created] = await db
-          .insert(PushDevice)
-          .values({
-            expoPushToken: input.token,
-            platform: input.platform,
-            timezone: input.timezone,
-            userId,
-            ...prefs,
-          })
-          .returning({ id: PushDevice.id });
-        deviceId = created?.id;
-      }
+          },
+        })
+        .returning({ id: PushDevice.id });
+      const deviceId = device?.id;
       if (!deviceId) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Could not register this phone.",
         });
+      }
+      if (input.prefs.executiveOrders === false) {
+        await db
+          .delete(NotificationOutbox)
+          .where(
+            and(
+              eq(NotificationOutbox.deviceId, deviceId),
+              eq(NotificationOutbox.kind, "executive"),
+              isNull(NotificationOutbox.sentAt),
+            ),
+          );
       }
 
       await syncFollows(deviceId, input.followIds);

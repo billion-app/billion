@@ -174,8 +174,10 @@ export async function generateCourtBrief(
       }))
     : getStructuredLlmCandidates({ localFirst: true });
   let retryGuidance = "";
+  const exhausted = new Set<LanguageModel>();
   for (let attempt = 0; attempt < 2; attempt++) {
     for (const candidate of candidates) {
+      if (exhausted.has(candidate.model)) continue;
       try {
         const { output, usage } = await generateText({
           model: candidate.model,
@@ -201,8 +203,8 @@ ${evidence}`,
         return validateCourtBrief(output, input, candidate.modelVersion);
       } catch (error) {
         if (rateLimited(error)) {
-          setRateLimitHit(true);
-          throw new AIRateLimitError();
+          exhausted.add(candidate.model);
+          continue;
         }
         const message = error instanceof Error ? error.message : String(error);
         if (
@@ -215,6 +217,10 @@ ${evidence}`,
         );
       }
     }
+  }
+  if (exhausted.size > 0) {
+    setRateLimitHit(true);
+    throw new AIRateLimitError();
   }
   return null;
 }

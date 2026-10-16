@@ -7,6 +7,13 @@ import { getTextLlm } from "./provider.js";
 
 export const CONTENT_IMAGE_STYLE_VERSION = "illustrated-fantasy-v2";
 
+/** Retry old rejections after a provider change without invalidating accepted art. */
+export function contentImageReviewStyleVersion(): string {
+  return process.env.SCRAPER_IMAGE_PROVIDER === "codex"
+    ? `${CONTENT_IMAGE_STYLE_VERSION}:codex:${process.env.SCRAPER_IMAGE_MODEL?.trim() || "gpt-image-2"}`
+    : CONTENT_IMAGE_STYLE_VERSION;
+}
+
 export interface ContentVisualSource {
   title: string;
   description: string;
@@ -24,13 +31,46 @@ const ContentVisualPlanSchema = z.object({
 
 export type ContentVisualPlan = z.infer<typeof ContentVisualPlanSchema>;
 
+export class UnsafeContentVisualPlanError extends Error {
+  constructor(
+    readonly scene: string,
+    readonly planningAttempts = 1,
+  ) {
+    super("Content image visual plan includes written material");
+    this.name = "UnsafeContentVisualPlanError";
+  }
+}
+
 type VisualPlanner = (
   source: ContentVisualSource,
   revisionFeedback?: string,
 ) => Promise<ContentVisualPlan>;
 
-const WRITTEN_MATERIAL =
-  /\b(?:banner|caption|document|headline|label|letter|logo|numeral|poster|reading|screen|sign|text|title|watermark|word|written)\b/i;
+const WRITTEN_OBJECTS =
+  "(?:banners?|captions?|documents?|headlines?|labels?|lettering|letters?|logos?|numbers?|numerals?|posters?|screens?|signage|signs?|symbols?|text|titles?|watermarks?|words?|writing|written)";
+const COPY_ACTION =
+  "(?:(?:that|which)\\s+)?(?:reads?|reading|says?|saying|announces?|announcing|displays?|displaying|bearing|inscribed)";
+const WRITTEN_MATERIAL = new RegExp(
+  `\\b(?:captions?|headlines?|labels?|lettering|letters?|logos?|numbers?|numerals?|symbols?|text|titles?|watermarks?|words?|writing|written)\\b|\\b(?:banners?|posters?|screens?|signs?)\\s+${COPY_ACTION}\\b`,
+  "i",
+);
+// Exclusions are safety instructions, not requests to draw the excluded objects.
+const EXCLUDED_WRITING = new RegExp(
+  `\\b(?:no|without)\\s+(?:(?:any|other|readable|legible|written|visible|printed|display)\\s+)*${WRITTEN_OBJECTS}\\b(?!\\s+${COPY_ACTION}\\b)(?:\\s*(?:,\\s*(?:and|or)?|and|or)\\s*(?:(?:any|other|readable|legible|written|visible|printed|display)\\s+)*${WRITTEN_OBJECTS}\\b(?!\\s+${COPY_ACTION}\\b))*`,
+  "gi",
+);
+
+/** Add policy specifics without copying source-page navigation into the prompt. */
+export function governmentImageDescription(
+  description: string,
+  fullText: string | null,
+): string {
+  const summary = description.trim();
+  if (!summary || !fullText) return summary;
+  const policyStart = fullText.search(/\bSection\s+1\b/i);
+  if (policyStart < 0) return summary;
+  return `${summary.slice(0, 250)}\nOfficial source excerpt:\n${fullText.slice(policyStart, policyStart + 900)}`;
+}
 
 export function contentVisualPlanningPrompt(
   source: ContentVisualSource,
@@ -47,11 +87,11 @@ ${source.title}
 SUMMARY
 ${source.description || "No summary is available."}
 
-Translate the policy into one literal, documentary-like scene, not a poster. Name at least three concrete, recognizable objects or activities that come directly from this story. Keep those details prominent and easy to identify. Use a clear, professional composition with restrained visual metaphor only when it clarifies the real subject.
+Translate the policy into one literal, documentary-like scene, not a poster. Name at least three concrete, recognizable objects or activities that come directly from this story. Keep those details prominent and easy to identify. Make the thing the policy regulates, funds, or protects the main subject; do not make an incidental activity from the background or rationale the focal point. Use a clear, professional composition with restrained visual metaphor only when it clarifies the real subject.
 
 Do not invent policy consequences, dramatic conflict, villains, victims, or generic fantasy scenery. A viewer who has not read the title should still be able to identify the real-world subject from the objects and actions in the illustration.
 
-Write only what an illustrator should draw. Never repeat or paraphrase the title as display copy. Do not include documents, screens, signs, captions, labels, letters, numerals, logos, flags, watermarks, or any other readable material. Avoid podiums, handshakes, conference rooms, and generic people smiling at the camera.${feedback}`;
+Write only what an illustrator should draw. Never repeat or paraphrase the title as display copy. Do not request readable writing, captions, labels, letters, numerals, logos, flags, or watermarks. Books, documents, signs, or screens may appear only when directly relevant to the story, and their surfaces must be blank, wordless, and unmarked. A reading or learning activity can use picture-only materials. Avoid podiums, handshakes, conference rooms, and generic people smiling at the camera.${feedback}`;
 }
 
 export function renderContentImagePrompt(plan: ContentVisualPlan): string {
@@ -60,11 +100,11 @@ export function renderContentImagePrompt(plan: ContentVisualPlan): string {
     .replace(/\s+/g, " ")
     .trim();
   if (!scene) throw new Error("Content image visual plan has no scene");
-  if (WRITTEN_MATERIAL.test(scene)) {
-    throw new Error("Content image visual plan includes written material");
+  if (WRITTEN_MATERIAL.test(scene.replace(EXCLUDED_WRITING, ""))) {
+    throw new UnsafeContentVisualPlanError(scene);
   }
 
-  return `NO WORDS OR TYPOGRAPHY ANYWHERE IN THE IMAGE. Full-bleed professional editorial illustration for a serious news article. Scene: ${scene}. Use a restrained, literal composition with one clear subject, accurate real-world objects, natural proportions, calm lighting, and muted but legible color. Keep the key subject and story-specific details within the central 70 percent of the frame so the 2:1 article-header crop and square browse-card crop remain clear when the app uses centered cover crops. Avoid caricature, sensationalism, invented consequences, partisan symbols, generic corporate stock scenes, fantasy scenery, and magazine-cover styling. Avoid storefronts, billboards, banners, paperwork, books, screens, and every other surface that would normally carry writing. Architecture and objects must be blank and unmarked. No letters, words, numerals, captions, signs, labels, documents, screens, logos, borders, UI, or watermark.`;
+  return `NO WORDS OR TYPOGRAPHY ANYWHERE IN THE IMAGE. Full-bleed professional editorial illustration for a serious news article. Scene: ${scene}. Use a restrained, literal composition with one clear subject, accurate real-world objects, natural proportions, calm lighting, and muted but legible color. Keep each whole key subject and story-specific detail within the central 40 percent of the image width and central 70 percent of its height, with ample breathing room so the 2:1 article-header crop and square browse-card crop remain clear when the app uses centered cover crops. Avoid caricature, sensationalism, invented consequences, partisan symbols, generic corporate stock scenes, fantasy scenery, and magazine-cover styling. Every visible surface must be blank and unmarked; source-related books or documents may contain only nonlinguistic pictures. No readable writing, letters, words, numerals, captions, labels, logos, borders, UI, or watermark.`;
 }
 
 /**
@@ -79,12 +119,28 @@ export async function planRenderedContentImagePrompt(
   revisionFeedback?: string,
 ): Promise<string> {
   let lastError: unknown;
+  let operationalFailure: { error: unknown } | undefined;
+  let feedback = revisionFeedback;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return renderContentImagePrompt(await planner(source, revisionFeedback));
+      return renderContentImagePrompt(await planner(source, feedback));
     } catch (error) {
       lastError = error;
+      if (!(error instanceof UnsafeContentVisualPlanError)) {
+        operationalFailure = { error };
+      }
+      feedback = [
+        revisionFeedback,
+        error instanceof Error ? error.message : String(error),
+        "Describe only drawable objects and activities. Keep the scene under 700 characters.",
+      ]
+        .filter(Boolean)
+        .join(". ");
     }
+  }
+  if (operationalFailure) throw operationalFailure.error;
+  if (lastError instanceof UnsafeContentVisualPlanError) {
+    throw new UnsafeContentVisualPlanError(lastError.scene, maxAttempts);
   }
   throw lastError;
 }

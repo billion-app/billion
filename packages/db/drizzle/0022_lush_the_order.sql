@@ -1,0 +1,2 @@
+ALTER TABLE "push_device" ADD COLUMN "executive_orders_subscribed_at" timestamp with time zone;--> statement-breakpoint
+CREATE UNIQUE INDEX "notification_outbox_executive_unique" ON "notification_outbox" USING btree ("device_id","content_id") WHERE "notification_outbox"."kind" = 'executive';

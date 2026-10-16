@@ -8,6 +8,8 @@ import { Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { colors } from "~/styles";
 
 type IconName =
+  | "bus"
+  | "roadworks"
   | "search"
   | "home"
   | "feed"
@@ -26,6 +28,7 @@ type IconName =
   | "calendar"
   | "scale"
   | "user"
+  | "accessibility"
   | "sliders"
   | "shield"
   | "help"
@@ -53,6 +56,7 @@ type IconName =
   | "arrowUp"
   | "arrowDown"
   | "arrowRight"
+  | "minusCircle"
   | "minus"
   | "quote"
   | "book"
@@ -71,6 +75,8 @@ type IconName =
 type Family = "ion" | "feather" | "fa";
 
 const MAP: Record<IconName, { family: Family; name: string }> = {
+  bus: { family: "ion", name: "bus-outline" },
+  roadworks: { family: "ion", name: "construct-outline" },
   search: { family: "feather", name: "search" },
   home: { family: "feather", name: "home" },
   feed: { family: "feather", name: "layout" },
@@ -89,6 +95,7 @@ const MAP: Record<IconName, { family: Family; name: string }> = {
   calendar: { family: "feather", name: "calendar" },
   scale: { family: "fa", name: "balance-scale" },
   user: { family: "feather", name: "user" },
+  accessibility: { family: "ion", name: "accessibility-outline" },
   sliders: { family: "feather", name: "sliders" },
   shield: { family: "feather", name: "shield" },
   help: { family: "feather", name: "help-circle" },
@@ -116,6 +123,7 @@ const MAP: Record<IconName, { family: Family; name: string }> = {
   arrowUp: { family: "feather", name: "arrow-up" },
   arrowDown: { family: "feather", name: "arrow-down" },
   arrowRight: { family: "feather", name: "arrow-right" },
+  minusCircle: { family: "feather", name: "minus-circle" },
   minus: { family: "feather", name: "minus" },
   quote: { family: "fa", name: "quote-left" },
   book: { family: "feather", name: "book-open" },

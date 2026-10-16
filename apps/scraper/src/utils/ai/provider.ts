@@ -1,12 +1,17 @@
-import type { LanguageModel, LanguageModelMiddleware } from "ai";
+import type { LanguageModel, LanguageModelMiddleware, Tool } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { wrapLanguageModel } from "ai";
+import { customProvider, generateText, wrapLanguageModel } from "ai";
 
 import { createLogger } from "../log.js";
+import { searchSearxng } from "./searxng-search.js";
+import { createTavilySearch, TavilyBudgetError } from "./tavily-search.js";
+
+const searchTavily = createTavilySearch();
 
 const logger = createLogger("ai-provider");
 
@@ -89,6 +94,66 @@ function getLocalTextModel(baseURL: string): V3Model {
   });
 }
 
+/** The proxy owns OAuth credentials; scraper processes only know its URL. */
+export function getResponsesConfig(): LocalLlmConfig | null {
+  const baseURL = process.env.SCRAPER_FALLBACK_BASE_URL?.trim().replace(
+    /\/$/,
+    "",
+  );
+  return baseURL
+    ? {
+        baseURL,
+        model: process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna",
+        apiKey: process.env.SCRAPER_FALLBACK_API_KEY?.trim() || "unused",
+      }
+    : null;
+}
+
+function getFallbackProvider() {
+  const config = getResponsesConfig();
+  return config ? createOpenAI(config) : null;
+}
+
+function getFallbackModel(): V3Model | null {
+  const provider = getFallbackProvider();
+  if (!provider) {
+    if (process.env.SCRAPER_FALLBACK_PRIORITY === "primary")
+      throw new Error(
+        "SCRAPER_FALLBACK_BASE_URL is required when its priority is primary",
+      );
+    return null;
+  }
+  return wrapLanguageModel({
+    model: customProvider({ fallbackProvider: provider }).languageModel(
+      process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna",
+    ),
+    middleware: {
+      specificationVersion: "v3",
+      transformParams: async ({ params }) => ({
+        ...params,
+        // AI SDK v6 adapts model results but forwards input tools unchanged.
+        // The v2 OpenAI provider expects the historical native-tool tag.
+        tools: params.tools?.map((tool) =>
+          tool.type === "provider"
+            ? { ...tool, type: "provider-defined" }
+            : tool,
+        ) as typeof params.tools,
+        providerOptions: {
+          ...params.providerOptions,
+          openai: {
+            store: false,
+            // Models differ in what they accept (gpt-6.1-sol rejects "none"), so
+            // a job pinning another model sets a value that model supports.
+            reasoningEffort:
+              process.env.SCRAPER_FALLBACK_REASONING_EFFORT?.trim() || "none",
+            strictJsonSchema: false,
+          },
+        },
+      }),
+    },
+  });
+}
+
 type V3Model = Parameters<typeof wrapLanguageModel>[0]["model"];
 
 function withFallbacks(
@@ -104,6 +169,7 @@ function withFallbacks(
       try {
         return await doGenerate();
       } catch (primaryError) {
+        if (params.abortSignal?.aborted) throw primaryError;
         let lastError: unknown = primaryError;
         for (const fallback of fallbacks) {
           logger.warn(
@@ -112,6 +178,7 @@ function withFallbacks(
           try {
             return await fallback.model.doGenerate(params);
           } catch (error) {
+            if (params.abortSignal?.aborted) throw error;
             lastError = error;
           }
         }
@@ -122,6 +189,7 @@ function withFallbacks(
       try {
         return await doStream();
       } catch (primaryError) {
+        if (params.abortSignal?.aborted) throw primaryError;
         let lastError: unknown = primaryError;
         for (const fallback of fallbacks) {
           logger.warn(
@@ -130,6 +198,7 @@ function withFallbacks(
           try {
             return await fallback.model.doStream(params);
           } catch (error) {
+            if (params.abortSignal?.aborted) throw error;
             lastError = error;
           }
         }
@@ -168,30 +237,38 @@ export function getTextLlm(): LanguageModel {
   }
 
   const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
-  if (candidates.length > 0) {
-    textLlm = withFallbacks(candidates);
-    return textLlm;
+  if (candidates.length === 0 && deepseekKey) {
+    candidates.push({
+      label: "DeepSeek",
+      model: customProvider({
+        fallbackProvider: createDeepSeek({ apiKey: deepseekKey }),
+      }).languageModel("deepseek-v4-flash"),
+    });
   }
-  if (!deepseekKey) {
-    throw new Error(
-      "LOCAL_LLM_BASE_URL, OPENROUTER_API_KEY, or deprecated DEEPSEEK_API_KEY is required for scraper AI generation",
-    );
+  const fallback = getFallbackModel();
+  if (fallback) {
+    const candidate = { label: "Responses endpoint", model: fallback };
+    if (process.env.SCRAPER_FALLBACK_PRIORITY === "primary")
+      candidates.unshift(candidate);
+    else candidates.push(candidate);
   }
-
-  textLlm = createDeepSeek({ apiKey: deepseekKey })("deepseek-v4-flash");
+  logger.info(
+    `Text provider order: ${candidates.map((candidate) => candidate.label).join(" -> ")}`,
+  );
+  textLlm = withFallbacks(candidates);
   return textLlm;
 }
 
 export interface StructuredLlmCandidate {
-  model: LanguageModel;
+  model: V3Model;
   modelVersion: string;
 }
 
 /**
  * Return structured-output providers separately so callers can retry another
  * provider without losing the model provenance stored with generated content.
- * Hosted providers retain their historical priority unless a caller has
- * explicitly validated its workload against the configured local model.
+ * A primary Responses endpoint leads both orders; otherwise hosted providers
+ * lead unless the caller explicitly requests the local model first.
  */
 export function getStructuredLlmCandidates(options?: {
   localFirst?: boolean;
@@ -213,7 +290,9 @@ export function getStructuredLlmCandidates(options?: {
   const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
   const deepseek: StructuredLlmCandidate | null = deepseekKey
     ? {
-        model: createDeepSeek({ apiKey: deepseekKey })("deepseek-v4-flash"),
+        model: customProvider({
+          fallbackProvider: createDeepSeek({ apiKey: deepseekKey }),
+        }).languageModel("deepseek-v4-flash"),
         modelVersion: "deepseek:deepseek-v4-flash",
       }
     : null;
@@ -223,16 +302,57 @@ export function getStructuredLlmCandidates(options?: {
   const configured = candidates.filter(
     (candidate): candidate is StructuredLlmCandidate => candidate !== null,
   );
+  const fallback = getFallbackModel();
+  if (fallback) {
+    const candidate = {
+      model: fallback,
+      modelVersion: `fallback:${process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna"}`,
+    };
+    if (process.env.SCRAPER_FALLBACK_PRIORITY === "primary")
+      configured.unshift(candidate);
+    else configured.push(candidate);
+  }
   if (configured.length === 0) {
     throw new Error("No scraper text provider is configured");
   }
   return configured;
 }
 
-/** Resolve the historical hosted-first structured-output default. */
+/** Resolve structured output with the configured Responses priority. */
 export function getStructuredLlm(): LanguageModel {
-  structuredLlm ??= getStructuredLlmCandidates()[0]!.model;
+  structuredLlm ??= withFallbacks(
+    getStructuredLlmCandidates().map((candidate) => ({
+      label: candidate.modelVersion,
+      model: wrapLanguageModel({
+        model: candidate.model,
+        middleware: {
+          specificationVersion: "v3",
+          wrapGenerate: async ({ doGenerate }) => {
+            const result = await doGenerate();
+            logger.info(`Structured generation used ${candidate.modelVersion}`);
+            return {
+              ...result,
+              providerMetadata: {
+                ...result.providerMetadata,
+                scraper: { modelVersion: candidate.modelVersion },
+              },
+            };
+          },
+        },
+      }),
+    })),
+  );
   return structuredLlm;
+}
+
+/** Successful structured provider, including an outage alternative. */
+export function getGeneratedModelVersion(result: {
+  providerMetadata?: Record<string, Record<string, unknown>>;
+}): string {
+  const version = result.providerMetadata?.scraper?.modelVersion;
+  if (typeof version !== "string")
+    throw new Error("Structured generation did not report its provider");
+  return version;
 }
 
 /**
@@ -251,7 +371,12 @@ export function getTextModelVersion(): string {
   ]
     .filter(Boolean)
     .join(" -> ");
-  return modernProviders || "deepseek:deepseek-v4-flash";
+  // An outage fallback does not invalidate existing lens research caches.
+  if (modernProviders) return modernProviders;
+  if (process.env.DEEPSEEK_API_KEY?.trim()) return "deepseek:deepseek-v4-flash";
+  if (getFallbackProvider())
+    return `fallback:${process.env.SCRAPER_FALLBACK_MODEL?.trim() || "gpt-6-luna"}`;
+  return "deepseek:deepseek-v4-flash";
 }
 
 /** Actual model selected for structured output, independent of the lens cache key. */
@@ -306,6 +431,70 @@ export function getWebSearchTool() {
   });
   return provider.tools.webSearch_20250305({ maxUses: 5 });
 }
+/** Retry search with the fallback's own native tool so citations survive. */
+export async function generateWebSearch(query: string) {
+  if (process.env.SCRAPER_SEARCH_PROVIDER === "searxng") {
+    const baseUrl = process.env.SCRAPER_SEARXNG_BASE_URL?.trim();
+    if (!baseUrl)
+      throw new Error(
+        "SCRAPER_SEARXNG_BASE_URL is required when SCRAPER_SEARCH_PROVIDER=searxng",
+      );
+    return searchSearxng(query, baseUrl);
+  }
+  const tavilyKey = process.env.TAVILY_API_KEY?.trim();
+  if (process.env.SCRAPER_SEARCH_PROVIDER === "tavily") {
+    if (!tavilyKey)
+      throw new Error(
+        "TAVILY_API_KEY is required when SCRAPER_SEARCH_PROVIDER=tavily",
+      );
+    // Fail closed on exhausted free credits instead of silently buying search.
+    return searchTavily(query, tavilyKey);
+  }
+  const prompt = `Search the web and briefly summarize what you find for: ${query}`;
+  try {
+    return await generateText({
+      model: getSearchModel(),
+      tools: { web_search: getWebSearchTool() as Tool<any, any> },
+      prompt,
+      ...(getFallbackProvider() || tavilyKey ? { maxRetries: 0 } : {}),
+    });
+  } catch (error) {
+    if (tavilyKey) {
+      logger.warn("Primary web search failed; trying Tavily");
+      try {
+        return await searchTavily(query, tavilyKey);
+      } catch (tavilyError) {
+        if (tavilyError instanceof TavilyBudgetError) throw tavilyError;
+        error = tavilyError;
+        logger.warn("Tavily search failed; trying configured fallback");
+      }
+    }
+    const provider = getFallbackProvider();
+    const model = getFallbackModel();
+    if (!provider || !model) throw error;
+    logger.warn("Primary web search failed; trying configured fallback");
+    const result = await generateText({
+      model,
+      tools: {
+        // OpenAI SDK v2 names this discriminator provider-defined; AI SDK v6
+        // accepts provider; model middleware maps it back at the boundary.
+        web_search: {
+          ...provider.tools.webSearchPreview({ searchContextSize: "low" }),
+          type: "provider",
+        } as Tool<any, any>,
+      },
+      prompt,
+      maxRetries: 0,
+    });
+    if (!result.sources.some((source) => source.sourceType === "url")) {
+      throw new Error(
+        "Configured fallback returned no web-search citations; the endpoint may not support native search",
+      );
+    }
+    return result;
+  }
+}
+
 // Multimodal (PDF/vision) model for document extraction — the default text
 // model is text-only.
 // Gated on the API key so the scraper still runs without it (callers that need

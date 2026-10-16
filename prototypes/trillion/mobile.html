@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <title>Prop 40 Trillion on iPhone</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+  />
+  <!-- The reader itself is shared with the Expo app: apps/expo/src/components/trillion/dom.
+       Rebuild reader.bundle.js and reader.css with `node prototypes/trillion/build.mjs`. -->
+  <link rel="stylesheet" href="reader.css" />
+  <style>
+    /* Phone frame: the mockup renders the Expo screen at iPhone size. */
+    html,
+    body {
+      background: #070a16;
+    }
+    .stage {
+      min-height: 100%;
+      display: flex;
+      gap: 48px;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      flex-wrap: wrap;
+    }
+    .phone {
+      position: relative;
+      width: 390px;
+      height: 844px;
+      flex: none;
+      border-radius: 54px;
+      overflow: hidden;
+      background: var(--navy);
+      border: 11px solid #02030a;
+      box-shadow:
+        0 0 0 2px #2a3150,
+        0 30px 80px rgba(0, 0, 0, 0.55);
+      transform: translateZ(0);
+    }
+    .phone .app {
+      height: 100%;
+    }
+    .status {
+      position: absolute;
+      z-index: 40;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      padding: 16px 30px 0;
+      display: flex;
+      justify-content: space-between;
+      font: 600 15px/1 var(--body);
+      color: var(--text);
+      /* Opaque like an iOS navigation bar, so scrolled content never shows behind the clock. */
+      background: var(--navy);
+      pointer-events: none;
+    }
+    .island {
+      position: absolute;
+      z-index: 41;
+      top: 11px;
+      left: 50%;
+      width: 120px;
+      height: 34px;
+      margin-left: -60px;
+      border-radius: 20px;
+      background: #000;
+      pointer-events: none;
+    }
+    .home-bar {
+      position: absolute;
+      z-index: 41;
+      bottom: 8px;
+      left: 50%;
+      width: 134px;
+      height: 5px;
+      margin-left: -67px;
+      border-radius: 3px;
+      background: rgba(247, 244, 238, 0.85);
+      pointer-events: none;
+    }
+    .phone .reader {
+      padding-top: 50px;
+      padding-bottom: 40px;
+    }
+    .phone .top {
+      top: 0;
+      grid-template-columns: auto 1fr;
+    }
+    .phone .map.full {
+      padding-top: 50px;
+    }
+    .phone .map.full .map-full-head {
+      top: 50px;
+    }
+    .phone .map.full #cy {
+      top: 106px;
+    }
+    .phone .scrim {
+      position: absolute;
+      align-items: flex-end;
+    }
+    .phone .sheet {
+      border-radius: 20px 20px 0 0;
+      border-bottom: 0;
+    }
+    .ai-banner {
+      margin-inline: -16px;
+      padding: 9px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      background: rgba(244, 201, 93, 0.1);
+      border-bottom: 1px solid rgba(244, 201, 93, 0.25);
+      font-size: 12.5px;
+      line-height: 1.4;
+      color: rgba(247, 244, 238, 0.86);
+    }
+    .ai-banner b {
+      color: var(--rel-question);
+    }
+    .ai {
+      font: 700 10.5px/1.4 var(--body);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #16131a;
+      background: var(--rel-question);
+      padding: 1px 6px;
+      border-radius: 5px;
+    }
+    .notes {
+      width: 340px;
+      max-width: 100%;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .notes h1 {
+      font: 700 26px/1.2 var(--display);
+      margin: 0 0 6px;
+    }
+    .notes p {
+      margin: 0 0 14px;
+      color: rgba(247, 244, 238, 0.78);
+    }
+    .notes h2 {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--spark);
+      margin: 22px 0 8px;
+    }
+    .jumps {
+      display: grid;
+      gap: 8px;
+    }
+    .jumps button {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--hair3);
+      background: var(--slate);
+      font-weight: 600;
+    }
+    .jumps button:hover {
+      background: var(--hi);
+    }
+    .notes ul {
+      margin: 0;
+      padding-left: 18px;
+      color: rgba(247, 244, 238, 0.78);
+    }
+    @media (max-width: 480px) {
+      .stage {
+        padding: 0;
+        display: block;
+      }
+      .phone {
+        width: 100%;
+        height: 100vh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .status,
+      .island,
+      .home-bar {
+        display: none;
+      }
+      .phone .reader {
+        padding-top: 0;
+      }
+      .notes {
+        padding: 24px 16px;
+      }
+    }
+    .jumps button[aria-pressed="true"] {
+      border-color: var(--spark);
+      background: var(--hi);
+    }
+    .measure-note {
+      margin-top: 10px !important;
+      font-size: 13px;
+    }
+    #trillion {
+      height: 100%;
+    }
+  </style>
+  <div class="stage">
+    <div class="phone">
+      <div class="status" aria-hidden="true">
+        <span>9:41</span><span>5G ▮▮▮</span>
+      </div>
+      <div class="island" aria-hidden="true"></div>
+      <div id="trillion"></div>
+      <div class="home-bar" aria-hidden="true"></div>
+    </div>
+    <aside class="notes">
+      <h1>Trillion on iPhone</h1>
+      <p>
+        How the Expo screen looks and behaves. It runs the same reader code as
+        the app. Every quote in every graph is checked against the official
+        guide. Tap around inside the phone.
+      </p>
+      <h2>Measure</h2>
+      <div class="jumps" id="measures">
+        <button type="button" data-measure="40" aria-pressed="true">
+          Prop 40 · hand-built pilot
+        </button>
+        <button type="button" data-measure="41" aria-pressed="false">
+          Prop 41 · AI-generated (prompt v7)
+        </button>
+        <button type="button" data-measure="42" aria-pressed="false">
+          Prop 42 · AI-generated (prompt v7)
+        </button>
+      </div>
+      <p class="measure-note" id="measure-note">
+        Assembled from the design prototype and edited by hand.
+      </p>
+      <h2 id="jump-head">Jump to</h2>
+      <div class="jumps" id="jumps">
+        <button type="button" data-jump="main">Main case</button>
+        <button type="button" data-jump="disagree">
+          Where people disagree
+        </button>
+        <button type="button" data-jump="crux">A disputed question</button>
+        <button type="button" data-jump="provision">
+          A provision with its quote
+        </button>
+        <button type="button" data-jump="link">A link's own page</button>
+        <button type="button" data-jump="map">Full-screen map</button>
+      </div>
+      <h2>Differences from the design prototype</h2>
+      <ul>
+        <li>
+          No made-up reader contributions and no Add button. Contributions
+          arrive with accounts.
+        </li>
+        <li>
+          A "Written by Billion AI" notice, matching the bill screen, stays
+          until a person verifies the graph.
+        </li>
+        <li>Every quote opens its official source.</li>
+      </ul>
+    </aside>
+  </div>
+
+  <script src="prop40-pilot.js"></script>
+  <script src="prop41-generated.js"></script>
+  <script src="prop42-generated.js"></script>
+  <script src="reader.bundle.js"></script>
+  <script>
+    const graphs = {
+      40: window.TRILLION_PILOT,
+      ...window.TRILLION_GENERATED,
+    };
+    const notes = {
+      40: "Assembled from the design prototype and edited by hand.",
+      41: "Drafted in one model call (gpt-6.1-sol) from the official guide, then checked: every quote verified, nothing edited by hand.",
+      42: "Drafted in one model call (gpt-6.1-sol) from the official guide, then checked: every quote verified, nothing edited by hand.",
+    };
+    const root = document.getElementById("trillion");
+    // Mentions of other propositions switch to their graph when the mockup has one.
+    const options = {
+      onOpenMeasure: (n) => {
+        const button = document.querySelector(`[data-measure="${n}"]`);
+        if (graphs[n] && button?.closest("#measures")) button.click();
+        else
+          window.open(
+            `https://voterguide.sos.ca.gov/propositions/${n}/`,
+            "_blank",
+            "noopener",
+          );
+      },
+    };
+    let reader = TrillionReader.mountTrillionReader(root, graphs[40], options);
+    document.getElementById("measures").addEventListener("click", (ev) => {
+      const b = ev.target.closest("[data-measure]");
+      if (!b) return;
+      const n = b.dataset.measure;
+      for (const x of document.querySelectorAll("[data-measure]"))
+        x.setAttribute("aria-pressed", String(x === b));
+      document.getElementById("measure-note").textContent = notes[n];
+      reader = TrillionReader.mountTrillionReader(root, graphs[n], options);
+      // The jump shortcuts point at specific Prop 40 cards.
+      document.getElementById("jumps").hidden = n !== "40";
+      document.getElementById("jump-head").hidden = n !== "40";
+    });
+    // Mockup controls: jump straight to the states worth reviewing.
+    document.getElementById("jumps").addEventListener("click", (ev) => {
+      const j = ev.target.closest("[data-jump]")?.dataset.jump;
+      if (j) reader.jump(j);
+    });
+  </script>
+</html>

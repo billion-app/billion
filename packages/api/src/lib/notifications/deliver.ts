@@ -7,6 +7,7 @@ import {
   isNull,
   lte,
   ne,
+  notExists,
   or,
   sql,
 } from "@acme/db";
@@ -14,11 +15,16 @@ import { db } from "@acme/db/client";
 import {
   Bill,
   DeviceFollow,
+  GovernmentContent,
   NotificationOutbox,
   PushDevice,
 } from "@acme/db/schema";
 
-import { followAlertCopy, TEST_ALERT_COPY } from "./copy";
+import {
+  executiveOrderAlertCopy,
+  followAlertCopy,
+  TEST_ALERT_COPY,
+} from "./copy";
 import {
   expoPushMessage,
   getExpoPushReceipts,
@@ -109,6 +115,68 @@ export async function enqueueFollowMoves(
   });
 }
 
+/** Discover only orders published since this subscription, never the archive. */
+export async function enqueueExecutiveOrders(now = new Date()) {
+  return db.transaction(async (tx) => {
+    const due = await tx
+      .select({
+        deviceId: PushDevice.id,
+        orderId: GovernmentContent.id,
+        title: GovernmentContent.title,
+        quietHours: PushDevice.quietHours,
+        quietStartMin: PushDevice.quietStartMin,
+        quietEndMin: PushDevice.quietEndMin,
+        timezone: PushDevice.timezone,
+      })
+      .from(PushDevice)
+      .innerJoin(
+        GovernmentContent,
+        and(
+          eq(GovernmentContent.type, "Executive Order"),
+          sql`${GovernmentContent.createdAt} AT TIME ZONE 'UTC' >= ${PushDevice.executiveOrdersSubscribedAt}`,
+          // Sources often provide only a publication date (UTC midnight).
+          sql`${GovernmentContent.publishedDate} >= date_trunc('day', ${PushDevice.executiveOrdersSubscribedAt} AT TIME ZONE 'UTC')`,
+          lte(GovernmentContent.publishedDate, now),
+        ),
+      )
+      .where(
+        and(
+          isNull(PushDevice.disabledAt),
+          isNotNull(PushDevice.executiveOrdersSubscribedAt),
+          notExists(
+            tx
+              .select({ id: NotificationOutbox.id })
+              .from(NotificationOutbox)
+              .where(
+                and(
+                  eq(NotificationOutbox.deviceId, PushDevice.id),
+                  eq(NotificationOutbox.contentId, GovernmentContent.id),
+                  eq(NotificationOutbox.kind, "executive"),
+                ),
+              ),
+          ),
+        ),
+      )
+      .orderBy(GovernmentContent.createdAt, GovernmentContent.id, PushDevice.id)
+      .limit(1000)
+      .for("update", { of: PushDevice, skipLocked: true });
+    if (!due.length) return { enqueued: 0 };
+    const inserted = await tx
+      .insert(NotificationOutbox)
+      .values(
+        due.map((row) => ({
+          deviceId: row.deviceId,
+          contentId: row.orderId,
+          ...executiveOrderAlertCopy({ id: row.orderId, title: row.title }),
+          notBefore: nextDeliveryAt(now, row),
+        })),
+      )
+      .onConflictDoNothing()
+      .returning({ id: NotificationOutbox.id });
+    return { enqueued: inserted.length };
+  });
+}
+
 export async function enqueueTestAlert(
   deviceId: string,
   bill?: {
@@ -162,6 +230,13 @@ export async function drainOutbox(
           isNull(PushDevice.disabledAt),
           lte(NotificationOutbox.notBefore, now),
           outboxId ? eq(NotificationOutbox.id, outboxId) : undefined,
+          or(
+            ne(NotificationOutbox.kind, "executive"),
+            and(
+              isNotNull(PushDevice.executiveOrdersSubscribedAt),
+              sql`${NotificationOutbox.createdAt} >= ${PushDevice.executiveOrdersSubscribedAt}`,
+            ),
+          ),
           or(
             ne(NotificationOutbox.kind, "follow"),
             and(
@@ -224,6 +299,8 @@ export async function drainOutbox(
           .update(NotificationOutbox)
           .set({
             error: ticket?.message ?? "Expo push returned no ticket",
+            // Defer rejected tickets so this run can progress to other rows.
+            notBefore: new Date(now.getTime() + 15 * 60_000),
           })
           .where(eq(NotificationOutbox.id, row.id));
         continue;
@@ -255,8 +332,17 @@ export async function runFollowNotifications(
 ): Promise<FollowNotificationRun & { receipts: ReceiptCheckRun }> {
   const receipts = await checkPushReceipts(now);
   const { enqueued } = await enqueueFollowMoves(now);
-  const drained = await drainOutbox(now);
-  return { enqueued, ...drained, receipts };
+  const executive = await enqueueExecutiveOrders(now);
+  const drained = { sent: 0, failed: 0, unregistered: 0 };
+  // Bound each run while allowing a broadcast to span multiple Expo requests.
+  for (let batch = 0; batch < 20; batch++) {
+    const result = await drainOutbox(now);
+    drained.sent += result.sent;
+    drained.failed += result.failed;
+    drained.unregistered += result.unregistered;
+    if (result.sent + result.failed < 100) break;
+  }
+  return { enqueued: enqueued + executive.enqueued, ...drained, receipts };
 }
 
 /** Send only the newly queued test; leave quiet-hours backlog untouched. */

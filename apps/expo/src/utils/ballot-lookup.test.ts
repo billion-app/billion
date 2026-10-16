@@ -240,3 +240,22 @@ void test("candidate navigation carries vetted election context", () => {
   assert.equal(route.params.electionDate, "2026-11-03");
   assert.equal(route.params.districtId, "ocd-division/country:us/state:ca");
 });
+
+void test("provider contest kind never becomes stage and provenance survives navigation", () => {
+  const contest = { type: "candidate", office: "City Council" };
+  assert.equal(ballotContestRoute(contest).params.electionStage, "");
+  const route = ballotContestRoute(contest, {
+    state: "NC",
+    electionDate: "2026-11-03",
+    electionStage: "General",
+    provider: {
+      name: "democracy_works",
+      fetchedAt: "2026-10-01",
+      sourceUrl: "https://example.org",
+    },
+  });
+  assert.equal(route.params.state, "NC");
+  assert.equal(route.params.electionStage, "General");
+  assert.equal(route.params.ballotSourceName, "Democracy Works");
+  assert.equal(route.params.ballotFetchedAt, "2026-10-01");
+});

@@ -42,6 +42,7 @@ import {
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 import { getBaseUrl } from "~/utils/base-url";
+import { notificationChoicesForOnboarding } from "~/utils/notification-prefs";
 import { MIN_SECTORS, SECTOR_SHORT, toggleIn } from "~/utils/onboarding-store";
 import { ArriveStage } from "./ArriveStage";
 import { Orb } from "./Orb";
@@ -168,7 +169,7 @@ export function OnboardingFlow() {
       const sec = next?.sectors ?? sectors;
       const inst = next?.instant ?? instant;
       const eve = next?.evening ?? evening;
-      updateNotificationPrefs({ following: inst, recap: eve });
+      updateNotificationPrefs(notificationChoicesForOnboarding(v, inst, eve));
       onboarding.update({
         completed: true,
         deferredClaim: deferred,

@@ -155,6 +155,41 @@
       "when": 1789949995361,
       "tag": "0021_lucky_talon",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790746251846,
+      "tag": "0022_lush_the_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790967340581,
+      "tag": "0023_classy_firebird",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791178137048,
+      "tag": "0024_blushing_sharon_ventura",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791181434788,
+      "tag": "0025_tranquil_ego",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791438781254,
+      "tag": "0026_little_lizard",
+      "breakpoints": true
     }
   ]
 }

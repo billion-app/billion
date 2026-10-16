@@ -270,3 +270,32 @@ void test("rate limiting defers the item and stops further provider calls", asyn
     setRateLimitHit(false);
   }
 });
+
+void test("rate-limited court provider falls through and records fallback provenance", async () => {
+  const limited = new MockLanguageModelV3({
+    doGenerate: async () => {
+      throw new APICallError({
+        message: "rate limit",
+        url: "https://example.org",
+        requestBodyValues: {},
+        statusCode: 429,
+        isRetryable: false,
+      });
+    },
+  });
+  const valid = fixtureModel([emergencyOutput], {
+    provider: "fallback",
+    modelId: "gpt-6-luna",
+  });
+  try {
+    const brief = await generateCourtBrief(emergency, [limited, valid]);
+    assert.equal(brief?.modelVersion, "fallback:gpt-6-luna");
+    assert.equal(limited.doGenerateCalls.length, 1);
+    assert.equal(valid.doGenerateCalls.length, 1);
+    assert.ok(
+      await generateCourtBrief(emergency, fixtureModel([emergencyOutput])),
+    );
+  } finally {
+    setRateLimitHit(false);
+  }
+});

@@ -5,6 +5,7 @@ import type { LensData } from "../_components/lens-panel";
 import type { Sponsor } from "../_components/sponsor-card";
 import type { TimelineAction } from "../_components/timeline";
 import type { ReaderContent } from "./reader-content";
+import { ArticleDates } from "~/app/_components/article-dates";
 import {
   displayBillNumber,
   presentType,
@@ -172,6 +173,11 @@ export default async function ReaderPage({ params }: PageProps) {
           >
             {content.title}
           </h1>
+          <ArticleDates
+            createdAt={content.createdAt}
+            updatedAt={content.updatedAt}
+          />
+
           {content.description ? (
             <p className="text-quiet mb-5 font-sans text-[16px] leading-[24px] md:text-[17.5px] md:leading-[27px]">
               {markdownToPlainText(content.description)}

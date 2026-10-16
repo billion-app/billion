@@ -40,6 +40,28 @@ function decreaseBackoff(host: string): void {
   }
 }
 
+const RETRIABLE_NETWORK_CODES = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "EAI_AGAIN",
+  "UND_ERR_SOCKET",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+]);
+
+function networkErrorCode(error: unknown): string | undefined {
+  const seen = new Set<unknown>();
+  while (error && typeof error === "object" && !seen.has(error)) {
+    seen.add(error);
+    const { code, cause } = error as { code?: unknown; cause?: unknown };
+    if (typeof code === "string" && RETRIABLE_NETWORK_CODES.has(code))
+      return code;
+    error = cause;
+  }
+  return undefined;
+}
+
 export async function fetchWithRetry(
   url: string,
   options: FetchWithRetryOptions = {},
@@ -56,7 +78,9 @@ export async function fetchWithRetry(
     try {
       const res = await fetch(url, {
         ...fetchOptions,
-        signal: controller.signal,
+        signal: fetchOptions.signal
+          ? AbortSignal.any([controller.signal, fetchOptions.signal])
+          : controller.signal,
       });
 
       if (res.ok) {
@@ -84,25 +108,33 @@ export async function fetchWithRetry(
           }
         }
 
-        logger.warn(`HTTP ${res.status} from ${host}, retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`);
+        logger.warn(
+          `HTTP ${res.status} from ${host}, retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`,
+        );
         await new Promise((r) => setTimeout(r, delayMs));
         continue;
       }
 
       throw new Error(`HTTP ${res.status}: ${url}`);
-    } catch (err: any) {
-      if (err?.name === "AbortError") {
+    } catch (err: unknown) {
+      if (fetchOptions.signal?.aborted) throw err;
+      if (controller.signal.aborted) {
         if (attempt < maxRetries) {
           const delayMs = 1000 * Math.pow(2, attempt);
-          logger.warn(`Timeout for ${host}, retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`);
+          logger.warn(
+            `Timeout for ${host}, retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`,
+          );
           await new Promise((r) => setTimeout(r, delayMs));
           continue;
         }
         throw new Error(`Request timed out after ${timeoutMs}ms: ${url}`);
       }
-      if (attempt < maxRetries && (err?.code === "ECONNRESET" || err?.code === "ECONNREFUSED")) {
+      const code = networkErrorCode(err);
+      if (attempt < maxRetries && code) {
         const delayMs = 1000 * Math.pow(2, attempt);
-        logger.warn(`${err.code} from ${host}, retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`);
+        logger.warn(
+          `${code} from ${host}, retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})`,
+        );
         await new Promise((r) => setTimeout(r, delayMs));
         continue;
       }

@@ -439,6 +439,29 @@ export default function ArticleDetailScreen() {
           {content.title}
         </Text>
 
+        {/* Older API deployments may omit dates while the OTA rolls out. */}
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
+        {content.createdAt && content.updatedAt ? (
+          <View style={{ gap: 4, marginBottom: 16 }} testID="article-dates">
+            <Text style={s.articleDate}>
+              Created{" "}
+              {content.createdAt.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </Text>
+            <Text style={s.articleDate}>
+              Last updated{" "}
+              {content.updatedAt.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </Text>
+          </View>
+        ) : null}
+
         {content.description ? (
           <Text style={s.desc} testID="article-description">
             {content.description}
@@ -900,6 +923,12 @@ const s = StyleSheet.create({
     color: colors.white,
     marginBottom: 16,
     lineHeight: 34,
+  },
+  articleDate: {
+    fontFamily: fontBody.medium,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
   desc: {
     fontFamily: "AlbertSans-Regular",

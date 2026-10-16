@@ -7,6 +7,7 @@ import {
   formatClock,
   inQuietHours,
   nextDeliveryAt,
+  notificationChoicesForOnboarding,
   notificationPrefsFromOnboarding,
   parseNotificationPrefs,
   quietHoursLabel,
@@ -125,6 +126,56 @@ void test("onboarding initializes opt-in but cannot overwrite later settings", (
       completed: true,
       alerts: { instant: true, digest: true },
     }).following,
+    false,
+  );
+});
+
+void test("new onboarding opts into selected executive orders immediately", () => {
+  assert.deepEqual(
+    notificationChoicesForOnboarding(["executive"], true, false),
+    { following: true, executiveOrders: true, recap: false },
+  );
+  assert.equal(
+    notificationChoicesForOnboarding(["executive"], false, true)
+      .executiveOrders,
+    false,
+  );
+  assert.equal(
+    notificationChoicesForOnboarding(["congress"], true, true).executiveOrders,
+    false,
+  );
+});
+void test("legacy saved-item consent never enables new-order alerts", () => {
+  const onboarding = {
+    completed: true,
+    vectors: ["executive"],
+    alerts: { instant: true, digest: true },
+  };
+  const legacy = parseNotificationPrefs(
+    JSON.stringify({ settled: true, following: true }),
+  );
+  assert.equal(
+    notificationPrefsFromOnboarding(legacy, onboarding).executiveOrders,
+    false,
+  );
+  assert.equal(
+    notificationPrefsFromOnboarding(DEFAULT_NOTIFICATION_PREFS, onboarding)
+      .executiveOrders,
+    false,
+  );
+  const optedIn = { ...legacy, executiveOrders: true };
+  assert.equal(
+    notificationPrefsFromOnboarding(
+      parseNotificationPrefs(JSON.stringify(optedIn)),
+      onboarding,
+    ).executiveOrders,
+    true,
+  );
+  assert.equal(
+    notificationPrefsFromOnboarding(
+      { ...optedIn, executiveOrders: false },
+      onboarding,
+    ).executiveOrders,
     false,
   );
 });

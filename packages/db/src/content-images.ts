@@ -1,3 +1,7 @@
+// The official presidential-actions share image is a fallback, not generated art.
+export const EXECUTIVE_ORDER_FALLBACK_IMAGE_URL =
+  "https://www.whitehouse.gov/wp-content/uploads/2025/03/WH47-Presidential-Actions-Social-Share-Card.jpg";
+
 export const CONTENT_IMAGE_BUCKET = "content-images";
 export const CONTENT_IMAGE_CACHE_SECONDS = 31_536_000;
 
@@ -44,8 +48,9 @@ export function resolveContentImageUrl(
   sourceThumbnailUrl: string | null | undefined,
   generatedImagePath: string | null | undefined,
   supabaseUrl: string | undefined = process.env.SUPABASE_URL,
+  fallbackUrl?: string,
 ): string | undefined {
   const sourceUrl = sourceThumbnailUrl?.trim();
   if (sourceUrl) return sourceUrl;
-  return contentImagePublicUrl(supabaseUrl, generatedImagePath);
+  return contentImagePublicUrl(supabaseUrl, generatedImagePath) ?? fallbackUrl;
 }

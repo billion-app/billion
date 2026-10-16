@@ -84,6 +84,8 @@ Choose the existing router that owns the behavior. Define runtime input validati
 
 Lock-screen alerts live on `notifications`. The phone is the identity: Expo registers a push token, `sync` upserts that token with prefs and saved bill IDs, and `notify-followers` later sends through Expo Push. There is no account. Copy, quiet hours, and the Expo client live under `packages/api/src/lib/notifications/`.
 
+Executive-order subscriptions are separate from saved bills. `sync` accepts `prefs.executiveOrders`; a true value starts a subscription at the current time, repeated syncs preserve that start, and omission by older clients preserves an existing subscription. The hourly worker queues new `Executive Order` source rows created after that start and published on or after its UTC calendar date. Earlier publications and existing archive rows are excluded. A unique device/order index prevents duplicate alerts, including after Federal Register reconciliation. Quiet hours apply; tapping opens the source article. Opt-out cancels queued executive alerts, and delivery checks the current subscription again. Apply migration `0022_lush_the_order` before deploying the API and worker.
+
 Turning off follow alerts or removing a saved bill cancels its unsent follow notifications. Delivery also checks the current preference and follow record. A test sends only its own outbox row; it does not release the quiet-hours backlog. A successful test response means Expo accepted the push, not that APNs delivered it. Expo rejection returns an API error.
 
 Workers lock outbox rows while sending so overlapping test requests and hourly runs cannot submit the same row concurrently. Follow discovery locks the follow record and queues its notification in the same transaction as advancing its action timestamp. Each send transaction contains at most 100 messages (one Expo request). A network timeout or a process crash after Expo accepts a push can still leave an ambiguous outcome; Expo does not provide an exactly-once delivery guarantee.
@@ -93,3 +95,10 @@ Before discovering new moves, the hourly job checks tickets at least 15 minutes 
 Apply migration `0021_lucky_talon` before deploying this API or notification worker. It adds `notification_outbox.receipt_checked_at`; previous migrations remain unchanged.
 
 Read an adjacent procedure and test for the project's conventions. Check the response from its real caller, including missing data and unauthorized access where relevant. Installed mobile apps may keep calling an old procedure after a server deploy, which is why retired paths such as `video.getInfinite` can remain as compatibility stubs.
+
+Bill discovery (Browse, Featured, Search, and `getAll`) excludes bills enacted
+more than seven days ago. The cutoff uses the earliest explicit enactment action,
+not a later procedural update or ingestion time. A latest enactment status can
+use `lastActionAt` when the action history has no enactment date; enacted records
+without either date are excluded. Stored records, saved bills, and direct detail
+links remain available.

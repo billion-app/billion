@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import type { BillBriefRecord } from "@acme/validators";
 
 import type { SharedContent } from "./shared-content";
+import { ArticleDates } from "~/app/_components/article-dates";
 import { WaitlistForm } from "../../_components/waitlist-form";
 import { isAndroidUserAgent } from "../../_lib/platform";
 import {
@@ -164,6 +165,11 @@ export default async function SharedContentPage({ params }: PageProps) {
         >
           {content.title}
         </h1>
+
+        <ArticleDates
+          createdAt={content.createdAt}
+          updatedAt={content.updatedAt}
+        />
 
         {content.description ? (
           <p className="text-muted-foreground mb-[22px] font-sans text-[15px] leading-[22px]">

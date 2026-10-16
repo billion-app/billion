@@ -6,7 +6,10 @@ import type { BillLifecycleAction } from "@acme/validators";
 import { and, desc, eq, inArray, sql, unionAll } from "@acme/db";
 import { clampBillDescription } from "@acme/db/bill-description";
 import { db } from "@acme/db/client";
-import { resolveContentImageUrl } from "@acme/db/content-images";
+import {
+  EXECUTIVE_ORDER_FALLBACK_IMAGE_URL,
+  resolveContentImageUrl,
+} from "@acme/db/content-images";
 import {
   Bill,
   BillInterest,
@@ -23,6 +26,7 @@ import { parseBillBriefRecord, parseCourtBriefRecord } from "@acme/validators";
 
 import type { ContentJurisdiction } from "../lib/content-jurisdiction";
 import { toBillTimelineActions } from "../lib/bill-actions";
+import { billDiscoveryCondition } from "../lib/bill-discovery";
 import { parseBillSponsor, sponsorRole } from "../lib/bill-sponsor";
 import { projectBillStatus } from "../lib/bill-status";
 import {
@@ -109,19 +113,36 @@ export async function attachContentImages<T extends ContentImageRef>(
 ): Promise<(T & { imageUri?: string })[]> {
   if (items.length === 0) return [];
 
-  const rows = await db
-    .select({
-      contentType: ContentImage.contentType,
-      contentId: ContentImage.contentId,
-      storagePath: ContentImage.storagePath,
-    })
-    .from(ContentImage)
-    .where(
-      inArray(
-        ContentImage.contentId,
-        items.map((item) => item.id),
+  const governmentIds = items
+    .filter((item) => item.type === "government_content")
+    .map((item) => item.id);
+  const [rows, executiveOrders] = await Promise.all([
+    db
+      .select({
+        contentType: ContentImage.contentType,
+        contentId: ContentImage.contentId,
+        storagePath: ContentImage.storagePath,
+      })
+      .from(ContentImage)
+      .where(
+        inArray(
+          ContentImage.contentId,
+          items.map((item) => item.id),
+        ),
       ),
-    );
+    governmentIds.length > 0
+      ? db
+          .select({ id: GovernmentContent.id })
+          .from(GovernmentContent)
+          .where(
+            and(
+              inArray(GovernmentContent.id, governmentIds),
+              eq(GovernmentContent.type, "Executive Order"),
+            ),
+          )
+      : Promise.resolve([]),
+  ]);
+  const executiveOrderIds = new Set(executiveOrders.map((item) => item.id));
   const pathByContent = new Map(
     rows.map((row) => [`${row.contentType}:${row.contentId}`, row.storagePath]),
   );
@@ -131,6 +152,10 @@ export async function attachContentImages<T extends ContentImageRef>(
     imageUri: resolveContentImageUrl(
       item.thumbnailUrl,
       pathByContent.get(`${item.type}:${item.id}`),
+      undefined,
+      item.type === "government_content" && executiveOrderIds.has(item.id)
+        ? EXECUTIVE_ORDER_FALLBACK_IMAGE_URL
+        : undefined,
     ),
   }));
 }
@@ -361,6 +386,7 @@ export const contentRouter = {
     const bills = await db
       .select()
       .from(Bill)
+      .where(billDiscoveryCondition)
       .orderBy(desc(BILL_ACTIVITY_AT))
       .limit(20);
     const governmentContent = await db
@@ -425,7 +451,7 @@ export const contentRouter = {
           })
           .from(FeaturedBill)
           .innerJoin(Bill, eq(Bill.id, FeaturedBill.billId))
-          .where(jurisdictionCondition)
+          .where(and(jurisdictionCondition, billDiscoveryCondition))
           .orderBy(
             FeaturedBill.displayOrder,
             desc(FeaturedBill.updatedAt),
@@ -444,6 +470,7 @@ export const contentRouter = {
           .where(
             and(
               jurisdictionCondition,
+              billDiscoveryCondition,
               eq(BillInterest.contentHash, Bill.contentHash),
             ),
           );
@@ -553,7 +580,12 @@ export const contentRouter = {
               activityAt: BILL_ACTIVITY_AT.as("activity_at"),
             })
             .from(Bill)
-            .where(billJurisdictionCondition(jurisdiction)),
+            .where(
+              and(
+                billJurisdictionCondition(jurisdiction),
+                billDiscoveryCondition,
+              ),
+            ),
           db
             .select({
               id: GovernmentContent.id,
@@ -633,7 +665,12 @@ export const contentRouter = {
         const bills = await db
           .select()
           .from(Bill)
-          .where(billJurisdictionCondition(jurisdiction))
+          .where(
+            and(
+              billJurisdictionCondition(jurisdiction),
+              billDiscoveryCondition,
+            ),
+          )
           .orderBy(desc(BILL_ACTIVITY_AT))
           .limit(limit + 1)
           .offset(cursor);
@@ -748,7 +785,13 @@ export const contentRouter = {
         const bills = await db
           .select()
           .from(Bill)
-          .where(and(billMatch, billJurisdictionCondition(jurisdiction)))
+          .where(
+            and(
+              billMatch,
+              billJurisdictionCondition(jurisdiction),
+              billDiscoveryCondition,
+            ),
+          )
           .orderBy(desc(billRank))
           .limit(limit);
         const items: ContentCard[] = bills.map(toBillCard);
@@ -821,7 +864,13 @@ export const contentRouter = {
             rank: billRank.as("rank"),
           })
           .from(Bill)
-          .where(and(billMatch, billJurisdictionCondition(jurisdiction))),
+          .where(
+            and(
+              billMatch,
+              billJurisdictionCondition(jurisdiction),
+              billDiscoveryCondition,
+            ),
+          ),
         db
           .select({
             id: GovernmentContent.id,
@@ -945,6 +994,8 @@ export const contentRouter = {
           {
             id: b.id,
             title: b.title,
+            createdAt: b.createdAt,
+            updatedAt: b.updatedAt ?? b.createdAt,
             description: billDescription(b.description, b.summary),
             type: "bill" as const,
             isAIGenerated: !!b.aiGeneratedArticle,
@@ -984,6 +1035,8 @@ export const contentRouter = {
           {
             id: c.id,
             title: c.title,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt ?? c.createdAt,
             description: c.description ?? "",
             type: "government_content" as const,
             isAIGenerated: !!c.aiGeneratedArticle,
@@ -1033,6 +1086,8 @@ export const contentRouter = {
           {
             id: c.id,
             title: c.title,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt ?? c.createdAt,
             description: c.description ?? "",
             type: "court_case" as const,
             isAIGenerated: !!courtBrief || !!c.aiGeneratedArticle,

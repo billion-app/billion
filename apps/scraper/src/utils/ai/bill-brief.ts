@@ -52,7 +52,7 @@ import {
 import type { DualLensSource } from "./text-generation.js";
 import { trackLLMUsage } from "../costs.js";
 import { createLogger } from "../log.js";
-import { getStructuredLlm } from "./provider.js";
+import { getGeneratedModelVersion, getStructuredLlm } from "./provider.js";
 import {
   AIRateLimitError,
   rateLimitHit,
@@ -1082,7 +1082,7 @@ export async function generateBillBrief(args: {
   status?: string | null;
   actions?: readonly BillLifecycleAction[] | null;
   priorArticle?: string | null;
-}): Promise<Omit<BillBriefRecord, "generatedAt" | "modelVersion"> | null> {
+}): Promise<Omit<BillBriefRecord, "generatedAt"> | null> {
   if (rateLimitHit) throw new AIRateLimitError();
 
   const lifecycle = deriveBillLifecycle({
@@ -1095,17 +1095,20 @@ export async function generateBillBrief(args: {
     args.title,
     args.billNumber,
     args.fullText,
+    args.url,
   );
   let loadedPhrases: string[] | undefined;
   let jargonPhrases: string[] | undefined;
   let missingEmphasis: string[] | undefined;
-  let verifiedFallback:
-    | Omit<BillBriefRecord, "generatedAt" | "modelVersion">
-    | undefined;
+  let verifiedFallback: Omit<BillBriefRecord, "generatedAt"> | undefined;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const { output: generatedOutput, usage } = await generateText({
+      const {
+        output: generatedOutput,
+        usage,
+        providerMetadata,
+      } = await generateText({
         model: getStructuredLlm(),
         output: Output.object({ schema: GeneratedBillBriefSchema }),
         prompt: buildBriefPrompt({
@@ -1127,6 +1130,7 @@ export async function generateBillBrief(args: {
         }),
       });
       trackLLMUsage(usage.inputTokens, usage.outputTokens);
+      const modelVersion = getGeneratedModelVersion({ providerMetadata });
 
       const output = parseBriefWithSectionRecovery(
         truncateOverlongLists(
@@ -1176,6 +1180,7 @@ export async function generateBillBrief(args: {
           version: BILL_BRIEF_VERSION,
           legalStatus,
           verifiedQuotes: verified,
+          modelVersion,
         };
         logger.warn(
           `Brief for ${args.billNumber}: reader-facing copy needs revision (${[...loaded, ...jargon, ...missing].join(", ")}) — regenerating`,
@@ -1209,6 +1214,7 @@ export async function generateBillBrief(args: {
         version: BILL_BRIEF_VERSION,
         legalStatus,
         verifiedQuotes: verified,
+        modelVersion,
       };
     } catch (error) {
       if (isRateLimitError(error)) {
