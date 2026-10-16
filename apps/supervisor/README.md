@@ -182,9 +182,11 @@ written only by the deploy script.
 
 A failed job backs off from 15 minutes, doubling, capped at a day — so a
 permanently broken job costs one attempt a day rather than one per tick. Any
-success resets the counter. State is written before a job starts as well as
-after it finishes, so a host that loses power mid-job does not restart it
-immediately and stack a second copy on whatever the first one left behind.
+success resets the counter. Failed daily and weekly jobs retry after that
+backoff rather than waiting for the next calendar occurrence. This includes a
+job terminated during a graceful supervisor shutdown, which is recorded as a
+failed attempt. State is written before a job starts as well as after it
+finishes, so an unfinished attempt remains visible after a host outage.
 
 Jobs have hard timeouts (`timeoutMinutes`). A job that ignores `SIGTERM` gets
 `SIGKILL` 30 seconds later, because a wedged job blocks the single queue.

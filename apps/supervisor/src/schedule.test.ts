@@ -120,6 +120,32 @@ void test("a weekly job does not fire the first time the supervisor starts", () 
   assert.equal(isDue(weeklyJob, undefined, tuesdayNoon), false);
 });
 
+void test("failed calendar jobs retry after backoff without waiting for the next occurrence", () => {
+  for (const schedule of [
+    { kind: "daily", hour: 3, minute: 15 },
+    { kind: "weekly", weekday: 2, hour: 3, minute: 15 },
+  ] as const) {
+    const job = { ...weeklyJob, schedule };
+    const failed: JobState = {
+      ...clean,
+      lastStartedAt: new Date(2026, 6, 28, 3, 16).toISOString(),
+      lastFinishedAt: new Date(2026, 6, 28, 3, 17).toISOString(),
+      lastExitCode: 128,
+      consecutiveFailures: 1,
+    };
+    assert.equal(isDue(job, failed, new Date(2026, 6, 28, 3, 31)), false);
+    assert.equal(isDue(job, failed, new Date(2026, 6, 28, 3, 32)), true);
+    assert.equal(
+      isDue(
+        job,
+        { ...failed, consecutiveFailures: 0, lastExitCode: 0 },
+        tuesdayNoon,
+      ),
+      false,
+    );
+  }
+});
+
 void test("a weekly job seeded on a Tuesday runs at the next occurrence", () => {
   // Regression: `isDue` used to key off `lastStartedAt` alone and return false
   // when it was absent, so a calendar job that had never run could never become
