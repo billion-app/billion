@@ -58,7 +58,8 @@
     "measure-relationships": "tsx src/measure-relationships-entry.ts",
     "trillion": "tsx src/trillion-entry.ts",
     "trillion-propositions": "tsx src/trillion-propositions-entry.ts",
-    "search-benchmark": "tsx src/research/benchmark-entry.ts"
+    "search-benchmark": "tsx src/research/benchmark-entry.ts",
+    "content-translations": "tsx src/content-translations-entry.ts"
   },
   "author": "It's not you it's me",
   "license": "ISC"

@@ -1,31 +1,23 @@
-/**
- * Cached article translations. The LLM runs once per content item and
- * language, then again only when the English input (and so `sourceHash`)
- * changes. See content-translation.ts for what is and is not translated.
- */
-
+/** Vercel serves cached translations and queues misses; big-mac owns generation. */
+import { randomUUID } from "node:crypto";
 import { z } from "zod/v4";
 
-import { and, eq } from "@acme/db";
+import { and, asc, eq, lte, ne, sql } from "@acme/db";
 import { db } from "@acme/db/client";
-import { ContentTranslation } from "@acme/db/schema";
+import { ContentTranslation, ContentTranslationRequest } from "@acme/db/schema";
 
 import type {
+  TranslateBatch,
   TranslationLanguage,
   TranslationSource,
 } from "./content-translation";
 import {
   hashSegments,
-  llmTranslateBatch,
-  modelVersion,
   sourceSegments,
   translateSegments,
 } from "./content-translation";
 
 const payloadSchema = z.record(z.string(), z.string());
-
-// Two readers opening the same new article should pay for one translation.
-const inFlight = new Map<string, Promise<Record<string, string> | null>>();
 
 export async function getTranslations(input: {
   contentId: string;
@@ -35,12 +27,8 @@ export async function getTranslations(input: {
 }): Promise<Record<string, string> | null> {
   const segments = sourceSegments(input.source);
   const sourceHash = hashSegments(segments);
-
   const [row] = await db
-    .select({
-      sourceHash: ContentTranslation.sourceHash,
-      payload: ContentTranslation.payload,
-    })
+    .select()
     .from(ContentTranslation)
     .where(
       and(
@@ -54,47 +42,118 @@ export async function getTranslations(input: {
     if (parsed.success) return parsed.data;
   }
 
-  const version = modelVersion();
-  if (!version) return null;
-
-  const key = `${input.contentId}:${input.language}:${sourceHash}`;
-  const pending = inFlight.get(key);
-  if (pending) return pending;
-
-  const work = (async () => {
-    try {
-      const payload = await translateSegments(
+  await db
+    .insert(ContentTranslationRequest)
+    .values({
+      contentId: input.contentId,
+      contentType: input.contentType,
+      language: input.language,
+      sourceHash,
+      segments,
+    })
+    .onConflictDoUpdate({
+      target: [
+        ContentTranslationRequest.contentId,
+        ContentTranslationRequest.language,
+      ],
+      set: {
+        sourceHash,
         segments,
-        input.language,
-        llmTranslateBatch,
-      );
-      await db
+        contentType: input.contentType,
+        requestedAt: sql`now()`,
+        availableAt: sql`now()`,
+        attempts: 0,
+        claimId: null,
+      },
+      // Reader polling must not reset a lease or a failed request's backoff.
+      setWhere: ne(ContentTranslationRequest.sourceHash, sourceHash),
+    });
+  return null;
+}
+
+/** Claims one request without holding a DB connection while the model runs. */
+export async function processNextTranslation(input: {
+  translateBatch: TranslateBatch;
+  modelVersion: string;
+}): Promise<"idle" | "generated" | "superseded" | "retry"> {
+  const request = await db.transaction(async (tx) => {
+    const [pending] = await tx
+      .select()
+      .from(ContentTranslationRequest)
+      .where(lte(ContentTranslationRequest.availableAt, sql`now()`))
+      .orderBy(
+        asc(ContentTranslationRequest.availableAt),
+        asc(ContentTranslationRequest.requestedAt),
+      )
+      .limit(1)
+      .for("update", { skipLocked: true });
+    if (!pending) return null;
+    const [claimed] = await tx
+      .update(ContentTranslationRequest)
+      .set({
+        claimId: randomUUID(),
+        attempts: pending.attempts + 1,
+        availableAt: sql`now() + interval '15 minutes'`,
+      })
+      .where(eq(ContentTranslationRequest.id, pending.id))
+      .returning();
+    return claimed ?? null;
+  });
+  if (!request?.claimId) return "idle";
+  const owned = and(
+    eq(ContentTranslationRequest.id, request.id),
+    eq(ContentTranslationRequest.claimId, request.claimId),
+    eq(ContentTranslationRequest.sourceHash, request.sourceHash),
+  );
+  try {
+    const language = z.enum(["es", "zh"]).parse(request.language);
+    const payload = await translateSegments(
+      request.segments,
+      language,
+      input.translateBatch,
+    );
+    return await db.transaction(async (tx) => {
+      // A source revision or an expired lease must never publish stale work.
+      const [current] = await tx
+        .select({ id: ContentTranslationRequest.id })
+        .from(ContentTranslationRequest)
+        .where(owned)
+        .for("update");
+      if (!current) return "superseded" as const;
+      await tx
         .insert(ContentTranslation)
         .values({
-          contentId: input.contentId,
-          contentType: input.contentType,
-          language: input.language,
-          sourceHash,
+          contentId: request.contentId,
+          contentType: request.contentType,
+          language,
+          sourceHash: request.sourceHash,
           payload,
-          modelVersion: version,
+          modelVersion: input.modelVersion,
         })
         .onConflictDoUpdate({
           target: [ContentTranslation.contentId, ContentTranslation.language],
-          set: { sourceHash, payload, modelVersion: version },
+          set: {
+            sourceHash: request.sourceHash,
+            payload,
+            modelVersion: input.modelVersion,
+          },
         });
-      return payload;
-    } catch (error) {
-      // The reader falls back to English; a failed translation is not an
-      // error page.
-      console.error(
-        `[content-translation] ${input.contentId} ${input.language} failed:`,
-        error,
-      );
-      return null;
-    } finally {
-      inFlight.delete(key);
-    }
-  })();
-  inFlight.set(key, work);
-  return work;
+      await tx.delete(ContentTranslationRequest).where(owned);
+      return "generated" as const;
+    });
+  } catch (error) {
+    const retryMinutes = Math.min(30, 2 ** Math.min(request.attempts, 5));
+    await db
+      .update(ContentTranslationRequest)
+      .set({
+        claimId: null,
+        availableAt: sql`now() + ${retryMinutes} * interval '1 minute'`,
+      })
+      .where(owned);
+    // Do not log provider errors: they can include source text or credentials.
+    console.error(
+      `[content-translation] ${request.contentId} ${request.language} failed (${error instanceof Error ? error.name : "unknown"}); retry in ${retryMinutes}m`,
+    );
+    return "retry";
+  }
 }

@@ -14,10 +14,9 @@
  */
 
 import { createHash } from "node:crypto";
+import type { LanguageModel } from "ai";
 import { generateText, Output } from "ai";
 import { z } from "zod/v4";
-
-import { llm } from "./ai-provider";
 
 export const TRANSLATION_LANGUAGES = ["es", "zh"] as const;
 export type TranslationLanguage = (typeof TRANSLATION_LANGUAGES)[number];
@@ -315,22 +314,22 @@ export async function translateSegments(
 
 const batchSchema = z.object({ translations: z.array(z.string()) });
 
-export function modelVersion(): string | null {
-  if (!llm) return null;
-  const id = typeof llm === "string" ? llm : llm.modelId;
-  return `${TRANSLATION_PROMPT_VERSION}:${id}`.slice(0, 80);
-}
-
-/** The production translator, backed by the shared civic `llm`. */
-export const llmTranslateBatch: TranslateBatch = async (texts, language) => {
-  if (!llm) throw new Error("no AI provider configured");
-  const { output } = await generateText({
-    model: llm,
-    temperature: 0.2,
-    maxRetries: 2,
-    abortSignal: AbortSignal.timeout(90_000),
-    output: Output.object({ schema: batchSchema }),
-    prompt: `Translate each string in the JSON array below from English into ${LANGUAGE_NAME[language]} for a nonpartisan civic news app.
+/** Injected by the private worker; reader requests never call an AI provider. */
+export function createTranslateBatch(
+  model: LanguageModel,
+  signal?: AbortSignal,
+): TranslateBatch {
+  return async (texts, language) => {
+    const { output } = await generateText({
+      model,
+      temperature: 0.2,
+      maxRetries: 2,
+      abortSignal: AbortSignal.any([
+        AbortSignal.timeout(90_000),
+        ...(signal ? [signal] : []),
+      ]),
+      output: Output.object({ schema: batchSchema }),
+      prompt: `Translate each string in the JSON array below from English into ${LANGUAGE_NAME[language]} for a nonpartisan civic news app.
 
 Rules:
 - Return {"translations": [...]} with exactly ${texts.length} strings, in the same order.
@@ -341,6 +340,7 @@ Rules:
 - Keep U.S. legal terms accurate; when a term has no standard equivalent, translate it and leave the English in parentheses once.
 
 ${JSON.stringify(texts)}`,
-  });
-  return output.translations;
-};
+    });
+    return output.translations;
+  };
+}

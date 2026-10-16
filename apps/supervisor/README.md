@@ -188,3 +188,33 @@ immediately and stack a second copy on whatever the first one left behind.
 
 Jobs have hard timeouts (`timeoutMinutes`). A job that ignores `SIGTERM` gets
 `SIGKILL` 30 seconds later, because a wedged job blocks the single queue.
+
+### Reader translations
+
+The same pinned scraper image runs a separate `com.billion.translations` launchd
+service on big-mac. It polls durable `content_translation_request` rows every five
+seconds and generates translations through the private Codex Responses proxy
+configured by `SCRAPER_FALLBACK_BASE_URL` and `SCRAPER_FALLBACK_MODEL`. It selects
+only that provider; paid scraper fallbacks are not used for translations. The
+worker runs separately because ingestion jobs can occupy the supervisor for hours.
+
+Vercel queues a cache miss and returns the existing English fallback. The reader
+retries until the completed translation is available. Repeated reads deduplicate
+requests and preserve retries and leases. A changed English source replaces the
+request; an older worker cannot publish over it. Failed requests retry with a
+bounded backoff, and a crashed worker's lease expires after fifteen minutes.
+Source quotations and citations retain the protection rules in
+[article generation](../../docs/article-generation.md).
+
+`pnpm deploy:scraper` installs and verifies both services against the same merged
+image. Deploying an older image without the worker disables the translation
+service, preserving rollback support. Inspect the translation worker with:
+
+```bash
+ssh big-mac 'tail -50 ~/Library/Logs/billion/translations.log'
+ssh big-mac 'tail -50 ~/Library/Logs/billion/translations.error.log'
+```
+
+For a bounded one-off run against an explicitly selected database, use
+`pnpm --filter @acme/scraper content-translations --limit 1`. This writes cached
+translations and consumes Codex capacity; `--watch` serves the queue continuously.

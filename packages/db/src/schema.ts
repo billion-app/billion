@@ -1230,6 +1230,30 @@ export const ContentTranslation = pgTable(
   }),
 ).enableRLS();
 
+/** Durable reader requests, processed privately on big-mac. No public policies. */
+export const ContentTranslationRequest = pgTable(
+  "content_translation_request",
+  (t) => ({
+    id: t.uuid().notNull().primaryKey().defaultRandom(),
+    contentType: t.varchar({ length: 20 }).notNull(),
+    contentId: t.uuid().notNull(),
+    language: t.varchar({ length: 16 }).notNull(),
+    sourceHash: t.varchar({ length: 64 }).notNull(),
+    segments: t.jsonb().$type<{ key: string; text: string }[]>().notNull(),
+    requestedAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    availableAt: t.timestamp({ withTimezone: true }).defaultNow().notNull(),
+    attempts: t.integer().default(0).notNull(),
+    claimId: t.uuid(),
+  }),
+  (table) => ({
+    uniqueContentTranslationRequest: unique().on(
+      table.contentId,
+      table.language,
+    ),
+    translationRequestAvailable: index().on(table.availableAt),
+  }),
+).enableRLS();
+
 /**
  * Generated header artwork. Only the immutable Supabase Storage path and its
  * checksum live in Postgres. The image bytes never consume database space.

@@ -18,7 +18,12 @@ export PATH="/usr/local/bin:$HOME/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 readonly env_file="$HOME/.config/billion/scraper.env"
 readonly deploy_file="$HOME/.config/billion/deploy.env"
 readonly state_dir="$HOME/.local/state/billion"
-readonly container="billion-supervisor"
+case "${1:-supervisor}" in
+  supervisor) service="supervisor"; entry="supervisor.js"; worker_args=() ;;
+  translations) service="translations"; entry="content-translations.js"; worker_args=(--watch) ;;
+  *) print -u2 "Unknown service: $1"; exit 1 ;;
+esac
+readonly container="billion-$service"
 
 if [[ ! -r "$env_file" ]]; then
   print -u2 "Missing scraper environment: $env_file"
@@ -71,5 +76,5 @@ exec docker run --rm \
   --pull always \
   "${env_args[@]}" \
   --volume "$state_dir:/var/lib/billion" \
-  --label com.billion.service=supervisor \
-  "$SCRAPER_IMAGE" node dist/supervisor.js
+  --label "com.billion.service=$service" \
+  "$SCRAPER_IMAGE" node "dist/$entry" "${worker_args[@]}"
