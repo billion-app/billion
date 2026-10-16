@@ -50,6 +50,9 @@ export default defineConfig({
         "bill-interest": fileURLToPath(
           new URL("./src/bill-interest.ts", import.meta.url),
         ),
+        "content-translations": fileURLToPath(
+          new URL("./src/content-translations.ts", import.meta.url),
+        ),
         "notify-followers": fileURLToPath(
           new URL("./src/notify-followers.ts", import.meta.url),
         ),

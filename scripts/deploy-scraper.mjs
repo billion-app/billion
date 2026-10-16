@@ -26,6 +26,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const IMAGE_REPO = "ghcr.io/billion-app/billion-scraper";
 const LABEL = "com.billion.supervisor";
+const TRANSLATION_LABEL = "com.billion.translations";
 
 const args = process.argv.slice(2);
 const hostFlag = args.indexOf("--host");
@@ -34,7 +35,10 @@ const dryRun = args.includes("--dry-run");
 const requested = args.find((arg) => !arg.startsWith("--") && arg !== host);
 
 function git(...gitArgs) {
-  return execFileSync("git", gitArgs, { cwd: repoRoot, encoding: "utf8" }).trim();
+  return execFileSync("git", gitArgs, {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
 }
 
 function ssh(script) {
@@ -85,8 +89,15 @@ const plist = readFileSync(
   "utf8",
 );
 
+const translationPlist = readFileSync(
+  join(repoRoot, "deploy/big-mac/com.billion.translations.plist"),
+  "utf8",
+);
+
 if (dryRun) {
-  console.log("--dry-run: commit is deployable; stopping before host changes.\n");
+  console.log(
+    "--dry-run: commit is deployable; stopping before host changes.\n",
+  );
   process.exit(0);
 }
 
@@ -119,17 +130,23 @@ cat > "$HOME/Library/LaunchAgents/${LABEL}.plist" <<'PLIST_EOF'
 ${plist}
 PLIST_EOF
 
+cat > "$HOME/Library/LaunchAgents/${TRANSLATION_LABEL}.plist" <<'TRANSLATION_PLIST_EOF'
+${translationPlist}
+TRANSLATION_PLIST_EOF
+
 # Written atomically: a half-written pin would leave the supervisor unable to
 # start on its next launchd restart.
 printf 'SCRAPER_IMAGE=%s\\n' '${image}' > "$HOME/.config/billion/deploy.env.tmp"
 mv "$HOME/.config/billion/deploy.env.tmp" "$HOME/.config/billion/deploy.env"
 `);
 
-console.log("Restarting supervisor…");
+console.log("Restarting supervisor and translation worker…");
 ssh(`
 set -euo pipefail
 launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/${LABEL}.plist" 2>/dev/null || true
 launchctl kickstart -k "gui/$(id -u)/${LABEL}"
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/${TRANSLATION_LABEL}.plist" 2>/dev/null || true
+launchctl kickstart -k "gui/$(id -u)/${TRANSLATION_LABEL}"
 `);
 
 // Confirm the thing actually came up, rather than reporting success because
@@ -140,15 +157,28 @@ export PATH="/usr/local/bin:$HOME/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 docker ps --filter name=billion-supervisor --format '{{.Image}}' || true
 `).trim();
 
-if (running === image) {
-  console.log(`\n✓ Supervisor running on ${host} at ${sha.slice(0, 7)}\n`);
-  console.log(`  logs:   ssh ${host} 'tail -f ~/Library/Logs/billion/supervisor.log'`);
-  console.log(`  status: ssh ${host} 'cat ~/.local/state/billion/supervisor-state.json'`);
-  console.log(`  run a job now: ssh ${host} 'touch ~/.local/state/billion/requests/<job>'\n`);
+const translationsRunning = ssh(`
+export PATH="/usr/local/bin:$HOME/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+docker ps --filter name=^/billion-translations$ --format '{{.Image}}' || true
+`).trim();
+
+if (running === image && translationsRunning === image) {
+  console.log(
+    `\n✓ Supervisor and translation worker running on ${host} at ${sha.slice(0, 7)}\n`,
+  );
+  console.log(
+    `  logs:   ssh ${host} 'tail -f ~/Library/Logs/billion/supervisor.log'`,
+  );
+  console.log(
+    `  status: ssh ${host} 'cat ~/.local/state/billion/supervisor-state.json'`,
+  );
+  console.log(
+    `  run a job now: ssh ${host} 'touch ~/.local/state/billion/requests/<job>'\n`,
+  );
 } else {
   fail(
     `Supervisor did not come up with the expected image.\n` +
-      `  saw: ${running || "(no container running)"}\n` +
+      `  supervisor: ${running || "(not running)"}; translations: ${translationsRunning || "(not running)"}\n` +
       `  Check: ssh ${host} 'tail -50 ~/Library/Logs/billion/supervisor.error.log'`,
   );
 }

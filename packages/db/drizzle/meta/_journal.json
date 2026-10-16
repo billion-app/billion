@@ -204,6 +204,13 @@
       "when": 1792118922652,
       "tag": "0028_protect_content_translation",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792120040169,
+      "tag": "0029_queue_content_translations",
+      "breakpoints": true
     }
   ]
 }
