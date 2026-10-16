@@ -163,6 +163,7 @@ ${
     ? `launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/${TRANSLATION_LABEL}.plist" 2>/dev/null || true
 launchctl kickstart -k "gui/$(id -u)/${TRANSLATION_LABEL}"`
     : `launchctl bootout "gui/$(id -u)/${TRANSLATION_LABEL}" 2>/dev/null || true
+rm -f "$HOME/Library/LaunchAgents/${TRANSLATION_LABEL}.plist"
 export PATH="/usr/local/bin:$HOME/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 docker rm -f billion-translations >/dev/null 2>&1 || true`
 }

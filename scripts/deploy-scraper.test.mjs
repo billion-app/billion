@@ -101,6 +101,13 @@ void test("older images disable the worker during rollback", async () => {
       command.includes('kickstart -k "gui/$(id -u)/com.billion.translations"'),
     ),
   );
+  assert.ok(
+    result.commands.some((command) =>
+      command.includes(
+        'rm -f "$HOME/Library/LaunchAgents/com.billion.translations.plist"',
+      ),
+    ),
+  );
   assert.ok(result.output.includes("disabled (older image)"));
 });
 
