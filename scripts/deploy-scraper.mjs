@@ -115,6 +115,19 @@ docker pull --quiet ${image}
   );
 }
 
+// Older merged images remain valid rollback targets. Probe the pulled artifact
+// before changing the pin, rather than starting a missing KeepAlive entrypoint.
+const translationCapability = ssh(`
+export PATH="/usr/local/bin:$HOME/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+docker run --rm --entrypoint node ${image} -e 'console.log(require("node:fs").existsSync("/app/dist/content-translations.js") ? "supported" : "absent")'
+`).trim();
+if (!["supported", "absent"].includes(translationCapability)) {
+  fail(
+    "Could not determine translation worker support; host pin was not changed.",
+  );
+}
+const hasTranslations = translationCapability === "supported";
+
 console.log("Installing wrapper, plist and image pin…");
 ssh(`
 set -euo pipefail
@@ -145,8 +158,14 @@ ssh(`
 set -euo pipefail
 launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/${LABEL}.plist" 2>/dev/null || true
 launchctl kickstart -k "gui/$(id -u)/${LABEL}"
-launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/${TRANSLATION_LABEL}.plist" 2>/dev/null || true
-launchctl kickstart -k "gui/$(id -u)/${TRANSLATION_LABEL}"
+${
+  hasTranslations
+    ? `launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/${TRANSLATION_LABEL}.plist" 2>/dev/null || true
+launchctl kickstart -k "gui/$(id -u)/${TRANSLATION_LABEL}"`
+    : `launchctl bootout "gui/$(id -u)/${TRANSLATION_LABEL}" 2>/dev/null || true
+export PATH="/usr/local/bin:$HOME/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+docker rm -f billion-translations >/dev/null 2>&1 || true`
+}
 `);
 
 // Confirm the thing actually came up, rather than reporting success because
@@ -162,9 +181,12 @@ export PATH="/usr/local/bin:$HOME/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 docker ps --filter name=^/billion-translations$ --format '{{.Image}}' || true
 `).trim();
 
-if (running === image && translationsRunning === image) {
+if (
+  running === image &&
+  (hasTranslations ? translationsRunning === image : translationsRunning === "")
+) {
   console.log(
-    `\n✓ Supervisor and translation worker running on ${host} at ${sha.slice(0, 7)}\n`,
+    `\n✓ Supervisor running on ${host} at ${sha.slice(0, 7)}; translations ${hasTranslations ? "running" : "disabled (older image)"}\n`,
   );
   console.log(
     `  logs:   ssh ${host} 'tail -f ~/Library/Logs/billion/supervisor.log'`,

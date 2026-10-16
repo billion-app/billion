@@ -207,7 +207,8 @@ Source quotations and citations retain the protection rules in
 [article generation](../../docs/article-generation.md).
 
 `pnpm deploy:scraper` installs and verifies both services against the same merged
-image. Inspect the translation worker with:
+image. Deploying an older image without the worker disables the translation
+service, preserving rollback support. Inspect the translation worker with:
 
 ```bash
 ssh big-mac 'tail -50 ~/Library/Logs/billion/translations.log'
