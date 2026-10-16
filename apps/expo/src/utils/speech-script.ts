@@ -48,6 +48,7 @@ interface CourtBriefLike {
 }
 
 export interface SpeechSource {
+  isAIGenerated?: boolean;
   language?: AppLanguage;
   mode?: "explainer" | "opinions" | "source";
   title: string;
@@ -210,7 +211,10 @@ export function buildSpeechParagraphs(source: SpeechSource): string[] {
     }
   };
   add(source.title);
-  if (source.mode === "source") {
+  if (
+    source.mode === "source" ||
+    (source.isAIGenerated === false && !source.brief && !source.courtBrief)
+  ) {
     add(copy.original);
     for (const paragraph of source.body?.split(/\n{2,}/) ?? []) add(paragraph);
     return paragraphs;

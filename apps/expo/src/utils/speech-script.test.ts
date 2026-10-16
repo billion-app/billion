@@ -233,6 +233,28 @@ void test("source mode reads the original without analysis transitions", () => {
   ]);
 });
 
+void test("an article with only source text is never called Billion's analysis", () => {
+  const paragraphs = buildSpeechParagraphs({
+    title: "Official order",
+    mode: "explainer",
+    isAIGenerated: false,
+    description: "A source description",
+    body: "The agency shall provide notice.",
+  });
+  assert.deepEqual(paragraphs, [
+    "Official order.",
+    "Original source text.",
+    "The agency shall provide notice.",
+  ]);
+  const brief = buildSpeechParagraphs({
+    title: "Act",
+    isAIGenerated: false,
+    brief: { hook: "An authored bill brief." },
+  }).join(" ");
+  assert.match(brief, /Billion's analysis/);
+  assert.match(brief, /An authored bill brief/);
+});
+
 void test("long narration does not split decimal amounts into different numbers", () => {
   const paragraph = "Funding is $1.2 billion. ".repeat(100);
   const chunks = chunkForSpeech([paragraph], 100);

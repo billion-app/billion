@@ -189,8 +189,12 @@ export default function ArticleDetailScreen() {
     }
     return buildSpeechChunks({
       mode,
+      isAIGenerated: content.isAIGenerated,
       language: speechLanguage,
-      title: translation?.title ?? content.title,
+      title:
+        speechLanguage === "en"
+          ? content.title
+          : (translation?.title ?? content.title),
       description: translation?.description ?? content.description,
       brief:
         translation?.brief ??

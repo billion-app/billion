@@ -22,7 +22,8 @@ export default function LanguageScreen() {
               style={[s.row, i < LANGUAGE_OPTIONS.length - 1 && s.divider]}
               onPress={() => setLanguage(option.id)}
               accessibilityRole="radio"
-              accessibilityState={{ selected }}
+              accessibilityState={{ checked: selected }}
+              aria-checked={selected}
               accessibilityLabel={option.nativeName}
               testID={`language-${option.id}`}
             >
