@@ -74,7 +74,7 @@ test("generated titles are trimmed and must read as a short label", () => {
   );
   assert.equal(cleanPlainTitle("Proposition 1: housing bond"), null);
   assert.equal(cleanPlainTitle("AUTHORIZES HOUSING BONDS"), null);
-  assert.equal(cleanPlainTitle("x".repeat(73)), null);
+  assert.equal(cleanPlainTitle("x".repeat(61)), null);
   assert.equal(
     cleanPlainTitle("$10B bond for school repairs"),
     "$10B bond for school repairs",

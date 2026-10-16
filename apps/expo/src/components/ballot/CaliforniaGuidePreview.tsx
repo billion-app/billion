@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Linking,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -40,14 +41,31 @@ type GuideTab = "candidates" | "measures";
 const COUNTY_OFFICES_URL =
   "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices";
 
-function SectionHeader({ children }: { children: string }) {
+function SourceRow({
+  icon,
+  label,
+  url,
+  last,
+}: {
+  icon: IconName;
+  label: string;
+  url: string;
+  last?: boolean;
+}) {
   return (
-    <View style={s.sectionHeader}>
-      <Text accessibilityRole="header" style={s.sectionEyebrow}>
-        {children}
-      </Text>
-      <View style={s.sectionRule} />
-    </View>
+    <TouchableOpacity
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      activeOpacity={0.8}
+      onPress={() => void Linking.openURL(url).catch(() => undefined)}
+      style={[s.sourceRow, !last && s.sourceRule]}
+    >
+      <View style={s.tile}>
+        <Icon name={icon} size={17} color={P.primary} />
+      </View>
+      <Text style={s.sourceLabel}>{label}</Text>
+      <Icon name="external" size={16} color={P.primary} />
+    </TouchableOpacity>
   );
 }
 
@@ -126,7 +144,6 @@ function MeasureRow({ measure }: { measure: Measure }) {
         ) : (
           <Text style={s.officialTitle}>{official.subject}</Text>
         )}
-        {official.kind ? <Text style={s.rowNote}>{official.kind}</Text> : null}
       </View>
       <Icon name="chevR" size={18} color={P.primary} />
     </TouchableOpacity>
@@ -176,15 +193,15 @@ export function CaliforniaGuidePreview({
           <Text accessibilityRole="header" style={s.headline}>
             The statewide guide
           </Text>
-          <Text style={s.introText}>
-            {query.isPending
-              ? "Checking the statewide preview…"
-              : query.isError
-                ? "The preview couldn’t load."
-                : guide
-                  ? "Candidate statements and propositions from California’s official voter guide."
+          {!guide && (
+            <Text style={s.introText}>
+              {query.isPending
+                ? "Checking the statewide preview…"
+                : query.isError
+                  ? "The preview couldn’t load."
                   : "The preview isn’t available in Billion."}
-          </Text>
+            </Text>
+          )}
         </View>
 
         <View style={s.actions}>
@@ -265,10 +282,8 @@ export function CaliforniaGuidePreview({
             />
             {tab === "candidates" ? (
               <View style={s.list}>
-                <SectionHeader>CANDIDATE STATEMENTS</SectionHeader>
                 <Text style={s.note}>
-                  Only candidates who submitted a statement to the state guide.
-                  This isn’t your complete ballot.
+                  Statement submitters only, not your full ballot.
                 </Text>
                 {guide.candidates.map((candidate) => (
                   <CandidateRow
@@ -279,13 +294,11 @@ export function CaliforniaGuidePreview({
               </View>
             ) : (
               <View style={s.list}>
-                <SectionHeader>STATEWIDE PROPOSITIONS</SectionHeader>
                 {hasGeneratedTitles && (
                   <View style={s.aiNote}>
                     <Icon name="sparkle" size={13} color={P.quiet} />
-                    <Text style={[s.note, s.aiNoteText]}>
-                      Headlines are AI-written from each official title and
-                      summary. Open a measure for the state’s exact wording.
+                    <Text style={s.note}>
+                      AI headlines · tap for the official text
                     </Text>
                   </View>
                 )}
@@ -295,24 +308,6 @@ export function CaliforniaGuidePreview({
               </View>
             )}
             <View style={s.footer}>
-              <SectionHeader>OFFICIAL SOURCES</SectionHeader>
-              <SourceLink
-                label="California official voter guide"
-                url={guide.sourceUrl}
-              />
-              <SourceLink
-                label="Check voting information with California"
-                url="https://voterstatus.sos.ca.gov/EN/Authenticate"
-                prominence="primary"
-              />
-              <SourceLink
-                label="Find your county elections office"
-                url={COUNTY_OFFICES_URL}
-              />
-              <Text style={s.note}>
-                Confirm local races and voting options with your county
-                elections office.
-              </Text>
               {onOpenBallot && (
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -325,6 +320,24 @@ export function CaliforniaGuidePreview({
                   <Icon name="arrowRight" size={17} color={P.inkOnNight} />
                 </TouchableOpacity>
               )}
+              <Card flush style={s.sources}>
+                <SourceRow
+                  icon="book"
+                  label="Official voter guide"
+                  url={guide.sourceUrl}
+                />
+                <SourceRow
+                  icon="vote"
+                  label="Check your registration"
+                  url="https://voterstatus.sos.ca.gov/EN/Authenticate"
+                />
+                <SourceRow
+                  icon="pin"
+                  label="County elections office"
+                  url={COUNTY_OFFICES_URL}
+                  last
+                />
+              </Card>
             </View>
           </>
         )}
@@ -381,26 +394,13 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: P.inkOnNight,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginTop: 4,
-  },
-  sectionEyebrow: {
-    ...DigestType.sectionEyebrow,
-    fontSize: 11,
-    color: P.inkOnNight,
-  },
-  sectionRule: { flex: 1, height: 1, backgroundColor: DigestHair.cardBorder },
   note: {
     fontFamily: fontBody.regular,
     fontSize: 13,
     lineHeight: 19,
     color: P.quiet,
   },
-  aiNote: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
-  aiNoteText: { flex: 1, marginTop: -2 },
+  aiNote: { flexDirection: "row", alignItems: "center", gap: 6 },
   list: { gap: 12 },
   /** Matches the Elections hub tool cards (`entryTool`). */
   row: {
@@ -456,6 +456,24 @@ const s = StyleSheet.create({
     color: P.inkOnNight,
   },
   footer: { gap: 12, paddingBottom: 18 },
+  sources: { borderRadius: 14 },
+  sourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 14,
+    minHeight: 60,
+  },
+  sourceRule: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
+  },
+  sourceLabel: {
+    flex: 1,
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    color: P.inkOnNight,
+  },
   retryButton: {
     minHeight: 48,
     padding: 12,

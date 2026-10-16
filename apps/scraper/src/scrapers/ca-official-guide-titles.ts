@@ -2,7 +2,6 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import type { OfficialGuidePayload } from "@acme/api/lib/official-guide-cache";
-import { PLAIN_TITLE_MAX } from "@acme/api/lib/official-guide-cache";
 
 import { getStructuredLlm } from "../utils/ai/provider.js";
 import { trackLLMUsage } from "../utils/costs.js";
@@ -12,6 +11,8 @@ type Measure = OfficialGuidePayload["measures"][number];
 export type PlainTitleGenerator = (measure: Measure) => Promise<string>;
 
 const logger = createLogger("ca-official-guide");
+/** Tighter than the cache schema's limit, so older stored titles still parse. */
+const GENERATED_TITLE_MAX = 60;
 /** Bounds a day when every official title changes at once. */
 export const PLAIN_TITLE_MAX_CALLS = 40;
 const ATTEMPTS = 2;
@@ -19,7 +20,7 @@ const ATTEMPTS = 2;
 export function buildPlainTitlePrompt(measure: Measure): string {
   return [
     "Write a short headline for a California ballot proposition, for a list of measures in a voter guide app.",
-    "- Aim for 35 to 55 characters; never more than 65. Sentence case, no trailing period.",
+    "- Aim for 25 to 45 characters; never more than 55. Sentence case, no trailing period. Prefer short forms such as “$11B” over “$11 billion”.",
     "- Say what the measure does, in plain words a voter would use: the action and its subject (for example “$10B bond for school repairs” or “Lets cities expand rent control”).",
     "- Cover the measure's main purpose as the official title states it; when it names more than one purpose or recipient (such as schools and health care), keep them. Leave out secondary details instead.",
     "- One grammatical phrase a newspaper would print. No lists of fragments.",
@@ -40,7 +41,7 @@ export function cleanPlainTitle(raw: string): string | null {
     .replace(/^["“'‘]+|["”'’]+$/g, "")
     .replace(/\.$/, "")
     .trim();
-  if (!title || title.length > PLAIN_TITLE_MAX) return null;
+  if (!title || title.length > GENERATED_TITLE_MAX) return null;
   if (/^prop(?:osition)?\b/i.test(title)) return null;
   // An all-caps answer is the official title echoed back.
   if (title === title.toUpperCase() && /[A-Z]{4}/.test(title)) return null;
