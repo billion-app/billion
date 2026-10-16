@@ -19,11 +19,9 @@ import {
 } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotContestCard } from "~/components/ballot/BallotContestCard";
 import { CaliforniaGuidePreview } from "~/components/ballot/CaliforniaGuidePreview";
-import { PinMark } from "~/components/digest/CraftMarks";
 import { ElectionHero } from "~/components/ElectionHero";
 import { ElectionResultsSection } from "~/components/ElectionResultsSection";
 import { HowToVoteEntryCard } from "~/components/HowToVoteEntryCard";
-import { LocalDecisionsPreview } from "~/components/LocalDecisionsPreview";
 import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, Segmented, TabScreen } from "~/components/ui";
@@ -46,7 +44,7 @@ import {
   contestBallotCitations,
   currentBallot,
 } from "~/utils/ballot-lookup";
-import { daysUntil, monthDay } from "~/utils/dates";
+import { daysUntil } from "~/utils/dates";
 import {
   groupContestsByLevel,
   isCaliforniaState,
