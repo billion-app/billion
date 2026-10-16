@@ -1228,7 +1228,7 @@ export const ContentTranslation = pgTable(
   (table) => ({
     uniqueContentTranslation: unique().on(table.contentId, table.language),
   }),
-);
+).enableRLS();
 
 /**
  * Generated header artwork. Only the immutable Supabase Storage path and its
