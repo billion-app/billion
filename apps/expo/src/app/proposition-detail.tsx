@@ -18,6 +18,7 @@ import { TrillionScreen } from "~/components/trillion/TrillionScreen";
 import { Icon, NavHeader } from "~/components/ui";
 import {
   fontBody,
+  fontDisplay,
   fontEditorial,
   hair,
   DigestPalette as P,
@@ -102,8 +103,21 @@ export default function PropositionDetailScreen() {
                 California · {ballotElectionDate(query.data.electionDate)}
               </Text>
             </View>
+            {!measure.consequences && measure.plainTitle && (
+              <View style={s.lead}>
+                <Text accessibilityRole="header" style={s.plainTitle}>
+                  {measure.plainTitle}
+                </Text>
+                <Text style={s.caption}>
+                  AI-written headline · official title below
+                </Text>
+              </View>
+            )}
             {!measure.consequences && (
-              <Text accessibilityRole="header" style={s.recordTitle}>
+              <Text
+                accessibilityRole={measure.plainTitle ? undefined : "header"}
+                style={s.recordTitle}
+              >
                 {measure.title}
               </Text>
             )}
@@ -434,6 +448,13 @@ const s = StyleSheet.create({
     color: "rgba(255,255,255,0.70)",
   },
   record: { gap: 14 },
+  plainTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 28,
+    lineHeight: 33,
+    letterSpacing: -0.5,
+    color: P.inkOnNight,
+  },
   recordTitle: {
     fontFamily: fontBody.medium,
     fontSize: 15,

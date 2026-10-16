@@ -8,6 +8,7 @@ export const CA_OFFICIAL_GUIDE_SOURCE =
   "California Secretary of State Official Voter Information Guide";
 export const CA_GENERAL_ELECTION_DATE = "2026-11-03";
 const text = z.string().min(1).max(30_000);
+export const PLAIN_TITLE_MAX = 72;
 const GUIDE_HOSTS = ["voterguide.sos.ca.gov", "vig.cdn.sos.ca.gov"];
 const httpsUrl = (hosts: readonly string[]) =>
   z
@@ -36,6 +37,12 @@ export const officialGuidePayloadSchema = z.object({
       z.object({
         number: z.string().regex(/^\d+[A-Z]?$/),
         title: text,
+        /**
+         * Generated short label for list rows, written from `title` and
+         * `officialSummary` only. Readers label it as generated and keep the
+         * official title one tap away; it is not part of the guide hash.
+         */
+        plainTitle: z.string().min(1).max(PLAIN_TITLE_MAX).optional(),
         sourceUrl: url,
         officialSummary: text.optional(),
         voteMeaningYes: text.optional(),
