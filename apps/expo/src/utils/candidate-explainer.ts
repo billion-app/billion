@@ -30,6 +30,14 @@ export function isOfficeSlug(value: string): value is OfficeSlug {
   return Object.prototype.hasOwnProperty.call(officeNames, value);
 }
 
+export function statewideOfficeName(
+  value: string | undefined,
+): string | undefined {
+  if (!value?.trim()) return undefined;
+  const slug = statewideOfficeSlug(value);
+  return slug ? officeNames[slug] : value.trim();
+}
+
 export function statewideOfficeSlug(value: string): OfficeSlug | undefined {
   const normalized = value
     .trim()
@@ -65,6 +73,7 @@ export interface BallotCandidateDetail {
   name: string;
   party?: string;
   statement?: string;
+  biography?: string;
   photoUrl?: string;
   ballotStatus?: "onBallot" | "withdrewStillOnBallot";
   citations?: {
@@ -132,6 +141,7 @@ export function parseBallotCandidate(
       name: candidate.name,
       party: optionalText("party", 100),
       statement: optionalText("statement", 30_000),
+      biography: optionalText("biography", 30_000),
       photoUrl: optionalText("photoUrl", 2_000),
       ballotStatus:
         candidate.ballotStatus === "onBallot" ||
