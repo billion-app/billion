@@ -73,7 +73,7 @@ void test("measure translations cover reader prose but preserve evidence and ide
     "中文 Not current savings",
   );
   assert.deepEqual(translated.nodes[0].highlight.evidence, ["n2"]);
-  assert.equal(translated.nodes[0].context.money[0].nominal, "$231 million");
+  assert.equal(translated.nodes[0].context.money[0]?.nominal, "$231 million");
   assert.equal(graph.nodes[0]?.title, "What will it cost?");
   assert.deepEqual(
     measureSegments(measure, graph, "title").map((s) => s.key),
