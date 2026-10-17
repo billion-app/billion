@@ -17,6 +17,7 @@ import {
 } from "d3-force";
 
 import { readerLabel } from "./reader-labels";
+import { afterReaderPaint } from "./reader-ready";
 
 const d3 = { forceLink, forceManyBody, forceSimulation, forceX, forceY };
 
@@ -73,17 +74,33 @@ export function mountTrillionReader(root, graph, options = {}) {
         signal: lifetime.signal,
       }),
   });
-  // Billion's typefaces; the app's native fonts are not visible inside a web view.
-  if (
-    ![...document.querySelectorAll("link[rel=stylesheet]")].some((l) =>
+  // The native skeleton stays until this stylesheet, its fonts, and the first paint settle.
+  let fontLink = [...document.querySelectorAll("link[rel=stylesheet]")].find(
+    (l) =>
       l.href.startsWith("https://fonts.googleapis.com/css2?family=Albert+Sans"),
-    )
-  ) {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = FONTS;
-    document.head.appendChild(link);
-  }
+  );
+  const fontsStylesheet = new Promise((resolve) => {
+    if (fontLink?.sheet || fontLink?.dataset.trillionFonts === "settled")
+      return resolve();
+    const existing = !!fontLink;
+    fontLink ??= document.createElement("link");
+    const settled = () => {
+      fontLink.dataset.trillionFonts = "settled";
+      resolve();
+    };
+    fontLink.addEventListener("load", settled, { once: true });
+    fontLink.addEventListener("error", settled, { once: true });
+    if (!existing) {
+      fontLink.dataset.trillionFonts = "loading";
+      fontLink.rel = "stylesheet";
+      fontLink.href = FONTS;
+      document.head.appendChild(fontLink);
+    } else if (fontLink.dataset.trillionFonts !== "loading") {
+      // A parser-loaded stylesheet may already have failed before this mount.
+      if (document.readyState === "complete") settled();
+      else window.addEventListener("load", settled, { once: true });
+    }
+  });
   const [year, month, day] = graph.electionDate.split("-").map(Number);
   const eyebrow = `California · ${MONTHS[month - 1]} ${day}, ${year}`;
   const recordTitle = t("Proposition {number} · The debate", {
@@ -2573,12 +2590,22 @@ export function mountTrillionReader(root, graph, options = {}) {
     render(false);
   };
   start();
-  document.fonts?.ready.then(() => {
-    if (!lifetime.signal.aborted) {
+  void afterReaderPaint(
+    fontsStylesheet,
+    lifetime.signal,
+    () => {
       cy?.resize();
       fitView();
-    }
-  });
+      options.onReady?.();
+    },
+    () => {
+      document.documentElement.style.setProperty("--display", "Georgia, serif");
+      document.documentElement.style.setProperty(
+        "--body",
+        "system-ui, sans-serif",
+      );
+    },
+  );
   // In the app, external links open in the system browser.
   listen(root).addEventListener("click", (ev) => {
     const a = ev.target.closest?.("a[href^='http']");

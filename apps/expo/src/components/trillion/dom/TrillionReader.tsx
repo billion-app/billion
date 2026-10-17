@@ -33,6 +33,7 @@ export default function TrillionReader({
   onOpenUrl,
   onOpenMeasure,
   onBackState,
+  onReady,
   view,
   ballot,
   ref,
@@ -52,6 +53,7 @@ export default function TrillionReader({
   onOpenMeasure: (number: string) => Promise<void>;
   /** True while back stays inside the reader, so native code can hand it the swipe. */
   onBackState: (inside: boolean) => Promise<void>;
+  onReady: () => Promise<void>;
   ref?: Ref<TrillionReaderHandle>;
   dom?: DOMProps;
 }) {
@@ -66,6 +68,7 @@ export default function TrillionReader({
   useEffect(() => {
     if (!root.current) return;
     const mounted = mountTrillionReader(root.current, graph, {
+      onReady: () => void onReady(),
       onExit: () => void onExit(),
       onOpenUrl: (url: string) => void onOpenUrl(url),
       onOpenMeasure: (number: string) => void onOpenMeasure(number),
@@ -93,5 +96,7 @@ export default function TrillionReader({
     graph.revision,
     translationKey,
   ]);
-  return <div ref={root} style={{ height: "100vh" }} />;
+  return (
+    <div ref={root} style={{ height: "100vh", width: "100%", minWidth: 0 }} />
+  );
 }

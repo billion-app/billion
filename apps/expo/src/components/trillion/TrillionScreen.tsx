@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Linking, Platform, StyleSheet, View } from "react-native";
+import Animated, { FadeOut, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -18,15 +19,23 @@ import TrillionReader from "./dom/TrillionReader";
 import { TrillionLoading } from "./TrillionLoading";
 
 /** Full-screen host for the reader; the web view draws its own header. */
-export function TrillionScreen({
-  graph,
-  view,
-  ballot,
-}: {
+interface TrillionScreenProps {
   graph: PublicTrillionGraph;
   view?: "list" | "map";
   ballot?: string[];
-}) {
+}
+
+export function TrillionScreen(props: TrillionScreenProps) {
+  return (
+    <ReaderHost
+      key={`${props.graph.electionDate}.${props.graph.measure.number}`}
+      {...props}
+    />
+  );
+}
+
+function ReaderHost({ graph, view, ballot }: TrillionScreenProps) {
+  const [ready, setReady] = useState(false);
   const translation = useMeasureTranslation(
     graph.measure.number,
     graph.revision,
@@ -90,53 +99,74 @@ export function TrillionScreen({
         state={translation.state}
         onRetry={translation.retry}
       />
-      {stored?.key === storageKey ? (
-        <TrillionReader
-          key={storageKey}
-          localState={stored.value}
-          onLocalState={async (value) => {
-            await AsyncStorage.setItem(storageKey, value);
-          }}
-          ref={reader}
-          graph={displayedGraph}
-          language={translation.language}
-          translationKey={
-            translation.translation?.sourceHash
-              ? `${translation.language}:${translation.translation.sourceHash}`
-              : "en"
-          }
-          view={view}
-          ballot={ballot}
-          onExit={() => Promise.resolve(router.back())}
-          onOpenUrl={async (url) => {
-            await Linking.openURL(url);
-          }}
-          onOpenMeasure={(number) => {
-            void queryClient.prefetchQuery(
-              trpc.civic.getTrillion.queryOptions({ number }),
-            );
-            router.push({
-              pathname: "/proposition-detail",
-              params: { number },
-            });
-            return Promise.resolve();
-          }}
-          onBackState={(inside) => Promise.resolve(setBackInside(inside))}
-          dom={{
-            style: s.web,
-            // The DOM document paints before reader.css arrives with its bundle.
-            injectedJavaScriptBeforeContentLoaded: `
+      <View style={s.web}>
+        <View
+          style={s.web}
+          accessibilityElementsHidden={!ready}
+          importantForAccessibility={ready ? "auto" : "no-hide-descendants"}
+          pointerEvents={ready ? "auto" : "none"}
+        >
+          {stored?.key === storageKey && (
+            <TrillionReader
+              key={storageKey}
+              localState={stored.value}
+              onReady={() => Promise.resolve(setReady(true))}
+              onLocalState={async (value) => {
+                await AsyncStorage.setItem(storageKey, value);
+              }}
+              ref={reader}
+              graph={displayedGraph}
+              language={translation.language}
+              translationKey={
+                translation.translation?.sourceHash
+                  ? `${translation.language}:${translation.translation.sourceHash}`
+                  : "en"
+              }
+              view={view}
+              ballot={ballot}
+              onExit={() => Promise.resolve(router.back())}
+              onOpenUrl={async (url) => {
+                await Linking.openURL(url);
+              }}
+              onOpenMeasure={(number) => {
+                void queryClient.prefetchQuery(
+                  trpc.civic.getTrillion.queryOptions({ number }),
+                );
+                router.push({
+                  pathname: "/proposition-detail",
+                  params: { number },
+                });
+                return Promise.resolve();
+              }}
+              onBackState={(inside) => Promise.resolve(setBackInside(inside))}
+              dom={{
+                style: s.web,
+                // The DOM document paints before reader.css arrives with its bundle.
+                injectedJavaScriptBeforeContentLoaded: `
               document.documentElement.style.backgroundColor = '#0E1530';
               document.documentElement.style.colorScheme = 'dark';
               true;
             `,
-            bounces: false,
-            contentInsetAdjustmentBehavior: "never",
-          }}
-        />
-      ) : (
-        <TrillionLoading />
-      )}
+                bounces: false,
+                contentInsetAdjustmentBehavior: "never",
+              }}
+            />
+          )}
+        </View>
+        {!ready && (
+          <Animated.View
+            style={StyleSheet.absoluteFill}
+            exiting={FadeOut.duration(140).reduceMotion(ReduceMotion.System)}
+          >
+            <TrillionLoading
+              number={graph.measure.number}
+              electionDate={graph.electionDate}
+              notice={graph.verification.state !== "verified"}
+              onBack={() => router.back()}
+            />
+          </Animated.View>
+        )}
+      </View>
       <ListenBar
         status={speech.status}
         index={speech.index}
