@@ -8,6 +8,8 @@ export function mountTrillionReader(
     localState?: string;
     onLocalState?: (value: string) => void | Promise<void>;
     onExit?: () => void;
+    /** Initial fonts and layout have painted; native can uncover the reader. */
+    onReady?: () => void;
     onOpenUrl?: (url: string) => void;
     /** A mention of another proposition was tapped. */
     onOpenMeasure?: (number: string) => void;

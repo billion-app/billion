@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useReducedMotion,
@@ -9,38 +10,76 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { Icon } from "~/components/ui/Icon";
+import { fontBody, fontDisplay } from "~/styles";
+
 /**
  * Navy placeholders shaped like the reader's main case: the AI notice, the
  * question, the summary card, the lead dispute, the tabs and the first rows.
- * The reader replaces it in place, so nothing jumps when the debate arrives.
+ * Keep the same column width and reserve the main case's typical card heights.
  */
-export function TrillionLoading() {
+export function TrillionLoading({
+  number,
+  electionDate,
+  notice = true,
+  onBack,
+}: {
+  number?: string;
+  electionDate?: string;
+  notice?: boolean;
+  onBack: () => void;
+}) {
   const reduceMotion = useReducedMotion();
   const pulse = useSharedValue(1);
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion) {
+      pulse.value = 1;
+      return;
+    }
     pulse.value = withRepeat(
       withTiming(0.55, { duration: 900, easing: Easing.inOut(Easing.quad) }),
       -1,
       true,
     );
+    return () => cancelAnimation(pulse);
   }, [pulse, reduceMotion]);
   const fade = useAnimatedStyle(() => ({ opacity: pulse.value }));
   return (
-    <View
-      style={s.screen}
-      accessible
-      accessibilityLabel="Loading proposition"
-      accessibilityRole="progressbar"
-      accessibilityState={{ busy: true }}
-    >
-      <Animated.View style={[s.stack, fade]}>
-        <View style={s.notice} />
+    <View style={s.screen}>
+      <View style={s.header}>
+        <Pressable
+          style={s.back}
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={8}
+        >
+          <Icon name="chevL" size={20} color="#F7F4EE" />
+        </Pressable>
+        <View style={s.identity}>
+          <Text style={s.eyebrow}>
+            {electionDate
+              ? `California · ${new Date(`${electionDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`
+              : "California"}
+          </Text>
+          <Text
+            style={s.headerTitle}
+          >{`Proposition ${number ?? ""} · The debate`}</Text>
+        </View>
+      </View>
+      <Animated.View
+        style={[s.stack, fade]}
+        accessible
+        accessibilityLabel="Loading proposition"
+        accessibilityRole="progressbar"
+        accessibilityState={{ busy: true }}
+      >
+        {notice && <View style={s.notice} />}
         <View style={s.titleBlock}>
           <View style={[s.title, { width: "78%" }]} />
           <View style={[s.title, { width: "52%" }]} />
         </View>
-        <View style={s.card}>
+        <View style={[s.card, s.summary]}>
           <View style={s.kicker} />
           <View style={s.line} />
           <View style={s.line} />
@@ -55,8 +94,15 @@ export function TrillionLoading() {
           <View style={[s.pill, { width: 96 }]} />
           <View style={[s.pill, { width: 120 }]} />
         </View>
-        <View style={s.row} />
-        <View style={s.row} />
+        <View style={s.views} />
+        <View style={s.grid}>
+          <View style={s.row} />
+          <View style={s.row} />
+        </View>
+        <View style={s.grid}>
+          <View style={s.row} />
+          <View style={s.row} />
+        </View>
       </Animated.View>
     </View>
   );
@@ -64,25 +110,59 @@ export function TrillionLoading() {
 
 // Colors are the reader's: navy page, slate cards, raised slate for text lines.
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0E1530", paddingHorizontal: 16 },
-  stack: { gap: 14, paddingTop: 14 },
+  screen: { flex: 1, backgroundColor: "#0E1530", overflow: "hidden" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  back: {
+    width: 36,
+    height: 36,
+    borderRadius: 99,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#272D3C",
+  },
+  identity: { flex: 1, minWidth: 0 },
+  eyebrow: {
+    fontFamily: fontBody.bold,
+    fontSize: 11,
+    lineHeight: 16.5,
+    letterSpacing: 0.88,
+    textTransform: "uppercase",
+    color: "#D4AF37",
+  },
+  headerTitle: {
+    fontFamily: fontDisplay.bold,
+    fontSize: 17,
+    lineHeight: 20.4,
+    color: "#F7F4EE",
+  },
+  stack: { gap: 14, paddingTop: 12, paddingHorizontal: 16 },
   notice: {
-    height: 42,
+    height: 41,
+    borderRadius: 12,
+    backgroundColor: "#323848",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  titleBlock: { gap: 8, paddingVertical: 4, marginBottom: 12 },
+  title: { height: 28, borderRadius: 6, backgroundColor: "#272D3C" },
+  card: {
+    gap: 10,
+    padding: 16,
     borderRadius: 14,
     backgroundColor: "#272D3C",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
-  titleBlock: { gap: 10, paddingVertical: 8 },
-  title: { height: 26, borderRadius: 6, backgroundColor: "#272D3C" },
-  card: {
-    gap: 10,
-    padding: 16,
-    borderRadius: 20,
-    backgroundColor: "#272D3C",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
+  summary: { minHeight: 166 },
   kicker: {
     width: 88,
     height: 9,
@@ -90,14 +170,20 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(212,175,55,0.35)",
   },
   line: { height: 13, borderRadius: 5, backgroundColor: "#3C4356" },
-  lead: { borderRadius: 14, borderColor: "rgba(255,255,255,0.16)" },
+  lead: {
+    minHeight: 104,
+    marginTop: -2,
+    borderColor: "rgba(255,255,255,0.16)",
+  },
   leadTitle: { width: "82%", height: 17 },
-  tabs: { flexDirection: "row", gap: 8 },
+  tabs: { flexDirection: "row", gap: 8, marginTop: 8 },
   pill: {
     height: 38,
     borderRadius: 99,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
-  row: { height: 82, borderRadius: 12, backgroundColor: "#272D3C" },
+  views: { height: 43, borderRadius: 12, backgroundColor: "#272D3C" },
+  grid: { flexDirection: "row", gap: 10 },
+  row: { flex: 1, height: 100, borderRadius: 12, backgroundColor: "#272D3C" },
 });

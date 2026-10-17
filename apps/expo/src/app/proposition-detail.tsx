@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
@@ -42,6 +43,7 @@ import {
 
 export default function PropositionDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { number } = useLocalSearchParams<{ number?: string }>();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const originalMeasure = query.data?.measures.find(
@@ -92,13 +94,14 @@ export default function PropositionDetailScreen() {
 
   if (query.isPending || (!!measure && debate.isPending))
     return (
-      <View style={s.screen}>
-        <NavHeader
-          title={`Proposition ${number ?? ""}`}
-          tone="dark"
+      <View style={[s.screen, { paddingTop: insets.top }]}>
+        {/* Reserve the reader tools row while measure data is pending. */}
+        <View style={{ height: 56 }} />
+        <TrillionLoading
+          number={number}
+          electionDate={query.data?.electionDate}
           onBack={() => router.back()}
         />
-        <TrillionLoading />
       </View>
     );
 

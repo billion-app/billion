@@ -148,3 +148,7 @@ not stored in the plan. The statewide guide remains a routing experience until
 personalized logistics are available. The address ballot keeps supplied dates
 and locations in `VotingLogisticsSection`. Issue #422 remains gated on the
 production personalized-ballot path and real-reader flow verification.
+
+### Ballot measure loading
+
+The [native debate host](../apps/expo/src/components/trillion/TrillionScreen.tsx) keeps its header and skeleton visible while the DOM reader mounts. Storage completion is not a visual-ready signal: the reader waits for its stylesheet, fonts, and a painted frame before revealing content. A two-second typography deadline selects system fonts for that document if font loading stalls, preventing both indefinite loading and a late font swap. The DOM root has an explicit full column width, and the native navigation container shares the navy canvas so iOS rounded transitions cannot expose white corners. [Runtime evidence](evidence/measure-loading/README.md) records the verified states and limits.
