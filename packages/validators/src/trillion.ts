@@ -1,11 +1,16 @@
 import { z } from "zod/v4";
 
-import { contextMoneyMentions } from "./budget-context";
+import {
+  contextMoneyMentions,
+  contextMoneySchema,
+  hasUncoveredContextMoney,
+  nominalMoneyBounds,
+} from "./budget-context";
 
 /**
  * The Trillion: a reviewed argument graph for one ballot measure (#455).
  *
- * The root is the reader's own question. Four orientation branches and the
+ * The root is the reader's own question. Orientation branches and the
  * disputed questions hang off it; arguments sit under a disputed question with
  * their lean toward the vote as a stance, never in pro/con columns. Every
  * source-backed node quotes captured official text verbatim.
@@ -29,9 +34,8 @@ const officialUrl = z
   );
 
 /**
- * Historical precedent comes from archived official PDFs: the State Auditor,
- * the Legislative Analyst, and past voter guides. PDFs only, so freshness can
- * compare document bytes.
+ * Historical context comes from official PDFs and LAO publication reports.
+ * PDFs use document-byte freshness; LAO HTML uses the captured article text.
  */
 export const TRILLION_PRECEDENT_HOSTS = [
   "information.auditor.ca.gov",
@@ -40,7 +44,7 @@ export const TRILLION_PRECEDENT_HOSTS = [
   "vigarchive.sos.ca.gov",
 ] as const;
 const precedentUrl =
-  /^https:\/\/(?:information\.auditor\.ca\.gov|(?:www\.)?lao\.ca\.gov|vigarchive\.sos\.ca\.gov)\/[^\s@?#]*\.pdf$/;
+  /^https:\/\/(?:(?:information\.auditor\.ca\.gov|(?:www\.)?lao\.ca\.gov|vigarchive\.sos\.ca\.gov)\/[^\s@?#]*\.pdf|(?:www\.)?lao\.ca\.gov\/Publications\/Report\/\d+)$/;
 
 export const TRILLION_NODE_KINDS = [
   "root",
@@ -111,7 +115,7 @@ export const trillionSourceSchema = z
       ctx.addIssue({
         code: "custom",
         message: precedent
-          ? "Precedent sources must be archived official PDFs (State Auditor, LAO, or past guides)."
+          ? "Precedent sources must be official PDFs or LAO publication reports."
           : "Trillion sources must be official California guide documents.",
       });
     if (precedent !== (source.title !== undefined))
@@ -138,6 +142,22 @@ export const trillionTermSchema = z.object({
   plain: z.string().trim().min(10).max(250),
 });
 
+/** An editorial selection, with the actual evidence a reader can inspect. */
+export const trillionHighlightSchema = z.object({
+  rank: z.number().int().min(1).max(3),
+  reason: z.string().trim().min(20).max(300),
+  evidence: z.array(id).min(1).max(6),
+});
+
+export const trillionContextSchema = z.object({
+  topic: z.enum(["baseline", "history", "budget"]),
+  period: z.string().trim().min(1).max(120),
+  scope: z.string().trim().min(1).max(200),
+  /** Limits of the evidence, including whether an earlier program is comparable. */
+  limitation: z.string().trim().min(20).max(400),
+  money: z.array(contextMoneySchema).max(6).default([]),
+});
+
 export const trillionNodeSchema = z.object({
   id,
   kind: z.enum(TRILLION_NODE_KINDS),
@@ -154,6 +174,8 @@ export const trillionNodeSchema = z.object({
     .optional(),
   /** Disputed questions name the kind of disagreement. */
   dispute: z.enum(["facts", "values", "reading", "legal"]).optional(),
+  highlight: trillionHighlightSchema.optional(),
+  context: trillionContextSchema.optional(),
   /** Other ballot measures referenced by a `record` node. */
   record: z.object({ number: measureNumber }).optional(),
   note: z.string().trim().min(1).max(400).optional(),
@@ -424,6 +446,107 @@ function checkStructure(
   }
 
   for (const node of value.nodes) {
+    if (node.highlight) {
+      if (node.kind !== "crux")
+        issue(`${node.id}: only disputed questions can be highlighted.`);
+      if (contextMoneyMentions(node.highlight.reason).length)
+        issue(`${node.id}: highlight reasons may not state monetary amounts.`);
+      for (const evidence of node.highlight.evidence) {
+        const cited = nodes.get(evidence);
+        if (
+          !cited?.quotes.length ||
+          !value.edges.some(
+            (e) =>
+              e.from === evidence && e.to === node.id && e.type === "weighs",
+          )
+        )
+          issue(
+            `${node.id}: highlighted questions must link to quoted evidence weighing on this question.`,
+          );
+      }
+    }
+    if (node.context) {
+      const context = node.context;
+      if (
+        !["analysis", "precedent", "fact"].includes(node.kind) ||
+        !node.quotes.length
+      )
+        issue(
+          `${node.id}: context must be a quoted analysis, historical record, or fact.`,
+        );
+      if (
+        node.quotes.some(
+          (q) =>
+            !value.sources.some(
+              (s) =>
+                s.id === q.sourceId &&
+                ["official-analysis", "precedent"].includes(s.role),
+            ),
+        )
+      )
+        issue(
+          `${node.id}: context must cite nonpartisan analysis or historical records, not campaign claims.`,
+        );
+      if (
+        !value.edges.some(
+          (e) =>
+            e.from === node.id && e.to === "b-before" && e.type === "detail",
+        )
+      )
+        issue(`${node.id}: context belongs under What was it like before?.`);
+      if (
+        hasUncoveredContextMoney(
+          [
+            node.label,
+            node.title,
+            node.body ?? "",
+            node.note ?? "",
+            context.period,
+            context.scope,
+            context.limitation,
+          ].join(" "),
+          context.money,
+        )
+      )
+        issue(
+          `${node.id}: every context amount needs matching budget context.`,
+        );
+      for (const money of context.money) {
+        if (
+          !node.quotes.some((q) =>
+            contextMoneyMentions(q.text).some(
+              (amount) =>
+                normalizeQuoteText(amount) ===
+                normalizeQuoteText(money.nominal),
+            ),
+          )
+        )
+          issue(
+            `${node.id}: context amounts must appear in the card's source quotations.`,
+          );
+        if (money.comparison.state === "available") {
+          const denominator = money.comparison.denominator;
+          for (const evidence of denominator.evidence)
+            if (
+              !node.quotes.some(
+                (q) =>
+                  q.sourceId === evidence.sourceId &&
+                  q.locator === evidence.locator &&
+                  contextMoneyMentions(q.text).some((amount) => {
+                    const bounds = nominalMoneyBounds(amount);
+                    return (
+                      bounds?.min === denominator.amount &&
+                      bounds.max === denominator.amount
+                    );
+                  }),
+              )
+            )
+              issue(
+                `${node.id}: budget denominators need a source quotation at the cited locator.`,
+              );
+        }
+      }
+    }
     if (QUOTED_TRILLION_KINDS.has(node.kind) && node.quotes.length === 0)
       issue(`${node.id}: source-backed nodes must quote their source.`);
     for (const quote of node.quotes) {
@@ -478,6 +601,15 @@ function checkStructure(
     if (edge.type === "weighs" && to.kind !== "crux")
       issue(`${edge.id}: arguments weigh in under a disputed question.`);
     if (
+      edge.type === "detail" &&
+      to.id === "b-before" &&
+      !from.context &&
+      from.kind !== "question"
+    )
+      issue(
+        `${edge.id}: background entries need scoped context or an unanswered question.`,
+      );
+    if (
       edge.type === "crux" &&
       (from.kind !== "crux" || to.id !== value.rootId)
     )
@@ -498,13 +630,23 @@ function checkStructure(
   for (const nodeId of ungroundedTrillionClaims(value))
     issue(`${nodeId}: Billion's claims must rest on a quoted source.`);
   const branches = value.nodes.filter((node) => node.kind === "branch");
+  const ranks = value.nodes.flatMap((n) =>
+    n.highlight ? [n.highlight.rank] : [],
+  );
+  if (new Set(ranks).size !== ranks.length)
+    issue("Highlight ranks must be unique.");
   if (
-    branches.length !== 4 ||
+    !(
+      branches.length === 4 ||
+      (branches.length === 5 && branches.some((n) => n.id === "b-before"))
+    ) ||
     !branches.every((branch) =>
       value.edges.some((e) => e.type === "part" && e.from === branch.id),
     )
   )
-    issue("The root needs exactly the four orientation branches.");
+    issue(
+      "The root needs four orientation branches, optionally with What was it like before?.",
+    );
   if (
     value.verification.state === "verified" &&
     value.verification.revision !== value.revision

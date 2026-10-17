@@ -16,6 +16,8 @@ import {
   forceY,
 } from "d3-force";
 
+import { contextMoneyPresentation } from "@acme/validators/budget-context-presentation";
+
 import { readerLabel } from "./reader-labels";
 import { afterReaderPaint } from "./reader-ready";
 
@@ -315,6 +317,8 @@ export function mountTrillionReader(root, graph, options = {}) {
         body: n.body,
         note: n.note,
         dispute: n.dispute,
+        highlight: n.highlight,
+        context: n.context,
         record: n.record,
         quote: n.quotes.length
           ? n.quotes.map((x) => x.text).join(" … ")
@@ -599,6 +603,10 @@ export function mountTrillionReader(root, graph, options = {}) {
           tone: "neutral",
           items: inc
             .filter((e) => e.type === "part")
+            .sort(
+              (a, b) =>
+                Number(b.from === "b-before") - Number(a.from === "b-before"),
+            )
             .map((e) => ({ e, dir: "in" })),
         },
         {
@@ -811,9 +819,19 @@ export function mountTrillionReader(root, graph, options = {}) {
           : ""
       : `<button class="relchip" type="button" data-edge="${e.id}" aria-label="${esc(rel)}. Open this link">${esc(rel)} ›</button>`;
     return `<div class="row r-${tone(e)}${o.kind === "global" ? " is-global" : ""}">
-      <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}</span></div>
+      <div class="rowhead">${chip}<span class="src">${esc(srcLabel(o))}${o.context ? ` · ${esc(o.context.period)}` : ""}</span></div>
       <button class="go" type="button" data-node="${otherId}">
         <span class="t">${cardTitle(otherId)}${open}</span>
+        ${
+          o.context
+            ? `<span class="context-row-limit">${esc(o.context.limitation)}</span>${o.context.money
+                .map((m) => {
+                  const p = contextMoneyPresentation(m);
+                  return `<span class="context-row-limit">${esc(p.comparison)} · ${esc(m.scope.period)}</span>`;
+                })
+                .join("")}`
+            : ""
+        }
       </button>
     </div>`;
   }
@@ -831,7 +849,30 @@ export function mountTrillionReader(root, graph, options = {}) {
     if (!cat) return "";
     const key = `${id}:${cat.key}`;
     let body;
-    if (cat.key === "basics") {
+    if (id === "b-before" && cat.key === "inside") {
+      const topics = {
+        baseline: "Existing rules",
+        history: "Past results",
+        budget: "Money in context",
+      };
+      body = Object.entries(topics)
+        .map(([topic, label]) => {
+          const items = cat.items.filter(
+            ({ e }) =>
+              N[e.from].context?.topic === topic ||
+              e.from === `context-gap-${topic}`,
+          );
+          return items.length
+            ? `<section class="context-group"><h2>${t(label)}</h2><div class="rows">${items.map(row).join("")}</div></section>`
+            : "";
+        })
+        .join("");
+      const other = cat.items.filter(
+        ({ e }) => !N[e.from].context && !e.from.startsWith("context-gap-"),
+      );
+      if (other.length)
+        body += `<div class="rows">${other.map(row).join("")}</div>`;
+    } else if (cat.key === "basics") {
       body = `<div class="tiles">${cat.items
         .map(({ e }) => {
           const k = incoming(e.from).filter((x) => KIDS.has(x.type)).length;
@@ -871,14 +912,12 @@ export function mountTrillionReader(root, graph, options = {}) {
     return `<section class="section" id="tabpanel" role="tabpanel">${body}</section>`;
   }
 
-  // The generator lists disputed questions most consequential first. The first
-  // is shown under the summary in the Yes-to-No colors, unlabeled: the color
-  // draws the eye without Billion declaring which disagreement matters most.
+  // Explicit editorial selections survive only while their evidence does.
   function disputeIds() {
     return Object.keys(N).filter((id) => N[id].kind === "crux");
   }
   function disputeOrder(id) {
-    return disputeIds().indexOf(id);
+    return N[id].highlight?.rank ?? 10 + disputeIds().indexOf(id);
   }
   function disputeSides(id) {
     const args = incoming(id).filter((x) => x.type === "weighs");
@@ -887,23 +926,65 @@ export function mountTrillionReader(root, graph, options = {}) {
     const both = args.filter((x) => x.stance === "mixed").length;
     return { yes, no, both, total: args.length };
   }
+  function highlightReason(id) {
+    const h = N[id].highlight;
+    if (!h) return "";
+    return `<details class="selection-reason"><summary>${t("Why this question?")}</summary>
+      <p>${esc(h.reason)}</p><p class="meta">${t("Selected by Billion AI \u00b7 an editorial judgment")}</p>
+      <div class="selection-evidence">${h.evidence.map((e, i) => `<button type="button" class="linkish" data-node="${e}">${N[e].context ? `${t("Evidence {number}", { number: i + 1 })} · ${esc(srcLabel(N[e]))}` : esc(titleOf(e))} ›</button>`).join("")}</div></details>`;
+  }
   function leadDisputeHtml() {
-    const id = disputeIds().find(
+    const eligible = disputeIds().filter(
       (c) => visible(c) && incoming(ROOT).some((e) => e.from === c),
     );
-    if (!id) return "";
-    const d = disputeSides(id);
-    const sides = [
-      d.yes ? `${d.yes} ${t("Yes")}` : "",
-      d.no ? `${d.no} ${t("No")}` : "",
-      d.both ? `${d.both} ${t("both ways")}` : "",
-    ]
-      .filter(Boolean)
-      .join(", ");
-    return `<button class="pinned-dispute" type="button" data-node="${id}">
-      <span class="pd-title">${cardTitle(id)}</span>
-      <span class="pd-meta">${t("{count} arguments", { count: d.total })}${sides ? ` · ${sides}` : ""} ›</span>
-    </button>`;
+    const selected = eligible
+      .filter((c) => N[c].highlight)
+      .sort((a, b) => disputeOrder(a) - disputeOrder(b))
+      .slice(0, 3);
+    // Old records remain readable, without pretending their first item was assessed.
+    const ids = selected.length
+      ? selected
+      : N["b-before"]
+        ? []
+        : eligible.slice(0, 1);
+    if (!ids.length) return "";
+    return `<section class="highlighted-questions" aria-label="Questions to weigh"><p class="selection-label">${t(selected.length ? "Questions worth weighing" : "A question to explore")}</p>${selected.length ? `<p class="meta selection-by">${t("Selected by Billion AI")}</p>` : ""}${ids
+      .map((id) => {
+        const d = disputeSides(id);
+        return `<div class="selected-question"><button class="pinned-dispute" type="button" data-node="${id}">
+        <span class="pd-title">${cardTitle(id)}</span>
+        <span class="pd-meta">${t("Explore {count} linked arguments", { count: d.total })} ›</span>
+      </button>${highlightReason(id)}</div>`;
+      })
+      .join("")}</section>`;
+  }
+
+  function contextHtml(id) {
+    const c = N[id].context;
+    if (!c) return "";
+    return `<aside class="decision-context" aria-label="Evidence context">
+      <p class="context-scope">${esc(c.period)} · ${esc(c.scope)}</p>
+      <p class="context-limit"><strong>${t("Limits of this evidence")}</strong><br>${esc(c.limitation)}</p>
+      ${c.money
+        .map((money) => {
+          const p = contextMoneyPresentation(money);
+          const citations =
+            money.comparison.state === "available"
+              ? money.comparison.denominator.evidence
+                  .map((e) => {
+                    const source = graph.sources.find(
+                      (s) => s.id === e.sourceId,
+                    );
+                    return source
+                      ? `<a href="${esc(source.url)}" target="_blank" rel="noopener">${esc(source.title || "Legislative Analyst")} · ${esc(e.locator)}</a>`
+                      : "";
+                  })
+                  .join(" · ")
+              : "";
+          return `<div class="context-money"><strong>${esc(p.nominal)}</strong><p>${esc(p.comparison)}</p><p class="meta">${esc(p.scope)}</p>${p.reason ? `<p>${esc(p.reason)}</p>` : ""}${citations ? `<p class="meta">${t("Comparison source")}: ${citations}</p>` : ""}</div>`;
+        })
+        .join("")}
+    </aside>`;
   }
 
   // Reader tools drawn as line icons; filled when on.
@@ -956,7 +1037,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const n = N[id];
     const src = n.source || {};
     if (id === ROOT)
-      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}</article>${leadDisputeHtml()}`;
+      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}${N["b-before"] ? `<button class="linkish before-link" type="button" data-node="b-before">${t("What was it like before?")} ›</button>` : ""}</article>${leadDisputeHtml()}`;
     const meta = [
       `<span class="kind${n.dispute === "values" ? " is-values" : ""}">${esc(n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
     ];
@@ -974,6 +1055,8 @@ export function mountTrillionReader(root, graph, options = {}) {
       <div class="meta">${meta.join("")}</div>
       <h1 tabindex="-1" class="${n.title.includes("**") ? "stmt" : ""}">${titleHtml(id)}</h1>
       ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
+      ${contextHtml(id)}
+      ${n.kind === "crux" ? highlightReason(id) : ""}
       ${n.quote ? `<blockquote class="quote">“${esc(n.quote)}”<footer><span>${esc(src.locator)}</span><button class="linkish" type="button" data-source="${id}">Inspect source</button></footer></blockquote>` : evidenceGap(id)}
       ${n.note ? `<p class="note">${esc(n.note)}</p>` : ""}
       ${src.signers && n.quote ? `<p class="note">Signed by ${esc(src.signers)}</p>` : ""}
@@ -2143,7 +2226,9 @@ export function mountTrillionReader(root, graph, options = {}) {
           <p class="meta" style="margin:0 0 6px">${esc(id === ROOT ? "Main case" : n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</p>
           <h2 id="sheet-title" class="${N[id].title?.includes("**") ? "stmt" : ""}">${titleHtml(id)}</h2>
           ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
-          ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
+          ${contextHtml(id)}
+      ${n.kind === "crux" ? highlightReason(id) : ""}
+      ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
           ${inside}
           ${fromRing ? `<button class="linkish" type="button" data-ring style="margin:0 0 10px">‹ Back to the whole debate</button>` : ""}<div class="actions">${here ? `<button class="btn ghost" type="button" data-close>You're here · Close</button>` : `<button class="btn ghost" type="button" data-close>${t("Close")}</button><button class="btn primary" type="button" data-node="${id}">Go to this ›</button>`}</div>`,
       true,
@@ -2177,12 +2262,18 @@ export function mountTrillionReader(root, graph, options = {}) {
   function openSource(id) {
     const n = N[id];
     const s = n.source;
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${esc(s.label)}</h2><button class="close" type="button" data-close>${t("Close")}</button></div>
-      <p class="meta" style="margin:0 0 10px">${esc(s.locator)}</p>
-      <blockquote class="quote">“${esc(n.quote)}”</blockquote>
+    const original = graph.nodes.find((node) => node.id === id);
+    const passages = original?.quotes
+      .map((q) => {
+        const source = graph.sources.find((x) => x.id === q.sourceId);
+        return `<blockquote class="quote">“${esc(q.text)}”<footer>${esc(source?.title || (source?.role === "official-analysis" ? "Legislative Analyst" : "Official source"))} · ${esc(q.locator)}</footer></blockquote>
+        ${source ? `<p><a class="linkish" href="${esc(source.url)}" target="_blank" rel="noopener">${t("Open official source")}</a></p>` : ""}`;
+      })
+      .join("");
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${t("Source passages")}</h2><button class="close" type="button" data-close>${t("Close")}</button></div>
+      ${passages || `<blockquote class="quote">“${esc(n.quote)}”</blockquote>`}
       ${s.signers ? `<p class="note" style="margin-top:12px">Signed by ${esc(s.signers)}</p>` : ""}
-      <p class="empty" style="margin-top:12px">Billion matched this passage to the official document. A matched quote shows what the source says. It does not show that a claim built on it is correct.</p>
-      ${s.url ? `<div class="actions"><a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener">Open official source</a></div>` : ""}`);
+      <p class="empty" style="margin-top:12px">Billion matched these passages to the official documents. A matched quote shows what the source says. It does not show that a claim built on it is correct.</p>`);
   }
 
   const ACTIONS = [

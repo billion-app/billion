@@ -86,3 +86,50 @@ void test("guide HTML freshness ignores the injected bot-protection script but n
     documentFreshnessHash(url, page("1", "Vote no.")),
   );
 });
+
+void test("LAO historical report capture and freshness use the same bounded article text", async () => {
+  const { capturePrecedentSource } = await import("./trillion-capture.js");
+  const url = "https://lao.ca.gov/Publications/Report/4631";
+  const words =
+    "A historical report describes the enacted budget and distinguishes estimates from actual payments. ".repeat(
+      7,
+    );
+  const page = (nav: string, text: string) =>
+    Buffer.from(
+      `<nav>${nav}</nav><div class="report-body"><h1>Report</h1><p>${text}</p><img alt="Spending categories by fiscal year"><script>transient()</script></div>`,
+    );
+  const original = page("old menu", words);
+  const source = await capturePrecedentSource(
+    "2",
+    {
+      id: "precedent-rebate-budget-2022",
+      url,
+      title: "LAO historical budget report",
+      locator: "Taxpayer rebates",
+    },
+    async () => original,
+  );
+  assert.ok(source.snapshot.includes("Spending categories"));
+  assert.ok(!source.snapshot.includes("transient"));
+  assert.equal(
+    source.documentHash,
+    documentFreshnessHash(url, page("new menu", words)),
+  );
+  assert.notEqual(
+    source.documentHash,
+    documentFreshnessHash(url, page("new menu", words + "Corrected.")),
+  );
+  await assert.rejects(
+    capturePrecedentSource(
+      "2",
+      {
+        id: "precedent-empty",
+        url,
+        title: "Missing report",
+        locator: "Report",
+      },
+      async () => Buffer.from("<html>Unavailable</html>"),
+    ),
+    /text missing/,
+  );
+});

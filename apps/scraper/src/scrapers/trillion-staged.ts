@@ -6,6 +6,7 @@ import {
   readingOrderText,
   trillionEdgeSchema,
   trillionGraphSchema,
+  trillionHighlightSchema,
   trillionNodeSchema,
   trillionTermSchema,
 } from "@acme/validators";
@@ -13,8 +14,10 @@ import {
 import type { TrillionCorpus } from "./trillion-capture.js";
 import { sourceHash } from "./measure-relationship-capture.js";
 import { trillionCorpusSchema } from "./trillion-capture.js";
+import { TRILLION_CONTEXT_INSTRUCTIONS } from "./trillion-context.js";
 import {
   buildTrillionSummaryPrompt,
+  dropFailingParts,
   mergeTerms,
   orientStructuralEdges,
   pruneUnverified,
@@ -31,13 +34,18 @@ import {
  * failures stay local, and the lean, which readers rely on most, gets a
  * dedicated second look.
  */
-export const TRILLION_STAGED_VERSION = "trillion-staged-v1";
+export const TRILLION_STAGED_VERSION = "trillion-staged-v2";
 
 const id = z
   .string()
   .regex(/^[a-z0-9-]+$/)
   .max(80);
 const BRANCHES = {
+  before: {
+    id: "b-before",
+    title: "What was it like before?",
+    body: "Existing rules, past results and money in context. Each record keeps its date, scope and limits.",
+  },
   what: {
     id: "b-what",
     title: "What does it actually do?",
@@ -83,6 +91,7 @@ export const trillionPlanSchema = z.object({
         label: z.string().trim().min(1).max(60),
         title: z.string().trim().min(1).max(160),
         dispute: z.enum(["facts", "values", "reading", "legal"]),
+        highlight: trillionHighlightSchema.optional(),
         body: z.string().trim().min(1).max(400).optional(),
       }),
     )
@@ -150,10 +159,12 @@ export function buildTrillionPlanPrompt(corpus: TrillionCorpus): string {
   const precedent = corpus.sources.some((s) => s.role === "precedent");
   return `You are planning the seed of a public argument graph ("the Trillion") for California Proposition ${corpus.number}. Later calls write each card from your plan, so plan carefully; write no prose beyond the plan. Billion helps voters find where people actually disagree and never recommends a vote.
 
-The graph already has a root ("How should I vote on Prop ${corpus.number}?") and four branches: "what" (What does it actually do?), "who" (Who's behind it?), "when" (When?), "how" (How can I act?).
+The graph already has a root ("How should I vote on Prop ${corpus.number}?") and five branches: "before" (What was it like before?), "what" (What does it actually do?), "who" (Who's behind it?), "when" (When?), "how" (How can I act?).
+
+${TRILLION_CONTEXT_INSTRUCTIONS}
 
 Plan:
-- "cruxes": four to six disputed questions people genuinely disagree about, each a short neutral question about ONE thing (at most 12 words; never join two questions with "and", "or" or "rather than"), with "dispute": "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures). When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question.${precedent ? ' Add "Has this been tried before, and did it work?" (facts), for the precedent sources.' : ""}
+- "cruxes": four to six disputed questions people genuinely disagree about, each a short neutral question about ONE thing (at most 12 words; never join two questions with "and", "or" or "rather than"), with "dispute": "facts", "values", "reading" (how to read the text) or "legal" (courts, timing, other measures). When the measure conflicts with or depends on another measure on the ballot, give that interaction its own "legal" question.${precedent ? ' Add a historical question (facts) naming the actual comparable policy or program and outcome, for the precedent sources.' : ""}
 - "cards": every card the graph needs, each with an id (lowercase, digits, hyphens), kind, a label of a few words, "intent" (one sentence saying what the card will claim), and for quoted kinds the "sourceId" and "locator" of the passage to quote.
   - "home" is where the card lives: a branch key or a crux id. "What does it actually do?" ("what") is built from the measure's OWN legal text: five to ten "provision" cards, core change first, then who it covers, then money, then exceptions and procedure; the Legislative Analyst ("analysis") explains alongside, never in place of the text.
   - Split each published argument and rebuttal into its distinct claims, one "argument" card each (usually 8 to 14), home in the dispute it bears on most.
@@ -228,6 +239,8 @@ For each of your cards:
 
 Rules:
 ${SHARED_RULES(corpus.number)}
+${TRILLION_CONTEXT_INSTRUCTIONS}
+Only write your planned cards in this expansion; branch and crux skeletons already exist.
 
 YOUR CARDS (${group.label}):
 ${JSON.stringify(group.cards)}
@@ -413,6 +426,7 @@ export async function generateStagedTrillionGraph(
       title: c.title,
       ...(c.body ? { body: c.body } : {}),
       dispute: c.dispute,
+      ...(c.highlight ? { highlight: c.highlight } : {}),
       quotes: [],
     })),
   ];
@@ -498,7 +512,11 @@ export async function generateStagedTrillionGraph(
   });
 
   // 4. Summary, from the legal text alone.
-  const { terms: summaryTerms, ...summary } = trillionSummarySchema.parse(
+  const {
+    terms: summaryTerms,
+    background,
+    ...summary
+  } = trillionSummarySchema.parse(
     await budgeted(summaryPrompt, trillionSummarySchema, 4000),
   );
 
@@ -525,6 +543,7 @@ export async function generateStagedTrillionGraph(
         generatedAt: new Date().toISOString(),
       },
     },
+    background,
     nodes: authored.nodes,
     edges: authored.edges,
     sources: corpus.sources,
@@ -536,10 +555,13 @@ export async function generateStagedTrillionGraph(
     },
   });
   // Edges pointing at cards that were never written are dangling; drop them.
-  const kept = new Set(pruned.graph.nodes.map((n) => n.id));
+  const settled = dropFailingParts(pruned.graph);
+  const kept = new Set(settled.graph.nodes.map((n) => n.id));
   const graphValue = {
-    ...pruned.graph,
-    edges: pruned.graph.edges.filter((e) => kept.has(e.from) && kept.has(e.to)),
+    ...settled.graph,
+    edges: settled.graph.edges.filter(
+      (e) => kept.has(e.from) && kept.has(e.to),
+    ),
   };
   const checked = trillionGraphSchema.safeParse(graphValue);
   if (!checked.success)
@@ -552,6 +574,7 @@ export async function generateStagedTrillionGraph(
     dropped: [
       ...dropped,
       ...pruned.dropped,
+      ...settled.dropped,
       ...flipped.map((e) => `${e} (direction repaired)`),
       ...repaired.retyped,
     ],

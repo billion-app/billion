@@ -1459,8 +1459,76 @@ textarea {
   cursor: pointer;
 }
 
-/* The lead disagreement under the main case's summary. Unlabeled: its border
-   runs from the Yes color to the No color, unlike any other card. */
+/* Editorial selections explain their reasoning separately from the open action. */
+.highlighted-questions {
+  max-width: 720px;
+  margin: 18px 0;
+}
+.before-link {
+  display: block;
+  min-height: 44px;
+  padding-top: 12px;
+}
+.selection-label {
+  color: var(--text);
+  font: 600 15px/1.4 var(--display);
+  margin: 0;
+}
+.selection-reason {
+  margin: 6px 4px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.selection-reason summary {
+  min-height: 44px;
+  box-sizing: border-box;
+  cursor: pointer;
+  color: var(--link);
+  padding: 8px 0;
+}
+.selection-reason p {
+  margin: 8px 0;
+}
+.selection-evidence {
+  display: grid;
+  gap: 10px;
+}
+.selection-evidence button {
+  text-align: left;
+}
+.context-group {
+  max-width: 720px;
+  margin-bottom: 24px;
+}
+.context-group h2 {
+  font: 600 18px/1.4 var(--display);
+  margin: 16px 0 10px;
+}
+.decision-context {
+  border-left: 2px solid var(--hair1);
+  padding: 0 0 0 14px;
+  margin: 18px 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.context-scope,
+.context-row-limit {
+  color: #b9bdc9;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.context-row-limit {
+  display: block;
+  margin-top: 6px;
+}
+.context-money {
+  border-top: 1px solid var(--hair1);
+  margin-top: 14px;
+  padding-top: 12px;
+}
+.context-money p {
+  margin: 6px 0;
+}
 .pinned-dispute {
   display: grid;
   gap: 6px;

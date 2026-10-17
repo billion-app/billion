@@ -238,7 +238,8 @@ export class TrillionModel {
             .filter((e) => e.type === "crux")
             .sort(
               (a, b) =>
-                this.cruxState(b.from).open - this.cruxState(a.from).open,
+                (this.node(a.from).highlight?.rank ?? 10) -
+                (this.node(b.from).highlight?.rank ?? 10),
             )
             .map((edge) => ({ edge, dir: "in" })),
         },

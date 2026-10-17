@@ -6,6 +6,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
+    },
+    "./budget-context-presentation": {
+      "types": "./dist/budget-context-presentation.d.ts",
+      "default": "./src/budget-context-presentation.ts"
     }
   },
   "license": "MIT",
