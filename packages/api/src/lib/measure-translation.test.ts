@@ -25,6 +25,23 @@ void test("measure translations cover reader prose but preserve evidence and ide
         label: "Costs",
         title: "What will it cost?",
         body: "More debt",
+        highlight: {
+          rank: 1,
+          reason: "Past outcomes matter",
+          evidence: ["n2"],
+        },
+        context: {
+          topic: "history",
+          period: "2015–16",
+          scope: "California funds",
+          limitation: "Not current savings",
+          money: [
+            {
+              nominal: "$231 million",
+              comparison: { state: "unavailable", reason: "No matching total" },
+            },
+          ],
+        },
         attribution: { name: "Author" },
         quotes: [{ text: "Exact quote" }],
       },
@@ -47,6 +64,16 @@ void test("measure translations cover reader prose but preserve evidence and ide
   assert.deepEqual(translated.sources, graph.sources);
   assert.deepEqual(translated.nodes[0].quotes, graph.nodes[0]?.quotes);
   assert.equal(translated.revision, graph.revision);
+  assert.equal(
+    translated.nodes[0].highlight.reason,
+    "中文 Past outcomes matter",
+  );
+  assert.equal(
+    translated.nodes[0].context.limitation,
+    "中文 Not current savings",
+  );
+  assert.deepEqual(translated.nodes[0].highlight.evidence, ["n2"]);
+  assert.equal(translated.nodes[0].context.money[0].nominal, "$231 million");
   assert.equal(graph.nodes[0]?.title, "What will it cost?");
   assert.deepEqual(
     measureSegments(measure, graph, "title").map((s) => s.key),

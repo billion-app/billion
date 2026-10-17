@@ -28,6 +28,89 @@ const options = {
   assessSummary: () => Promise.resolve(summary()),
 };
 
+void test("a historical question can be highlighted independently of node order", async () => {
+  const output = authored();
+  const history = output.nodes.find((n) => n.id === "x-history")!;
+  history.highlight = {
+    rank: 1,
+    reason:
+      "Past delivery helps assess whether another funding program would achieve its aims.",
+    evidence: ["p-unspent"],
+  };
+  const result = await generateTrillionGraph(corpus, {
+    ...options,
+    assess: async () => output,
+  });
+  assert.equal(
+    result.graph.nodes.find((n) => n.id === "x-history")?.highlight?.rank,
+    1,
+  );
+  assert.notEqual(
+    result.graph.nodes.find((n) => n.kind === "crux")?.id,
+    "x-history",
+  );
+  assert.ok(result.graph.nodes.some((n) => n.id === "b-before"));
+  assert.ok(result.graph.nodes.some((n) => n.id === "context-gap-budget"));
+});
+
+void test("losing a highlight's evidence removes the selection, not the question", async () => {
+  const output = authored();
+  output.nodes.find((n) => n.id === "x-history")!.highlight = {
+    rank: 1,
+    reason:
+      "Past delivery helps assess whether another funding program would achieve its aims.",
+    evidence: ["p-unspent"],
+  };
+  output.nodes.find((n) => n.id === "p-unspent")!.quotes[0]!.text =
+    "An entirely fabricated audit finding about public spending.";
+  const result = await generateTrillionGraph(corpus, {
+    ...options,
+    assess: async () => output,
+  });
+  const question = result.graph.nodes.find((n) => n.id === "x-history");
+  assert.ok(question);
+  assert.equal(question.highlight, undefined);
+});
+
+void test("an invalid context amount is removed and leaves an explicit evidence gap", async () => {
+  const output = authored();
+  const history = output.nodes.find((n) => n.id === "p-unspent")!;
+  history.context = {
+    topic: "history",
+    period: "Audit published February 2018",
+    scope: "California MHSA funds held by local agencies",
+    limitation:
+      "This historical finding does not establish current balances or recoverable savings under this measure.",
+    money: [],
+  };
+  output.edges.push({
+    id: "detail-context",
+    from: history.id,
+    to: "b-before",
+    type: "detail",
+  });
+  // The generator receives five branches in real use.
+  output.nodes.push({
+    id: "b-before",
+    kind: "branch",
+    label: "What was it like before?",
+    title: "What was it like before?",
+    quotes: [],
+  });
+  output.edges.push({
+    id: "part-before",
+    from: "b-before",
+    to: "root",
+    type: "part",
+  });
+  const result = await generateTrillionGraph(corpus, {
+    ...options,
+    assess: async () => output,
+  });
+  assert.ok(!result.graph.nodes.some((n) => n.id === history.id));
+  assert.ok(result.graph.nodes.some((n) => n.id === "context-gap-history"));
+});
+
 void test("a fabricated quote is dropped along with the node that relied on it", async () => {
   const output = authored();
   const argument = output.nodes.find((n) => n.id === "a-brin")!;
@@ -171,7 +254,11 @@ void test("one bad summary quote never discards the cards' good quotes", async (
     assess: () => Promise.resolve(authored()),
     assessSummary: () => Promise.resolve(misquoted),
   });
-  assert.equal(result.graph.nodes.length, pilot.nodes.length);
+  assert.ok(
+    pilot.nodes.every((n) =>
+      result.graph.nodes.some((kept) => kept.id === n.id),
+    ),
+  );
   assert.equal(result.graph.summary?.quotes.length, 1);
 });
 

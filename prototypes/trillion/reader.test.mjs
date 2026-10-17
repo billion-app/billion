@@ -116,6 +116,8 @@ await test("Trillion cards, touch ring and device persistence", async () => {
       "The whole debate",
     );
     await page.locator("[data-ring]").click();
+    // The demo page also scrolls outside the phone; bring the touch target into view.
+    await page.locator(".ring-sheet svg").scrollIntoViewIfNeeded();
     const scrubbedTitle = await page
       .locator(".ring-sheet svg")
       .evaluate((svg) => {

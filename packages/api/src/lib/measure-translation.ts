@@ -56,6 +56,12 @@ export const GRAPH_FIELDS = [
   "nodes.*.title",
   "nodes.*.body",
   "nodes.*.note",
+  "nodes.*.highlight.reason",
+  "nodes.*.context.period",
+  "nodes.*.context.scope",
+  "nodes.*.context.limitation",
+  "nodes.*.context.money.*.comparison.reason",
+  "nodes.*.context.money.*.comparison.denominator.name",
   "edges.*.why",
 ] as const;
 

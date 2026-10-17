@@ -22,6 +22,7 @@ import {
   sourceHash,
 } from "./measure-relationship-capture.js";
 import {
+  documentFreshnessHash,
   fetchRelationshipDocument,
   officialPageText,
 } from "./measure-relationship-source.js";
@@ -81,7 +82,7 @@ async function pdfText(bytes: Buffer, pages?: readonly [number, number]) {
 }
 
 /**
- * One curated precedent document. Freshness compares the whole PDF's bytes;
+ * One curated precedent document. Freshness compares the whole PDF's bytes or an HTML report's article text;
  * the snapshot keeps only the chosen pages, which is what quotes are checked
  * against.
  */
@@ -91,9 +92,13 @@ export async function capturePrecedentSource(
   fetchDocument: (url: string) => Promise<Buffer> = fetchRelationshipDocument,
 ) {
   const bytes = await fetchDocument(precedent.url);
-  if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-")
+  const isPdf = precedent.url.endsWith(".pdf");
+  if (isPdf && bytes.subarray(0, 5).toString("latin1") !== "%PDF-")
     throw new Error(`Precedent is not a PDF: ${precedent.url}`);
-  const text = await pdfText(bytes, precedent.pages);
+  if (!isPdf && precedent.pages) throw new Error("Page ranges require a PDF");
+  const text = isPdf
+    ? await pdfText(bytes, precedent.pages)
+    : officialPageText(precedent.url, bytes.toString("utf8"));
   if (text.replace(/\s+/g, "").length < 500)
     throw new Error(`Precedent text missing: ${precedent.url}`);
   return trillionSourceSchema.parse({
@@ -108,7 +113,7 @@ export async function capturePrecedentSource(
     retrievedAt: new Date().toISOString(),
     snapshot: text,
     hash: sourceHash(text),
-    documentHash: sourceHash(bytes),
+    documentHash: documentFreshnessHash(precedent.url, bytes),
   });
 }
 
