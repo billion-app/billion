@@ -91,6 +91,12 @@ export function TrillionScreen({
           onBackState={(inside) => Promise.resolve(setBackInside(inside))}
           dom={{
             style: s.web,
+            // The DOM document paints before reader.css arrives with its bundle.
+            injectedJavaScriptBeforeContentLoaded: `
+              document.documentElement.style.backgroundColor = '#0E1530';
+              document.documentElement.style.colorScheme = 'dark';
+              true;
+            `,
             bounces: false,
             contentInsetAdjustmentBehavior: "never",
           }}
