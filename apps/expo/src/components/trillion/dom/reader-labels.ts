@@ -7,6 +7,11 @@ const labels: Record<string, { zh: string; es: string }> = {
     zh: "AI 撰写 · 请核对来源",
     es: "Escrito por IA · Consulta las fuentes",
   },
+  "What this means": { zh: "这是什么意思", es: "Qué significa" },
+  "Billion's plain-language explanation.": {
+    zh: "Billion 的通俗解释。",
+    es: "Explicación de Billion en lenguaje sencillo.",
+  },
   Details: { zh: "详情", es: "Detalles" },
   Back: { zh: "返回", es: "Volver" },
   Close: { zh: "关闭", es: "Cerrar" },

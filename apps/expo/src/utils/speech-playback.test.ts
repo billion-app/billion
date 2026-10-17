@@ -67,3 +67,56 @@ void test("native startup failures reach the visible error state", async () => {
   });
   assert.equal(failed, true);
 });
+
+void test("exact Mandarin locale wins over an enhanced Cantonese voice", async () => {
+  let selected: string | undefined;
+  const speech = {
+    stop: () => Promise.resolve(),
+    VoiceQuality: { Enhanced: "Enhanced" },
+    getAvailableVoicesAsync: () =>
+      Promise.resolve([
+        { identifier: "cantonese", language: "zh-HK", quality: "Enhanced" },
+        { identifier: "mandarin", language: "zh_CN", quality: "Default" },
+      ]),
+    speak: (_text: string, options: ExpoSpeech.SpeechOptions) => {
+      selected = options.voice;
+    },
+  } as unknown as typeof ExpoSpeech;
+  await speakChunks(speech, {
+    chunks: ["第一段"],
+    start: 0,
+    language: "zh-CN",
+    current: () => true,
+    onStart: () => undefined,
+    onDone: () => undefined,
+    onError: () => assert.fail(),
+  });
+  assert.equal(selected, "mandarin");
+});
+
+void test("a native failure in a later chunk reaches the error state", async () => {
+  let next: (() => void) | undefined;
+  let failed = false;
+  const speech = {
+    stop: () => Promise.resolve(),
+    getAvailableVoicesAsync: () => Promise.resolve([]),
+    speak: (text: string, options: ExpoSpeech.SpeechOptions) => {
+      if (text === "second") throw new Error("native failure");
+      next = options.onDone as () => void;
+    },
+  } as unknown as typeof ExpoSpeech;
+  await speakChunks(speech, {
+    chunks: ["first", "second"],
+    start: 0,
+    language: "en-US",
+    current: () => true,
+    onStart: () => undefined,
+    onDone: () => assert.fail(),
+    onError: () => {
+      failed = true;
+    },
+  });
+  assert.ok(next);
+  next();
+  assert.equal(failed, true);
+});

@@ -467,12 +467,14 @@ export function mountTrillionReader(root, graph, options = {}) {
       if (!TERM_FORMS.has(form)) TERM_FORMS.set(form, key);
   }
   for (const key of TERMS.keys()) TERM_FORMS.set(key, key);
+  // Han terms do not have spaces between words; Latin terms still need boundaries.
+  const termBoundary = options.language === "zh" ? "[\\p{Script=Latin}\\p{N}_]" : "[\\p{L}\\p{N}_]";
   const termPattern = TERM_FORMS.size
     ? new RegExp(
-        `(?<![\\p{L}\\p{N}_])(${[...TERM_FORMS.keys()]
+        `(?<!${termBoundary})(${[...TERM_FORMS.keys()]
           .sort((a, b) => b.length - a.length)
           .map((t) => esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-          .join("|")})(?![\\p{L}\\p{N}_])`,
+          .join("|")})(?!${termBoundary})`,
         "giu",
       )
     : null;
@@ -502,13 +504,13 @@ export function mountTrillionReader(root, graph, options = {}) {
     return html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   };
   function openTerm(key) {
-    const t = TERMS.get(key);
-    if (!t) return;
+    const term = TERMS.get(key);
+    if (!term) return;
     openSheet(
-      `<p class="meta" style="margin:0 0 4px">What this means</p>
-      <h2 id="sheet-title">${esc(t.term)}</h2>
-      <p class="body">${esc(t.plain).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>
-      <p class="counts">Billion's plain-language explanation.</p>
+      `<p class="meta" style="margin:0 0 4px">${t("What this means")}</p>
+      <h2 id="sheet-title">${esc(term.term)}</h2>
+      <p class="body">${esc(term.plain).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>
+      <p class="counts">${t("Billion's plain-language explanation.")}</p>
       <div class="actions"><button class="btn ghost" type="button" data-close>${t("Close")}</button></div>`,
       true,
     );

@@ -1,6 +1,7 @@
 import type { PublicTrillionGraph } from "@acme/validators";
 
 import type { AppLanguage } from "../i18n/language";
+import type { RouterOutputs } from "~/utils/api";
 import { buildSpeechChunks } from "./speech-script";
 
 export function graphSpeechChunks(
@@ -29,7 +30,7 @@ export function graphSpeechChunks(
 /** The fallback measure page reads the same explanation the screen displays. */
 export function measureSpeechChunks(
   measure: NonNullable<
-    import("~/utils/api").RouterOutputs["civic"]["getCaliforniaGuide"]
+    RouterOutputs["civic"]["getCaliforniaGuide"]
   >["measures"][number],
   language: AppLanguage,
 ) {
