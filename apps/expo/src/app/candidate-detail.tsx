@@ -43,6 +43,7 @@ import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { candidateBriefPreview } from "~/utils/candidate-brief-preview";
 import {
+  candidateBackgroundReady,
   canMatchCaliforniaGuide,
   ELECTION_DATE,
   findGuideCandidate,
@@ -198,7 +199,7 @@ export default function CandidateDetailScreen() {
       !suppliedBiography &&
       !!(params.name ?? candidate?.name) &&
       !!backgroundOffice &&
-      (!fromBallot || !query.isPending),
+      (!fromBallot || candidateBackgroundReady(lookupGuide, query.isPending)),
   });
   const publicBiography = suppliedBiography
     ? {

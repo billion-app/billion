@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
 import {
+  candidateBackgroundReady,
   candidateKey,
   canMatchCaliforniaGuide,
   findGuideCandidate,
@@ -120,4 +122,26 @@ void test("source-provided biography survives route parsing without authoring pr
     )?.biography,
     undefined,
   );
+});
+
+void test("ballot biographies do not wait for a disabled California guide query", () => {
+  const client = new QueryClient();
+  try {
+    const lookupGuide = canMatchCaliforniaGuide(
+      "TX",
+      "2026-11-03",
+      "ocd-division/country:us/state:tx",
+    );
+    const guide = new QueryObserver(client, {
+      queryKey: ["civic", "getCaliforniaGuide"],
+      queryFn: () => Promise.resolve(null),
+      enabled: lookupGuide,
+    }).getCurrentResult();
+    assert.equal(guide.isPending, true);
+    assert.equal(candidateBackgroundReady(lookupGuide, guide.isPending), true);
+    assert.equal(candidateBackgroundReady(true, true), false);
+    assert.equal(candidateBackgroundReady(true, false), true);
+  } finally {
+    client.clear();
+  }
 });
