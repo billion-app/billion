@@ -47,6 +47,45 @@ const labels: Record<string, { zh: string; es: string }> = {
   "{count} arguments": { zh: "{count} 个论点", es: "{count} argumentos" },
   "{count} items": { zh: "{count} 项", es: "{count} elementos" },
   "{count} quotes": { zh: "{count} 处引文", es: "{count} citas" },
+  "What was it like before?": {
+    zh: "以前是什么情况？",
+    es: "¿Cómo era antes?",
+  },
+  "Existing rules": { zh: "现行规则", es: "Reglas actuales" },
+  "Past results": { zh: "过往结果", es: "Resultados anteriores" },
+  "Money in context": { zh: "资金背景", es: "El dinero en contexto" },
+  "Why this question?": {
+    zh: "为什么选择这个问题？",
+    es: "¿Por qué esta pregunta?",
+  },
+  "Selected by Billion AI": {
+    zh: "由 Billion AI 选出",
+    es: "Seleccionado por Billion AI",
+  },
+  "Selected by Billion AI · an editorial judgment": {
+    zh: "由 Billion AI 选出 · 编辑判断",
+    es: "Seleccionado por Billion AI · un criterio editorial",
+  },
+  "Questions worth weighing": {
+    zh: "值得权衡的问题",
+    es: "Preguntas para sopesar",
+  },
+  "A question to explore": {
+    zh: "值得探讨的问题",
+    es: "Una pregunta para explorar",
+  },
+  "Explore {count} linked arguments": {
+    zh: "查看 {count} 个相关论点",
+    es: "Explorar {count} argumentos relacionados",
+  },
+  "Evidence {number}": { zh: "证据 {number}", es: "Evidencia {number}" },
+  "Limits of this evidence": {
+    zh: "这份证据的局限",
+    es: "Límites de esta evidencia",
+  },
+  "Comparison source": { zh: "比较来源", es: "Fuente de la comparación" },
+  "Source passages": { zh: "来源原文", es: "Pasajes de las fuentes" },
+  "Open official source": { zh: "打开官方来源", es: "Abrir fuente oficial" },
 };
 
 export function readerLabel(

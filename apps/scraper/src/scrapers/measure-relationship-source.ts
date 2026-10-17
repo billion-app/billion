@@ -48,6 +48,17 @@ export async function fetchRelationshipDocument(url: string): Promise<Buffer> {
  */
 export function officialPageText(url: string, html: string): string {
   const $ = load(html);
+  if (
+    /^https:\/\/(?:www\.)?lao\.ca\.gov\/Publications\/Report\/\d+$/.test(url)
+  ) {
+    const report = $(".report-body");
+    report.find("script, style, nav").remove();
+    // Figure captions can carry the only description of a budget chart.
+    report.find("img").each((_, image) => {
+      $(image).replaceWith($(image).attr("alt") ?? "");
+    });
+    return report.text().replace(/\s+/g, " ").trim();
+  }
   const text = $("#mainCont").text().replace(/\s+/g, " ").trim();
   if (!url.endsWith("analysis.htm")) return text;
   return (
@@ -61,9 +72,10 @@ export function officialPageText(url: string, html: string): string {
 }
 /** PDFs hash their bytes; guide HTML pages hash their readable text. */
 export function documentFreshnessHash(url: string, bytes: Buffer): string {
-  const content = url.endsWith(".htm")
-    ? officialPageText(url, bytes.toString("utf8"))
-    : bytes;
+  const content =
+    url.endsWith(".htm") || /\/Publications\/Report\/\d+$/.test(url)
+      ? officialPageText(url, bytes.toString("utf8"))
+      : bytes;
   return createHash("sha256").update(content).digest("hex");
 }
 /** Refresh only the bounded reviewed registry. Missing sources suppress dependent publication. */
