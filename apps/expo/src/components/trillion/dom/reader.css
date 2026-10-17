@@ -1466,7 +1466,7 @@ textarea {
   padding-top: 12px;
 }
 .selection-label {
-  color: var(--quiet);
+  color: #b9bdc9;
   font: 600 12px/1.4 var(--body);
 }
 .dispute-row.is-highlighted {
@@ -1483,8 +1483,10 @@ textarea {
 .dispute-row.is-highlighted::before {
   display: none;
 }
-.dispute-row.is-highlighted .relchip {
-  color: var(--quiet);
+.dispute-row.is-highlighted .relchip,
+.dispute-row.is-highlighted .src,
+.dispute-row.is-highlighted .selection-reason .meta {
+  color: #b9bdc9;
 }
 .dispute-row.is-highlighted .t {
   font-weight: 600;
@@ -1500,7 +1502,7 @@ textarea {
 }
 .selection-reason summary {
   cursor: pointer;
-  color: var(--quiet);
+  color: #b9bdc9;
   font-size: 12px;
   min-height: 44px;
   padding: 12px 0;
