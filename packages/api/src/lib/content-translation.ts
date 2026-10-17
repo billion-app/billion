@@ -324,10 +324,8 @@ export function createTranslateBatch(
       model,
       temperature: 0.2,
       maxRetries: 2,
-      abortSignal: AbortSignal.any([
-        AbortSignal.timeout(90_000),
-        ...(signal ? [signal] : []),
-      ]),
+      abortSignal: signal,
+      timeout: 90_000,
       output: Output.object({ schema: batchSchema }),
       prompt: `Translate each string in the JSON array below from English into ${LANGUAGE_NAME[language]} for a nonpartisan civic news app.
 

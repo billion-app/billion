@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { MockLanguageModelV3 } from "ai/test";
 
 import type { TranslateBatch } from "./content-translation";
 import {
   applySegments,
   BILL_BRIEF_FIELDS,
   collectSegments,
+  createTranslateBatch,
   hashReaderSource,
   hashSegments,
   readerTranslationSource,
@@ -234,3 +236,41 @@ void test("wrapped quotations and reference headlines remain verbatim", async ()
     "EXPLANATION: “first line\nsecond line”. SEE [Real Headline][source].",
   );
 });
+
+for (const cause of ["shutdown", "deadline"] as const) {
+  void test(`translation generation aborts on ${cause}`, async (t) => {
+    const shutdown = new AbortController();
+    const deadline = new AbortController();
+    t.mock.method(AbortSignal, "timeout", (milliseconds: number) => {
+      assert.equal(milliseconds, 90_000);
+      return deadline.signal;
+    });
+    let signalStarted: (signal: AbortSignal) => void = () => undefined;
+    const started = new Promise<AbortSignal>((resolve) => {
+      signalStarted = resolve;
+    });
+    const model = new MockLanguageModelV3({
+      doGenerate: ({ abortSignal }) => {
+        assert.ok(abortSignal);
+        signalStarted(abortSignal);
+        return new Promise((_, reject) => {
+          abortSignal.addEventListener(
+            "abort",
+            () => reject(new DOMException("Cancelled", "AbortError")),
+            { once: true },
+          );
+        });
+      },
+    });
+    const pending = createTranslateBatch(model, shutdown.signal)(
+      ["Hello"],
+      "zh",
+    );
+    const rejected = assert.rejects(pending, { name: "AbortError" });
+    const providerSignal = await started;
+    (cause === "shutdown" ? shutdown : deadline).abort();
+    await rejected;
+    assert.equal(providerSignal.aborted, true);
+    assert.equal(model.doGenerateCalls.length, 1);
+  });
+}
