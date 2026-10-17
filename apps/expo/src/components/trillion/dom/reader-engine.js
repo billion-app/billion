@@ -468,7 +468,10 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
   for (const key of TERMS.keys()) TERM_FORMS.set(key, key);
   // Han terms do not have spaces between words; Latin terms still need boundaries.
-  const termBoundary = options.language === "zh" ? "[\\p{Script=Latin}\\p{N}_]" : "[\\p{L}\\p{N}_]";
+  const termBoundary =
+    options.language === "zh"
+      ? "[\\p{Script=Latin}\\p{N}_]"
+      : "[\\p{L}\\p{N}_]";
   const termPattern = TERM_FORMS.size
     ? new RegExp(
         `(?<!${termBoundary})(${[...TERM_FORMS.keys()]
