@@ -84,6 +84,9 @@ export function isDue(
     return elapsed >= job.schedule.everyMinutes * MINUTE_MS;
   }
 
+  // A failed attempt has not completed this occurrence; backoff was checked above.
+  if (failures > 0) return true;
+
   const reference = lastStartedAt ?? state?.firstSeenAt;
   if (!reference) return false;
   const occurrence = lastOccurrence(job.schedule, now);
