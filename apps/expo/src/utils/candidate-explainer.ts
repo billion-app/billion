@@ -154,3 +154,11 @@ export function parseBallotCandidate(
     return undefined;
   }
 }
+
+/** Only wait for the guide when this ballot candidate can match it. */
+export function candidateBackgroundReady(
+  lookupGuide: boolean,
+  guidePending: boolean,
+): boolean {
+  return !lookupGuide || !guidePending;
+}
