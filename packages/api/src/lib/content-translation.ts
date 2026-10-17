@@ -27,7 +27,7 @@ const LANGUAGE_NAME: Record<TranslationLanguage, string> = {
 };
 
 /** Bumped when the prompt or segmenting changes, so cached rows refresh. */
-export const TRANSLATION_PROMPT_VERSION = "translate-v2";
+export const TRANSLATION_PROMPT_VERSION = "translate-v3";
 
 type Path = (string | number)[];
 
@@ -336,7 +336,8 @@ Rules:
 - Translate meaning faithfully and neutrally. Do not add, remove, soften, or explain anything.
 - Keep markdown exactly: headings, lists, links, and **bold** markers stay around the matching translated words.
 - Copy every BILLION_KEEP_..._END placeholder exactly once, unchanged, in its original position. These stand for source passages and citations, which must not be translated.
-- Keep URLs, bill numbers, section numbers, dollar amounts, dates, and proper names of people and organizations as written.
+- Keep URLs, bill numbers, section numbers, dates, and proper names of people and organizations as written.
+- Preserve the exact monetary value and currency, but translate amount words and scale units naturally. Do not leave English million/billion/trillion in translated prose. U.S. billion means 1,000,000,000, not the Spanish billón (1,000,000,000,000): "$11.25 billion" is "11,25 mil millones de dólares" in Spanish and "112.5 亿美元" in Chinese. Never change the amount's magnitude. Protected source placeholders remain unchanged, including any quoted amounts.
 - Keep U.S. legal terms accurate; when a term has no standard equivalent, translate it and leave the English in parentheses once.
 
 ${JSON.stringify(texts)}`,

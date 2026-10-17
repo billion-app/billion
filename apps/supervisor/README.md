@@ -205,6 +205,13 @@ retries until the completed translation is available. Repeated reads deduplicate
 requests and preserve retries and leases. A changed English source replaces the
 request; an older worker cannot publish over it. Failed requests retry with a
 bounded backoff, and a crashed worker's lease expires after fifteen minutes.
+The API also requires the worker model version to match its current translation
+prompt. During a rolling deploy, output produced by an older worker is requeued
+rather than accepted under a newer source hash. Prompt changes refresh cached
+translations lazily as readers request them; deploy the matching worker before
+a bounded backfill. Monetary units are localized while preserving their exact
+value, and quoted amounts remain verbatim.
+
 Source quotations and citations retain the protection rules in
 [article generation](../../docs/article-generation.md).
 
