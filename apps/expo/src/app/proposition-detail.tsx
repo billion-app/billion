@@ -95,8 +95,17 @@ export default function PropositionDetailScreen() {
   if (query.isPending || (!!measure && debate.isPending))
     return (
       <View style={[s.screen, { paddingTop: insets.top }]}>
-        {/* Reserve the reader tools row while measure data is pending. */}
-        <View style={{ height: 56 }} />
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <ReaderTools
+            speech={speech}
+            state={translation.state}
+            onRetry={translation.retry}
+          />
+        </View>
         <TrillionLoading
           number={number}
           electionDate={query.data?.electionDate}
