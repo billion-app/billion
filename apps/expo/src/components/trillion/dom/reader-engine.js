@@ -885,9 +885,10 @@ export function mountTrillionReader(root, graph, options = {}) {
           // The chip names the kind of disagreement; how far it has got is secondary.
           const st = cruxState(e.from);
           const k = incoming(e.from).filter((x) => x.type === "weighs").length;
-          return `<div class="row ${N[e.from].dispute === "values" ? "r-values values-dispute" : "r-question"}"><span class="relchip static">${esc(DISPUTE[N[e.from].dispute])}</span>
+          const selected = !!N[e.from].highlight;
+          return `<div class="row dispute-row ${selected ? "is-highlighted r-neutral" : N[e.from].dispute === "values" ? "r-values" : "r-question"}${N[e.from].dispute === "values" ? " values-dispute" : ""}">${selected ? `<span class="selection-label">${t("Question worth weighing")}</span>` : ""}<span class="relchip static">${esc(DISPUTE[N[e.from].dispute])}</span>
           <button class="go" type="button" data-node="${e.from}"><span class="t">${cardTitle(e.from)}</span>
-          <span class="src">${esc(st.state)} · ${k} argument${k === 1 ? "" : "s"}</span></button></div>`;
+          <span class="src">${esc(st.state)} · ${k} argument${k === 1 ? "" : "s"}</span></button>${highlightReason(e.from)}</div>`;
         })
         .join("")}</div>`;
     } else if (cat.key === "open") {
@@ -919,13 +920,6 @@ export function mountTrillionReader(root, graph, options = {}) {
   function disputeOrder(id) {
     return N[id].highlight?.rank ?? 10 + disputeIds().indexOf(id);
   }
-  function disputeSides(id) {
-    const args = incoming(id).filter((x) => x.type === "weighs");
-    const yes = args.filter((x) => x.stance === "for").length;
-    const no = args.filter((x) => x.stance === "against").length;
-    const both = args.filter((x) => x.stance === "mixed").length;
-    return { yes, no, both, total: args.length };
-  }
   function highlightReason(id) {
     const h = N[id].highlight;
     if (!h) return "";
@@ -933,32 +927,6 @@ export function mountTrillionReader(root, graph, options = {}) {
       <p>${esc(h.reason)}</p><p class="meta">${t("Selected by Billion AI \u00b7 an editorial judgment")}</p>
       <div class="selection-evidence">${h.evidence.map((e, i) => `<button type="button" class="linkish" data-node="${e}">${N[e].context ? `${t("Evidence {number}", { number: i + 1 })} · ${esc(srcLabel(N[e]))}` : esc(titleOf(e))} ›</button>`).join("")}</div></details>`;
   }
-  function leadDisputeHtml() {
-    const eligible = disputeIds().filter(
-      (c) => visible(c) && incoming(ROOT).some((e) => e.from === c),
-    );
-    const selected = eligible
-      .filter((c) => N[c].highlight)
-      .sort((a, b) => disputeOrder(a) - disputeOrder(b))
-      .slice(0, 3);
-    // Old records remain readable, without pretending their first item was assessed.
-    const ids = selected.length
-      ? selected
-      : N["b-before"]
-        ? []
-        : eligible.slice(0, 1);
-    if (!ids.length) return "";
-    return `<section class="highlighted-questions" aria-label="Questions to weigh"><p class="selection-label">${t(selected.length ? "Questions worth weighing" : "A question to explore")}</p>${selected.length ? `<p class="meta selection-by">${t("Selected by Billion AI")}</p>` : ""}${ids
-      .map((id) => {
-        const d = disputeSides(id);
-        return `<div class="selected-question"><button class="pinned-dispute" type="button" data-node="${id}">
-        <span class="pd-title">${cardTitle(id)}</span>
-        <span class="pd-meta">${t("Explore {count} linked arguments", { count: d.total })} ›</span>
-      </button>${highlightReason(id)}</div>`;
-      })
-      .join("")}</section>`;
-  }
-
   function contextHtml(id) {
     const c = N[id].context;
     if (!c) return "";
@@ -1037,7 +1005,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const n = N[id];
     const src = n.source || {};
     if (id === ROOT)
-      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}${N["b-before"] ? `<button class="linkish before-link" type="button" data-node="b-before">${t("What was it like before?")} ›</button>` : ""}</article>${leadDisputeHtml()}`;
+      return `<article class="focus is-root"><h1 tabindex="-1">${esc(n.title)}</h1>${summaryHtml()}${N["b-before"] ? `<button class="linkish before-link" type="button" data-node="b-before">${t("What was it like before?")} ›</button>` : ""}</article>`;
     const meta = [
       `<span class="kind${n.dispute === "values" ? " is-values" : ""}">${esc(n.kind === "reader" ? src.label : n.kind === "argument" ? src.label : n.kind === "crux" ? cruxState(id).text : KIND[n.kind])}</span>`,
     ];

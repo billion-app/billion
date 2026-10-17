@@ -69,7 +69,8 @@ await test("native back-state renders preserve the reader path and open sheets",
       route.abort(),
     );
     await page.goto(`http://127.0.0.1:${server.address().port}`);
-    await page.locator(".pinned-dispute").click();
+    await page.locator('[data-tab="disagree"]').first().click();
+    await page.locator(".dispute-row .go").first().click();
     // Let React effects run after the parent sends its newly serialized props.
     await page.evaluate(
       () =>

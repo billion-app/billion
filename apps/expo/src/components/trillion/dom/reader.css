@@ -1460,19 +1460,38 @@ textarea {
 }
 
 /* Editorial selections explain their reasoning separately from the open action. */
-.highlighted-questions {
-  max-width: 720px;
-  margin: 18px 0;
-}
 .before-link {
   display: block;
   min-height: 44px;
   padding-top: 12px;
 }
 .selection-label {
-  color: var(--text);
-  font: 600 15px/1.4 var(--display);
-  margin: 0;
+  color: var(--quiet);
+  font: 600 12px/1.4 var(--body);
+}
+.dispute-row.is-highlighted {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--slate), var(--slate)) padding-box,
+    linear-gradient(120deg, var(--vote-yes), var(--vote-no)) border-box;
+}
+.dispute-row.is-highlighted:hover {
+  background:
+    linear-gradient(var(--hi), var(--hi)) padding-box,
+    linear-gradient(120deg, var(--vote-yes), var(--vote-no)) border-box;
+}
+.dispute-row.is-highlighted::before {
+  display: none;
+}
+.dispute-row.is-highlighted .relchip {
+  color: var(--quiet);
+}
+.dispute-row.is-highlighted .t {
+  font-weight: 600;
+}
+.dispute-row .selection-reason {
+  margin: 2px 0 -6px;
+  border-top: 1px solid var(--hair2);
 }
 .selection-reason {
   margin: 6px 4px 14px;
@@ -1480,11 +1499,11 @@ textarea {
   line-height: 1.5;
 }
 .selection-reason summary {
-  min-height: 44px;
-  box-sizing: border-box;
   cursor: pointer;
-  color: var(--link);
-  padding: 8px 0;
+  color: var(--quiet);
+  font-size: 12px;
+  min-height: 44px;
+  padding: 12px 0;
 }
 .selection-reason p {
   margin: 8px 0;
@@ -1529,34 +1548,6 @@ textarea {
 .context-money p {
   margin: 6px 0;
 }
-.pinned-dispute {
-  display: grid;
-  gap: 6px;
-  width: 100%;
-  margin: 12px 0 4px;
-  padding: 14px 16px;
-  text-align: left;
-  color: var(--text);
-  border: 1.5px solid transparent;
-  border-radius: 14px;
-  background:
-    linear-gradient(var(--slate), var(--slate)) padding-box,
-    linear-gradient(120deg, var(--vote-yes), var(--vote-no)) border-box;
-}
-.pinned-dispute:hover,
-.pinned-dispute:focus-visible {
-  background:
-    linear-gradient(var(--hi), var(--hi)) padding-box,
-    linear-gradient(120deg, var(--vote-yes), var(--vote-no)) border-box;
-}
-.pd-title {
-  font: 600 19px/1.3 var(--display);
-}
-.pd-meta {
-  font-size: 13px;
-  color: rgba(247, 244, 238, 0.7);
-}
-
 /* How it works today: set apart from the summary, and its heading stays
    when open, since it names what the paragraph is. */
 .summary-more.background {
