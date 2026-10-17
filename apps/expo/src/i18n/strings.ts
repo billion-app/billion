@@ -80,6 +80,8 @@ const en = {
     "Preparing your translation… English is shown until it is ready.",
   "reader.originalSources":
     "Quotes and source documents stay in their original language.",
+  "reader.translatedTitles":
+    "Machine-translated titles · check the original sources",
   "reader.showEnglish": "Show English",
   "reader.translateNote":
     "Billion machine-translates its explanations from English. Quotes and source documents stay in their original language.",
@@ -177,6 +179,8 @@ const es: Dictionary = {
     "Preparando la traducción… Se muestra inglés mientras está lista.",
   "reader.originalSources":
     "Las citas y los documentos conservan su idioma original.",
+  "reader.translatedTitles":
+    "Títulos traducidos automáticamente · consulta las fuentes originales",
   "reader.showEnglish": "Ver en inglés",
   "reader.translateNote":
     "Billion traduce automáticamente sus explicaciones del inglés. Las citas y los documentos conservan su idioma original.",
@@ -267,6 +271,7 @@ const zh: Dictionary = {
   "article.translating": "正在翻译…",
   "article.translationPending": "正在准备翻译…完成前暂时显示英文。",
   "reader.originalSources": "引文和原始文件保留原文。",
+  "reader.translatedTitles": "标题由机器翻译 · 请核对原始来源",
   "reader.showEnglish": "显示英文",
   "reader.translateNote":
     "Billion 的解读由英文机器翻译。引文和原始文件保留原文。",

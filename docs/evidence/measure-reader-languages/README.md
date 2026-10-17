@@ -3,6 +3,7 @@
 These screenshots capture the running Expo web implementation at 430px and 320px widths. The local verification server runs the new `civic.getMeasureTranslation` procedure against the production California guide for November 3, 2026. Prop 1's explanations were translated by the existing private worker; the displayed content is not a fixture. The error screenshot intentionally blocks the translation request to exercise the fallback and Retry flow. Native speech is unavailable in this web build, so web screenshots do not prove iPhone audio.
 
 - [Chinese reader](measure-zh.png)
+- [Chinese measure titles at 320px](chinese-title-list.png)
 - [Spanish reader](measure-es.png)
 - [Language menu at 320px](language-menu-320.png)
 - [Translation failure at 320px](measure-error-320.png)

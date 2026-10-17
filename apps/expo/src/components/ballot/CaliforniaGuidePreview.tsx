@@ -19,6 +19,7 @@ import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { ReaderLanguageButton } from "~/components/ReaderTools";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader, Segmented } from "~/components/ui";
+import { useLanguage } from "~/hooks/useLanguage";
 import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
 import {
   DigestHair,
@@ -117,6 +118,7 @@ function CandidateRow({ candidate }: { candidate: Candidate }) {
 }
 
 function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
+  const { t } = useLanguage();
   const translation = useMeasureTranslation(
     originalMeasure.number,
     undefined,
@@ -163,6 +165,12 @@ function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
         ) : (
           <Text style={s.officialTitle}>{official.subject}</Text>
         )}
+        {translation.state === "pending" && (
+          <Text style={s.note}>{t("article.translationPending")}</Text>
+        )}
+        {translation.state === "unavailable" && (
+          <Text style={s.note}>{t("article.translationUnavailable")}</Text>
+        )}
       </View>
       <Icon name="chevR" size={18} color={P.primary} />
     </TouchableOpacity>
@@ -188,6 +196,7 @@ export function CaliforniaGuidePreview({
   onOpenFixtures?: () => void;
   onBack?: () => void;
 }) {
+  const { language, t } = useLanguage();
   const guideScroll = useRef<ScrollView>(null);
   const router = useRouter();
 
@@ -199,6 +208,7 @@ export function CaliforniaGuidePreview({
     <View style={{ flex: 1, backgroundColor: P.canvas }}>
       <NavHeader
         title="California guide"
+        large
         onBack={onBack}
         action={<ReaderLanguageButton />}
       />
@@ -213,9 +223,6 @@ export function CaliforniaGuidePreview({
               {`${ballotElectionDate(guide.electionDate)} · General election`}
             </Text>
           )}
-          <Text accessibilityRole="header" style={s.headline}>
-            The statewide guide
-          </Text>
           {!guide && (
             <Text style={s.introText}>
               {query.isPending
@@ -317,11 +324,13 @@ export function CaliforniaGuidePreview({
               </View>
             ) : (
               <View style={s.list}>
-                {hasBoldedTitles && (
+                {(hasBoldedTitles || language !== "en") && (
                   <View style={s.aiNote}>
                     <Icon name="sparkle" size={13} color={P.quiet} />
                     <Text style={s.note}>
-                      Official titles · bold added by Billion
+                      {language === "en"
+                        ? "Official titles · bold added by Billion"
+                        : t("reader.translatedTitles")}
                     </Text>
                   </View>
                 )}
