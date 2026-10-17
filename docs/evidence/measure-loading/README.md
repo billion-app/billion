@@ -8,8 +8,13 @@ Captured on October 17, 2026 in the Expo development build on an isolated iPhone
 
 The header stays visible while the WebView mounts behind the native skeleton. The body is revealed after stylesheet loading, font layout, and a painted frame. This is an atomic reader reveal, not streaming per-card data. Placeholders reserve typical summary and featured-question heights; content-dependent heights can still differ.
 
-The recording includes iOS's rounded push transition. A 60 fps corner-pixel comparison found white corners in 10 of 104 frames before setting the navigation container background; the final capture had none in 87 frames. The GIF is a 30 fps derivative of that capture. Back navigation returned to the guide.
+The recording includes iOS's rounded push transition. A 60 fps corner-pixel comparison found white corners in 10 of 104 frames before setting the navigation container background; the final capture had none in 87 frames. The GIF is a 30 fps recording of the rebased reader with language/listening controls. Back navigation returned to the guide.
 
 An actual-engine browser harness separately exercised an eight-second stylesheet delay and an immediate stylesheet failure. The delayed case revealed stable system typography after about 2.1 seconds, and the stale mount never signaled readiness. Unit coverage checks stylesheet/font/paint sequencing, cancellation, and never-settling stylesheet and font promises.
 
 Android runtime and VoiceOver focus transfer were not tested. Native accessibility inspection showed Back, the measure identity, and the busy loading indicator while the WebView was covered.
+
+The rebased integration also opens Proposition 39 for the first time with Chinese selected. The translation-pending notice is present throughout loading and reveal, so the toolbar and header retain their positions. The body is still English while translation is pending; this check does not claim translated content is available.
+
+![Chinese preference, loading](chinese-loading.png)
+![Chinese preference, reader ready with translation pending](chinese-ready.png)
