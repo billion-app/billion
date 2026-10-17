@@ -7,6 +7,7 @@ import { eq, sql } from "@acme/db";
 import { db } from "@acme/db/client";
 import { ContentTranslation, ContentTranslationRequest } from "@acme/db/schema";
 
+import { TRANSLATION_PROMPT_VERSION } from "./content-translation";
 import {
   getSegmentTranslations,
   getTranslations,
@@ -40,7 +41,10 @@ void test(
     const translated = (texts: string[]) =>
       Promise.resolve(texts.map((text) => `ES ${text}`));
     const worker = (translateBatch = translated) =>
-      processNextTranslation({ translateBatch, modelVersion: "test:codex" });
+      processNextTranslation({
+        translateBatch,
+        modelVersion: `${TRANSLATION_PROMPT_VERSION}:test`,
+      });
     try {
       await t.test(
         "concurrent readers enqueue once; concurrent workers claim once",
@@ -132,6 +136,32 @@ void test(
         assert.equal(await worker(), "generated");
         assert.equal((await getTranslations(input))?.title, "ES Fifth");
       });
+      await t.test(
+        "old workers cannot satisfy a new prompt revision",
+        async () => {
+          input.source.title = "Sixth";
+          assert.equal(await getTranslations(input), null);
+          assert.equal(
+            await processNextTranslation({
+              translateBatch: translated,
+              modelVersion: "translate-v0:test",
+            }),
+            "generated",
+          );
+          assert.equal(
+            await getTranslations(input),
+            null,
+            "reject old prompt output even with a matching source hash",
+          );
+          assert.equal(
+            (await db.select().from(ContentTranslationRequest)).length,
+            1,
+          );
+          assert.equal(await worker(), "generated");
+          assert.equal((await getTranslations(input))?.title, "ES Sixth");
+          assert.equal(await worker(), "idle");
+        },
+      );
       await t.test(
         "measure segments use the same durable worker without an article record",
         async () => {

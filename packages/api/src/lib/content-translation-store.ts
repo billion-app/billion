@@ -16,6 +16,7 @@ import {
   hashSegments,
   sourceSegments,
   translateSegments,
+  TRANSLATION_PROMPT_VERSION,
 } from "./content-translation";
 
 const payloadSchema = z.record(z.string(), z.string());
@@ -50,7 +51,13 @@ export async function getSegmentTranslations(input: {
       ),
     )
     .limit(1);
-  if (row?.sourceHash === sourceHash) {
+  // During a rolling deploy an old worker can claim a new API's request.
+  // Its output must not masquerade as the current prompt merely because it
+  // copied the request's source hash. A miss requeues it for the new worker.
+  if (
+    row?.sourceHash === sourceHash &&
+    row.modelVersion.startsWith(`${TRANSLATION_PROMPT_VERSION}:`)
+  ) {
     const parsed = payloadSchema.safeParse(row.payload);
     if (parsed.success) return parsed.data;
   }
