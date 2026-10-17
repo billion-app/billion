@@ -141,6 +141,8 @@ Outreach-gated sources (CEDA, NCSL, VIP) follow the same code path once access i
 
 The base ballot route reads date-scoped official summaries, fiscal impacts and published argument summaries from the [official guide scraper](../apps/scraper/README.md#ballot-source-collection). Source text is preserved without generating an explanation. A unique proposition number must match a provider-selected California statewide contest for the same election date. County measures are excluded from this join.
 
+The statewide guide list shows each proposition's official title in sentence case, without its legal label, with one key phrase in bold (`displayTitle` in the guide cache, using the Trillion `**` emphasis convention). The `ca-official-guide` job asks a model to change only capitalization and add the emphasis, then rejects any answer whose letters and digits differ from the official title, so the words stay the state's own. The bold is Billion's choice, and the app labels it as added by Billion. A formatted title is reused while the official title and the prompt version are unchanged, so a quiet day makes no model calls. It is not part of the guide hash that gates the explanations below. Without a configured provider, or when formatting fails, the field is absent and readers see the all-caps official title.
+
 ## Cross-measure discovery and approved explanations
 
 The statewide official-guide path has a separate, versioned relationship model

@@ -4,6 +4,8 @@ import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { trillionEmphasis } from "@acme/validators";
+
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { MeasureRelationships } from "~/components/ballot-evidence/MeasureRelationships";
 import { webUrl } from "~/components/ballot-evidence/model";
@@ -18,6 +20,7 @@ import { TrillionScreen } from "~/components/trillion/TrillionScreen";
 import { Icon, NavHeader } from "~/components/ui";
 import {
   fontBody,
+  fontDisplay,
   fontEditorial,
   hair,
   DigestPalette as P,
@@ -28,6 +31,7 @@ import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import {
   officialVoteMeaning,
+  splitOfficialTitle,
   submittedGuideArguments,
 } from "~/utils/proposition-explainers";
 
@@ -102,11 +106,35 @@ export default function PropositionDetailScreen() {
                 California · {ballotElectionDate(query.data.electionDate)}
               </Text>
             </View>
-            {!measure.consequences && (
-              <Text accessibilityRole="header" style={s.recordTitle}>
-                {measure.title}
-              </Text>
-            )}
+            {!measure.consequences &&
+              (measure.displayTitle ? (
+                <View style={s.lead}>
+                  <Text accessibilityRole="header" style={s.displayTitle}>
+                    {trillionEmphasis(measure.displayTitle).map(
+                      (part, index) => (
+                        <Text
+                          key={index}
+                          style={part.bold ? s.displayTitleBold : undefined}
+                        >
+                          {part.text}
+                        </Text>
+                      ),
+                    )}
+                  </Text>
+                  <Text style={s.caption}>
+                    {[
+                      splitOfficialTitle(measure.title).kind,
+                      "Official title, bold added by Billion",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                </View>
+              ) : (
+                <Text accessibilityRole="header" style={s.recordTitle}>
+                  {measure.title}
+                </Text>
+              ))}
             {measure.consequences ? (
               <PropositionConsequences analysis={measure.consequences} />
             ) : (
@@ -434,6 +462,14 @@ const s = StyleSheet.create({
     color: "rgba(255,255,255,0.70)",
   },
   record: { gap: 14 },
+  displayTitleBold: { fontFamily: fontDisplay.bold },
+  displayTitle: {
+    fontFamily: fontDisplay.regular,
+    fontSize: 28,
+    lineHeight: 33,
+    letterSpacing: -0.5,
+    color: P.inkOnNight,
+  },
   recordTitle: {
     fontFamily: fontBody.medium,
     fontSize: 15,

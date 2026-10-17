@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Linking,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -10,139 +11,163 @@ import {
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { plainTrillionText, trillionEmphasis } from "@acme/validators";
+
+import type { IconName } from "~/components/ui";
 import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader, Segmented } from "~/components/ui";
 import {
-  colors,
+  DigestHair,
+  DigestSpace,
+  DigestType,
   fontBody,
   fontDisplay,
   fontEditorial,
-  hair,
   DigestPalette as P,
-  planes,
 } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 import { guideCandidateRoute } from "~/utils/candidate-explainer";
-import { propositionDetailRoute } from "~/utils/proposition-explainers";
+import {
+  propositionDetailRoute,
+  splitOfficialTitle,
+} from "~/utils/proposition-explainers";
 
 type Guide = NonNullable<RouterOutputs["civic"]["getCaliforniaGuide"]>;
 type Candidate = Guide["candidates"][number];
 type Measure = Guide["measures"][number];
 type GuideTab = "candidates" | "measures";
 
-function CandidateCard({ candidate }: { candidate: Candidate }) {
-  const router = useRouter();
-  const [photoFailed, setPhotoFailed] = useState(false);
+const COUNTY_OFFICES_URL =
+  "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices";
+
+function SourceRow({
+  icon,
+  label,
+  url,
+  last,
+}: {
+  icon: IconName;
+  label: string;
+  url: string;
+  last?: boolean;
+}) {
   return (
-    <Card style={s.card}>
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={[
-          candidate.name,
-          candidate.officeName ?? "statewide office",
-          candidate.party,
-        ]
-          .filter(Boolean)
-          .join(", ")}
-        activeOpacity={0.8}
-        onPress={() =>
-          router.push(guideCandidateRoute(candidate.name, candidate.officeSlug))
-        }
-        style={s.cardHeader}
-      >
-        {candidate.photoUrl && !photoFailed ? (
-          <Image
-            source={{ uri: candidate.photoUrl }}
-            style={s.portrait}
-            onError={() => setPhotoFailed(true)}
-          />
-        ) : (
-          <View style={s.portraitFallback}>
-            <Icon name="user" size={24} color={colors.textSecondary} />
-          </View>
-        )}
-        <View style={s.cardIdentity}>
-          <Text style={s.cardTitle}>{candidate.name}</Text>
-          <Text style={s.cardMeta}>
-            {candidate.officeName ?? "Statewide office"}
-            {candidate.party ? ` · ${candidate.party}` : ""}
-          </Text>
-        </View>
-        <Icon name="chevR" size={16} color={colors.textSecondary} />
-      </TouchableOpacity>
-    </Card>
+    <TouchableOpacity
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      activeOpacity={0.8}
+      onPress={() => void Linking.openURL(url).catch(() => undefined)}
+      style={[s.sourceRow, !last && s.sourceRule]}
+    >
+      <View style={s.tile}>
+        <Icon name={icon} size={17} color={P.primary} />
+      </View>
+      <Text style={s.sourceLabel}>{label}</Text>
+      <Icon name="external" size={16} color={P.primary} />
+    </TouchableOpacity>
   );
 }
 
-function MeasureCard({ measure }: { measure: Measure }) {
+function CandidateRow({ candidate }: { candidate: Candidate }) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   return (
-    <Card style={s.card}>
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={`Proposition ${measure.number}, ${measure.title}`}
-        accessibilityState={{ expanded }}
-        activeOpacity={0.8}
-        onPress={() => {
-          setExpanded(!expanded);
-          void queryClient.prefetchQuery(
-            trpc.civic.getTrillion.queryOptions({ number: measure.number }),
-          );
-        }}
-        style={s.cardHeader}
-      >
-        <View style={s.measureNumber}>
-          <Text style={s.measureNumberText}>{measure.number}</Text>
-        </View>
-        <View style={s.cardIdentity}>
-          <Text style={[s.cardTitle, s.measureTitle]}>{measure.title}</Text>
-        </View>
-        <Icon
-          name={expanded ? "chevD" : "chevR"}
-          size={16}
-          color={colors.textSecondary}
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={[
+        candidate.name,
+        candidate.officeName ?? "statewide office",
+        candidate.party,
+      ]
+        .filter(Boolean)
+        .join(", ")}
+      activeOpacity={0.8}
+      onPress={() =>
+        router.push(guideCandidateRoute(candidate.name, candidate.officeSlug))
+      }
+      style={s.row}
+    >
+      {candidate.photoUrl && !photoFailed ? (
+        <Image
+          source={{ uri: candidate.photoUrl }}
+          style={s.portrait}
+          onError={() => setPhotoFailed(true)}
         />
-      </TouchableOpacity>
-      {expanded && (
-        <View style={s.cardBody}>
-          {measure.officialSummary && (
-            <Text style={s.statement}>{measure.officialSummary}</Text>
-          )}
-          {measure.fiscalImpact && (
-            <View style={s.detailBlock}>
-              <Text style={s.detailLabel}>Fiscal impact</Text>
-              <Text style={s.detailText}>{measure.fiscalImpact}</Text>
-            </View>
-          )}
-          <SourceLink
-            label="Official proposition guide"
-            url={measure.sourceUrl}
-          />
+      ) : (
+        <View style={s.tile}>
+          <Icon name="user" size={18} color={P.primary} />
         </View>
       )}
-      {expanded && (
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={`Read Proposition ${measure.number} detail`}
-          onPressIn={() => {
-            void queryClient.prefetchQuery(
-              trpc.civic.getTrillion.queryOptions({ number: measure.number }),
-            );
-          }}
-          onPress={() => router.push(propositionDetailRoute(measure.number))}
-          style={s.detailAction}
-        >
-          <Text style={s.detailActionText}>Open proposition detail</Text>
-          <Icon name="arrowRight" size={17} color={colors.bill} />
-        </TouchableOpacity>
-      )}
-    </Card>
+      <View style={s.rowCopy}>
+        <Text style={s.rowTitle}>{candidate.name}</Text>
+        <Text style={s.rowNote}>
+          {[candidate.officeName ?? "Statewide office", candidate.party]
+            .filter(Boolean)
+            .join(" · ")}
+        </Text>
+      </View>
+      <Icon name="chevR" size={18} color={P.primary} />
+    </TouchableOpacity>
   );
 }
+
+function MeasureRow({ measure }: { measure: Measure }) {
+  const router = useRouter();
+  const official = splitOfficialTitle(measure.title);
+  const prefetch = () =>
+    void queryClient.prefetchQuery(
+      trpc.civic.getTrillion.queryOptions({ number: measure.number }),
+    );
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={[
+        `Proposition ${measure.number}`,
+        measure.displayTitle
+          ? plainTrillionText(measure.displayTitle)
+          : measure.title,
+      ]
+        .filter(Boolean)
+        .join(". ")}
+      accessibilityHint="Opens the proposition detail"
+      activeOpacity={0.8}
+      onPressIn={prefetch}
+      onPress={() => router.push(propositionDetailRoute(measure.number))}
+      style={s.row}
+    >
+      <View style={s.tile} accessible={false}>
+        <Text style={s.tileText}>{measure.number}</Text>
+      </View>
+      <View style={s.rowCopy}>
+        {measure.displayTitle ? (
+          <Text style={[s.rowTitle, s.headline17]}>
+            {trillionEmphasis(measure.displayTitle).map((part, index) => (
+              <Text key={index} style={part.bold ? s.bold : undefined}>
+                {part.text}
+              </Text>
+            ))}
+          </Text>
+        ) : (
+          <Text style={s.officialTitle}>{official.subject}</Text>
+        )}
+      </View>
+      <Icon name="chevR" size={18} color={P.primary} />
+    </TouchableOpacity>
+  );
+}
+
+const QUICK_ACTIONS: readonly {
+  label: string;
+  icon: IconName;
+  mode: "plan" | "notes" | "help";
+}[] = [
+  { label: "Voting plan", icon: "vote", mode: "plan" },
+  { label: "Notes", icon: "book", mode: "notes" },
+  { label: "Voting help", icon: "info", mode: "help" },
+];
 
 export function CaliforniaGuidePreview({
   onOpenBallot,
@@ -159,55 +184,42 @@ export function CaliforniaGuidePreview({
   const [tab, setTab] = useState<GuideTab>("candidates");
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.isError ? undefined : query.data;
+  const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
   return (
-    <View style={{ flex: 1, backgroundColor: planes.navy }}>
+    <View style={{ flex: 1, backgroundColor: P.canvas }}>
       <NavHeader title="California guide" onBack={onBack} />
       <ScrollView
         ref={guideScroll}
         contentContainerStyle={s.screen}
         showsVerticalScrollIndicator={false}
       >
-        {guide ? (
-          <View style={s.intro}>
+        <View style={s.intro}>
+          {guide && (
             <Text style={s.kicker}>
-              {`${ballotElectionDate(guide.electionDate)} · GENERAL ELECTION`}
+              {`${ballotElectionDate(guide.electionDate)} · General election`}
             </Text>
-            <Text accessibilityRole="header" style={s.headline}>
-              The statewide guide
-            </Text>
-          </View>
-        ) : (
-          <View style={s.intro}>
-            <Text accessibilityRole="header" style={s.headline}>
-              The statewide guide
-            </Text>
-            <Text style={[s.introText, { color: colors.white }]}>
+          )}
+          <Text accessibilityRole="header" style={s.headline}>
+            The statewide guide
+          </Text>
+          {!guide && (
+            <Text style={s.introText}>
               {query.isPending
                 ? "Checking the statewide preview…"
                 : query.isError
                   ? "The preview couldn’t load."
                   : "The preview isn’t available in Billion."}
             </Text>
-          </View>
-        )}
+          )}
+        </View>
 
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-          {(
-            [
-              { label: "Voting plan", icon: "vote", mode: "plan" },
-              { label: "Notes", icon: "book", mode: "notes" },
-              { label: "Voting help", icon: "info", mode: "help" },
-            ] as const
-          ).map((item) => (
+        <View style={s.actions}>
+          {QUICK_ACTIONS.map((item) => (
             <TouchableOpacity
               key={item.mode}
               accessibilityRole="button"
-              style={{
-                minHeight: 48,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-              }}
+              activeOpacity={0.8}
+              style={s.action}
               onPress={() =>
                 router.push(
                   item.mode === "help"
@@ -219,25 +231,15 @@ export function CaliforniaGuidePreview({
                 )
               }
             >
-              <Icon name={item.icon} size={16} color={colors.bill} />
-              <Text
-                style={{
-                  color: colors.bill,
-                  fontFamily: fontBody.semibold,
-                  fontSize: 12,
-                }}
-              >
-                {item.label}
-              </Text>
+              <Icon name={item.icon} size={15} color={P.inkOnNight} />
+              <Text style={s.actionText}>{item.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
-        {query.isPending && <ActivityIndicator color={colors.bill} />}
+        {query.isPending && <ActivityIndicator color={P.inkOnNight} />}
         {query.isError && (
           <Card>
-            <Text style={[s.introText, { color: P.inkOnNight }]}>
-              The official guide could not load.
-            </Text>
+            <Text style={s.cardText}>The official guide could not load.</Text>
             <TouchableOpacity
               accessibilityRole="button"
               style={s.retryButton}
@@ -249,19 +251,10 @@ export function CaliforniaGuidePreview({
         )}
         {!query.isPending && !query.isError && !guide && (
           <Card>
-            <Text style={[s.introText, { color: P.inkOnNight }]}>
+            <Text style={s.cardText}>
               Guide data is unavailable to Billion. Check the official guide or
               your election office.
             </Text>
-            <SourceLink
-              label="Read the official guide"
-              url="https://voterguide.sos.ca.gov/"
-              prominence="primary"
-            />
-            <SourceLink
-              label="Find your county elections office"
-              url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
-            />
           </Card>
         )}
         {!query.isPending && (query.isError || !guide) && (
@@ -273,19 +266,13 @@ export function CaliforniaGuidePreview({
             />
             <SourceLink
               label="Find your county elections office"
-              url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
+              url={COUNTY_OFFICES_URL}
             />
           </View>
         )}
 
         {guide && (
           <>
-            <View style={s.scope}>
-              <Icon name="info" size={16} color={colors.textSecondary} />
-              <Text style={s.scopeText}>
-                Statement submitters only · not your complete ballot.
-              </Text>
-            </View>
             <Segmented<GuideTab>
               value={tab}
               onChange={setTab}
@@ -304,11 +291,11 @@ export function CaliforniaGuidePreview({
             />
             {tab === "candidates" ? (
               <View style={s.list}>
-                <Text accessibilityRole="header" style={s.sectionTitle}>
-                  Candidate statements
+                <Text style={s.note}>
+                  Statement submitters only, not your full ballot.
                 </Text>
                 {guide.candidates.map((candidate) => (
-                  <CandidateCard
+                  <CandidateRow
                     key={`${candidate.officeSlug}:${candidate.name}`}
                     candidate={candidate}
                   />
@@ -316,44 +303,50 @@ export function CaliforniaGuidePreview({
               </View>
             ) : (
               <View style={s.list}>
-                <Text accessibilityRole="header" style={s.sectionTitle}>
-                  Statewide propositions
-                </Text>
+                {hasBoldedTitles && (
+                  <View style={s.aiNote}>
+                    <Icon name="sparkle" size={13} color={P.quiet} />
+                    <Text style={s.note}>
+                      Official titles · bold added by Billion
+                    </Text>
+                  </View>
+                )}
                 {guide.measures.map((measure) => (
-                  <MeasureCard key={measure.number} measure={measure} />
+                  <MeasureRow key={measure.number} measure={measure} />
                 ))}
               </View>
             )}
             <View style={s.footer}>
-              <SourceLink
-                label="California official voter guide"
-                url={guide.sourceUrl}
-              />
-              <Text style={s.caption}>
-                Confirm local races and voting options with your county
-                elections office.
-              </Text>
-              <SourceLink
-                label="Check voting information with California"
-                url="https://voterstatus.sos.ca.gov/EN/Authenticate"
-                prominence="primary"
-              />
-              <SourceLink
-                label="Find your county elections office"
-                url="https://www.sos.ca.gov/elections/voting-resources/county-elections-offices"
-              />
               {onOpenBallot && (
                 <TouchableOpacity
                   accessibilityRole="button"
                   onPress={onOpenBallot}
-                  style={s.addressAction}
+                  style={s.ballotButton}
                 >
-                  <Text style={s.addressActionText}>
+                  <Text style={s.ballotButtonText}>
                     Find my official ballot
                   </Text>
-                  <Icon name="arrowRight" size={17} color={colors.bill} />
+                  <Icon name="arrowRight" size={17} color={P.inkOnNight} />
                 </TouchableOpacity>
               )}
+              <Card flush style={s.sources}>
+                <SourceRow
+                  icon="book"
+                  label="Official voter guide"
+                  url={guide.sourceUrl}
+                />
+                <SourceRow
+                  icon="vote"
+                  label="Check your registration"
+                  url="https://voterstatus.sos.ca.gov/EN/Authenticate"
+                />
+                <SourceRow
+                  icon="pin"
+                  label="County elections office"
+                  url={COUNTY_OFFICES_URL}
+                  last
+                />
+              </Card>
             </View>
           </>
         )}
@@ -368,105 +361,132 @@ export function CaliforniaGuidePreview({
 }
 
 const s = StyleSheet.create({
-  screen: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 160, gap: 18 },
+  screen: {
+    paddingHorizontal: DigestSpace.screenPadX + 4,
+    paddingTop: 12,
+    paddingBottom: 160,
+    gap: 22,
+  },
   intro: { gap: 10 },
-  kicker: { color: colors.bill, fontFamily: fontBody.semibold, fontSize: 12 },
+  kicker: {
+    ...DigestType.sectionEyebrow,
+    fontSize: 11,
+    color: P.spark,
+    textTransform: "uppercase",
+  },
   headline: {
-    color: "#FFFFFF",
     fontFamily: fontDisplay.bold,
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: -0.6,
+    color: P.inkOnNight,
   },
   introText: {
-    color: "rgba(255,255,255,0.70)",
     fontFamily: fontBody.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 22,
+    color: P.quiet,
   },
-  scope: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  scopeText: {
-    flex: 1,
-    color: "rgba(255,255,255,0.70)",
-    fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  list: { gap: 12 },
-  caption: {
-    color: "rgba(255,255,255,0.70)",
-    fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  card: {
-    padding: 0,
-    overflow: "hidden",
-    borderRadius: 14,
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  action: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: hair[1],
-  },
-  cardHeader: {
+    borderColor: DigestHair.sectionRule,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    minHeight: 76,
+    gap: 7,
+  },
+  actionText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 13,
+    color: P.inkOnNight,
+  },
+  note: {
+    fontFamily: fontBody.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: P.quiet,
+  },
+  aiNote: { flexDirection: "row", alignItems: "center", gap: 6 },
+  list: { gap: 12 },
+  /** Matches the Elections hub tool cards (`entryTool`). */
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
     padding: 14,
+    minHeight: 76,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: DigestHair.cardBorder,
+    backgroundColor: P.card,
   },
-  portrait: { width: 44, height: 44, borderRadius: 9 },
-  portraitFallback: {
-    width: 44,
-    minHeight: 44,
+  rowCopy: { flex: 1, minWidth: 0, gap: 4 },
+  tile: {
+    width: 36,
+    height: 36,
     borderRadius: 9,
+    backgroundColor: `${P.primary}28`,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: planes.navy,
   },
-  cardIdentity: { flex: 1, gap: 5 },
-  cardTitle: {
-    color: "#FFFFFF",
-    fontFamily: fontBody.semibold,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  measureTitle: {
-    fontFamily: fontBody.semibold,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  cardMeta: {
-    color: "rgba(255,255,255,0.70)",
-    fontFamily: fontBody.regular,
-    fontSize: 11.5,
-    lineHeight: 17,
-  },
-  cardBody: { gap: 16, paddingHorizontal: 18, paddingBottom: 18 },
-  statement: {
-    color: "#FFFFFF",
-    fontFamily: fontBody.regular,
+  tileText: {
+    fontFamily: fontBody.bold,
     fontSize: 14,
-    lineHeight: 22,
+    color: P.linkOnNight,
   },
-  measureNumber: {
-    width: 44,
-    minHeight: 44,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: `${colors.bill}28`,
-  },
-  measureNumberText: {
-    color: colors.white,
-    fontFamily: fontBody.semibold,
+  rowTitle: {
+    fontFamily: fontEditorial.bold,
     fontSize: 17,
+    lineHeight: 22,
+    color: P.inkOnNight,
   },
-  detailBlock: { gap: 4 },
-  detailLabel: { color: P.inkOnNight, fontFamily: fontBody.semibold },
-  detailText: {
-    color: "#FFFFFF",
+  /** Regular weight so the one `**key phrase**` can stand out in bold. */
+  /** Same pairing as Trillion rows: Plex 400 with the key phrase at 700. */
+  headline17: { fontFamily: fontDisplay.regular, fontSize: 17, lineHeight: 23 },
+  bold: { fontFamily: fontDisplay.bold },
+  /** Fallback when no generated headline exists: the state's own wording. */
+  officialTitle: {
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+    letterSpacing: 0.2,
+    color: P.inkOnNight,
+  },
+  rowNote: {
     fontFamily: fontBody.regular,
-    lineHeight: 21,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: P.quiet,
+  },
+  portrait: { width: 36, height: 36, borderRadius: 9 },
+  cardText: {
+    fontFamily: fontBody.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: P.inkOnNight,
   },
   footer: { gap: 12, paddingBottom: 18 },
+  sources: { borderRadius: 14 },
+  sourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 14,
+    minHeight: 60,
+  },
+  sourceRule: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DigestHair.cardBorder,
+  },
+  sourceLabel: {
+    flex: 1,
+    fontFamily: fontBody.semibold,
+    fontSize: 14,
+    color: P.inkOnNight,
+  },
   retryButton: {
     minHeight: 48,
     padding: 12,
@@ -477,36 +497,20 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   retry: { color: P.canvas, fontFamily: fontBody.semibold, fontSize: 16 },
-
-  fixtureLink: { color: "rgba(255,255,255,0.70)", paddingVertical: 16 },
-  addressAction: {
-    minHeight: 48,
+  ballotButton: {
+    minHeight: 52,
+    marginTop: 6,
+    paddingHorizontal: 18,
+    borderRadius: 26,
+    backgroundColor: P.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
   },
-  addressActionText: { color: colors.bill, fontFamily: fontBody.semibold },
-  detailAction: {
-    minHeight: 48,
-    marginHorizontal: 14,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderTopColor: hair[1],
-  },
-  detailActionText: {
-    color: P.inkOnNight,
-    flexShrink: 1,
+  ballotButtonText: {
     fontFamily: fontBody.semibold,
-    fontSize: 12,
+    fontSize: 15,
+    color: P.inkOnNight,
   },
-  sectionTitle: {
-    fontFamily: fontEditorial.bold,
-    fontSize: 18,
-    color: colors.white,
-  },
+  fixtureLink: { color: P.quiet, paddingVertical: 16 },
 });
