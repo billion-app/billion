@@ -183,7 +183,7 @@ void test("curated precedent is captured as PDFs and seeds a precedent question"
     ...parsed,
     sources: parsed.sources.filter((s) => s.role !== "precedent"),
   });
-  assert.doesNotMatch(withoutPrecedent, /tried before/);
+  assert.doesNotMatch(withoutPrecedent, /Add one historical crux/);
 });
 
 void test("the evaluator flags thin, one-sided disputes and titles that describe the source", async () => {

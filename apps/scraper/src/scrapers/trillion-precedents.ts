@@ -39,7 +39,8 @@ export const TRILLION_PRECEDENTS: Record<string, TrillionPrecedent[]> = {
     },
     {
       id: "precedent-spending-limit",
-      url: "https://lao.ca.gov/reports/2021/4416/SAL-042121.pdf",
+      // The HTML report preserves reading order; its two-column PDF interleaves prose.
+      url: "https://lao.ca.gov/Publications/Report/4416",
       title: "Legislative Analyst, The State Appropriations Limit (April 2021)",
       locator:
         "Historical operation and rebate rules; projections are as of April 2021",
