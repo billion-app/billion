@@ -177,7 +177,8 @@ void test("curated precedent is captured as PDFs and seeds a precedent question"
   );
   const parsed = trillionCorpusSchema.parse(corpus);
   const prompt = buildTrillionPrompt(parsed);
-  assert.match(prompt, /Has this been tried before, and did it work\?/);
+  assert.match(prompt, /naming the actual comparable policy or program/);
+  assert.doesNotMatch(prompt, /Add one crux "Has this been tried before/);
   const withoutPrecedent = buildTrillionPrompt({
     ...parsed,
     sources: parsed.sources.filter((s) => s.role !== "precedent"),
