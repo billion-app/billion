@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 
+import { useLanguage } from "~/hooks/useLanguage";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { Icon } from "./Icon";
 
@@ -73,13 +74,14 @@ function sideLabels(data: LensData) {
 /* ---------- LensStrip ---------- */
 export function LensStrip({
   weight = 50,
-  label = "Across the spectrum",
+  label,
   onExpand,
 }: {
   weight?: number; // 0–100, visual balance only
   label?: string;
   onExpand?: () => void;
 }) {
+  const { t: tr } = useLanguage();
   return (
     <TouchableOpacity
       activeOpacity={onExpand ? 0.8 : 1}
@@ -90,7 +92,7 @@ export function LensStrip({
         <View style={s.stripHeadLeft}>
           <Icon name="scale" size={16} color={colors.white} />
           <Text style={s.stripLabel} numberOfLines={1}>
-            {label}
+            {label ?? tr("readerUi.spectrum")}
           </Text>
         </View>
         {onExpand && (
@@ -114,9 +116,9 @@ export function LensStrip({
         <View style={[s.node, { left: "92%", backgroundColor: "#9aa0b3" }]} />
       </View>
       <View style={s.poles}>
-        <Text style={s.pole}>PROGRESSIVE</Text>
-        <Text style={s.pole}>CENTER</Text>
-        <Text style={s.pole}>CONSERVATIVE</Text>
+        <Text style={s.pole}>{tr("readerUi.progressive")}</Text>
+        <Text style={s.pole}>{tr("readerUi.center")}</Text>
+        <Text style={s.pole}>{tr("readerUi.conservative")}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -124,6 +126,7 @@ export function LensStrip({
 
 /* ---------- LensPanel ---------- */
 export function LensPanel({ data }: { data: LensData }) {
+  const { t: tr } = useLanguage();
   const sources = data.sources ?? [];
   const labels = sideLabels(data);
   return (
@@ -133,8 +136,8 @@ export function LensPanel({ data }: { data: LensData }) {
           <Icon name="scale" size={18} color={colors.white} />
         </View>
         <View>
-          <Text style={s.panelTitle}>Dual-Lens</Text>
-          <Text style={s.panelSub}>Competing cases, with sources.</Text>
+          <Text style={s.panelTitle}>{tr("readerUi.dualLens")}</Text>
+          <Text style={s.panelSub}>{tr("readerUi.competing")}</Text>
         </View>
       </View>
       <View style={s.cols}>
@@ -153,9 +156,22 @@ export function LensPanel({ data }: { data: LensData }) {
               ]}
             >
               <Text style={[s.colKicker, { color: lensAccent }]}>
-                {label.kicker}
+                {tr(
+                  label.kicker === "PROPONENTS"
+                    ? "readerUi.proponents"
+                    : "readerUi.opponents",
+                )}
               </Text>
-              <Text style={s.colStance}>{label.stance}</Text>
+              <Text style={s.colStance}>
+                {data.framing === "left_right" ||
+                label.stance === NEUTRAL_SIDE_LABELS[i]?.stance
+                  ? tr(
+                      i === 0
+                        ? "readerUi.proponentsArgue"
+                        : "readerUi.opponentsCounter",
+                    )
+                  : label.stance}
+              </Text>
               <View style={s.points}>
                 {data[k].points.map(toPoint).map((p, i) => {
                   const example =
@@ -185,7 +201,7 @@ export function LensPanel({ data }: { data: LensData }) {
                             <Text
                               style={[s.exampleLabel, { color: lensAccent }]}
                             >
-                              REAL-WORLD EXAMPLE
+                              {tr("readerUi.example")}
                             </Text>
                             <Text style={s.exampleText}>
                               {example.fact}
@@ -204,7 +220,7 @@ export function LensPanel({ data }: { data: LensData }) {
                                     { color: lensAccent },
                                   ]}
                                 >
-                                  WHAT IT SHOWS
+                                  {tr("readerUi.shows")}
                                 </Text>
                                 <Text style={s.relevanceText}>
                                   {example.relevance}
@@ -216,7 +232,8 @@ export function LensPanel({ data }: { data: LensData }) {
                       ) : (
                         p.sourceIds.length > 0 && (
                           <Text style={[s.legacyCite, { color: lensAccent }]}>
-                            SOURCES [{p.sourceIds.join(",")}]
+                            {tr("readerUi.sourcesUpper")} [
+                            {p.sourceIds.join(",")}]
                           </Text>
                         )
                       )}
@@ -233,9 +250,7 @@ export function LensPanel({ data }: { data: LensData }) {
       ) : (
         <View style={s.footer}>
           <Icon name="info" size={14} color={colors.textSecondary} />
-          <Text style={s.footerText}>
-            Framing summarized from the official source text.
-          </Text>
+          <Text style={s.footerText}>{tr("readerUi.framingNote")}</Text>
         </View>
       )}
     </View>
@@ -246,6 +261,7 @@ export function LensPanel({ data }: { data: LensData }) {
 // Sources can run to 20+ items, so keep them collapsed behind a tappable header
 // (count + chevron) and expand on demand.
 function SourcesAccordion({ sources }: { sources: LensSource[] }) {
+  const { t: tr } = useLanguage();
   const [open, setOpen] = useState(false);
   return (
     <View style={s.sources}>
@@ -256,7 +272,7 @@ function SourcesAccordion({ sources }: { sources: LensSource[] }) {
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
       >
-        <Text style={s.sourcesLabel}>SOURCES</Text>
+        <Text style={s.sourcesLabel}>{tr("readerUi.sourcesUpper")}</Text>
         <Text style={s.sourcesCount}>{sources.length}</Text>
         <View style={s.sourcesSpacer} />
         <View style={open ? s.chevFlip : undefined}>

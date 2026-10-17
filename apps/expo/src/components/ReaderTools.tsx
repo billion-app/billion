@@ -7,19 +7,13 @@
  * translated, quotes and sources left as published, and a way back to English.
  */
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { useArticleSpeech } from "~/hooks/useArticleSpeech";
 import { useLanguage } from "~/hooks/useLanguage";
 import { LANGUAGE_OPTIONS } from "~/i18n/language";
 import { fontBody, fontDisplay, hair, DigestPalette as P } from "~/styles";
+import { TranslationNotice } from "./TranslationNotice";
 import { Icon } from "./ui/Icon";
 
 const SPARK_TINT = "rgba(212,175,55,0.12)";
@@ -117,7 +111,7 @@ export function ReaderTools({
   state: "original" | "translated" | "pending" | "unavailable";
   onRetry: () => void;
 }) {
-  const { t, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   // Read aloud is missing on web and in builds without the speech module.
   // The button stays tappable so the reason appears on request instead of
   // as a permanent line above every reader.
@@ -169,47 +163,7 @@ export function ReaderTools({
         </Pressable>
         <ReaderLanguageButton />
       </View>
-      {state !== "original" && (
-        <View style={s.notice} accessibilityLiveRegion="polite">
-          {state === "pending" ? (
-            <ActivityIndicator size="small" color={P.quiet} />
-          ) : (
-            <Icon
-              name={state === "translated" ? "globe" : "info"}
-              size={14}
-              color={state === "translated" ? P.spark : P.quiet}
-            />
-          )}
-          <Text style={s.note}>
-            {state === "pending"
-              ? t("article.translationPending")
-              : state === "translated"
-                ? `${t("article.translated")} · ${t("reader.originalSources")}`
-                : t("article.translationUnavailable")}
-          </Text>
-          {state === "translated" && (
-            <Pressable
-              onPress={() => setLanguage("en")}
-              accessibilityRole="button"
-              hitSlop={8}
-              style={s.textAction}
-              testID="reader-show-english"
-            >
-              <Text style={s.textActionLabel}>{t("reader.showEnglish")}</Text>
-            </Pressable>
-          )}
-          {state === "unavailable" && (
-            <Pressable
-              onPress={onRetry}
-              accessibilityRole="button"
-              hitSlop={8}
-              style={s.textAction}
-            >
-              <Text style={s.textActionLabel}>{t("common.retry")}</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
+      <TranslationNotice state={state} onRetry={onRetry} />
       {!speech.available && explainUnavailable && (
         <Text style={s.note} accessibilityLiveRegion="polite">
           {t("listen.unavailable")}
@@ -258,34 +212,12 @@ const s = StyleSheet.create({
   pressed: { opacity: 0.7 },
   label: { color: P.inkOnNight, fontFamily: fontBody.medium, fontSize: 14 },
   labelMuted: { color: P.quiet },
-  notice: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 6,
-    paddingLeft: 12,
-    paddingRight: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: hair[1],
-    backgroundColor: "rgba(255,255,255,0.03)",
-  },
   note: {
     flex: 1,
     color: P.quiet,
     fontFamily: fontBody.regular,
     fontSize: 12,
     lineHeight: 17,
-  },
-  textAction: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: 8,
-  },
-  textActionLabel: {
-    color: P.linkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 13,
   },
   overlay: {
     flex: 1,

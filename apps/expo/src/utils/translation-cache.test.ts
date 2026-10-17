@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
-import { translationCachePolicy } from "./translation-cache";
+import {
+  articleTranslationState,
+  translationCachePolicy,
+} from "./translation-cache";
 
 void test("a new English revision fetches a new translation", async () => {
   const client = new QueryClient();
@@ -83,5 +86,41 @@ void test("queued translations keep polling until ready", () => {
       state: { data: { status: "translated" } },
     }),
     false,
+  );
+});
+
+void test("article loading stays visible between polls and through source refresh", () => {
+  for (const status of ["pending", "unavailable", "stale"]) {
+    assert.equal(
+      articleTranslationState(true, false, {
+        isError: false,
+        isFetching: false,
+        data: { status },
+      }),
+      "pending",
+    );
+  }
+});
+void test("a displayed translation does not flash loading during a background fetch", () => {
+  assert.equal(
+    articleTranslationState(true, true, {
+      isError: false,
+      isFetching: true,
+      data: { status: "translated" },
+    }),
+    "translated",
+  );
+});
+void test("article errors offer retry; English never looks like a pending translation", () => {
+  assert.equal(
+    articleTranslationState(true, false, { isError: true, isFetching: false }),
+    "unavailable",
+  );
+  assert.equal(
+    articleTranslationState(false, false, {
+      isError: false,
+      isFetching: false,
+    }),
+    "original",
   );
 });

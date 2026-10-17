@@ -20,6 +20,7 @@ import { ListenBar } from "~/components/ListenBar";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { ShareSheet } from "~/components/ShareSheet";
 import { Text } from "~/components/Themed";
+import { TranslationNotice } from "~/components/TranslationNotice";
 import {
   Avatar,
   Badge,
@@ -60,7 +61,10 @@ import { contentImageSource } from "~/utils/editorial-visuals";
 import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 import { findSourcePassage } from "~/utils/source-passage";
 import { buildSpeechChunks } from "~/utils/speech-script";
-import { translationCachePolicy } from "~/utils/translation-cache";
+import {
+  articleTranslationState,
+  translationCachePolicy,
+} from "~/utils/translation-cache";
 
 export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
@@ -168,12 +172,11 @@ export default function ArticleDetailScreen() {
     translationQuery.data.sourceHash === content?.translationSourceHash
       ? translationQuery.data
       : null;
-  const translationPending =
-    !!translationLanguage &&
-    !!content &&
-    !translationQuery.isError &&
-    (translationQuery.isFetching ||
-      translationQuery.data?.status === "unavailable");
+  const translationState = articleTranslationState(
+    !!translationLanguage,
+    !!translation,
+    translationQuery,
+  );
 
   const speechLanguage =
     mode !== "source" &&
@@ -405,25 +408,25 @@ export default function ArticleDetailScreen() {
         }))
     : [
         {
-          label: "Introduced",
+          label: tr("readerUi.introduced"),
           fullText: "",
           date: "",
           done: true,
         },
         {
-          label: "Committee review",
+          label: tr("readerUi.committee"),
           fullText: "",
           date: "",
           done: true,
         },
         {
-          label: "Latest action",
+          label: tr("readerUi.latestAction"),
           fullText: "",
           date: "",
           done: true,
         },
         {
-          label: "Becomes law",
+          label: tr("readerUi.becomesLaw"),
           fullText: "",
           date: "",
           done: false,
@@ -455,7 +458,7 @@ export default function ArticleDetailScreen() {
   return (
     <View style={s.screen}>
       <NavHeader
-        title={t.label}
+        title={tr(`readerUi.type.${typeKey}`)}
         onBack={() => router.back()}
         action={
           <>
@@ -510,6 +513,15 @@ export default function ArticleDetailScreen() {
         }
       />
 
+      {translationLanguage && (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+          <TranslationNotice
+            state={mode === "source" ? "source" : translationState}
+            onRetry={() => void translationQuery.refetch()}
+          />
+        </View>
+      )}
+
       <ScrollView
         ref={scrollRef}
         style={s.scroll}
@@ -526,12 +538,16 @@ export default function ArticleDetailScreen() {
               transition={200}
               onError={() => setFailedHeaderImageKey(headerImageKey)}
               accessible
-              accessibilityLabel={`Header image for ${content.title}`}
+              accessibilityLabel={tr("readerUi.headerImage", {
+                title: displayTitle,
+              })}
             />
           </View>
         ) : (
           <Placeholder
-            label={`${t.label.toLowerCase()} · header art`}
+            label={tr("readerUi.headerArt", {
+              type: tr(`readerUi.type.${typeKey}`),
+            })}
             height={170}
             radius={16}
             style={{ marginBottom: 18 }}
@@ -593,7 +609,9 @@ export default function ArticleDetailScreen() {
             activeOpacity={0.75}
             onPress={openSponsorProfile}
             accessibilityRole="button"
-            accessibilityLabel={`View sponsor profile for ${sponsor.name}`}
+            accessibilityLabel={tr("readerUi.sponsorProfile", {
+              name: sponsor.name,
+            })}
             testID="bill-sponsor-card"
           >
             <Avatar
@@ -667,9 +685,7 @@ export default function ArticleDetailScreen() {
             accessibilityRole="button"
             accessibilityState={{ expanded: provenanceOpen }}
             accessibilityLabel={
-              provenanceOpen
-                ? "Hide details about Billion AI authorship"
-                : "Show details about Billion AI authorship"
+              provenanceOpen ? tr("readerUi.hideAI") : tr("readerUi.showAI")
             }
           >
             <Icon name="sparkle" size={17} color={t.color} />
@@ -685,50 +701,34 @@ export default function ArticleDetailScreen() {
               </View>
               {provenanceOpen ? (
                 <Text style={s.disclaimerText}>
-                  Created from the linked source text.{" "}
-                  {hasBrief
-                    ? "Quoted passages are checked against that source; everything else is AI analysis."
-                    : "The plain-language explanation is AI analysis."}{" "}
-                  Use{" "}
-                  {content.type === "court_case"
-                    ? "Court record"
-                    : "Original text"}{" "}
-                  or the linked source site to verify details.
+                  {tr(
+                    hasBrief
+                      ? "readerUi.provenanceBrief"
+                      : "readerUi.provenanceArticle",
+                    {
+                      mode: tr(
+                        content.type === "court_case"
+                          ? "article.courtRecord"
+                          : "article.originalText",
+                      ),
+                    },
+                  )}
                 </Text>
               ) : null}
             </View>
           </TouchableOpacity>
         )}
 
-        {translationLanguage ? (
-          <View style={s.translationNote} testID="article-translation-note">
-            {translationPending && mode !== "source" ? (
-              <ActivityIndicator size="small" color={colors.textSecondary} />
-            ) : (
-              <Icon name="globe" size={14} color={colors.textSecondary} />
-            )}
-            <Text style={s.translationNoteText}>
-              {mode === "source"
-                ? tr("article.sourceStaysEnglish")
-                : translationPending
-                  ? tr("article.translationPending")
-                  : translation
-                    ? tr("article.translated")
-                    : tr("article.translationUnavailable")}
-            </Text>
-          </View>
-        ) : null}
-
         {mode === "source" && sourceUrl && (
           <PrimaryButton
             label={
               content.type === "court_case"
                 ? independentCourtSource
-                  ? "Open court record archive"
-                  : "Open official court record"
+                  ? tr("readerUi.openArchive")
+                  : tr("readerUi.openCourt")
                 : officialUrl
-                  ? "View Federal Register record"
-                  : "View on Original Site"
+                  ? tr("readerUi.openFederal")
+                  : tr("readerUi.openOriginal")
             }
             icon="external"
             onPress={handleOpenOriginal}
@@ -773,9 +773,11 @@ export default function ArticleDetailScreen() {
               content={content.originalContent}
               quote={sourceHighlight}
               accent={t.color}
-              title={
-                content.type === "court_case" ? "Court record" : "Original text"
-              }
+              title={tr(
+                content.type === "court_case"
+                  ? "article.courtRecord"
+                  : "article.originalText",
+              )}
               onTargetLayout={handleSourceTargetLayout}
             />
           ) : renderMarkdown ? (
@@ -840,7 +842,7 @@ export default function ArticleDetailScreen() {
                     <View style={s.timelineBody}>
                       {!!step.date && (
                         <Text style={s.timelineDate}>
-                          {formatDate(step.date)}
+                          {formatDate(step.date, dateLocale)}
                         </Text>
                       )}
                       <View style={s.timelineLabelRow}>
@@ -879,7 +881,7 @@ export default function ArticleDetailScreen() {
                 >
                   <Icon name="info" size={13} color={colors.textSecondary} />
                   <Text style={s.timelineSourceText}>
-                    Official record ·{" "}
+                    {tr("readerUi.officialRecord")} ·{" "}
                     {("sourceLabel" in content
                       ? content.sourceLabel
                       : undefined) ?? "congress.gov"}
@@ -903,16 +905,16 @@ export default function ArticleDetailScreen() {
             <Text style={s.exitSub}>
               {content.type === "court_case"
                 ? independentCourtSource
-                  ? "Read the archived docket and check the court for the latest status."
-                  : "Read the court's published documents and verify the procedural posture for yourself."
+                  ? tr("readerUi.archiveExit")
+                  : tr("readerUi.courtExit")
                 : tr("article.dontTakeOurWordSub")}
             </Text>
             <PrimaryButton
               label={
                 content.type === "court_case"
                   ? independentCourtSource
-                    ? "Open court record archive"
-                    : "Open official court record"
+                    ? tr("readerUi.openArchive")
+                    : tr("readerUi.openCourt")
                   : tr("article.openSource")
               }
               icon="external"
@@ -959,13 +961,11 @@ export default function ArticleDetailScreen() {
           accent={t.color}
           heading={
             shareSurface === "screenshot"
-              ? "Send the real thing instead"
+              ? tr("readerUi.shareTitle")
               : undefined
           }
           subheading={
-            shareSurface === "screenshot"
-              ? "A link opens the whole brief, stays readable, and works for anyone you send it to."
-              : undefined
+            shareSurface === "screenshot" ? tr("readerUi.shareNote") : undefined
           }
         />
       ) : null}
@@ -986,6 +986,7 @@ function HighlightedSource({
   title: string;
   onTargetLayout: (event: LayoutChangeEvent) => void;
 }) {
+  const { t: tr } = useLanguage();
   const { found, before, match, after } = findSourcePassage(
     content,
     quote.text,
@@ -1004,8 +1005,8 @@ function HighlightedSource({
           <Text style={s.sourceDocumentTitle}>{title}</Text>
           <Text style={s.sourceDocumentMeta}>
             {quote.locator
-              ? `Highlighted passage · ${quote.locator}`
-              : "Highlighted passage"}
+              ? `${tr("readerUi.highlighted")} · ${quote.locator}`
+              : tr("readerUi.highlighted")}
           </Text>
         </View>
       </View>
@@ -1019,7 +1020,7 @@ function HighlightedSource({
         testID="source-highlight"
       >
         <Text style={[s.sourceHighlightLabel, { color: accent }]}>
-          {found ? "MATCHING PASSAGE" : "CITED PASSAGE"}
+          {found ? tr("readerUi.matching") : tr("readerUi.cited")}
         </Text>
         <Text style={s.sourceHighlightText}>{match}</Text>
       </View>
@@ -1140,14 +1141,6 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-  },
-  translationNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: -8,
-    marginBottom: 16,
-    paddingHorizontal: 2,
   },
   translationNoteText: {
     flex: 1,

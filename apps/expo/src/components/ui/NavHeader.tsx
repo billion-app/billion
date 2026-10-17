@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useLanguage } from "~/hooks/useLanguage";
 import {
   DigestHair,
   DigestRadii,
@@ -34,6 +35,7 @@ export function NavHeader({
   large?: boolean;
   tone?: "dark" | "paper";
 }) {
+  const { t: tr } = useLanguage();
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
   const largeText = fontScale > 1.4;
@@ -75,7 +77,7 @@ export function NavHeader({
             activeOpacity={0.7}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel={tr("common.goBack")}
           >
             <Icon name="chevL" size={18} color={foreground} />
           </TouchableOpacity>

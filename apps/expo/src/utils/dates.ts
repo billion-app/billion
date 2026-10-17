@@ -6,9 +6,9 @@ export function daysUntil(dateString: string): number {
   return diffDays;
 }
 
-export function formatDate(dateString: string): string {
+export function formatDate(dateString: string, locale = "en-US"): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(locale, {
     weekday: "short",
     month: "short",
     day: "numeric",
