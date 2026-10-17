@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -14,10 +14,14 @@ import {
   ContextUnavailable,
   PropositionContext,
 } from "~/components/ballot-evidence/PropositionContext";
+import { ListenBar } from "~/components/ListenBar";
+import { ReaderTools } from "~/components/ReaderTools";
 import { developmentDebate } from "~/components/trillion/development/pilots";
 import { TrillionLoading } from "~/components/trillion/TrillionLoading";
 import { TrillionScreen } from "~/components/trillion/TrillionScreen";
 import { Icon, NavHeader } from "~/components/ui";
+import { useArticleSpeech } from "~/hooks/useArticleSpeech";
+import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
 import {
   fontBody,
   fontDisplay,
@@ -29,6 +33,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
+import { measureSpeechChunks } from "~/utils/measure-speech";
 import {
   officialVoteMeaning,
   splitOfficialTitle,
@@ -39,7 +44,9 @@ export default function PropositionDetailScreen() {
   const router = useRouter();
   const { number } = useLocalSearchParams<{ number?: string }>();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
-  const measure = query.data?.measures.find((item) => item.number === number);
+  const originalMeasure = query.data?.measures.find(
+    (item) => item.number === number,
+  );
   // A proposition with a debate is read as its Trillion (#455). The graph
   // appears only once it passes the server's publication gate; until then, and
   // for measures without one, the page below is the explanation.
@@ -49,10 +56,32 @@ export default function PropositionDetailScreen() {
       { enabled: !!number },
     ),
   );
+  const graph =
+    debate.data ??
+    (originalMeasure ? developmentDebate(originalMeasure.number) : undefined);
+  const translation = useMeasureTranslation(
+    !graph && !debate.isPending ? number : undefined,
+  );
+  const measure = useMemo(
+    () =>
+      translation.translation && originalMeasure
+        ? { ...originalMeasure, ...translation.translation.measure }
+        : originalMeasure,
+    [originalMeasure, translation.translation],
+  );
   const proArguments = submittedGuideArguments(measure?.proArguments);
   const conArguments = submittedGuideArguments(measure?.conArguments);
-  const graph =
-    debate.data ?? (measure ? developmentDebate(measure.number) : undefined);
+  const spokenLanguage = translation.translation ? translation.language : "en";
+  const chunks = useMemo(
+    () => (measure ? measureSpeechChunks(measure, spokenLanguage) : []),
+    [measure, spokenLanguage],
+  );
+  const speech = useArticleSpeech({
+    chunks,
+    language: spokenLanguage,
+    mode: "explainer",
+    contentId: number,
+  });
   if (graph)
     return (
       <TrillionScreen
@@ -79,6 +108,11 @@ export default function PropositionDetailScreen() {
         title={`Proposition ${number ?? ""}`}
         tone="dark"
         onBack={() => router.back()}
+      />
+      <ReaderTools
+        speech={speech}
+        state={translation.state}
+        onRetry={translation.retry}
       />
       <ScrollView contentContainerStyle={s.content}>
         {query.isError ? (
@@ -124,7 +158,9 @@ export default function PropositionDetailScreen() {
                   <Text style={s.caption}>
                     {[
                       splitOfficialTitle(measure.title).kind,
-                      "Official title, bold added by Billion",
+                      translation.translation
+                        ? "Machine-translated official title"
+                        : "Official title, bold added by Billion",
                     ]
                       .filter(Boolean)
                       .join(" · ")}
@@ -308,6 +344,15 @@ export default function PropositionDetailScreen() {
           </>
         )}
       </ScrollView>
+      <ListenBar
+        status={speech.status}
+        index={speech.index}
+        total={speech.total}
+        accent={P.spark}
+        onPause={speech.pause}
+        onResume={speech.resume}
+        onStop={speech.stop}
+      />
     </View>
   );
 }

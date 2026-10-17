@@ -38,6 +38,7 @@ const en = {
   "settings.resetBody":
     "This clears your current topics, government choices, and alert preferences, then starts onboarding again.",
   "common.cancel": "Cancel",
+  "common.retry": "Retry",
   "common.reset": "Reset",
   "common.goBack": "Go Back",
 
@@ -75,6 +76,19 @@ const en = {
   "article.openSource": "Open the source",
   "article.viewRelated": "View all related records",
   "article.translating": "Translating…",
+  "article.translationPending":
+    "Preparing your translation… English is shown until it is ready.",
+  "reader.originalSources":
+    "Quotes and source documents stay in their original language.",
+  "reader.showEnglish": "Show English",
+  "reader.translateNote":
+    "Billion machine-translates its explanations from English. Quotes and source documents stay in their original language.",
+  "listen.unavailable":
+    "Read aloud requires the latest app version and an installed voice.",
+  "listen.silentHint":
+    "No sound? Turn off Silent Mode and turn up your volume.",
+  "listen.error":
+    "Audio could not start. Check your volume and installed voices, then try Listen again.",
   "article.translated": "Machine translated from English",
   "article.translationUnavailable":
     "Translation isn't available right now. Showing English.",
@@ -83,6 +97,7 @@ const en = {
 
   // Listen
   "listen.start": "Listen to this article",
+  "listen.short": "Listen",
   "listen.pause": "Pause",
   "listen.resume": "Resume",
   "listen.stop": "Stop listening",
@@ -121,6 +136,7 @@ const es: Dictionary = {
   "settings.resetBody":
     "Esto borra tus temas, tus gobiernos elegidos y tus preferencias de alertas, y vuelve a empezar la configuración inicial.",
   "common.cancel": "Cancelar",
+  "common.retry": "Reintentar",
   "common.reset": "Restablecer",
   "common.goBack": "Volver",
 
@@ -157,6 +173,19 @@ const es: Dictionary = {
   "article.openSource": "Abrir la fuente",
   "article.viewRelated": "Ver todos los registros relacionados",
   "article.translating": "Traduciendo…",
+  "article.translationPending":
+    "Preparando la traducción… Se muestra inglés mientras está lista.",
+  "reader.originalSources":
+    "Las citas y los documentos conservan su idioma original.",
+  "reader.showEnglish": "Ver en inglés",
+  "reader.translateNote":
+    "Billion traduce automáticamente sus explicaciones del inglés. Las citas y los documentos conservan su idioma original.",
+  "listen.unavailable":
+    "Para escuchar, necesitas la última versión de la app y una voz instalada.",
+  "listen.silentHint":
+    "¿No se oye? Desactiva el modo silencio y sube el volumen.",
+  "listen.error":
+    "No se pudo iniciar el audio. Revisa el volumen y las voces instaladas e inténtalo de nuevo.",
   "article.translated": "Traducción automática del inglés",
   "article.translationUnavailable":
     "La traducción no está disponible ahora. Se muestra en inglés.",
@@ -164,6 +193,7 @@ const es: Dictionary = {
     "Los documentos originales se muestran tal como se publicaron, en inglés.",
 
   "listen.start": "Escuchar este artículo",
+  "listen.short": "Escuchar",
   "listen.pause": "Pausar",
   "listen.resume": "Reanudar",
   "listen.stop": "Dejar de escuchar",
@@ -199,6 +229,7 @@ const zh: Dictionary = {
   "settings.resetBody":
     "这将清除你当前的话题、所选政府和提醒偏好，并重新开始引导设置。",
   "common.cancel": "取消",
+  "common.retry": "重试",
   "common.reset": "重置",
   "common.goBack": "返回",
 
@@ -234,11 +265,20 @@ const zh: Dictionary = {
   "article.openSource": "打开来源",
   "article.viewRelated": "查看所有相关记录",
   "article.translating": "正在翻译…",
+  "article.translationPending": "正在准备翻译…完成前暂时显示英文。",
+  "reader.originalSources": "引文和原始文件保留原文。",
+  "reader.showEnglish": "显示英文",
+  "reader.translateNote":
+    "Billion 的解读由英文机器翻译。引文和原始文件保留原文。",
+  "listen.unavailable": "朗读需要最新版本的应用及已安装的语音。",
+  "listen.silentHint": "没有声音？请关闭静音模式并调高音量。",
+  "listen.error": "无法开始播放。请检查音量和已安装的语音，然后重试朗读。",
   "article.translated": "由英文机器翻译",
   "article.translationUnavailable": "暂时无法翻译，现显示英文。",
   "article.sourceStaysEnglish": "原始文件按发布时的英文原样显示。",
 
   "listen.start": "收听本文",
+  "listen.short": "收听",
   "listen.pause": "暂停",
   "listen.resume": "继续",
   "listen.stop": "停止收听",

@@ -63,10 +63,25 @@ void test("unavailable translations retry when reopened after recovery", async (
       translationCachePolicy.refetchInterval({
         state: { data: { status: "unavailable" } },
       }),
-      60_000,
+      3_000,
     );
   } finally {
     unsubscribe();
     client.clear();
   }
+});
+
+void test("queued translations keep polling until ready", () => {
+  assert.equal(
+    translationCachePolicy.refetchInterval({
+      state: { data: { status: "pending" } },
+    }),
+    3_000,
+  );
+  assert.equal(
+    translationCachePolicy.refetchInterval({
+      state: { data: { status: "translated" } },
+    }),
+    false,
+  );
 });

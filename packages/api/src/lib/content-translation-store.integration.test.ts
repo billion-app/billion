@@ -8,6 +8,7 @@ import { db } from "@acme/db/client";
 import { ContentTranslation, ContentTranslationRequest } from "@acme/db/schema";
 
 import {
+  getSegmentTranslations,
   getTranslations,
   processNextTranslation,
 } from "./content-translation-store";
@@ -131,6 +132,28 @@ void test(
         assert.equal(await worker(), "generated");
         assert.equal((await getTranslations(input))?.title, "ES Fifth");
       });
+      await t.test(
+        "measure segments use the same durable worker without an article record",
+        async () => {
+          const measureInput = {
+            contentId: input.contentId,
+            contentType: "measure" as const,
+            language: "zh" as const,
+            segments: [{ key: "graph.summary.text", text: "Funds housing" }],
+          };
+          assert.equal(await getSegmentTranslations(measureInput), null);
+          assert.equal(
+            await worker((texts) =>
+              Promise.resolve(texts.map((text) => `中文 ${text}`)),
+            ),
+            "generated",
+          );
+          assert.deepEqual(await getSegmentTranslations(measureInput), {
+            "graph.summary.text": "中文 Funds housing",
+          });
+          assert.equal(await worker(), "idle");
+        },
+      );
     } finally {
       await db
         .delete(ContentTranslationRequest)

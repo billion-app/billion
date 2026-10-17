@@ -16,8 +16,18 @@ import {
   getVoterInfo,
 } from "../lib/civic";
 import { CivicReadUnavailableError } from "../lib/civic-read-guard";
+import {
+  applySegments,
+  hashSegments,
+  TRANSLATION_LANGUAGES,
+} from "../lib/content-translation";
+import { getSegmentTranslations } from "../lib/content-translation-store";
 import { getElectedOfficials } from "../lib/elected-officials";
 import { publishedMeasureRelationships } from "../lib/measure-relationships";
+import {
+  measureSegments,
+  measureTranslationId,
+} from "../lib/measure-translation";
 import {
   publicPropositionConsequences,
   publishedPropositionConsequences,
@@ -128,6 +138,62 @@ export const civicRouter = {
         await getCachedTrillionGraph(guide.electionDate, input.number),
         guide.relationshipSources ?? [],
       );
+    }),
+
+  getMeasureTranslation: publicProcedure
+    .input(
+      z.object({
+        number: z.string().regex(/^\d+[A-Z]?$/),
+        language: z.enum(TRANSLATION_LANGUAGES),
+        scope: z.enum(["title", "reader"]).default("reader"),
+        revision: z.string().max(100).optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const guide = await getCaliforniaGuide();
+      const original = guide?.measures.find((m) => m.number === input.number);
+      if (!guide || !original) return { status: "unavailable" as const };
+      const measure = {
+        ...original,
+        contextualExplanation: publishedPropositionContext(
+          guide.electionDate,
+          original,
+        ),
+        consequences: publicPropositionConsequences(
+          publishedPropositionConsequences(guide.electionDate, original),
+        ),
+      };
+      const graph =
+        input.scope === "reader"
+          ? publishedTrillionGraph(
+              guide,
+              input.number,
+              await getCachedTrillionGraph(guide.electionDate, input.number),
+              guide.relationshipSources ?? [],
+            )
+          : null;
+      if (input.revision && input.revision !== graph?.revision)
+        return { status: "stale" as const };
+      const segments = measureSegments(measure, graph, input.scope);
+      const translations = await getSegmentTranslations({
+        contentId: measureTranslationId(
+          guide.electionDate,
+          input.number,
+          input.scope,
+        ),
+        contentType: "measure",
+        language: input.language,
+        segments,
+      });
+      if (!translations) return { status: "pending" as const };
+      return {
+        status: "translated" as const,
+        language: input.language,
+        sourceHash: hashSegments(segments),
+        originalTitle: original.title,
+        measure: applySegments(measure, translations, "measure"),
+        graph: applySegments(graph, translations, "graph"),
+      };
     }),
 
   /**

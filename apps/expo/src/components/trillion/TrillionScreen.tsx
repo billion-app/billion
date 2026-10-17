@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Linking, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRouter } from "expo-router";
@@ -7,7 +7,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { PublicTrillionGraph } from "@acme/validators";
 
 import type { TrillionReaderHandle } from "./dom/TrillionReader";
+import { ListenBar } from "~/components/ListenBar";
+import { ReaderTools } from "~/components/ReaderTools";
+import { useArticleSpeech } from "~/hooks/useArticleSpeech";
+import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
+import { DigestPalette as P } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
+import { graphSpeechChunks } from "~/utils/measure-speech";
 import TrillionReader from "./dom/TrillionReader";
 import { TrillionLoading } from "./TrillionLoading";
 
@@ -21,6 +27,22 @@ export function TrillionScreen({
   view?: "list" | "map";
   ballot?: string[];
 }) {
+  const translation = useMeasureTranslation(
+    graph.measure.number,
+    graph.revision,
+  );
+  const displayedGraph = translation.translation?.graph ?? graph;
+  const spokenLanguage = translation.translation ? translation.language : "en";
+  const chunks = useMemo(
+    () => graphSpeechChunks(displayedGraph, spokenLanguage),
+    [displayedGraph, spokenLanguage],
+  );
+  const speech = useArticleSpeech({
+    chunks,
+    language: spokenLanguage,
+    mode: "explainer",
+    contentId: `${graph.electionDate}:${graph.measure.number}`,
+  });
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -63,6 +85,11 @@ export function TrillionScreen({
   }, [backInside]);
   return (
     <View style={[s.screen, { paddingTop: insets.top }]}>
+      <ReaderTools
+        speech={speech}
+        state={translation.state}
+        onRetry={translation.retry}
+      />
       {stored?.key === storageKey ? (
         <TrillionReader
           key={storageKey}
@@ -71,7 +98,13 @@ export function TrillionScreen({
             await AsyncStorage.setItem(storageKey, value);
           }}
           ref={reader}
-          graph={graph}
+          graph={displayedGraph}
+          language={translation.language}
+          translationKey={
+            translation.translation?.sourceHash
+              ? `${translation.language}:${translation.translation.sourceHash}`
+              : "en"
+          }
           view={view}
           ballot={ballot}
           onExit={() => Promise.resolve(router.back())}
@@ -98,6 +131,15 @@ export function TrillionScreen({
       ) : (
         <TrillionLoading />
       )}
+      <ListenBar
+        status={speech.status}
+        index={speech.index}
+        total={speech.total}
+        accent={P.spark}
+        onPause={speech.pause}
+        onResume={speech.resume}
+        onStop={speech.stop}
+      />
     </View>
   );
 }

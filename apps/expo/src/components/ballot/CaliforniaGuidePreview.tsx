@@ -16,8 +16,10 @@ import { plainTrillionText, trillionEmphasis } from "@acme/validators";
 import type { IconName } from "~/components/ui";
 import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
+import { ReaderLanguageButton } from "~/components/ReaderTools";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader, Segmented } from "~/components/ui";
+import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
 import {
   DigestHair,
   DigestSpace,
@@ -114,7 +116,15 @@ function CandidateRow({ candidate }: { candidate: Candidate }) {
   );
 }
 
-function MeasureRow({ measure }: { measure: Measure }) {
+function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
+  const translation = useMeasureTranslation(
+    originalMeasure.number,
+    undefined,
+    "title",
+  );
+  const measure = translation.translation
+    ? { ...originalMeasure, ...translation.translation.measure }
+    : originalMeasure;
   const router = useRouter();
   const official = splitOfficialTitle(measure.title);
   const prefetch = () =>
@@ -187,7 +197,11 @@ export function CaliforniaGuidePreview({
   const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
   return (
     <View style={{ flex: 1, backgroundColor: P.canvas }}>
-      <NavHeader title="California guide" onBack={onBack} />
+      <NavHeader
+        title="California guide"
+        onBack={onBack}
+        action={<ReaderLanguageButton />}
+      />
       <ScrollView
         ref={guideScroll}
         contentContainerStyle={s.screen}

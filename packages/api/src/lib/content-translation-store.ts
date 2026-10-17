@@ -7,6 +7,7 @@ import { db } from "@acme/db/client";
 import { ContentTranslation, ContentTranslationRequest } from "@acme/db/schema";
 
 import type {
+  Segment,
   TranslateBatch,
   TranslationLanguage,
   TranslationSource,
@@ -25,7 +26,19 @@ export async function getTranslations(input: {
   language: TranslationLanguage;
   source: TranslationSource;
 }): Promise<Record<string, string> | null> {
-  const segments = sourceSegments(input.source);
+  return getSegmentTranslations({
+    ...input,
+    segments: sourceSegments(input.source),
+  });
+}
+
+export async function getSegmentTranslations(input: {
+  contentId: string;
+  contentType: "bill" | "government_content" | "court_case" | "measure";
+  language: TranslationLanguage;
+  segments: Segment[];
+}): Promise<Record<string, string> | null> {
+  const segments = input.segments;
   const sourceHash = hashSegments(segments);
   const [row] = await db
     .select()

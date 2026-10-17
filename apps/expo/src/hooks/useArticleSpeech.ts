@@ -13,10 +13,12 @@
  */
 import type * as ExpoSpeech from "expo-speech";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
 
 import type { AppLanguage } from "~/i18n/language";
 import { posthog } from "~/config/posthog";
 import { speechLanguageTag } from "~/i18n/language";
+import { speakChunks } from "~/utils/speech-playback";
 
 type SpeechModule = typeof ExpoSpeech;
 
@@ -39,34 +41,6 @@ function loadSpeech(): SpeechModule | null {
   return speechModule;
 }
 
-const voiceByTag = new Map<string, Promise<string | undefined>>();
-
-/** The best installed voice for a language, enhanced quality first. */
-function pickVoice(
-  speech: SpeechModule,
-  tag: string,
-): Promise<string | undefined> {
-  let pending = voiceByTag.get(tag);
-  if (!pending) {
-    pending = speech
-      .getAvailableVoicesAsync()
-      .then((voices) => {
-        const base = tag.split("-")[0]?.toLowerCase() ?? "";
-        const matches = voices.filter((voice) =>
-          voice.language.toLowerCase().replace("_", "-").startsWith(base),
-        );
-        const rank = (voice: (typeof voices)[number]) =>
-          (voice.language.replace("_", "-").toLowerCase() === tag.toLowerCase()
-            ? 2
-            : 0) + (voice.quality === speech.VoiceQuality.Enhanced ? 1 : 0);
-        return matches.sort((a, b) => rank(b) - rank(a))[0]?.identifier;
-      })
-      .catch(() => undefined);
-    voiceByTag.set(tag, pending);
-  }
-  return pending;
-}
-
 export type SpeechStatus = "idle" | "playing" | "paused";
 
 export function useArticleSpeech(options: {
@@ -78,6 +52,7 @@ export function useArticleSpeech(options: {
   const { chunks, language, contentId, mode } = options;
   const available = loadSpeech() !== null;
   const [status, setStatus] = useState<SpeechStatus>("idle");
+  const [error, setError] = useState(false);
   const [index, setIndex] = useState(0);
 
   // Every stop bumps the session so a late `onDone` from the previous chunk
@@ -91,44 +66,40 @@ export function useArticleSpeech(options: {
 
   const halt = useCallback(() => {
     session.current += 1;
-    void loadSpeech()?.stop();
+    void loadSpeech()
+      ?.stop()
+      .catch(() => undefined);
   }, []);
 
   const speakFrom = useCallback(
     async (start: number) => {
       const speech = loadSpeech();
       if (!speech) return;
-      halt();
+      session.current += 1;
       const mine = session.current;
-      const tag = speechLanguageTag(language);
-      const voice = await pickVoice(speech, tag);
-      if (mine !== session.current) return;
-
-      const speakAt = (i: number) => {
-        if (mine !== session.current) return;
-        const text = chunksRef.current[i];
-        if (text === undefined) {
+      setError(false);
+      await speakChunks(speech, {
+        chunks: chunksRef.current,
+        start,
+        language: speechLanguageTag(language),
+        current: () => mine === session.current,
+        onStart: (i) => {
+          indexRef.current = i;
+          setIndex(i);
+          setStatus("playing");
+        },
+        onDone: () => {
           indexRef.current = 0;
           setIndex(0);
           setStatus("idle");
-          return;
-        }
-        indexRef.current = i;
-        setIndex(i);
-        speech.speak(text, {
-          language: tag,
-          voice,
-          onDone: () => speakAt(i + 1),
-          onError: () => {
-            if (mine !== session.current) return;
-            setStatus("idle");
-          },
-        });
-      };
-      setStatus("playing");
-      speakAt(start);
+        },
+        onError: () => {
+          setError(true);
+          setStatus("idle");
+        },
+      });
     },
-    [halt, language],
+    [language],
   );
 
   const play = useCallback(() => {
@@ -156,12 +127,15 @@ export function useArticleSpeech(options: {
     setStatus("idle");
   }, [halt]);
 
+  useFocusEffect(useCallback(() => stop, [stop]));
+
   // New text (mode or language switch) invalidates the current reading.
   useEffect(() => stop, [contentId, mode, language, chunks, stop]);
 
   return {
     available: available && chunks.length > 0,
     status,
+    error,
     index,
     total: chunks.length,
     play,

@@ -4,6 +4,7 @@ export function mountTrillionReader(
   root: HTMLElement,
   graph: PublicTrillionGraph,
   options?: {
+    language?: "en" | "es" | "zh";
     localState?: string;
     onLocalState?: (value: string) => void | Promise<void>;
     onExit?: () => void;

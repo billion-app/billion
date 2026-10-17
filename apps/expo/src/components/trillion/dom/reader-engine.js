@@ -16,6 +16,8 @@ import {
   forceY,
 } from "d3-force";
 
+import { readerLabel } from "./reader-labels";
+
 const d3 = { forceLink, forceManyBody, forceSimulation, forceX, forceY };
 
 const MONTH_SLUG = [
@@ -59,6 +61,7 @@ const FONTS =
   "https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap";
 
 export function mountTrillionReader(root, graph, options = {}) {
+  const t = (key, values) => readerLabel(options.language ?? "en", key, values);
   // One reader per root: a new graph replaces the old reader entirely, so no
   // stale listener or animation can act on cards that no longer exist.
   root.__trillion?.destroy();
@@ -83,13 +86,15 @@ export function mountTrillionReader(root, graph, options = {}) {
   }
   const [year, month, day] = graph.electionDate.split("-").map(Number);
   const eyebrow = `California · ${MONTHS[month - 1]} ${day}, ${year}`;
-  const recordTitle = `Proposition ${graph.measure.number} · The debate`;
+  const recordTitle = t("Proposition {number} · The debate", {
+    number: graph.measure.number,
+  });
   root.classList.add("trillion-root");
   root.innerHTML = `
       <div class="app">
         <section class="canvas" aria-label="Argument map">
           <div class="canvas-head">
-            <div class="eyebrow">Map</div>
+            <div class="eyebrow">${t("Map")}</div>
             <p>
               Drag cards to pull the web around. Pinch, scroll, or use the
               buttons to zoom.
@@ -141,8 +146,8 @@ export function mountTrillionReader(root, graph, options = {}) {
             ></span>
             <span class="notice-body">
               <span class="notice-head"
-                ><span class="notice-title">AI-written · Check the sources</span
-                ><span class="notice-action">Details</span
+                ><span class="notice-title">${t("AI-written · Check the sources")}</span
+                ><span class="notice-action">${t("Details")}</span
                 ><svg
                   class="chev"
                   width="14"
@@ -178,8 +183,8 @@ export function mountTrillionReader(root, graph, options = {}) {
           aria-label="Argument map. The list has the same connections."
         >
           <div class="map-full-head">
-            <h2>Map</h2>
-            <button class="close" type="button" id="map-close">Close</button>
+            <h2>${t("Map")}</h2>
+            <button class="close" type="button" id="map-close">${t("Close")}</button>
           </div>
           <div id="cy"></div>
           <button type="button" class="map-more" id="map-more" hidden></button>
@@ -504,7 +509,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       <h2 id="sheet-title">${esc(t.term)}</h2>
       <p class="body">${esc(t.plain).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>
       <p class="counts">Billion's plain-language explanation.</p>
-      <div class="actions"><button class="btn ghost" type="button" data-close>Close</button></div>`,
+      <div class="actions"><button class="btn ghost" type="button" data-close>${t("Close")}</button></div>`,
       true,
     );
   }
@@ -568,7 +573,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       return [
         {
           key: "basics",
-          label: "Basics",
+          label: t("Basics"),
           tone: "neutral",
           items: inc
             .filter((e) => e.type === "part")
@@ -576,7 +581,7 @@ export function mountTrillionReader(root, graph, options = {}) {
         },
         {
           key: "disagree",
-          label: "Disputes",
+          label: t("Disputes"),
           tone: "neutral",
           items: inc
             .filter((e) => e.type === "crux")
@@ -585,7 +590,7 @@ export function mountTrillionReader(root, graph, options = {}) {
         },
         {
           key: "open",
-          label: "Unanswered",
+          label: t("Unanswered"),
           tone: "question",
           items: unanswered(),
           empty: "Everything here has at least one response.",
@@ -595,7 +600,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       return [
         {
           key: "args",
-          label: "Arguments",
+          label: t("Arguments"),
           tone: "neutral",
           items: ranked(
             inc.filter((e) => e.type === "weighs"),
@@ -678,7 +683,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   let direction = "in";
   let view = options.view === "map" ? "map" : "list"; // the reader's choice persists while navigating
   const viewsHtml = () =>
-    `<div class="views" role="group" aria-label="Show as"><button type="button" data-view="list" aria-pressed="${view === "list"}">List</button><button type="button" data-view="map" aria-pressed="${view === "map"}">Map</button></div>`;
+    `<div class="views" role="group" aria-label="Show as"><button type="button" data-view="list" aria-pressed="${view === "list"}">${t("List")}</button><button type="button" data-view="map" aria-pressed="${view === "map"}">${t("Map")}</button></div>`;
   const cur = () => path[path.length - 1];
   const focusId = () => (cur().t === "edge" ? E[cur().id].to : cur().id);
   const activeCat = () =>
@@ -773,7 +778,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const rel = dir === "in" ? inLabel(e) : outLabel(e);
     const open =
       dir === "in" && rank(otherId) === 0
-        ? `<span class="badge-open">Unanswered</span>`
+        ? `<span class="badge-open">${t("Unanswered")}</span>`
         : "";
     const about = measureLink(otherId);
     const chip = KIDS.has(e.type)
@@ -808,7 +813,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       body = `<div class="tiles">${cat.items
         .map(({ e }) => {
           const k = incoming(e.from).filter((x) => KIDS.has(x.type)).length;
-          return `<button class="tile" type="button" data-node="${e.from}"><span class="t">${esc(N[e.from].title)}</span><span class="n">${isActBranch(e.from) && graph.jurisdiction === "CA" ? (k ? `Voting basics · ${k} more` : "Voting basics") : `${k} item${k === 1 ? "" : "s"}`}</span></button>`;
+          return `<button class="tile" type="button" data-node="${e.from}"><span class="t">${esc(N[e.from].title)}</span><span class="n">${isActBranch(e.from) && graph.jurisdiction === "CA" ? (k ? `Voting basics · ${k} more` : "Voting basics") : t("{count} items", { count: k })}</span></button>`;
         })
         .join("")}</div>`;
     } else if (cat.key === "disagree") {
@@ -828,7 +833,7 @@ export function mountTrillionReader(root, graph, options = {}) {
             .map(
               ({
                 e,
-              }) => `<div class="row r-question"><span class="relchip static">Unanswered</span>
+              }) => `<div class="row r-question"><span class="relchip static">${t("Unanswered")}</span>
           <button class="go" type="button" data-node="${e.from}"><span class="t">${cardTitle(e.from)}</span>
           <span class="src">${esc(srcLabel(N[e.from]))} · on “${esc(titleOf(e.to))}”</span></button></div>`,
             )
@@ -867,15 +872,15 @@ export function mountTrillionReader(root, graph, options = {}) {
     if (!id) return "";
     const d = disputeSides(id);
     const sides = [
-      d.yes ? `${d.yes} Yes` : "",
-      d.no ? `${d.no} No` : "",
-      d.both ? `${d.both} both ways` : "",
+      d.yes ? `${d.yes} ${t("Yes")}` : "",
+      d.no ? `${d.no} ${t("No")}` : "",
+      d.both ? `${d.both} ${t("both ways")}` : "",
     ]
       .filter(Boolean)
       .join(", ");
     return `<button class="pinned-dispute" type="button" data-node="${id}">
       <span class="pd-title">${cardTitle(id)}</span>
-      <span class="pd-meta">${d.total} argument${d.total === 1 ? "" : "s"}${sides ? ` · ${sides}` : ""} ›</span>
+      <span class="pd-meta">${t("{count} arguments", { count: d.total })}${sides ? ` · ${sides}` : ""} ›</span>
     </button>`;
   }
 
@@ -916,7 +921,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   ];
   function openFlag(id) {
     const current = flags[id];
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">Flag an argument fault</h2><button class="close" type="button" data-close>Close</button></div>
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">Flag an argument fault</h2><button class="close" type="button" data-close>${t("Close")}</button></div>
       <p class="flag-target">${cardTitle(id)}</p>
       <div class="fault-list" role="group" aria-label="Fault">${FAULTS.map(
         ([label, why]) =>
@@ -1017,10 +1022,10 @@ export function mountTrillionReader(root, graph, options = {}) {
     const cats = categories(ROOT);
     const n = (k) => cats.find((c) => c.key === k).items.length;
     return `<section class="door">
-      <p class="door-t">The debate starts here, not ends.</p>
+      <p class="door-t">${t("The debate starts here, not ends.")}</p>
       <div class="door-actions">
-        ${tab !== "disagree" ? `<button class="btn ghost" type="button" data-tab="disagree">Disputes (${n("disagree")})</button>` : ""}
-        ${tab !== "open" ? `<button class="btn ghost" type="button" data-tab="open">Unanswered (${n("open")})</button>` : ""}
+        ${tab !== "disagree" ? `<button class="btn ghost" type="button" data-tab="disagree">${t("Disputes")} (${n("disagree")})</button>` : ""}
+        ${tab !== "open" ? `<button class="btn ghost" type="button" data-tab="open">${t("Unanswered")} (${n("open")})</button>` : ""}
       </div>
     </section>`;
   }
@@ -1120,7 +1125,7 @@ export function mountTrillionReader(root, graph, options = {}) {
       .filter((t) => t.id !== focusId());
     openSheet(
       `<div class="ring-sheet">
-          <div class="sheet-head"><h2 id="sheet-title">The whole debate</h2><button class="close" type="button" data-close>Close</button></div>
+          <div class="sheet-head"><h2 id="sheet-title">The whole debate</h2><button class="close" type="button" data-close>${t("Close")}</button></div>
           <svg viewBox="-64 -64 128 128" role="img" aria-label="Ring map of the disputed questions, the arguments under them, and the responses.">
             ${slices.join("")}
             <circle r="18" fill="#D4AF37" data-peek="${ROOT}" tabindex="0" role="button" aria-label="Main case"${focusId() === ROOT ? ' stroke="#f7f4ee" stroke-width="1.5"' : ""}><title>Main case</title></circle>
@@ -1139,10 +1144,10 @@ export function mountTrillionReader(root, graph, options = {}) {
     const sm = graph.summary;
     if (!sm) return "";
     return `<section class="summary" aria-label="What it does">
-      <p class="summary-k">What it does</p>
+      <p class="summary-k">${t("What it does")}</p>
       <p class="summary-t">${emphasize(sm.text)}</p>
-      ${sm.more ? `<details class="summary-more"><summary>Read more</summary><p>${emphasize(sm.more)}</p></details>` : ""}
-      <button class="linkish" type="button" data-summary-sources>From the measure text · ${sm.quotes.length} ${sm.quotes.length === 1 ? "quote" : "quotes"}</button>
+      ${sm.more ? `<details class="summary-more"><summary>${t("Read more")}</summary><p>${emphasize(sm.more)}</p></details>` : ""}
+      <button class="linkish" type="button" data-summary-sources>${t("From the measure text")} · ${t("{count} quotes", { count: sm.quotes.length })}</button>
       ${backgroundHtml()}
     </section>`;
   }
@@ -1151,9 +1156,9 @@ export function mountTrillionReader(root, graph, options = {}) {
   function backgroundHtml() {
     const bg = graph.background;
     if (!bg) return "";
-    return `<details class="summary-more background"><summary>New to this? How it works today</summary>
+    return `<details class="summary-more background"><summary>${t("New to this? How it works today")}</summary>
       <p>${emphasize(bg.text)}</p>
-      <button class="linkish" type="button" data-summary-sources="background">From the Legislative Analyst · ${bg.quotes.length} ${bg.quotes.length === 1 ? "quote" : "quotes"}</button>
+      <button class="linkish" type="button" data-summary-sources="background">${t("From the Legislative Analyst")} · ${t("{count} quotes", { count: bg.quotes.length })}</button>
     </details>`;
   }
   function openSummarySources(which) {
@@ -1161,7 +1166,7 @@ export function mountTrillionReader(root, graph, options = {}) {
     const part = bg ? graph.background : graph.summary;
     const sources = Object.fromEntries(graph.sources.map((s) => [s.id, s]));
     const url = sources[part.quotes[0].sourceId]?.url;
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${bg ? "What the Legislative Analyst says" : "What the measure says"}</h2><button class="close" type="button" data-close>Close</button></div>
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${t(bg ? "What the Legislative Analyst says" : "What the measure says")}</h2><button class="close" type="button" data-close>${t("Close")}</button></div>
       ${part.quotes
         .map(
           (q) =>
@@ -2118,7 +2123,7 @@ export function mountTrillionReader(root, graph, options = {}) {
           ${n.body ? `<p class="body">${esc(n.body)}</p>` : ""}
           ${n.quote ? `<blockquote class="quote"><span class="clamp">“${esc(n.quote)}”</span><footer><span>${esc(src.locator)}</span></footer></blockquote>` : ""}
           ${inside}
-          ${fromRing ? `<button class="linkish" type="button" data-ring style="margin:0 0 10px">‹ Back to the whole debate</button>` : ""}<div class="actions">${here ? `<button class="btn ghost" type="button" data-close>You're here · Close</button>` : `<button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-node="${id}">Go to this ›</button>`}</div>`,
+          ${fromRing ? `<button class="linkish" type="button" data-ring style="margin:0 0 10px">‹ Back to the whole debate</button>` : ""}<div class="actions">${here ? `<button class="btn ghost" type="button" data-close>You're here · Close</button>` : `<button class="btn ghost" type="button" data-close>${t("Close")}</button><button class="btn primary" type="button" data-node="${id}">Go to this ›</button>`}</div>`,
       true,
     );
   }
@@ -2142,7 +2147,7 @@ export function mountTrillionReader(root, graph, options = {}) {
           <div class="ends">${endCard(e.from, "From")}<span class="end-arrow" style="color:${TONE_HEX[tone(e)]}" aria-hidden="true">↓ ${esc(label)}</span>${endCard(e.to, "To")}</div>
           ${why ? `<p class="why"><strong>${e.why ? "Why the link holds" : "What this link means"}</strong>${esc(why)}</p>` : ""}
           ${e.why ? `<p class="counts">A link is its own claim: it can be challenged even if both cards are true.</p>` : ""}
-          <div class="actions"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-edge="${eid}">Open this link ›</button></div>`,
+          <div class="actions"><button class="btn ghost" type="button" data-close>${t("Close")}</button><button class="btn primary" type="button" data-edge="${eid}">Open this link ›</button></div>`,
       true,
     );
   }
@@ -2150,7 +2155,7 @@ export function mountTrillionReader(root, graph, options = {}) {
   function openSource(id) {
     const n = N[id];
     const s = n.source;
-    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${esc(s.label)}</h2><button class="close" type="button" data-close>Close</button></div>
+    openSheet(`<div class="sheet-head"><h2 id="sheet-title">${esc(s.label)}</h2><button class="close" type="button" data-close>${t("Close")}</button></div>
       <p class="meta" style="margin:0 0 10px">${esc(s.locator)}</p>
       <blockquote class="quote">“${esc(n.quote)}”</blockquote>
       ${s.signers ? `<p class="note" style="margin-top:12px">Signed by ${esc(s.signers)}</p>` : ""}

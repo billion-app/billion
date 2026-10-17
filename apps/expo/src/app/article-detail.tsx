@@ -169,7 +169,11 @@ export default function ArticleDetailScreen() {
       ? translationQuery.data
       : null;
   const translationPending =
-    !!translationLanguage && !!content && translationQuery.isFetching;
+    !!translationLanguage &&
+    !!content &&
+    !translationQuery.isError &&
+    (translationQuery.isFetching ||
+      translationQuery.data?.status === "unavailable");
 
   const speechLanguage =
     mode !== "source" &&
@@ -707,7 +711,7 @@ export default function ArticleDetailScreen() {
               {mode === "source"
                 ? tr("article.sourceStaysEnglish")
                 : translationPending
-                  ? tr("article.translating")
+                  ? tr("article.translationPending")
                   : translation
                     ? tr("article.translated")
                     : tr("article.translationUnavailable")}
@@ -926,6 +930,11 @@ export default function ArticleDetailScreen() {
         {speech.status !== "idle" ? <View style={{ height: 76 }} /> : null}
       </ScrollView>
 
+      {speech.error && (
+        <Text accessibilityRole="alert" style={s.translationNoteText}>
+          {tr("listen.error")}
+        </Text>
+      )}
       <ListenBar
         status={speech.status}
         index={speech.index}

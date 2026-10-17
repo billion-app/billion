@@ -25,6 +25,8 @@ export interface TrillionReaderHandle extends DOMImperativeFactory {
  */
 export default function TrillionReader({
   graph,
+  translationKey = "en",
+  language = "en",
   localState,
   onLocalState,
   onExit,
@@ -36,6 +38,8 @@ export default function TrillionReader({
   ref,
 }: {
   graph: PublicTrillionGraph;
+  translationKey?: string;
+  language?: "en" | "es" | "zh";
   localState: string;
   onLocalState: (value: string) => Promise<void>;
   /** Which view opens first; the reader can switch afterwards. */
@@ -73,6 +77,7 @@ export default function TrillionReader({
       },
       view,
       ballot,
+      language,
     });
     reader.current = mounted;
     return () => {
@@ -82,6 +87,11 @@ export default function TrillionReader({
     // Native prop updates serialize the graph into a new object. Only a new
     // published revision replaces the reader; back-state updates must keep its path.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph.electionDate, graph.measure.number, graph.revision]);
+  }, [
+    graph.electionDate,
+    graph.measure.number,
+    graph.revision,
+    translationKey,
+  ]);
   return <div ref={root} style={{ height: "100vh" }} />;
 }
