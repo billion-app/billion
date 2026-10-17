@@ -113,7 +113,7 @@ await test("decision context, selection reasons and sources work on narrow and w
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const browser = await chromium.launch();
-  await mkdir("/tmp/billion-decision-context", { recursive: true });
+  await mkdir("/tmp/billion-dispute-release", { recursive: true });
   try {
     for (const width of [390, 1280]) {
       const page = await browser.newPage({
@@ -129,19 +129,42 @@ await test("decision context, selection reasons and sources work on narrow and w
           value,
         );
       }, graph);
-      assert.match(
-        await page.locator(".pinned-dispute").first().textContent(),
-        /What can past earmarked programs tell us/,
+      assert.equal(
+        await page.locator(".selection-reason").count(),
+        0,
+        "Basics should not repeat the selected disputes above its grid",
       );
-      assert.equal(await page.locator(".pinned-dispute").count(), 2);
-      await page.locator(".selection-reason summary").first().click();
-      assert.match(
-        await page.locator(".selection-reason[open]").textContent(),
-        /Selected by Billion AI/,
+      await page.locator('[data-tab="disagree"]').first().click();
+      assert.deepEqual(
+        await page
+          .locator(".dispute-row .go")
+          .evaluateAll((cards) =>
+            cards.slice(0, 2).map((card) => card.dataset.node),
+          ),
+        ["x-history", "x-revenue"],
+        "editorial selections lead the dispute list in rank order",
       );
-      await page.locator("#reader").evaluate((el) => {
-        el.scrollTop = 0;
-      });
+      assert.equal(
+        await page.locator(".dispute-row.is-highlighted").count(),
+        2,
+      );
+      assert.equal(
+        await page.locator('.dispute-row .go[data-node="x-history"]').count(),
+        1,
+      );
+      const reason = page.locator(".dispute-row .selection-reason").first();
+      assert.equal(await reason.getAttribute("open"), null);
+      await reason.locator("summary").focus();
+      await page.keyboard.press("Enter");
+      assert.notEqual(await reason.getAttribute("open"), null);
+      assert.match(await reason.textContent(), /Selected by Billion AI/);
+      assert.equal(
+        await page.locator("#page h1").textContent(),
+        graph.nodes.find((n) => n.id === "root").title,
+      );
+      await page.keyboard.press("Enter");
+      assert.equal(await reason.getAttribute("open"), null);
+      await page.locator(".dispute-row").first().scrollIntoViewIfNeeded();
       await page
         .locator("#page")
         .evaluate((el) =>
@@ -152,7 +175,20 @@ await test("decision context, selection reasons and sources work on narrow and w
           ),
         );
       await page.screenshot({
-        path: `/tmp/billion-decision-context/highlights-${width}.png`,
+        path: `/tmp/billion-dispute-release/highlights-${width}.png`,
+      });
+      await reason.locator("summary").evaluate((el) => el.blur());
+      await page
+        .locator('[role="tablist"]')
+        .evaluate((el) => el.scrollIntoView({ block: "start" }));
+      await page.screenshot({
+        path: `/tmp/billion-dispute-release/disputes-comparison-${width}.png`,
+      });
+      await reason.locator("summary").click();
+      await reason.locator("summary").evaluate((el) => el.blur());
+      await page.mouse.move(0, 0);
+      await page.screenshot({
+        path: `/tmp/billion-dispute-release/disputes-expanded-${width}.png`,
       });
       await page.locator('.selection-evidence [data-node="p-unspent"]').click();
       assert.match(
@@ -190,7 +226,7 @@ await test("decision context, selection reasons and sources work on narrow and w
           ),
         );
       await page.screenshot({
-        path: `/tmp/billion-decision-context/history-${width}.png`,
+        path: `/tmp/billion-dispute-release/history-${width}.png`,
       });
       await page.locator("#back").click();
       await page.locator('.tile[data-node="b-before"]').click();
@@ -215,7 +251,7 @@ await test("decision context, selection reasons and sources work on narrow and w
           ),
         );
       await page.screenshot({
-        path: `/tmp/billion-decision-context/before-${width}.png`,
+        path: `/tmp/billion-dispute-release/before-${width}.png`,
       });
       assert.ok(
         await page.evaluate(

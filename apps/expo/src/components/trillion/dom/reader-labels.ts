@@ -66,9 +66,9 @@ const labels: Record<string, { zh: string; es: string }> = {
     zh: "由 Billion AI 选出 · 编辑判断",
     es: "Seleccionado por Billion AI · un criterio editorial",
   },
-  "Questions worth weighing": {
+  "Question worth weighing": {
     zh: "值得权衡的问题",
-    es: "Preguntas para sopesar",
+    es: "Pregunta para sopesar",
   },
   "A question to explore": {
     zh: "值得探讨的问题",
