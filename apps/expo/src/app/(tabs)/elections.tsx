@@ -96,6 +96,7 @@ function MeasureCard({
     ),
     summary: localization.text("summary", original.summary),
     summaryShort: localization.text("summaryShort", original.summaryShort),
+    fiscalImpact: localization.text("fiscalImpact", original.fiscalImpact),
   };
   const sourceLabel = topSourceLabel(m, t);
   return (

@@ -281,3 +281,14 @@ void test("translation identity preserves canonical titles independently from lo
     assert.equal(route.params.translationTitleField, "ballotTitle");
   }
 });
+
+void test("absent long summaries remain absent so fallback happens after translation", () => {
+  const route = ballotContestRoute({
+    type: "Referendum",
+    referendumTitle: "Measure A",
+    summary: "Generated summary",
+    summaryIsAiGenerated: true,
+  });
+  assert.equal(route.params.summary, "Generated summary");
+  assert.equal(route.params.summaryLong, "");
+});

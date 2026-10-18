@@ -195,7 +195,7 @@ export function ballotContestRoute(
         referendumUrl: contest.referendumUrl ?? "",
         summary: contest.summary ?? "",
         summaryShort: contest.summaryShort ?? "",
-        summaryLong: contest.summaryLong ?? contest.summary ?? "",
+        summaryLong: contest.summaryLong ?? "",
         summaryIsAiGenerated: contest.summaryIsAiGenerated ? "true" : "false",
         fiscalImpact: contest.fiscalImpact ?? "",
         proArguments: JSON.stringify(contest.proArguments ?? []),
