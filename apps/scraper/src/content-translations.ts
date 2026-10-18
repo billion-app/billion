@@ -7,6 +7,10 @@ import {
   TRANSLATION_PROMPT_VERSION,
 } from "@acme/api/lib/content-translation";
 import { processNextTranslation } from "@acme/api/lib/content-translation-store";
+import {
+  prepareReaderTranslationPage,
+  readerPreparationHasCapacity,
+} from "@acme/api/lib/pretranslate-readers";
 
 import { getStructuredLlmCandidates } from "./utils/ai/provider";
 
@@ -21,11 +25,36 @@ const args = await yargs(hideBin(process.argv))
     default: false,
     description: "Serve queued translations continuously",
   })
+  .option("prepare-only", {
+    type: "boolean",
+    default: false,
+    description:
+      "Queue one bounded page of complete Chinese readers without generating",
+  })
+  .option("after", {
+    type: "string",
+    description: "Resume preparation after this content UUID",
+  })
   .strict()
   .parse();
 if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 20) {
   throw new Error("--limit must be an integer from 1 to 20");
 }
+if (args.after && !/^[a-f0-9-]{36}$/.test(args.after))
+  throw new Error("Invalid --after UUID");
+if (args.prepareOnly) {
+  console.log(
+    JSON.stringify(
+      await prepareReaderTranslationPage({
+        limit: args.limit,
+        after: args.after,
+      }),
+    ),
+  );
+  process.exit(0);
+}
+let preparationAfter: string | undefined;
+let nextPreparationAt = 0;
 // Reuse the scraper's Responses adapter, but never fall through to paid providers.
 const codex = getStructuredLlmCandidates().find((candidate) =>
   candidate.modelVersion.startsWith("fallback:"),
@@ -52,6 +81,19 @@ try {
     !stopping && (args.watch || count < args.limit);
     count++
   ) {
+    if (
+      args.watch &&
+      Date.now() >= nextPreparationAt &&
+      (await readerPreparationHasCapacity())
+    ) {
+      const page = await prepareReaderTranslationPage({
+        limit: 10,
+        after: preparationAfter,
+      });
+      preparationAfter = page.complete ? undefined : page.after;
+      nextPreparationAt = Date.now() + (page.complete ? 60_000 : 0);
+      console.log(`[content-translations] prepared ${JSON.stringify(page)}`);
+    }
     const result = await processNextTranslation({
       translateBatch: createTranslateBatch(
         codex.model,

@@ -13,9 +13,11 @@ import { Icon } from "./ui/Icon";
 export function TranslationNotice({
   state,
   onRetry,
+  hideEnglish = false,
 }: {
   state: "original" | "translated" | "pending" | "unavailable" | "source";
   onRetry: () => void;
+  hideEnglish?: boolean;
 }) {
   const { language, setLanguage, t } = useLanguage();
   if (state === "original") return null;
@@ -59,9 +61,17 @@ export function TranslationNotice({
           )}
           <Text style={[s.text, (pending || failed) && s.body]}>
             {pending
-              ? t("readerUi.translationWait")
+              ? t(
+                  hideEnglish
+                    ? "readerUi.preparingTranslation"
+                    : "readerUi.translationWait",
+                )
               : failed
-                ? t("readerUi.translationRetry")
+                ? t(
+                    hideEnglish
+                      ? "readerUi.retryTranslation"
+                      : "readerUi.translationRetry",
+                  )
                 : state === "source"
                   ? t("article.sourceStaysEnglish")
                   : `${t("article.translated")} · ${t("reader.originalSources")}`}
