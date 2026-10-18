@@ -137,7 +137,7 @@ export function LocationRow({
         <View style={s.locHoursRow}>
           <Icon name="clock" size={12} color={colors.textSecondary} />
           <Text style={s.locHours}>
-            {loc.pollingHours ?? "Hours not published"}
+            {loc.pollingHours ?? "Hours unavailable"}
           </Text>
         </View>
         {loc.notes ? <Text style={s.locNotes}>{loc.notes}</Text> : null}
@@ -280,7 +280,7 @@ export function SourceFooter({
       </Text>
       <Text style={s.sourceVerified}>
         {note ??
-          "Locations and contacts come from Google Civic. Deadlines aren't verified in Billion yet — confirm them with your county."}
+          "Use your election office's site for current voting information. Confirm deadlines and location details there before making your plan."}
       </Text>
       <LinkRow
         label="Open the election office site"

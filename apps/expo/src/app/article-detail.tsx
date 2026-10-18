@@ -1,6 +1,6 @@
 import type { RenderRules } from "@ronradtke/react-native-markdown-display";
 import type { LayoutChangeEvent } from "react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -16,9 +16,12 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { BillBriefData, BriefQuote } from "~/components/ui";
 import type { ShareSurface } from "~/utils/share";
+import { LanguageCorner } from "~/components/LanguageButton";
+import { ListenBar } from "~/components/ListenBar";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { ShareSheet } from "~/components/ShareSheet";
 import { Text } from "~/components/Themed";
+import { TranslationNotice } from "~/components/TranslationNotice";
 import {
   Avatar,
   Badge,
@@ -36,6 +39,9 @@ import {
   Segmented,
 } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useArticleSpeech } from "~/hooks/useArticleSpeech";
+import { useLanguage } from "~/hooks/useLanguage";
 import { useReadContent } from "~/hooks/useReadContent";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import { useScreenshotDetection } from "~/hooks/useScreenshotDetection";
@@ -56,12 +62,19 @@ import { formatDate } from "~/utils/dates";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
 import { findSourcePassage } from "~/utils/source-passage";
+import { buildSpeechChunks } from "~/utils/speech-script";
+import {
+  articleTranslationState,
+  translationCachePolicy,
+} from "~/utils/translation-cache";
 
 export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 
 type ArticleMode = "explainer" | "opinions" | "source";
 
 export default function ArticleDetailScreen() {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -104,6 +117,7 @@ export default function ArticleDetailScreen() {
     data: content,
     isLoading,
     error,
+    refetch: refetchContent,
   } = useQuery({
     ...trpc.content.getById.queryOptions({
       id: articleId ?? "__missing__",
@@ -137,6 +151,86 @@ export default function ArticleDetailScreen() {
     ? `${content.title}:${headerImageUri ?? "local"}`
     : undefined;
 
+  // Spanish and Chinese readers get Billion's explanation translated. English
+  // renders first; the translation replaces it when it arrives. Source text
+  // (original documents and quotes) is never translated.
+  const { language, t: tr } = useLanguage();
+  const translationLanguage = language === "en" ? null : language;
+  const translationQuery = useQuery({
+    ...trpc.content.getTranslation.queryOptions({
+      id: articleId ?? "__missing__",
+      language: translationLanguage ?? "es",
+      sourceHash: content?.translationSourceHash,
+      supportsMassachusetts: true,
+    }),
+    enabled: !!articleId && !!content && !!translationLanguage,
+    ...translationCachePolicy,
+  });
+  useEffect(() => {
+    if (translationQuery.data?.status === "stale") void refetchContent();
+  }, [translationQuery.data, refetchContent]);
+  const translation =
+    translationLanguage &&
+    translationQuery.data?.status === "translated" &&
+    translationQuery.data.language === translationLanguage &&
+    translationQuery.data.sourceHash === content?.translationSourceHash
+      ? translationQuery.data
+      : null;
+  const translationState = articleTranslationState(
+    !!translationLanguage,
+    !!translation,
+    translationQuery,
+  );
+
+  const speechLanguage =
+    mode !== "source" &&
+    translation &&
+    (translation.brief ?? translation.courtBrief ?? translation.articleContent)
+      ? translation.language
+      : "en";
+  // Narration follows the selected section, with context for listening.
+  const speechChunks = useMemo(() => {
+    if (!content) return [];
+    if (mode === "source") {
+      return buildSpeechChunks({
+        title: content.title,
+        mode,
+        body: content.originalContent,
+      });
+    }
+    return buildSpeechChunks({
+      mode,
+      isAIGenerated: content.isAIGenerated,
+      language: speechLanguage,
+      title:
+        speechLanguage === "en"
+          ? content.title
+          : (translation?.title ?? content.title),
+      description: translation?.description ?? content.description,
+      brief:
+        translation?.brief ??
+        ("brief" in content ? (content.brief as BillBriefData | null) : null),
+      courtBrief:
+        translation?.courtBrief ??
+        (content.type === "court_case" ? content.courtBrief : null),
+      body: translation?.articleContent ?? content.articleContent,
+    });
+  }, [content, translation, mode, speechLanguage]);
+  const speech = useArticleSpeech({
+    chunks: speechChunks,
+    language: speechLanguage,
+    mode,
+    contentId: content?.id,
+  });
+  const stopSpeech = speech.stop;
+  useFocusEffect(useCallback(() => stopSpeech, [stopSpeech]));
+
+  const handleListen = () => {
+    if (speech.status === "idle") speech.play();
+    else if (speech.status === "playing") speech.pause();
+    else speech.resume();
+  };
+
   const { isSaved, toggleSave } = useSavedContent();
   const saved = !!articleId && isSaved(articleId);
 
@@ -164,8 +258,9 @@ export default function ArticleDetailScreen() {
   if (isLoading) {
     return (
       <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
+        <LanguageCorner />
         <ActivityIndicator size="large" color={colors.white} />
-        <Text style={s.loadingText}>Loading content…</Text>
+        <Text style={s.loadingText}>{tr("article.loading")}</Text>
       </View>
     );
   }
@@ -173,11 +268,12 @@ export default function ArticleDetailScreen() {
   if (error || !content) {
     return (
       <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
+        <LanguageCorner />
         <Text style={s.errorTitle}>
-          {error ? "Failed to load content" : "Content not found"}
+          {error ? tr("article.loadFailed") : tr("article.notFound")}
         </Text>
         <PrimaryButton
-          label="Go Back"
+          label={tr("common.goBack")}
           onPress={() => router.back()}
           style={{ width: 160, marginTop: 16 }}
         />
@@ -270,12 +366,21 @@ export default function ArticleDetailScreen() {
 
   // Bill and court briefs keep their own types; older records retain the explainer.
   const brief: BillBriefData | null =
-    "brief" in content ? (content.brief as BillBriefData | null) : null;
-  const courtBrief = content.type === "court_case" ? content.courtBrief : null;
+    (translation?.brief as BillBriefData | null | undefined) ??
+    ("brief" in content ? (content.brief as BillBriefData | null) : null);
+  const courtBrief =
+    translation?.courtBrief ??
+    (content.type === "court_case" ? content.courtBrief : null);
+  const displayTitle = translation?.title ?? content.title;
+  const displayDescription = translation?.description ?? content.description;
+  const dateLocale =
+    language === "es" ? "es-US" : language === "zh" ? "zh-CN" : appLocale;
   const hasBrief = Boolean(brief ?? courtBrief);
 
   const rawContent =
-    mode === "source" ? content.originalContent : content.articleContent;
+    mode === "source"
+      ? content.originalContent
+      : (translation?.articleContent ?? content.articleContent);
   // The types say this is a string, but the router has no `.output()` schema,
   // so nothing enforces that at runtime. `.includes`/`.length` on a null would
   // take the whole app down rather than render an empty article.
@@ -309,25 +414,25 @@ export default function ArticleDetailScreen() {
         }))
     : [
         {
-          label: "Introduced",
+          label: tr("readerUi.introduced"),
           fullText: "",
           date: "",
           done: true,
         },
         {
-          label: "Committee review",
+          label: tr("readerUi.committee"),
           fullText: "",
           date: "",
           done: true,
         },
         {
-          label: "Latest action",
+          label: tr("readerUi.latestAction"),
           fullText: "",
           date: "",
           done: true,
         },
         {
-          label: "Becomes law",
+          label: tr("readerUi.becomesLaw"),
           fullText: "",
           date: "",
           done: false,
@@ -359,15 +464,38 @@ export default function ArticleDetailScreen() {
   return (
     <View style={s.screen}>
       <NavHeader
-        title={t.label}
+        title={tr(`readerUi.type.${typeKey}`)}
         onBack={() => router.back()}
         action={
           <>
+            {speech.available ? (
+              <TouchableOpacity
+                onPress={handleListen}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  speech.status === "playing"
+                    ? tr("listen.pause")
+                    : speech.status === "paused"
+                      ? tr("listen.resume")
+                      : tr("listen.start")
+                }
+                testID="article-listen"
+              >
+                <Icon
+                  name="headphones"
+                  size={20}
+                  color={
+                    speech.status === "idle" ? colors.textSecondary : t.color
+                  }
+                />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               onPress={() => setShareSurface("article_header")}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Share this record"
+              accessibilityLabel={tr("article.share")}
               testID="article-share"
             >
               <Icon name="share" size={20} color={colors.textSecondary} />
@@ -377,7 +505,7 @@ export default function ArticleDetailScreen() {
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={
-                saved ? "Remove from saved" : "Save to read later"
+                saved ? tr("article.unsave") : tr("article.save")
               }
               testID="article-save"
             >
@@ -390,6 +518,15 @@ export default function ArticleDetailScreen() {
           </>
         }
       />
+
+      {translationLanguage && (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+          <TranslationNotice
+            state={mode === "source" ? "source" : translationState}
+            onRetry={() => void translationQuery.refetch()}
+          />
+        </View>
+      )}
 
       <ScrollView
         ref={scrollRef}
@@ -407,12 +544,16 @@ export default function ArticleDetailScreen() {
               transition={200}
               onError={() => setFailedHeaderImageKey(headerImageKey)}
               accessible
-              accessibilityLabel={`Header image for ${content.title}`}
+              accessibilityLabel={tr("readerUi.headerImage", {
+                title: displayTitle,
+              })}
             />
           </View>
         ) : (
           <Placeholder
-            label={`${t.label.toLowerCase()} · header art`}
+            label={tr("readerUi.headerArt", {
+              type: tr(`readerUi.type.${typeKey}`),
+            })}
             height={170}
             radius={16}
             style={{ marginBottom: 18 }}
@@ -436,7 +577,7 @@ export default function ArticleDetailScreen() {
         ) : null}
 
         <Text style={s.title} testID="article-title">
-          {content.title}
+          {displayTitle}
         </Text>
 
         {/* Older API deployments may omit dates while the OTA rolls out. */}
@@ -444,16 +585,16 @@ export default function ArticleDetailScreen() {
         {content.createdAt && content.updatedAt ? (
           <View style={{ gap: 4, marginBottom: 16 }} testID="article-dates">
             <Text style={s.articleDate}>
-              Created{" "}
-              {content.createdAt.toLocaleDateString("en-US", {
+              {tr("article.created")}{" "}
+              {content.createdAt.toLocaleDateString(dateLocale, {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
               })}
             </Text>
             <Text style={s.articleDate}>
-              Last updated{" "}
-              {content.updatedAt.toLocaleDateString("en-US", {
+              {tr("article.updated")}{" "}
+              {content.updatedAt.toLocaleDateString(dateLocale, {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
@@ -462,9 +603,9 @@ export default function ArticleDetailScreen() {
           </View>
         ) : null}
 
-        {content.description ? (
+        {displayDescription ? (
           <Text style={s.desc} testID="article-description">
-            {content.description}
+            {displayDescription}
           </Text>
         ) : null}
 
@@ -474,7 +615,9 @@ export default function ArticleDetailScreen() {
             activeOpacity={0.75}
             onPress={openSponsorProfile}
             accessibilityRole="button"
-            accessibilityLabel={`View sponsor profile for ${sponsor.name}`}
+            accessibilityLabel={tr("readerUi.sponsorProfile", {
+              name: sponsor.name,
+            })}
             testID="bill-sponsor-card"
           >
             <Avatar
@@ -483,7 +626,7 @@ export default function ArticleDetailScreen() {
               size={44}
             />
             <View style={s.sponsorBody}>
-              <Text style={s.sponsorLabel}>Sponsored by</Text>
+              <Text style={s.sponsorLabel}>{tr("article.sponsoredBy")}</Text>
               <Text style={s.sponsorName} numberOfLines={1}>
                 {sponsor.name}
               </Text>
@@ -492,7 +635,7 @@ export default function ArticleDetailScreen() {
                   sponsor.role,
                   sponsor.party,
                   isStateBill && sponsor.district
-                    ? `District ${sponsor.district}`
+                    ? tx("District {value1}", { value1: sponsor.district })
                     : sponsor.state,
                 ]
                   .filter(Boolean)
@@ -513,23 +656,27 @@ export default function ArticleDetailScreen() {
                 id: "explainer",
                 label:
                   content.type === "court_case"
-                    ? "Case brief"
+                    ? tr("article.caseBrief")
                     : hasBrief
-                      ? "The brief"
-                      : "Plain explainer",
+                      ? tr("article.theBrief")
+                      : tr("article.plainExplainer"),
                 icon: "sparkle",
               },
               ...(content.type === "court_case" && courtBrief?.opinions.length
                 ? ([
-                    { id: "opinions", label: "Opinions", icon: "message" },
+                    {
+                      id: "opinions",
+                      label: tr("article.opinions"),
+                      icon: "message",
+                    },
                   ] as const)
                 : []),
               {
                 id: "source",
                 label:
                   content.type === "court_case"
-                    ? "Court record"
-                    : "Original text",
+                    ? tr("article.courtRecord")
+                    : tr("article.originalText"),
                 icon: "doc",
               },
             ]}
@@ -544,19 +691,15 @@ export default function ArticleDetailScreen() {
             accessibilityRole="button"
             accessibilityState={{ expanded: provenanceOpen }}
             accessibilityLabel={
-              provenanceOpen
-                ? "Hide details about Billion AI authorship"
-                : "Show details about Billion AI authorship"
+              provenanceOpen ? tr("readerUi.hideAI") : tr("readerUi.showAI")
             }
           >
             <Icon name="sparkle" size={17} color={t.color} />
             <View style={s.disclaimerBody}>
               <View style={s.disclaimerHead}>
-                <Text style={s.disclaimerTitle}>
-                  Written by Billion AI · Always check the source
-                </Text>
+                <Text style={s.disclaimerTitle}>{tr("article.writtenBy")}</Text>
                 <Text style={[s.disclaimerAction, { color: t.color }]}>
-                  {provenanceOpen ? "Hide" : "Details"}
+                  {provenanceOpen ? tr("article.hide") : tr("article.details")}
                 </Text>
                 <View style={provenanceOpen ? s.chevFlip : undefined}>
                   <Icon name="chevD" size={14} color={t.color} />
@@ -564,15 +707,18 @@ export default function ArticleDetailScreen() {
               </View>
               {provenanceOpen ? (
                 <Text style={s.disclaimerText}>
-                  Created from the linked source text.{" "}
-                  {hasBrief
-                    ? "Quoted passages are checked against that source; everything else is AI analysis."
-                    : "The plain-language explanation is AI analysis."}{" "}
-                  Use{" "}
-                  {content.type === "court_case"
-                    ? "Court record"
-                    : "Original text"}{" "}
-                  or the linked source site to verify details.
+                  {tr(
+                    hasBrief
+                      ? "readerUi.provenanceBrief"
+                      : "readerUi.provenanceArticle",
+                    {
+                      mode: tr(
+                        content.type === "court_case"
+                          ? "article.courtRecord"
+                          : "article.originalText",
+                      ),
+                    },
+                  )}
                 </Text>
               ) : null}
             </View>
@@ -584,11 +730,11 @@ export default function ArticleDetailScreen() {
             label={
               content.type === "court_case"
                 ? independentCourtSource
-                  ? "Open court record archive"
-                  : "Open official court record"
+                  ? tr("readerUi.openArchive")
+                  : tr("readerUi.openCourt")
                 : officialUrl
-                  ? "View Federal Register record"
-                  : "View on Original Site"
+                  ? tr("readerUi.openFederal")
+                  : tr("readerUi.openOriginal")
             }
             icon="external"
             onPress={handleOpenOriginal}
@@ -633,9 +779,11 @@ export default function ArticleDetailScreen() {
               content={content.originalContent}
               quote={sourceHighlight}
               accent={t.color}
-              title={
-                content.type === "court_case" ? "Court record" : "Original text"
-              }
+              title={tr(
+                content.type === "court_case"
+                  ? "article.courtRecord"
+                  : "article.originalText",
+              )}
               onTargetLayout={handleSourceTargetLayout}
             />
           ) : renderMarkdown ? (
@@ -657,7 +805,9 @@ export default function ArticleDetailScreen() {
         {/* Legislative stages apply only to bills. Court posture lives in its brief. */}
         {content.type === "bill" ? (
           <>
-            <Kicker style={s.timelineKicker}>Where it stands</Kicker>
+            <Kicker style={s.timelineKicker}>
+              {tr("article.whereItStands")}
+            </Kicker>
             <Card style={{ marginBottom: 24 }}>
               {timeline.map((step, i) => {
                 const expandable =
@@ -698,7 +848,7 @@ export default function ArticleDetailScreen() {
                     <View style={s.timelineBody}>
                       {!!step.date && (
                         <Text style={s.timelineDate}>
-                          {formatDate(step.date)}
+                          {formatDate(step.date, dateLocale)}
                         </Text>
                       )}
                       <View style={s.timelineLabelRow}>
@@ -737,7 +887,7 @@ export default function ArticleDetailScreen() {
                 >
                   <Icon name="info" size={13} color={colors.textSecondary} />
                   <Text style={s.timelineSourceText}>
-                    Official record ·{" "}
+                    {tr("readerUi.officialRecord")} ·{" "}
                     {("sourceLabel" in content
                       ? content.sourceLabel
                       : undefined) ?? "congress.gov"}
@@ -755,37 +905,53 @@ export default function ArticleDetailScreen() {
           <View style={s.exit}>
             <Text style={s.exitTitle}>
               {content.type === "court_case"
-                ? "Check the court record."
-                : "Don't take our word for it."}
+                ? tr("article.checkCourtRecord")
+                : tr("article.dontTakeOurWord")}
             </Text>
             <Text style={s.exitSub}>
               {content.type === "court_case"
                 ? independentCourtSource
-                  ? "Read the archived docket and check the court for the latest status."
-                  : "Read the court's published documents and verify the procedural posture for yourself."
-                : "Read the full, unedited text and track every action on the official record."}
+                  ? tr("readerUi.archiveExit")
+                  : tr("readerUi.courtExit")
+                : tr("article.dontTakeOurWordSub")}
             </Text>
             <PrimaryButton
               label={
                 content.type === "court_case"
                   ? independentCourtSource
-                    ? "Open court record archive"
-                    : "Open official court record"
-                  : "Open the source"
+                    ? tr("readerUi.openArchive")
+                    : tr("readerUi.openCourt")
+                  : tr("article.openSource")
               }
               icon="external"
               onPress={handleOpenOriginal}
             />
             {content.type !== "court_case" ? (
               <GhostButton
-                label="View all related records"
+                label={tr("article.viewRelated")}
                 onPress={handleOpenOriginal}
                 style={{ width: "100%", marginTop: 6 }}
               />
             ) : null}
           </View>
         ) : null}
+        {speech.status !== "idle" ? <View style={{ height: 76 }} /> : null}
       </ScrollView>
+
+      {speech.error && (
+        <Text accessibilityRole="alert" style={s.translationNoteText}>
+          {tr("listen.error")}
+        </Text>
+      )}
+      <ListenBar
+        status={speech.status}
+        index={speech.index}
+        total={speech.total}
+        accent={t.color}
+        onPause={speech.pause}
+        onResume={speech.resume}
+        onStop={speech.stop}
+      />
 
       {shareSurface ? (
         <ShareSheet
@@ -801,13 +967,11 @@ export default function ArticleDetailScreen() {
           accent={t.color}
           heading={
             shareSurface === "screenshot"
-              ? "Send the real thing instead"
+              ? tr("readerUi.shareTitle")
               : undefined
           }
           subheading={
-            shareSurface === "screenshot"
-              ? "A link opens the whole brief, stays readable, and works for anyone you send it to."
-              : undefined
+            shareSurface === "screenshot" ? tr("readerUi.shareNote") : undefined
           }
         />
       ) : null}
@@ -828,6 +992,7 @@ function HighlightedSource({
   title: string;
   onTargetLayout: (event: LayoutChangeEvent) => void;
 }) {
+  const { t: tr } = useLanguage();
   const { found, before, match, after } = findSourcePassage(
     content,
     quote.text,
@@ -846,8 +1011,8 @@ function HighlightedSource({
           <Text style={s.sourceDocumentTitle}>{title}</Text>
           <Text style={s.sourceDocumentMeta}>
             {quote.locator
-              ? `Highlighted passage · ${quote.locator}`
-              : "Highlighted passage"}
+              ? `${tr("readerUi.highlighted")} · ${quote.locator}`
+              : tr("readerUi.highlighted")}
           </Text>
         </View>
       </View>
@@ -861,7 +1026,7 @@ function HighlightedSource({
         testID="source-highlight"
       >
         <Text style={[s.sourceHighlightLabel, { color: accent }]}>
-          {found ? "MATCHING PASSAGE" : "CITED PASSAGE"}
+          {found ? tr("readerUi.matching") : tr("readerUi.cited")}
         </Text>
         <Text style={s.sourceHighlightText}>{match}</Text>
       </View>
@@ -982,6 +1147,13 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
+  },
+  translationNoteText: {
+    flex: 1,
+    fontFamily: fontBody.medium,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
   },
   disclaimerTitle: {
     flex: 1,

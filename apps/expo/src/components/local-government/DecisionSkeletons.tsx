@@ -4,9 +4,12 @@
  */
 import { StyleSheet, View } from "react-native";
 
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useTheme } from "~/styles";
 
 export function DecisionCardSkeleton() {
+  const { t: tx } = useAppTranslation();
+
   const { theme } = useTheme();
   return (
     <View
@@ -14,7 +17,7 @@ export function DecisionCardSkeleton() {
         s.card,
         { backgroundColor: theme.card, borderColor: theme.border },
       ]}
-      accessibilityLabel="Loading decisions"
+      accessibilityLabel={tx("Loading decisions")}
     >
       <View style={s.spine} />
       <View style={s.content}>

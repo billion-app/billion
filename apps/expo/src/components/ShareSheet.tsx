@@ -21,6 +21,7 @@ import type { IconName } from "~/components/ui";
 import type { ShareSurface } from "~/utils/share";
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import {
   canShareToInstagramStory,
@@ -52,10 +53,11 @@ export function ShareSheet({
   thumbnailUrl,
   surface,
   accent,
-  heading = "Send this to someone",
-  subheading = "They can read the whole brief without installing anything.",
+  heading,
+  subheading,
 }: ShareSheetProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useAppTranslation();
   const [busy, setBusy] = useState<"link" | "image" | "instagram" | null>(null);
   const [instagramAvailable, setInstagramAvailable] = useState(false);
 
@@ -79,6 +81,7 @@ export function ShareSheet({
     contentType,
     title: contentTitle,
     surface,
+    dialogTitle: t("share.dialogTitle"),
   };
 
   const run = async (format: "link" | "image" | "instagram") => {
@@ -108,18 +111,23 @@ export function ShareSheet({
         style={s.backdrop}
         onPress={onClose}
         accessibilityRole="button"
-        accessibilityLabel="Dismiss"
+        accessibilityLabel={t("share.dismiss")}
       />
-      <View style={[s.sheet, { paddingBottom: insets.bottom + 18 }]}>
+      <View
+        style={[s.sheet, { paddingBottom: insets.bottom + 18 }]}
+        accessibilityViewIsModal
+      >
         <View style={s.grabber} />
 
-        <Text style={s.heading}>{heading}</Text>
-        <Text style={s.subheading}>{subheading}</Text>
+        <Text style={s.heading} accessibilityRole="header">
+          {heading ?? t("share.heading")}
+        </Text>
+        <Text style={s.subheading}>{subheading ?? t("share.subheading")}</Text>
 
         <ShareOption
           icon="link"
-          label="Share the link"
-          hint="Opens a readable page — no app needed"
+          label={t("share.link")}
+          hint={t("share.linkHint")}
           accent={accent}
           loading={busy === "link"}
           disabled={busy !== null}
@@ -128,8 +136,8 @@ export function ShareSheet({
         />
         <ShareOption
           icon="image"
-          label="Share as an image"
-          hint="Sized for a story or a post"
+          label={t("share.image")}
+          hint={t("share.imageHint")}
           accent={accent}
           thumbnailUrl={thumbnailUrl}
           loading={busy === "image"}
@@ -140,8 +148,8 @@ export function ShareSheet({
         {instagramAvailable ? (
           <ShareOption
             icon="instagram"
-            label="Instagram Story"
-            hint="Opens the Instagram story composer"
+            label={t("share.instagram")}
+            hint={t("share.instagramHint")}
             accent={accent}
             loading={busy === "instagram"}
             disabled={busy !== null}
@@ -156,7 +164,7 @@ export function ShareSheet({
           activeOpacity={0.7}
           accessibilityRole="button"
         >
-          <Text style={s.cancelText}>Not now</Text>
+          <Text style={s.cancelText}>{t("share.notNow")}</Text>
         </TouchableOpacity>
       </View>
     </Modal>

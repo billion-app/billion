@@ -9,6 +9,7 @@ import {
   electionPhase,
   entryCardSubtitle,
   formatCivicAddress,
+  hasCaliforniaVotingRules,
   registrationCheckUrl,
   resolveOfficialSource,
   shortAddress,
@@ -97,13 +98,13 @@ void test("buildVotingPlan returns a full method list with no data at all", () =
   assert.equal(plan.noLocationsPublished, true);
 });
 
-void test("missing locations read as unpublished, never as unavailable", () => {
+void test("missing locations stay unknown without claiming the authority has not published them", () => {
   // The distinction is the whole point of the screen: "we don't know yet" must
   // not render as "this method isn't offered".
   const dropBox = method(buildVotingPlan(response()), "dropBox");
   assert.equal(dropBox.status, "unknown");
-  assert.equal(dropBox.chip.label, "Not published");
-  assert.equal(dropBox.subtitle, "Locations not published yet");
+  assert.equal(dropBox.chip.label, "Details unavailable");
+  assert.equal(dropBox.subtitle, "Location details unavailable");
 });
 
 void test("a method becomes available once locations are published", () => {
@@ -374,4 +375,68 @@ void test("registrationCheckUrl never leaves the reader without an exit", () => 
   // whenever Civic omitted both URLs. There must always be somewhere to go.
   assert.equal(registrationCheckUrl(undefined), "https://vote.gov");
   assert.equal(registrationCheckUrl({ name: "x" }), "https://vote.gov");
+});
+
+test("Democracy Works California jurisdiction works without normalized residence", () => {
+  const data = response({
+    normalizedInput: { line1: "", city: "", state: "", zip: "" },
+  });
+  assert.equal(hasCaliforniaVotingRules(data), true);
+  assert.equal(
+    hasCaliforniaVotingRules({
+      ...data,
+      election: {
+        ...data.election,
+        ocdDivisionId: "ocd-division/country:us/state:ca/county:santa_cruz",
+      },
+    }),
+    true,
+  );
+  for (const id of [
+    "ocd-division/country:us",
+    "ocd-division/country:us/state:ny",
+    "ocd-division/country:us/state:canada",
+  ]) {
+    assert.equal(
+      hasCaliforniaVotingRules({
+        ...data,
+        election: { ...data.election, ocdDivisionId: id },
+      }),
+      false,
+    );
+  }
+  assert.equal(
+    hasCaliforniaVotingRules(
+      response({
+        normalizedInput: { line1: "", city: "", state: "NY", zip: "" },
+      }),
+    ),
+    false,
+  );
+  assert.equal(hasCaliforniaVotingRules(undefined), false);
+});
+
+test("link-only providers do not present hardcoded steps as official instructions", () => {
+  const data = response();
+  data.provider = {
+    name: "democracy_works",
+    fetchedAt: "2026-10-18T00:00:00Z",
+    addressScope: "address",
+    ballotDataStatus: "provided",
+    addressNormalization: "unavailable",
+    logistics: "lookup_links_only",
+    coverage: "partial",
+  };
+  data.state = [
+    {
+      name: "California",
+      electionAdministrationBody: {
+        name: "Example election office",
+        electionInfoUrl: "https://example.gov/elections",
+      },
+    },
+  ];
+  assert.ok(
+    buildVotingPlan(data).methods.every((method) => method.steps.length === 0),
+  );
 });

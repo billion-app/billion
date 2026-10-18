@@ -4,6 +4,7 @@ import type { CandidateBrief } from "@acme/validators";
 
 import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   fontBody,
@@ -26,15 +27,17 @@ const labels = {
   effects: "Potential effects",
   tradeoffs: "Tradeoffs",
   unknowns: "What remains unknown",
-};
+} as const;
 const kinds = {
   promise: "Candidate promise",
   fact: "Documented fact",
   disputed: "Disputed claim",
   analysis: "Billion analysis",
-};
+} as const;
 /** Visual categories describe evidence origin, never candidate merit. */
 function ClaimKindLabel({ kind }: { kind: keyof typeof kinds | "missing" }) {
+  const { t: tx } = useAppTranslation();
+
   const icon = {
     promise: "quote",
     fact: "doc",
@@ -72,7 +75,7 @@ function ClaimKindLabel({ kind }: { kind: keyof typeof kinds | "missing" }) {
           flex: 1,
         }}
       >
-        {kind === "missing" ? "Information missing" : kinds[kind]}
+        {kind === "missing" ? tx("Information missing") : tx(kinds[kind])}
       </Text>
     </View>
   );
@@ -85,6 +88,8 @@ export function CandidateCoverage({
   hasStatement: boolean;
   officeUrl: string;
 }) {
+  const { t: tx } = useAppTranslation();
+
   return (
     <View
       style={{
@@ -108,22 +113,29 @@ export function CandidateCoverage({
           }}
         >
           {hasStatement
-            ? "No independent analysis yet"
-            : "Information is limited"}
+            ? tx("No independent analysis yet")
+            : tx("Information is limited")}
         </Text>
       </View>
       <Text style={{ ...candidateDetailText, fontSize: 13, lineHeight: 19 }}>
-        {hasStatement
-          ? "Billion hasn’t published independent analysis for this race."
-          : "Billion has no statement or independent analysis for this candidate yet."}{" "}
-        Missing coverage is not a judgment of their qualifications.
+        {tx(
+          "{value1} Missing coverage is not a judgment of their qualifications.",
+          {
+            value1: hasStatement
+              ? "Billion hasn’t published independent analysis for this race."
+              : "Billion has no statement or independent analysis for this candidate yet.",
+          },
+        )}
       </Text>
-      <SourceLink label="Find your official candidate list" url={officeUrl} />
-      <CandidateDisclosure title="About our coverage">
+      <SourceLink
+        label={tx("Find your official candidate list")}
+        url={officeUrl}
+      />
+      <CandidateDisclosure title={tx("About our coverage")}>
         <Text style={candidateDetailText}>
-          We publish independent briefs only after reviewing everyone in a
-          verified race. A submitted statement alone does not establish a
-          complete candidate list.
+          {tx(
+            "We publish independent briefs only after reviewing everyone in a verified race. A submitted statement alone does not establish a complete candidate list.",
+          )}
         </Text>
       </CandidateDisclosure>
     </View>
@@ -133,10 +145,14 @@ export function CandidateCoverage({
 export function CandidateIndependentBrief({
   brief,
   reviewedAt,
+  topics,
 }: {
   brief: CandidateBrief;
   reviewedAt: string;
+  topics?: CandidateBrief["sections"][number]["topic"][];
 }) {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   return (
     <View style={{ gap: sp[3] }}>
       <Text
@@ -147,17 +163,20 @@ export function CandidateIndependentBrief({
           fontSize: 18,
         }}
       >
-        Independent brief
+        {tx("Independent brief")}
       </Text>
       <Text style={candidateDetailText}>
-        {brief.authorship.kind === "generated"
-          ? "AI-assisted Billion explanation"
-          : "Billion explanation"}{" "}
-        · Reviewed {reviewedAt}
+        {tx("{value1} · Reviewed {value2}", {
+          value1:
+            brief.authorship.kind === "generated"
+              ? tx("AI-assisted Billion explanation")
+              : tx("Billion explanation"),
+          value2: reviewedAt,
+        })}
       </Text>
       {brief.correction ? (
         <Text style={{ color: P.inkOnNight }}>
-          Correction: {brief.correction.reason}
+          {tx("Correction: {value1}", { value1: brief.correction.reason })}
         </Text>
       ) : null}
       {[
@@ -168,6 +187,11 @@ export function CandidateIndependentBrief({
         "tradeoffs",
         "unknowns",
       ].map((topic) => {
+        if (
+          topics &&
+          !topics.includes(topic as CandidateBrief["sections"][number]["topic"])
+        )
+          return null;
         const section = brief.sections.find((item) => item.topic === topic);
         if (!section) return null;
         const sources = (claim: (typeof section.claims)[number]) =>
@@ -197,12 +221,19 @@ export function CandidateIndependentBrief({
                 </Text>
                 <Text style={candidateDetailText}>{evidence.locator}</Text>
                 <Text style={candidateDetailText}>
-                  Source retrieved{" "}
-                  {new Date(evidence.retrievedAt).toLocaleDateString("en-US", {
-                    timeZone: "UTC",
+                  {tx("Source retrieved {value1}", {
+                    value1: new Date(evidence.retrievedAt).toLocaleDateString(
+                      appLocale,
+                      {
+                        timeZone: "UTC",
+                      },
+                    ),
                   })}
                 </Text>
-                <SourceLink label="Open original source" url={evidence.url} />
+                <SourceLink
+                  label={tx("Open original source")}
+                  url={evidence.url}
+                />
               </View>
             ) : null;
           });
@@ -216,7 +247,7 @@ export function CandidateIndependentBrief({
                 fontSize: 18,
               }}
             >
-              {labels[section.topic]}
+              {tx(labels[section.topic])}
             </Text>
             {section.claims.map((claim, index) => (
               <View key={claim.id} style={{ gap: sp[2] }}>
@@ -234,14 +265,20 @@ export function CandidateIndependentBrief({
                 <CandidateDisclosure
                   title={
                     claim.kind === "analysis"
-                      ? "Sources for this analysis"
+                      ? tx("Sources for this analysis")
                       : claim.kind === "promise"
-                        ? "Source for this promise"
+                        ? tx("Source for this promise")
                         : claim.kind === "fact"
-                          ? "Sources for this fact"
-                          : "Sources for this disputed claim"
+                          ? tx("Sources for this fact")
+                          : tx("Sources for this disputed claim")
                   }
-                  label={`Sources for ${labels[section.topic]}${section.claims.length > 1 ? `, point ${index + 1}` : ""}`}
+                  label={tx("Sources for {value1}{value2}", {
+                    value1: tx(labels[section.topic]),
+                    value2:
+                      section.claims.length > 1
+                        ? tx(", point {value1}", { value1: index + 1 })
+                        : "",
+                  })}
                 >
                   {sources(claim)}
                 </CandidateDisclosure>
@@ -275,12 +312,16 @@ export function CandidateIndependentBrief({
           </Card>
         );
       })}
-      <CandidateDisclosure title="Review details">
-        <Text style={candidateDetailText}>Revision {brief.revisionId}</Text>
+      <CandidateDisclosure title={tx("Review details")}>
+        <Text style={candidateDetailText}>
+          {tx("Revision {value1}", { value1: brief.revisionId })}
+        </Text>
         {brief.authorship.kind === "generated" ? (
           <Text style={candidateDetailText}>
-            Model: {brief.authorship.model} · Prompt:{" "}
-            {brief.authorship.promptVersion}
+            {tx("Model: {value1} · Prompt: {value2}", {
+              value1: brief.authorship.model,
+              value2: brief.authorship.promptVersion,
+            })}
           </Text>
         ) : null}
       </CandidateDisclosure>

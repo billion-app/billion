@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { DecisionSeal } from "~/components/digest/CraftMarks";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestPalette,
@@ -37,6 +38,8 @@ export function LocalDecisionsPreview({
 }: {
   address: string | null | undefined;
 }) {
+  const { t: tx, language } = useAppTranslation();
+
   const router = useRouter();
 
   const jurisdiction = detectJurisdictionKey(address);
@@ -61,15 +64,19 @@ export function LocalDecisionsPreview({
       activeOpacity={0.85}
       onPress={() => router.push("/local-decisions" as Href)}
       accessibilityRole="button"
-      accessibilityHint="Opens the full list of upcoming and recent local decisions"
+      accessibilityHint={tx(
+        "Opens the full list of upcoming and recent local decisions",
+      )}
       style={s.card}
     >
       <View style={s.head}>
         <DecisionSeal size={28} />
-        <RNText style={s.kicker}>Local</RNText>
+        <RNText style={s.kicker}>{tx("Local")}</RNText>
         <Icon name="chevR" size={15} color={DigestPalette.quiet} />
       </View>
-      <RNText style={s.title}>What {jurisdictionName} is deciding</RNText>
+      <RNText style={s.title}>
+        {tx("What {value1} is deciding", { value1: jurisdictionName })}
+      </RNText>
 
       {query.isLoading ? (
         <>
@@ -78,12 +85,13 @@ export function LocalDecisionsPreview({
         </>
       ) : query.isError ? (
         <RNText style={s.empty}>
-          Local decisions didn&apos;t load. Open the list to try again.
+          {tx("Local decisions didn&apos;t load. Open the list to try again.")}
         </RNText>
       ) : rows.length === 0 ? (
         <RNText style={s.empty}>
-          No published meetings in the pipeline right now. Open the list for
-          details.
+          {tx(
+            "No published meetings in the pipeline right now. Open the list for details.",
+          )}
         </RNText>
       ) : (
         rows.map((row) => {
@@ -113,7 +121,7 @@ export function LocalDecisionsPreview({
                 {row.title}
               </RNText>
               <RNText style={s.rowDate}>
-                {formatMeetingDate(row.meetingStartsAt)}
+                {formatMeetingDate(row.meetingStartsAt, language)}
               </RNText>
             </View>
           );

@@ -48,14 +48,11 @@ export function MethodCard({
   method,
   expanded,
   onToggle,
-  authorityName,
   locationFinderUrl,
 }: {
   method: VotingMethod;
   expanded: boolean;
   onToggle: () => void;
-  /** Named above the steps, so whose words they are is clear before reading. */
-  authorityName?: string;
   /** Official location finder — the fallback when nothing is published. */
   locationFinderUrl?: string;
 }) {
@@ -107,19 +104,13 @@ export function MethodCard({
 
       {expanded && (
         <View style={s.open}>
-          {/* Steps are a summary of the authority's instructions, never
-              Billion's own advice — so they only render when we can name and
-              link the source they came from. */}
+          {/* App-authored guidance stays distinct from official source text. */}
           {method.steps.length > 0 && (
             <>
-              <Text style={s.kicker}>
-                {authorityName
-                  ? `SUMMARIZED FROM ${authorityName.toUpperCase()}`
-                  : "SUMMARIZED FROM YOUR ELECTION OFFICE"}
-              </Text>
+              <Text style={s.kicker}>GENERAL GUIDANCE FROM BILLION</Text>
               <StepList steps={method.steps} />
               <LinkRow
-                label="Full instructions from the source"
+                label="Check instructions with your election office"
                 url={method.instructionsUrl}
               />
             </>

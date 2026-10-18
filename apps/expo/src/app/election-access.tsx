@@ -7,6 +7,7 @@ import type { IconName } from "~/components/ui";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { OfficialResourceLink as SourceLink } from "~/components/ballot/OfficialResourceLink";
 import { Icon, NavHeader } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   digest,
@@ -78,98 +79,129 @@ function Details({ title, children }: { title: string; children: ReactNode }) {
 
 /** Statewide official resource discovery; never a claim about a particular location. */
 export default function ElectionAccessScreen() {
+  const { t: tx } = useAppTranslation();
+
   const router = useRouter();
   return (
     <View style={s.screen}>
-      <NavHeader title="California" tone="dark" onBack={() => router.back()} />
+      <NavHeader
+        title={tx("California")}
+        tone="dark"
+        onBack={() => router.back()}
+      />
       <ScrollView contentContainerStyle={s.content}>
         <Text accessibilityRole="header" style={s.title}>
-          Voting help
+          {tx("Voting help")}
         </Text>
-        <Text style={s.caption}>Official resources · Opens state websites</Text>
+        <Text style={s.caption}>
+          {tx("Official resources · Opens state websites")}
+        </Text>
         <View style={s.card}>
-          <TopicHeading icon="globe">Help in your language</TopicHeading>
+          <TopicHeading icon="globe">
+            {tx("Help in your language")}
+          </TopicHeading>
           <SourceLink
-            label="Voter hotlines"
+            label={tx("Voter hotlines")}
             url={hotlines}
             prominence="primary"
           />
           <SourceLink
-            label="Español · Derechos del votante / Voter rights"
+            label={tx("Español · Derechos del votante / Voter rights")}
             url="https://www.sos.ca.gov/es/elections/voter-bill-rights"
           />
-          <Text style={s.caption}>Español · 中文 · हिन्दी · +7 languages</Text>
-          <Details title="All 10 hotline languages">
+          <Text style={s.caption}>
+            {tx("Español · 中文 · हिन्दी · +7 languages")}
+          </Text>
+          <Details title={tx("All 10 hotline languages")}>
             <Text style={s.body}>
-              English, Español, 中文, हिन्दी, 日本語, ខ្មែរ, 한국어, Tagalog,
-              ภาษาไทย and Việt ngữ.
+              {tx(
+                "English, Español, 中文, हिन्दी, 日本語, ខ្មែរ, 한국어, Tagalog, ภาษาไทย and Việt ngữ.",
+              )}
             </Text>
             <Text style={s.body}>
-              Ask voting questions or request mailed materials. California also
-              lists 711 for TTY/TDD (text telephone) help.
+              {tx(
+                "Ask voting questions or request mailed materials. California also lists 711 for TTY/TDD (text telephone) help.",
+              )}
             </Text>
             <Text style={s.body}>
-              Hotline languages may differ from your local ballot. These
-              resources do not change the app language.
+              {tx(
+                "Hotline languages may differ from your local ballot. These resources do not change the app language.",
+              )}
             </Text>
           </Details>
         </View>
         <View style={s.card}>
-          <TopicHeading icon="accessibility">Accessible voting</TopicHeading>
+          <TopicHeading icon="accessibility">
+            {tx("Accessible voting")}
+          </TopicHeading>
           <SourceLink
-            label="Accessible voting resources"
+            label={tx("Accessible voting resources")}
             url="https://www.sos.ca.gov/elections/voting-resources/voters-disabilities"
             prominence="primary"
           />
           <Text style={s.caption}>
-            Audio, large print, voting equipment and voting at home.
+            {tx("Audio, large print, voting equipment and voting at home.")}
           </Text>
         </View>
         <View style={s.card}>
-          <TopicHeading icon="pin">Help at your voting place</TopicHeading>
+          <TopicHeading icon="pin">
+            {tx("Help at your voting place")}
+          </TopicHeading>
           <Text style={s.body}>
-            Ask your county about ballot languages and access before travelling.
+            {tx(
+              "Ask your county about ballot languages and access before travelling.",
+            )}
           </Text>
           <Text style={s.caption}>
-            Local availability is unverified in Billion.
+            {tx("Local availability is unverified in Billion.")}
           </Text>
-          <SourceLink label="Find my county elections office" url={office} />
-          <Details title="What to ask about">
+          <SourceLink
+            label={tx("Find my county elections office")}
+            url={office}
+          />
+          <Details title={tx("What to ask about")}>
             <Text style={s.body}>
-              Ask about translated materials, entrances, parking, accessible
-              equipment, curbside voting and how to request assistance.
+              {tx(
+                "Ask about translated materials, entrances, parking, accessible equipment, curbside voting and how to request assistance.",
+              )}
             </Text>
             <Text style={s.body}>
-              Availability varies by location. A statewide resource does not
-              confirm services at your voting place.
+              {tx(
+                "Availability varies by location. A statewide resource does not confirm services at your voting place.",
+              )}
             </Text>
           </Details>
         </View>
         <View style={s.card}>
-          <TopicHeading icon="book">Translated voter guide</TopicHeading>
+          <TopicHeading icon="book">
+            {tx("Translated voter guide")}
+          </TopicHeading>
           <Text style={s.body}>
-            Translated guide downloads were not linked at our last check.
+            {tx(
+              "Translated guide downloads were not linked at our last check.",
+            )}
           </Text>
           <Text style={s.caption}>
-            Checked October 2, 2026 · November election
+            {tx("Checked October 2, 2026 · November election")}
           </Text>
           <SourceLink
-            label="Check official guide"
+            label={tx("Check official guide")}
             url="https://voterguide.sos.ca.gov/"
           />
           <Text style={s.caption}>
-            Statewide guide only; local ballot materials may differ.
+            {tx("Statewide guide only; local ballot materials may differ.")}
           </Text>
         </View>
-        <Details title="About these resources">
+        <Details title={tx("About these resources")}>
           <Text style={s.body}>
-            Official sources checked October 2, 2026. The November 2026 guide
-            announced translated PDFs for October but had no download links at
-            that check. Check the official page for newly published editions.
+            {tx(
+              "Official sources checked October 2, 2026. The November 2026 guide announced translated PDFs for October but had no download links at that check. Check the official page for newly published editions.",
+            )}
           </Text>
           <Text style={s.body}>
-            Billion has not verified coverage beyond these linked resources.
-            Opening a translated page does not translate Billion.
+            {tx(
+              "Billion has not verified coverage beyond these linked resources. Opening a translated page does not translate Billion.",
+            )}
           </Text>
         </Details>
       </ScrollView>

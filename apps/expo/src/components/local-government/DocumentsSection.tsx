@@ -8,6 +8,7 @@ import { StyleSheet, Text, View } from "react-native";
 import type { DecisionDetail } from "~/utils/local-government";
 import { ExternalLink } from "~/components/ExternalLink";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, useTheme } from "~/styles";
 import { documentCategoryLabel } from "~/utils/local-government";
 
@@ -20,6 +21,8 @@ export function DocumentsSection({
   documents: readonly Document[];
   publicComments: DecisionDetail["publicComments"];
 }) {
+  const { t: tx, language } = useAppTranslation();
+
   const { theme } = useTheme();
 
   return (
@@ -27,7 +30,7 @@ export function DocumentsSection({
       {documents.length > 0 ? (
         <>
           <Text style={[s.sectionLabel, { color: theme.textSecondary }]}>
-            Official documents
+            {tx("Official documents")}
           </Text>
           <View
             style={[
@@ -52,8 +55,10 @@ export function DocumentsSection({
                       style={[s.docCategory, { color: theme.foreground }]}
                       numberOfLines={1}
                     >
-                      {documentCategoryLabel(doc.category)}
-                      {doc.pageCount ? ` · ${doc.pageCount} pages` : ""}
+                      {documentCategoryLabel(doc.category, language)}
+                      {doc.pageCount
+                        ? tx("documents.pageCount", { count: doc.pageCount })
+                        : ""}
                     </Text>
                     {doc.description ? (
                       <Text
@@ -77,18 +82,19 @@ export function DocumentsSection({
           <Icon name="lock" size={14} color={theme.textSecondary} />
           <View style={{ flex: 1 }}>
             <Text style={[s.privacyTitle, { color: theme.foreground }]}>
-              {publicComments.documentCount} public comment{" "}
-              {publicComments.documentCount === 1 ? "letter" : "letters"} in the
-              official record
+              {tx("documents.publicComments", {
+                count: publicComments.documentCount,
+              })}
             </Text>
             <Text style={[s.privacyBody, { color: theme.textSecondary }]}>
-              Billion links to these letters without displaying commenter names
-              or personal details.
+              {tx(
+                "Billion links to these letters without displaying commenter names or personal details.",
+              )}
             </Text>
             {publicComments.officialLinks[0] ? (
               <ExternalLink href={publicComments.officialLinks[0].url}>
                 <Text style={[s.link, { color: theme.accent }]}>
-                  View in the official record
+                  {tx("View in the official record")}
                 </Text>
               </ExternalLink>
             ) : null}
@@ -104,6 +110,8 @@ export function ParticipationCard({
 }: {
   participation: DecisionDetail["participation"];
 }) {
+  const { t: tx } = useAppTranslation();
+
   const { theme } = useTheme();
 
   return (
@@ -116,12 +124,13 @@ export function ParticipationCard({
             { color: theme.textSecondary, marginBottom: 0 },
           ]}
         >
-          How to participate
+          {tx("How to participate")}
         </Text>
       </View>
       <Text style={[s.participationBody, { color: theme.foreground }]}>
-        General guidance for this city — not instructions for this specific
-        item.
+        {tx(
+          "General guidance for this city — not instructions for this specific item.",
+        )}
       </Text>
       {participation.note ? (
         <Text style={[s.participationNote, { color: theme.textSecondary }]}>
@@ -132,7 +141,7 @@ export function ParticipationCard({
         <ExternalLink href={participation.instructionsUrl}>
           <View style={s.participationButton}>
             <Text style={s.participationButtonText}>
-              Check the current agenda for how to comment
+              {tx("Check the current agenda for how to comment")}
             </Text>
             <Icon name="external" size={13} color={colors.black} />
           </View>

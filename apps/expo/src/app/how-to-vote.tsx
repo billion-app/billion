@@ -26,6 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { VotingMethodId } from "~/utils/voting";
 import { AddressAutocomplete } from "~/components/AddressAutocomplete";
+import { BallotLookupGate } from "~/components/ballot/BallotLookupGate";
 import { MethodCard } from "~/components/how-to-vote/MethodCard";
 import {
   FactRow,
@@ -48,16 +49,43 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { daysUntil, formatDate } from "~/utils/dates";
+import { electionsAreLive } from "~/utils/elections-live";
 import {
   buildVotingPlan,
   electionPhase,
+  hasCaliforniaVotingRules,
   registrationCheckUrl,
   shortAddress,
 } from "~/utils/voting";
 
 export const ErrorBoundary = createRouteErrorBoundary("how-to-vote");
 
-export default function HowToVoteScreen() {
+/** Keep direct links behind the same reviewed production launch gate as /ballot. */
+export default function HowToVoteRoute() {
+  const router = useRouter();
+  const availability = useQuery({
+    ...trpc.civic.getBallotAvailability.queryOptions(),
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+  });
+  if (!electionsAreLive(availability.isError ? undefined : availability.data)) {
+    return (
+      <BallotLookupGate
+        checking={availability.isFetching}
+        failed={availability.isError}
+        onRetry={() => void availability.refetch()}
+        onBack={() =>
+          router.canGoBack() ? router.back() : router.replace("/")
+        }
+        onHome={() => router.replace("/elections")}
+      />
+    );
+  }
+  return <HowToVoteScreen />;
+}
+
+function HowToVoteScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ method?: string }>();
   const { address, setAddress, isLoading: addressLoading } = useUserAddress();
@@ -69,13 +97,16 @@ export default function HowToVoteScreen() {
   const hasAddress = !!address;
 
   const voterInfoQuery = useQuery({
-    ...trpc.civic.getVoterInfo.queryOptions({ address: address ?? "" }),
+    ...trpc.civic.getVoterInfo.queryOptions({
+      address: address ?? "",
+      includeEnrichment: false,
+    }),
     enabled: hasAddress,
     retry: 1,
   });
 
   const data = voterInfoQuery.data;
-  const unsupportedState = !!data && data.normalizedInput.state !== "CA";
+  const unsupportedState = !!data && !hasCaliforniaVotingRules(data);
   const election = unsupportedState ? undefined : data?.election;
   const plan = buildVotingPlan(unsupportedState ? undefined : data);
   const phase = electionPhase(election?.electionDay);
@@ -205,7 +236,10 @@ export default function HowToVoteScreen() {
   if (unsupportedState) {
     return (
       <Screen>
-        <AddressRow address={address} onEdit={() => setEditing(true)} />
+        <AddressRow
+          address={address}
+          onEdit={() => router.push("/settings/location")}
+        />
         <Card style={s.gapCard}>
           <Text style={s.cardTitle}>
             Billion doesn&apos;t cover this state yet
@@ -358,7 +392,6 @@ export default function HowToVoteScreen() {
                 method={method}
                 expanded={openMethod === method.id}
                 onToggle={() => toggleMethod(method.id)}
-                authorityName={source?.name}
                 locationFinderUrl={
                   source?.votingLocationFinderUrl ?? source?.electionInfoUrl
                 }
@@ -372,8 +405,16 @@ export default function HowToVoteScreen() {
         <Card>
           <Kicker>VOTING LOCATIONS</Kicker>
           <UnavailableNote
-            title="Locations aren't published yet"
-            body="Counties usually post vote centers and drop boxes closer to Election Day. Billion refreshes this daily."
+            title="Location details aren't available in Billion"
+            body="Check your election office for current vote centers, drop boxes, and hours."
+          />
+          <LinkRow
+            label="Find official voting locations"
+            url={
+              source?.votingLocationFinderUrl ??
+              source?.electionInfoUrl ??
+              "https://vote.gov"
+            }
           />
         </Card>
       )}

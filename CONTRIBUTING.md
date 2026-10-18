@@ -143,3 +143,16 @@ The test covers action deduplication in a non-UTC database session, cancelling q
 For deliberately running local code against production services, copy `.env.prod.example` to ignored `.env.prod`, fill it in, then run `pnpm run prod -- --check` before `pnpm run prod`. This loads `.env` with `.env.prod` overrides and can write production data. Use the local setup above for ordinary development.
 
 If setup fails, start with [Troubleshooting](docs/troubleshooting.md).
+
+### Translation queue integration test
+
+Use an empty, migrated local database whose name ends in `_test`:
+
+```bash
+POSTGRES_URL=postgresql://localhost/billion_translations_test pnpm db:migrate
+TRANSLATIONS_TEST_DATABASE_URL=postgresql://localhost/billion_translations_test pnpm --filter @acme/api exec tsx --test src/lib/content-translation-store.integration.test.ts
+```
+
+This test uses real Postgres with a stub translator to verify concurrent claims,
+cache hits, backoff, source revisions, and recovery after an expired lease. It
+skips unless `TRANSLATIONS_TEST_DATABASE_URL` is explicitly set.

@@ -1,0 +1,1 @@
+ALTER TABLE "content_translation" ENABLE ROW LEVEL SECURITY;

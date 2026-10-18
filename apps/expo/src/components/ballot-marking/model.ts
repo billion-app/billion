@@ -1,3 +1,6 @@
+import type { AppLanguage } from "~/i18n/language";
+import { appTranslator } from "~/i18n/app-strings";
+
 /** Reviewed official instructions only; provider seat counts are not marking rules. */
 export interface ContestInstructions {
   scope: { contestId: string; electionDate: string; jurisdiction: string };
@@ -65,12 +68,16 @@ export function applicableInstructions(
   return instructions;
 }
 
-export function selectionLabel(instructions: ContestInstructions): string {
+export function selectionLabel(
+  instructions: ContestInstructions,
+  language: AppLanguage = "en",
+): string {
+  const t = appTranslator(language);
   const { kind, maximum } = instructions.mechanics;
-  if (kind === "single") return "Choose no more than 1";
-  return kind === "ranked"
-    ? `Rank up to ${maximum} candidates`
-    : `Choose up to ${maximum} candidate${maximum === 1 ? "" : "s"}`;
+  if (kind === "single") return t("Choose no more than 1");
+  return t(kind === "ranked" ? "marking.rank" : "marking.choose", {
+    count: maximum,
+  });
 }
 
 /** Missing or invalid illustrations retain the reviewed textual example. */

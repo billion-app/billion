@@ -1459,36 +1459,97 @@ textarea {
   cursor: pointer;
 }
 
-/* The lead disagreement under the main case's summary. Unlabeled: its border
-   runs from the Yes color to the No color, unlike any other card. */
-.pinned-dispute {
-  display: grid;
-  gap: 6px;
-  width: 100%;
-  margin: 12px 0 4px;
-  padding: 14px 16px;
-  text-align: left;
-  color: var(--text);
+/* Editorial selections explain their reasoning separately from the open action. */
+.before-link {
+  display: block;
+  min-height: 44px;
+  padding-top: 12px;
+}
+.selection-label {
+  color: #b9bdc9;
+  font: 600 12px/1.4 var(--body);
+}
+.dispute-row.is-highlighted {
   border: 1.5px solid transparent;
-  border-radius: 14px;
   background:
     linear-gradient(var(--slate), var(--slate)) padding-box,
     linear-gradient(120deg, var(--vote-yes), var(--vote-no)) border-box;
 }
-.pinned-dispute:hover,
-.pinned-dispute:focus-visible {
+.dispute-row.is-highlighted:hover {
   background:
     linear-gradient(var(--hi), var(--hi)) padding-box,
     linear-gradient(120deg, var(--vote-yes), var(--vote-no)) border-box;
 }
-.pd-title {
-  font: 600 19px/1.3 var(--display);
+.dispute-row.is-highlighted::before {
+  display: none;
 }
-.pd-meta {
-  font-size: 13px;
-  color: rgba(247, 244, 238, 0.7);
+.dispute-row.is-highlighted .relchip,
+.dispute-row.is-highlighted .src,
+.dispute-row.is-highlighted .selection-reason .meta {
+  color: #b9bdc9;
 }
-
+.dispute-row.is-highlighted .t {
+  font-weight: 600;
+}
+.dispute-row .selection-reason {
+  margin: 2px 0 -6px;
+  border-top: 1px solid var(--hair2);
+}
+.selection-reason {
+  margin: 6px 4px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.selection-reason summary {
+  cursor: pointer;
+  color: #b9bdc9;
+  font-size: 12px;
+  min-height: 44px;
+  padding: 12px 0;
+}
+.selection-reason p {
+  margin: 8px 0;
+}
+.selection-evidence {
+  display: grid;
+  gap: 10px;
+}
+.selection-evidence button {
+  text-align: left;
+}
+.context-group {
+  max-width: 720px;
+  margin-bottom: 24px;
+}
+.context-group h2 {
+  font: 600 18px/1.4 var(--display);
+  margin: 16px 0 10px;
+}
+.decision-context {
+  border-left: 2px solid var(--hair1);
+  padding: 0 0 0 14px;
+  margin: 18px 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.context-scope,
+.context-row-limit {
+  color: #b9bdc9;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.context-row-limit {
+  display: block;
+  margin-top: 6px;
+}
+.context-money {
+  border-top: 1px solid var(--hair1);
+  margin-top: 14px;
+  padding-top: 12px;
+}
+.context-money p {
+  margin: 6px 0;
+}
 /* How it works today: set apart from the summary, and its heading stays
    when open, since it names what the paragraph is. */
 .summary-more.background {

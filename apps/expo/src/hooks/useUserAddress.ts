@@ -27,8 +27,13 @@ export function useUserAddress() {
 
   useEffect(() => {
     let active = true;
+    let updated = false;
     const listener: AddressListener = (value) => {
-      if (active) setAddressState(value);
+      updated = true;
+      if (active) {
+        setAddressState(value);
+        setIsLoading(false);
+      }
     };
     listeners.add(listener);
 
@@ -36,7 +41,7 @@ export function useUserAddress() {
       .getItemAsync(ADDRESS_KEY)
       .then((value: string | null) => {
         if (!active) return;
-        setAddressState(value);
+        if (!updated) setAddressState(value);
         setIsLoading(false);
       })
       .catch(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Updates from "expo-updates";
 
 import { UpdateReadyMark } from "~/components/UpdateReadyMark";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   fontBody,
@@ -30,6 +31,7 @@ import {
   rd,
   useTheme,
 } from "~/styles";
+import { restartWithLatestUpdate } from "~/utils/restart-with-update";
 import {
   resolveUpdatePrompt,
   shouldForceShowBanner,
@@ -37,18 +39,6 @@ import {
 
 const TIMER_MS = 8000;
 const TO_CENTER_MS = 420;
-
-async function restartWithUpdate() {
-  try {
-    await Updates.reloadAsync();
-  } catch (error) {
-    console.warn("Unable to restart with the downloaded update:", error);
-    Alert.alert(
-      "Unable to restart",
-      "Close and reopen Billion to finish installing the update.",
-    );
-  }
-}
 
 export interface UpdatePromptProps {
   /** Force banner visible for DEV / preview. */
@@ -60,6 +50,7 @@ type Phase = "toast" | "ask";
 /** Dismissible OTA popup: toast with timer, then centered ask. */
 export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
   const { theme, isDark } = useTheme();
+  const { t } = useAppTranslation();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const { currentlyRunning, downloadedUpdate, isUpdatePending } =
@@ -69,13 +60,15 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
   );
   const [phase, setPhase] = useState<Phase>("toast");
   const [phaseForId, setPhaseForId] = useState<string | null>(null);
+  const restartInFlight = useRef(false);
+  const [isPreparingUpdate, setIsPreparingUpdate] = useState(false);
 
   const forcePreview = shouldForceShowBanner({
     forceShowProp: forceShow,
     isDev: __DEV__,
     forceEnv: process.env.EXPO_PUBLIC_FORCE_UPDATE_BANNER,
   });
-  const { visible, updateId } = resolveUpdatePrompt({
+  const { visible: promptVisible, updateId } = resolveUpdatePrompt({
     forcePreview,
     updatesEnabled: Updates.isEnabled,
     isUpdatePending,
@@ -83,6 +76,27 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
     downloadedUpdate,
     dismissedUpdateId,
   });
+  const visible = promptVisible || isPreparingUpdate;
+
+  const restartWithUpdate = async () => {
+    if (restartInFlight.current) return;
+    if (forcePreview) {
+      setDismissedUpdateId(updateId);
+      return;
+    }
+    restartInFlight.current = true;
+    setIsPreparingUpdate(true);
+    try {
+      await restartWithLatestUpdate(Updates);
+      setDismissedUpdateId(updateId);
+    } catch (error) {
+      console.warn("Unable to install the latest update:", error);
+      Alert.alert(t("update.failedTitle"), t("update.failedBody"));
+    } finally {
+      restartInFlight.current = false;
+      setIsPreparingUpdate(false);
+    }
+  };
 
   // Reset phase when a new update id becomes active (render-time adjust).
   if (visible && updateId != null && phaseForId !== updateId) {
@@ -96,6 +110,7 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
   const centerProgress = useSharedValue(0);
 
   const dismiss = () => {
+    if (restartInFlight.current) return;
     if (updateId != null) setDismissedUpdateId(updateId);
   };
 
@@ -207,30 +222,41 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
         {asking ? (
           <View style={styles.askBody}>
             <UpdateReadyMark size={44} color={colors.bill} />
-            <Text style={styles.kicker}>UPDATE</Text>
+            <Text style={styles.kicker}>{t("update.kicker")}</Text>
             <Text style={[styles.askTitle, { color: theme.foreground }]}>
-              Ready to install?
+              {isPreparingUpdate ? t("update.getting") : t("update.askTitle")}
             </Text>
             <Text style={[styles.askSubtitle, { color: theme.textSecondary }]}>
-              Restart now to load the update, or keep browsing and it will apply
-              next launch.
+              {isPreparingUpdate
+                ? t("update.restartingBody")
+                : t("update.askBody")}
             </Text>
             <View style={styles.askActions}>
               <Pressable
                 onPress={() => void restartWithUpdate()}
+                disabled={isPreparingUpdate}
+                accessibilityState={{
+                  disabled: isPreparingUpdate,
+                  busy: isPreparingUpdate,
+                }}
                 accessibilityRole="button"
-                accessibilityLabel="Restart now to install update"
+                accessibilityLabel={t("update.restartA11y")}
                 style={({ pressed }) => [
                   styles.askPrimary,
                   pressed && { opacity: 0.85 },
                 ]}
               >
-                <Text style={styles.askPrimaryText}>Restart now</Text>
+                <Text style={styles.askPrimaryText}>
+                  {isPreparingUpdate
+                    ? t("update.updating")
+                    : t("update.restartNow")}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={dismiss}
+                disabled={isPreparingUpdate}
                 accessibilityRole="button"
-                accessibilityLabel="Dismiss update notice"
+                accessibilityLabel={t("update.dismissA11y")}
                 style={({ pressed }) => [
                   styles.askSecondary,
                   pressed && { opacity: 0.55 },
@@ -242,7 +268,7 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
                     { color: theme.textSecondary },
                   ]}
                 >
-                  Not now
+                  {t("update.notNow")}
                 </Text>
               </Pressable>
             </View>
@@ -254,39 +280,51 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
             </View>
             <View style={styles.copy}>
               <Text style={styles.kicker} numberOfLines={1}>
-                UPDATE
+                {t("update.kicker")}
               </Text>
               <Text
                 style={[styles.title, { color: theme.foreground }]}
                 numberOfLines={1}
               >
-                An update is ready
+                {isPreparingUpdate ? t("update.getting") : t("update.ready")}
               </Text>
               <Text
                 style={[styles.subtitle, { color: theme.textSecondary }]}
                 numberOfLines={1}
               >
-                Restart to install it
+                {isPreparingUpdate
+                  ? t("update.restartingWhenReady")
+                  : t("update.restartToInstall")}
               </Text>
             </View>
             <View style={styles.actions}>
               <Pressable
                 onPress={() => void restartWithUpdate()}
+                disabled={isPreparingUpdate}
+                accessibilityState={{
+                  disabled: isPreparingUpdate,
+                  busy: isPreparingUpdate,
+                }}
                 hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                 accessibilityRole="button"
-                accessibilityLabel="Restart now to install update"
+                accessibilityLabel={t("update.restartA11y")}
                 style={({ pressed }) => [
                   styles.restartHit,
                   pressed && styles.restartPressed,
                 ]}
               >
-                <Text style={styles.restartText}>Restart</Text>
+                <Text style={styles.restartText}>
+                  {isPreparingUpdate
+                    ? t("update.updating")
+                    : t("update.restart")}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={dismiss}
+                disabled={isPreparingUpdate}
                 hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
                 accessibilityRole="button"
-                accessibilityLabel="Dismiss update notice"
+                accessibilityLabel={t("update.dismissA11y")}
                 style={({ pressed }) => [
                   styles.laterHit,
                   pressed && { opacity: 0.55 },
@@ -295,7 +333,7 @@ export function UpdatePrompt({ forceShow = false }: UpdatePromptProps) {
                 <Text
                   style={[styles.laterText, { color: theme.textSecondary }]}
                 >
-                  Later
+                  {t("update.later")}
                 </Text>
               </Pressable>
             </View>

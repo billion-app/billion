@@ -5,6 +5,7 @@ import type { RouterOutputs } from "@acme/api";
 
 import type { IconName } from "~/components/ui/Icon";
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   fontBody,
   fontEditorial,
@@ -21,6 +22,8 @@ type Analysis = NonNullable<Guide["measures"][number]["consequences"]>;
 type Claim = Analysis["yes"];
 
 export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
+  const { t: tx } = useAppTranslation();
+
   const [titleOpen, setTitleOpen] = useState(false);
   const section = (
     title: string,
@@ -32,7 +35,7 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
       style={[
         s.section,
         card && s.sectionCard,
-        title === "Limits and unknowns" && s.unknownCard,
+        title === tx("Limits and unknowns") && s.unknownCard,
       ]}
     >
       <View style={s.sectionHeading}>
@@ -74,7 +77,7 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
           />
         </View>
         <Text accessibilityRole="header" style={s.mapLabel}>
-          If you vote {vote}
+          {tx("If you vote {value1}", { value1: tx(vote) })}
         </Text>
       </View>
       <Text style={s.mapConsequence}>{claim.text}</Text>
@@ -83,7 +86,7 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
   return (
     <View style={s.analysis}>
       <Text style={s.caption}>
-        Billion plain-language analysis · AI-assisted
+        {tx("Billion plain-language analysis · AI-assisted")}
       </Text>
       <View style={s.summaryCard}>
         <View style={s.sectionHeading}>
@@ -94,7 +97,7 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
             <Icon name="sparkle" size={16} color={P.badgeBlue} />
           </View>
           <Text accessibilityRole="header" style={s.summaryTitle}>
-            The short version
+            {tx("The short version")}
           </Text>
         </View>
         <Text style={s.headline}>{analysis.headline.text}</Text>
@@ -102,12 +105,12 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
       <View style={s.officialTitle}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Official ballot title"
+          accessibilityLabel={tx("Official ballot title")}
           accessibilityState={{ expanded: titleOpen }}
           style={s.titleTrigger}
           onPress={() => setTitleOpen(!titleOpen)}
         >
-          <Text style={s.titleText}>Official ballot title</Text>
+          <Text style={s.titleText}>{tx("Official ballot title")}</Text>
           <Icon
             name={titleOpen ? "chevD" : "chevR"}
             size={14}
@@ -120,7 +123,7 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
         <View style={s.decisionMap}>
           <View style={s.mapToday}>
             <Text accessibilityRole="header" style={s.todayLabel}>
-              The rule today
+              {tx("The rule today")}
             </Text>
             <Text style={s.todayText}>{analysis.decisionMap.today.text}</Text>
           </View>
@@ -136,81 +139,89 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
             </View>
           </View>
           {analysis.decisionNote &&
-            section("Also consider", [analysis.decisionNote])}
+            section(tx("Also consider"), [analysis.decisionNote])}
           <AnalysisDisclosure
-            title="Full voting explanation"
-            subtitle="Current rule, outcomes and conditions"
+            title={tx("Full voting explanation")}
+            subtitle={tx("Current rule, outcomes and conditions")}
           >
-            {section("The rule today", [analysis.currentRule])}
-            {section("If you vote Yes", [analysis.yes])}
-            {section("If you vote No", [analysis.no])}
+            {section(tx("The rule today"), [analysis.currentRule])}
+            {section(tx("If you vote Yes"), [analysis.yes])}
+            {section(tx("If you vote No"), [analysis.no])}
           </AnalysisDisclosure>
         </View>
       ) : (
         <>
-          {section("The rule today", [analysis.currentRule])}
+          {section(tx("The rule today"), [analysis.currentRule])}
           <View style={s.flow}>
-            {section("If you vote Yes", [analysis.yes])}
+            {section(tx("If you vote Yes"), [analysis.yes])}
             <View style={s.divider} />
-            {section("If you vote No", [analysis.no])}
+            {section(tx("If you vote No"), [analysis.no])}
             {analysis.decisionNote &&
-              section("Also consider", [analysis.decisionNote])}
+              section(tx("Also consider"), [analysis.decisionNote])}
           </View>
         </>
       )}
-      {section("Who is affected", analysis.affected, "users", true)}
+      {section(tx("Who is affected"), analysis.affected, "users", true)}
       {section(
-        "Costs and funding",
+        tx("Costs and funding"),
         [analysis.costsAndFunding],
         undefined,
         true,
       )}
-      {section("Limits and unknowns", [analysis.uncertainty], "help", true)}
+      {section(tx("Limits and unknowns"), [analysis.uncertainty], "help", true)}
       <AnalysisDisclosure
-        title="How this would work"
-        subtitle="What happens next"
+        title={tx("How this would work")}
+        subtitle={tx("What happens next")}
       >
-        {section("How the change takes effect", analysis.implementation)}
+        {section(tx("How the change takes effect"), analysis.implementation)}
       </AnalysisDisclosure>
       <AnalysisDisclosure
-        title="Sources and review"
-        subtitle="Evidence behind this explanation"
+        title={tx("Sources and review")}
+        subtitle={tx("Evidence behind this explanation")}
       >
         <Text style={s.caption}>
-          Billion’s AI-assisted explanation is separate from the official record
-          below.
+          {tx(
+            "Billion’s AI-assisted explanation is separate from the official record below.",
+          )}
         </Text>
         <Text style={s.body}>
-          Reviewed by{" "}
-          {analysis.review.state === "approved"
-            ? analysis.review.reviewer
-            : "Billion"}
+          {tx("Reviewed by {value1}", {
+            value1:
+              analysis.review.state === "approved"
+                ? analysis.review.reviewer
+                : "Billion",
+          })}
         </Text>
-        <Text style={s.caption}>Revision {analysis.revision}</Text>
+        <Text style={s.caption}>
+          {tx("Revision {value1}", { value1: analysis.revision })}
+        </Text>
         {analysis.sources.map((source) => {
           const supported = [
-            ["Plain-language headline", analysis.headline],
-            ["The rule today", analysis.currentRule],
-            ["If you vote Yes", analysis.yes],
-            ["If you vote No", analysis.no],
+            [tx("Plain-language headline"), analysis.headline],
+            [tx("The rule today"), analysis.currentRule],
+            [tx("If you vote Yes"), analysis.yes],
+            [tx("If you vote No"), analysis.no],
             ...(analysis.decisionMap
               ? [
-                  ["Decision map: today", analysis.decisionMap.today] as const,
-                  ["Decision map: Yes", analysis.decisionMap.yes] as const,
-                  ["Decision map: No", analysis.decisionMap.no] as const,
+                  [
+                    tx("Decision map: today"),
+                    analysis.decisionMap.today,
+                  ] as const,
+                  [tx("Decision map: Yes"), analysis.decisionMap.yes] as const,
+                  [tx("Decision map: No"), analysis.decisionMap.no] as const,
                 ]
               : []),
             ...(analysis.decisionNote
-              ? [["Also consider", analysis.decisionNote] as const]
+              ? [[tx("Also consider"), analysis.decisionNote] as const]
               : []),
             ...analysis.implementation.map(
-              (claim) => ["How this would work", claim] as const,
+              (claim) => [tx("How this would work"), claim] as const,
             ),
             ...analysis.affected.map(
-              (claim) => ["Who is affected", claim] as const,
+              (claim) => [tx("Who is affected"), claim] as const,
             ),
-            ["Costs and funding", analysis.costsAndFunding],
-            ["Limits and unknowns", analysis.uncertainty],
+            [tx("Costs and funding"), analysis.costsAndFunding],
+            [tx("Limits and unknowns"), analysis.uncertainty],
           ] as const;
           const cited = supported.filter(([, claim]) =>
             claim.sourceIds.includes(source.id),
@@ -222,14 +233,18 @@ export function PropositionConsequences({ analysis }: { analysis: Analysis }) {
               testID={`proposition-source-${source.id}`}
               style={s.section}
             >
-              <ClaimSource context="this explanation" source={source} />
+              <ClaimSource context={tx("this explanation")} source={source} />
               <Text style={s.caption}>
-                Retrieved {source.retrievedAt.slice(0, 10)} UTC.
+                {tx("Retrieved {value1} UTC.", {
+                  value1: source.retrievedAt.slice(0, 10),
+                })}
               </Text>
               <AnalysisDisclosure
-                title="Cited statements"
-                subtitle="Where this source is used"
-                accessibilityLabel={`Cited statements from ${source.name}`}
+                title={tx("Cited statements")}
+                subtitle={tx("Where this source is used")}
+                accessibilityLabel={tx("Cited statements from {value1}", {
+                  value1: source.name,
+                })}
               >
                 {cited.map(([label, claim], index) => (
                   <View key={index} style={s.section}>
@@ -283,14 +298,20 @@ function ClaimSource({
   context: string;
   source: Analysis["sources"][number];
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [failed, setFailed] = useState(false);
   const url = webUrl(source.url);
-  if (!url) return <Text style={s.caption}>Source link unavailable</Text>;
+  if (!url)
+    return <Text style={s.caption}>{tx("Source link unavailable")}</Text>;
   return (
     <View>
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel={`Source for ${context}: ${source.name}`}
+        accessibilityLabel={tx("Source for {value1}: {value2}", {
+          value1: context,
+          value2: source.name,
+        })}
         style={s.sourceLink}
         onPress={() => {
           void Linking.openURL(url).then(
@@ -299,11 +320,13 @@ function ClaimSource({
           );
         }}
       >
-        <Text style={s.sourceText}>Source: {source.name} ↗</Text>
+        <Text style={s.sourceText}>
+          {tx("Source: {value1} ↗", { value1: source.name })}
+        </Text>
       </Pressable>
       {failed && (
         <Text accessibilityRole="alert" style={s.caption}>
-          Could not open source. Tap to retry.
+          {tx("Could not open source. Tap to retry.")}
         </Text>
       )}
     </View>

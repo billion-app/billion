@@ -2,7 +2,7 @@
  * Voting-logistics derivation — the "how do I cast my ballot" model behind the
  * How to Vote screen.
  *
- * Everything here is derived from data Google Civic actually returned. Nothing
+ * Everything here is derived from returned election data. Nothing
  * is inferred from the election date: this module deliberately has no
  * "registration closes 15 days before" style arithmetic, because a deadline we
  * computed is not a deadline any authority published. Where we don't have a
@@ -66,9 +66,8 @@ export interface VotingMethod {
   /** Locations this method applies to, if any were published. */
   locations: PollingLocation[];
   /**
-   * Numbered checklist — a summary of the authority's own instructions, never
-   * Billion's independent advice. Empty unless `instructionsUrl` is set: if we
-   * can't point at the source we summarized, we don't show a summary.
+   * General app-authored checklist, distinct from official instructions.
+   * Omitted for providers that supply links without location details.
    */
   steps: VotingStep[];
   /** The authority page these steps summarize. Gates `steps` entirely. */
@@ -167,7 +166,7 @@ const CHIP: Record<MethodStatus, MethodChip> = {
   available: { label: "Available", tone: "positive", icon: "check" },
   upcoming: { label: "Not open yet", tone: "urgent", icon: "clock" },
   closed: { label: "Closed", tone: "negative", icon: "block" },
-  unknown: { label: "Not published", tone: "neutral", icon: "clock" },
+  unknown: { label: "Details unavailable", tone: "neutral", icon: "clock" },
   limited: { label: "Limited", tone: "neutral", icon: "info" },
 };
 
@@ -292,7 +291,7 @@ function dropBoxMethod(
     subtitle:
       locations.length > 0
         ? countLabel(locations.length, "location", "locations")
-        : "Locations not published yet",
+        : "Location details unavailable",
     locations,
     startDate: start,
     endDate: end,
@@ -341,7 +340,7 @@ function earlyMethod(
     subtitle:
       locations.length > 0
         ? countLabel(locations.length, "early vote site", "early vote sites")
-        : "Locations not published yet",
+        : "Location details unavailable",
     locations,
     startDate: start,
     endDate: end,
@@ -400,7 +399,7 @@ function electionDayMethod(
     subtitle:
       locations.length > 0
         ? countLabel(locations.length, "polling place", "polling places")
-        : "Locations not published yet",
+        : "Location details unavailable",
     locations,
     steps: !instructionsUrl
       ? []
@@ -458,6 +457,17 @@ export function resolveOfficialSource(
 // Entry point
 // ---------------------------------------------------------------------------
 
+/** Election jurisdiction only; an OCD ID does not verify the voter's residence. */
+export function hasCaliforniaVotingRules(
+  resp: VoterInfoResponse | undefined,
+): boolean {
+  const state = resp?.normalizedInput.state.trim().toLowerCase();
+  if (state) return state === "ca" || state === "california";
+  return /^ocd-division\/country:us\/state:ca(?:\/|$)/i.test(
+    resp?.election.ocdDivisionId ?? "",
+  );
+}
+
 /**
  * Build the full voting plan for a voter-info response.
  *
@@ -469,7 +479,7 @@ export function buildVotingPlan(
   resp: VoterInfoResponse | undefined,
 ): VotingPlan {
   const mailOnly = resp?.mailOnly === true;
-  const isCalifornia = resp?.normalizedInput.state === "CA";
+  const isCalifornia = hasCaliforniaVotingRules(resp);
   const dropOff = resp?.dropOffLocations ?? [];
   const early = resp?.earlyVoteSites ?? [];
   const polling = resp?.pollingLocations ?? [];
@@ -483,6 +493,11 @@ export function buildVotingPlan(
     ...(mailOnly ? [] : [earlyMethod(early, source)]),
     electionDayMethod(polling, mailOnly, source),
   ];
+
+  // A generic authority URL is not evidence of instructions we fetched.
+  if (resp?.provider?.logistics === "lookup_links_only") {
+    for (const method of methods) method.steps = [];
+  }
 
   return {
     methods,

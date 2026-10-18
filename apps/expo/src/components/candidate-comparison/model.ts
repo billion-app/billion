@@ -4,12 +4,12 @@ export type ComparisonTopic =
   | "record"
   | "effects"
   | "questionnaire";
-export const comparisonTopics: { id: ComparisonTopic; label: string }[] = [
+export const comparisonTopics = [
   { id: "priorities", label: "Priorities" },
   { id: "record", label: "Record" },
   { id: "effects", label: "How plans could work" },
   { id: "questionnaire", label: "Questionnaire" },
-];
+] as const satisfies readonly { id: ComparisonTopic; label: string }[];
 export interface ComparisonSource {
   id: string;
   name: string;

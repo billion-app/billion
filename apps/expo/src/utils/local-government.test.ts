@@ -15,6 +15,7 @@ import {
   truncate,
   voteAvailability,
   voteValueLabel,
+  voteValueTone,
 } from "./local-government";
 
 const FUTURE = new Date("2026-12-01T17:00:00-08:00");
@@ -270,4 +271,19 @@ describe("partial-data tolerance", () => {
     assert.ok(cut.length <= 60);
     assert.ok(cut.endsWith("…"));
   });
+});
+
+it("localized labels preserve vote meaning and published source values", () => {
+  assert.equal(voteValueLabel("Yea", "zh"), "赞成");
+  assert.equal(voteValueLabel("Nay", "es"), "No");
+  assert.equal(voteValueTone("Yea"), "for");
+  assert.equal(voteValueTone("Nay"), "against");
+  assert.equal(
+    voteValueLabel("unclassified source value", "zh"),
+    "unclassified source value",
+  );
+  assert.equal(
+    scopeInfo("district", [1, 2], null, "zh").sentence,
+    "影响第 1 选区、第 2 选区。",
+  );
 });

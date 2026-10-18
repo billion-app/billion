@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatCoordinates, formatPlacemark } from "./address";
+import { formatPlacemark } from "./address";
 
 test("prefers Android's composed address line", () => {
   // Android's system geocoder usually returns only this line and leaves the
@@ -68,8 +68,7 @@ test("treats a blank composed line as absent", () => {
 });
 
 test("rejects a placemark without a street-level address", () => {
-  // Just a city, or just coordinates — the caller sends the coordinate
-  // instead of pretending it is a registered address.
+  // Just a city cannot be submitted as a registered street address.
   assert.equal(formatPlacemark({ city: "Sacramento", region: "CA" }), null);
   assert.equal(formatPlacemark({ street: "Oak St" }), null);
 });
@@ -88,12 +87,5 @@ test("trims whitespace-only fields", () => {
       city: " Sacramento ",
     }),
     "123 Oak St, Sacramento",
-  );
-});
-
-test("formats a coordinate pair to five decimals", () => {
-  assert.equal(
-    formatCoordinates(38.5766234, -121.4933712),
-    "38.57662,-121.49337",
   );
 });

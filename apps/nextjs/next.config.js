@@ -1,6 +1,6 @@
+import { fileURLToPath } from "node:url";
 import { withPostHogConfig } from "@posthog/nextjs-config";
 import { createJiti } from "jiti";
-import { fileURLToPath } from "node:url";
 
 const jiti = createJiti(import.meta.url);
 

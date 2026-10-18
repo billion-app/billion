@@ -2,13 +2,17 @@ import { Platform, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 
 import EditScreenInfo from "~/components/EditScreenInfo";
+import { LanguageCorner } from "~/components/LanguageButton";
 import { Text, View } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { layout, sp, typography } from "~/styles";
 
 export default function ModalScreen() {
+  const { t } = useAppTranslation();
   return (
     <View style={[layout.fullCenter]}>
-      <Text style={[typography.h3]}>Modal</Text>
+      <LanguageCorner />
+      <Text style={[typography.h3]}>{t("dev.modalTitle")}</Text>
       <View
         style={styles.separator}
         lightColor="#eee"

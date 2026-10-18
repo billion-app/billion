@@ -9,6 +9,7 @@ import { useDOMImperativeHandle } from "expo/dom";
 
 import type { PublicTrillionGraph } from "@acme/validators";
 
+import type { ReaderNavigation } from "./reader-engine";
 import { mountTrillionReader } from "./reader-engine";
 
 /** What native code can ask of the reader. */
@@ -25,17 +26,22 @@ export interface TrillionReaderHandle extends DOMImperativeFactory {
  */
 export default function TrillionReader({
   graph,
+  translationKey = "en",
+  language = "en",
   localState,
   onLocalState,
   onExit,
   onOpenUrl,
   onOpenMeasure,
   onBackState,
+  onReady,
   view,
   ballot,
   ref,
 }: {
   graph: PublicTrillionGraph;
+  translationKey?: string;
+  language?: "en" | "es" | "zh";
   localState: string;
   onLocalState: (value: string) => Promise<void>;
   /** Which view opens first; the reader can switch afterwards. */
@@ -48,10 +54,12 @@ export default function TrillionReader({
   onOpenMeasure: (number: string) => Promise<void>;
   /** True while back stays inside the reader, so native code can hand it the swipe. */
   onBackState: (inside: boolean) => Promise<void>;
+  onReady: () => Promise<void>;
   ref?: Ref<TrillionReaderHandle>;
   dom?: DOMProps;
 }) {
   const local = useRef(localState);
+  const navigation = useRef<ReaderNavigation>(undefined);
   const root = useRef<HTMLDivElement>(null);
   const reader = useRef<ReturnType<typeof mountTrillionReader>>(null);
   useDOMImperativeHandle(
@@ -62,6 +70,7 @@ export default function TrillionReader({
   useEffect(() => {
     if (!root.current) return;
     const mounted = mountTrillionReader(root.current, graph, {
+      onReady: () => void onReady(),
       onExit: () => void onExit(),
       onOpenUrl: (url: string) => void onOpenUrl(url),
       onOpenMeasure: (number: string) => void onOpenMeasure(number),
@@ -73,15 +82,30 @@ export default function TrillionReader({
       },
       view,
       ballot,
+      language,
+      navigation: navigation.current,
     });
     reader.current = mounted;
     return () => {
+      navigation.current = mounted.getNavigation();
       reader.current = null;
       mounted.destroy();
     };
     // Native prop updates serialize the graph into a new object. Only a new
     // published revision replaces the reader; back-state updates must keep its path.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph.electionDate, graph.measure.number, graph.revision]);
-  return <div ref={root} style={{ height: "100vh" }} />;
+  }, [
+    graph.electionDate,
+    graph.measure.number,
+    graph.revision,
+    translationKey,
+    language,
+  ]);
+  return (
+    <div
+      ref={root}
+      lang={language === "zh" ? "zh-Hans" : language}
+      style={{ height: "100vh", width: "100%", minWidth: 0 }}
+    />
+  );
 }

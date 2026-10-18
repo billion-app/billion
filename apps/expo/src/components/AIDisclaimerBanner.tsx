@@ -2,6 +2,7 @@ import { StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, rd, sp, typography, useTheme } from "~/styles";
 
 interface AIDisclaimerBannerProps {
@@ -10,6 +11,7 @@ interface AIDisclaimerBannerProps {
 
 export function AIDisclaimerBanner({ style }: AIDisclaimerBannerProps) {
   const { colorScheme } = useTheme();
+  const { t } = useAppTranslation();
 
   // Determine colors based on theme
   const backgroundColor =
@@ -63,8 +65,7 @@ export function AIDisclaimerBanner({ style }: AIDisclaimerBannerProps) {
             { color: textColor },
           ]}
         >
-          AI summary provided for convenience. Always review original sources
-          for complete accuracy.
+          {t("aiDisclaimer.body")}
         </Text>
       </View>
     </View>

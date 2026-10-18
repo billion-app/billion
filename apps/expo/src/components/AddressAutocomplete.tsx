@@ -23,6 +23,7 @@ import {
 
 import { PinMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   deviceLocationMessage,
   useDeviceAddress,
@@ -32,7 +33,7 @@ import { DigestHair, DigestPalette, fontBody } from "~/styles";
 interface AddressAutocompleteProps {
   /** Initial text to seed the field (e.g. the currently stored address). */
   initialValue?: string;
-  /** Commit a final address (GPS resolve, or Look Up press). */
+  /** Commit the address after the voter confirms it. */
   onSubmit: (address: string) => void;
   /**
    * Optional field hint. Pass `null` to hide — Elections empty state carries
@@ -45,24 +46,26 @@ interface AddressAutocompleteProps {
   inline?: boolean;
 }
 
-const DEFAULT_HINT = "Enter your address to see what's on your ballot.";
-
 export function AddressAutocomplete({
   initialValue = "",
   onSubmit,
-  hint = DEFAULT_HINT,
+  hint: hintProp,
   autoFocus = true,
   inline = false,
 }: AddressAutocompleteProps) {
+  const { t } = useAppTranslation();
+  const hint = hintProp === undefined ? t("address.defaultHint") : hintProp;
   const [input, setInput] = useState(initialValue);
   const {
     resolve: resolveAddress,
+    cancel: cancelLocation,
     locating,
     resolving,
     error: locationError,
   } = useDeviceAddress();
 
   const commit = (address: string) => {
+    cancelLocation();
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setInput(address);
     onSubmit(address);
@@ -71,15 +74,17 @@ export function AddressAutocomplete({
   const captureLocation = async () => {
     const address = await resolveAddress();
     // The hook already set the error state we render below.
-    if (address) commit(address);
+    if (address) setInput(address);
   };
 
-  const locationMessage = deviceLocationMessage(locationError);
+  const locationMessage = deviceLocationMessage(locationError, t);
   const locationStatus =
     resolving && !inline ? (
-      <Text style={s.statusText}>Confirming your address…</Text>
+      <Text style={s.statusText}>{t("address.confirming")}</Text>
     ) : locationMessage ? (
-      <Text style={s.statusText}>{locationMessage}</Text>
+      <Text accessibilityRole="alert" style={s.statusText}>
+        {locationMessage}
+      </Text>
     ) : null;
 
   const gpsButton = (
@@ -89,14 +94,18 @@ export function AddressAutocomplete({
       onPress={() => void captureLocation()}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel="Use my current location"
+      accessibilityLabel={t("address.useLocation")}
+      accessibilityState={{
+        disabled: locating || resolving,
+        busy: locating || resolving,
+      }}
     >
       {locating || resolving ? (
         <ActivityIndicator size="small" color={DigestPalette.spark} />
       ) : (
         <>
           <PinMark size={14} color={DigestPalette.spark} />
-          <Text style={s.gpsText}>Use my location</Text>
+          <Text style={s.gpsText}>{t("address.useLocation")}</Text>
         </>
       )}
     </TouchableOpacity>
@@ -107,10 +116,14 @@ export function AddressAutocomplete({
       <View>
         <TextInput
           style={s.inputInline}
-          placeholder="Address"
+          placeholder={t("address.placeholder")}
+          accessibilityLabel={t("address.placeholder")}
           placeholderTextColor={DigestPalette.quiet}
           value={input}
-          onChangeText={setInput}
+          onChangeText={(value) => {
+            cancelLocation();
+            setInput(value);
+          }}
           autoComplete="street-address"
           textContentType="fullStreetAddress"
           autoFocus={autoFocus}
@@ -136,10 +149,14 @@ export function AddressAutocomplete({
           </View>
           <TextInput
             style={s.input}
-            placeholder="Registered address"
+            placeholder={t("address.registeredPlaceholder")}
+            accessibilityLabel={t("address.registeredPlaceholder")}
             placeholderTextColor={DigestHair.inkMuted}
             value={input}
-            onChangeText={setInput}
+            onChangeText={(value) => {
+              cancelLocation();
+              setInput(value);
+            }}
             autoComplete="street-address"
             textContentType="fullStreetAddress"
             autoFocus={autoFocus}
@@ -147,10 +164,11 @@ export function AddressAutocomplete({
         </View>
         <TouchableOpacity
           style={[s.btn, !input.trim() && s.btnOff]}
-          disabled={!input.trim() || resolving}
+          disabled={!input.trim()}
+          accessibilityRole="button"
           onPress={() => input.trim() && commit(input.trim())}
         >
-          <Text style={s.btnText}>Look Up</Text>
+          <Text style={s.btnText}>{t("address.lookUp")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -226,7 +244,7 @@ const s = StyleSheet.create({
   statusText: {
     fontFamily: fontBody.regular,
     fontSize: 12.5,
-    color: DigestPalette.quiet,
+    color: DigestPalette.inkOnNight,
     marginTop: 8,
     lineHeight: 17,
   },

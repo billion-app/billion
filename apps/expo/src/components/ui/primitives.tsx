@@ -16,6 +16,7 @@ import { Image } from "expo-image";
 
 import type { IconName } from "./Icon";
 import type { ContentTypeKey } from "~/styles";
+import { useLanguage } from "~/hooks/useLanguage";
 import {
   contentType,
   DigestHair,
@@ -33,10 +34,11 @@ export function Badge({
   type: ContentTypeKey;
   children?: string;
 }) {
+  const { t: tr } = useLanguage();
   const t = contentType[type];
   return (
     <View style={[s.badge, { backgroundColor: t.color }]}>
-      <Text style={s.badgeText}>{children ?? t.label}</Text>
+      <Text style={s.badgeText}>{children ?? tr(`readerUi.type.${type}`)}</Text>
     </View>
   );
 }

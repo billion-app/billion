@@ -2,6 +2,7 @@ import { StyleSheet, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 
 import { Text, View } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestPalette,
@@ -22,23 +23,27 @@ export function ElectionBanner({
   electionName,
   onPress,
 }: ElectionBannerProps) {
+  const { t } = useAppTranslation();
   return (
     <View style={styles.container}>
       <View style={styles.accent} />
       <View style={styles.content}>
         <View style={styles.textContainer}>
           <Text style={styles.headline}>
-            <Text style={styles.days}>{daysUntil} days</Text> until{" "}
-            {electionName}
+            <Text style={styles.days}>
+              {t("elections.banner.days", { count: daysUntil })}
+            </Text>{" "}
+            {t("elections.banner.until", { election: electionName })}
           </Text>
-          <Text style={styles.subtext}>Know what's on your ballot</Text>
+          <Text style={styles.subtext}>{t("elections.banner.sub")}</Text>
         </View>
         <TouchableOpacity
           style={styles.cta}
           onPress={onPress}
           activeOpacity={0.8}
+          accessibilityRole="button"
         >
-          <Text style={styles.ctaText}>See My Ballot</Text>
+          <Text style={styles.ctaText}>{t("elections.banner.cta")}</Text>
           <FontAwesome name="arrow-right" size={12} color={DigestPalette.ink} />
         </TouchableOpacity>
       </View>

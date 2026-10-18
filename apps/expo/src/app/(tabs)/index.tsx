@@ -18,6 +18,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import type { ContentItem } from "~/utils/content";
 import type { FeaturedBillItem } from "~/utils/featured-bills";
+import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { EmptySearchMark } from "~/components/digest/CraftMarks";
 import { DigestHome } from "~/components/DigestHome";
 import { ProfileMarkButton } from "~/components/DigestProfileMark";
@@ -27,9 +28,11 @@ import {
   JurisdictionPicker,
   JurisdictionScopeRow,
 } from "~/components/JurisdictionPicker";
+import { LanguageButton } from "~/components/LanguageButton";
 import { Text } from "~/components/Themed";
 import { ContentCard, Icon, Pill, Pills, SearchInput } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useDebounced } from "~/hooks/useDebounce";
 import { isSaveable, useSavedContent } from "~/hooks/useSavedContent";
@@ -43,6 +46,7 @@ import {
   fontDisplay,
 } from "~/styles";
 import { queryClient, trpc, trpcClient } from "~/utils/api";
+import { cardTranslationPolling } from "~/utils/card-translation";
 import { toCardItem } from "~/utils/content";
 import { daysUntil, isWithinDays } from "~/utils/dates";
 import { electionsAreLive } from "~/utils/elections-live";
@@ -50,7 +54,7 @@ import { withoutFeaturedBills } from "~/utils/featured-bills";
 import {
   isStateJurisdiction,
   jurisdictionFromAddress,
-  JURISDICTIONS,
+  jurisdictionText,
 } from "~/utils/jurisdiction";
 
 // Below this length a query is treated as "not searching yet" to avoid
@@ -66,17 +70,18 @@ type ContentFilter =
   | "general"
   | "all";
 
-const FILTERS: { id: ContentFilter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "bill", label: "Bills" },
-  { id: "government_content", label: "Executive" },
-  { id: "court_case", label: "Courts" },
-  { id: "general", label: "Briefings" },
+const FILTERS: { id: ContentFilter }[] = [
+  { id: "all" },
+  { id: "bill" },
+  { id: "government_content" },
+  { id: "court_case" },
+  { id: "general" },
 ];
 
 export function BrowseCatalog() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { language, t } = useAppTranslation();
   const [selectedFilter, setFilter] = useState<ContentFilter>("all");
   const [query, setQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -84,7 +89,7 @@ export function BrowseCatalog() {
   const [railHeld, setRailHeld] = useState(false);
   const refreshInFlight = useRef(false);
   const { jurisdiction, setJurisdiction } = useContentJurisdiction();
-  const jurisdictionInfo = JURISDICTIONS[jurisdiction];
+  const jurisdictionInfo = jurisdictionText(jurisdiction, language);
   const isState = isStateJurisdiction(jurisdiction);
   const filters = isState
     ? FILTERS.filter((item) => item.id !== "government_content")
@@ -93,6 +98,7 @@ export function BrowseCatalog() {
   const filter =
     isState && selectedFilter === "government_content" ? "all" : selectedFilter;
   const otherJurisdiction = jurisdiction === "federal" ? "ca" : "federal";
+  const otherPlace = jurisdictionText(otherJurisdiction, language).name;
   const featuredViews = useRef(new Set<string>());
 
   const handleFilterChange = (f: ContentFilter) => {
@@ -137,9 +143,10 @@ export function BrowseCatalog() {
     isFetchingNextPage,
   } = useInfiniteQuery(
     trpc.content.getByType.infiniteQueryOptions(
-      { type: filter, limit: PAGE_SIZE, jurisdiction },
+      { type: filter, limit: PAGE_SIZE, jurisdiction, language },
       {
         initialCursor: 0,
+        refetchInterval: cardTranslationPolling,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
       },
     ),
@@ -157,25 +164,30 @@ export function BrowseCatalog() {
   const isSearching = debouncedQuery.trim().length >= MIN_SEARCH_LENGTH;
   const showFeatured = !isSearching && (filter === "all" || filter === "bill");
   const featuredQuery = useQuery({
-    ...trpc.content.getFeaturedBills.queryOptions({ jurisdiction }),
+    ...trpc.content.getFeaturedBills.queryOptions({ jurisdiction, language }),
     enabled: showFeatured,
+    refetchInterval: cardTranslationPolling,
   });
   const searchQuery = useQuery({
     ...trpc.content.search.queryOptions({
       query: debouncedQuery,
+      language,
       type: filter,
       jurisdiction,
     }),
     enabled: isSearching,
+    refetchInterval: cardTranslationPolling,
   });
   const otherSearchQuery = useQuery({
     ...trpc.content.search.queryOptions({
       query: debouncedQuery,
+      language,
       type: filter,
       jurisdiction: otherJurisdiction,
       limit: 3,
     }),
     enabled: isSearching,
+    refetchInterval: cardTranslationPolling,
   });
 
   const featuredBills = useMemo(
@@ -219,6 +231,7 @@ export function BrowseCatalog() {
       if (isSearching) {
         const input = {
           query: debouncedQuery,
+          language,
           type: filter,
           jurisdiction,
         };
@@ -228,7 +241,12 @@ export function BrowseCatalog() {
           refreshedItems,
         );
       } else {
-        const input = { type: filter, limit: PAGE_SIZE, jurisdiction };
+        const input = {
+          type: filter,
+          limit: PAGE_SIZE,
+          jurisdiction,
+          language,
+        };
         const firstPage = await trpcClient.content.getByType.query({
           ...input,
           cursor: 0,
@@ -245,11 +263,11 @@ export function BrowseCatalog() {
       if (showFeatured) void featuredQuery.refetch();
     } catch {
       Alert.alert(
-        "Unable to refresh",
-        "Your current results are still available.",
+        t("browse.refreshFailedTitle"),
+        t("browse.refreshFailedBody"),
         [
-          { text: "Cancel", style: "cancel" },
-          { text: "Try Again", onPress: () => void handleRefresh() },
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("common.tryAgain"), onPress: () => void handleRefresh() },
         ],
       );
     } finally {
@@ -290,13 +308,21 @@ export function BrowseCatalog() {
                     own measurement: the display serif loads asynchronously,
                     and a box measured against the fallback font clips the
                     last glyph once the real face swaps in. */}
-                <Text style={[s.display, s.headerTitle]}>Browse</Text>
+                <Text
+                  style={[s.display, s.headerTitle]}
+                  accessibilityRole="header"
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
+                  {t("browse.title")}
+                </Text>
                 <TouchableOpacity
                   style={s.savedBtn}
                   onPress={openSaved}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Open saved articles"
+                  accessibilityLabel={t("browse.openSaved")}
                   testID="browse-saved"
                 >
                   <Icon
@@ -305,15 +331,33 @@ export function BrowseCatalog() {
                     color={DigestPalette.inkOnNight}
                   />
                 </TouchableOpacity>
+                <LanguageButton compact />
                 <ProfileMarkButton menuTop={insets.top + 52} />
               </View>
               <SearchInput
-                placeholder="Search"
+                placeholder={t("browse.search")}
+                accessibilityLabel={t("browse.search")}
                 value={query}
                 onChangeText={handleSearch}
                 clearButtonMode="while-editing"
                 returnKeyType="search"
                 style={{ marginTop: 18, marginBottom: 8 }}
+              />
+            </View>
+
+            <View style={{ paddingHorizontal: 16 }}>
+              <CardTranslationNotice
+                isError={
+                  !!listError ||
+                  (showFeatured && !!featuredQuery.error) ||
+                  (isSearching && !!otherSearchQuery.error)
+                }
+                items={[
+                  ...items,
+                  ...(showFeatured ? featuredBills : []),
+                  ...(isSearching ? (otherSearchQuery.data ?? []) : []),
+                ]}
+                onRetry={() => void handleRefresh()}
               />
             </View>
 
@@ -327,7 +371,7 @@ export function BrowseCatalog() {
                 {filters.map((f) => (
                   <Pill
                     key={f.id}
-                    label={f.label}
+                    label={t(`browse.filter.${f.id}`)}
                     active={filter === f.id}
                     onPress={() => handleFilterChange(f.id)}
                   />
@@ -362,9 +406,12 @@ export function BrowseCatalog() {
             {!listIsLoading && !listError && items.length > 0 && (
               <View style={s.resultsCountWrap}>
                 <Text style={s.resultsCount}>
-                  {items.length}{" "}
-                  {isState && jurisdiction !== "ma" ? "bill" : "result"}
-                  {items.length === 1 ? "" : "s"}
+                  {t(
+                    isState && jurisdiction !== "ma"
+                      ? "browse.billCount"
+                      : "browse.resultCount",
+                    { count: items.length },
+                  )}
                 </Text>
               </View>
             )}
@@ -374,7 +421,7 @@ export function BrowseCatalog() {
         renderItem={({ item }) => (
           <View style={s.cardWrap}>
             <ContentCard
-              item={toCardItem(item)}
+              item={toCardItem(item, { language })}
               saved={isSaved(item.id)}
               onSave={
                 isSaveable(item.type)
@@ -396,10 +443,11 @@ export function BrowseCatalog() {
           isSearching && (otherSearchQuery.data?.length ?? 0) > 0 ? (
             <View style={s.otherResults}>
               <View style={s.otherResultsHead}>
-                <Text style={s.resultsCount}>
-                  {otherSearchQuery.data?.length} match
-                  {otherSearchQuery.data?.length === 1 ? "" : "es"} in{" "}
-                  {JURISDICTIONS[otherJurisdiction].name}
+                <Text style={[s.resultsCount, s.otherResultsCount]}>
+                  {t("browse.otherMatches", {
+                    count: otherSearchQuery.data?.length ?? 0,
+                    place: otherPlace,
+                  })}
                 </Text>
                 <TouchableOpacity
                   style={s.switchButton}
@@ -407,8 +455,12 @@ export function BrowseCatalog() {
                     setFilter(filter);
                     void setJurisdiction(otherJurisdiction);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("browse.switchA11y", {
+                    place: otherPlace,
+                  })}
                 >
-                  <Text style={s.switchText}>Switch</Text>
+                  <Text style={s.switchText}>{t("browse.switch")}</Text>
                   <Icon
                     name="chevR"
                     size={15}
@@ -419,7 +471,10 @@ export function BrowseCatalog() {
               {(otherSearchQuery.data ?? []).map((item) => (
                 <View key={item.id} style={s.otherCard}>
                   <ContentCard
-                    item={toCardItem(item, { showJurisdiction: true })}
+                    item={toCardItem(item, {
+                      showJurisdiction: true,
+                      language,
+                    })}
                     saved={isSaved(item.id)}
                     onSave={
                       isSaveable(item.type)
@@ -452,46 +507,58 @@ export function BrowseCatalog() {
             />
           ) : listError ? (
             <View style={s.center}>
-              <Text style={s.emptyTitle}>
-                {jurisdictionInfo.name} didn’t load
+              <Text style={s.emptyTitle} accessibilityRole="header">
+                {t("browse.loadFailed", { place: jurisdictionInfo.name })}
               </Text>
-              <Text style={s.emptySub}>
-                Your scope hasn’t changed. Try this jurisdiction again.
-              </Text>
+              <Text style={s.emptySub}>{t("browse.loadFailedBody")}</Text>
               <TouchableOpacity
                 style={s.emptyAction}
                 onPress={() => void handleRefresh()}
+                accessibilityRole="button"
               >
-                <Text style={s.emptyActionText}>Try again</Text>
+                <Text style={s.emptyActionText}>{t("common.tryAgain")}</Text>
               </TouchableOpacity>
               {jurisdiction !== "federal" ? (
                 <TouchableOpacity
                   onPress={() => void setJurisdiction("federal")}
+                  accessibilityRole="button"
                 >
-                  <Text style={s.switchText}>Browse Federal instead</Text>
+                  <Text style={s.switchText}>{t("browse.federalInstead")}</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
           ) : (
             <View style={s.center}>
               <EmptySearchMark width={88} />
-              <Text style={s.emptyTitle}>
+              <Text style={s.emptyTitle} accessibilityRole="header">
                 {isState && filter === "court_case"
-                  ? `No ${jurisdictionInfo.name} court cases yet`
+                  ? t("browse.noStateCourt", { place: jurisdictionInfo.name })
                   : isState && jurisdiction !== "ma"
-                    ? `No ${jurisdictionInfo.name} ${filter === "all" ? "bills" : "records"} found`
+                    ? t(
+                        filter === "all"
+                          ? "browse.noStateBills"
+                          : "browse.noStateRecords",
+                        { place: jurisdictionInfo.name },
+                      )
                     : jurisdiction === "ma"
-                      ? `No Massachusetts ${filter === "all" ? "records" : "matches"} found`
+                      ? t(
+                          filter === "all"
+                            ? "browse.noStateRecords"
+                            : "browse.noStateMatches",
+                          { place: jurisdictionInfo.name },
+                        )
                       : isSearching
-                        ? `No match for “${query.trim()}”`
-                        : "Nothing found"}
+                        ? t("browse.noMatchFor", { query: query.trim() })
+                        : t("browse.nothingFound")}
               </Text>
               <Text style={s.emptySub}>
                 {jurisdiction === "ma"
-                  ? "Check back for new bills and court docket activity."
+                  ? t("browse.maEmptyBody")
                   : isState
-                    ? `${jurisdictionInfo.name} legislature only — courts and orders aren’t in yet.`
-                    : "Try a different search."}
+                    ? t("browse.stateEmptyBody", {
+                        place: jurisdictionInfo.name,
+                      })
+                    : t("browse.tryDifferent")}
               </Text>
               {isState &&
               jurisdiction !== "ma" &&
@@ -500,9 +567,12 @@ export function BrowseCatalog() {
                 <TouchableOpacity
                   style={s.emptyAction}
                   onPress={() => handleFilterChange("bill")}
+                  accessibilityRole="button"
                 >
                   <Text style={s.emptyActionText}>
-                    Show {jurisdictionInfo.name} bills
+                    {t("browse.showStateBills", {
+                      place: jurisdictionInfo.name,
+                    })}
                   </Text>
                 </TouchableOpacity>
               ) : null}
@@ -628,7 +698,10 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
   },
+  // Long place names (e.g. 加利福尼亚州) wrap instead of pushing Switch off.
+  otherResultsCount: { flex: 1, marginBottom: 0 },
   switchButton: { flexDirection: "row", alignItems: "center", gap: 2 },
   switchText: {
     fontFamily: fontBody.semibold,

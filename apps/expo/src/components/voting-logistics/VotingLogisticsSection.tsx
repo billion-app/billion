@@ -11,6 +11,7 @@ import {
 } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   fontBody,
@@ -79,7 +80,8 @@ function Disclosure({
 
 function LocationRow({ location }: { location: PollingLocation }) {
   const { theme } = useTheme();
-  const item = describeVotingLocation(location);
+  const { language, t } = useAppTranslation();
+  const item = describeVotingLocation(location, language);
   const hours = location.pollingHours?.trim();
   const facts = [styles.body, { color: theme.foreground }];
   return (
@@ -90,7 +92,7 @@ function LocationRow({ location }: { location: PollingLocation }) {
       <View style={styles.factRow}>
         <Icon name="pin" size={15} color={colors.bill} />
         <View style={styles.factContent}>
-          <Text style={styles.factLabel}>ADDRESS</Text>
+          <Text style={styles.factLabel}>{t("voting.addressLabel")}</Text>
           <Text
             selectable
             style={[styles.factText, { color: theme.foreground }]}
@@ -102,25 +104,33 @@ function LocationRow({ location }: { location: PollingLocation }) {
       <View style={styles.factRow}>
         <Icon name="clock" size={15} color={colors.textSecondary} />
         <View style={styles.factContent}>
-          <Text style={styles.factLabel}>HOURS</Text>
+          <Text style={styles.factLabel}>{t("voting.hoursLabel")}</Text>
           <Text
             selectable
             style={[styles.factText, { color: theme.foreground }]}
           >
-            {hours === undefined || hours === "" ? "Hours not supplied" : hours}
+            {hours === undefined || hours === ""
+              ? t("voting.hoursMissing")
+              : hours}
           </Text>
         </View>
       </View>
       {location.startDate?.trim() || location.endDate?.trim() ? (
         <Text selectable style={facts}>
           {location.startDate?.trim() && location.startDate === location.endDate
-            ? `Date: ${votingDateLabel(location.startDate)}`
+            ? t("voting.dateOn", {
+                date: votingDateLabel(location.startDate, language),
+              })
             : [
                 location.startDate?.trim()
-                  ? `From ${votingDateLabel(location.startDate)}`
+                  ? t("voting.dateFrom", {
+                      date: votingDateLabel(location.startDate, language),
+                    })
                   : undefined,
                 location.endDate?.trim()
-                  ? `Through ${votingDateLabel(location.endDate)}`
+                  ? t("voting.dateThrough", {
+                      date: votingDateLabel(location.endDate, language),
+                    })
                   : undefined,
               ]
                 .filter(Boolean)
@@ -130,8 +140,8 @@ function LocationRow({ location }: { location: PollingLocation }) {
       <Disclosure
         label={
           location.notes?.trim() || location.voterServices?.trim()
-            ? "Notes & sources"
-            : "Sources"
+            ? t("voting.notesAndSources")
+            : t("common.sources")
         }
         context={item.name}
       >
@@ -147,14 +157,14 @@ function LocationRow({ location }: { location: PollingLocation }) {
         ) : null}
         {location.voterServices?.trim() ? (
           <Text selectable style={facts}>
-            Services: {location.voterServices}
+            {t("voting.services", { services: location.voterServices })}
           </Text>
         ) : null}
         <Text
           accessibilityRole="header"
           style={[styles.sourceHeading, { color: theme.foreground }]}
         >
-          Sources
+          {t("common.sources")}
         </Text>
         {item.sources.length ? (
           item.sources.map((source, index) =>
@@ -171,7 +181,7 @@ function LocationRow({ location }: { location: PollingLocation }) {
             ),
           )
         ) : (
-          <Text style={facts}>Source attribution not supplied.</Text>
+          <Text style={facts}>{t("voting.attributionMissing")}</Text>
         )}
       </Disclosure>
     </View>
@@ -185,13 +195,14 @@ function LocationGroup({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { theme } = useTheme();
-  const accent =
-    group.title === "Ballot drop-off" ? colors.green[500] : colors.bill;
+  const { t } = useAppTranslation();
+  const accent = group.kind === "drop_off" ? colors.green[500] : colors.bill;
+  const count = t("voting.locationCount", { count: group.locations.length });
   return (
     <View style={styles.surface}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${group.title}, ${group.locations.length} ${group.locations.length === 1 ? "location" : "locations"}`}
+        accessibilityLabel={`${group.title}, ${count}`}
         accessibilityState={{ expanded }}
         onPress={() => setExpanded((value) => !value)}
         style={({ pressed }) => [
@@ -206,9 +217,9 @@ function LocationGroup({
         >
           <Icon
             name={
-              group.title === "Early voting"
+              group.kind === "early_voting"
                 ? "calendar"
-                : group.title === "Ballot drop-off"
+                : group.kind === "drop_off"
                   ? "download"
                   : "vote"
             }
@@ -221,8 +232,7 @@ function LocationGroup({
             {group.title}
           </Text>
           <Text style={[styles.summary, { color: theme.foreground }]}>
-            {group.locations.length}{" "}
-            {group.locations.length === 1 ? "location" : "locations"}
+            {count}
           </Text>
         </View>
         <View
@@ -248,7 +258,8 @@ function LocationGroup({
 }
 
 function GuidanceDates({ data }: { data: VotingLogisticsData }) {
-  const guidance = votingGuidance(data);
+  const { language, t } = useAppTranslation();
+  const guidance = votingGuidance(data, language);
   const [expanded, setExpanded] = useState<string>();
   const { theme } = useTheme();
   if (!guidance) return null;
@@ -262,21 +273,24 @@ function GuidanceDates({ data }: { data: VotingLogisticsData }) {
           accessibilityRole="header"
           style={[styles.groupTitle, styles.flex, { color: theme.foreground }]}
         >
-          California voting dates
+          {t("voting.caDates")}
         </Text>
       </View>
       <Text style={[styles.summary, { color: theme.foreground }]}>
-        Statewide guidance · {guidance.sourceName}
+        {t("voting.statewideGuidance", { source: guidance.sourceName })}
       </Text>
+      {language !== "en" ? (
+        <Text style={[styles.summary, { color: theme.foreground }]}>
+          {t("voting.officialWordingNote")}
+        </Text>
+      ) : null}
       {guidance.items.map((item) => (
         <View key={item.kind} style={styles.guidanceRow}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`${item.title}, ${item.dateText}`}
             accessibilityHint={
-              item.kind === "mail_return"
-                ? "Postmark requirements apply. Open for official instructions."
-                : undefined
+              item.kind === "mail_return" ? t("voting.postmarkHint") : undefined
             }
             accessibilityState={{ expanded: expanded === item.kind }}
             onPress={() =>
@@ -293,7 +307,7 @@ function GuidanceDates({ data }: { data: VotingLogisticsData }) {
               </Text>
               {item.kind === "mail_return" ? (
                 <Text style={[styles.summary, { color: theme.foreground }]}>
-                  Postmark requirements apply
+                  {t("voting.postmark")}
                 </Text>
               ) : null}
             </View>
@@ -323,12 +337,12 @@ function GuidanceDates({ data }: { data: VotingLogisticsData }) {
         </View>
       ))}
       <InformationLink
-        label="Read the official voting guide"
+        label={t("voting.officialGuide")}
         url={guidance.sourceUrl}
       />
       {guidance.retrievedLabel ? (
         <Text style={[styles.summary, { color: theme.foreground }]}>
-          Retrieved {guidance.retrievedLabel}
+          {t("voting.retrieved", { date: guidance.retrievedLabel })}
         </Text>
       ) : null}
     </View>
@@ -341,13 +355,14 @@ export function VotingLogisticsSection({
   status,
 }: VotingLogisticsSectionProps) {
   const { theme } = useTheme();
+  const { language, t, formatList } = useAppTranslation();
   const secondary = [styles.body, { color: theme.textSecondary }];
   const heading = (
     <Text
       accessibilityRole="header"
       style={[styles.title, { color: theme.foreground }]}
     >
-      Voting locations
+      {t("voting.locationsTitle")}
     </Text>
   );
   if (status !== "ready") {
@@ -357,7 +372,7 @@ export function VotingLogisticsSection({
         <View style={styles.status}>
           {status === "loading" ? (
             <ActivityIndicator
-              accessibilityLabel="Loading voting locations"
+              accessibilityLabel={t("voting.loadingA11y")}
               color={theme.textSecondary}
             />
           ) : null}
@@ -366,29 +381,28 @@ export function VotingLogisticsSection({
             style={[...secondary, styles.flex]}
           >
             {status === "idle"
-              ? "Choose an address and election to see voting locations."
+              ? t("voting.idle")
               : status === "loading"
-                ? "Loading locations…"
-                : "Voting locations couldn’t be loaded."}
+                ? t("voting.loading")
+                : t("voting.error")}
           </Text>
         </View>
       </View>
     );
   }
   const current = data ?? {};
-  const groups = votingLocationGroups(current);
+  const groups = votingLocationGroups(current, language);
   const missing = groups.filter((group) => !group.locations.length);
-  const missingNames = missing.map((group) => group.title.toLowerCase());
-  const missingLabel =
-    missingNames.length > 1
-      ? `${missingNames.slice(0, -1).join(", ")} and ${missingNames.at(-1)}`
-      : (missingNames[0] ?? "");
-  const links = votingInformationLinks(current);
+  const missingLabel = formatList(
+    missing.map((group) => t(`voting.missing.${group.kind}`)),
+  );
+  const links = votingInformationLinks(current, language);
   const offices = [...new Set(links.map((link) => link.office))];
+  const registrationLabel = t("voting.link.registration");
   const needsLocationHelp =
     missing.length === groups.length &&
     links.length > 0 &&
-    links.every((link) => link.label === "Registration information");
+    links.every((link) => link.label === registrationLabel);
   return (
     <View style={styles.section}>
       <GuidanceDates data={current} />
@@ -396,15 +410,16 @@ export function VotingLogisticsSection({
       current.officialLocationSource.electionDate ===
         current.election?.electionDay ? (
         <Text style={[styles.caption, { color: theme.foreground }]}>
-          Includes published vote centers from{" "}
-          {current.officialLocationSource.sourceName}
+          {t("voting.includesVoteCenters", {
+            source: current.officialLocationSource.sourceName,
+          })}
         </Text>
       ) : null}
       {missing.length < groups.length ? heading : null}
       {groups
         .filter((group) => group.locations.length)
         .map((group) => (
-          <LocationGroup key={group.title} group={group} />
+          <LocationGroup key={group.kind} group={group} />
         ))}
       <View style={[styles.surface, styles.resources]}>
         <View style={styles.resourceHeader}>
@@ -423,20 +438,19 @@ export function VotingLogisticsSection({
               { color: theme.foreground },
             ]}
           >
-            Voting information links
+            {t("voting.linksTitle")}
           </Text>
         </View>
         {current.mailOnly === true ? (
           <Text style={[styles.body, { color: theme.foreground }]}>
-            This lookup lists your precinct as mail-only. Confirm how to return
-            your ballot with your election office.
+            {t("voting.mailOnlyPrecinct")}
           </Text>
         ) : null}
         {missing.length ? (
           <Text style={[styles.body, { color: theme.foreground }]}>
             {missing.length === groups.length
-              ? "Location details aren’t available here."
-              : `${missingLabel.charAt(0).toUpperCase()}${missingLabel.slice(1)} details aren’t available here.`}
+              ? t("voting.allDetailsMissing")
+              : t("voting.someDetailsMissing", { items: missingLabel })}
           </Text>
         ) : null}
         {needsLocationHelp ? <ElectionOfficeLink prominence="primary" /> : null}
@@ -472,12 +486,12 @@ export function VotingLogisticsSection({
           />
         )}
       </View>
-      <Disclosure label="About this information" context="voting locations">
+      <Disclosure
+        label={t("voting.aboutInfo")}
+        context={t("voting.locationsContext")}
+      >
         <Text style={[styles.body, { color: theme.foreground }]}>
-          Missing details don’t establish whether a voting option is available.
-          Check official registration information for deadlines and
-          requirements. This lookup doesn’t confirm your registration or track
-          your mail ballot.
+          {t("voting.aboutInfoBody")}
         </Text>
       </Disclosure>
     </View>

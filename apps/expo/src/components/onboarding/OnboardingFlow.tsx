@@ -28,9 +28,12 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useMutation } from "@tanstack/react-query";
 
+import type { AppStringKey, AppTranslate } from "~/i18n/app-strings";
 import type { Sector, TrackingVector } from "~/utils/onboarding-store";
 import { requestGreetingPlay } from "~/components/DigestGreetingBar";
+import { LanguageButton } from "~/components/LanguageButton";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useNotificationPrefs } from "~/hooks/useNotificationPrefs";
 import { useOnboarding } from "~/hooks/useOnboarding";
 import {
@@ -54,34 +57,35 @@ const PAGES = 4;
 const SLIDE = Easing.bezier(0.22, 1, 0.36, 1);
 const SLIDE_MS = 320;
 
-const WATCH: { id: TrackingVector; label: string }[] = [
-  { id: "congress", label: "Congress" },
-  { id: "state", label: "California" },
-  { id: "executive", label: "White House" },
-  { id: "courts", label: "Courts" },
+const WATCH: { id: TrackingVector; label: AppStringKey }[] = [
+  { id: "congress", label: "onboarding.watch.congress" },
+  { id: "state", label: "place.ca.name" },
+  { id: "executive", label: "onboarding.watch.executive" },
+  { id: "courts", label: "onboarding.watch.courts" },
 ];
 
-const TOPICS: { id: Sector; label: string }[] = [
-  { id: "technology", label: SECTOR_SHORT.technology },
-  { id: "energy", label: SECTOR_SHORT.energy },
-  { id: "fiscal", label: SECTOR_SHORT.fiscal },
-  { id: "healthcare", label: SECTOR_SHORT.healthcare },
-  { id: "infrastructure", label: SECTOR_SHORT.infrastructure },
-  { id: "defense", label: SECTOR_SHORT.defense },
+/** `SECTOR_SHORT` stays English: it is the stored topic, not the label. */
+const TOPICS: { id: Sector; label: AppStringKey }[] = [
+  { id: "technology", label: "onboarding.sector.technology" },
+  { id: "energy", label: "onboarding.sector.energy" },
+  { id: "fiscal", label: "onboarding.sector.fiscal" },
+  { id: "healthcare", label: "onboarding.sector.healthcare" },
+  { id: "infrastructure", label: "onboarding.sector.infrastructure" },
+  { id: "defense", label: "onboarding.sector.defense" },
 ];
 
-function watchLine(ids: TrackingVector[]) {
-  const names = WATCH.filter((w) => ids.includes(w.id)).map((w) => w.label);
-  if (names.length === 0) return "Mark who writes it.";
-  if (names.length === 1) return `${names[0]}.`;
-  if (names.length === 2) return `${names[0]} and ${names[1]}.`;
-  if (names.length === 3) {
-    return `${names[0]}, ${names[1]}, and ${names[2]}.`;
-  }
-  return `${names[0]}, ${names[1]}, ${names[2]}, and ${names[3]}.`;
+function watchLine(
+  ids: TrackingVector[],
+  t: AppTranslate,
+  formatList: (items: string[]) => string,
+) {
+  const names = WATCH.filter((w) => ids.includes(w.id)).map((w) => t(w.label));
+  if (names.length === 0) return t("onboarding.watchNone");
+  return t("onboarding.watchList", { list: formatList(names) });
 }
 
 export function OnboardingFlow() {
+  const { t, formatList } = useAppTranslation();
   const { update: updateNotificationPrefs } = useNotificationPrefs();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -221,7 +225,7 @@ export function OnboardingFlow() {
     (index === 2 && sectors.length >= MIN_SECTORS) ||
     (index === 3 && (instant || evening));
 
-  const pad = { paddingHorizontal: 20, paddingTop: insets.top + 28 };
+  const pad = { paddingHorizontal: 20, paddingTop: insets.top + 72 };
 
   return (
     <View style={s.screen}>
@@ -245,14 +249,16 @@ export function OnboardingFlow() {
               { paddingBottom: Math.max(insets.bottom, 16) + 92 },
             ]}
           >
-            <Text style={s.headline}>Who do you watch?</Text>
-            <Text style={s.dek}>The buildings that write the law.</Text>
+            <Text style={s.headline} accessibilityRole="header">
+              {t("onboarding.watchHeadline")}
+            </Text>
+            <Text style={s.dek}>{t("onboarding.watchDek")}</Text>
             <View style={s.grid2}>
               {WATCH.map((item) => (
                 <View key={item.id} style={s.watchCell}>
                   <Orb
                     id={item.id}
-                    label={item.label}
+                    label={t(item.label)}
                     selected={vectors.includes(item.id)}
                     size={watchSize}
                     onPress={() => pick(vectors, item.id, setVectors)}
@@ -261,8 +267,11 @@ export function OnboardingFlow() {
               ))}
             </View>
             <View style={s.watchEcho}>
-              <Text style={[s.echo, vectors.length > 0 && s.echoOn]}>
-                {watchLine(vectors)}
+              <Text
+                style={[s.echo, vectors.length > 0 && s.echoOn]}
+                accessibilityLiveRegion="polite"
+              >
+                {watchLine(vectors, t, formatList)}
               </Text>
             </View>
             <View style={s.watchFigure}>
@@ -282,18 +291,20 @@ export function OnboardingFlow() {
               { paddingBottom: Math.max(insets.bottom, 16) + 92 },
             ]}
           >
-            <Text style={s.headline}>Follow three.</Text>
-            <Text style={s.dek}>
+            <Text style={s.headline} accessibilityRole="header">
+              {t("onboarding.followHeadline")}
+            </Text>
+            <Text style={s.dek} accessibilityLiveRegion="polite">
               {sectors.length >= MIN_SECTORS
-                ? "That’s enough to watch. You can always change this later in settings."
-                : `Mark ${MIN_SECTORS}. You can always change this later in settings.`}
+                ? t("onboarding.followEnough")
+                : t("onboarding.followMark", { count: MIN_SECTORS })}
             </Text>
             <View style={s.grid3}>
               {TOPICS.map((item) => (
                 <TopicOrb
                   key={item.id}
                   id={item.id}
-                  label={item.label}
+                  label={t(item.label)}
                   selected={sectors.includes(item.id)}
                   size={topicSize}
                   onPress={() => pick(sectors, item.id, setSectors)}
@@ -342,6 +353,17 @@ export function OnboardingFlow() {
         <Animated.View style={[s.progress, progress]} />
       </View>
 
+      <View
+        style={{
+          position: "absolute",
+          top: insets.top + 14,
+          right: 20,
+          zIndex: 10,
+        }}
+      >
+        <LanguageButton />
+      </View>
+
       {!explore ? (
         <View style={[s.bar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           <Pressable
@@ -359,7 +381,9 @@ export function OnboardingFlow() {
             }}
             accessibilityRole="button"
           >
-            <Text style={s.skip}>{index === 0 ? "Skip" : "Back"}</Text>
+            <Text style={s.skip}>
+              {index === 0 ? t("common.skip") : t("common.back")}
+            </Text>
           </Pressable>
           <Pressable
             onPress={() => {
@@ -373,8 +397,11 @@ export function OnboardingFlow() {
             disabled={!canGo}
             style={[s.cta, !canGo && s.ctaOff]}
             accessibilityRole="button"
+            accessibilityState={{ disabled: !canGo }}
           >
-            <Text style={[s.ctaText, !canGo && s.ctaTextOff]}>Continue</Text>
+            <Text style={[s.ctaText, !canGo && s.ctaTextOff]}>
+              {t("common.continue")}
+            </Text>
           </Pressable>
         </View>
       ) : null}
@@ -404,6 +431,7 @@ function ExploreSheet({
     "idle" | "loading" | "success" | "already" | "error"
   >("idle");
   const [error, setError] = useState("");
+  const { language, t: tr } = useAppTranslation();
   const t = useSharedValue(0);
 
   const subscribe = async () => {
@@ -411,7 +439,7 @@ function ExploreSheet({
     const address = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
       setStatus("error");
-      setError("Enter a valid email address.");
+      setError(tr("onboarding.invalidEmail"));
       return;
     }
 
@@ -432,8 +460,11 @@ function ExploreSheet({
         error?: string;
       } | null;
       if (!response.ok || !data?.result) {
+        // The waitlist API answers in English; other languages get our copy.
         const message =
-          data?.error ?? "Something went wrong. Please try again.";
+          language === "en" && data?.error
+            ? data.error
+            : tr("onboarding.genericError");
         setStatus("error");
         setError(message);
         posthog.capture("mailing_list_signup_error", {
@@ -452,7 +483,7 @@ function ExploreSheet({
       );
     } catch {
       setStatus("error");
-      setError("Something went wrong. Please try again.");
+      setError(tr("onboarding.genericError"));
       posthog.capture("mailing_list_signup_error", {
         form_location: "onboarding",
         error: "network_error",
@@ -490,15 +521,19 @@ function ExploreSheet({
         style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 22) }, sheet]}
       >
         <View style={s.grabber} />
-        <Text style={s.sheetKicker}>Accounts are coming soon</Text>
-        <Text style={s.sheetDescription}>
-          Join our mailing list for feature releases and civic updates.
+        <Text style={s.sheetKicker} accessibilityRole="header">
+          {tr("onboarding.soonKicker")}
         </Text>
+        <Text style={s.sheetDescription}>{tr("onboarding.mailingList")}</Text>
         {status === "success" || status === "already" ? (
-          <Text style={s.signupSuccess} accessibilityRole="text">
+          <Text
+            style={s.signupSuccess}
+            accessibilityRole="text"
+            accessibilityLiveRegion="polite"
+          >
             {status === "already"
-              ? "You're already on the list — you're all set."
-              : "You're on the list — we'll be in touch!"}
+              ? tr("onboarding.alreadyOnList")
+              : tr("onboarding.onList")}
           </Text>
         ) : (
           <View>
@@ -516,19 +551,25 @@ function ExploreSheet({
               autoComplete="email"
               textContentType="emailAddress"
               returnKeyType="done"
-              placeholder="Enter your email"
+              placeholder={tr("onboarding.emailPlaceholder")}
               placeholderTextColor={P.quiet}
-              accessibilityLabel="Email address"
+              accessibilityLabel={tr("onboarding.emailA11y")}
               style={s.emailInput}
             />
             <Pressable
               onPress={() => void subscribe()}
               disabled={status === "loading"}
               accessibilityRole="button"
+              accessibilityState={{
+                disabled: status === "loading",
+                busy: status === "loading",
+              }}
               style={[s.subscribeBtn, status === "loading" && s.ctaOff]}
             >
               <Text style={s.subscribeText}>
-                {status === "loading" ? "Submitting…" : "Subscribe"}
+                {status === "loading"
+                  ? tr("onboarding.submitting")
+                  : tr("onboarding.subscribe")}
               </Text>
             </Pressable>
             {status === "error" ? (
@@ -541,10 +582,10 @@ function ExploreSheet({
         <Pressable
           onPress={onExplore}
           accessibilityRole="button"
-          accessibilityLabel="Start exploring for now"
+          accessibilityLabel={tr("onboarding.startExploring")}
           style={s.exploreBtn}
         >
-          <Text style={s.exploreText}>Start exploring for now</Text>
+          <Text style={s.exploreText}>{tr("onboarding.startExploring")}</Text>
           <Text style={s.exploreArrow}>→</Text>
         </Pressable>
       </Animated.View>

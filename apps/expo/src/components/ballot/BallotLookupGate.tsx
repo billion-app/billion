@@ -12,6 +12,7 @@ import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   fontBody,
   fontEditorial,
@@ -34,6 +35,8 @@ export function BallotLookupGate({
   onBack: () => void;
   onHome: () => void;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const { fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   return (
@@ -55,7 +58,7 @@ export function BallotLookupGate({
             color: P.inkOnNight,
           }}
         >
-          Find your ballot
+          {tx("Find your ballot")}
         </Text>
         <Card
           style={{
@@ -99,10 +102,10 @@ export function BallotLookupGate({
               }}
             >
               {checking
-                ? "Checking ballot lookup…"
+                ? tx("Checking ballot lookup…")
                 : failed
-                  ? "We couldn’t check ballot lookup"
-                  : "Ballot lookup unavailable"}
+                  ? tx("We couldn’t check ballot lookup")
+                  : tx("Ballot lookup unavailable")}
             </Text>
           </View>
           <Text
@@ -113,7 +116,7 @@ export function BallotLookupGate({
               color: P.inkOnNight,
             }}
           >
-            Your election office can help you find your official ballot.
+            {tx("Your election office can help you find your official ballot.")}
           </Text>
           <ElectionOfficeLink reader />
           {failed && (
@@ -137,7 +140,7 @@ export function BallotLookupGate({
                   color: P.inkOnNight,
                 }}
               >
-                Try again
+                {tx("Try again")}
               </Text>
             </Pressable>
           )}
@@ -160,7 +163,7 @@ export function BallotLookupGate({
                 color: P.inkOnNight,
               }}
             >
-              Back to Elections
+              {tx("Back to Elections")}
             </Text>
           </Pressable>
         </Card>

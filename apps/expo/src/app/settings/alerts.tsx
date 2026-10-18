@@ -6,6 +6,7 @@ import type { AlertItem } from "~/utils/alert-history";
 import { GoldBillionMark } from "~/components/GoldBillionMark";
 import { NavHeader } from "~/components/ui";
 import { useAlertHistory } from "~/hooks/useAlertHistory";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestSpace,
@@ -17,12 +18,13 @@ import { formatAlertTime, groupAlertsByDay } from "~/utils/alert-history";
 
 export default function AlertsScreen() {
   const router = useRouter();
+  const { language, t } = useAppTranslation();
   const { items, isLoading, error } = useAlertHistory();
-  const groups = groupAlertsByDay(items, new Date());
+  const groups = groupAlertsByDay(items, new Date(), language);
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Your alerts" onBack={() => router.back()} large />
+      <NavHeader title={t("alerts.title")} onBack={() => router.back()} large />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
@@ -32,15 +34,13 @@ export default function AlertsScreen() {
           <View>
             <Text style={s.emptyTitle}>
               {isLoading
-                ? "Loading alerts…"
+                ? t("alerts.loading")
                 : error
-                  ? "Could not load alerts."
-                  : "Nothing yet."}
+                  ? t("alerts.error")
+                  : t("alerts.empty")}
             </Text>
             <Text style={s.emptySub}>
-              {error
-                ? error.message
-                : "When something you follow moves, it lands here."}
+              {error ? t("common.checkConnection") : t("alerts.emptySub")}
             </Text>
           </View>
         ) : (
@@ -74,8 +74,9 @@ function AlertRow({
   last: boolean;
   onPress: () => void;
 }) {
+  const { language } = useAppTranslation();
   const at = new Date(item.at);
-  const time = Number.isNaN(at.getTime()) ? "" : formatAlertTime(at);
+  const time = Number.isNaN(at.getTime()) ? "" : formatAlertTime(at, language);
   const pressable = Boolean(item.href);
 
   return (

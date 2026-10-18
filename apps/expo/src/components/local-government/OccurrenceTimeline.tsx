@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import type { DecisionDetail } from "~/utils/local-government";
 import { ExternalLink } from "~/components/ExternalLink";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, useTheme } from "~/styles";
 import {
   formatMeetingDateTime,
@@ -51,8 +52,10 @@ function OccurrenceRow({
   isLast: boolean;
   votes: DecisionDetail["votes"];
 }) {
+  const { t: tx, language } = useAppTranslation();
+
   const { theme } = useTheme();
-  const availability = voteAvailability(occurrence, votes.length > 0);
+  const availability = voteAvailability(occurrence, votes.length > 0, language);
 
   return (
     <View style={s.row}>
@@ -76,36 +79,36 @@ function OccurrenceRow({
       {/* Body */}
       <View style={[s.body, isLast && { paddingBottom: 0 }]}>
         <Text style={[s.date, { color: theme.foreground }]}>
-          {formatMeetingDateTime(occurrence.startsAt)}
-          {occurrence.cancelled ? " · Cancelled" : ""}
+          {formatMeetingDateTime(occurrence.startsAt, language)}
+          {occurrence.cancelled ? tx(" · Cancelled") : ""}
         </Text>
         <Text style={[s.bodyName, { color: theme.foreground }]}>
           {occurrence.body}
         </Text>
         {occurrence.agendaNumber ? (
           <Text style={[s.meta, { color: theme.textSecondary }]}>
-            Agenda item {occurrence.agendaNumber}
+            {tx("Agenda item {value1}", { value1: occurrence.agendaNumber })}
           </Text>
         ) : null}
 
         {occurrence.action ? (
           <View style={[s.actionBox, { backgroundColor: theme.muted }]}>
             <Text style={[s.actionLabel, { color: theme.textSecondary }]}>
-              Action taken
+              {tx("Action taken")}
             </Text>
             <Text style={[s.actionText, { color: theme.foreground }]}>
               {occurrence.action}
             </Text>
             {occurrence.tally ? (
               <Text style={[s.tally, { color: theme.foreground }]}>
-                Result: {occurrence.tally}
+                {tx("Result: {value1}", { value1: occurrence.tally })}
               </Text>
             ) : null}
           </View>
         ) : occurrence.proposedAction ? (
           <View style={[s.actionBox, { backgroundColor: theme.muted }]}>
             <Text style={[s.actionLabel, { color: theme.textSecondary }]}>
-              Recommended action
+              {tx("Recommended action")}
             </Text>
             <Text style={[s.actionText, { color: theme.foreground }]}>
               {occurrence.proposedAction}
@@ -138,7 +141,7 @@ function OccurrenceRow({
                     {vote.personName}
                   </Text>
                   <Text style={[s.voteValue, { color: tint }]}>
-                    {voteValueLabel(vote.value)}
+                    {voteValueLabel(vote.value, language)}
                   </Text>
                 </View>
               );
@@ -156,13 +159,15 @@ function OccurrenceRow({
           {occurrence.agendaUrl ? (
             <ExternalLink href={occurrence.agendaUrl}>
               <Text style={[s.link, { color: theme.accent }]}>
-                Meeting agenda
+                {tx("Meeting agenda")}
               </Text>
             </ExternalLink>
           ) : null}
           {occurrence.minutesUrl ? (
             <ExternalLink href={occurrence.minutesUrl}>
-              <Text style={[s.link, { color: theme.accent }]}>Minutes</Text>
+              <Text style={[s.link, { color: theme.accent }]}>
+                {tx("Minutes")}
+              </Text>
             </ExternalLink>
           ) : null}
         </View>

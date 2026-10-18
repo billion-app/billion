@@ -10,6 +10,7 @@ import {
   PropositionContext,
 } from "~/components/ballot-evidence/PropositionContext";
 import { NavHeader } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontBody, DigestPalette as P } from "~/styles";
 
 // Source-backed pending records only in development. No API override or fallback.
@@ -20,13 +21,15 @@ const pilots = __DEV__
   : [];
 const records = publicPropositionContextSchema.array().parse(pilots);
 export default function PropositionContextPreview() {
+  const { t: tx } = useAppTranslation();
+
   const router = useRouter();
   const [selected, setSelected] = useState("0");
   const record = records[Number(selected)];
   return (
     <View style={s.screen}>
       <NavHeader
-        title="Explanation pilot"
+        title={tx("Explanation pilot")}
         tone="dark"
         onBack={() => router.back()}
       />
@@ -34,19 +37,20 @@ export default function PropositionContextPreview() {
         {__DEV__ ? (
           <>
             <Text style={s.meta}>
-              Development preview ·{" "}
-              {record?.electionDate ?? "No source selected"} · Source-backed
-              pilot · not live or editorially approved
+              {tx(
+                "Development preview · {value1} · Source-backed pilot · not live or editorially approved",
+                { value1: record?.electionDate ?? tx("No source selected") },
+              )}
             </Text>
             <View style={s.options}>
               {[
                 ...records.map((value, i) => ({
                   id: String(i),
-                  label: `Prop ${value.number}`,
+                  label: tx("Prop {value1}", { value1: value.number }),
                 })),
-                { id: "missing", label: "Missing" },
-                { id: "stale", label: "Stale" },
-                { id: "error", label: "Error" },
+                { id: "missing", label: tx("Missing") },
+                { id: "stale", label: tx("Stale") },
+                { id: "error", label: tx("Error") },
               ].map((option) => (
                 <Pressable
                   key={option.id}
@@ -79,8 +83,9 @@ export default function PropositionContextPreview() {
           </>
         ) : (
           <Text style={s.meta}>
-            Explanation pilot unavailable. Read the official guide from
-            Elections.
+            {tx(
+              "Explanation pilot unavailable. Read the official guide from Elections.",
+            )}
           </Text>
         )}
       </ScrollView>

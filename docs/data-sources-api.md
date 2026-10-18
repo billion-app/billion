@@ -250,10 +250,12 @@ the operating system's geocoder (iOS `CLGeocoder`, Android `Geocoder`) to get a
 street address, so the coordinate reaches the platform's geocoding service but
 not Billion's servers. Typed entry stays an equal path, because GPS locates the
 person, not necessarily their registration. When the geocoder returns nothing
-usable, the client submits the coordinate itself (`lat,lng`) as the lookup
-address.
+usable, the field asks for manual entry. Democracy Works requires a street
+address; raw coordinates are never submitted as one. A successful fix fills
+the field for review and explicit submission, since it may not be the voter’s
+registered address. Typing or cancelling invalidates any pending location result.
 
-`useDeviceAddress` owns the reverse-geocode and coordinate fallback so every
+`useDeviceAddress` owns the reverse-geocode and manual-entry fallback so every
 surface behaves the same. `AddressAutocomplete` carries the "Use my location"
 button next to the manual field and is used by the Feed greeting, the Elections
 tab, How to Vote, and the representatives/ballot sections. The national ballot

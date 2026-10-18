@@ -14,12 +14,14 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
+import type { AppLanguage } from "~/i18n/language";
 import type { RouterOutputs } from "~/utils/api";
 import type { StateJurisdiction } from "~/utils/jurisdiction";
 import type { ChangeItem } from "~/utils/what-changed";
 import { CAPITOL_LINE } from "~/components/digest/staticAssets";
 import { DigestGreetingBar } from "~/components/DigestGreetingBar";
 import { GoldFoilText } from "~/components/GoldBillionMark";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useLastVisit } from "~/hooks/useLastVisit";
 import { useOnboarding } from "~/hooks/useOnboarding";
@@ -28,14 +30,18 @@ import { useSavedContent } from "~/hooks/useSavedContent";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
+import { translateCardMetadata } from "~/utils/card-metadata";
+import { cardTranslationPolling } from "~/utils/card-translation";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import {
   isStateJurisdiction,
   jurisdictionFromAddress,
   JURISDICTIONS,
+  jurisdictionText,
 } from "~/utils/jurisdiction";
 import { visibleArticles } from "~/utils/read-content";
 import { BRIEF_MAX, changeConnection } from "~/utils/what-changed";
+import { CardTranslationNotice } from "./CardTranslationNotice";
 
 const CANVAS = P.night;
 const CARD = P.card;
@@ -50,7 +56,6 @@ const RAIL_CARD_WIDTH = 334;
 const RAIL_CARD_HEIGHT = 350;
 const RAIL_GAP = 12;
 const RAIL_INSET = 16;
-const RAIL_SNAP = RAIL_CARD_WIDTH + RAIL_GAP;
 const ALSO_PAGE_SIZE = 12;
 
 /** Design-only cover art — not content fixtures. */
@@ -60,14 +65,16 @@ type FeaturedBill = RouterOutputs["content"]["getFeaturedBills"][number];
 type FeedItem = RouterOutputs["content"]["getByType"]["items"][number];
 type DigestCard = FeaturedBill | FeedItem;
 
-function jurisdictionLabel(item: DigestCard): string {
+function jurisdictionLabel(item: DigestCard, language: AppLanguage): string {
   if (item.jurisdiction && item.jurisdiction in JURISDICTIONS) {
-    return JURISDICTIONS[item.jurisdiction].name;
+    return jurisdictionText(item.jurisdiction, language).name;
   }
-  return "United States";
+  return jurisdictionText("federal", language).name;
 }
 
-function sourceLabel(item: DigestCard): string {
+function sourceLabel(item: DigestCard, language: AppLanguage): string {
+  if (language !== "en" && item.type === "bill" && item.jurisdiction)
+    return jurisdictionText(item.jurisdiction, language).body;
   if (
     "sourceLabel" in item &&
     typeof item.sourceLabel === "string" &&
@@ -75,11 +82,11 @@ function sourceLabel(item: DigestCard): string {
   ) {
     return item.sourceLabel;
   }
-  return jurisdictionLabel(item);
+  return jurisdictionLabel(item, language);
 }
 
-function cardKicker(item: DigestCard): string {
-  const place = jurisdictionLabel(item);
+function cardKicker(item: DigestCard, language: AppLanguage): string {
+  const place = jurisdictionLabel(item, language);
   if (item.billNumber) return `${place} · ${item.billNumber}`;
   return place;
 }
@@ -95,9 +102,14 @@ function cardDek(item: DigestCard): string {
   return item.description.trim() || "";
 }
 
-function coverMeta(item: DigestCard): string {
-  const parts = [item.billNumber, item.chamber].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : jurisdictionLabel(item);
+function coverMeta(item: DigestCard, language: AppLanguage): string {
+  const parts = [
+    item.billNumber,
+    translateCardMetadata(item.chamber, language),
+  ].filter(Boolean);
+  return parts.length > 0
+    ? parts.join(" · ")
+    : jurisdictionLabel(item, language);
 }
 
 function asChangeItem(item: DigestCard): ChangeItem {
@@ -117,6 +129,8 @@ function asChangeItem(item: DigestCard): ChangeItem {
 }
 
 export function DigestHome() {
+  const { t: tx, language } = useAppTranslation();
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { address } = useUserAddress();
@@ -135,7 +149,7 @@ export function DigestHome() {
     if (isStateJurisdiction(browseJurisdiction)) return browseJurisdiction;
     return "ca";
   }, [address, browseJurisdiction]);
-  const localPlace = JURISDICTIONS[localJurisdiction].name;
+  const localPlace = jurisdictionText(localJurisdiction, language).name;
 
   // Prefer featured state bills. Massachusetts uses the mixed recent feed so
   // its court dockets remain visible alongside legislative measures.
@@ -144,8 +158,10 @@ export function DigestHome() {
   const featuredLocal = useQuery({
     ...trpc.content.getFeaturedBills.queryOptions({
       jurisdiction: localJurisdiction,
+      language,
     }),
     enabled: localJurisdiction !== "ma",
+    refetchInterval: cardTranslationPolling,
   });
   const featuredEmpty =
     !featuredLocal.isLoading && (featuredLocal.data?.length ?? 0) === 0;
@@ -154,15 +170,21 @@ export function DigestHome() {
       type: localJurisdiction === "ma" ? "all" : "bill",
       limit: BRIEF_MAX,
       jurisdiction: localJurisdiction,
+      language,
     }),
     enabled: featuredEmpty || !!featuredLocal.error,
+    refetchInterval: cardTranslationPolling,
   });
 
   const featuredFederal = useQuery(
-    trpc.content.getFeaturedBills.queryOptions({ jurisdiction: "federal" }),
+    trpc.content.getFeaturedBills.queryOptions(
+      { jurisdiction: "federal", language },
+      { refetchInterval: cardTranslationPolling },
+    ),
   );
   const {
     data: federalFeed,
+    refetch: refetchFederalFeed,
     error: federalFeedError,
     fetchNextPage,
     hasNextPage,
@@ -174,9 +196,11 @@ export function DigestHome() {
         type: "bill",
         limit: ALSO_PAGE_SIZE,
         jurisdiction: "federal",
+        language,
       },
       {
         initialCursor: 0,
+        refetchInterval: cardTranslationPolling,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
       },
     ),
@@ -248,6 +272,8 @@ export function DigestHome() {
   };
 
   const { width: windowWidth } = useWindowDimensions();
+  const railCardWidth = Math.min(RAIL_CARD_WIDTH, windowWidth - RAIL_INSET * 2);
+  const railSnap = railCardWidth + RAIL_GAP;
 
   const [railIndex, setRailIndex] = useState(0);
   const railIndexRef = useRef(0);
@@ -258,10 +284,10 @@ export function DigestHome() {
       if (localCards.length === 0) return 0;
       return Math.max(
         0,
-        Math.min(localCards.length - 1, Math.round(offsetX / RAIL_SNAP)),
+        Math.min(localCards.length - 1, Math.round(offsetX / railSnap)),
       );
     },
-    [localCards.length],
+    [localCards.length, railSnap],
   );
 
   const onRailScroll = useCallback(
@@ -278,14 +304,14 @@ export function DigestHome() {
   // interval math alone can mis-align and desync railIndex vs visible card.
   // Prefer margins over `gap`: gap has historically desynced snap math on iOS.
   const railSnapOffsets = useMemo(
-    () => localCards.map((_, i) => i * RAIL_SNAP),
-    [localCards],
+    () => localCards.map((_, i) => i * railSnap),
+    [localCards, railSnap],
   );
 
   // Enough trailing pad that the last card can rest on its snap offset.
   const railTrailingPad = Math.max(
     RAIL_INSET,
-    windowWidth - RAIL_INSET - RAIL_CARD_WIDTH,
+    windowWidth - RAIL_INSET - railCardWidth,
   );
 
   return (
@@ -301,31 +327,48 @@ export function DigestHome() {
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
       >
         <View style={s.sectionHead}>
-          <GoldFoilText text="THE DAILY BRIEF" style={s.sectionEyebrow} />
-          <Text style={s.sectionTitle}>Today’s local news</Text>
+          <GoldFoilText text={tx("THE DAILY BRIEF")} style={s.sectionEyebrow} />
+          <Text style={s.sectionTitle}>{tx("Today’s local news")}</Text>
           <View style={s.sectionRule} />
         </View>
 
+        <CardTranslationNotice
+          isError={
+            !!featuredLocal.error ||
+            !!localFeed.error ||
+            !!featuredFederal.error ||
+            !!federalFeedError
+          }
+          items={[...localCards, ...alsoCards]}
+          onRetry={() => {
+            void featuredLocal.refetch();
+            void localFeed.refetch();
+            void featuredFederal.refetch();
+            void refetchFederalFeed();
+          }}
+        />
         {localLoading ? (
           <ActivityIndicator
             color={MUTED}
             style={{ marginVertical: 36 }}
-            accessibilityLabel="Loading local records"
+            accessibilityLabel={tx("Loading local records")}
           />
         ) : localError ? (
           <View style={s.emptyWrap}>
-            <Text style={s.emptyTitle}>Local records didn’t load</Text>
-            <Text style={s.emptySub}>Try again in a moment.</Text>
+            <Text style={s.emptyTitle}>{tx("Local records didn’t load")}</Text>
+            <Text style={s.emptySub}>{tx("Try again in a moment.")}</Text>
           </View>
         ) : localCards.length === 0 ? (
           <View style={s.emptyWrap}>
             <Text style={s.emptyTitle}>
               {localJurisdiction === "ma"
-                ? "No Massachusetts records yet"
-                : "No featured local bills yet"}
+                ? tx("No Massachusetts records yet")
+                : tx("No featured local bills yet")}
             </Text>
             <Text style={s.emptySub}>
-              Check Browse for the full {localPlace} record.
+              {tx("Check Browse for the full {value1} record.", {
+                value1: localPlace,
+              })}
             </Text>
           </View>
         ) : (
@@ -366,10 +409,14 @@ export function DigestHome() {
                   return (
                     <Pressable
                       key={card.id}
-                      style={[s.card, !isLast ? s.cardGap : null]}
+                      style={[
+                        s.card,
+                        { width: railCardWidth },
+                        !isLast ? s.cardGap : null,
+                      ]}
                       onPress={() => openArticle(card.id)}
                       accessibilityRole="button"
-                      accessibilityLabel={`${cardKicker(card)}. ${card.title}`}
+                      accessibilityLabel={`${cardKicker(card, language)}. ${card.title}`}
                     >
                       <View style={s.photo}>
                         {img ? (
@@ -390,12 +437,14 @@ export function DigestHome() {
                           </View>
                         )}
                         <View style={s.srcPill}>
-                          <Text style={s.srcText}>{sourceLabel(card)}</Text>
+                          <Text style={s.srcText}>
+                            {sourceLabel(card, language)}
+                          </Text>
                         </View>
                       </View>
                       <View style={s.cardBody}>
                         <Text style={s.kicker} numberOfLines={1}>
-                          {cardKicker(card)}
+                          {cardKicker(card, language)}
                         </Text>
                         <Text style={s.cardTitle} numberOfLines={2}>
                           {card.title}
@@ -424,7 +473,7 @@ export function DigestHome() {
         )}
 
         <View style={s.sectionHeadAlso}>
-          <Text style={s.alsoTitle}>Also today</Text>
+          <Text style={s.alsoTitle}>{tx("Also today")}</Text>
           <View style={s.alsoRule} />
         </View>
 
@@ -433,18 +482,18 @@ export function DigestHome() {
             <ActivityIndicator
               color={MUTED}
               style={{ marginVertical: 28 }}
-              accessibilityLabel="Loading unread articles"
+              accessibilityLabel={tx("Loading unread articles")}
             />
           ) : coverError ? (
             <View style={s.emptyWrap}>
-              <Text style={s.emptyTitle}>Articles didn’t load</Text>
-              <Text style={s.emptySub}>Try again in a moment.</Text>
+              <Text style={s.emptyTitle}>{tx("Articles didn’t load")}</Text>
+              <Text style={s.emptySub}>{tx("Try again in a moment.")}</Text>
             </View>
           ) : alsoCards.length === 0 ? (
             <View style={s.emptyWrap}>
-              <Text style={s.emptyTitle}>No new articles today</Text>
+              <Text style={s.emptyTitle}>{tx("No new articles today")}</Text>
               <Text style={s.emptySub}>
-                Check Browse for the full federal feed.
+                {tx("Check Browse for the full federal feed.")}
               </Text>
             </View>
           ) : (
@@ -452,6 +501,7 @@ export function DigestHome() {
               const coverConnection = changeConnection(
                 asChangeItem(coverItem),
                 changeContext,
+                language,
               );
               return (
                 <Pressable
@@ -459,11 +509,11 @@ export function DigestHome() {
                   style={s.alsoCard}
                   onPress={() => openArticle(coverItem.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${coverMeta(coverItem)}. ${coverItem.title}`}
+                  accessibilityLabel={`${coverMeta(coverItem, language)}. ${coverItem.title}`}
                 >
                   <View style={s.cover}>
                     <GoldFoilText
-                      text="COVER · CONGRESS"
+                      text={tx("COVER · CONGRESS")}
                       style={s.coverKicker}
                     />
                     <View style={s.coverRule} />
@@ -479,7 +529,9 @@ export function DigestHome() {
                             {cardDek(coverItem)}
                           </Text>
                         ) : null}
-                        <Text style={s.coverMeta}>{coverMeta(coverItem)}</Text>
+                        <Text style={s.coverMeta}>
+                          {coverMeta(coverItem, language)}
+                        </Text>
                         {coverConnection ? (
                           <Text style={s.coverConnection}>
                             {coverConnection}
@@ -502,7 +554,7 @@ export function DigestHome() {
                           source={CAPITOL}
                           style={s.coverArt}
                           contentFit="contain"
-                          accessibilityLabel="U.S. Capitol line art"
+                          accessibilityLabel={tx("U.S. Capitol line art")}
                         />
                       )}
                     </View>
@@ -515,7 +567,7 @@ export function DigestHome() {
             <ActivityIndicator
               color={MUTED}
               style={s.alsoLoader}
-              accessibilityLabel="Loading more articles"
+              accessibilityLabel={tx("Loading more articles")}
             />
           ) : null}
         </View>
@@ -660,7 +712,7 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 13.5,
     lineHeight: 19,
-    color: MUTED,
+    color: INK,
   },
   dots: {
     flexDirection: "row",
@@ -768,6 +820,6 @@ const s = StyleSheet.create({
     fontFamily: fontBody.medium,
     fontSize: 13.5,
     lineHeight: 19,
-    color: MUTED,
+    color: INK,
   },
 });

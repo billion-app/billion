@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 
 import {
+  candidateBackgroundReady,
   candidateKey,
   canMatchCaliforniaGuide,
   findGuideCandidate,
@@ -89,8 +91,57 @@ void test("route candidate parsing rejects mismatches and malformed fields", () 
     name: "Jane",
     party: undefined,
     statement: undefined,
+    biography: undefined,
     photoUrl: undefined,
     ballotStatus: undefined,
     citations: undefined,
   });
+});
+
+void test("source-provided biography survives route parsing without authoring prose", () => {
+  const candidate = parseBallotCandidate(
+    JSON.stringify({
+      name: "Jane",
+      biography: "Source-provided background.",
+      citations: [
+        {
+          field: "biography",
+          sourceName: "Provider",
+          sourceUrl: "https://example.org/bio",
+        },
+      ],
+    }),
+    "Jane",
+  );
+  assert.equal(candidate?.biography, "Source-provided background.");
+  assert.equal(candidate.citations?.[0]?.field, "biography");
+  assert.equal(
+    parseBallotCandidate(
+      JSON.stringify({ name: "Jane", biography: "a".repeat(30001) }),
+      "Jane",
+    )?.biography,
+    undefined,
+  );
+});
+
+void test("ballot biographies do not wait for a disabled California guide query", () => {
+  const client = new QueryClient();
+  try {
+    const lookupGuide = canMatchCaliforniaGuide(
+      "TX",
+      "2026-11-03",
+      "ocd-division/country:us/state:tx",
+    );
+    const guide = new QueryObserver(client, {
+      queryKey: ["civic", "getCaliforniaGuide"],
+      queryFn: () => Promise.resolve(null),
+      enabled: lookupGuide,
+    }).getCurrentResult();
+    assert.equal(guide.isPending, true);
+    assert.equal(candidateBackgroundReady(lookupGuide, guide.isPending), true);
+    assert.equal(candidateBackgroundReady(true, true), false);
+    assert.equal(candidateBackgroundReady(true, false), true);
+  } finally {
+    client.clear();
+  }
 });

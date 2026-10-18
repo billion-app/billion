@@ -4,6 +4,7 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 
 import type { BallotCitation, BallotEvidence, LanguageEvidence } from "./model";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   DigestHair,
@@ -35,9 +36,16 @@ export function SourceLink({
   url?: string;
   prominence?: "primary" | "secondary";
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [failed, setFailed] = useState(false);
   const href = webUrl(url);
-  if (!href) return <Text style={s.secondary}>{label} · Link unavailable</Text>;
+  if (!href)
+    return (
+      <Text style={s.secondary}>
+        {tx("{value1} · Link unavailable", { value1: label })}
+      </Text>
+    );
   return (
     <View>
       <Pressable
@@ -68,7 +76,7 @@ export function SourceLink({
       </Pressable>
       {failed && (
         <Text accessibilityRole="alert" style={s.secondary}>
-          Could not open the link. Tap to retry.
+          {tx("Could not open the link. Tap to retry.")}
         </Text>
       )}
     </View>
@@ -79,9 +87,11 @@ export function ElectionOfficeLink({
   prominence = "secondary",
   reader = false,
 }: { prominence?: "primary" | "secondary"; reader?: boolean } = {}) {
+  const { t: tx } = useAppTranslation();
+
   return (
     <SourceLink
-      label="Find your election office"
+      label={tx("Find your election office")}
       reader={reader}
       prominence={prominence}
       url="https://www.usa.gov/state-election-office"
@@ -149,23 +159,34 @@ export function BallotProvenanceRows({
   sourceUrl?: string;
   fetchedAt?: string;
 }) {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   return (
     <View style={s.citation}>
       <Text style={s.secondary}>
-        Ballot source: {sourceName?.trim() ? sourceName.trim() : "unavailable"}
+        {tx("Ballot source: {value1}", {
+          value1: sourceName?.trim() ? sourceName.trim() : tx("unavailable"),
+        })}
       </Text>
       {!!sourceUrl && (
-        <SourceLink label="View ballot data source" url={sourceUrl} />
+        <SourceLink label={tx("View ballot data source")} url={sourceUrl} />
       )}
       <Text style={s.secondary}>
         {fetchedAt && Number.isFinite(Date.parse(fetchedAt))
-          ? `Retrieved ${new Date(fetchedAt).toLocaleDateString("en-US", { timeZone: "UTC" })}`
-          : "Retrieval date unavailable"}
+          ? tx("Retrieved {value1}", {
+              value1: new Date(fetchedAt).toLocaleDateString(appLocale, {
+                timeZone: "UTC",
+              }),
+            })
+          : tx("Retrieval date unavailable")}
       </Text>
-      <Text style={s.secondary}>Human verification date unavailable</Text>
       <Text style={s.secondary}>
-        Provider listing does not verify eligibility for your address. Confirm
-        your official ballot with your election office.
+        {tx("Human verification date unavailable")}
+      </Text>
+      <Text style={s.secondary}>
+        {tx(
+          "Provider listing does not verify eligibility for your address. Confirm your official ballot with your election office.",
+        )}
       </Text>
     </View>
   );
@@ -185,12 +206,14 @@ export function BallotStatusNotice({
   onRetry: () => void;
   officialOfficeUrl?: string;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const status = ballotStatus(evidence);
   const retryFirst =
     evidence.kind === "provider-failure" || evidence.kind === "invalid-input";
   const office = (
     <SourceLink
-      label="Find your election office"
+      label={tx("Find your election office")}
       url={
         webUrl(officialOfficeUrl) ?? "https://www.usa.gov/state-election-office"
       }
@@ -219,7 +242,9 @@ export function BallotStatusNotice({
               primary
               onPress={onRetry}
               label={
-                evidence.kind === "invalid-input" ? "Edit address" : "Try again"
+                evidence.kind === "invalid-input"
+                  ? tx("Edit address")
+                  : tx("Try again")
               }
             />
             {evidence.kind !== "invalid-input" && office}
@@ -227,7 +252,7 @@ export function BallotStatusNotice({
         ) : (
           <>
             {office}
-            <Retry onPress={onRetry} label="Try again" />
+            <Retry onPress={onRetry} label={tx("Try again")} />
           </>
         )}
       </View>
@@ -254,22 +279,24 @@ export function BallotSources({
   /** Detail pages share one recovery action with the language row. */
   showRecovery?: boolean;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const missing = contentKind === "enrichment-unavailable";
   return (
     <View>
       {missing && (
         <Text style={[s.body, s.status]}>
-          Additional details are unavailable to Billion.
+          {tx("Additional details are unavailable to Billion.")}
         </Text>
       )}
       {contentKind === "ai-summary" && <AiSummaryLabel />}
       {citations.length === 0 ? (
         <Text style={[s.secondary, s.unavailable]}>
-          Content source information unavailable
+          {tx("Content source information unavailable")}
         </Text>
       ) : (
         <BallotDisclosure
-          title="Content sources"
+          title={tx("Content sources")}
           detail={`${citations.length} reference${citations.length === 1 ? "" : "s"}`}
         >
           {citations.map((citation, index) => (
@@ -277,10 +304,10 @@ export function BallotSources({
               <Text style={s.label}>{citationFieldLabel(citation.field)}</Text>
               <Text style={s.secondary}>
                 {citation.tier === "ai_generated"
-                  ? "AI-generated explanation"
+                  ? tx("AI-generated explanation")
                   : citation.official === true
-                    ? "Official source"
-                    : "Source"}
+                    ? tx("Official source")
+                    : tx("Source")}
               </Text>
               <SourceLink
                 label={citation.sourceName}
@@ -297,7 +324,9 @@ export function BallotSources({
                 </View>
               )}
               {citation.fetchedAt && (
-                <Text style={s.secondary}>Retrieved {citation.fetchedAt}</Text>
+                <Text style={s.secondary}>
+                  {tx("Retrieved {value1}", { value1: citation.fetchedAt })}
+                </Text>
               )}
             </View>
           ))}
@@ -306,7 +335,7 @@ export function BallotSources({
       {showRecovery &&
         (missing || citations.length === 0) &&
         (onRetry ? (
-          <Retry onPress={onRetry} label="Try again" />
+          <Retry onPress={onRetry} label={tx("Try again")} />
         ) : (
           <ElectionOfficeLink />
         ))}
@@ -325,21 +354,25 @@ export function BallotLanguages({
   officialOfficeUrl?: string;
   showRecovery?: boolean;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const verified = verifiedLanguages(items);
   return (
     <View>
       <BallotDisclosure
-        title="Language help"
+        title={tx("Language help")}
         detail={
           verified.length
-            ? `${verified.length} verified material${verified.length === 1 ? "" : "s"}`
-            : "Materials and assistance"
+            ? tx("materials.verified", { count: verified.length })
+            : tx("Materials and assistance")
         }
       >
         <Text style={s.secondary}>
           {verified.length
-            ? "Other language availability is unknown to Billion."
-            : "Billion has not verified translated materials for this election. Ask your election office about materials and assistance."}
+            ? tx("Other language availability is unknown to Billion.")
+            : tx(
+                "Billion has not verified translated materials for this election. Ask your election office about materials and assistance.",
+              )}
         </Text>
         {verified.map((item, index) => (
           <View key={`${item.language}-${index}`} style={s.citation}>
@@ -355,10 +388,10 @@ export function BallotLanguages({
         ))}
         {showRecovery &&
           (webUrl(officialOfficeUrl) ? (
-            <SourceLink label="Election office" url={officialOfficeUrl} />
+            <SourceLink label={tx("Election office")} url={officialOfficeUrl} />
           ) : verified.length === 0 ? (
             onRetry ? (
-              <Retry onPress={onRetry} label="Try again" />
+              <Retry onPress={onRetry} label={tx("Try again")} />
             ) : (
               <ElectionOfficeLink />
             )

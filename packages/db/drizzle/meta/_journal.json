@@ -190,6 +190,27 @@
       "when": 1791438781254,
       "tag": "0026_little_lizard",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792048399179,
+      "tag": "0027_content_translation",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792118922652,
+      "tag": "0028_protect_content_translation",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792120040169,
+      "tag": "0029_queue_content_translations",
+      "breakpoints": true
     }
   ]
 }

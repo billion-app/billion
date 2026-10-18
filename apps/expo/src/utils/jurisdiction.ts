@@ -1,3 +1,6 @@
+import type { AppLanguage } from "~/i18n/language";
+import { translateApp } from "~/i18n/app-strings";
+
 export const CONTENT_JURISDICTIONS = [
   "federal",
   "ca",
@@ -105,6 +108,21 @@ export const JURISDICTIONS: Record<
     subtitlePlace: "Austin",
   },
 };
+
+/**
+ * The reader-facing name, legislature, and coverage line in the app language.
+ * `JURISDICTIONS` keeps the English record for address matching and logs.
+ */
+export function jurisdictionText(
+  jurisdiction: ContentJurisdiction,
+  language: AppLanguage = "en",
+): Pick<JurisdictionDefinition, "name" | "body" | "description"> {
+  return {
+    name: translateApp(language, `place.${jurisdiction}.name`),
+    body: translateApp(language, `place.${jurisdiction}.body`),
+    description: translateApp(language, `place.${jurisdiction}.description`),
+  };
+}
 
 const ADDRESS_PATTERNS: Record<StateJurisdiction, RegExp> = {
   ca: /(?:,|\s)(?:CA|California)(?:\s|,|\d|$)/i,

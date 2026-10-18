@@ -5,13 +5,14 @@ import {
   officialGuidePayloadSchema,
 } from "@acme/api/lib/official-guide-cache";
 import { TRILLION_ENDPOINT, trillionSourceUrls } from "@acme/api/lib/trillion";
-import { eq } from "@acme/db";
+import { and, eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import { CivicApiCache } from "@acme/db/schema";
 
 import type { Scraper } from "../utils/types.js";
 import { createLogger } from "../utils/log.js";
 import { collectOfficialGuide } from "./ca-official-guide-source.js";
+import { addDisplayTitles } from "./ca-official-guide-titles.js";
 import { caOfficialGuideConfig } from "./ca-official-guide.config.js";
 import { collectRelationshipDocumentHashes } from "./measure-relationship-source.js";
 
@@ -31,6 +32,27 @@ export const caOfficialGuide: Scraper = {
       );
     if (!payload.measures.length && !payload.candidates.length)
       throw new Error("No official guide content collected");
+    const [previousRow] = await db
+      .select({ responseData: CivicApiCache.responseData })
+      .from(CivicApiCache)
+      .where(
+        and(
+          eq(CivicApiCache.addressHash, CA_OFFICIAL_GUIDE_ADDRESS_HASH),
+          eq(CivicApiCache.endpoint, CA_OFFICIAL_GUIDE_ENDPOINT),
+          eq(CivicApiCache.params, officialGuideCacheParams(electionDate)),
+        ),
+      )
+      .limit(1);
+    const previous = officialGuidePayloadSchema.safeParse(
+      previousRow?.responseData,
+    );
+    const titles = await addDisplayTitles(
+      payload.measures,
+      previous.success ? previous.data.measures : [],
+    );
+    logger.info(
+      `Display titles: ${titles.reused} reused, ${titles.generated} formatted, ${titles.failed} without`,
+    );
     // Stored Trillion graphs publish only while their source documents still match.
     const trillionGraphs = await db
       .select({ responseData: CivicApiCache.responseData })
