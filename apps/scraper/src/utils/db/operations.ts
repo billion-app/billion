@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { prepareReaderTranslation } from "@acme/api/lib/pretranslate-readers";
 import { and, eq } from "@acme/db";
 import { db } from "@acme/db/client";
 import {
@@ -205,7 +206,26 @@ export function billSourceUpdateFields(data: BillData) {
   };
 }
 
+/** Queue the complete published reader after its explanation/lens writes finish. */
 export async function upsertContent(
+  input: ContentData,
+  options?: Parameters<typeof writeContent>[1],
+): Promise<UpsertOutcome> {
+  const outcome = await writeContent(input, options);
+  if (outcome.status === "written") {
+    try {
+      await prepareReaderTranslation(outcome.id);
+    } catch {
+      // The continuously running archive sweep repairs a missed queue write.
+      logger.warn(
+        "Reader translation preparation deferred to background sweep",
+      );
+    }
+  }
+  return outcome;
+}
+
+async function writeContent(
   input: ContentData,
   options?: {
     newItemLimiter?: NewItemLimiter;

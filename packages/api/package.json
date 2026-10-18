@@ -94,6 +94,10 @@
     "./lib/content-translation-store": {
       "types": "./dist/lib/content-translation-store.d.ts",
       "default": "./src/lib/content-translation-store.ts"
+    },
+    "./lib/pretranslate-readers": {
+      "types": "./dist/lib/pretranslate-readers.d.ts",
+      "default": "./src/lib/pretranslate-readers.ts"
     }
   },
   "license": "MIT",

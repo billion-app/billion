@@ -412,3 +412,28 @@ Root `.env.local` can override `.env`; the benchmark needs `TAVILY_API_KEY` only
 when comparison is explicitly enabled. Review the result pages before changing
 `SCRAPER_SEARCH_PROVIDER`. The [Big Mac setup](../../deploy/big-mac/README.md#private-searxng-trial)
 keeps the private search service separate from the production supervisor.
+
+### Reader translation preparation
+
+`content-translations --watch` now prepares full Chinese readers automatically,
+including existing articles, while serving the shared translation queue. It
+walks ten records at a time when fewer than twenty requests are runnable or in flight, then
+waits a minute before restarting a completed walk. Successful ingestion also
+queues the newly written reader immediately. Later enrichment edits are caught
+by the repeating walk; all writes reuse the existing revision-aware cache and
+lease handling. Generation still uses only the private Codex proxy.
+
+Inspect the selected database host before a manual run. This command queues a
+bounded page for the production worker without calling a model itself:
+
+```bash
+pnpm --filter @acme/scraper content-translations --prepare-only --limit 20
+# Resume using the `after` UUID printed by the previous page:
+pnpm --filter @acme/scraper content-translations --prepare-only --limit 20 --after <uuid>
+```
+
+The JSON result reports scanned, ready, queued, and failed records. A queued
+record is not a completed translation. Failed records are retried on the next
+walk, and failed generation retains the existing worker backoff. The automatic
+walk is intentionally limited to Chinese; other supported languages continue
+to queue when requested.

@@ -51,6 +51,7 @@ function hydrate(): Promise<void> {
       // Unreadable storage keeps the device default.
     }
     hydrated = true;
+    for (const notify of listeners) notify();
   })();
   return inFlight;
 }
@@ -60,6 +61,12 @@ export function useLanguage() {
     subscribe,
     () => language,
     () => language,
+  );
+
+  const isReady = useSyncExternalStore(
+    subscribe,
+    () => hydrated,
+    () => false,
   );
 
   useEffect(() => {
@@ -81,5 +88,5 @@ export function useLanguage() {
     [current],
   );
 
-  return { language: current, setLanguage, t };
+  return { language: current, setLanguage, t, isReady };
 }

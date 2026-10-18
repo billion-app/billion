@@ -178,6 +178,10 @@ const en = {
   "readerUi.officialRecord": "Official record",
   "readerUi.translatingZh": "Translating into Chinese…",
   "readerUi.translatingEs": "Translating into Spanish…",
+  "readerUi.preparingTranslation":
+    "The translated article will appear here when it is ready.",
+  "readerUi.retryTranslation":
+    "Please retry loading the translation, or choose English.",
   "readerUi.translationWait":
     "English is shown for now. Your translation will appear here automatically. The first translation can take a little time.",
   "readerUi.translationFailed": "Translation couldn’t load",
@@ -458,6 +462,10 @@ const es: Dictionary = {
   "readerUi.officialRecord": "Registro oficial",
   "readerUi.translatingZh": "Traduciendo al chino…",
   "readerUi.translatingEs": "Traduciendo al español…",
+  "readerUi.preparingTranslation":
+    "El artículo traducido aparecerá aquí cuando esté listo.",
+  "readerUi.retryTranslation":
+    "Vuelve a intentar cargar la traducción o elige inglés.",
   "readerUi.translationWait":
     "Por ahora se muestra el inglés. La traducción aparecerá aquí automáticamente. La primera traducción puede tardar un poco.",
   "readerUi.translationFailed": "No se pudo cargar la traducción",
@@ -724,6 +732,8 @@ const zh: Dictionary = {
   "readerUi.officialRecord": "官方记录",
   "readerUi.translatingZh": "正在翻译成中文…",
   "readerUi.translatingEs": "正在翻译成西班牙语…",
+  "readerUi.preparingTranslation": "译文准备好后会自动显示。",
+  "readerUi.retryTranslation": "请重试加载译文，或选择阅读英文。",
   "readerUi.translationWait":
     "暂时显示英文，译文准备好后会自动替换，无需刷新。首次翻译可能需要一点时间。",
   "readerUi.translationFailed": "译文加载失败",
