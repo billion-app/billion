@@ -6,6 +6,7 @@ import type { ContextClaim, PublicPropositionContext } from "@acme/validators";
 import { contextMoneyPresentation } from "@acme/validators";
 
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontBody, fontEditorial, hair, DigestPalette as P } from "~/styles";
 import { BallotText as Text } from "./BallotText";
 import { webUrl } from "./model";
@@ -17,19 +18,19 @@ const layers = {
   "submitted-advocacy": "Submitted advocacy",
   "independent-research": "Independent research",
   "official-record": "Official record",
-};
+} as const;
 const kinds = {
   "source-summary": "Source summary",
   "billion-inference": "Billion inference",
   illustration: "Illustration, not a forecast",
   unknown: "Evidence limit",
-};
+} as const;
 const statuses = {
   "not-specified": "Not specified by the measure",
   "later-legislation": "Requires later legislation",
   "evidence-unavailable": "Evidence unavailable",
   "uncertain-effect": "Uncertain effect",
-};
+} as const;
 
 export function PropositionContext({
   analysis,
@@ -38,6 +39,8 @@ export function PropositionContext({
   analysis: PublicPropositionContext;
   preview?: boolean;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const claim = (value: ContextClaim) => (
     <CitedClaim value={value} sources={analysis.sources} />
   );
@@ -45,42 +48,52 @@ export function PropositionContext({
     <View style={[s.stack, s.reader]}>
       <Text style={s.meta}>
         {preview
-          ? `Source-backed pilot · ${analysis.authorship === "ai-assisted" ? "AI-assisted" : "Human-authored"} · pending editorial review`
-          : `Billion contextual explanation · ${analysis.authorship === "ai-assisted" ? "AI-assisted" : "Human-authored"}`}
+          ? tx("Source-backed pilot · {value1} · pending editorial review", {
+              value1:
+                analysis.authorship === "ai-assisted"
+                  ? tx("AI-assisted")
+                  : tx("Human-authored"),
+            })
+          : tx("Billion contextual explanation · {value1}", {
+              value1:
+                analysis.authorship === "ai-assisted"
+                  ? tx("AI-assisted")
+                  : tx("Human-authored"),
+            })}
       </Text>
       <Text accessibilityRole="header" style={s.heading}>
-        What changes, and why?
+        {tx("What changes, and why?")}
       </Text>
       <Text style={s.lead}>{analysis.takeaway.text}</Text>
       <MoneyContext value={analysis.takeaway} />
-      <Disclosure title="Evidence for the short answer">
+      <Disclosure title={tx("Evidence for the short answer")}>
         {claim(analysis.takeaway)}
       </Disclosure>
       <View style={s.card}>
         <Text accessibilityRole="header" style={s.label}>
-          TODAY
+          {tx("TODAY")}
         </Text>
         {claim(analysis.today)}
         <View style={s.divider} />
         <Text accessibilityRole="header" style={s.label}>
-          PROPOSED CHANGE
+          {tx("PROPOSED CHANGE")}
         </Text>
         {claim(analysis.change)}
       </View>
       {analysis.terms.map((item) => (
         <View key={item.term} style={s.term}>
           <Text accessibilityRole="header" style={s.subheading}>
-            What “{item.term}” means here
+            {tx("What “{value1}” means here", { value1: item.term })}
           </Text>
           {claim(item.meaning)}
         </View>
       ))}
-      <Disclosure title="Why is this proposed?">
+      <Disclosure title={tx("Why is this proposed?")}>
         {claim(analysis.rationale)}
       </Disclosure>
       <Disclosure
         title={analysis.mechanismQuestion}
-        subtitle="Follow the rule → action → possible outcome"
+        subtitle={tx("Follow the rule → action → possible outcome")}
       >
         {analysis.chain.map((step, index) => (
           <View key={index} style={s.step}>
@@ -94,7 +107,7 @@ export function PropositionContext({
           </View>
         ))}
       </Disclosure>
-      <Disclosure title="Tradeoffs and practical examples">
+      <Disclosure title={tx("Tradeoffs and practical examples")}>
         {analysis.tradeoffs.map((item, i) => (
           <View key={i}>{claim(item)}</View>
         ))}
@@ -109,7 +122,16 @@ export function PropositionContext({
         {analysis.magnitude.map((item, i) => (
           <View key={i} style={s.term}>
             <Text style={s.label}>
-              {item.basis.toUpperCase()} · {item.period}
+              {tx(
+                (
+                  {
+                    projection: "Projection",
+                    measured: "Measured",
+                    illustrative: "Illustrative",
+                  } as const
+                )[item.basis],
+              )}{" "}
+              · {item.period}
             </Text>
             {claim(item.amount)}
             {claim(item.comparison)}
@@ -118,19 +140,19 @@ export function PropositionContext({
       </Disclosure>
       <View style={s.card}>
         <Text accessibilityRole="header" style={s.subheading}>
-          What is still unknown?
+          {tx("What is still unknown?")}
         </Text>
         {analysis.unknowns.slice(0, 1).map((item, i) => (
           <View key={i}>
-            <Text style={s.meta}>{statuses[item.status]}</Text>
+            <Text style={s.meta}>{tx(statuses[item.status])}</Text>
             {claim(item.claim)}
           </View>
         ))}
         {analysis.unknowns.length > 1 && (
-          <Disclosure title="More limits and failure modes">
+          <Disclosure title={tx("More limits and failure modes")}>
             {analysis.unknowns.slice(1).map((item, i) => (
               <View key={i} style={s.stack}>
-                <Text style={s.meta}>{statuses[item.status]}</Text>
+                <Text style={s.meta}>{tx(statuses[item.status])}</Text>
                 {claim(item.claim)}
               </View>
             ))}
@@ -139,8 +161,8 @@ export function PropositionContext({
       </View>
       {analysis.history.length > 0 && (
         <Disclosure
-          title="What past evidence can tell us"
-          subtitle="Findings, follow-through and limits of comparison"
+          title={tx("What past evidence can tell us")}
+          subtitle={tx("Findings, follow-through and limits of comparison")}
         >
           {analysis.history.map((item, i) => (
             <View key={i} style={s.stack}>
@@ -154,8 +176,8 @@ export function PropositionContext({
         </Disclosure>
       )}
       <Disclosure
-        title="Questions to investigate"
-        subtitle="A starting point for your research"
+        title={tx("Questions to investigate")}
+        subtitle={tx("A starting point for your research")}
       >
         {analysis.questions.map((item) => (
           <View key={item.question} style={s.stack}>
@@ -164,26 +186,34 @@ export function PropositionContext({
           </View>
         ))}
       </Disclosure>
-      <Disclosure title="Version and review">
+      <Disclosure title={tx("Version and review")}>
         <Text style={s.meta}>
-          Evidence captured {analysis.preparedAt.slice(0, 10)} · Revision{" "}
-          {analysis.revision}
+          {tx("Evidence captured {value1} · Revision {value2}", {
+            value1: analysis.preparedAt.slice(0, 10),
+            value2: analysis.revision,
+          })}
         </Text>
         <Text style={s.body}>
           {analysis.review.state === "approved"
-            ? `Reviewed by ${analysis.review.reviewer} on ${analysis.review.reviewedAt.slice(0, 10)}. ${analysis.review.findings}`
-            : "Editorial review is pending. This pilot is not published."}
+            ? tx("Reviewed by {value1} on {value2}. {value3}", {
+                value1: analysis.review.reviewer,
+                value2: analysis.review.reviewedAt.slice(0, 10),
+                value3: analysis.review.findings,
+              })
+            : tx("Editorial review is pending. This pilot is not published.")}
         </Text>
       </Disclosure>
     </View>
   );
 }
 function MoneyContext({ value }: { value: ContextClaim }) {
+  const { language } = useAppTranslation();
+
   if (!value.money?.length) return null;
   return (
     <View style={{ gap: 12 }}>
       {value.money.map((item, i) => {
-        const parts = contextMoneyPresentation(item);
+        const parts = contextMoneyPresentation(item, language);
         return (
           <View key={i} style={s.money}>
             <Text style={[s.body, { fontFamily: fontBody.semibold }]}>
@@ -205,11 +235,16 @@ function CitedClaim({
   value: ContextClaim;
   sources: PublicPropositionContext["sources"];
 }) {
+  const { t: tx } = useAppTranslation();
+
   return (
     <View style={s.claim}>
       <Text style={s.body}>{value.text}</Text>
       <MoneyContext value={value} />
-      <Disclosure title={`${kinds[value.kind]} · Evidence`} compact>
+      <Disclosure
+        title={tx("{value1} · Evidence", { value1: tx(kinds[value.kind]) })}
+        compact
+      >
         {[
           ...value.evidence,
           ...(value.money ?? []).flatMap((item) =>
@@ -232,7 +267,7 @@ function CitedClaim({
               <SourceLink key={i} source={source} locator={ref.locator} />
             ) : (
               <Text key={i} style={s.meta}>
-                Supporting evidence unavailable.
+                {tx("Supporting evidence unavailable.")}
               </Text>
             );
           })}
@@ -247,17 +282,25 @@ function SourceLink({
   source: PublicPropositionContext["sources"][number];
   locator: string;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [failed, setFailed] = useState(false);
   const href = webUrl(source.url);
   return (
     <View style={s.stack}>
       <Text style={s.meta}>
-        {layers[source.layer]} · {locator} · Retrieved{" "}
-        {source.retrievedAt.slice(0, 10)}
+        {tx("{value1} · {value2} · Retrieved {value3}", {
+          value1: tx(layers[source.layer]),
+          value2: locator,
+          value3: source.retrievedAt.slice(0, 10),
+        })}
       </Text>
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel={`Open ${source.name}: ${locator}`}
+        accessibilityLabel={tx("Open {value1}: {value2}", {
+          value1: source.name,
+          value2: locator,
+        })}
         style={s.link}
         onPress={() => {
           if (href)
@@ -272,7 +315,7 @@ function SourceLink({
       </Pressable>
       {(!href || failed) && (
         <Text accessibilityRole="alert" style={s.meta}>
-          Could not open this source. Try again.
+          {tx("Could not open this source. Try again.")}
         </Text>
       )}
     </View>
@@ -316,21 +359,27 @@ export function ContextUnavailable({
   sourceUrl?: string;
   state?: "missing" | "stale" | "error";
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [failed, setFailed] = useState(false);
   const href = webUrl(sourceUrl);
   return (
     <View style={s.card}>
       <Text style={s.subheading}>
         {state === "stale"
-          ? "Explanation needs a new review"
+          ? tx("Explanation needs a new review")
           : state === "error"
-            ? "Explanation could not load"
-            : "Contextual explanation not available yet"}
+            ? tx("Explanation could not load")
+            : tx("Contextual explanation not available yet")}
       </Text>
       <Text style={s.body}>
         {state === "stale"
-          ? "The source or explanation changed. The previous version is withheld."
-          : "Consult the official record to investigate the proposed rule and its limits."}
+          ? tx(
+              "The source or explanation changed. The previous version is withheld.",
+            )
+          : tx(
+              "Consult the official record to investigate the proposed rule and its limits.",
+            )}
       </Text>
       {href && (
         <Pressable
@@ -343,13 +392,13 @@ export function ContextUnavailable({
             );
           }}
         >
-          <Text style={s.linkText}>Open official record</Text>
+          <Text style={s.linkText}>{tx("Open official record")}</Text>
           <Icon name="external" size={14} color={P.quiet} />
         </Pressable>
       )}
       {failed && (
         <Text accessibilityRole="alert" style={s.meta}>
-          Could not open the source. Tap to retry.
+          {tx("Could not open the source. Tap to retry.")}
         </Text>
       )}
     </View>

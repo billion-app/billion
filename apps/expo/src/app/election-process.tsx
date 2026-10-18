@@ -13,6 +13,7 @@ import type { ProcessExample } from "~/components/election-process/content";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { processExamples } from "~/components/election-process/content";
 import { Icon, NavHeader } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   digest,
@@ -26,6 +27,8 @@ import {
 } from "~/styles";
 
 export default function ElectionProcessScreen() {
+  const { t: tx } = useAppTranslation();
+
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const scroll = useRef<ScrollView>(null);
@@ -37,7 +40,10 @@ export default function ElectionProcessScreen() {
   const item = processExamples[example];
   return (
     <View style={s.screen}>
-      <NavHeader title="How elections work" onBack={() => router.back()} />
+      <NavHeader
+        title={tx("How elections work")}
+        onBack={() => router.back()}
+      />
       <ScrollView ref={scroll} contentContainerStyle={s.content}>
         <View
           accessibilityRole="tablist"
@@ -65,19 +71,21 @@ export default function ElectionProcessScreen() {
               <Text
                 style={[s.exampleText, example === id && { color: planes.ink }]}
               >
-                {processExamples[id].label}
+                {tx(processExamples[id].label)}
               </Text>
             </Pressable>
           ))}
         </View>
         <View style={s.intro}>
           <Text style={s.caption}>
-            {item.year} educational example · no live updates
+            {tx("{value1} educational example · no live updates", {
+              value1: String(item.year),
+            })}
           </Text>
           <Text accessibilityRole="header" style={s.title}>
-            {item.title}
+            {tx(item.title)}
           </Text>
-          <Text style={s.body}>{item.choosing}</Text>
+          <Text style={s.body}>{tx(item.choosing)}</Text>
         </View>
         <View style={[s.card, s.path]}>
           {item.steps.map(([title], index) => {
@@ -111,25 +119,33 @@ export default function ElectionProcessScreen() {
                 </View>
                 <View style={[s.stageCopy, optional && s.optionalCopy]}>
                   <Text style={s.stageLabel}>
-                    {optional ? "ONLY IF NEEDED" : item.stageActors[index]}
+                    {optional
+                      ? tx("ONLY IF NEEDED")
+                      : item.stageActors[index]
+                        ? tx(item.stageActors[index])
+                        : ""}
                   </Text>
                   <Text
                     accessibilityRole="header"
                     accessibilityLabel={
-                      optional ? "Runoff, only if needed" : title
+                      optional ? tx("Runoff, only if needed") : title
                     }
                     style={s.heading}
                   >
-                    {optional ? "Runoff" : title}
+                    {optional ? tx("Runoff") : tx(title)}
                   </Text>
-                  <Text style={s.body}>{item.stageSummaries[index]}</Text>
+                  <Text style={s.body}>
+                    {item.stageSummaries[index]
+                      ? tx(item.stageSummaries[index])
+                      : ""}
+                  </Text>
                 </View>
               </View>
             );
           })}
         </View>
         <Disclosure
-          label="How each stage works"
+          label={tx("How each stage works")}
           expanded={processDetail}
           onPress={() => setProcessDetail(!processDetail)}
         />
@@ -138,34 +154,35 @@ export default function ElectionProcessScreen() {
             {item.steps.map(([title, body]) => (
               <View key={title} style={s.step}>
                 <Text accessibilityRole="header" style={s.heading}>
-                  {title}
+                  {tx(title)}
                 </Text>
-                <Text style={s.body}>{body}</Text>
+                <Text style={s.body}>{tx(body)}</Text>
               </View>
             ))}
           </View>
         )}
         <OfficialLink
           primary
-          label="Election dates: find my election office"
+          label={tx("Election dates: find my election office")}
           url="https://www.usa.gov/state-election-office"
         />
         <View style={s.details}>
           <Disclosure
-            label="Can I participate?"
+            label={tx("Can I participate?")}
             expanded={participation}
             onPress={() => setParticipation(!participation)}
           />
           {participation && (
             <View style={s.card}>
-              <Text style={s.body}>{item.participation}</Text>
+              <Text style={s.body}>{tx(item.participation)}</Text>
               <Text style={s.caption}>
-                Billion does not know your registration, party affiliation or
-                eligibility.
+                {tx(
+                  "Billion does not know your registration, party affiliation or eligibility.",
+                )}
               </Text>
               <OfficialLink
                 primary
-                label={item.action[0]}
+                label={tx(item.action[0])}
                 url={item.action[1]}
               />
             </View>
@@ -173,25 +190,24 @@ export default function ElectionProcessScreen() {
           <Disclosure
             label={
               example === "president"
-                ? "Election exceptions and candidate status"
-                : "Exceptions and special elections"
+                ? tx("Election exceptions and candidate status")
+                : tx("Exceptions and special elections")
             }
             expanded={expanded}
             onPress={() => setExpanded(!expanded)}
           />
-          {expanded && <Text style={s.body}>{item.deeper}</Text>}
+          {expanded && <Text style={s.body}>{tx(item.deeper)}</Text>}
           <Disclosure
-            label="Sources and review status"
+            label={tx("Sources and review status")}
             expanded={sources}
             onPress={() => setSources(!sources)}
           />
           {sources && (
             <View style={s.card}>
               <Text style={s.caption}>
-                Billion’s hand-authored summaries of official sources. Sources
-                consulted October 2, 2026; editorial review pending. These
-                examples do not verify a candidate, schedule or your
-                eligibility.
+                {tx(
+                  "Billion’s hand-authored summaries of official sources. Sources consulted October 2, 2026; editorial review pending. These examples do not verify a candidate, schedule or your eligibility.",
+                )}
               </Text>
               {item.sources.map(([label, url]) => (
                 <OfficialLink key={url} label={label} url={url} />
@@ -212,6 +228,8 @@ function OfficialLink({
   url: string;
   primary?: boolean;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [failed, setFailed] = useState(false);
   return (
     <View>
@@ -237,7 +255,7 @@ function OfficialLink({
       </Pressable>
       {failed && (
         <Text accessibilityRole="alert" style={s.caption}>
-          Could not open the link. Tap to retry.
+          {tx("Could not open the link. Tap to retry.")}
         </Text>
       )}
     </View>

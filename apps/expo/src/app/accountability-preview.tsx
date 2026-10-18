@@ -13,6 +13,7 @@ import {
 } from "~/components/accountability/model";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon, NavHeader } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   fontBody,
@@ -25,18 +26,22 @@ import {
 
 /** Isolated development route: never a live results or notification service. */
 export default function AccountabilityPreview() {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   const router = useRouter();
   const [scenario, setScenario] = useState("historical");
   if (!__DEV__)
     return (
       <View style={s.screen}>
         <NavHeader
-          title="Accountability"
+          title={tx("Accountability")}
           tone="dark"
           onBack={() => router.back()}
         />
         <Text style={s.body}>
-          Accountability preview unavailable. Live results are not connected.
+          {tx(
+            "Accountability preview unavailable. Live results are not connected.",
+          )}
         </Text>
       </View>
     );
@@ -59,29 +64,39 @@ export default function AccountabilityPreview() {
     example.result,
   );
   const resultSummary = example.result.disputed
-    ? "The result is disputed. We can’t confirm who took office while the dispute remains unresolved."
+    ? tx(
+        "The result is disputed. We can’t confirm who took office while the dispute remains unresolved.",
+      )
     : example.result.stage === "missing"
-      ? "Results are unavailable in this preview. Missing records do not mean nobody won."
+      ? tx(
+          "Results are unavailable in this preview. Missing records do not mean nobody won.",
+        )
       : example.result.stage === "certified" && resultCandidate
-        ? `${resultCandidate.name} won this election. The result is certified; taking office has its own record.`
+        ? tx(
+            "{value1} won this election. The result is certified; taking office has its own record.",
+            { value1: resultCandidate.name },
+          )
         : example.result.stage === "certified"
-          ? "We can’t verify a result for this contest."
+          ? tx("We can’t verify a result for this contest.")
           : stageCopy[example.result.stage];
   return (
     <View style={s.screen}>
       <NavHeader
-        title="After the election"
+        title={tx("After the election")}
         tone="dark"
         onBack={() => router.back()}
       />
       <ScrollView contentContainerStyle={s.content}>
         <View style={s.lead}>
           <Text style={s.kicker}>
-            {example.synthetic ? "FICTIONAL EXAMPLE" : "HISTORICAL TERM"} · NO
-            LIVE UPDATES
+            {tx("{value1} · NO LIVE UPDATES", {
+              value1: example.synthetic
+                ? tx("FICTIONAL EXAMPLE")
+                : tx("HISTORICAL TERM"),
+            })}
           </Text>
           <Text accessibilityRole="header" style={s.identity}>
-            {holder ? holder.name : "Officeholder unconfirmed"}
+            {holder ? holder.name : tx("Officeholder unconfirmed")}
           </Text>
           <Text style={s.caption}>{example.label}</Text>
           {holder ? (
@@ -95,7 +110,7 @@ export default function AccountabilityPreview() {
                   <Icon name="vote" size={18} color={P.badgeIndigo} />
                 </View>
                 <View style={s.statusText}>
-                  <Text style={s.label}>Election certified</Text>
+                  <Text style={s.label}>{tx("Election certified")}</Text>
                 </View>
               </View>
               <View style={s.status}>
@@ -107,8 +122,10 @@ export default function AccountabilityPreview() {
                   <Icon name="calendar" size={18} color={P.badgeIndigo} />
                 </View>
                 <View style={s.statusText}>
-                  <Text style={s.label}>Term began</Text>
-                  <Text style={s.caption}>{formatDate(holder.tookOffice)}</Text>
+                  <Text style={s.label}>{tx("Term began")}</Text>
+                  <Text style={s.caption}>
+                    {formatDate(holder.tookOffice, appLocale)}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -137,12 +154,14 @@ export default function AccountabilityPreview() {
                   <Icon name="flag" size={18} color={P.badgeIndigo} />
                 </View>
                 <View style={s.statusText}>
-                  <Text style={s.label}>Campaign priority</Text>
+                  <Text style={s.label}>{tx("Campaign priority")}</Text>
                   <Text style={s.body}>{priority.text}</Text>
-                  <Text style={s.caption}>{formatDate(priority.date)}</Text>
+                  <Text style={s.caption}>
+                    {formatDate(priority.date, appLocale)}
+                  </Text>
                   <Source
                     evidence={priority.evidence}
-                    label="Read campaign statement"
+                    label={tx("Read campaign statement")}
                   />
                 </View>
               </View>
@@ -166,12 +185,12 @@ export default function AccountabilityPreview() {
                     {action.reading?.headline ?? action.text}
                   </Text>
                   <Text style={s.actionCaption}>
-                    {formatDate(action.date)} ·{" "}
+                    {formatDate(action.date, appLocale)} ·{" "}
                     {action.kind === "sponsorship"
-                      ? "Proposal introduced"
+                      ? tx("Proposal introduced")
                       : action.kind === "vote"
-                        ? "Individual vote"
-                        : "Documented decision"}
+                        ? tx("Individual vote")
+                        : tx("Documented decision")}
                   </Text>
                   <View style={s.mechanismRow}>
                     <View
@@ -187,7 +206,7 @@ export default function AccountabilityPreview() {
                       />
                     </View>
                     <View style={s.stepText}>
-                      <Text style={s.actionLabel}>WHAT CHANGED</Text>
+                      <Text style={s.actionLabel}>{tx("WHAT CHANGED")}</Text>
                       <Text style={s.mechanismAnswer}>
                         {action.reading?.change ?? action.text}
                       </Text>
@@ -208,12 +227,12 @@ export default function AccountabilityPreview() {
                       <Icon name="help" size={21} color={colors.white} />
                     </View>
                     <View style={s.stepText}>
-                      <Text style={s.actionLabel}>STILL UNKNOWN</Text>
+                      <Text style={s.actionLabel}>{tx("STILL UNKNOWN")}</Text>
                       <Text style={s.mechanismAnswer}>
                         {action.reading?.unknown ?? action.context}
                       </Text>
                       <Text style={s.actionCaption}>
-                        Not shown by this record
+                        {tx("Not shown by this record")}
                       </Text>
                     </View>
                   </View>
@@ -227,7 +246,9 @@ export default function AccountabilityPreview() {
                         <Icon name="message" size={16} color={colors.white} />
                       </View>
                       <Text style={[s.actionCaption, { flex: 1 }]}>
-                        Campaign comparison unavailable · No statement included
+                        {tx(
+                          "Campaign comparison unavailable · No statement included",
+                        )}
                       </Text>
                     </View>
                   )}
@@ -236,37 +257,48 @@ export default function AccountabilityPreview() {
                   evidence={action.evidence}
                   label={
                     action.kind === "decision"
-                      ? "Read signing record"
-                      : "Read action record"
+                      ? tx("Read signing record")
+                      : tx("Read action record")
                   }
                 />
               </View>
             ))}
             {!actions.length && (
-              <Card title="Action records not included">
+              <Card title={tx("Action records not included")}>
                 <Text style={s.body}>
-                  That does not mean no action was taken.
+                  {tx("That does not mean no action was taken.")}
                 </Text>
               </Card>
             )}
           </>
         ) : (
-          <Card title="Action history unavailable">
+          <Card title={tx("Action history unavailable")}>
             <Text style={s.body}>
               {holder
-                ? "No priorities or actions included for this term. Coverage is unknown."
-                : "We can’t connect actions until the officeholder is confirmed."}
+                ? tx(
+                    "No priorities or actions included for this term. Coverage is unknown.",
+                  )
+                : tx(
+                    "We can’t connect actions until the officeholder is confirmed.",
+                  )}
             </Text>
           </Card>
         )}
-        <Disclosure key={`results-${scenario}`} title="Election & term records">
+        <Disclosure
+          key={`results-${scenario}`}
+          title={tx("Election & term records")}
+        >
           <Text style={s.body}>
             {holder
-              ? "Certification confirms the election result. The separate inauguration record confirms taking office."
-              : "A final result and a separate taking-office record are needed before we can connect this contest to an officeholder."}
+              ? tx(
+                  "Certification confirms the election result. The separate inauguration record confirms taking office.",
+                )
+              : tx(
+                  "A final result and a separate taking-office record are needed before we can connect this contest to an officeholder.",
+                )}
           </Text>
           <Text style={s.caption}>
-            Candidates:{" "}
+            {tx("Candidates:")}{" "}
             {example.candidates.map((candidate) => candidate.name).join(" · ")}.
           </Text>
           {example.result.evidence && (
@@ -275,29 +307,28 @@ export default function AccountabilityPreview() {
           {holder && (
             <Source
               evidence={holder.evidence}
-              label="Read inauguration record"
+              label={tx("Read inauguration record")}
             />
           )}
           {example.extraEvidence.map((evidence) => (
             <EvidenceDetails key={evidence.url} evidence={evidence} />
           ))}
         </Disclosure>
-        <Disclosure title="About this preview">
+        <Disclosure title={tx("About this preview")}>
           <Text style={s.body}>
-            One historical California governor contest and fictional examples.
-            Records were checked October 2, 2026. There are no alerts, saved
-            follows or automatic updates. Check linked official records for
-            changes or corrections.
+            {tx(
+              "One historical California governor contest and fictional examples. Records were checked October 2, 2026. There are no alerts, saved follows or automatic updates. Check linked official records for changes or corrections.",
+            )}
           </Text>
           {actions.length > 0 && (
             <Text style={s.body}>
-              An individual vote is not the whole outcome. Policy effects can be
-              uncertain and shared across institutions. This preview does not
-              score whether a promise was kept.
+              {tx(
+                "An individual vote is not the whole outcome. Policy effects can be uncertain and shared across institutions. This preview does not score whether a promise was kept.",
+              )}
             </Text>
           )}
         </Disclosure>
-        <Disclosure key={`scenarios-${scenario}`} title="Test scenarios">
+        <Disclosure key={`scenarios-${scenario}`} title={tx("Test scenarios")}>
           <View style={s.options}>
             {[
               "historical",
@@ -320,11 +351,11 @@ export default function AccountabilityPreview() {
                   style={[s.optionLabel, scenario === value && s.selectedText]}
                 >
                   {value === "full"
-                    ? "Fictional actions"
+                    ? tx("Fictional actions")
                     : value === "sparse"
-                      ? "No action records"
+                      ? tx("No action records")
                       : value === "priorities-only"
-                        ? "Priority only"
+                        ? tx("Priority only")
                         : value.charAt(0).toUpperCase() + value.slice(1)}
                 </Text>
               </Pressable>
@@ -336,6 +367,8 @@ export default function AccountabilityPreview() {
   );
 }
 function Source({ evidence, label }: { evidence: Evidence; label: string }) {
+  const { t: tx } = useAppTranslation();
+
   const [failed, setFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   if (!evidence.url) return null;
@@ -359,13 +392,13 @@ function Source({ evidence, label }: { evidence: Evidence; label: string }) {
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Details — ${label}`}
+          accessibilityLabel={tx("Details — {value1}", { value1: label })}
           accessibilityState={{ expanded }}
           style={s.sourceToggle}
           onPress={() => setExpanded(!expanded)}
         >
           <View style={s.sourceHeading}>
-            <Text style={s.link}>Details</Text>
+            <Text style={s.link}>{tx("Details")}</Text>
             <Icon
               name={expanded ? "chevD" : "chevR"}
               size={14}
@@ -376,7 +409,7 @@ function Source({ evidence, label }: { evidence: Evidence; label: string }) {
       </View>
       {failed && (
         <Text accessibilityRole="alert" style={s.body}>
-          Could not open the record. Try its link again.
+          {tx("Could not open the record. Try its link again.")}
         </Text>
       )}
       {expanded && <EvidenceDetails evidence={evidence} showLink={false} />}
@@ -390,30 +423,37 @@ function EvidenceDetails({
   evidence: Evidence;
   showLink?: boolean;
 }) {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   const [failed, setFailed] = useState(false);
   return (
     <View style={s.block}>
       <Text style={s.caption}>
-        {evidence.publisher} · Published {formatDate(evidence.published)}
-        {"\n"}
-        {evidence.locator}
+        {tx("{value1} · Published {value2}\n{value3}", {
+          value1: evidence.publisher,
+          value2: formatDate(evidence.published, appLocale),
+          value3: evidence.locator,
+        })}
       </Text>
       {showLink && evidence.url && (
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel={`Open source record — ${evidence.publisher}: ${evidence.locator}`}
+          accessibilityLabel={tx("Open source record — {value1}: {value2}", {
+            value1: evidence.publisher,
+            value2: evidence.locator,
+          })}
           style={s.button}
           onPress={() => {
             setFailed(false);
             void Linking.openURL(evidence.url).catch(() => setFailed(true));
           }}
         >
-          <Text style={s.link}>Open source record</Text>
+          <Text style={s.link}>{tx("Open source record")}</Text>
         </Pressable>
       )}
       {failed && (
         <Text accessibilityRole="alert" style={s.body}>
-          Could not open the record. Try its link again.
+          {tx("Could not open the record. Try its link again.")}
         </Text>
       )}
     </View>
@@ -456,8 +496,8 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
     </View>
   );
 }
-function formatDate(date: string) {
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+function formatDate(date: string, locale = "en-US") {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",

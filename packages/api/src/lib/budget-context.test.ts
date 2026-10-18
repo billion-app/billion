@@ -292,3 +292,35 @@ void test("unknown accounting bases cannot be treated as verified matching scope
     false,
   );
 });
+
+void test("localized budget presentation preserves source amounts and denominator magnitude", () => {
+  const parsed = contextMoneySchema.parse(value);
+  for (const language of ["es", "zh"] as const) {
+    const parts = contextMoneyPresentation(parsed, language);
+    assert.equal(parts.nominal, "$5–15 billion USD");
+    assert.match(parts.comparison, /2–6%/);
+    assert.ok(
+      parts.comparison.includes(
+        new Intl.NumberFormat(language === "zh" ? "zh-CN" : "es-US", {
+          style: "currency",
+          currency: "USD",
+          currencyDisplay: "code",
+          maximumFractionDigits: 2,
+        }).format(250_000_000_000),
+      ),
+    );
+    assert.doesNotMatch(parts.scope, /annual|gross basis|illustrative/);
+    const unavailable = contextMoneyPresentation(
+      {
+        ...parsed,
+        comparison: {
+          state: "unavailable",
+          reason: "Original source limitation",
+        },
+      },
+      language,
+    );
+    assert.doesNotMatch(unavailable.comparison, /Budget share/);
+    assert.equal(unavailable.reason, "Original source limitation");
+  }
+});

@@ -1,11 +1,13 @@
 /** Shared shape + helpers for backend content items (bills, orders, cases). */
 import type { ContentCardItem } from "~/components/ui";
+import type { AppLanguage } from "~/i18n/language";
 import type {
   ContentJurisdiction,
   JurisdictionCode,
 } from "~/utils/jurisdiction";
+import { translateApp } from "~/i18n/app-strings";
 import { resolveType } from "~/styles";
-import { isStateJurisdiction, JURISDICTIONS } from "~/utils/jurisdiction";
+import { isStateJurisdiction, jurisdictionText } from "~/utils/jurisdiction";
 
 export interface ContentItem {
   id: string;
@@ -24,12 +26,9 @@ export interface ContentItem {
   sessionLabel?: string;
 }
 
-const STATUS_LABEL: Record<ContentItem["type"], string> = {
-  bill: "Legislation",
-  government_content: "Executive action",
-  court_case: "Court case",
-  general: "Briefing",
-};
+function statusLabel(type: ContentItem["type"], language: AppLanguage) {
+  return translateApp(language, `card.status.${type}`);
+}
 
 /** Map a backend content item onto the props a ContentCard expects. */
 function stateBillTag(
@@ -42,13 +41,18 @@ function stateBillTag(
   return showJurisdiction ? match[2] : `${match[1]} ${match[2]}`;
 }
 
-/** Map API content onto a card, preserving legislative status and context. */
+/**
+ * Map API content onto a card, preserving legislative status and context.
+ * Bill status and chamber are source text and stay as published; the type
+ * label and place name follow `language`.
+ */
 export function toCardItem(
   item: ContentItem,
-  options: { showJurisdiction?: boolean } = {},
+  options: { showJurisdiction?: boolean; language?: AppLanguage } = {},
 ): ContentCardItem {
+  const language = options.language ?? "en";
   const stateName = isStateJurisdiction(item.jurisdiction)
-    ? JURISDICTIONS[item.jurisdiction].name
+    ? jurisdictionText(item.jurisdiction, language).name
     : undefined;
   const isBill = item.type === "bill";
   const isStateBill = isBill && !!stateName;
@@ -61,8 +65,8 @@ export function toCardItem(
     title: item.title,
     gist: item.description,
     status: isBill
-      ? (item.billStatus ?? STATUS_LABEL.bill)
-      : STATUS_LABEL[item.type],
+      ? (item.billStatus ?? statusLabel("bill", language))
+      : statusLabel(item.type, language),
     activityAt: isBill ? item.activityAt : undefined,
     meta: isStateBill
       ? [item.chamber && `${stateName} ${item.chamber}`, item.sponsor]

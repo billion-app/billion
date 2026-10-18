@@ -97,7 +97,7 @@ void test("translations only use English keys and keep placeholders", () => {
       const placeholders = (text: string) =>
         (text.match(/\{\w+\}/g) ?? []).sort().join();
       const english = DICTIONARIES.en[key as keyof typeof DICTIONARIES.en];
-      assert.equal(placeholders(value), placeholders(english ?? ""), key);
+      assert.equal(placeholders(value), placeholders(english), key);
     }
   }
   assert.equal(

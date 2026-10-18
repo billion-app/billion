@@ -1,5 +1,8 @@
 import type { Contest, Election, VoterInfoResponse } from "@acme/api";
 
+import type { AppLanguage } from "~/i18n/language";
+import { translateApp } from "~/i18n/app-strings";
+import { formatDate } from "~/i18n/format";
 import { webUrl as ballotWebUrl } from "./web-url";
 
 export { ballotWebUrl };
@@ -101,16 +104,19 @@ export function ballotOfficeUrl(response: BallotResponse) {
 }
 
 /** Election days are calendar dates, independent of the reader's time zone. */
-export function ballotElectionDate(value: string) {
+export function ballotElectionDate(
+  value: string,
+  language: AppLanguage = "en",
+) {
   const date = new Date(`${value}T12:00:00Z`);
   return Number.isNaN(date.getTime())
     ? value
-    : date.toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "UTC",
-      });
+    : formatDate(
+        language,
+        date,
+        { month: "long", day: "numeric", year: "numeric" },
+        { calendar: true },
+      );
 }
 
 /** Cached results must not escape an edit, refresh, failure or election mismatch. */
@@ -156,13 +162,16 @@ export function ballotContestRoute(
     electionStage?: string;
     provider?: { name: string; sourceUrl?: string; fetchedAt?: string };
   },
+  language: AppLanguage = "en",
 ) {
   if (isBallotMeasure(contest)) {
     return {
       pathname: "/measure-detail" as const,
       params: {
         referendumTitle:
-          contest.referendumTitle ?? contest.office ?? "Ballot measure",
+          contest.referendumTitle ??
+          contest.office ??
+          translateApp(language, "ballot.measureFallback"),
         referendumSubtitle: contest.referendumSubtitle ?? "",
         referendumProStatement: contest.referendumProStatement ?? "",
         referendumConStatement: contest.referendumConStatement ?? "",
@@ -182,7 +191,7 @@ export function ballotContestRoute(
   return {
     pathname: "/contest-detail" as const,
     params: {
-      office: contest.office ?? "Candidate race",
+      office: contest.office ?? translateApp(language, "ballot.raceFallback"),
       state: context?.state ?? "",
       electionDate: context?.electionDate ?? "",
       electionStage: context?.electionStage ?? "",

@@ -7,6 +7,7 @@ import type { EvidenceSelection } from "./EvidenceSheet";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { NavHeader } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestPalette as P, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { Brief, claimLabels, PromiseDetail } from "./Brief";
@@ -15,8 +16,8 @@ import { Finance } from "./Finance";
 import { candidateResearchPreview } from "./fixtures";
 import { Action, EvidenceAction, Panel, s, Segments } from "./ResearchUI";
 
-const electionLabel = (date: string) =>
-  new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+const electionLabel = (date: string, locale = "en-US") =>
+  new Date(`${date}T12:00:00Z`).toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -36,6 +37,8 @@ export function ResearchScreen({
 }: {
   promisePage?: boolean;
 }) {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   const router = useRouter();
   const params = useLocalSearchParams<{
     race?: string;
@@ -145,14 +148,14 @@ export function ResearchScreen({
     else router.replace("/(tabs)/elections");
   };
   const pageTitle = promisePage
-    ? "Campaign promise"
+    ? tx("Campaign promise")
     : params.donor
-      ? "Donor details"
+      ? tx("Donor details")
       : member
-        ? "Candidate"
+        ? tx("Candidate")
         : params.view === "compare"
-          ? "Compare the race"
-          : "Candidate research";
+          ? tx("Compare the race")
+          : tx("Candidate research");
   return (
     <View style={s.screen}>
       <NavHeader title={pageTitle} tone="dark" onBack={back} />
@@ -162,27 +165,32 @@ export function ResearchScreen({
         keyboardShouldPersistTaps="handled"
       >
         {params.draft && (
-          <Panel title="Editorial draft · not published">
+          <Panel title={tx("Editorial draft · not published")}>
             <Text style={s.body}>
-              Real collected sources. The explanation is awaiting independent
-              review.
+              {tx(
+                "Real collected sources. The explanation is awaiting independent review.",
+              )}
             </Text>
             {draftQuery.data?.failure ? (
               <Text style={s.body}>{draftQuery.data.failure}</Text>
             ) : null}
             {draftQuery.isError ? (
               <Text style={s.body}>
-                Sign in with an authorized editor account to view this draft.
+                {tx(
+                  "Sign in with an authorized editor account to view this draft.",
+                )}
               </Text>
             ) : null}
           </Panel>
         )}
         {fictional && (
-          <Text style={s.eyebrow}>Fictional example · not your ballot</Text>
+          <Text style={s.eyebrow}>
+            {tx("Fictional example · not your ballot")}
+          </Text>
         )}
         {params.draft && !race ? (
           <ActivityIndicator
-            accessibilityLabel="Loading editorial draft"
+            accessibilityLabel={tx("Loading editorial draft")}
             color={P.primary}
             animating={!draftQuery.isError}
           />
@@ -191,15 +199,15 @@ export function ResearchScreen({
             {(validId && query.isFetching) ||
             (!params.race && catalog.isPending && !previewUnavailable) ? (
               <ActivityIndicator
-                accessibilityLabel="Loading candidate research"
+                accessibilityLabel={tx("Loading candidate research")}
                 color={P.primary}
               />
             ) : null}
             {(validId && query.isError) || (!params.race && catalog.isError) ? (
-              <Panel title="Research couldn’t load">
-                <Text style={s.body}>Please try again.</Text>
+              <Panel title={tx("Research couldn’t load")}>
+                <Text style={s.body}>{tx("Please try again.")}</Text>
                 <Action
-                  label="Try again"
+                  label={tx("Try again")}
                   onPress={() =>
                     void (params.race ? query.refetch() : catalog.refetch())
                   }
@@ -208,36 +216,41 @@ export function ResearchScreen({
             ) : validId &&
               query.isPending &&
               !previewUnavailable ? null : params.race || previewUnavailable ? (
-              <Panel title="Research unavailable">
+              <Panel title={tx("Research unavailable")}>
                 <Text style={s.body}>
-                  This race is not currently available. Its research may be
-                  awaiting review or an update.
+                  {tx(
+                    "This race is not currently available. Its research may be awaiting review or an update.",
+                  )}
                 </Text>
                 <Action
-                  label="Browse available races"
+                  label={tx("Browse available races")}
                   onPress={() => router.replace("/candidate-research")}
                 />
               </Panel>
             ) : (
               <>
                 <Text accessibilityRole="header" style={s.title}>
-                  Explore the candidates
+                  {tx("Explore the candidates")}
                 </Text>
                 <Text style={s.body}>
-                  Reviewed records, campaign promises and reported funding.
+                  {tx(
+                    "Reviewed records, campaign promises and reported funding.",
+                  )}
                 </Text>
                 {catalog.data?.length
                   ? catalog.data.map((item) => (
                       <Panel key={item.id} title={item.office}>
                         <Text style={s.muted}>
                           {item.jurisdiction} ·{" "}
-                          {electionLabel(item.electionDate)}
+                          {electionLabel(item.electionDate, appLocale)}
                         </Text>
                         <Text style={s.body}>
-                          {item.candidateCount} candidates
+                          {tx("{value1} candidates", {
+                            value1: item.candidateCount,
+                          })}
                         </Text>
                         <Action
-                          label="Explore this race"
+                          label={tx("Explore this race")}
                           onPress={() =>
                             router.push({
                               pathname: "/candidate-research",
@@ -248,22 +261,22 @@ export function ResearchScreen({
                       </Panel>
                     ))
                   : !catalog.isPending && (
-                      <Panel title="No reviewed races available yet">
+                      <Panel title={tx("No reviewed races available yet")}>
                         <Text style={s.body}>
-                          You can still read official candidate statements in
-                          the statewide guide. Your election office has the
-                          official candidate list.
+                          {tx(
+                            "You can still read official candidate statements in the statewide guide. Your election office has the official candidate list.",
+                          )}
                         </Text>
                         <SourceLink
-                          label="Find your election office"
+                          label={tx("Find your election office")}
                           url="https://www.usa.gov/state-election-office"
                         />
                       </Panel>
                     )}
                 {__DEV__ && (
-                  <Panel title="Development examples">
+                  <Panel title={tx("Development examples")}>
                     <Action
-                      label="Open fictional candidate research"
+                      label={tx("Open fictional candidate research")}
                       onPress={() =>
                         router.push({
                           pathname: "/candidate-research",
@@ -272,7 +285,7 @@ export function ResearchScreen({
                       }
                     />
                     <Action
-                      label="Open missing-research example"
+                      label={tx("Open missing-research example")}
                       onPress={() =>
                         router.push({
                           pathname: "/candidate-research",
@@ -287,12 +300,12 @@ export function ResearchScreen({
           </>
         ) : !member || !brief ? (
           params.person ? (
-            <Panel title="Candidate unavailable">
+            <Panel title={tx("Candidate unavailable")}>
               <Text style={s.body}>
-                This candidate is not in the current race roster.
+                {tx("This candidate is not in the current race roster.")}
               </Text>
               <Action
-                label="View the whole race"
+                label={tx("View the whole race")}
                 onPress={() => navigate({})}
               />
             </Panel>
@@ -300,20 +313,25 @@ export function ResearchScreen({
             <>
               <Text style={s.eyebrow}>
                 {race.manifest.jurisdictionLabel.toUpperCase()} ·{" "}
-                {electionLabel(race.manifest.electionDate)}
+                {electionLabel(race.manifest.electionDate, appLocale)}
               </Text>
               <Text accessibilityRole="header" style={s.title}>
                 {race.manifest.office}
               </Text>
               <Text style={s.muted}>
-                {race.manifest.members.length} candidates · Confirm this contest
-                appears on your ballot.
+                {tx(
+                  "{value1} candidates · Confirm this contest appears on your ballot.",
+                  { value1: race.manifest.members.length },
+                )}
               </Text>
               {params.view === "compare" ? (
                 <>
                   <Segments
                     scrollable
-                    options={[...topics]}
+                    options={topics.map((item) => ({
+                      ...item,
+                      label: tx(item.label),
+                    }))}
                     value={topic}
                     onChange={setTopic}
                   />
@@ -329,14 +347,14 @@ export function ResearchScreen({
                       <Panel key={person.candidateId} title={person.name}>
                         {person.ballotStatus === "withdrawn_on_ballot" && (
                           <Text style={s.muted}>
-                            Withdrawn; name remains on ballot
+                            {tx("Withdrawn; name remains on ballot")}
                           </Text>
                         )}
                         {section?.claims.length ? (
                           section.claims.map((claim) => (
                             <View key={claim.id} style={s.point}>
                               <Text style={s.muted}>
-                                {claimLabels[claim.kind]}
+                                {tx(claimLabels[claim.kind])}
                               </Text>
                               <Text style={s.body}>{claim.text}</Text>
                               <EvidenceAction
@@ -357,7 +375,9 @@ export function ResearchScreen({
                         ) : (
                           <Text style={s.body}>
                             {section?.missingEvidence ??
-                              "No reviewed evidence available for this question."}
+                              tx(
+                                "No reviewed evidence available for this question.",
+                              )}
                           </Text>
                         )}
                         {!!section?.claims.length &&
@@ -367,7 +387,9 @@ export function ResearchScreen({
                             </Text>
                           )}
                         <Action
-                          label={`Explore ${person.name}`}
+                          label={tx("Explore {value1}", {
+                            value1: person.name,
+                          })}
                           onPress={() =>
                             navigate({ person: person.candidateId })
                           }
@@ -379,12 +401,12 @@ export function ResearchScreen({
               ) : (
                 <>
                   <Action
-                    label="Compare the whole race"
+                    label={tx("Compare the whole race")}
                     onPress={() => navigate({ view: "compare" })}
                   />
                   <TextInput
-                    accessibilityLabel="Search candidates"
-                    placeholder="Search candidates"
+                    accessibilityLabel={tx("Search candidates")}
+                    placeholder={tx("Search candidates")}
                     placeholderTextColor="#BDC1CD"
                     value={search}
                     onChangeText={setSearch}
@@ -413,11 +435,13 @@ export function ResearchScreen({
                         <Text style={s.muted}>
                           {person.description}
                           {person.ballotStatus === "withdrawn_on_ballot"
-                            ? " · Withdrawn; name remains on ballot"
+                            ? tx(" · Withdrawn; name remains on ballot")
                             : ""}
                         </Text>
                         <Action
-                          label={`Explore ${person.name}`}
+                          label={tx("Explore {value1}", {
+                            value1: person.name,
+                          })}
                           onPress={() =>
                             navigate({ person: person.candidateId })
                           }
@@ -429,17 +453,21 @@ export function ResearchScreen({
                       .toLocaleLowerCase()
                       .includes(search.trim().toLocaleLowerCase()),
                   ) && (
-                    <Text style={s.body}>No candidates match your search.</Text>
+                    <Text style={s.body}>
+                      {tx("No candidates match your search.")}
+                    </Text>
                   )}
                 </>
               )}
               {fictional ? (
                 <Text style={s.muted}>
-                  The roster and all sources in this example are fictional.
+                  {tx(
+                    "The roster and all sources in this example are fictional.",
+                  )}
                 </Text>
               ) : (
                 <SourceLink
-                  label="Official candidate list"
+                  label={tx("Official candidate list")}
                   url={race.manifest.rosterSourceUrl}
                 />
               )}
@@ -461,7 +489,7 @@ export function ResearchScreen({
               <Text style={s.muted}>
                 {member.description}
                 {member.ballotStatus === "withdrawn_on_ballot"
-                  ? " · Withdrawn; name remains on ballot"
+                  ? tx(" · Withdrawn; name remains on ballot")
                   : ""}
               </Text>
             </View>
@@ -480,9 +508,9 @@ export function ResearchScreen({
                 {!params.donor && (
                   <Segments
                     options={[
-                      { value: "brief", label: "The brief" },
-                      { value: "money", label: "Money" },
-                      { value: "sources", label: "Sources" },
+                      { value: "brief", label: tx("The brief") },
+                      { value: "money", label: tx("Money") },
+                      { value: "sources", label: tx("Sources") },
                     ]}
                     value={tab}
                     onChange={(value) => router.setParams({ tab: value })}
@@ -506,11 +534,11 @@ export function ResearchScreen({
                   <>
                     <Text style={s.muted}>
                       {params.draft
-                        ? "Sources checked"
+                        ? tx("Sources checked")
                         : fictional
-                          ? "Example review"
-                          : "Reviewed"}{" "}
-                      {new Date(race.reviewedAt).toLocaleDateString("en-US", {
+                          ? tx("Example review")
+                          : tx("Reviewed")}{" "}
+                      {new Date(race.reviewedAt).toLocaleDateString(appLocale, {
                         timeZone: "UTC",
                       })}
                     </Text>
@@ -519,10 +547,10 @@ export function ResearchScreen({
                         <Panel key={evidence.id}>
                           <Text style={s.eyebrow}>
                             {evidence.origin === "candidate"
-                              ? "CANDIDATE SOURCE"
+                              ? tx("CANDIDATE SOURCE")
                               : evidence.origin === "primary_record"
-                                ? "ORIGINAL RECORD"
-                                : "INDEPENDENT REPORTING"}
+                                ? tx("ORIGINAL RECORD")
+                                : tx("INDEPENDENT REPORTING")}
                           </Text>
                           <Text style={s.heading}>
                             {evidence.title ?? evidence.publisher}
@@ -533,21 +561,22 @@ export function ResearchScreen({
                           <EvidenceAction
                             ids={[evidence.id]}
                             title={evidence.title ?? evidence.publisher}
-                            label="Read source passage"
+                            label={tx("Read source passage")}
                             open={open}
                           />
                         </Panel>
                       ))
                     ) : (
-                      <Panel title="Sources unavailable">
+                      <Panel title={tx("Sources unavailable")}>
                         <Text style={s.body}>
-                          No reviewed source passages are available for this
-                          candidate.
+                          {tx(
+                            "No reviewed source passages are available for this candidate.",
+                          )}
                         </Text>
                       </Panel>
                     )}
                     <SourceLink
-                      label="Report a correction"
+                      label={tx("Report a correction")}
                       url="https://billion-news.app/support"
                     />
                   </>
@@ -562,7 +591,7 @@ export function ResearchScreen({
                 )}
                 {!params.donor && (
                   <Action
-                    label="Compare the whole race"
+                    label={tx("Compare the whole race")}
                     onPress={() => navigate({ view: "compare" })}
                   />
                 )}

@@ -8,10 +8,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Icon, ScreenShell } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestHair, fontBody, DigestPalette as P } from "~/styles";
 import { queryClient, trpc } from "~/utils/api";
 
 export default function BlockedContentScreen() {
+  const { t } = useAppTranslation();
   const blockedQuery = useQuery(trpc.user.getBlocked.queryOptions());
   const items = blockedQuery.data ?? [];
 
@@ -25,11 +27,15 @@ export default function BlockedContentScreen() {
   });
 
   return (
-    <ScreenShell title="Blocked">
+    <ScreenShell title={t("blocked.title")}>
       {blockedQuery.isLoading ? (
-        <ActivityIndicator color={P.inkOnNight} style={{ marginTop: 24 }} />
+        <ActivityIndicator
+          color={P.inkOnNight}
+          style={{ marginTop: 24 }}
+          accessibilityLabel={t("common.loading")}
+        />
       ) : items.length === 0 ? (
-        <Text style={s.emptyText}>Nothing blocked.</Text>
+        <Text style={s.emptyText}>{t("blocked.empty")}</Text>
       ) : (
         <View>
           {items.map((it, i) => (
@@ -47,15 +53,19 @@ export default function BlockedContentScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={s.name}>{it.name}</Text>
                 <Text style={s.type}>
-                  {it.type === "source" ? "Source" : "Topic"}
+                  {it.type === "source"
+                    ? t("blocked.source")
+                    : t("blocked.topic")}
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={() => removeMutation.mutate({ id: it.id })}
                 activeOpacity={0.8}
                 style={s.pill}
+                accessibilityRole="button"
+                accessibilityLabel={t("blocked.unblockA11y", { name: it.name })}
               >
-                <Text style={s.pillText}>Unblock</Text>
+                <Text style={s.pillText}>{t("blocked.unblock")}</Text>
               </TouchableOpacity>
             </View>
           ))}

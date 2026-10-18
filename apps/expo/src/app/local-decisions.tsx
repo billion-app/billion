@@ -18,6 +18,7 @@ import {
 import { Redirect, useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
+import { LanguageCorner } from "~/components/LanguageButton";
 import { DecisionCard } from "~/components/local-government/DecisionCard";
 import { DecisionListSkeleton } from "~/components/local-government/DecisionSkeletons";
 import { Text, View } from "~/components/Themed";
@@ -25,6 +26,7 @@ import { Pill, Pills } from "~/components/ui";
 import { Icon } from "~/components/ui/Icon";
 import { NavHeader } from "~/components/ui/NavHeader";
 import { Segmented } from "~/components/ui/Segmented";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { DigestPalette, DigestSpace, fontBody, fontDisplay } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -42,6 +44,8 @@ const STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
 type TimelineTab = "upcoming" | "recent";
 
 export default function LocalDecisionsScreen() {
+  const { t: tx, language } = useAppTranslation();
+
   const router = useRouter();
   const { address, isLoading: isAddressLoading } = useUserAddress();
 
@@ -147,6 +151,7 @@ export default function LocalDecisionsScreen() {
   if (isAddressLoading) {
     return (
       <View style={[s.screen, { backgroundColor: DigestPalette.canvas }]}>
+        <LanguageCorner />
         <View style={s.center}>
           <ActivityIndicator size="large" color={DigestPalette.inkOnNight} />
         </View>
@@ -162,15 +167,15 @@ export default function LocalDecisionsScreen() {
     <View style={[s.screen, { backgroundColor: DigestPalette.canvas }]}>
       <NavHeader
         large
-        title={`What ${jurisdictionName} Is Deciding`}
+        title={tx("What {value1} Is Deciding", { value1: jurisdictionName })}
         onBack={() => router.back()}
       />
 
       <View style={s.controls}>
         <Segmented<TimelineTab>
           options={[
-            { id: "upcoming", label: "Upcoming" },
-            { id: "recent", label: "Recently decided" },
+            { id: "upcoming", label: tx("Upcoming") },
+            { id: "recent", label: tx("Recently decided") },
           ]}
           value={tab}
           onChange={(next) => {
@@ -184,14 +189,14 @@ export default function LocalDecisionsScreen() {
         <View>
           <Pills>
             <Pill
-              label="All topics"
+              label={tx("All topics")}
               active={topic === null}
               onPress={() => setTopic(null)}
             />
             {availableTopics.map((t) => (
               <Pill
                 key={t}
-                label={topicLabelOrFallback(t)}
+                label={topicLabelOrFallback(t, language)}
                 active={topic === t}
                 onPress={() => setTopic(topic === t ? null : t)}
               />
@@ -247,25 +252,40 @@ export default function LocalDecisionsScreen() {
             </View>
           ) : error ? (
             <ListState
-              title={`Couldn't load ${jurisdictionName} decisions`}
-              body="The official records source didn't respond. Nothing on this list has changed."
-              actionLabel="Try again"
+              title={tx("Couldn't load {value1} decisions", {
+                value1: jurisdictionName,
+              })}
+              body={tx(
+                "The official records source didn't respond. Nothing on this list has changed.",
+              )}
+              actionLabel={tx("Try again")}
               onAction={() => void refetch()}
             />
           ) : (
             <ListState
               title={
                 tab === "upcoming"
-                  ? `No upcoming ${jurisdictionName} meetings in the pipeline yet`
-                  : `No recently decided items found${topic ? " for this topic" : ""}`
+                  ? tx("No upcoming {value1} meetings in the pipeline yet", {
+                      value1: jurisdictionName,
+                    })
+                  : topic
+                    ? tx("No recently decided items found for this topic")
+                    : tx("No recently decided items found{value1}", {
+                        value1: "",
+                      })
               }
               body={
                 topic
-                  ? "Try another topic, or check upcoming meetings."
-                  : `Billion syncs ${jurisdictionName}'s published agendas and outcomes daily. Check back soon.`
+                  ? tx("Try another topic, or check upcoming meetings.")
+                  : tx(
+                      "Billion syncs {value1}'s published agendas and outcomes daily. Check back soon.",
+                      { value1: jurisdictionName },
+                    )
               }
               actionLabel={
-                tab === "upcoming" ? "See recently decided" : "See upcoming"
+                tab === "upcoming"
+                  ? tx("See recently decided")
+                  : tx("See upcoming")
               }
               onAction={() => {
                 setTopic(null);
@@ -290,16 +310,25 @@ function SyncNote({
   syncFailed: boolean;
   lastSyncedAt: Date | string | null;
 }) {
+  const { t: tx, language } = useAppTranslation();
+
   if (!visible) return null;
   return (
     <View style={s.syncNote}>
       <Icon name="clock" size={12} color={DigestPalette.spark} />
       <RNText style={[s.syncText, { color: DigestPalette.quiet }]}>
         {syncFailed
-          ? `The last sync with ${jurisdictionName}'s official records failed, so this list may be out of date.`
+          ? tx(
+              "The last sync with {value1}'s official records failed, so this list may be out of date.",
+              { value1: jurisdictionName },
+            )
           : lastSyncedAt
-            ? `Official records were last synced ${formatMeetingDate(lastSyncedAt)}.`
-            : `Sync status for ${jurisdictionName} is unavailable.`}
+            ? tx("Official records were last synced {value1}.", {
+                value1: formatMeetingDate(lastSyncedAt, language),
+              })
+            : tx("Sync status for {value1} is unavailable.", {
+                value1: jurisdictionName,
+              })}
       </RNText>
     </View>
   );

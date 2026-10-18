@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Text } from "~/components/Themed";
 import { Avatar, GhostButton, Icon, ScreenShell } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestRadii,
@@ -22,6 +23,7 @@ function getInitials(name: string): string {
 }
 
 export default function EditProfileScreen() {
+  const { t } = useAppTranslation();
   const sessionQuery = useQuery(trpc.auth.getSession.queryOptions());
   const sessionUser = sessionQuery.data?.user;
 
@@ -45,8 +47,8 @@ export default function EditProfileScreen() {
   });
 
   const fields = [
-    { label: "Name", value: name, set: setName },
-    { label: "Email", value: email, set: undefined },
+    { id: "name", label: t("profile.name"), value: name, set: setName },
+    { id: "email", label: t("profile.email"), value: email, set: undefined },
   ];
 
   const handleSave = () => {
@@ -57,11 +59,15 @@ export default function EditProfileScreen() {
 
   return (
     <ScreenShell
-      title="Edit Profile"
+      title={t("profile.title")}
       action={
-        <TouchableOpacity hitSlop={8} onPress={handleSave}>
+        <TouchableOpacity
+          hitSlop={8}
+          onPress={handleSave}
+          accessibilityRole="button"
+        >
           <Text style={s.save}>
-            {updateProfile.isPending ? "Saving…" : "Save"}
+            {updateProfile.isPending ? t("common.saving") : t("common.save")}
           </Text>
         </TouchableOpacity>
       }
@@ -74,16 +80,17 @@ export default function EditProfileScreen() {
           </View>
         </View>
         <GhostButton
-          label="Change photo"
+          label={t("profile.changePhoto")}
           color={P.spark}
           style={{ marginTop: 10, height: 32 }}
         />
       </View>
 
       {fields.map((f) => (
-        <View key={f.label} style={{ marginBottom: 22 }}>
+        <View key={f.id} style={{ marginBottom: 22 }}>
           <Text style={s.label}>{f.label}</Text>
           <TextInput
+            accessibilityLabel={f.label}
             style={[s.input, !f.set && { opacity: 0.5 }]}
             value={f.value}
             onChangeText={f.set}
@@ -95,7 +102,7 @@ export default function EditProfileScreen() {
       ))}
 
       <GhostButton
-        label="Delete account"
+        label={t("profile.deleteAccount")}
         color={P.quiet}
         style={{ marginTop: 8, alignSelf: "flex-start" }}
       />

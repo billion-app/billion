@@ -11,6 +11,7 @@ import type { ElectedOfficial } from "@acme/api";
 
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestPalette,
@@ -30,6 +31,7 @@ function openUrl(url: string) {
 }
 
 function RepCard({ rep }: { rep: ElectedOfficial }) {
+  const { t } = useAppTranslation();
   return (
     <View style={styles.repCard}>
       {rep.image ? (
@@ -58,8 +60,12 @@ function RepCard({ rep }: { rep: ElectedOfficial }) {
                 style={styles.action}
                 suppressHighlighting
                 onPress={() => openUrl(`tel:${rep.phone}`)}
+                accessibilityRole="link"
+                accessibilityLabel={t("elections.reps.callA11y", {
+                  name: rep.name,
+                })}
               >
-                Call
+                {t("elections.reps.call")}
               </Text>
             ) : null}
             {rep.email ? (
@@ -67,8 +73,12 @@ function RepCard({ rep }: { rep: ElectedOfficial }) {
                 style={styles.action}
                 suppressHighlighting
                 onPress={() => openUrl(`mailto:${rep.email}`)}
+                accessibilityRole="link"
+                accessibilityLabel={t("elections.reps.emailA11y", {
+                  name: rep.name,
+                })}
               >
-                Email
+                {t("elections.reps.email")}
               </Text>
             ) : null}
             {rep.url ? (
@@ -76,8 +86,12 @@ function RepCard({ rep }: { rep: ElectedOfficial }) {
                 style={styles.action}
                 suppressHighlighting
                 onPress={() => openUrl(rep.url ?? "")}
+                accessibilityRole="link"
+                accessibilityLabel={t("elections.reps.websiteA11y", {
+                  name: rep.name,
+                })}
               >
-                Website
+                {t("elections.reps.website")}
               </Text>
             ) : null}
           </View>
@@ -88,6 +102,7 @@ function RepCard({ rep }: { rep: ElectedOfficial }) {
 }
 
 export function RepsSection({ address, enabled = true }: RepsSectionProps) {
+  const { t } = useAppTranslation();
   const query = useQuery({
     ...trpc.civic.getElectedOfficials.queryOptions({ address: address ?? "" }),
     enabled: enabled && !!address,
@@ -97,13 +112,11 @@ export function RepsSection({ address, enabled = true }: RepsSectionProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.kicker}>Representatives</Text>
+      <Text style={styles.kicker}>{t("elections.reps.title")}</Text>
       {query.isLoading ? (
         <ActivityIndicator color={DigestPalette.spark} style={styles.loader} />
       ) : query.isError ? (
-        <Text style={styles.empty}>
-          Couldn&apos;t load officials for this address.
-        </Text>
+        <Text style={styles.empty}>{t("elections.reps.error")}</Text>
       ) : (
         query.data?.officials.map((rep, i) => (
           <View key={rep.id} style={i > 0 ? styles.rowHair : undefined}>
@@ -116,8 +129,9 @@ export function RepsSection({ address, enabled = true }: RepsSectionProps) {
           style={styles.source}
           suppressHighlighting
           onPress={() => openUrl(query.data.source.url)}
+          accessibilityRole="link"
         >
-          Current legislator data: Open States
+          {t("elections.reps.source")}
         </Text>
       ) : null}
     </View>

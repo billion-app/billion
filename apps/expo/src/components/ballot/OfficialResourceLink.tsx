@@ -3,6 +3,7 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, digest, fontBody, hair, planes } from "~/styles";
 
 /** Compact official links follow the content reader's source-button scale. */
@@ -15,6 +16,8 @@ export function OfficialResourceLink({
   url: string;
   prominence?: "primary";
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [failed, setFailed] = useState(false);
   return (
     <View>
@@ -40,7 +43,7 @@ export function OfficialResourceLink({
       </Pressable>
       {failed && (
         <Text accessibilityRole="alert" style={s.caption}>
-          Could not open the link. Tap to retry.
+          {tx("Could not open the link. Tap to retry.")}
         </Text>
       )}
     </View>

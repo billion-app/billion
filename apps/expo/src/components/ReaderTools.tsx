@@ -7,109 +7,27 @@
  * translated, quotes and sources left as published, and a way back to English.
  */
 import { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { useArticleSpeech } from "~/hooks/useArticleSpeech";
 import { useLanguage } from "~/hooks/useLanguage";
-import { LANGUAGE_OPTIONS } from "~/i18n/language";
-import { fontBody, fontDisplay, hair, DigestPalette as P } from "~/styles";
+import { fontBody, hair, DigestPalette as P } from "~/styles";
+import { LanguageButton } from "./LanguageButton";
 import { TranslationNotice } from "./TranslationNotice";
 import { Icon } from "./ui/Icon";
 
-const SPARK_TINT = "rgba(212,175,55,0.12)";
-const SPARK_EDGE = "rgba(212,175,55,0.55)";
-
-export function ReaderLanguageButton() {
-  const { language, setLanguage, t } = useLanguage();
-  const [open, setOpen] = useState(false);
-  const current = LANGUAGE_OPTIONS.find((option) => option.id === language);
-  return (
-    <>
-      <Pressable
-        style={({ pressed }) => [s.button, s.translate, pressed && s.pressed]}
-        onPress={() => setOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={`Translate · 翻译 · Traducir · ${current?.nativeName ?? "English"}`}
-        testID="reader-language"
-      >
-        <Icon name="globe" size={17} color={P.spark} />
-        <Text style={s.label} numberOfLines={1}>
-          {language === "en"
-            ? "中文 · Español"
-            : language === "zh"
-              ? "中文"
-              : "Español"}
-        </Text>
-        <Icon name="chevD" size={14} color={P.quiet} />
-      </Pressable>
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
-        <View style={s.overlay}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setOpen(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.cancel")}
-          />
-          <View style={s.menu} accessibilityViewIsModal>
-            <Text style={s.heading} accessibilityRole="header">
-              Translate · 翻译 · Traducir
-            </Text>
-            <Text style={s.menuNote}>{t("reader.translateNote")}</Text>
-            {LANGUAGE_OPTIONS.map((option) => {
-              const selected = language === option.id;
-              return (
-                <Pressable
-                  key={option.id}
-                  style={({ pressed }) => [
-                    s.option,
-                    selected && s.optionSelected,
-                    pressed && s.pressed,
-                  ]}
-                  onPress={() => {
-                    setLanguage(option.id);
-                    setOpen(false);
-                  }}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  testID={`reader-language-${option.id}`}
-                >
-                  <View style={s.optionText}>
-                    <Text style={s.optionName}>{option.nativeName}</Text>
-                    {option.englishName !== option.nativeName && (
-                      <Text style={s.optionSub}>{option.englishName}</Text>
-                    )}
-                  </View>
-                  {selected && <Icon name="check" size={18} color={P.spark} />}
-                </Pressable>
-              );
-            })}
-            <Pressable
-              style={({ pressed }) => [s.cancel, pressed && s.pressed]}
-              onPress={() => setOpen(false)}
-              accessibilityRole="button"
-            >
-              <Text style={s.cancelLabel}>{t("common.cancel")}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-    </>
-  );
-}
+export { LanguageButton as ReaderLanguageButton } from "./LanguageButton";
 
 export function ReaderTools({
   speech,
   state,
   onRetry,
+  showLanguage = true,
 }: {
   speech: ReturnType<typeof useArticleSpeech>;
   state: "original" | "translated" | "pending" | "unavailable";
   onRetry: () => void;
+  showLanguage?: boolean;
 }) {
   const { t } = useLanguage();
   // Read aloud is missing on web and in builds without the speech module.
@@ -161,7 +79,7 @@ export function ReaderTools({
             {listenLabel}
           </Text>
         </Pressable>
-        <ReaderLanguageButton />
+        {showLanguage && <LanguageButton />}
       </View>
       <TranslationNotice state={state} onRetry={onRetry} />
       {!speech.available && explainUnavailable && (
@@ -203,11 +121,6 @@ const s = StyleSheet.create({
     borderColor: hair[2],
     borderRadius: 22,
   },
-  translate: {
-    backgroundColor: SPARK_TINT,
-    borderColor: SPARK_EDGE,
-    paddingRight: 12,
-  },
   muted: { borderStyle: "dashed" },
   pressed: { opacity: 0.7 },
   label: { color: P.inkOnNight, fontFamily: fontBody.medium, fontSize: 14 },
@@ -219,53 +132,4 @@ const s = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
-  overlay: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: "rgba(0,0,0,0.6)",
-  },
-  menu: {
-    width: "100%",
-    maxWidth: 420,
-    alignSelf: "center",
-    gap: 8,
-    backgroundColor: P.night,
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: hair[2],
-  },
-  heading: {
-    color: P.inkOnNight,
-    fontFamily: fontDisplay.bold,
-    fontSize: 20,
-  },
-  menuNote: {
-    color: P.quiet,
-    fontFamily: fontBody.regular,
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 6,
-  },
-  option: {
-    minHeight: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: hair[2],
-  },
-  optionSelected: { borderColor: SPARK_EDGE, backgroundColor: SPARK_TINT },
-  optionText: { gap: 1 },
-  optionName: {
-    color: P.inkOnNight,
-    fontFamily: fontBody.semibold,
-    fontSize: 16,
-  },
-  optionSub: { color: P.quiet, fontFamily: fontBody.regular, fontSize: 12 },
-  cancel: { minHeight: 44, alignItems: "center", justifyContent: "center" },
-  cancelLabel: { color: P.quiet, fontFamily: fontBody.medium, fontSize: 14 },
 });

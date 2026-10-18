@@ -7,6 +7,10 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import type { AppLanguage } from "~/i18n/language";
+import { translateApp } from "~/i18n/app-strings";
+import { formatDate, formatTime } from "~/i18n/format";
+
 const STORAGE_KEY = "billion.alert-history.v1";
 
 export const MAX_ALERTS = 100;
@@ -91,11 +95,11 @@ export function withAlert(
   );
 }
 
-export function formatAlertTime(at: Date): string {
-  return at.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+export function formatAlertTime(
+  at: Date,
+  language: AppLanguage = "en",
+): string {
+  return formatTime(language, at);
 }
 
 function dayKey(at: Date): string {
@@ -111,6 +115,7 @@ export interface AlertDayGroup {
 export function groupAlertsByDay(
   items: readonly AlertItem[],
   now: Date,
+  language: AppLanguage = "en",
 ): AlertDayGroup[] {
   const today = dayKey(now);
   const yesterdayDate = new Date(now);
@@ -128,13 +133,10 @@ export function groupAlertsByDay(
     if (!group) {
       const label =
         key === today
-          ? "TODAY"
+          ? translateApp(language, "alerts.todayUpper")
           : key === yesterday
-            ? "YESTERDAY"
-            : at.toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-              });
+            ? translateApp(language, "alerts.yesterdayUpper")
+            : formatDate(language, at, { month: "long", day: "numeric" });
       group = { key, label, items: [] };
       index.set(key, group);
       groups.push(group);

@@ -14,6 +14,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { PinMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useDebounced } from "~/hooks/useDebounce";
 import { DigestHair, DigestPalette, fontBody } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -47,15 +48,15 @@ function uuidv4(): string {
   });
 }
 
-const DEFAULT_HINT = "Enter your address to see what's on your ballot.";
-
 export function AddressAutocomplete({
   initialValue = "",
   onSubmit,
-  hint = DEFAULT_HINT,
+  hint: hintProp,
   autoFocus = true,
   inline = false,
 }: AddressAutocompleteProps) {
+  const { t } = useAppTranslation();
+  const hint = hintProp === undefined ? t("address.defaultHint") : hintProp;
   const [input, setInput] = useState(initialValue);
   // Closed right after a pick so the dropdown doesn't reopen on the
   // programmatic setInput; reopened as soon as the user types again.
@@ -111,7 +112,7 @@ export function AddressAutocomplete({
       <View style={inline ? s.suggestionInline : s.suggestion}>
         <ActivityIndicator size="small" color={DigestPalette.spark} />
         {inline ? null : (
-          <Text style={s.suggestionText}>Confirming address…</Text>
+          <Text style={s.suggestionText}>{t("address.confirming")}</Text>
         )}
       </View>
     </View>
@@ -141,7 +142,9 @@ export function AddressAutocomplete({
       {suggestions.length === 0 && suggestionsQuery.isFetching && (
         <View style={inline ? s.suggestionInline : s.suggestion}>
           <ActivityIndicator size="small" color={DigestPalette.quiet} />
-          {inline ? null : <Text style={s.suggestionText}>Searching…</Text>}
+          {inline ? null : (
+            <Text style={s.suggestionText}>{t("address.searching")}</Text>
+          )}
         </View>
       )}
     </View>
@@ -152,12 +155,13 @@ export function AddressAutocomplete({
       <View>
         <TextInput
           style={s.inputInline}
-          placeholder="Address"
+          placeholder={t("address.placeholder")}
+          accessibilityLabel={t("address.placeholder")}
           placeholderTextColor={DigestPalette.quiet}
           value={input}
-          onChangeText={(t) => {
+          onChangeText={(text) => {
             setOpen(true);
-            setInput(t);
+            setInput(text);
           }}
           autoComplete="street-address"
           textContentType="fullStreetAddress"
@@ -187,12 +191,13 @@ export function AddressAutocomplete({
           </View>
           <TextInput
             style={s.input}
-            placeholder="Registered address"
+            placeholder={t("address.registeredPlaceholder")}
+            accessibilityLabel={t("address.registeredPlaceholder")}
             placeholderTextColor={DigestHair.inkMuted}
             value={input}
-            onChangeText={(t) => {
+            onChangeText={(text) => {
               setOpen(true);
-              setInput(t);
+              setInput(text);
             }}
             autoComplete="street-address"
             textContentType="fullStreetAddress"
@@ -203,8 +208,12 @@ export function AddressAutocomplete({
           style={[s.btn, !input.trim() && s.btnOff]}
           disabled={!input.trim() || detailsMutation.isPending}
           onPress={() => input.trim() && commit(input.trim())}
+          accessibilityRole="button"
+          accessibilityState={{
+            disabled: !input.trim() || detailsMutation.isPending,
+          }}
         >
-          <Text style={s.btnText}>Look Up</Text>
+          <Text style={s.btnText}>{t("address.lookUp")}</Text>
         </TouchableOpacity>
       </View>
 

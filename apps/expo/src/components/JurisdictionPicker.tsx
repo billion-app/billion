@@ -14,6 +14,7 @@ import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { GoldFoilText } from "~/components/GoldBillionMark";
 import { Text } from "~/components/Themed";
 import { Icon, Kicker } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestPalette,
@@ -26,6 +27,7 @@ import {
 import {
   jurisdictionFromAddress,
   JURISDICTIONS,
+  jurisdictionText,
   SUPPORTED_STATE_JURISDICTIONS,
 } from "~/utils/jurisdiction";
 
@@ -36,14 +38,17 @@ export function JurisdictionScopeRow({
   jurisdiction: ContentJurisdiction;
   onPress: () => void;
 }) {
-  const item = JURISDICTIONS[jurisdiction];
+  const { language, t } = useAppTranslation();
+  const item = jurisdictionText(jurisdiction, language);
   return (
     <TouchableOpacity
       style={s.scope}
       onPress={onPress}
       activeOpacity={0.82}
       accessibilityRole="button"
-      accessibilityLabel={`Jurisdiction: ${item.body}. Change jurisdiction`}
+      accessibilityLabel={t("jurisdictionPicker.scopeA11y", {
+        body: item.body,
+      })}
       testID="jurisdiction-scope"
     >
       <GoldFoilText text={item.name} style={s.scopeBody} />
@@ -70,6 +75,7 @@ export function JurisdictionPicker({
   onClearAddress?: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { t } = useAppTranslation();
   const homeJurisdiction = jurisdictionFromAddress(address);
   const [editingAddress, setEditingAddress] = useState(false);
 
@@ -94,15 +100,19 @@ export function JurisdictionPicker({
         <Pressable
           style={s.scrim}
           onPress={close}
-          accessibilityLabel="Close jurisdiction picker"
+          accessibilityRole="button"
+          accessibilityLabel={t("jurisdictionPicker.close")}
         />
-        <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+        <View
+          style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}
+          accessibilityViewIsModal
+        >
           <View style={s.handle} />
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={s.title}>Jurisdiction</Text>
-            <Text style={s.intro}>
-              Search and results follow this government.
+            <Text style={s.title} accessibilityRole="header">
+              {t("jurisdictionPicker.title")}
             </Text>
+            <Text style={s.intro}>{t("jurisdictionPicker.intro")}</Text>
 
             {editingAddress ? (
               <View style={s.addressBlock}>
@@ -124,17 +134,21 @@ export function JurisdictionPicker({
                 onPress={() => setEditingAddress(true)}
                 activeOpacity={0.82}
                 accessibilityRole="button"
-                accessibilityLabel={address ? "Change address" : "Set address"}
+                accessibilityLabel={
+                  address
+                    ? `${t("address.change")}. ${address}`
+                    : t("address.set")
+                }
               >
                 <Text style={s.addressLine} numberOfLines={1}>
-                  {address ?? "Set address"}
+                  {address ?? t("address.set")}
                 </Text>
                 {address && onClearAddress ? (
                   <TouchableOpacity
                     onPress={onClearAddress}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel="Clear saved address"
+                    accessibilityLabel={t("address.clear")}
                   >
                     <Text style={s.addressClear}>✕</Text>
                   </TouchableOpacity>
@@ -142,14 +156,18 @@ export function JurisdictionPicker({
               </TouchableOpacity>
             )}
 
-            <Kicker style={s.groupLabel}>Federal</Kicker>
+            <Kicker style={s.groupLabel}>
+              {t("jurisdictionPicker.federal")}
+            </Kicker>
             <JurisdictionOption
               jurisdiction="federal"
               selected={selected === "federal"}
               onPress={() => select("federal")}
             />
 
-            <Kicker style={s.groupLabel}>States</Kicker>
+            <Kicker style={s.groupLabel}>
+              {t("jurisdictionPicker.states")}
+            </Kicker>
             {SUPPORTED_STATE_JURISDICTIONS.map((jurisdiction) => (
               <JurisdictionOption
                 key={jurisdiction}
@@ -163,8 +181,7 @@ export function JurisdictionPicker({
             <View style={s.coverageNote}>
               <Icon name="info" size={16} color={DigestPalette.quiet} />
               <Text style={s.coverageText}>
-                State bill coverage currently includes California, North
-                Carolina and Texas.
+                {t("jurisdictionPicker.coverage")}
               </Text>
             </View>
           </ScrollView>
@@ -185,7 +202,11 @@ function JurisdictionOption({
   isHome?: boolean;
   onPress: () => void;
 }) {
-  const item = JURISDICTIONS[jurisdiction];
+  const { language, t } = useAppTranslation();
+  const item = jurisdictionText(jurisdiction, language);
+  const title = isHome
+    ? `${item.name} · ${t("jurisdictionPicker.yourState")}`
+    : item.name;
   return (
     <TouchableOpacity
       style={[s.option, selected && s.optionSelected]}
@@ -193,15 +214,15 @@ function JurisdictionOption({
       activeOpacity={0.82}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
+      accessibilityLabel={`${title}. ${item.description}`}
     >
       <View style={[s.codeTile, selected && s.codeTileSelected]}>
-        <Text style={[s.code, selected && s.codeSelected]}>{item.code}</Text>
+        <Text style={[s.code, selected && s.codeSelected]}>
+          {JURISDICTIONS[jurisdiction].code}
+        </Text>
       </View>
       <View style={s.optionCopy}>
-        <Text style={s.optionTitle}>
-          {item.name}
-          {isHome ? " · your state" : ""}
-        </Text>
+        <Text style={s.optionTitle}>{title}</Text>
         <Text style={s.optionDescription}>{item.description}</Text>
       </View>
       {selected ? (

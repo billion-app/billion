@@ -12,6 +12,7 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SearchMark } from "~/components/digest/CraftMarks";
+import { LanguageButton } from "~/components/LanguageButton";
 import {
   DigestHair,
   DigestPalette,
@@ -98,6 +99,7 @@ export function TabScreen({
               ) : (
                 <View style={l.titleFill} />
               )}
+              <LanguageButton compact />
               {action}
             </View>
           ) : null}

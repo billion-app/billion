@@ -4,11 +4,17 @@ import { useRouter } from "expo-router";
 import type { IconName } from "~/components/ui";
 import { Text } from "~/components/Themed";
 import { ScreenShell, SettingsRow } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
-import { getAppVersionLabel } from "~/utils/app-version";
+import { getAppBuildNumber, getAppVersion } from "~/utils/app-version";
 
 export default function AboutScreen() {
   const router = useRouter();
+  const { t } = useAppTranslation();
+  const build = getAppBuildNumber();
+  const versionLabel = build
+    ? t("about.versionBuild", { version: getAppVersion(), build })
+    : t("about.version", { version: getAppVersion() });
 
   const rows: { icon: IconName; label: string; onPress: () => void }[] = [
     {
@@ -18,31 +24,33 @@ export default function AboutScreen() {
     },
     {
       icon: "doc",
-      label: "Open-source licenses",
+      label: t("about.licenses"),
       onPress: () => router.push("/settings/terms"),
     },
     {
       icon: "shield",
-      label: "Privacy",
+      label: t("about.privacy"),
       onPress: () => router.push("/settings/privacy"),
     },
     {
       icon: "doc",
-      label: "Terms",
+      label: t("about.terms"),
       onPress: () => router.push("/settings/terms"),
     },
   ];
 
   return (
-    <ScreenShell title="About">
+    <ScreenShell title={t("about.title")}>
       <View style={s.hero}>
         <Text style={s.name}>Billion</Text>
-        <Text style={s.version}>{getAppVersionLabel()}</Text>
-        <Text style={s.upToDate}>Up to date</Text>
+        <Text style={s.version}>{versionLabel}</Text>
+        <Text style={s.upToDate}>{t("about.upToDate")}</Text>
       </View>
 
       <Text style={s.blurb}>
-        The public record, <Text style={s.blurbEm}>worth reading</Text>.
+        {t("about.blurbLead")}
+        <Text style={s.blurbEm}>{t("about.blurbEm")}</Text>
+        {t("about.blurbEnd")}
       </Text>
 
       {rows.map((r, i) => (

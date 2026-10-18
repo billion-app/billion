@@ -14,6 +14,7 @@ import type { ContentItem } from "~/utils/content";
 import { EmptySearchMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { ContentCard, NavHeader } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useSavedContent } from "~/hooks/useSavedContent";
 import {
   DigestHair,
@@ -35,6 +36,7 @@ function SwipeableSavedCard({
   onUnsave: () => void;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
+  const { language, t } = useAppTranslation();
 
   return (
     <Swipeable
@@ -53,15 +55,15 @@ function SwipeableSavedCard({
             onUnsave();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Remove from saved"
+          accessibilityLabel={t("saved.removeA11y")}
         >
-          <Text style={s.unsaveText}>Remove</Text>
+          <Text style={s.unsaveText}>{t("common.remove")}</Text>
         </TouchableOpacity>
       )}
     >
       <ContentCard
         saved
-        item={toCardItem(item, { showJurisdiction: true })}
+        item={toCardItem(item, { showJurisdiction: true, language })}
         onPress={onPress}
       />
     </Swipeable>
@@ -70,6 +72,7 @@ function SwipeableSavedCard({
 
 export default function SavedArticlesScreen() {
   const router = useRouter();
+  const { t } = useAppTranslation();
   const { savedIds, toggleSave } = useSavedContent();
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -81,21 +84,23 @@ export default function SavedArticlesScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Saved" onBack={() => router.back()} />
+      <NavHeader title={t("saved.title")} onBack={() => router.back()} />
       {isLoading && savedIds.length > 0 ? (
-        <ActivityIndicator color={P.inkOnNight} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          color={P.inkOnNight}
+          style={{ marginTop: 40 }}
+          accessibilityLabel={t("common.loading")}
+        />
       ) : error && savedIds.length > 0 ? (
         <View style={s.empty}>
-          <Text style={s.emptyTitle}>Didn’t load</Text>
-          <Text style={s.emptySub}>
-            Saved records are still on this device.
-          </Text>
+          <Text style={s.emptyTitle}>{t("common.didntLoad")}</Text>
+          <Text style={s.emptySub}>{t("saved.stillOnDevice")}</Text>
           <TouchableOpacity
             style={s.retry}
             onPress={() => void refetch()}
             accessibilityRole="button"
           >
-            <Text style={s.retryText}>Try again</Text>
+            <Text style={s.retryText}>{t("common.tryAgain")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -106,7 +111,9 @@ export default function SavedArticlesScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             list.length > 0 ? (
-              <Text style={s.intro}>{list.length} saved</Text>
+              <Text style={s.intro}>
+                {t("saved.count", { count: list.length })}
+              </Text>
             ) : null
           }
           ItemSeparatorComponent={() => (
@@ -133,11 +140,8 @@ export default function SavedArticlesScreen() {
           ListEmptyComponent={
             <View style={s.empty}>
               <EmptySearchMark width={88} />
-              <Text style={s.emptyTitle}>Nothing saved yet</Text>
-              <Text style={s.emptySub}>
-                Tap the bookmark on a bill, a case, or an order to come back to
-                it.
-              </Text>
+              <Text style={s.emptyTitle}>{t("saved.empty")}</Text>
+              <Text style={s.emptySub}>{t("saved.emptySub")}</Text>
             </View>
           }
         />

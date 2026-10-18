@@ -16,6 +16,7 @@ import Animated, {
 import Svg, { Path } from "react-native-svg";
 
 import { GoldBillionMark } from "~/components/GoldBillionMark";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontBody, fontDisplay, DigestPalette as P } from "~/styles";
 import { CAPITOL_HERO, CAPITOL_VIEW } from "./capitol3d";
 
@@ -36,6 +37,7 @@ export function WelcomeStage({
   active: boolean;
 }) {
   const reduce = useReducedMotion();
+  const { t: tr } = useAppTranslation();
   const t = useSharedValue(0);
 
   useEffect(() => {
@@ -171,8 +173,10 @@ export function WelcomeStage({
       </Animated.View>
 
       <Animated.View style={[s.copy, { paddingBottom: bottom }, copy]}>
-        <Text style={s.headline}>Tomorrow’s brief.</Text>
-        <Text style={s.dek}>What the government did. In English.</Text>
+        <Text style={s.headline} accessibilityRole="header">
+          {tr("onboarding.welcomeHeadline")}
+        </Text>
+        <Text style={s.dek}>{tr("onboarding.welcomeDek")}</Text>
       </Animated.View>
     </View>
   );

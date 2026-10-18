@@ -34,6 +34,7 @@ import { Card } from "~/components/ui/layout";
 import { NavHeader } from "~/components/ui/NavHeader";
 import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogisticsSection";
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   fontBody,
@@ -68,6 +69,8 @@ export interface BallotLookupViewProps {
 }
 
 export function BallotLookupView(props: BallotLookupViewProps) {
+  const { t: tx, language: uiLanguage } = useAppTranslation();
+
   const router = useRouter();
   const [ballotTab, setBallotTab] = useState<"candidates" | "measures">(
     "candidates",
@@ -200,20 +203,20 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             ]}
           >
             <Text accessibilityRole="header" style={s.pageTitle}>
-              How to vote
+              {tx("How to vote")}
             </Text>
             {model?.election && (
               <View style={s.electionHeader}>
                 <Text style={s.electionTitle}>{model.election.name}</Text>
                 <Text style={s.secondary}>
-                  {ballotElectionDate(model.election.electionDay)}
+                  {ballotElectionDate(model.election.electionDay, uiLanguage)}
                 </Text>
               </View>
             )}
             {props.loading ? (
               <View accessibilityLiveRegion="polite" style={s.loading}>
                 <ActivityIndicator color={P.spark} />
-                <Text style={s.body}>Updating voting information…</Text>
+                <Text style={s.body}>{tx("Updating voting information…")}</Text>
               </View>
             ) : props.failed ? (
               <BallotStatusNotice
@@ -226,7 +229,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   election={model?.election}
                   data={data}
                   california={model?.isCalifornia}
-                  returnLabel="Return to ballot"
+                  returnLabel={tx("Return to ballot")}
                   onReturn={returnToBallot}
                   onViewLogistics={viewLogistics}
                 />
@@ -243,7 +246,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                       tabIndex={-1}
                       style={s.electionTitle}
                     >
-                      Voting dates & locations
+                      {tx("Voting dates & locations")}
                     </NativeText>
                     <VotingLogisticsSection status="ready" data={data} />
                   </View>
@@ -259,19 +262,21 @@ export function BallotLookupView(props: BallotLookupViewProps) {
     <View style={[s.addressRow, fontScale > 1.3 && s.stackedRow]}>
       {fontScale <= 1.3 && <Icon name="pin" size={20} color={P.primary} />}
       <View style={s.flex}>
-        <Text style={s.addressLabel}>VOTING ADDRESS</Text>
+        <Text style={s.addressLabel}>{tx("VOTING ADDRESS")}</Text>
         <Text style={s.addressText}>{props.address}</Text>
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Edit voting address: ${props.address}`}
+        accessibilityLabel={tx("Edit voting address: {value1}", {
+          value1: props.address,
+        })}
         onPress={() => {
           setChoosingElection(false);
           setEditing(true);
         }}
         style={[s.textButton, s.editButton]}
       >
-        <Text style={s.linkText}>Edit</Text>
+        <Text style={s.linkText}>{tx("Edit")}</Text>
       </Pressable>
     </View>
   );
@@ -299,7 +304,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
         keyboardShouldPersistTaps="handled"
       >
         <Text accessibilityRole="header" style={s.pageTitle}>
-          Your ballot
+          {tx("Your ballot")}
         </Text>
         <Pressable
           {...{ "ph-no-capture": true }}
@@ -322,7 +327,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               textDecorationLine: "underline",
             }}
           >
-            Saved ballot notes
+            {tx("Saved ballot notes")}
           </Text>
           <View
             accessible={false}
@@ -335,34 +340,35 @@ export function BallotLookupView(props: BallotLookupViewProps) {
         {mismatch && (
           <Card style={s.card}>
             <Text accessibilityRole="header" style={s.contestTitle}>
-              Selected ballot unavailable
+              {tx("Selected ballot unavailable")}
             </Text>
             <Text accessibilityRole="alert" style={s.body}>
-              The provider returned a different election. Choose another
-              election or try again to get the ballot you selected.
+              {tx(
+                "The provider returned a different election. Choose another election or try again to get the ballot you selected.",
+              )}
             </Text>
             <Pressable
               accessibilityRole="button"
               onPress={props.onRetry}
               style={s.primaryButton}
             >
-              <Text style={s.primaryText}>Try again</Text>
+              <Text style={s.primaryText}>{tx("Try again")}</Text>
             </Pressable>
           </Card>
         )}
         {editing ? (
           <Card style={s.form}>
             <Text accessibilityRole="header" style={s.electionTitle}>
-              Find your ballot
+              {tx("Find your ballot")}
             </Text>
             <Text style={s.secondary}>
-              Enter the address where you’re registered to vote.
+              {tx("Enter the address where you’re registered to vote.")}
             </Text>
-            <Text style={s.actionText}>Voting address</Text>
+            <Text style={s.actionText}>{tx("Voting address")}</Text>
             <TextInput
               ref={addressInput}
-              accessibilityLabel="Voting address"
-              placeholder="Street, city, state, ZIP"
+              accessibilityLabel={tx("Voting address")}
+              placeholder={tx("Street, city, state, ZIP")}
               placeholderTextColor="rgba(255,255,255,0.70)"
               value={draft}
               onChangeText={setDraft}
@@ -374,8 +380,8 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             {invalid && (
               <Text accessibilityRole="alert" style={s.errorText}>
                 {draft.trim().length > 300
-                  ? "Keep your address under 300 characters."
-                  : "Enter a street address, city, state and ZIP code."}
+                  ? tx("Keep your address under 300 characters.")
+                  : tx("Enter a street address, city, state and ZIP code.")}
               </Text>
             )}
             <Pressable
@@ -383,7 +389,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               onPress={submit}
               style={s.primaryButton}
             >
-              <Text style={s.primaryText}>Look up ballot</Text>
+              <Text style={s.primaryText}>{tx("Look up ballot")}</Text>
             </Pressable>
             {!!props.address && (
               <Pressable
@@ -395,7 +401,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                 }}
                 style={s.textButton}
               >
-                <Text style={s.actionText}>Cancel editing</Text>
+                <Text style={s.actionText}>{tx("Cancel editing")}</Text>
               </Pressable>
             )}
           </Card>
@@ -404,14 +410,14 @@ export function BallotLookupView(props: BallotLookupViewProps) {
         )}
         {editing && (
           <SourceLink
-            label="Find your election office"
+            label={tx("Find your election office")}
             url="https://www.usa.gov/state-election-office"
           />
         )}
         {props.loading && (
           <View accessibilityLiveRegion="polite" style={s.loading}>
             <ActivityIndicator color={P.spark} />
-            <Text style={s.body}>Looking up your ballot…</Text>
+            <Text style={s.body}>{tx("Looking up your ballot…")}</Text>
           </View>
         )}
         {!!model?.election && (
@@ -421,18 +427,20 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             </Text>
             <View style={[s.electionMeta, fontScale > 1.3 && s.stackedRow]}>
               <Text style={s.body}>
-                {ballotElectionDate(model.election.electionDay)}
+                {ballotElectionDate(model.election.electionDay, uiLanguage)}
               </Text>
               {elections.length > 1 && (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Change election"
+                  accessibilityLabel={tx("Change election")}
                   accessibilityState={{ expanded: choosingElection }}
                   onPress={() => setChoosingElection(!choosingElection)}
                   style={s.textButton}
                 >
                   <Text style={s.linkText}>
-                    {choosingElection ? "Close choices" : "Change election"}
+                    {choosingElection
+                      ? tx("Close choices")
+                      : tx("Change election")}
                   </Text>
                   <Icon
                     name={choosingElection ? "chevD" : "chevR"}
@@ -457,10 +465,10 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             >
               <Text style={s.linkText}>
                 {choosingElection
-                  ? "Close choices"
+                  ? tx("Close choices")
                   : mismatch
-                    ? "Change election"
-                    : "Choose election"}
+                    ? tx("Change election")
+                    : tx("Choose election")}
               </Text>
             </Pressable>
           )}
@@ -471,7 +479,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
           choosingElection && (
             <View style={s.choices}>
               <Text accessibilityRole="header" style={s.eyebrow}>
-                Elections for this address
+                {tx("Elections for this address")}
               </Text>
               {elections.map((election) => (
                 <Pressable
@@ -490,11 +498,11 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   <View style={s.flex}>
                     <Text style={s.actionText}>{election.name}</Text>
                     <Text style={s.secondary}>
-                      {ballotElectionDate(election.electionDay)}
+                      {ballotElectionDate(election.electionDay, uiLanguage)}
                     </Text>
                   </View>
                   {model?.election?.id === election.id && (
-                    <Text style={s.secondary}>Selected</Text>
+                    <Text style={s.secondary}>{tx("Selected")}</Text>
                   )}
                 </Pressable>
               ))}
@@ -510,7 +518,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
         {!editing && props.failed && addressSummary}
         {(data?.kind === "development-fixture" || data?.kind === "fixture") && (
           <Text style={s.secondary}>
-            Example ballot · not real election information
+            {tx("Example ballot · not real election information")}
           </Text>
         )}
         {model && data && (
@@ -518,21 +526,24 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             {data.provider?.addressScope === "statewide_only" && (
               <View style={s.coverageNotice}>
                 <Text accessibilityRole="header" style={s.actionText}>
-                  Statewide contests only
+                  {tx("Statewide contests only")}
                 </Text>
                 <Text style={s.secondary}>
-                  Local races and measures may be missing from this result.
+                  {tx(
+                    "Local races and measures may be missing from this result.",
+                  )}
                 </Text>
               </View>
             )}
             {data.provider?.addressScope === "unknown" && (
               <View style={s.coverageNotice}>
                 <Text accessibilityRole="header" style={s.actionText}>
-                  Address coverage unconfirmed
+                  {tx("Address coverage unconfirmed")}
                 </Text>
                 <Text style={s.secondary}>
-                  Billion cannot confirm that this result includes the contests
-                  for your address.
+                  {tx(
+                    "Billion cannot confirm that this result includes the contests for your address.",
+                  )}
                 </Text>
               </View>
             )}
@@ -540,8 +551,8 @@ export function BallotLookupView(props: BallotLookupViewProps) {
               <Pressable
                 accessibilityRole="button"
                 ref={votingEntry}
-                accessibilityLabel="How to vote"
-                accessibilityHint="Opens voting information"
+                accessibilityLabel={tx("How to vote")}
+                accessibilityHint={tx("Opens voting information")}
                 onPress={() => {
                   setBallotOffset(ballotScroll.current);
                   votingOffset.current = 0;
@@ -553,11 +564,11 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   <Icon name="vote" size={22} color={P.primary} />
                 </View>
                 <View style={s.flex}>
-                  <Text style={s.entryTitle}>How to vote</Text>
+                  <Text style={s.entryTitle}>{tx("How to vote")}</Text>
                   <Text style={s.secondary}>
                     {model.election
-                      ? "Voting resources for this election"
-                      : "Find voting resources"}
+                      ? tx("Voting resources for this election")
+                      : tx("Find voting resources")}
                   </Text>
                 </View>
                 <Icon name="chevR" size={18} color={P.inkOnNight} />
@@ -581,9 +592,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             {!!model.contests.length && (
               <>
                 <Text style={s.coverage}>
-                  {model.contests.length}{" "}
-                  {model.contests.length === 1 ? "contest" : "contests"} · List
-                  may be incomplete
+                  {tx("ballot.contestCount", { count: model.contests.length })}
                 </Text>
                 <Segmented
                   value={ballotTab}
@@ -591,12 +600,19 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   options={[
                     {
                       id: "candidates",
-                      label: `Races ${model.contests.filter((c) => !c.referendumTitle).length}`,
+                      label: tx("Races {value1}", {
+                        value1: model.contests.filter((c) => !c.referendumTitle)
+                          .length,
+                      }),
                       icon: "vote",
                     },
                     {
                       id: "measures",
-                      label: `Measures ${model.contests.filter((c) => !!c.referendumTitle).length}`,
+                      label: tx("Measures {value1}", {
+                        value1: model.contests.filter(
+                          (c) => !!c.referendumTitle,
+                        ).length,
+                      }),
                       icon: "scale",
                     },
                   ]}
@@ -609,8 +625,8 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                   <Card style={s.card}>
                     <Text style={s.secondary}>
                       {ballotTab === "measures"
-                        ? "No measures supplied for this ballot."
-                        : "No candidate races supplied for this ballot."}
+                        ? tx("No measures supplied for this ballot.")
+                        : tx("No candidate races supplied for this ballot.")}
                     </Text>
                   </Card>
                 )}
@@ -633,6 +649,7 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                           ? undefined
                           : electionTypeLabel(
                               electionType(model.election?.name),
+                              uiLanguage,
                             )
                       }
                       provider={data.provider}
@@ -646,14 +663,15 @@ export function BallotLookupView(props: BallotLookupViewProps) {
                 {hasContests && !votingExpanded && (
                   <View style={s.confirm}>
                     <Text style={s.secondary}>
-                      Check your complete ballot and current voting details with
-                      your election office.
+                      {tx(
+                        "Check your complete ballot and current voting details with your election office.",
+                      )}
                     </Text>
                     <SourceLink
                       label={
                         officeUrl
-                          ? "Visit election office"
-                          : "Find your election office"
+                          ? tx("Visit election office")
+                          : tx("Find your election office")
                       }
                       url={
                         officeUrl ?? "https://www.usa.gov/state-election-office"
@@ -665,13 +683,13 @@ export function BallotLookupView(props: BallotLookupViewProps) {
             )}
             {data.provider && (
               <BallotDisclosure
-                title="Sources & updates"
-                detail="Ballot source and retrieval date"
+                title={tx("Sources & updates")}
+                detail={tx("Ballot source and retrieval date")}
               >
                 <BallotProvenanceRows
                   sourceName={
                     data.kind === "development-fixture"
-                      ? "Synthetic development fixture"
+                      ? tx("Synthetic development fixture")
                       : "Democracy Works"
                   }
                   sourceUrl={data.provider.sourceUrl}

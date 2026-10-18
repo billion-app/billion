@@ -1,17 +1,23 @@
 import { StyleSheet } from "react-native";
 import { Link, Stack } from "expo-router";
 
+import { LanguageCorner } from "~/components/LanguageButton";
 import { Text, View } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 
 export default function NotFoundScreen() {
+  const { t } = useAppTranslation();
   return (
     <>
-      <Stack.Screen options={{ title: "Oops!" }} />
+      <Stack.Screen options={{ title: t("notFound.title") }} />
       <View style={styles.container}>
-        <Text style={styles.title}>This screen doesn't exist.</Text>
+        <LanguageCorner />
+        <Text style={styles.title} accessibilityRole="header">
+          {t("notFound.body")}
+        </Text>
 
         <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Go to home screen!</Text>
+          <Text style={styles.linkText}>{t("notFound.home")}</Text>
         </Link>
       </View>
     </>
@@ -28,6 +34,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "bold",
+    textAlign: "center",
   },
   link: {
     marginTop: 15,

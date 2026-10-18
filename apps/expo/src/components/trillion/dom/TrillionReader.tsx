@@ -9,6 +9,7 @@ import { useDOMImperativeHandle } from "expo/dom";
 
 import type { PublicTrillionGraph } from "@acme/validators";
 
+import type { ReaderNavigation } from "./reader-engine";
 import { mountTrillionReader } from "./reader-engine";
 
 /** What native code can ask of the reader. */
@@ -58,6 +59,7 @@ export default function TrillionReader({
   dom?: DOMProps;
 }) {
   const local = useRef(localState);
+  const navigation = useRef<ReaderNavigation>(undefined);
   const root = useRef<HTMLDivElement>(null);
   const reader = useRef<ReturnType<typeof mountTrillionReader>>(null);
   useDOMImperativeHandle(
@@ -81,9 +83,11 @@ export default function TrillionReader({
       view,
       ballot,
       language,
+      navigation: navigation.current,
     });
     reader.current = mounted;
     return () => {
+      navigation.current = mounted.getNavigation();
       reader.current = null;
       mounted.destroy();
     };
@@ -95,8 +99,13 @@ export default function TrillionReader({
     graph.measure.number,
     graph.revision,
     translationKey,
+    language,
   ]);
   return (
-    <div ref={root} style={{ height: "100vh", width: "100%", minWidth: 0 }} />
+    <div
+      ref={root}
+      lang={language === "zh" ? "zh-Hans" : language}
+      style={{ height: "100vh", width: "100%", minWidth: 0 }}
+    />
   );
 }

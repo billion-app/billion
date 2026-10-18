@@ -1,5 +1,7 @@
 import type { Contest, Election, PollingLocation } from "@acme/api";
 
+import type { AppLanguage } from "~/i18n/language";
+import { translateApp } from "~/i18n/app-strings";
 import { daysUntil } from "~/utils/dates";
 
 /**
@@ -29,42 +31,22 @@ export function electionType(name: string | undefined): ElectionType {
 }
 
 /** Short badge label for an election type. */
-export function electionTypeLabel(type: ElectionType): string {
-  switch (type) {
-    case "primary":
-      return "Primary";
-    case "general":
-      return "General";
-    case "special":
-      return "Special";
-    case "recall":
-      return "Recall";
-    case "runoff":
-      return "Runoff";
-    default:
-      return "Election";
-  }
+export function electionTypeLabel(
+  type: ElectionType,
+  language: AppLanguage = "en",
+): string {
+  return translateApp(language, `elections.type.${type}`);
 }
 
 /**
  * One plain-language sentence explaining what this kind of election decides.
  * Static copy — no backend. Keeps the "what does this mean" promise of the hero.
  */
-export function electionExplainer(type: ElectionType): string {
-  switch (type) {
-    case "primary":
-      return "A primary narrows the field. In California's top-two system, the two highest vote-getters for each office advance to the November general — regardless of party.";
-    case "general":
-      return "The general election decides who takes office. Winners are seated and approved measures become law.";
-    case "special":
-      return "A special election is held off the normal cycle to fill a vacancy or settle a single urgent question.";
-    case "recall":
-      return "A recall lets voters decide whether to remove an official from office before their term ends.";
-    case "runoff":
-      return "A runoff is a second round between the top finishers when no candidate won outright in the first round.";
-    default:
-      return "Review the contests and measures below to see everything on your ballot.";
-  }
+export function electionExplainer(
+  type: ElectionType,
+  language: AppLanguage = "en",
+): string {
+  return translateApp(language, `elections.explainer.${type}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -79,11 +61,11 @@ export interface LevelGroup {
   contests: Contest[];
 }
 
-const LEVEL_GROUP_ORDER: { key: LevelGroupKey; label: string }[] = [
-  { key: "federal", label: "Federal" },
-  { key: "state", label: "State" },
-  { key: "county", label: "County" },
-  { key: "local", label: "Local / Judicial" },
+const LEVEL_GROUP_ORDER: LevelGroupKey[] = [
+  "federal",
+  "state",
+  "county",
+  "local",
 ];
 
 /** Map a single Civic `level` value onto one of our four display groups. */
@@ -112,7 +94,10 @@ function isJudicial(c: Contest): boolean {
  * Bucket candidate contests into Federal → State → County → Local/Judicial,
  * preserving ballot order within each group and dropping empty groups.
  */
-export function groupContestsByLevel(contests: Contest[]): LevelGroup[] {
+export function groupContestsByLevel(
+  contests: Contest[],
+  language: AppLanguage = "en",
+): LevelGroup[] {
   const buckets: Record<LevelGroupKey, Contest[]> = {
     federal: [],
     state: [],
@@ -123,8 +108,12 @@ export function groupContestsByLevel(contests: Contest[]): LevelGroup[] {
     const key = isJudicial(c) ? "local" : levelToGroup(c.level?.[0]);
     buckets[key].push(c);
   }
-  return LEVEL_GROUP_ORDER.filter((g) => buckets[g.key].length > 0).map(
-    (g) => ({ ...g, contests: buckets[g.key] }),
+  return LEVEL_GROUP_ORDER.filter((key) => buckets[key].length > 0).map(
+    (key) => ({
+      key,
+      label: translateApp(language, `elections.level.${key}`),
+      contests: buckets[key],
+    }),
   );
 }
 
@@ -160,12 +149,15 @@ export function isCaliforniaState(state: string | null | undefined): boolean {
 }
 
 /** Contest list title: Civic may omit `office` on some referendum-adjacent rows. */
-export function contestListTitle(c: Contest): string {
+export function contestListTitle(
+  c: Contest,
+  language: AppLanguage = "en",
+): string {
   const office = c.office?.trim();
   if (office) return office;
   const ballot = c.ballotTitle?.trim();
   if (ballot) return ballot;
-  return "Contest";
+  return translateApp(language, "elections.contestFallback");
 }
 
 function isCivicTestElection(e: Election): boolean {
@@ -210,6 +202,7 @@ export function earliestEarlyVoteStart(
 export function pollingPlaceSubtitle(
   locations: readonly PollingLocation[] | undefined,
   mailOnly?: boolean,
+  language: AppLanguage = "en",
 ): string | undefined {
   const loc = locations?.[0];
   if (loc) {
@@ -222,6 +215,6 @@ export function pollingPlaceSubtitle(
     if (line) return line;
     if (city) return city;
   }
-  if (mailOnly) return "Mail ballot";
+  if (mailOnly) return translateApp(language, "elections.mailBallot");
   return undefined;
 }

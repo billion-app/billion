@@ -4,6 +4,7 @@ import { AddressAutocomplete } from "~/components/AddressAutocomplete";
 import { PinMark } from "~/components/digest/CraftMarks";
 import { Text, View } from "~/components/Themed";
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestPalette,
@@ -31,11 +32,14 @@ export function MyBallotSection({
   onEditAddress,
   onViewBallot,
 }: MyBallotSectionProps) {
+  const { t } = useAppTranslation();
   if (!address) {
     return (
       <View style={styles.container}>
-        <Text style={styles.kicker}>Address</Text>
-        <Text style={styles.sectionTitle}>Where you vote</Text>
+        <Text style={styles.kicker}>{t("elections.myBallot.address")}</Text>
+        <Text style={styles.sectionTitle}>
+          {t("elections.myBallot.whereYouVote")}
+        </Text>
         <AddressAutocomplete onSubmit={onAddressSubmit} hint={null} />
       </View>
     );
@@ -43,19 +47,19 @@ export function MyBallotSection({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.kicker}>Address</Text>
+      <Text style={styles.kicker}>{t("elections.myBallot.address")}</Text>
       <TouchableOpacity
         onPress={onEditAddress}
         style={styles.addrRow}
         activeOpacity={0.8}
         accessibilityRole="button"
-        accessibilityLabel="Edit registered address"
+        accessibilityLabel={t("elections.editAddressA11y")}
       >
         <PinMark size={14} color={DigestPalette.spark} />
         <Text style={styles.address} numberOfLines={2}>
           {address}
         </Text>
-        <Text style={styles.editText}>Edit</Text>
+        <Text style={styles.editText}>{t("common.edit")}</Text>
       </TouchableOpacity>
 
       {onViewBallot && (
@@ -63,8 +67,11 @@ export function MyBallotSection({
           style={styles.ballotLink}
           onPress={onViewBallot}
           activeOpacity={0.8}
+          accessibilityRole="button"
         >
-          <Text style={styles.ballotLinkText}>Full ballot</Text>
+          <Text style={styles.ballotLinkText}>
+            {t("elections.myBallot.fullBallot")}
+          </Text>
           <Icon name="chevR" size={15} color={DigestPalette.quiet} />
         </TouchableOpacity>
       )}

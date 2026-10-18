@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontBody, fontDisplay } from "~/styles";
 
 /**
@@ -29,6 +30,8 @@ export function TrillionLoading({
   notice?: boolean;
   onBack: () => void;
 }) {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   const reduceMotion = useReducedMotion();
   const pulse = useSharedValue(1);
   useEffect(() => {
@@ -51,7 +54,7 @@ export function TrillionLoading({
           style={s.back}
           onPress={onBack}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={tx("Back")}
           hitSlop={8}
         >
           <Icon name="chevL" size={20} color="#F7F4EE" />
@@ -59,18 +62,27 @@ export function TrillionLoading({
         <View style={s.identity}>
           <Text style={s.eyebrow}>
             {electionDate
-              ? `California · ${new Date(`${electionDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`
+              ? tx("California · {value1}", {
+                  value1: new Date(
+                    `${electionDate}T12:00:00Z`,
+                  ).toLocaleDateString(appLocale, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  }),
+                })
               : "California"}
           </Text>
-          <Text
-            style={s.headerTitle}
-          >{`Proposition ${number ?? ""} · The debate`}</Text>
+          <Text style={s.headerTitle}>
+            {tx("Proposition {value1} · The debate", { value1: number ?? "" })}
+          </Text>
         </View>
       </View>
       <Animated.View
         style={[s.stack, fade]}
         accessible
-        accessibilityLabel="Loading proposition"
+        accessibilityLabel={tx("Loading proposition")}
         accessibilityRole="progressbar"
         accessibilityState={{ busy: true }}
       >

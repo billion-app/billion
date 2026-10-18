@@ -13,9 +13,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
+import type { AppStringKey, AppTranslate } from "~/i18n/app-strings";
+import { LanguageButton } from "~/components/LanguageButton";
 import { Text } from "~/components/Themed";
 import { GhostButton, Icon, Kicker } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { translateApp } from "~/i18n/app-strings";
 import {
   colors,
   DigestHair,
@@ -34,10 +38,10 @@ const CONTACT_EMAIL = "thatxliner@gmail.com";
 
 type FeedbackCategory = "bug" | "idea" | "content";
 
-const CATS: { id: FeedbackCategory; label: string; icon: IconName }[] = [
-  { id: "bug", label: "Bug report", icon: "flag" },
-  { id: "idea", label: "Feature idea", icon: "sparkle" },
-  { id: "content", label: "Content issue", icon: "doc" },
+const CATS: { id: FeedbackCategory; label: AppStringKey; icon: IconName }[] = [
+  { id: "bug", label: "feedback.bug", icon: "flag" },
+  { id: "idea", label: "feedback.idea", icon: "sparkle" },
+  { id: "content", label: "feedback.content", icon: "doc" },
 ];
 
 const CAT_COLOR: Record<FeedbackCategory, string> = {
@@ -46,9 +50,14 @@ const CAT_COLOR: Record<FeedbackCategory, string> = {
   content: colors.teal,
 };
 
-/** Build a mailto URL to the point of contact, pre-filling whatever we know. */
+/**
+ * Build a mailto URL to the point of contact, pre-filling whatever we know.
+ * The subject and diagnostics stay English for the team's triage; the
+ * reader's message is sent as written.
+ */
 function buildMailto(category: FeedbackCategory, message: string): string {
-  const label = CATS.find((c) => c.id === category)?.label ?? "Feedback";
+  const key = CATS.find((c) => c.id === category)?.label;
+  const label = key ? translateApp("en", key) : "Feedback";
   const subject = `Billion feedback — ${label}`;
   const body = [
     message,
@@ -62,7 +71,7 @@ function buildMailto(category: FeedbackCategory, message: string): string {
   )}&body=${encodeURIComponent(body)}`;
 }
 
-async function openMailto(url: string): Promise<boolean> {
+async function openMailto(url: string, t: AppTranslate): Promise<boolean> {
   try {
     if (await Linking.canOpenURL(url)) {
       await Linking.openURL(url);
@@ -72,13 +81,16 @@ async function openMailto(url: string): Promise<boolean> {
     // fall through to the failure alert below
   }
   Alert.alert(
-    "Couldn’t open your mail app",
-    `Please email us directly at ${CONTACT_EMAIL}.`,
+    t("feedback.mailFailed"),
+    t("feedback.mailFailedBody", { email: CONTACT_EMAIL }),
   );
   return false;
 }
 
-async function openFeedbackForm(url: string): Promise<boolean> {
+async function openFeedbackForm(
+  url: string,
+  t: AppTranslate,
+): Promise<boolean> {
   try {
     if (await Linking.canOpenURL(url)) {
       await Linking.openURL(url);
@@ -87,15 +99,15 @@ async function openFeedbackForm(url: string): Promise<boolean> {
   } catch {
     // fall through to the failure alert below
   }
-  Alert.alert(
-    "Couldn’t open the feedback form",
-    "Please try again in a moment.",
-  );
+  Alert.alert(t("feedback.formFailed"), t("feedback.tryLater"));
   return false;
 }
 
 export default function FeedbackScreen() {
+  const { t: tx } = useAppTranslation();
+
   const router = useRouter();
+  const { language, t } = useAppTranslation();
   const insets = useSafeAreaInsets();
   const [cat, setCat] = useState<FeedbackCategory>("bug");
   const [text, setText] = useState("");
@@ -112,12 +124,18 @@ export default function FeedbackScreen() {
             message,
             "",
             "———",
-            `App version: ${getAppVersion()} (${getAppBuildNumber()})`,
-            `Platform: ${Platform.OS} ${String(Platform.Version)}`,
+            tx("App version: {value1} ({value2})", {
+              value1: getAppVersion(),
+              value2: getAppBuildNumber() ?? "—",
+            }),
+            tx("Platform: {value1} {value2}", {
+              value1: Platform.OS,
+              value2: String(Platform.Version),
+            }),
           ].join("\n")
         : undefined;
 
-      void openFeedbackForm(buildFeedbackFormUrl(formKind, details)).then(
+      void openFeedbackForm(buildFeedbackFormUrl(formKind, details), t).then(
         (opened) => {
           if (!opened) return;
           posthog.capture("feedback_form_opened", {
@@ -131,7 +149,7 @@ export default function FeedbackScreen() {
       return;
     }
 
-    void openMailto(buildMailto(cat, message)).then((opened) => {
+    void openMailto(buildMailto(cat, message), t).then((opened) => {
       if (!opened) return;
       posthog.capture("feedback_submitted", {
         category: cat,
@@ -146,7 +164,7 @@ export default function FeedbackScreen() {
 
   const emailDirect = () => {
     posthog.capture("feedback_email_direct", { app_version: getAppVersion() });
-    void openMailto(`mailto:${CONTACT_EMAIL}`);
+    void openMailto(`mailto:${CONTACT_EMAIL}`, t);
   };
 
   return (
@@ -158,7 +176,19 @@ export default function FeedbackScreen() {
           paddingHorizontal: DigestSpace.screenPadX,
         }}
       >
-        <Text style={s.screenTitle}>Feedback</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <Text style={[s.screenTitle, { flex: 1 }]}>
+            {t("feedback.tabTitle")}
+          </Text>
+          <LanguageButton compact />
+        </View>
       </View>
 
       <ScrollView
@@ -170,7 +200,7 @@ export default function FeedbackScreen() {
         overScrollMode="never"
       >
         <View style={s.body}>
-          <Kicker style={s.kicker}>Category</Kicker>
+          <Kicker style={s.kicker}>{t("feedback.category")}</Kicker>
           <View style={{ gap: 8, marginBottom: 14 }}>
             {CATS.map((c) => {
               const active = cat === c.id;
@@ -180,6 +210,9 @@ export default function FeedbackScreen() {
                   key={c.id}
                   activeOpacity={0.8}
                   onPress={() => setCat(c.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
+                  accessibilityLabel={t(c.label)}
                   style={[
                     s.catRow,
                     active
@@ -203,7 +236,7 @@ export default function FeedbackScreen() {
                       },
                     ]}
                   >
-                    {c.label}
+                    {t(c.label)}
                   </Text>
                   <View
                     style={[
@@ -222,18 +255,20 @@ export default function FeedbackScreen() {
             })}
           </View>
 
-          <Kicker style={s.kicker}>Details</Kicker>
+          <Kicker style={s.kicker}>{t("feedback.details")}</Kicker>
           <TextInput
             style={s.textarea}
             value={text}
             onChangeText={setText}
-            placeholder="Tell us what happened or what you'd love to see…"
+            placeholder={t("feedback.placeholder")}
+            accessibilityLabel={t("feedback.details")}
             placeholderTextColor={P.quiet}
             multiline
             textAlignVertical="top"
           />
           <Text style={s.attached}>
-            App version {getAppVersion()} attached automatically.
+            {t("feedback.attached", { version: getAppVersion() })}
+            {language !== "en" ? ` ${t("feedback.englishNote")}` : ""}
           </Text>
 
           <TouchableOpacity
@@ -250,17 +285,17 @@ export default function FeedbackScreen() {
           >
             <Text style={s.ctaLabel}>
               {cat === "bug"
-                ? "Continue to bug report"
+                ? t("feedback.continueBug")
                 : cat === "idea"
-                  ? "Continue to feature request"
-                  : "Send content issue via email"}
+                  ? t("feedback.continueFeature")
+                  : t("feedback.sendContent")}
             </Text>
           </TouchableOpacity>
 
-          <Text style={s.orDivider}>or</Text>
+          <Text style={s.orDivider}>{t("common.or")}</Text>
 
           <GhostButton
-            label={`Email us at ${CONTACT_EMAIL}`}
+            label={t("feedback.emailUs", { email: CONTACT_EMAIL })}
             onPress={emailDirect}
             color={P.quiet}
             style={{ alignSelf: "center" }}
@@ -281,9 +316,9 @@ export default function FeedbackScreen() {
           activeOpacity={0.7}
           style={s.legalLink}
           accessibilityRole="link"
-          accessibilityLabel="Terms and Privacy Policy"
+          accessibilityLabel={t("feedback.legal")}
         >
-          <Text style={s.legalLinkText}>Terms and Privacy Policy</Text>
+          <Text style={s.legalLinkText}>{t("feedback.legal")}</Text>
         </TouchableOpacity>
       </View>
     </View>

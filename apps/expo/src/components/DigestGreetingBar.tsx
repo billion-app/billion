@@ -32,6 +32,8 @@ import {
   useProfileIdentity,
 } from "~/components/DigestProfileMark";
 import { GoldBillionMark, GoldFoilScript } from "~/components/GoldBillionMark";
+import { LanguageButton } from "~/components/LanguageButton";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useContentJurisdiction } from "~/hooks/useContentJurisdiction";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { fontBody, DigestPalette as P } from "~/styles";
@@ -42,7 +44,7 @@ import {
 } from "~/utils/greeting-start";
 import {
   jurisdictionFromAddress,
-  JURISDICTIONS,
+  jurisdictionText,
   SUPPORTED_STATE_JURISDICTIONS,
 } from "~/utils/jurisdiction";
 import { isSplashHidden, whenSplashHidden } from "~/utils/splash-gate";
@@ -103,12 +105,12 @@ const SLIDE_EASE = Easing.inOut(Easing.cubic);
 type Period = "morning" | "afternoon" | "evening" | "night";
 type Freeze = "typing" | "dropped" | "settled" | "morph" | "lockup" | null;
 
-const PERIOD_LABEL: Record<Period, string> = {
+const PERIOD_LABEL = {
   morning: "Good Morning",
   afternoon: "Good Afternoon",
   evening: "Good Evening",
   night: "Good Night",
-};
+} as const;
 
 function periodFor(date: Date): Period {
   const h = date.getHours();
@@ -180,6 +182,8 @@ export function DigestGreetingBar({
   /** Home queries have settled (or failed) so the curtain retracts onto real cards. */
   stageReady?: boolean;
 }) {
+  const { t: tx, language } = useAppTranslation();
+
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const [now, setNow] = useState(() => new Date());
@@ -208,8 +212,8 @@ export function DigestGreetingBar({
   } = useProfileIdentity();
   /** Personalised only when a session actually supplies a name. */
   const greeting = firstName
-    ? `${PERIOD_LABEL[period]}, ${firstName}`
-    : PERIOD_LABEL[period];
+    ? `${tx(PERIOD_LABEL[period])}, ${firstName}`
+    : tx(PERIOD_LABEL[period]);
   const {
     address,
     setAddress,
@@ -219,7 +223,7 @@ export function DigestGreetingBar({
   const { jurisdiction, setJurisdiction } = useContentJurisdiction();
   const location =
     localityFromAddress(address) ??
-    (addressLoading ? "…" : JURISDICTIONS[jurisdiction].name);
+    (addressLoading ? "…" : jurisdictionText(jurisdiction, language).name);
   const coverageOptions: ContentJurisdiction[] = [
     "federal",
     ...SUPPORTED_STATE_JURISDICTIONS,
@@ -714,6 +718,17 @@ export function DigestGreetingBar({
         style={{ height: compactH, backgroundColor: CANVAS }}
         pointerEvents="none"
       />
+      <View
+        style={{
+          position: "absolute",
+          top: insets.top + 2,
+          right: PAD_RIGHT + AVATAR_SETTLED + 12,
+          zIndex: 41,
+          elevation: 41,
+        }}
+      >
+        <LanguageButton compact />
+      </View>
       {!ready || (holding && playCeremony && !freeze) ? null : (
         <Animated.View
           style={[styles.sheet, sheetStyle]}
@@ -747,8 +762,10 @@ export function DigestGreetingBar({
                 accessibilityRole="button"
                 accessibilityLabel={
                   profileName
-                    ? `Account: ${profileName}. Open feedback and settings`
-                    : "Account. Open feedback and settings"
+                    ? tx("Account: {value1}. Open feedback and settings", {
+                        value1: profileName,
+                      })
+                    : tx("Account. Open feedback and settings")
                 }
                 accessibilityState={{ expanded: profileOpen }}
                 testID="digest-profile-mark"
@@ -768,7 +785,10 @@ export function DigestGreetingBar({
                   if (settledUI) setLocationOpen(true);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Billion, location ${location}. Change location`}
+                accessibilityLabel={tx(
+                  "Billion, location {value1}. Change location",
+                  { value1: location },
+                )}
                 accessibilityState={{ expanded: locationOpen }}
                 testID="digest-location-lockup"
                 onLayout={(e) => {
@@ -803,7 +823,7 @@ export function DigestGreetingBar({
               pointerEvents="none"
             >
               <Text style={styles.locationText}>
-                Location set to:{" "}
+                {tx("Location set to:")}{" "}
                 <Text style={styles.locationPlace}>{location}</Text>
               </Text>
             </Animated.View>
@@ -831,13 +851,13 @@ export function DigestGreetingBar({
               setEditingAddress(false);
               setLocationOpen(false);
             }}
-            accessibilityLabel="Close location menu"
+            accessibilityLabel={tx("Close location menu")}
           />
           <View
             style={[styles.menuCard, { top: compactH + 6, left: PAD_LEFT }]}
             accessibilityRole="menu"
           >
-            <Text style={styles.menuTitle}>Location</Text>
+            <Text style={styles.menuTitle}>{tx("Location")}</Text>
             {coverageOptions.map((id) => {
               const on = jurisdiction === id;
               return (
@@ -851,12 +871,12 @@ export function DigestGreetingBar({
                   }}
                   accessibilityRole="menuitem"
                   accessibilityState={{ selected: on }}
-                  accessibilityLabel={JURISDICTIONS[id].name}
+                  accessibilityLabel={jurisdictionText(id, language).name}
                 >
                   <Text
                     style={[styles.menuRowText, on && styles.menuRowTextOn]}
                   >
-                    {JURISDICTIONS[id].name}
+                    {jurisdictionText(id, language).name}
                   </Text>
                   {on ? <Text style={styles.menuCheck}>✓</Text> : null}
                 </Pressable>
@@ -883,7 +903,9 @@ export function DigestGreetingBar({
                 style={styles.menuRow}
                 onPress={() => setEditingAddress(true)}
                 accessibilityRole="menuitem"
-                accessibilityLabel={address ? "Change address" : "Set address"}
+                accessibilityLabel={
+                  address ? tx("Change address") : tx("Set address")
+                }
               >
                 <Text
                   style={[
@@ -894,7 +916,7 @@ export function DigestGreetingBar({
                 >
                   {address
                     ? (localityFromAddress(address) ?? address)
-                    : "Set address"}
+                    : tx("Set address")}
                 </Text>
                 {address ? (
                   <Pressable
@@ -903,7 +925,7 @@ export function DigestGreetingBar({
                     }}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel="Clear saved address"
+                    accessibilityLabel={tx("Clear saved address")}
                   >
                     <Text style={styles.menuClear}>✕</Text>
                   </Pressable>

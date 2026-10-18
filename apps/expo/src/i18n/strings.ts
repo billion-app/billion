@@ -1,15 +1,18 @@
 /**
  * App text in English, Spanish, and Simplified Chinese.
  *
- * English is the complete dictionary. Spanish and Chinese may lag behind it:
- * a missing key falls back to English rather than showing the key, so new
- * English text can ship before its translation. `{name}` placeholders are
- * filled by `translate`.
+ * All supported languages must provide every key. `{name}` placeholders are
+ * filled by `translate`; tests verify matching interpolation variables.
  */
 
 import type { AppLanguage } from "./language";
 
 const en = {
+  "language.change": "Change language · {language}",
+  "language.appNote":
+    "Choose the language for the app. Original quotations and source documents keep their published wording.",
+  "language.choose": "Language · 语言 · Idioma",
+
   "readerUi.useEnglish": "Use English instead",
   "readerUi.define": "Define {term}",
   "readerUi.defineHint": "Shows a short definition below this paragraph",
@@ -280,9 +283,14 @@ const en = {
 } as const;
 
 export type StringKey = keyof typeof en;
-type Dictionary = Partial<Record<StringKey, string>>;
+type Dictionary = Record<StringKey, string>;
 
 const es: Dictionary = {
+  "language.change": "Cambiar idioma · {language}",
+  "language.appNote":
+    "Elige el idioma de la aplicación. Las citas y los documentos originales conservan el texto publicado.",
+  "language.choose": "Idioma · 语言 · Language",
+
   "readerUi.useEnglish": "Usar inglés",
   "readerUi.define": "Definir {term}",
   "readerUi.defineHint": "Muestra una definición breve debajo de este párrafo",
@@ -551,6 +559,10 @@ const es: Dictionary = {
 };
 
 const zh: Dictionary = {
+  "language.change": "更改语言 · {language}",
+  "language.appNote": "选择应用语言。引文和来源文件保留发布时的原文。",
+  "language.choose": "语言 · Language · Idioma",
+
   "readerUi.useEnglish": "切换为英文",
   "readerUi.define": "解释“{term}”",
   "readerUi.defineHint": "在本段下方显示简要释义",
@@ -809,7 +821,7 @@ export function translate(
   key: StringKey,
   vars?: Record<string, string | number>,
 ): string {
-  const text = DICTIONARIES[language][key] ?? en[key];
+  const text = DICTIONARIES[language][key];
   if (!vars) return text;
   return text.replace(/\{(\w+)\}/g, (match, name: string) =>
     name in vars ? String(vars[name]) : match,

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { LanguageButton } from "~/components/LanguageButton";
 import { useLanguage } from "~/hooks/useLanguage";
 import {
   DigestHair,
@@ -28,17 +29,19 @@ export function NavHeader({
   action,
   large,
   tone = "dark",
+  languageControl = true,
 }: {
   title: string;
   onBack?: () => void;
   action?: ReactNode;
   large?: boolean;
   tone?: "dark" | "paper";
+  languageControl?: boolean;
 }) {
   const { t: tr } = useLanguage();
   const insets = useSafeAreaInsets();
-  const { fontScale } = useWindowDimensions();
-  const largeText = fontScale > 1.4;
+  const { fontScale, width } = useWindowDimensions();
+  const separateTitle = fontScale > 1.2 || width < 390 || !!action;
   const paper = tone === "paper";
   const foreground = paper ? P.ink : P.inkOnNight;
   const backBg = paper ? DigestHair.inkFaint : P.stone;
@@ -58,7 +61,7 @@ export function NavHeader({
             two side slots, so a screen with two actions does not push its
             title off-centre. Behind the buttons in the layout, and inert, so
             a long title cannot swallow a tap. */}
-        {!large && !largeText && (
+        {!large && !separateTitle && (
           <Text
             style={[s.title, { color: foreground }]}
             numberOfLines={1}
@@ -84,27 +87,30 @@ export function NavHeader({
         ) : (
           <View style={s.spacer} />
         )}
-        {!large && largeText && (
-          <Text
-            key={fontScale}
-            accessibilityRole="header"
-            style={[
-              s.title,
-              {
-                position: "relative",
-                left: 0,
-                right: 0,
-                flex: 1,
-                marginHorizontal: 12,
-                color: foreground,
-              },
-            ]}
-          >
-            {title}
-          </Text>
-        )}
-        <View style={s.action}>{action}</View>
+        <View style={s.action}>
+          {languageControl && <LanguageButton compact tone={tone} />}
+          {action}
+        </View>
       </View>
+      {!large && separateTitle && (
+        <Text
+          key={fontScale}
+          accessibilityRole="header"
+          style={[
+            s.title,
+            {
+              position: "relative",
+              left: 0,
+              right: 0,
+              marginTop: 8,
+              marginHorizontal: 12,
+              color: foreground,
+            },
+          ]}
+        >
+          {title}
+        </Text>
+      )}
       {large && <Text style={[s.large, { color: foreground }]}>{title}</Text>}
       <View style={[s.bottomRule, { backgroundColor: rule }]} />
     </View>
@@ -126,8 +132,8 @@ const s = StyleSheet.create({
   },
   backBtn: {
     borderWidth: StyleSheet.hairlineWidth,
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: DigestRadii.menuRow,
     alignItems: "center",
     justifyContent: "center",
@@ -135,8 +141,8 @@ const s = StyleSheet.create({
   spacer: { width: 36 },
   title: {
     position: "absolute",
-    left: 48,
-    right: 48,
+    left: 84,
+    right: 84,
     textAlign: "center",
     fontFamily: fontBody.semibold,
     fontSize: 16,

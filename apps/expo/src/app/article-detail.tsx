@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { BillBriefData, BriefQuote } from "~/components/ui";
 import type { ShareSurface } from "~/utils/share";
+import { LanguageCorner } from "~/components/LanguageButton";
 import { ListenBar } from "~/components/ListenBar";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { ShareSheet } from "~/components/ShareSheet";
@@ -38,6 +39,7 @@ import {
   Segmented,
 } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useArticleSpeech } from "~/hooks/useArticleSpeech";
 import { useLanguage } from "~/hooks/useLanguage";
 import { useReadContent } from "~/hooks/useReadContent";
@@ -71,6 +73,8 @@ export const ErrorBoundary = createRouteErrorBoundary("article-detail");
 type ArticleMode = "explainer" | "opinions" | "source";
 
 export default function ArticleDetailScreen() {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -254,6 +258,7 @@ export default function ArticleDetailScreen() {
   if (isLoading) {
     return (
       <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
+        <LanguageCorner />
         <ActivityIndicator size="large" color={colors.white} />
         <Text style={s.loadingText}>{tr("article.loading")}</Text>
       </View>
@@ -263,6 +268,7 @@ export default function ArticleDetailScreen() {
   if (error || !content) {
     return (
       <View style={[s.fullCenter, { backgroundColor: planes.navy }]}>
+        <LanguageCorner />
         <Text style={s.errorTitle}>
           {error ? tr("article.loadFailed") : tr("article.notFound")}
         </Text>
@@ -368,7 +374,7 @@ export default function ArticleDetailScreen() {
   const displayTitle = translation?.title ?? content.title;
   const displayDescription = translation?.description ?? content.description;
   const dateLocale =
-    language === "es" ? "es-US" : language === "zh" ? "zh-CN" : "en-US";
+    language === "es" ? "es-US" : language === "zh" ? "zh-CN" : appLocale;
   const hasBrief = Boolean(brief ?? courtBrief);
 
   const rawContent =
@@ -629,7 +635,7 @@ export default function ArticleDetailScreen() {
                   sponsor.role,
                   sponsor.party,
                   isStateBill && sponsor.district
-                    ? `District ${sponsor.district}`
+                    ? tx("District {value1}", { value1: sponsor.district })
                     : sponsor.state,
                 ]
                   .filter(Boolean)
