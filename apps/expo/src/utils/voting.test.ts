@@ -157,7 +157,10 @@ void test("a mail-only election drops early voting and limits in-person", () => 
 
 void test("no step or subtitle ever states a deadline we cannot source", () => {
   const plan = buildVotingPlan(response());
-  assert.equal(method(plan, "mail").subtitle, "Return deadline not available");
+  assert.equal(
+    method(plan, "mail").subtitle,
+    "Check official return deadlines",
+  );
   for (const m of plan.methods) {
     for (const step of m.steps) {
       assert.doesNotMatch(
@@ -395,4 +398,17 @@ void test("registrationCheckUrl never leaves the reader without an exit", () => 
   // whenever Civic omitted both URLs. There must always be somewhere to go.
   assert.equal(registrationCheckUrl(undefined), "https://vote.gov");
   assert.equal(registrationCheckUrl({ name: "x" }), "https://vote.gov");
+});
+
+void test("partially dated locations cannot close or postpone an entire method", () => {
+  for (const locations of [
+    [location({ endDate: offsetDays(-2) }), location()],
+    [location({ startDate: offsetDays(2) }), location()],
+  ]) {
+    const plan = buildVotingPlan(
+      response({ earlyVoteSites: locations, dropOffLocations: locations }),
+    );
+    assert.equal(method(plan, "earlyInPerson").status, "listed");
+    assert.equal(method(plan, "dropBox").status, "listed");
+  }
 });

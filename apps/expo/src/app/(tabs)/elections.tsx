@@ -280,8 +280,8 @@ function CaliforniaElectionEntry({
         <Text style={s.entryTitle}>{t("elections.entry.title")}</Text>
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="How to vote. Mail, drop box, early voting, or Election Day."
-          accessibilityHint="Opens a short guide to the ways you can vote"
+          accessibilityLabel={t("voteGuide.entry.a11y")}
+          accessibilityHint={t("voteGuide.entry.hint")}
           activeOpacity={0.85}
           onPress={() => router.push("/how-to-vote-guide")}
           style={s.howCard}
@@ -291,18 +291,20 @@ function CaliforniaElectionEntry({
               <Icon name="vote" size={18} color={colors.bill} />
             </View>
             <View style={{ flex: 1, gap: 3 }}>
-              <Text style={s.entryGuideTitle}>How to vote</Text>
-              <Text style={s.entryNoteText}>Four ways, step by step.</Text>
+              <Text style={s.entryGuideTitle}>{t("voteGuide.title")}</Text>
+              <Text style={s.entryNoteText}>
+                {t("voteGuide.entry.summary")}
+              </Text>
             </View>
             <Icon name="chevR" size={16} color={colors.bill} />
           </View>
           <View style={s.howIcons}>
             {(
               [
-                ["mail", "Mail"],
-                ["inbox", "Drop box"],
-                ["calendar", "Early"],
-                ["flag", "Election Day"],
+                ["mail", t("voteGuide.chip.mail")],
+                ["inbox", t("voteGuide.chip.dropBox")],
+                ["calendar", t("voteGuide.chip.early")],
+                ["flag", t("voteGuide.chip.electionDay")],
               ] as const
             ).map(([icon, label]) => (
               <View key={icon} style={s.howChip}>

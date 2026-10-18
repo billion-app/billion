@@ -14,6 +14,7 @@ import { StyleSheet, TouchableOpacity, View } from "react-native";
 import type { ElectionPhase, VotingPlan } from "~/utils/voting";
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import { entryCardSubtitle } from "~/utils/voting";
 
@@ -28,7 +29,8 @@ export function HowToVoteEntryCard({
   phase: ElectionPhase;
   onPress: () => void;
 }) {
-  const subtitle = entryCardSubtitle(hasAddress, plan, phase);
+  const { t } = useAppTranslation();
+  const subtitle = entryCardSubtitle(hasAddress, plan, phase, t);
   const isElectionDay = phase === "electionDay";
 
   return (
@@ -36,7 +38,7 @@ export function HowToVoteEntryCard({
       activeOpacity={0.85}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`How to Vote. ${subtitle}`}
+      accessibilityLabel={`${t("voteGuide.title")}. ${subtitle}`}
     >
       <View style={[s.card, isElectionDay && s.cardToday]}>
         <View style={s.iconTile}>
@@ -53,7 +55,7 @@ export function HowToVoteEntryCard({
           />
         </View>
         <View style={s.body}>
-          <Text style={s.title}>How to Vote</Text>
+          <Text style={s.title}>{t("voteGuide.title")}</Text>
           <Text style={s.subtitle}>{subtitle}</Text>
         </View>
         <Icon name="chevR" size={16} color="#5B6172" />

@@ -20,6 +20,8 @@ import type {
   VoterInfoResponse,
 } from "@acme/api";
 
+import type { AppTranslate } from "../i18n/app-strings";
+import { appTranslator } from "../i18n/app-strings";
 import { daysUntil } from "./dates";
 
 // ---------------------------------------------------------------------------
@@ -200,8 +202,18 @@ function windowStatus(
   end: string | undefined,
 ): MethodStatus {
   if (locations.length === 0) return "unknown";
-  if (start && daysUntil(start) > 0) return "upcoming";
-  if (end && daysUntil(end) < 0) return "closed";
+  if (
+    start &&
+    locations.every((location) => !!location.startDate) &&
+    daysUntil(start) > 0
+  )
+    return "upcoming";
+  if (
+    end &&
+    locations.every((location) => !!location.endDate) &&
+    daysUntil(end) < 0
+  )
+    return "closed";
   return "listed";
 }
 
@@ -221,7 +233,7 @@ function mailMethod(
     title: resp?.mailOnly ? "Return your ballot by mail" : "Vote by mail",
     status: "unknown",
     chip: CHIP.unknown,
-    subtitle: "Return deadline not available",
+    subtitle: "Check official return deadlines",
     locations: [],
     steps: [],
   };
@@ -421,14 +433,15 @@ export function entryCardSubtitle(
   hasAddress: boolean,
   plan: VotingPlan | undefined,
   phase: ElectionPhase,
+  t: AppTranslate = appTranslator("en"),
 ): string {
-  if (!hasAddress) return "Add your address to see your options";
-  if (phase === "ended") return "See results and what comes next";
+  if (!hasAddress) return t("voteGuide.entry.address");
+  if (phase === "ended") return t("voteGuide.entry.ended");
   if (!plan || plan.methods.length === 0) {
-    return "Deadlines and official election contacts";
+    return t("voteGuide.entry.contacts");
   }
-  if (phase === "electionDay") return "Polling places, hours, and directions";
+  if (phase === "electionDay") return t("voteGuide.entry.today");
   const n = plan.availableCount;
-  if (n === 0) return "Ways to vote and where to go";
-  return `${countLabel(n, "way", "ways")} to vote in this election`;
+  if (n === 0) return t("voteGuide.entry.ways");
+  return t("voteGuide.entry.count", { count: n });
 }

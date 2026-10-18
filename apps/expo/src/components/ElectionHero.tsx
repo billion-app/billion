@@ -9,9 +9,9 @@ import { StyleSheet, View } from "react-native";
 
 import type { Election } from "@acme/api";
 
-import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { EmptyBallotMark } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestPalette,
@@ -32,7 +32,7 @@ interface ElectionHeroProps {
 }
 
 /**
- * Only Election Day is shown here, and only because Google Civic actually
+ * Only Election Day is shown here, and only because the ballot provider actually
  * returns it. The "Registration closes" and "Ballots mailed" rows that used
  * to sit alongside it were computed as electionDay-15 and electionDay-8 —
  * a plausible California timeline presented as fact, with no source and no
@@ -50,7 +50,12 @@ export function ElectionHero({ election }: ElectionHeroProps) {
     {
       label: t("elections.electionDay"),
       value: monthDay(election.electionDay, locale),
-      countdown: days > 0 ? t("relative.daysLeft", { count: days }) : days === 0 ? t("common.today") : undefined,
+      countdown:
+        days > 0
+          ? t("relative.daysLeft", { count: days })
+          : days === 0
+            ? t("common.today")
+            : undefined,
     },
   ];
 
@@ -60,7 +65,11 @@ export function ElectionHero({ election }: ElectionHeroProps) {
       <Text style={s.kicker}>{electionTypeLabel(type, language)}</Text>
       <Text style={s.name}>{election.name}</Text>
       <Text style={s.date}>{monthDay(election.electionDay, locale)}</Text>
-      <Text style={s.explainer}>{type === "primary" ? t("elections.explainer.primaryGeneric") : electionExplainer(type, language)}</Text>
+      <Text style={s.explainer}>
+        {type === "primary"
+          ? t("elections.explainer.primaryGeneric")
+          : electionExplainer(type, language)}
+      </Text>
 
       <View style={s.dates}>
         {dates.map((d, i) => (

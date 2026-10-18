@@ -15,9 +15,11 @@ import { useRouter } from "expo-router";
 
 import type { IconName } from "~/components/ui";
 import type { VotingMethodId } from "~/utils/voting";
+import { LinkRow } from "~/components/how-to-vote/parts";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, NavHeader, PrimaryButton } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   fontBody,
@@ -39,159 +41,163 @@ interface GuideMethod {
   note: string;
 }
 
-const METHODS: readonly GuideMethod[] = [
-  {
-    id: "mail",
-    icon: "mail",
-    title: "Vote by mail",
-    points: [
-      "Your ballot comes to you.",
-      "Mark it, then sign the envelope.",
-      "Mail it back or drop it off.",
-    ],
-    note: "Good if you like voting from home.",
-  },
-  {
-    id: "dropBox",
-    icon: "inbox",
-    title: "Drop box",
-    points: [
-      "Return it without waiting in line.",
-      "Use the county's official boxes.",
-      "Bring your sealed and signed ballot.",
-    ],
-    note: "Good for a quick stop on the way.",
-  },
-  {
-    id: "earlyInPerson",
-    icon: "calendar",
-    title: "Vote early",
-    points: [
-      "Go before Election Day.",
-      "Pick a quieter time of day.",
-      "Sites and days vary by county.",
-    ],
-    note: "Good if Election Day is busy for you.",
-  },
-  {
-    id: "electionDay",
-    icon: "flag",
-    title: "Election Day",
-    points: [
-      "Vote at your assigned polling place.",
-      "Bring your mailed ballot if you have one.",
-      "In line at closing? Stay in line.",
-    ],
-    note: "Good if you want to vote in person.",
-  },
-];
-
-const STEPS: readonly {
-  icon: IconName;
-  title: string;
-  detail: string;
-}[] = [
-  {
-    icon: "help",
-    title: "Check you're registered",
-    detail: "Your state can confirm in a minute.",
-  },
-  {
-    icon: "vote",
-    title: "Pick a way to vote",
-    detail: "Mail, drop box, early, or in person.",
-  },
-  {
-    icon: "clock",
-    title: "Return it before the deadline",
-    detail: "Dates are set by your state.",
-  },
-];
-
-const WHAT_TO_BRING: readonly { icon: IconName; text: string }[] = [
-  { icon: "pin", text: "Your polling place address or a mail ballot." },
-  { icon: "mail", text: "Your mailed ballot, if you got one." },
-  { icon: "shield", text: "ID only if your state asks for it." },
-  { icon: "accessibility", text: "A helper, if you want one." },
-];
-
-const DATES: readonly { icon: IconName; label: string; detail: string }[] = [
-  {
-    icon: "edit",
-    label: "Registration",
-    detail: "The last day to register.",
-  },
-  {
-    icon: "mail",
-    label: "Mail ballot request",
-    detail: "The last day to ask for one.",
-  },
-  {
-    icon: "inbox",
-    label: "Ballot return",
-    detail: "The last day to send it back.",
-  },
-];
-
-const QUESTIONS: readonly {
-  icon: IconName;
-  question: string;
-  answer: string;
-}[] = [
-  {
-    icon: "mail",
-    question: "Got a ballot in the mail?",
-    answer: "You can mail it, drop it off, or vote in person.",
-  },
-  {
-    icon: "help",
-    question: "Not sure you're registered?",
-    answer: "Your state can look it up in about a minute.",
-  },
-  {
-    icon: "accessibility",
-    question: "Need help at a polling place?",
-    answer: "Accessibility tools and language help are available.",
-  },
-];
-
-const TIPS: readonly { icon: IconName; text: string }[] = [
-  { icon: "clock", text: "Polls have their own hours." },
-  {
-    icon: "doc",
-    text: "A mistake doesn't spoil your vote — ask for another ballot.",
-  },
-  { icon: "globe", text: "Language help is available at many sites." },
-];
-
-const KEEP_READING: readonly {
-  icon: IconName;
-  label: string;
-  detail: string;
-  route: Href;
-}[] = [
-  {
-    icon: "accessibility",
-    label: "Accessibility & language help",
-    detail: "Tools for reading and casting your ballot.",
-    route: "/election-access",
-  },
-  {
-    icon: "users",
-    label: "How elections work",
-    detail: "Primaries, nominations, and your vote.",
-    route: "/election-process",
-  },
-  {
-    icon: "bookmark",
-    label: "Your saved voting notes",
-    detail: "Private notes on this device.",
-    route: "/ballot-preparation",
-  },
-];
-
 export default function HowToVoteGuideScreen() {
   const router = useRouter();
+  const { t } = useAppTranslation();
+
+  const METHODS: readonly GuideMethod[] = [
+    {
+      id: "mail",
+      icon: "mail",
+      title: t("voteGuide.mail.title"),
+      points: [
+        t("voteGuide.mail.p1"),
+        t("voteGuide.mail.p2"),
+        t("voteGuide.mail.p3"),
+      ],
+      note: t("voteGuide.mail.note"),
+    },
+    {
+      id: "dropBox",
+      icon: "inbox",
+      title: t("voteGuide.dropBox.title"),
+      points: [
+        t("voteGuide.dropBox.p1"),
+        t("voteGuide.dropBox.p2"),
+        t("voteGuide.dropBox.p3"),
+      ],
+      note: t("voteGuide.dropBox.note"),
+    },
+    {
+      id: "earlyInPerson",
+      icon: "calendar",
+      title: t("voteGuide.early.title"),
+      points: [
+        t("voteGuide.early.p1"),
+        t("voteGuide.early.p2"),
+        t("voteGuide.early.p3"),
+      ],
+      note: t("voteGuide.early.note"),
+    },
+    {
+      id: "electionDay",
+      icon: "flag",
+      title: t("voteGuide.electionDay.title"),
+      points: [
+        t("voteGuide.electionDay.p1"),
+        t("voteGuide.electionDay.p2"),
+        t("voteGuide.electionDay.p3"),
+      ],
+      note: t("voteGuide.electionDay.note"),
+    },
+  ];
+
+  const STEPS: readonly {
+    icon: IconName;
+    title: string;
+    detail: string;
+  }[] = [
+    {
+      icon: "help",
+      title: t("voteGuide.step1.title"),
+      detail: t("voteGuide.step1.detail"),
+    },
+    {
+      icon: "vote",
+      title: t("voteGuide.step2.title"),
+      detail: t("voteGuide.step2.detail"),
+    },
+    {
+      icon: "clock",
+      title: t("voteGuide.step3.title"),
+      detail: t("voteGuide.step3.detail"),
+    },
+  ];
+
+  const WHAT_TO_BRING: readonly { icon: IconName; text: string }[] = [
+    { icon: "pin", text: t("voteGuide.bring.address") },
+    { icon: "mail", text: t("voteGuide.bring.ballot") },
+    {
+      icon: "shield",
+      text: t("voteGuide.bring.id"),
+    },
+    { icon: "accessibility", text: t("voteGuide.bring.helper") },
+  ];
+
+  const DATES: readonly { icon: IconName; label: string; detail: string }[] = [
+    {
+      icon: "edit",
+      label: t("voteGuide.dates.registration"),
+      detail: t("voteGuide.dates.registrationDetail"),
+    },
+    {
+      icon: "mail",
+      label: t("voteGuide.dates.missing"),
+      detail: t("voteGuide.dates.missingDetail"),
+    },
+    {
+      icon: "inbox",
+      label: t("voteGuide.dates.return"),
+      detail: t("voteGuide.dates.returnDetail"),
+    },
+  ];
+
+  const QUESTIONS: readonly {
+    icon: IconName;
+    question: string;
+    answer: string;
+  }[] = [
+    {
+      icon: "mail",
+      question: t("voteGuide.faq.mail"),
+      answer: t("voteGuide.faq.mailAnswer"),
+    },
+    {
+      icon: "help",
+      question: t("voteGuide.faq.registration"),
+      answer: t("voteGuide.faq.registrationAnswer"),
+    },
+    {
+      icon: "accessibility",
+      question: t("voteGuide.faq.help"),
+      answer: t("voteGuide.faq.helpAnswer"),
+    },
+  ];
+
+  const TIPS: readonly { icon: IconName; text: string }[] = [
+    { icon: "clock", text: t("voteGuide.tip.hours") },
+    {
+      icon: "doc",
+      text: t("voteGuide.tip.mistake"),
+    },
+    { icon: "globe", text: t("voteGuide.tip.language") },
+  ];
+
+  const KEEP_READING: readonly {
+    icon: IconName;
+    label: string;
+    detail: string;
+    route: Href;
+  }[] = [
+    {
+      icon: "accessibility",
+      label: t("voteGuide.reading.access"),
+      detail: t("voteGuide.reading.accessDetail"),
+      route: "/election-access",
+    },
+    {
+      icon: "users",
+      label: t("voteGuide.reading.process"),
+      detail: t("voteGuide.reading.processDetail"),
+      route: "/election-process",
+    },
+    {
+      icon: "bookmark",
+      label: t("voteGuide.reading.notes"),
+      detail: t("voteGuide.reading.notesDetail"),
+      route: "/ballot-preparation",
+    },
+  ];
 
   const openMethod = (method: VotingMethodId) => {
     router.push({ pathname: "/how-to-vote", params: { method } });
@@ -199,16 +205,19 @@ export default function HowToVoteGuideScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title="How to vote" onBack={() => router.back()} />
+      <NavHeader
+        title={t("voteGuide.title")}
+        onBack={() =>
+          router.canGoBack() ? router.back() : router.replace("/elections")
+        }
+      />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.display}>How to vote</Text>
-        <Text style={s.intro}>
-          Four ways to cast your ballot. Pick what fits your day.
-        </Text>
+        <Text style={s.display}>{t("voteGuide.title")}</Text>
+        <Text style={s.intro}>{t("voteGuide.intro")}</Text>
 
         <View style={s.steps}>
           {STEPS.map((step) => (
@@ -224,7 +233,31 @@ export default function HowToVoteGuideScreen() {
           ))}
         </View>
 
-        <Kicker>PICK A WAY</Kicker>
+        <Card style={s.tips}>
+          <Kicker>{t("voteGuide.resources")}</Kicker>
+          <LinkRow
+            label={t("voteGuide.link.registration")}
+            url="https://voterstatus.sos.ca.gov/"
+          />
+          <LinkRow
+            label={t("voteGuide.link.locations")}
+            url="https://www.sos.ca.gov/elections/polling-place"
+          />
+          <LinkRow
+            label={t("voteGuide.link.rules")}
+            url="https://www.sos.ca.gov/elections/where-and-how"
+          />
+          <LinkRow
+            label={t("voteGuide.link.sameDay")}
+            url="https://www.sos.ca.gov/elections/voter-registration/same-day-reg"
+          />
+          <LinkRow
+            label={t("voteGuide.link.outside")}
+            url="https://vote.gov/"
+          />
+        </Card>
+
+        <Kicker>{t("voteGuide.pick")}</Kicker>
         <View style={s.methodList}>
           {METHODS.map((method) => (
             <TouchableOpacity
@@ -232,7 +265,7 @@ export default function HowToVoteGuideScreen() {
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel={`${method.title}. ${method.points.join(" ")}`}
-              accessibilityHint="Opens the details for this way to vote"
+              accessibilityHint={t("voteGuide.methodHint")}
               onPress={() => openMethod(method.id)}
               style={s.methodCard}
             >
@@ -256,7 +289,7 @@ export default function HowToVoteGuideScreen() {
           ))}
         </View>
 
-        <Kicker>WHAT TO BRING</Kicker>
+        <Kicker>{t("voteGuide.bring")}</Kicker>
         <Card style={s.tips}>
           {WHAT_TO_BRING.map((item) => (
             <View key={item.text} style={s.tip}>
@@ -266,7 +299,7 @@ export default function HowToVoteGuideScreen() {
           ))}
         </Card>
 
-        <Kicker>DATES TO KNOW</Kicker>
+        <Kicker>{t("voteGuide.dates")}</Kicker>
         <Card style={s.dates}>
           {DATES.map((date) => (
             <View key={date.label} style={s.dateRow}>
@@ -284,12 +317,12 @@ export default function HowToVoteGuideScreen() {
             onPress={() => router.push("/how-to-vote")}
             style={s.dateLink}
           >
-            <Text style={s.dateLinkText}>See the dates for your address</Text>
+            <Text style={s.dateLinkText}>{t("voteGuide.published")}</Text>
             <Icon name="arrowRight" size={14} color={colors.bill} />
           </TouchableOpacity>
         </Card>
 
-        <Kicker>COMMON QUESTIONS</Kicker>
+        <Kicker>{t("voteGuide.questions")}</Kicker>
         <View style={s.questions}>
           {QUESTIONS.map((item) => (
             <View key={item.question} style={s.question}>
@@ -302,7 +335,7 @@ export default function HowToVoteGuideScreen() {
           ))}
         </View>
 
-        <Kicker>GOOD TO KNOW</Kicker>
+        <Kicker>{t("voteGuide.tips")}</Kicker>
         <Card style={s.tips}>
           {TIPS.map((tip) => (
             <View key={tip.text} style={s.tip}>
@@ -312,7 +345,7 @@ export default function HowToVoteGuideScreen() {
           ))}
         </Card>
 
-        <Kicker>KEEP READING</Kicker>
+        <Kicker>{t("voteGuide.reading")}</Kicker>
         <View style={s.links}>
           {KEEP_READING.map((link) => (
             <TouchableOpacity
@@ -336,12 +369,10 @@ export default function HowToVoteGuideScreen() {
         </View>
 
         <Card style={s.cta}>
-          <Text style={s.ctaTitle}>See your own options</Text>
-          <Text style={s.ctaBody}>
-            Dates, hours, and places for your address.
-          </Text>
+          <Text style={s.ctaTitle}>{t("voteGuide.cta.title")}</Text>
+          <Text style={s.ctaBody}>{t("voteGuide.cta.body")}</Text>
           <PrimaryButton
-            label="Look up my voting options"
+            label={t("voteGuide.cta.button")}
             onPress={() => router.push("/how-to-vote")}
             style={s.ctaButton}
           />
@@ -351,7 +382,7 @@ export default function HowToVoteGuideScreen() {
             style={s.ctaLink}
           >
             <Icon name="pin" size={14} color={colors.textSecondary} />
-            <Text style={s.ctaLinkText}>Change my location</Text>
+            <Text style={s.ctaLinkText}>{t("voteGuide.cta.location")}</Text>
           </TouchableOpacity>
         </Card>
       </ScrollView>

@@ -9,9 +9,8 @@ import { SettingsCrest } from "~/components/digest/CraftMarks";
 import { Text } from "~/components/Themed";
 import { Kicker, SettingsRow, TabScreen } from "~/components/ui";
 import { useLanguage } from "~/hooks/useLanguage";
-import { useUserAddress } from "~/hooks/useUserAddress";
-import { shortAddress } from "~/utils/voting";
 import { useOnboarding } from "~/hooks/useOnboarding";
+import { useUserAddress } from "~/hooks/useUserAddress";
 import { LANGUAGE_OPTIONS } from "~/i18n/language";
 import {
   DigestSpace,
@@ -20,6 +19,7 @@ import {
   DigestPalette as P,
 } from "~/styles";
 import { getAppVersion } from "~/utils/app-version";
+import { shortAddress } from "~/utils/voting";
 
 interface Item {
   icon: IconName;
@@ -33,7 +33,19 @@ function buildGroups(
   address: string | null,
 ): { title: string; items: Item[] }[] {
   return [
-    { title: "Location", items: [{ icon: "pin", label: address ? "Change location" : "Set your location", sub: address ? shortAddress(address) : "The address where you’re registered to vote", route: "/settings/location" as Href }] },
+    {
+      title: "Location",
+      items: [
+        {
+          icon: "pin",
+          label: address ? "Change location" : "Set your location",
+          sub: address
+            ? shortAddress(address)
+            : "The address where you’re registered to vote",
+          route: "/settings/location" as Href,
+        },
+      ],
+    },
     {
       title: t("settings.alerts"),
       items: [

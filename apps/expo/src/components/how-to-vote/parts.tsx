@@ -10,14 +10,16 @@
  */
 import { Linking, StyleSheet, TouchableOpacity, View } from "react-native";
 
-import type { Address, PollingLocation } from "@acme/api";
+import type { PollingLocation } from "@acme/api";
 
 import type { IconName } from "~/components/ui";
 import type { MethodChip, OfficialSource, VotingStep } from "~/utils/voting";
 import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { formatCivicAddress } from "~/utils/voting";
+import { describeVotingLocation } from "~/utils/voting-logistics";
 
 /** Civic returns every county vote center under one address; cap each group. */
 const COLLAPSED_COUNT = 3;
@@ -124,8 +126,8 @@ export function LocationRow({
   loc: PollingLocation;
   accent: string;
 }) {
-  const name = loc.name ?? loc.address.locationName ?? "Voting location";
-  const address: Address = loc.address;
+  const { t, language } = useAppTranslation();
+  const { name, address, sources } = describeVotingLocation(loc, language);
   return (
     <View style={s.loc}>
       <View style={[s.locSpine, { backgroundColor: accent }]} />
@@ -133,25 +135,34 @@ export function LocationRow({
         <Text style={s.locName} numberOfLines={2}>
           {name}
         </Text>
-        <Text style={s.locAddr}>{formatCivicAddress(address)}</Text>
+        <Text style={s.locAddr}>{address}</Text>
         <View style={s.locHoursRow}>
           <Icon name="clock" size={12} color={colors.textSecondary} />
           <Text style={s.locHours}>
-            {loc.pollingHours ?? "Hours not published"}
+            {loc.pollingHours ?? t("howToVoteLookup.hoursMissing")}
           </Text>
         </View>
         {loc.notes ? <Text style={s.locNotes}>{loc.notes}</Text> : null}
+        {sources.map((source, index) =>
+          source.url ? (
+            <LinkRow key={index} label={source.label} url={source.url} />
+          ) : (
+            <Text key={index} style={s.locNotes}>
+              {source.label}
+            </Text>
+          ),
+        )}
         <TouchableOpacity
           style={s.dirBtn}
           activeOpacity={0.8}
           hitSlop={8}
           onPress={() => openDirections(loc)}
           accessibilityRole="button"
-          accessibilityLabel={`Get directions to ${name}`}
-          accessibilityHint="Opens in Maps"
+          accessibilityLabel={t("howToVoteLookup.directionsA11y", { name })}
+          accessibilityHint={t("howToVoteLookup.maps")}
         >
           <Icon name="pin" size={13} color={colors.bill} />
-          <Text style={s.dirText}>Get directions</Text>
+          <Text style={s.dirText}>{t("howToVoteLookup.directions")}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -170,6 +181,7 @@ export function LocationList({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useAppTranslation();
   const overflow = locations.length - COLLAPSED_COUNT;
   const visible =
     expanded || overflow <= 0 ? locations : locations.slice(0, COLLAPSED_COUNT);
@@ -191,7 +203,9 @@ export function LocationList({
           accessibilityRole="button"
         >
           <Text style={s.showAllText}>
-            {expanded ? "Show fewer" : `Show all ${locations.length}`}
+            {expanded
+              ? t("howToVoteLookup.showFewer")
+              : t("howToVoteLookup.showAll", { count: locations.length })}
           </Text>
           <Icon
             name={expanded ? "chevD" : "chevR"}
@@ -215,6 +229,7 @@ export function LinkRow({
   url?: string;
   onPress?: () => void;
 }) {
+  const { t } = useAppTranslation();
   if (!url && !onPress) return null;
   return (
     <TouchableOpacity
@@ -226,7 +241,9 @@ export function LinkRow({
       }}
       accessibilityRole="link"
       accessibilityLabel={label}
-      accessibilityHint="Opens in your browser"
+      accessibilityHint={
+        url && !onPress ? t("common.opensInBrowser") : undefined
+      }
     >
       <Text style={s.linkText}>{label}</Text>
       <Icon name="external" size={15} color={colors.bill} />
@@ -269,24 +286,24 @@ export function SourceFooter({
   /** Overrides the default verification line (e.g. "Last checked …"). */
   note?: string;
 }) {
+  const { t } = useAppTranslation();
   return (
     <Card style={s.source}>
       <View style={s.sourceHead}>
         <Icon name="shield" size={15} color={colors.textSecondary} />
-        <Text style={s.sourceKicker}>OFFICIAL INFORMATION</Text>
+        <Text style={s.sourceKicker}>{t("howToVoteLookup.official")}</Text>
       </View>
       <Text style={s.sourceName}>
-        {source?.name ?? "Your state or county election office"}
+        {source?.name ?? t("howToVoteLookup.office")}
       </Text>
       <Text style={s.sourceVerified}>
-        {note ??
-          "Locations and contacts come from the ballot lookup. Confirm hours, deadlines, and instructions with your election office."}
+        {note ?? t("howToVoteLookup.verify")}
       </Text>
       <LinkRow
-        label="Open the election office site"
+        label={t("howToVoteLookup.officeSite")}
         url={source?.electionInfoUrl ?? source?.electionRulesUrl}
       />
-      <LinkRow label="Find my state election office" url="https://vote.gov" />
+      <LinkRow label={t("howToVoteLookup.findState")} url="https://vote.gov" />
     </Card>
   );
 }

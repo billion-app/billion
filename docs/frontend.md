@@ -164,3 +164,12 @@ production personalized-ballot path and real-reader flow verification.
 ### Ballot measure loading
 
 The [native debate host](../apps/expo/src/components/trillion/TrillionScreen.tsx) keeps its header and skeleton visible while the DOM reader mounts. Storage completion is not a visual-ready signal: the reader waits for its stylesheet, fonts, and a painted frame before revealing content. A two-second typography deadline selects system fonts for that document if font loading stalls, preventing both indefinite loading and a late font swap. The DOM root has an explicit full column width, and the native navigation container shares the navy canvas so iOS rounded transitions cannot expose white corners. [Runtime evidence](evidence/measure-loading/README.md) records the verified states and limits.
+
+The How to Vote entry opens an address-free California guide with official
+registration, voting-location, ID and same-day registration links. Its wording
+and controls follow the selected app language; source names and published
+wording remain as supplied. The personalized `/how-to-vote` route keeps the
+server launch gate and selected election context. It reuses the shared official
+voting-guidance reader, retains citations on individual locations, and lets a
+reader edit an address after a failed lookup. A partially dated set of locations
+cannot establish that an entire voting method is closed or not open yet.

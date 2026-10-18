@@ -46,7 +46,6 @@ interface AddressAutocompleteProps {
   inline?: boolean;
 }
 
-
 export function AddressAutocomplete({
   initialValue = "",
   onSubmit,

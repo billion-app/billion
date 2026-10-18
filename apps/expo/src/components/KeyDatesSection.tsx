@@ -14,8 +14,8 @@
  */
 import { StyleSheet } from "react-native";
 
-import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { Text, View } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestPalette, DigestSpace, fontBody } from "~/styles";
 import { daysUntil, formatDate } from "~/utils/dates";
 
@@ -28,7 +28,11 @@ export function KeyDatesSection({ electionDate }: KeyDatesSectionProps) {
   const { locale, t } = useAppTranslation();
   const days = daysUntil(electionDate);
   const countdown =
-    days < 0 ? t("elections.keyDates.passed") : days === 0 ? t("common.today") : t("elections.keyDates.days", { count: days });
+    days < 0
+      ? t("elections.keyDates.passed")
+      : days === 0
+        ? t("common.today")
+        : t("elections.keyDates.days", { count: days });
 
   return (
     <View style={styles.container}>

@@ -6,10 +6,9 @@
  * Elections tab. This screen only covers methods, locations, and hand-offs to
  * the responsible election authority.
  *
- * Trust posture: everything rendered here is either data an official source
- * returned or generic ballot-handling instruction. Billion has no sourced
- * deadline feed yet, so deadline slots render their "not available" variant
- * rather than a date computed from the election day. See `~/utils/voting`.
+ * Published guidance and location citations retain their source links. Missing
+ * dates stay unknown; no deadline is computed from Election Day. The shared
+ * guidance component checks that its source belongs to this election.
  */
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -37,7 +36,9 @@ import {
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { Text } from "~/components/Themed";
 import { Card, Icon, Kicker, NavHeader, PrimaryButton } from "~/components/ui";
+import { OfficialVotingGuidance } from "~/components/voting-logistics/VotingLogisticsSection";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import {
   colors,
@@ -49,7 +50,7 @@ import {
 } from "~/styles";
 import { trpc } from "~/utils/api";
 import { currentBallot } from "~/utils/ballot-lookup";
-import { daysUntil, formatDate } from "~/utils/dates";
+import { daysUntil } from "~/utils/dates";
 import { isCaliforniaState } from "~/utils/elections";
 import { electionsAreLive } from "~/utils/elections-live";
 import {
@@ -86,6 +87,7 @@ export default function HowToVoteRoute() {
 }
 
 function HowToVoteScreen() {
+  const { t, formatDate } = useAppTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{
     method?: string;
@@ -152,7 +154,7 @@ function HowToVoteScreen() {
     return (
       <Screen>
         <Card style={s.gapCard}>
-          <Kicker>YOUR VOTING ADDRESS</Kicker>
+          <Kicker>{t("howToVoteLookup.yourAddress")}</Kicker>
           <AddressAutocomplete
             initialValue={address ?? ""}
             onSubmit={(addr) => {
@@ -161,9 +163,7 @@ function HowToVoteScreen() {
               setEditing(false);
             }}
           />
-          <Text style={s.fineprint}>
-            Used for this lookup. Your saved home address stays the same.
-          </Text>
+          <Text style={s.fineprint}>{t("howToVoteLookup.lookupOnly")}</Text>
         </Card>
       </Screen>
     );
@@ -172,13 +172,12 @@ function HowToVoteScreen() {
   if (mismatch) {
     return (
       <Screen>
+        <AddressRow address={address} onEdit={() => setEditing(true)} />
         <Card>
-          <Text style={s.cardTitle}>Election information doesn't match</Text>
-          <Text style={s.cardBody}>
-            Check with your election office or look up this address again.
-          </Text>
+          <Text style={s.cardTitle}>{t("howToVoteLookup.mismatchTitle")}</Text>
+          <Text style={s.cardBody}>{t("howToVoteLookup.mismatchBody")}</Text>
           <PrimaryButton
-            label="Look up again"
+            label={t("howToVoteLookup.lookupAgain")}
             onPress={() => setRequestedElectionId(undefined)}
           />
         </Card>
@@ -194,29 +193,23 @@ function HowToVoteScreen() {
           <View style={s.emptyIcon}>
             <Icon name="pin" size={20} color={colors.bill} />
           </View>
-          <Text style={s.cardTitle}>Add your registered address</Text>
-          <Text style={s.cardBody}>
-            Voting rules, deadlines, and locations are set county by county.
-            Billion needs the address you&apos;re registered at to show the
-            right ones.
-          </Text>
+          <Text style={s.cardTitle}>{t("howToVoteLookup.addTitle")}</Text>
+          <Text style={s.cardBody}>{t("howToVoteLookup.addBody")}</Text>
           <PrimaryButton
-            label="Add address"
+            label={t("howToVoteLookup.addAddress")}
             onPress={() => setEditing(true)}
             style={s.primaryAction}
           />
           <Text style={s.fineprint}>
-            Used for this lookup; it does not verify your registration.
+            {t("howToVoteLookup.registrationNote")}
           </Text>
         </Card>
 
         <Card>
-          <Kicker>IN THE MEANTIME</Kicker>
-          <Text style={s.cardBody}>
-            These sources work for any address in the United States.
-          </Text>
+          <Kicker>{t("howToVoteLookup.meantime")}</Kicker>
+          <Text style={s.cardBody}>{t("howToVoteLookup.nationalSources")}</Text>
           <LinkRow
-            label="Find my state election office"
+            label={t("howToVoteLookup.findState")}
             url="https://vote.gov"
           />
         </Card>
@@ -231,8 +224,10 @@ function HowToVoteScreen() {
         <Card style={s.loadingCard}>
           <ActivityIndicator color={colors.bill} />
           <View style={s.loadingCopy}>
-            <Text style={s.loadingTitle}>Checking how you can vote</Text>
-            <Text style={s.loadingSub}>Looking up this address&hellip;</Text>
+            <Text style={s.loadingTitle}>
+              {t("howToVoteLookup.loadingTitle")}
+            </Text>
+            <Text style={s.loadingSub}>{t("howToVoteLookup.loadingBody")}</Text>
           </View>
         </Card>
       </Screen>
@@ -243,31 +238,24 @@ function HowToVoteScreen() {
   if (voterInfoQuery.isError) {
     return (
       <Screen>
+        <AddressRow address={address} onEdit={() => setEditing(true)} />
         <Card style={s.gapCard}>
           <View style={s.emptyIcon}>
             <Icon name="alert" size={20} color={colors.red[500]} />
           </View>
-          <Text style={s.cardTitle}>
-            We couldn&apos;t load your voting options
-          </Text>
-          <Text style={s.cardBody}>
-            The election lookup didn&apos;t respond. Your address is still in
-            this lookup — this is on our side.
-          </Text>
+          <Text style={s.cardTitle}>{t("howToVoteLookup.errorTitle")}</Text>
+          <Text style={s.cardBody}>{t("howToVoteLookup.errorBody")}</Text>
           <PrimaryButton
-            label="Try again"
+            label={t("common.tryAgain")}
             onPress={() => void voterInfoQuery.refetch()}
             style={s.primaryAction}
           />
         </Card>
         <Card>
-          <Kicker>DON&apos;T WAIT ON US</Kicker>
-          <Text style={s.cardBody}>
-            Your county election office has the same information and is always
-            authoritative.
-          </Text>
+          <Kicker>{t("howToVoteLookup.dontWait")}</Kicker>
+          <Text style={s.cardBody}>{t("howToVoteLookup.officeAuthority")}</Text>
           <LinkRow
-            label="Find my county election office"
+            label={t("howToVoteLookup.findCounty")}
             url="https://vote.gov"
           />
         </Card>
@@ -282,12 +270,9 @@ function HowToVoteScreen() {
         <AddressRow address={address} onEdit={() => setEditing(true)} />
         <Card style={s.gapCard}>
           <Text style={s.cardTitle}>
-            Billion doesn&apos;t cover this state yet
+            {t("howToVoteLookup.unsupportedTitle")}
           </Text>
-          <Text style={s.cardBody}>
-            We only have California voting information right now. Your state
-            election office has everything you need for this election.
-          </Text>
+          <Text style={s.cardBody}>{t("howToVoteLookup.unsupportedBody")}</Text>
         </Card>
         <SourceFooter />
       </Screen>
@@ -316,14 +301,18 @@ function HowToVoteScreen() {
                 phase === "ended" && { color: colors.textSecondary },
               ]}
             >
-              {formatDate(election.electionDay)}
+              {formatDate(
+                election.electionDay,
+                { weekday: "short", month: "short", day: "numeric" },
+                { calendar: true },
+              )}
             </Text>
             <Text style={s.dayCountdown}>
               {phase === "electionDay"
-                ? "· Today"
+                ? `· ${t("common.today")}`
                 : phase === "ended"
-                  ? "· Election date has passed"
-                  : `· ${days} day${days === 1 ? "" : "s"} away`}
+                  ? t("howToVoteLookup.datePassed")
+                  : t("howToVoteLookup.days", { count: days })}
             </Text>
           </View>
           <Text style={s.electionName}>{election.name}</Text>
@@ -333,7 +322,9 @@ function HowToVoteScreen() {
           <View style={s.addrRow}>
             <Icon name="pin" size={17} color={colors.bill} />
             <View style={s.addrBody}>
-              <Text style={s.addrKicker}>REGISTERED ADDRESS</Text>
+              <Text style={s.addrKicker}>
+                {t("howToVoteLookup.registeredAddress")}
+              </Text>
               <Text style={s.addrText} numberOfLines={1}>
                 {shortAddress(address ?? "")}
               </Text>
@@ -343,11 +334,11 @@ function HowToVoteScreen() {
               hitSlop={12}
               accessibilityRole="button"
             >
-              <Text style={s.addrEdit}>Edit</Text>
+              <Text style={s.addrEdit}>{t("common.edit")}</Text>
             </TouchableOpacity>
           </View>
           <Text style={s.fineprintLeft}>
-            Used only to look up your ballot and voting locations.
+            {t("howToVoteLookup.addressNote")}
           </Text>
 
           <View style={s.rule} />
@@ -359,11 +350,11 @@ function HowToVoteScreen() {
           <FactRow
             icon="help"
             iconColor={colors.bill}
-            label="Not sure if you're registered?"
-            value="Billion can't check for you — your state can, in about a minute."
+            label={t("howToVoteLookup.registrationQuestion")}
+            value={t("howToVoteLookup.registrationBody")}
           />
           <LinkRow
-            label="Check my registration status"
+            label={t("howToVoteLookup.checkRegistration")}
             url={registrationCheckUrl(source)}
           />
         </Card>
@@ -374,11 +365,8 @@ function HowToVoteScreen() {
         <View style={[s.banner, s.bannerToday]}>
           <Icon name="flag" size={17} color={colors.green[500]} />
           <View style={s.bannerBody}>
-            <Text style={s.bannerTitle}>Today is Election Day</Text>
-            <Text style={s.bannerDetail}>
-              If you&apos;re in line when polls close, stay in line — you may
-              still vote.
-            </Text>
+            <Text style={s.bannerTitle}>{t("howToVoteLookup.todayTitle")}</Text>
+            <Text style={s.bannerDetail}>{t("howToVoteLookup.todayBody")}</Text>
           </View>
         </View>
       )}
@@ -387,11 +375,8 @@ function HowToVoteScreen() {
         <View style={[s.banner, s.bannerEnded]}>
           <Icon name="info" size={17} color={colors.bill} />
           <View style={s.bannerBody}>
-            <Text style={s.bannerTitle}>This election date has passed</Text>
-            <Text style={s.bannerDetail}>
-              Check your election office for applicable voting hours and
-              results.
-            </Text>
+            <Text style={s.bannerTitle}>{t("howToVoteLookup.endedTitle")}</Text>
+            <Text style={s.bannerDetail}>{t("howToVoteLookup.endedBody")}</Text>
           </View>
         </View>
       )}
@@ -400,24 +385,28 @@ function HowToVoteScreen() {
         <View style={[s.banner, s.bannerInfo]}>
           <Icon name="mail" size={17} color={colors.bill} />
           <View style={s.bannerBody}>
-            <Text style={s.bannerTitle}>This is an all-mail election</Text>
+            <Text style={s.bannerTitle}>
+              {t("howToVoteLookup.mailOnlyTitle")}
+            </Text>
             <Text style={s.bannerDetail}>
-              Every registered voter is mailed a ballot and returns it by mail
-              or drop box.
+              {t("howToVoteLookup.mailOnlyBody")}
             </Text>
           </View>
         </View>
       )}
 
+      {data && <OfficialVotingGuidance data={data} />}
+
       {/* Ways to vote — the list is the summary; no card restates it. */}
       {phase !== "ended" && (
         <View style={s.methodSection}>
-          <Kicker>WAYS TO VOTE</Kicker>
+          <Kicker>{t("howToVoteLookup.ways")}</Kicker>
           <View style={s.methodList}>
             {plan.methods.map((method) => (
               <MethodCard
                 key={method.id}
                 method={method}
+                mailOnly={plan.mailOnly}
                 expanded={openMethod === method.id}
                 onToggle={() => toggleMethod(method.id)}
                 authorityName={source?.name}
@@ -432,10 +421,10 @@ function HowToVoteScreen() {
 
       {phase !== "ended" && plan.noLocationsPublished && (
         <Card>
-          <Kicker>VOTING LOCATIONS</Kicker>
+          <Kicker>{t("howToVoteLookup.locations")}</Kicker>
           <UnavailableNote
-            title="Location details unavailable"
-            body="This lookup did not supply locations. Check your election office for current vote centers and drop boxes."
+            title={t("howToVoteLookup.locationsMissing")}
+            body={t("howToVoteLookup.locationsMissingBody")}
           />
         </Card>
       )}
@@ -443,18 +432,14 @@ function HowToVoteScreen() {
       {/* Post-election: close the loop the voter was in, don't reset to zero. */}
       {phase === "ended" && (
         <Card>
-          <Kicker>WHAT HAPPENS NOW</Kicker>
-          <Text style={s.cardBody}>
-            Ballots that met your county&apos;s return deadline are still being
-            counted. Your county election office can confirm whether yours was
-            accepted.
-          </Text>
+          <Kicker>{t("howToVoteLookup.next")}</Kicker>
+          <Text style={s.cardBody}>{t("howToVoteLookup.nextBody")}</Text>
           <LinkRow
-            label="Check my ballot status"
+            label={t("howToVoteLookup.ballotStatus")}
             url={source?.electionInfoUrl}
           />
           <LinkRow
-            label="See what was on my ballot"
+            label={t("howToVoteLookup.myBallot")}
             onPress={() => router.push("/(tabs)/elections")}
           />
         </Card>
@@ -463,14 +448,14 @@ function HowToVoteScreen() {
       {/* What to bring — one fact plus the authoritative link. */}
       {phase !== "ended" && (
         <Card>
-          <Kicker>WHAT TO BRING</Kicker>
+          <Kicker>{t("howToVoteLookup.bring")}</Kicker>
           <FactRow
             icon="info"
-            label="ID rules depend on where you're registered"
-            value="Billion doesn't publish ID requirements — read them from your election office so you get the current rule."
+            label={t("howToVoteLookup.idTitle")}
+            value={t("howToVoteLookup.idBody")}
           />
           <LinkRow
-            label="Read the ID rules"
+            label={t("howToVoteLookup.idRules")}
             url={source?.electionRulesUrl ?? source?.electionInfoUrl}
           />
         </Card>
@@ -489,12 +474,15 @@ function AddressRow({
   address: string | null;
   onEdit: () => void;
 }) {
+  const { t } = useAppTranslation();
   if (!address) return null;
   return (
     <View style={s.addrCard}>
       <Icon name="pin" size={17} color={colors.bill} />
       <View style={s.addrBody}>
-        <Text style={s.addrKicker}>REGISTERED ADDRESS</Text>
+        <Text style={s.addrKicker}>
+          {t("howToVoteLookup.registeredAddress")}
+        </Text>
         <Text style={s.addrText} numberOfLines={1}>
           {shortAddress(address)}
         </Text>
@@ -504,7 +492,7 @@ function AddressRow({
         hitSlop={12}
         accessibilityRole="button"
       >
-        <Text style={s.addrEdit}>Edit</Text>
+        <Text style={s.addrEdit}>{t("common.edit")}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -512,17 +500,21 @@ function AddressRow({
 
 /** Shared chrome: nav header, large display title, padded scroll. */
 function Screen({ children }: { children: ReactNode }) {
+  const { t } = useAppTranslation();
   const router = useRouter();
   return (
     <View style={s.screen}>
-      <NavHeader title="How to Vote" onBack={() => router.back()} />
+      <NavHeader
+        title={t("howToVoteLookup.title")}
+        onBack={() => router.back()}
+      />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={s.display}>How to Vote</Text>
+        <Text style={s.display}>{t("howToVoteLookup.title")}</Text>
         <View style={s.stack}>{children}</View>
       </ScrollView>
     </View>
