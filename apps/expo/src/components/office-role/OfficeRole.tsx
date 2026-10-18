@@ -4,6 +4,7 @@ import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import type { OfficeRoleContext } from "~/utils/office-role";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Card, Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   fontBody,
   fontEditorial,
@@ -16,7 +17,9 @@ import { resolveOfficeRole } from "~/utils/office-role";
 
 /** Shared office explanation: no candidate identity, promises or analysis. */
 export function OfficeRole(context: OfficeRoleContext) {
-  const role = resolveOfficeRole(context);
+  const { t: tx, language } = useAppTranslation();
+
+  const role = resolveOfficeRole(context, language);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [sourceError, setSourceError] = useState(false);
@@ -29,7 +32,7 @@ export function OfficeRole(context: OfficeRoleContext) {
           onPress={() => setDetailsOpen((value) => !value)}
           style={s.disclosure}
         >
-          <Text style={s.meta}>Office guide unavailable</Text>
+          <Text style={s.meta}>{tx("Office guide unavailable")}</Text>
           <Icon
             name={detailsOpen ? "chevD" : "chevR"}
             size={16}
@@ -38,8 +41,9 @@ export function OfficeRole(context: OfficeRoleContext) {
         </Pressable>
         {detailsOpen && (
           <Text style={s.meta}>
-            We have not added a guide to this office yet. Responsibilities vary
-            by location; candidate promises do not establish legal powers.
+            {tx(
+              "We have not added a guide to this office yet. Responsibilities vary by location; candidate promises do not establish legal powers.",
+            )}
           </Text>
         )}
       </View>
@@ -48,14 +52,16 @@ export function OfficeRole(context: OfficeRoleContext) {
     <View style={s.section}>
       <Card style={s.card}>
         <Text accessibilityRole="header" style={s.heading}>
-          The job
+          {tx("The job")}
         </Text>
-        <Text style={s.attribution}>Billion’s sourced office guide</Text>
+        <Text style={s.attribution}>
+          {tx("Billion’s sourced office guide")}
+        </Text>
         <>
           <View style={s.relationship}>
             {[
-              { label: "Power", text: role.action, icon: "doc" as const },
-              { label: "Check", text: role.check, icon: "users" as const },
+              { label: tx("Power"), text: role.action, icon: "doc" as const },
+              { label: tx("Check"), text: role.check, icon: "users" as const },
             ].map((step) => (
               <View key={step.label} style={s.relationshipRow}>
                 <View
@@ -69,7 +75,7 @@ export function OfficeRole(context: OfficeRoleContext) {
                       }
                     : {})}
                 >
-                  {step.label === "Power" && <View style={s.rail} />}
+                  {step.label === tx("Power") && <View style={s.rail} />}
                   <View style={s.node}>
                     <Icon name={step.icon} size={18} color={P.badgeIndigo} />
                   </View>
@@ -89,8 +95,8 @@ export function OfficeRole(context: OfficeRoleContext) {
           >
             <Text style={s.label}>
               {detailsOpen
-                ? "Hide responsibilities and limits"
-                : "Responsibilities and limits"}
+                ? tx("Hide responsibilities and limits")
+                : tx("Responsibilities and limits")}
             </Text>
             <Icon
               name={detailsOpen ? "chevD" : "chevR"}
@@ -103,23 +109,25 @@ export function OfficeRole(context: OfficeRoleContext) {
               <Text style={s.meta}>
                 {role.title} · {role.term}
               </Text>
-              <Text style={s.meta}>Serves: {role.serves}</Text>
+              <Text style={s.meta}>
+                {tx("Serves: {value1}", { value1: role.serves })}
+              </Text>
               <Text accessibilityRole="header" style={s.label}>
-                Decisions it makes
+                {tx("Decisions it makes")}
               </Text>
               <Text style={s.body}>{role.power}</Text>
               <Text accessibilityRole="header" style={s.label}>
-                Limits and checks
+                {tx("Limits and checks")}
               </Text>
               <Text style={s.body}>{role.limit}</Text>
               <Text accessibilityRole="header" style={s.label}>
-                In everyday life
+                {tx("In everyday life")}
               </Text>
               <Text style={s.body}>{role.example}</Text>
               <Text style={s.meta}>
-                Billion's sourced explanation of the office, shared across
-                candidates. Examples are not campaign promises or predicted
-                outcomes.
+                {tx(
+                  "Billion's sourced explanation of the office, shared across candidates. Examples are not campaign promises or predicted outcomes.",
+                )}
               </Text>
               <View style={s.sources}>
                 <Pressable
@@ -130,7 +138,9 @@ export function OfficeRole(context: OfficeRoleContext) {
                 >
                   <Icon name="link" size={14} color={P.quiet} />
                   <Text style={s.sourceLabel}>
-                    Official sources · {role.sources.length}
+                    {tx("Official sources · {value1}", {
+                      value1: role.sources.length,
+                    })}
                   </Text>
                   <Icon
                     name={sourcesOpen ? "chevD" : "chevR"}
@@ -169,7 +179,9 @@ export function OfficeRole(context: OfficeRoleContext) {
               </View>
               {sourceError && (
                 <Text accessibilityRole="alert" style={s.meta}>
-                  Could not open the source. Tap the source again to retry.
+                  {tx(
+                    "Could not open the source. Tap the source again to retry.",
+                  )}
                 </Text>
               )}
             </View>

@@ -24,8 +24,12 @@ await test("native back-state renders preserve the reader path and open sheets",
         import graph from './src/components/trillion/development/prop41-generated.json';
         function NativeHost() {
           const [inside, setInside] = useState(false);
-          return <><span id="native-back-state">{String(inside)}</span><TrillionReader
-            graph={JSON.parse(JSON.stringify(graph))} localState="" onLocalState={async () => {}}
+          const [language, setLanguage] = useState("en");
+          const [translated, setTranslated] = useState(false);
+          const displayGraph = JSON.parse(JSON.stringify(graph));
+          if (translated) displayGraph.terms[0] = {term: "auditorías", plain: "Revisiones de las finanzas de un programa."};
+          return <><button id="translation-ready" onClick={() => setTranslated(true)}>Translation ready</button><button id="language-zh" onClick={() => setLanguage("zh")}>中文</button><button id="language-es" onClick={() => setLanguage("es")}>Español</button><span id="native-back-state">{String(inside)}</span><TrillionReader
+            language={language} translationKey={translated ? "es:translated" : "en"} graph={displayGraph} localState="" onLocalState={async () => {}}
             onExit={async () => {}} onOpenUrl={async () => {}} onOpenMeasure={async () => {}}
             onBackState={async (value) => setInside(value)} /></>;
         }
@@ -96,11 +100,27 @@ await test("native back-state renders preserve the reader path and open sheets",
       await page.locator("#sheet-title").textContent(),
       "Flag an argument fault",
     );
-    await page.locator("[data-close]").first().click();
+    await page.locator("#language-zh").click();
+    await page.locator("#sheet-title").waitFor();
+    assert.equal(
+      await page.locator("#sheet-title").textContent(),
+      "标记论证问题",
+      "labels must change while content translation is pending",
+    );
+    assert.equal(
+      await page.locator('[data-fault="False choice"] .fc-name').textContent(),
+      "虚假两难",
+      "flag labels translate without changing persisted keys",
+    );
+    await page.locator('[data-fault="False choice"]').click();
+    assert.match(await page.locator("[data-flag]").textContent(), /虚假两难/);
     assert.match(
       await page.locator("#page h1").textContent(),
       /Would audits improve public services/,
+      "language changes retain the focused claim",
     );
+    assert.equal(await page.locator('#root [lang="zh-Hans"]').count(), 1);
+    assert.match(await page.locator("#crumbs").textContent(), /主要议题/);
     await page.locator("#back").click();
     await page.waitForFunction(
       () =>
@@ -109,6 +129,42 @@ await test("native back-state renders preserve the reader path and open sheets",
     assert.match(
       await page.locator("#page h1").textContent(),
       /How should I vote/,
+    );
+    await page.locator(".summary-more summary").first().click();
+    // Give the real reader a constrained viewport to exercise scroll restoration.
+    await page.addStyleTag({
+      content: "#reader {height: 250px; overflow: auto;}",
+    });
+    await page.locator("#reader").evaluate((element) => {
+      element.scrollTop = 100;
+    });
+    const scroll = await page
+      .locator("#reader")
+      .evaluate((element) => element.scrollTop);
+    assert.ok(scroll > 0);
+    await page.locator("#language-es").click();
+    assert.equal(
+      await page.locator(".summary-more").first().getAttribute("open"),
+      "",
+    );
+    assert.equal(
+      await page.locator("#reader").evaluate((element) => element.scrollTop),
+      scroll,
+    );
+    assert.match(
+      await page.locator(".summary-more summary").first().textContent(),
+      /Leer más/,
+    );
+    await page.locator('[data-term="audits"]').first().click();
+    assert.equal(await page.locator("#sheet-title").textContent(), "audits");
+    await page.locator("#translation-ready").click();
+    assert.equal(
+      await page.locator("#sheet-title").textContent(),
+      "auditorías",
+    );
+    assert.match(
+      await page.locator("#layer .body").textContent(),
+      /Revisiones/,
     );
   } finally {
     await browser.close();

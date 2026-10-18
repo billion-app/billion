@@ -17,6 +17,7 @@ import type { Preparation, Progress } from "~/utils/preparation";
 import { BallotText as BaseText } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   fontBody,
@@ -66,6 +67,8 @@ export function PrivatePreparation({
   onOpenBallot?: () => void;
   showElectionContext?: boolean;
 }) {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   const identity =
     election && lookupScope
       ? electionKey(election, provider, lookupScope)
@@ -198,7 +201,11 @@ export function PrivatePreparation({
     ? contests.find((c) => contestSnapshot(c) === draft.snapshot)
     : undefined;
   const status = (progress: Progress) =>
-    ({ undecided: "To read", reviewed: "Read", skipped: "Skipped" })[progress];
+    ({
+      undecided: tx("To read"),
+      reviewed: tx("Read"),
+      skipped: tx("Skipped"),
+    })[progress];
   const readingBadge = (progress: Progress) => (
     <View
       style={{
@@ -249,7 +256,7 @@ export function PrivatePreparation({
     const parsed = new Date(`${value}T12:00:00Z`);
     return Number.isNaN(parsed.getTime())
       ? value
-      : parsed.toLocaleDateString("en-US", {
+      : parsed.toLocaleDateString(appLocale, {
           month: "long",
           day: "numeric",
           year: "numeric",
@@ -268,17 +275,21 @@ export function PrivatePreparation({
       }}
     >
       <Text style={s.heading}>{item.title}</Text>
-      {item.choice && <Text>Possible choice: {item.choice}</Text>}
+      {item.choice && (
+        <Text>{tx("Possible choice: {value1}", { value1: item.choice })}</Text>
+      )}
       {!!item.notes && <Text>{item.notes}</Text>}
       <Text style={{ color: "rgba(255,255,255,0.70)" }}>
         {item.electionName} · {date(item.electionDay)}
       </Text>
       {previous && (
-        <Text style={{ color: "rgba(255,255,255,0.70)" }}>Previous ballot</Text>
+        <Text style={{ color: "rgba(255,255,255,0.70)" }}>
+          {tx("Previous ballot")}
+        </Text>
       )}
       {readingBadge(item.progress)}
       {button(
-        "Delete note",
+        tx("Delete note"),
         () => void commit(() => store.remove(item), false),
       )}
     </View>
@@ -297,12 +308,12 @@ export function PrivatePreparation({
           {draft
             ? draft.title
             : election
-              ? (heading ?? "Your ballot notes")
-              : "Your saved notes"}
+              ? (heading ?? tx("Your ballot notes"))
+              : tx("Your saved notes")}
         </Text>
         {!draft &&
           election &&
-          button(open ? "Hide" : "Open", () => setOpen(!open))}
+          button(open ? tx("Hide") : tx("Open"), () => setOpen(!open))}
       </View>
       {open && (
         <>
@@ -315,13 +326,17 @@ export function PrivatePreparation({
             <View style={{ gap: sp[2] }}>
               <Text accessibilityLiveRegion="polite">
                 {!ready
-                  ? "Your saved notes couldn’t be opened. Try again to load them."
+                  ? tx(
+                      "Your saved notes couldn’t be opened. Try again to load them.",
+                    )
                   : draft
-                    ? "We couldn’t save your changes. Your edit is still here."
-                    : "We couldn’t update your saved notes. Try again."}
+                    ? tx(
+                        "We couldn’t save your changes. Your edit is still here.",
+                      )
+                    : tx("We couldn’t update your saved notes. Try again.")}
               </Text>
               {button(
-                "Retry",
+                tx("Retry"),
                 () =>
                   void commit(
                     retry?.kind === "save" && draft
@@ -336,13 +351,13 @@ export function PrivatePreparation({
               )}
             </View>
           )}
-          {!ready && !error && <Text>Loading your notes…</Text>}
+          {!ready && !error && <Text>{tx("Loading your notes…")}</Text>}
           {draft ? (
             <View style={{ gap: sp[4] }}>
-              <Text>Reading status</Text>
+              <Text>{tx("Reading status")}</Text>
               <View
                 accessibilityRole="radiogroup"
-                accessibilityLabel="Reading status"
+                accessibilityLabel={tx("Reading status")}
                 style={s.statusOptions}
               >
                 {(["undecided", "reviewed", "skipped"] as const).map(
@@ -375,7 +390,7 @@ export function PrivatePreparation({
                 !!selectedContest?.candidates?.length && (
                   <View>
                     {button(
-                      `${choiceOpen ? "Possible choice (optional)" : draft.choice ? `Possible choice: ${draft.choice}` : "Add a possible choice (optional)"} ${choiceOpen ? "−" : "+"}`,
+                      `${choiceOpen ? tx("Possible choice (optional)") : draft.choice ? tx("Possible choice: {value1}", { value1: draft.choice }) : tx("Add a possible choice (optional)")} ${choiceOpen ? "−" : "+"}`,
                       () => setChoiceOpen(!choiceOpen),
                     )}
                     {choiceOpen && (
@@ -449,8 +464,8 @@ export function PrivatePreparation({
                                 )}
                               </View>
                               <Text style={{ flex: 1 }}>
-                                {name ?? "No choice yet"}
-                                {withdrawn ? " · Withdrawn" : ""}
+                                {name ?? tx("No choice yet")}
+                                {withdrawn ? tx(" · Withdrawn") : ""}
                               </Text>
                             </Pressable>
                           );
@@ -459,14 +474,16 @@ export function PrivatePreparation({
                     )}
                   </View>
                 )}
-              <Text>Notes</Text>
+              <Text>{tx("Notes")}</Text>
               {selectedContest?.referendumTitle && (
-                <Text>You can write your possible measure choice here.</Text>
+                <Text>
+                  {tx("You can write your possible measure choice here.")}
+                </Text>
               )}
               <TextInput
                 {...{ "ph-no-capture": true }}
-                accessibilityLabel="Private notes"
-                placeholder="What do you want to remember?"
+                accessibilityLabel={tx("Private notes")}
+                placeholder={tx("What do you want to remember?")}
                 placeholderTextColor="rgba(255,255,255,0.70)"
                 multiline
                 editable={!busy}
@@ -486,16 +503,16 @@ export function PrivatePreparation({
                 }}
               />
               {button(
-                busy ? "Saving…" : "Save",
+                busy ? tx("Saving…") : tx("Save"),
                 () => void commit(() => store.save(draft), true, "save"),
                 false,
                 !selectedContest,
                 true,
               )}
-              {button("Cancel", closeEditor)}
+              {button(tx("Cancel"), closeEditor)}
               {current.some((item) => item.snapshot === draft.snapshot) &&
                 button(
-                  "Delete this note",
+                  tx("Delete this note"),
                   () => void commit(() => store.remove(draft)),
                 )}
             </View>
@@ -503,8 +520,9 @@ export function PrivatePreparation({
             <>
               {ready && election && !lookupScope && (
                 <Text>
-                  Notes are unavailable for this ballot. We need enough
-                  information to match them to the right election and ballot.
+                  {tx(
+                    "Notes are unavailable for this ballot. We need enough information to match them to the right election and ballot.",
+                  )}
                 </Text>
               )}
               {ready && election && lookupScope && (
@@ -512,15 +530,24 @@ export function PrivatePreparation({
                   {!matched.some(Boolean) && (
                     <Text>
                       {!contests.length
-                        ? "No races or measures are available for this ballot yet. Check the ballot’s source or try the lookup again."
+                        ? tx(
+                            "No races or measures are available for this ballot yet. Check the ballot’s source or try the lookup again.",
+                          )
                         : current.length
-                          ? "Pick an item to review or update your notes."
-                          : "Choose a race or measure to add notes."}
+                          ? tx("Pick an item to review or update your notes.")
+                          : tx("Choose a race or measure to add notes.")}
                     </Text>
                   )}
                   {!!contests.length && matched.some(Boolean) && (
                     <View
-                      accessibilityLabel={`Reading progress: ${readCount} of ${contests.length} read, ${skipCount} skipped`}
+                      accessibilityLabel={tx(
+                        "Reading progress: {value1} of {value2} read, {value3} skipped",
+                        {
+                          value1: readCount,
+                          value2: contests.length,
+                          value3: skipCount,
+                        },
+                      )}
                       accessible
                       style={{ gap: sp[2] }}
                     >
@@ -539,8 +566,13 @@ export function PrivatePreparation({
                           <Icon name="book" size={18} color={P.quiet} />
                         </View>
                         <Text>
-                          {readCount} of {contests.length} read
-                          {skipCount ? ` · ${skipCount} skipped` : ""}
+                          {tx("{value1} of {value2} read {value3}", {
+                            value1: readCount,
+                            value2: contests.length,
+                            value3: skipCount
+                              ? tx(" · {count} skipped", { count: skipCount })
+                              : "",
+                          })}
                         </Text>
                       </View>
                       <View
@@ -589,12 +621,12 @@ export function PrivatePreparation({
                       const title =
                         contest.referendumTitle ??
                         contest.office ??
-                        "Unnamed contest";
+                        tx("Unnamed contest");
                       return (
                         <Pressable
                           key={index}
                           accessibilityRole="button"
-                          accessibilityLabel={`${contest.referendumTitle ? "Measure" : contest.office ? "Race" : "Contest"}, ${title}, ${duplicate ? "Notes unavailable for this item" : item ? status(item.progress) : "Add notes"}${item?.choice ? `, Possible choice: ${item.choice}` : item?.notes ? `, Your note preview: ${item.notes.slice(0, 120)}` : ""}`}
+                          accessibilityLabel={`${contest.referendumTitle ? tx("Measure") : contest.office ? tx("Race") : tx("Contest")}, ${title}, ${duplicate ? tx("Notes unavailable for this item") : item ? status(item.progress) : tx("Add notes")}${item?.choice ? tx(", Possible choice: {value1}", { value1: item.choice }) : item?.notes ? tx(", Your note preview: {value1}", { value1: item.notes.slice(0, 120) }) : ""}`}
                           accessibilityState={{ disabled: duplicate || busy }}
                           disabled={duplicate || busy}
                           onPress={() => {
@@ -652,16 +684,22 @@ export function PrivatePreparation({
                             ) : (
                               <Text style={{ color: P.inkOnNight }}>
                                 {duplicate
-                                  ? "Notes unavailable for this item"
-                                  : "Add notes"}
+                                  ? tx("Notes unavailable for this item")
+                                  : tx("Add notes")}
                               </Text>
                             )}
                             {item?.choice && (
-                              <Text>Possible choice: {item.choice}</Text>
+                              <Text>
+                                {tx("Possible choice: {value1}", {
+                                  value1: item.choice,
+                                })}
+                              </Text>
                             )}
                             {!item?.choice && !!item?.notes && (
                               <Text numberOfLines={2}>
-                                Your note: {item.notes.slice(0, 120)}
+                                {tx("Your note: {value1}", {
+                                  value1: item.notes.slice(0, 120),
+                                })}
                               </Text>
                             )}
                           </View>
@@ -679,20 +717,28 @@ export function PrivatePreparation({
               )}
               {ready && !election && !items.length && (
                 <View style={{ gap: sp[2], paddingVertical: sp[4] }}>
-                  <Text style={s.heading}>A place to remember</Text>
+                  <Text style={s.heading}>{tx("A place to remember")}</Text>
                   <Text>
-                    Open your ballot and choose a race or measure to save your
-                    first note.
+                    {tx(
+                      "Open your ballot and choose a race or measure to save your first note.",
+                    )}
                   </Text>
                   {onOpenBallot &&
-                    button("Open my ballot", onOpenBallot, false, false, true)}
+                    button(
+                      tx("Open my ballot"),
+                      onOpenBallot,
+                      false,
+                      false,
+                      true,
+                    )}
                 </View>
               )}
               {!!stale.length && (
                 <>
                   <Text>
-                    Ballot changed. Previous choices weren’t applied to this
-                    ballot.
+                    {tx(
+                      "Ballot changed. Previous choices weren’t applied to this ballot.",
+                    )}
                   </Text>
                   {stale.map((item) => record(item, true))}
                 </>
@@ -709,37 +755,40 @@ export function PrivatePreparation({
             }}
           >
             <Text style={s.meta}>
-              Private on this device · Does not cast a vote
+              {tx("Private on this device · Does not cast a vote")}
             </Text>
-            {button(`Privacy details ${privacyOpen ? "−" : "+"}`, () =>
-              setPrivacyOpen(!privacyOpen),
+            {button(
+              tx("Privacy details {value1}", {
+                value1: privacyOpen ? "−" : "+",
+              }),
+              () => setPrivacyOpen(!privacyOpen),
             )}
             {privacyOpen && (
               <Text>
-                Notes and possible choices stay in this app on this device. They
-                aren’t sent to Billion, captured in analytics, or included in
-                sharing. The app doesn’t encrypt these notes; device backups may
-                include them. Saving doesn’t register you or cast a vote.
-                Reminders aren’t available until verified deadlines for your
-                election and voting method are supplied.
+                {tx(
+                  "Notes and possible choices stay in this app on this device. They aren’t sent to Billion, captured in analytics, or included in sharing. The app doesn’t encrypt these notes; device backups may include them. Saving doesn’t register you or cast a vote. Reminders aren’t available until verified deadlines for your election and voting method are supplied.",
+                )}
               </Text>
             )}
             {!draft && (items.length > 0 || error) && (
               <>
-                {button(`Manage saved notes ${manageOpen ? "−" : "+"}`, () =>
-                  setManageOpen(!manageOpen),
+                {button(
+                  tx("Manage saved notes {value1}", {
+                    value1: manageOpen ? "−" : "+",
+                  }),
+                  () => setManageOpen(!manageOpen),
                 )}
                 {manageOpen && (
                   <>
                     <Text>
-                      Delete every saved note and possible choice on this
-                      device, across all elections. This can also clear
-                      unreadable stored data.
+                      {tx(
+                        "Delete every saved note and possible choice on this device, across all elections. This can also clear unreadable stored data.",
+                      )}
                     </Text>
                     {button(
                       confirmDelete
-                        ? "Confirm: delete all saved notes"
-                        : "Delete all saved notes",
+                        ? tx("Confirm: delete all saved notes")
+                        : tx("Delete all saved notes"),
                       () => {
                         if (confirmDelete) {
                           void commit(() => store.clear());
@@ -748,7 +797,9 @@ export function PrivatePreparation({
                       },
                     )}
                     {confirmDelete &&
-                      button("Keep my notes", () => setConfirmDelete(false))}
+                      button(tx("Keep my notes"), () =>
+                        setConfirmDelete(false),
+                      )}
                   </>
                 )}
               </>
@@ -768,7 +819,7 @@ export function PrivatePreparation({
           <Text
             style={{ marginBottom: sp[3], color: "rgba(255,255,255,0.70)" }}
           >
-            {heading ?? "Your ballot notes"}
+            {heading ?? tx("Your ballot notes")}
           </Text>
           {content}
         </ScrollView>

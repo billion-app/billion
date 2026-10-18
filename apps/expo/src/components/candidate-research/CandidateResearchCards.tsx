@@ -6,6 +6,7 @@ import type { IconName } from "~/components/ui/Icon";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   fontBody,
@@ -80,31 +81,39 @@ export function CandidateStatementChapter({
   sourceLabel?: string;
   sourceUrl?: string;
 }) {
+  const { t: tx } = useAppTranslation();
+
   return (
     <View style={s.content}>
       <Text style={s.note}>{attribution}</Text>
       <Text style={s.note}>
-        Billion does not reprint the statement here. Open the original and use
-        the questions below while you read.
+        {tx(
+          "Billion does not reprint the statement here. Open the original and use the questions below while you read.",
+        )}
       </Text>
       {sourceUrl && sourceLabel ? (
         <SourceLink label={sourceLabel} url={sourceUrl} prominence="primary" />
       ) : (
-        <Text style={s.note}>Statement source link unavailable</Text>
+        <Text style={s.note}>{tx("Statement source link unavailable")}</Text>
       )}
       <View style={s.research}>
-        <Text style={s.label}>QUESTIONS TO TAKE TO THE STATEMENT</Text>
-        <Text style={s.body}>What specific change do they say they want?</Text>
+        <Text style={s.label}>{tx("QUESTIONS TO TAKE TO THE STATEMENT")}</Text>
         <Text style={s.body}>
-          Do they name a timeline, a cost, or who else must agree?
+          {tx("What specific change do they say they want?")}
         </Text>
         <Text style={s.body}>
-          Which claims have no linked document or outside record behind them?
+          {tx("Do they name a timeline, a cost, or who else must agree?")}
+        </Text>
+        <Text style={s.body}>
+          {tx(
+            "Which claims have no linked document or outside record behind them?",
+          )}
         </Text>
       </View>
       <Text style={s.note}>
-        Candidate-authored statements are advocacy. They are not a checked
-        record of past votes or qualifications.
+        {tx(
+          "Candidate-authored statements are advocacy. They are not a checked record of past votes or qualifications.",
+        )}
       </Text>
     </View>
   );
@@ -118,12 +127,15 @@ export function CandidateMoneyChapter({
   state?: string;
   office?: string;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const resource = financeResearchSource(state, office);
   return (
     <View style={s.content}>
       <Text style={s.note}>
-        Donor records are not connected here yet. That does not mean this
-        candidate has raised no money.
+        {tx(
+          "Donor records are not connected here yet. That does not mean this candidate has raised no money.",
+        )}
       </Text>
       <SourceLink
         label={resource.label}
@@ -131,21 +143,25 @@ export function CandidateMoneyChapter({
         prominence="primary"
       />
       <View style={s.research}>
-        <Text style={s.label}>QUESTIONS TO TAKE TO THE FILINGS</Text>
+        <Text style={s.label}>{tx("QUESTIONS TO TAKE TO THE FILINGS")}</Text>
         <Text style={s.body}>
-          Which individuals, committees, or organizations are listed as
-          contributors?
+          {tx(
+            "Which individuals, committees, or organizations are listed as contributors?",
+          )}
         </Text>
-        <Text style={s.body}>What reporting period do the amounts cover?</Text>
         <Text style={s.body}>
-          Are other groups reporting spending for or against the candidate?
+          {tx("What reporting period do the amounts cover?")}
+        </Text>
+        <Text style={s.body}>
+          {tx(
+            "Are other groups reporting spending for or against the candidate?",
+          )}
         </Text>
       </View>
       <Text style={s.note}>
-        Campaign contributions and outside spending are separate records. Match
-        the candidate and committee before comparing reports. A donor’s listed
-        employer is not necessarily the donor. Contributions alone do not
-        establish how a candidate will vote.
+        {tx(
+          "Campaign contributions and outside spending are separate records. Match the candidate and committee before comparing reports. A donor’s listed employer is not necessarily the donor. Contributions alone do not establish how a candidate will vote.",
+        )}
       </Text>
     </View>
   );
@@ -157,9 +173,11 @@ export function CandidateResearchPrompt({
 }: {
   questions: string[];
 }) {
+  const { t: tx } = useAppTranslation();
+
   return (
     <View style={s.research}>
-      <Text style={s.label}>KEEP EXPLORING</Text>
+      <Text style={s.label}>{tx("KEEP EXPLORING")}</Text>
       {questions.map((question) => (
         <Text key={question} style={s.body}>
           {question}

@@ -11,6 +11,7 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontBody, DigestPalette as P } from "~/styles";
 import { trpc } from "~/utils/api";
 
@@ -110,6 +111,7 @@ export function ProfileMenu({
   name: string | null;
 }) {
   const router = useRouter();
+  const { t } = useAppTranslation();
 
   const go = (href: Href) => {
     onClose();
@@ -127,25 +129,26 @@ export function ProfileMenu({
         <Pressable
           style={s.menuScrim}
           onPress={onClose}
-          accessibilityLabel="Close profile menu"
+          accessibilityRole="button"
+          accessibilityLabel={t("account.closeMenu")}
         />
         <View style={[s.menuCard, { top }]} accessibilityRole="menu">
-          <Text style={s.menuTitle}>{name ?? "Account"}</Text>
+          <Text style={s.menuTitle}>{name ?? t("account.title")}</Text>
           <Pressable
             style={s.menuRow}
             onPress={() => go("/feedback" as Href)}
             accessibilityRole="menuitem"
-            accessibilityLabel="Send feedback"
+            accessibilityLabel={t("account.sendFeedback")}
           >
-            <Text style={s.menuRowText}>Feedback</Text>
+            <Text style={s.menuRowText}>{t("account.feedback")}</Text>
           </Pressable>
           <Pressable
             style={s.menuRow}
             onPress={() => go("/settings" as Href)}
             accessibilityRole="menuitem"
-            accessibilityLabel="Open settings"
+            accessibilityLabel={t("account.openSettings")}
           >
-            <Text style={s.menuRowText}>Settings</Text>
+            <Text style={s.menuRowText}>{t("account.settings")}</Text>
           </Pressable>
         </View>
       </View>
@@ -163,6 +166,7 @@ export function ProfileMarkButton({
 }) {
   const [open, setOpen] = useState(false);
   const { name, initials } = useProfileIdentity();
+  const { t } = useAppTranslation();
 
   return (
     <>
@@ -171,9 +175,7 @@ export function ProfileMarkButton({
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={
-          name
-            ? `Account: ${name}. Open feedback and settings`
-            : "Account. Open feedback and settings"
+          name ? t("account.markA11y", { name }) : t("account.markA11yAnon")
         }
         accessibilityState={{ expanded: open }}
         testID="profile-mark"

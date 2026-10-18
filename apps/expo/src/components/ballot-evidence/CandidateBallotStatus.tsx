@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontBody, DigestPalette as P } from "~/styles";
 import { candidateStatusLabel } from "./election-status";
 
@@ -14,6 +15,8 @@ export function CandidateBallotStatus({
   inStatementGuide?: boolean;
   compact?: boolean;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const withdrawn = status === "withdrewStillOnBallot";
   const icon = withdrawn
     ? "minusCircle"
@@ -36,12 +39,14 @@ export function CandidateBallotStatus({
         </View>
         <Text style={[s.label, compact && s.compactLabel]}>
           {withdrawn
-            ? "Withdrawn"
+            ? tx("Withdrawn")
             : candidateStatusLabel(status, inStatementGuide)}
         </Text>
       </View>
       {withdrawn && (
-        <Text style={s.detail}>Name remains listed by the ballot source.</Text>
+        <Text style={s.detail}>
+          {tx("Name remains listed by the ballot source.")}
+        </Text>
       )}
     </View>
   );

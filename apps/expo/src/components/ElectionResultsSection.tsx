@@ -39,6 +39,7 @@ import { SOS_RESULTS_HOME } from "@acme/api/clients/ca-sos-results";
 
 import { Text } from "~/components/Themed";
 import { Icon, Kicker } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestPalette,
@@ -120,18 +121,14 @@ function resultsMatchElection(
   });
 }
 
-function electionBadge(name: string): string {
-  if (/primary/i.test(name)) return "CA Primary";
-  if (/general/i.test(name)) return "CA General";
-  if (/special/i.test(name)) return "CA Special";
-  return "CA Election";
+function electionBadge(
+  name: string,
+): "primary" | "general" | "special" | "other" {
+  if (/primary/i.test(name)) return "primary";
+  if (/general/i.test(name)) return "general";
+  if (/special/i.test(name)) return "special";
+  return "other";
 }
-
-const CHAMBER_LABEL: Record<DistrictRef["chamber"], string> = {
-  "us-house": "U.S. House",
-  "state-senate": "State Senate",
-  "state-assembly": "State Assembly",
-};
 
 /**
  * Pull the voter's US House / State Senate / State Assembly districts out of the
@@ -193,6 +190,7 @@ function CandidateRow({
   /** Vote count of the front-runner — bars are drawn relative to this. */
   leadVotes: number;
 }) {
+  const { formatNumber, t } = useAppTranslation();
   const tint = partyColor(candidate.party);
   // Width is relative to the leader so the strongest bar fills the row; guard
   // against divide-by-zero before any votes are in.
@@ -206,16 +204,26 @@ function CandidateRow({
             {candidate.name}
           </Text>
           {candidate.incumbent ? (
-            <Text style={s.incumbentTag}>INCUMBENT</Text>
+            <Text style={s.incumbentTag}>
+              {t("elections.results.incumbent")}
+            </Text>
           ) : null}
           {candidate.advancing ? (
             <View style={s.advChip}>
               <Icon name="check" size={9} color={DigestPalette.badgeTeal} />
-              <Text style={s.advChipText}>Advances</Text>
+              <Text style={s.advChipText}>
+                {t("elections.results.advances")}
+              </Text>
             </View>
           ) : null}
         </View>
-        <Text style={s.percent}>{candidate.percent.toFixed(1)}%</Text>
+        <Text style={s.percent}>
+          {formatNumber(candidate.percent / 100, {
+            style: "percent",
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })}
+        </Text>
       </View>
       <View style={s.barTrack}>
         <View
@@ -224,13 +232,14 @@ function CandidateRow({
       </View>
       <Text style={s.subline}>
         {candidate.party ? `${candidate.party} · ` : ""}
-        {candidate.votes.toLocaleString()} votes
+        {t("elections.results.votes", { count: candidate.votes })}
       </Text>
     </View>
   );
 }
 
 function ContestCard({ contest }: { contest: ElectionContestResult }) {
+  const { t } = useAppTranslation();
   // Show the meaningful field. A statewide primary often has a long tail of
   // sub-1% candidates; cap the visible list and summarize the rest.
   const VISIBLE = 6;
@@ -242,7 +251,10 @@ function ContestCard({ contest }: { contest: ElectionContestResult }) {
   // 28 - Districtwide Results"); present the cleaner "<chamber> · District N".
   const title =
     contest.chamber && contest.district
-      ? `${CHAMBER_LABEL[contest.chamber]} · District ${contest.district}`
+      ? t("elections.results.districtTitle", {
+          chamber: t(`elections.chamber.${contest.chamber}`),
+          district: contest.district,
+        })
       : contest.title;
 
   return (
@@ -253,8 +265,11 @@ function ContestCard({ contest }: { contest: ElectionContestResult }) {
           <Icon name="clock" size={11} color={DigestPalette.quiet} />
           <Text style={s.reportingText} numberOfLines={1}>
             {contest.percentReporting !== null
-              ? `${contest.percentReporting}% reporting · as of ${contest.asOf}`
-              : `As of ${contest.asOf}`}
+              ? t("elections.results.reporting", {
+                  percent: String(contest.percentReporting),
+                  asOf: contest.asOf,
+                })
+              : t("elections.results.asOf", { asOf: contest.asOf })}
           </Text>
         </View>
       </View>
@@ -267,7 +282,7 @@ function ContestCard({ contest }: { contest: ElectionContestResult }) {
 
       {hidden > 0 ? (
         <Text style={s.moreText}>
-          +{hidden} more candidate{hidden !== 1 ? "s" : ""}
+          {t("elections.results.moreCandidates", { count: hidden })}
         </Text>
       ) : null}
 
@@ -276,9 +291,13 @@ function ContestCard({ contest }: { contest: ElectionContestResult }) {
         style={s.sourceLink}
         activeOpacity={0.8}
         onPress={() => openUrl(contest.sourceUrl)}
+        accessibilityRole="link"
+        accessibilityHint={t("common.opensInBrowser")}
       >
         <Icon name="external" size={13} color={DigestPalette.spark} />
-        <Text style={s.sourceLinkText}>View official results</Text>
+        <Text style={s.sourceLinkText}>
+          {t("elections.results.viewOfficial")}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -289,6 +308,7 @@ export function ElectionResultsSection({
   electionDay,
   electionName,
 }: ElectionResultsSectionProps) {
+  const { t } = useAppTranslation();
   const statewideQuery = useQuery({
     ...trpc.civic.getElectionResults.queryOptions({}),
     refetchInterval: POLL_MS,
@@ -344,9 +364,13 @@ export function ElectionResultsSection({
     <View style={s.container}>
       <View style={s.headingRow}>
         <Text style={s.kicker}>
-          {stillCounting ? "Live results" : "Results"}
+          {stillCounting
+            ? t("elections.results.live")
+            : t("elections.results.title")}
         </Text>
-        <Text style={s.liveText}>{electionBadge(electionName)}</Text>
+        <Text style={s.liveText}>
+          {t(`elections.results.badge.${electionBadge(electionName)}`)}
+        </Text>
       </View>
 
       {isLoading && all.length === 0 ? (
@@ -358,7 +382,7 @@ export function ElectionResultsSection({
         <>
           {statewide.length > 0 && (
             <View style={s.group}>
-              <Kicker>Statewide</Kicker>
+              <Kicker>{t("elections.results.statewide")}</Kicker>
               {statewide.map((contest) => (
                 <ContestCard key={contest.office} contest={contest} />
               ))}
@@ -367,7 +391,7 @@ export function ElectionResultsSection({
 
           {district.length > 0 && (
             <View style={s.group}>
-              <Kicker>Your district races</Kicker>
+              <Kicker>{t("elections.results.district")}</Kicker>
               {district.map((contest) => (
                 <ContestCard key={contest.office} contest={contest} />
               ))}
@@ -381,8 +405,10 @@ export function ElectionResultsSection({
         activeOpacity={0.7}
         onPress={() => openUrl(SOS_RESULTS_HOME)}
         style={s.attributionRow}
+        accessibilityRole="link"
+        accessibilityHint={t("common.opensInBrowser")}
       >
-        <Text style={s.attribution}>Source: California Secretary of State</Text>
+        <Text style={s.attribution}>{t("elections.results.attribution")}</Text>
         <Icon name="external" size={11} color={DigestPalette.quiet} />
       </TouchableOpacity>
     </View>

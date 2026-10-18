@@ -8,6 +8,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { LanguageCorner } from "~/components/LanguageButton";
 import { Text } from "~/components/Themed";
 import {
   Avatar,
@@ -17,11 +18,14 @@ import {
   NavHeader,
   PrimaryButton,
 } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 import { trpc } from "~/utils/api";
 import { formatDate } from "~/utils/dates";
 
 export default function BillSponsorProfileScreen() {
+  const { t: tx } = useAppTranslation();
+
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const billId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -35,8 +39,9 @@ export default function BillSponsorProfileScreen() {
   if (query.isLoading) {
     return (
       <View style={s.fullCenter}>
+        <LanguageCorner />
         <ActivityIndicator size="large" color={colors.bill} />
-        <Text style={s.loadingText}>Loading sponsor profile…</Text>
+        <Text style={s.loadingText}>{tx("Loading sponsor profile…")}</Text>
       </View>
     );
   }
@@ -44,11 +49,11 @@ export default function BillSponsorProfileScreen() {
   if (query.isError || !query.data) {
     return (
       <View style={s.screen}>
-        <NavHeader title="Bill sponsor" onBack={() => router.back()} />
+        <NavHeader title={tx("Bill sponsor")} onBack={() => router.back()} />
         <View style={s.fullCenter}>
-          <Text style={s.errorTitle}>Sponsor profile unavailable</Text>
+          <Text style={s.errorTitle}>{tx("Sponsor profile unavailable")}</Text>
           <Text style={s.errorText}>
-            This bill does not include sponsor information yet.
+            {tx("This bill does not include sponsor information yet.")}
           </Text>
         </View>
       </View>
@@ -59,14 +64,14 @@ export default function BillSponsorProfileScreen() {
   const isStateSponsor = jurisdiction !== "federal";
   const location = [
     sponsor.state,
-    sponsor.district && `District ${sponsor.district}`,
+    sponsor.district && tx("District {value1}", { value1: sponsor.district }),
   ]
     .filter(Boolean)
     .join(" · ");
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Bill sponsor" onBack={() => router.back()} />
+      <NavHeader title={tx("Bill sponsor")} onBack={() => router.back()} />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
@@ -79,7 +84,7 @@ export default function BillSponsorProfileScreen() {
             size={88}
           />
           <Text style={s.eyebrow}>
-            {isStateSponsor ? "Primary author" : "Primary sponsor"}
+            {isStateSponsor ? tx("Primary author") : tx("Primary sponsor")}
           </Text>
           <Text style={s.name}>{sponsor.name}</Text>
           <Text style={s.role}>{sponsor.role}</Text>
@@ -91,18 +96,26 @@ export default function BillSponsorProfileScreen() {
         </Card>
 
         <View style={s.section}>
-          <Kicker>About this role</Kicker>
+          <Kicker>{tx("About this role")}</Kicker>
           <Card>
             <Text style={s.body}>
               {isStateSponsor
-                ? "The primary author is the state legislator who formally introduced the bill. Authors guide legislation through the state Legislature while other members may join as coauthors."
-                : "The primary sponsor is the member of Congress who formally introduced the bill. Sponsors guide legislation through the process, while other members may join as cosponsors."}
+                ? tx(
+                    "The primary author is the state legislator who formally introduced the bill. Authors guide legislation through the state Legislature while other members may join as coauthors.",
+                  )
+                : tx(
+                    "The primary sponsor is the member of Congress who formally introduced the bill. Sponsors guide legislation through the process, while other members may join as cosponsors.",
+                  )}
             </Text>
           </Card>
         </View>
 
         <View style={s.section}>
-          <Kicker>{`Sponsored legislation · ${sponsoredBills.length}`}</Kicker>
+          <Kicker>
+            {tx("Sponsored legislation · {value1}", {
+              value1: sponsoredBills.length,
+            })}
+          </Kicker>
           <View style={s.billList}>
             {sponsoredBills.map((bill) => (
               <ContentCard
@@ -117,7 +130,9 @@ export default function BillSponsorProfileScreen() {
                   gist: bill.description,
                   status: bill.status,
                   updated: bill.introducedDate
-                    ? `Introduced ${formatDate(bill.introducedDate)}`
+                    ? tx("Introduced {value1}", {
+                        value1: formatDate(bill.introducedDate),
+                      })
                     : undefined,
                   thumbnailUrl: bill.thumbnailUrl,
                   imageUri: bill.imageUri,
@@ -134,7 +149,7 @@ export default function BillSponsorProfileScreen() {
         </View>
 
         <PrimaryButton
-          label="View official bill record"
+          label={tx("View official bill record")}
           icon="external"
           onPress={() => void Linking.openURL(sourceUrl)}
           style={s.sourceButton}

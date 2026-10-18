@@ -11,6 +11,7 @@ import { PollingPlacesSection } from "~/components/PollingPlacesSection";
 import { RepsSection } from "~/components/RepsSection";
 import { Text } from "~/components/Themed";
 import { NavHeader } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import { DigestPalette, fontBody, fontDisplay } from "~/styles";
 import { trpc } from "~/utils/api";
@@ -22,6 +23,8 @@ import { BallotExperience } from "./ballot";
  * Civic logistics: polling locations, dates, reps, local decisions.
  */
 export default function LocalElectionsScreen() {
+  const { t: tx } = useAppTranslation();
+
   const router = useRouter();
   const { address, setAddress, clearAddress } = useUserAddress();
 
@@ -40,17 +43,20 @@ export default function LocalElectionsScreen() {
   if (!electionsAreLive()) {
     return (
       <View style={styles.container}>
-        <NavHeader title="Elections" onBack={() => router.back()} />
+        <NavHeader title={tx("Elections")} onBack={() => router.back()} />
         <View
           style={styles.comingSoon}
           accessibilityRole="text"
-          accessibilityLabel="Elections page coming soon"
+          accessibilityLabel={tx("Elections page coming soon")}
         >
           <EmptyBallotMark width={96} />
-          <Text style={styles.comingSoonTitle}>Elections page coming soon</Text>
+          <Text style={styles.comingSoonTitle}>
+            {tx("Elections page coming soon")}
+          </Text>
           <Text style={styles.comingSoonDek}>
-            Voter tools are still in progress. This tab will open the ballot
-            when they are ready.
+            {tx(
+              "Voter tools are still in progress. This tab will open the ballot when they are ready.",
+            )}
           </Text>
         </View>
       </View>
@@ -69,7 +75,7 @@ export default function LocalElectionsScreen() {
 
   return (
     <View style={styles.container}>
-      <NavHeader title="Where to vote" onBack={() => router.back()} />
+      <NavHeader title={tx("Where to vote")} onBack={() => router.back()} />
 
       <ScrollView
         style={styles.scroll}

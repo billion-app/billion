@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { NotificationPrefs } from "~/utils/notification-prefs";
 import { Icon, Kicker, NavHeader, Toggle } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useNotificationPrefs } from "~/hooks/useNotificationPrefs";
 import { useOnboarding } from "~/hooks/useOnboarding";
 import { useSavedContent } from "~/hooks/useSavedContent";
@@ -30,6 +31,7 @@ import { getPushToken, syncPushRegistration } from "~/utils/push-sync";
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { language, t } = useAppTranslation();
   const prefs = useNotificationPrefs();
   const onboarding = useOnboarding();
   const { savedIds } = useSavedContent();
@@ -61,37 +63,33 @@ export default function NotificationsScreen() {
       ? `/article-detail?id=${bill.id}`
       : "/settings/notifications";
     const trimmedTitle = bill?.title.trim() ?? "";
-    const title = trimmedTitle.length > 0 ? trimmedTitle : TEST_ALERT.title;
+    const title =
+      trimmedTitle.length > 0 ? trimmedTitle : t("alerts.testTitle");
     const body = bill?.billNumber
-      ? `${bill.billNumber} advanced.`
-      : TEST_ALERT.body;
+      ? t("alerts.billAdvanced", { bill: bill.billNumber })
+      : t("alerts.testBody");
     void (async () => {
       try {
         if (Device.isDevice) {
           await syncPushRegistration(prefs, savedIds);
           const token = getPushToken();
-          if (!token)
-            throw new Error(
-              "Push registration unavailable. Check this phone's notification permissions and try again.",
-            );
+          if (!token) throw new Error(t("notify.pushUnavailable"));
           await trpcClient.notifications.test.mutate({
             token,
             billId: bill?.id,
           });
-          setStatus(
-            "Expo accepted the test. Check this phone's notifications for delivery.",
-          );
+          setStatus(t("notify.expoAccepted"));
         } else {
           const result = await scheduleLocalAlert(
             { title, body, href, test: true },
             prefs,
           );
-          setStatus(deliveryNote(result, prefs));
+          setStatus(deliveryNote(result, prefs, language));
           if (!result.ok) return;
           await prependAlert({
             id: `test-${Date.now()}`,
             at: result.when.toISOString(),
-            kind: "test",
+            kind: TEST_ALERT.kind,
             title,
             body,
             href,
@@ -103,7 +101,7 @@ export default function NotificationsScreen() {
         });
       } catch (error: unknown) {
         setStatus(
-          error instanceof Error ? error.message : "Could not send the alert.",
+          error instanceof Error ? error.message : t("notify.sendFailed"),
         );
       } finally {
         setSending(false);
@@ -113,51 +111,55 @@ export default function NotificationsScreen() {
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Notifications" onBack={() => router.back()} large />
+      <NavHeader title={t("notify.title")} onBack={() => router.back()} large />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.dek}>Stay informed without being overwhelmed.</Text>
+        <Text style={s.dek}>{t("notify.dek")}</Text>
 
-        <Kicker style={s.kicker}>Important updates</Kicker>
+        <Kicker style={s.kicker}>{t("notify.important")}</Kicker>
         <PrefRow
-          label="BREAKING"
-          sub="Rare, human-reviewed developments"
+          label={t("notify.breaking")}
+          sub={t("notify.breakingSub")}
           on={prefs.breaking}
           onChange={(next) => setPref({ breaking: next })}
         />
         <PrefRow
-          label="Things you follow"
-          sub="Bills, elections, courts & topics"
+          label={t("notify.following")}
+          sub={t("notify.followingSub")}
           on={prefs.following}
           onChange={(next) => setPref({ following: next })}
         />
         <PrefRow
-          label="Executive orders"
-          sub="When a new executive order is published"
+          label={t("notify.exec")}
+          sub={t("notify.execSub")}
           on={prefs.executiveOrders}
           onChange={(next) => setPref({ executiveOrders: next })}
         />
         <PrefRow
-          label="Daily Brief"
-          sub="A concise summary each morning"
+          label={t("notify.brief")}
+          sub={t("notify.briefSub")}
           on={prefs.brief}
           onChange={(next) => setPref({ brief: next })}
         />
         <PrefRow
-          label="Evening Recap"
-          sub="What changed today"
+          label={t("notify.recap")}
+          sub={t("notify.recapSub")}
           on={prefs.recap}
           onChange={(next) => setPref({ recap: next })}
           last
         />
 
-        <Kicker style={s.kicker}>Delivery</Kicker>
+        <Kicker style={s.kicker}>{t("notify.delivery")}</Kicker>
         <PrefRow
-          label="Quiet hours"
-          sub={prefs.quietHours ? quietHoursLabel(prefs) : "Off"}
+          label={t("notify.quietHours")}
+          sub={
+            prefs.quietHours
+              ? quietHoursLabel(prefs, language)
+              : t("common.off")
+          }
           on={prefs.quietHours}
           onChange={(next) => setPref({ quietHours: next })}
           last={!prefs.quietHours}
@@ -165,7 +167,7 @@ export default function NotificationsScreen() {
         {prefs.quietHours ? (
           <View style={s.hours}>
             <HourChip
-              label="From"
+              label={t("notify.from")}
               value={prefs.quietStartMin}
               onStep={() =>
                 setPref({ quietStartMin: stepHour(prefs.quietStartMin, 1) })
@@ -173,7 +175,7 @@ export default function NotificationsScreen() {
             />
             <Text style={s.hoursDash}>{"\u2013"}</Text>
             <HourChip
-              label="Until"
+              label={t("notify.until")}
               value={prefs.quietEndMin}
               onStep={() =>
                 setPref({ quietEndMin: stepHour(prefs.quietEndMin, 1) })
@@ -187,17 +189,17 @@ export default function NotificationsScreen() {
           disabled={sending}
           style={s.test}
           accessibilityRole="button"
-          accessibilityLabel="Send a test notification"
+          accessibilityLabel={t("notify.testA11y")}
         >
           <View style={s.mark}>
             <Icon name="bell" size={18} color={P.inkOnNight} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.testLabel}>Test notification</Text>
+            <Text style={s.testLabel}>{t("notify.test")}</Text>
             <Text style={s.testSub}>
               {sending
-                ? "Sending…"
-                : (status ?? "Lock-screen only. Tap it to open that bill.")}
+                ? t("feedback.sending")
+                : (status ?? t("notify.testHint"))}
             </Text>
           </View>
           <Icon name="chevR" size={15} color={P.quiet} />
@@ -207,14 +209,14 @@ export default function NotificationsScreen() {
           onPress={() => router.push("/settings/alerts" as Href)}
           style={s.history}
           accessibilityRole="button"
-          accessibilityLabel="Your alerts"
+          accessibilityLabel={t("notify.history")}
         >
           <View style={s.mark}>
             <Icon name="clock" size={18} color={P.inkOnNight} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.testLabel}>Your alerts</Text>
-            <Text style={s.testSub}>A record of what we sent.</Text>
+            <Text style={s.testLabel}>{t("notify.history")}</Text>
+            <Text style={s.testSub}>{t("notify.historySub")}</Text>
           </View>
           <Icon name="chevR" size={15} color={P.quiet} />
         </Pressable>
@@ -264,15 +266,17 @@ function HourChip({
   value: number;
   onStep: () => void;
 }) {
+  const { language, t } = useAppTranslation();
+  const time = formatClock(value, language);
   return (
     <Pressable
       onPress={onStep}
       style={s.chip}
       accessibilityRole="button"
-      accessibilityLabel={`${label} ${formatClock(value)}. Tap to move one hour later.`}
+      accessibilityLabel={t("notify.hourA11y", { label, time })}
     >
       <Text style={s.chipLabel}>{label}</Text>
-      <Text style={s.chipTime}>{formatClock(value)}</Text>
+      <Text style={s.chipTime}>{time}</Text>
     </Pressable>
   );
 }

@@ -16,9 +16,9 @@ import { plainTrillionText, trillionEmphasis } from "@acme/validators";
 import type { IconName } from "~/components/ui";
 import type { RouterOutputs } from "~/utils/api";
 import { SourceLink } from "~/components/ballot-evidence/BallotEvidence";
-import { ReaderLanguageButton } from "~/components/ReaderTools";
 import { Text } from "~/components/Themed";
 import { Card, Icon, NavHeader, Segmented } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useLanguage } from "~/hooks/useLanguage";
 import { useMeasureTranslation } from "~/hooks/useMeasureTranslation";
 import {
@@ -75,6 +75,7 @@ function SourceRow({
 }
 
 function CandidateRow({ candidate }: { candidate: Candidate }) {
+  const { t: tx } = useAppTranslation();
   const router = useRouter();
   const [photoFailed, setPhotoFailed] = useState(false);
   return (
@@ -82,7 +83,7 @@ function CandidateRow({ candidate }: { candidate: Candidate }) {
       accessibilityRole="button"
       accessibilityLabel={[
         candidate.name,
-        candidate.officeName ?? "statewide office",
+        candidate.officeName ?? tx("statewide office"),
         candidate.party,
       ]
         .filter(Boolean)
@@ -107,7 +108,7 @@ function CandidateRow({ candidate }: { candidate: Candidate }) {
       <View style={s.rowCopy}>
         <Text style={s.rowTitle}>{candidate.name}</Text>
         <Text style={s.rowNote}>
-          {[candidate.officeName ?? "Statewide office", candidate.party]
+          {[candidate.officeName ?? tx("Statewide office"), candidate.party]
             .filter(Boolean)
             .join(" · ")}
         </Text>
@@ -118,6 +119,8 @@ function CandidateRow({ candidate }: { candidate: Candidate }) {
 }
 
 function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
+  const { t: tx } = useAppTranslation();
+
   const { t } = useLanguage();
   const translation = useMeasureTranslation(
     originalMeasure.number,
@@ -137,14 +140,14 @@ function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={[
-        `Proposition ${measure.number}`,
+        tx("Proposition {value1}", { value1: measure.number }),
         measure.displayTitle
           ? plainTrillionText(measure.displayTitle)
           : measure.title,
       ]
         .filter(Boolean)
         .join(". ")}
-      accessibilityHint="Opens the proposition detail"
+      accessibilityHint={tx("Opens the proposition detail")}
       activeOpacity={0.8}
       onPressIn={prefetch}
       onPress={() => router.push(propositionDetailRoute(measure.number))}
@@ -178,7 +181,7 @@ function MeasureRow({ measure: originalMeasure }: { measure: Measure }) {
 }
 
 const QUICK_ACTIONS: readonly {
-  label: string;
+  label: "Voting plan" | "Notes" | "Voting help";
   icon: IconName;
   mode: "plan" | "notes" | "help";
 }[] = [
@@ -196,6 +199,8 @@ export function CaliforniaGuidePreview({
   onOpenFixtures?: () => void;
   onBack?: () => void;
 }) {
+  const { t: tx, language: uiLanguage } = useAppTranslation();
+
   const { language, t } = useLanguage();
   const guideScroll = useRef<ScrollView>(null);
   const router = useRouter();
@@ -206,12 +211,7 @@ export function CaliforniaGuidePreview({
   const hasBoldedTitles = !!guide?.measures.some((m) => m.displayTitle);
   return (
     <View style={{ flex: 1, backgroundColor: P.canvas }}>
-      <NavHeader
-        title="California guide"
-        large
-        onBack={onBack}
-        action={<ReaderLanguageButton />}
-      />
+      <NavHeader title={tx("California guide")} large onBack={onBack} />
       <ScrollView
         ref={guideScroll}
         contentContainerStyle={s.screen}
@@ -220,16 +220,18 @@ export function CaliforniaGuidePreview({
         <View style={s.intro}>
           {guide && (
             <Text style={s.kicker}>
-              {`${ballotElectionDate(guide.electionDate)} · General election`}
+              {tx("{date} · General election", {
+                date: ballotElectionDate(guide.electionDate, uiLanguage),
+              })}
             </Text>
           )}
           {!guide && (
             <Text style={s.introText}>
               {query.isPending
-                ? "Checking the statewide preview…"
+                ? tx("Checking the statewide preview…")
                 : query.isError
-                  ? "The preview couldn’t load."
-                  : "The preview isn’t available in Billion."}
+                  ? tx("The preview couldn’t load.")
+                  : tx("The preview isn’t available in Billion.")}
             </Text>
           )}
         </View>
@@ -253,40 +255,43 @@ export function CaliforniaGuidePreview({
               }
             >
               <Icon name={item.icon} size={15} color={P.inkOnNight} />
-              <Text style={s.actionText}>{item.label}</Text>
+              <Text style={s.actionText}>{tx(item.label)}</Text>
             </TouchableOpacity>
           ))}
         </View>
         {query.isPending && <ActivityIndicator color={P.inkOnNight} />}
         {query.isError && (
           <Card>
-            <Text style={s.cardText}>The official guide could not load.</Text>
+            <Text style={s.cardText}>
+              {tx("The official guide could not load.")}
+            </Text>
             <TouchableOpacity
               accessibilityRole="button"
               style={s.retryButton}
               onPress={() => void query.refetch()}
             >
-              <Text style={s.retry}>Try again</Text>
+              <Text style={s.retry}>{tx("Try again")}</Text>
             </TouchableOpacity>
           </Card>
         )}
         {!query.isPending && !query.isError && !guide && (
           <Card>
             <Text style={s.cardText}>
-              Guide data is unavailable to Billion. Check the official guide or
-              your election office.
+              {tx(
+                "Guide data is unavailable to Billion. Check the official guide or your election office.",
+              )}
             </Text>
           </Card>
         )}
         {!query.isPending && (query.isError || !guide) && (
           <View style={s.intro}>
             <SourceLink
-              label="California official voter guide"
+              label={tx("California official voter guide")}
               prominence="primary"
               url="https://voterguide.sos.ca.gov/"
             />
             <SourceLink
-              label="Find your county elections office"
+              label={tx("Find your county elections office")}
               url={COUNTY_OFFICES_URL}
             />
           </View>
@@ -300,12 +305,16 @@ export function CaliforniaGuidePreview({
               options={[
                 {
                   id: "candidates",
-                  label: `Statements ${guide.candidates.length}`,
+                  label: tx("Statements {count}", {
+                    count: guide.candidates.length,
+                  }),
                   icon: "vote",
                 },
                 {
                   id: "measures",
-                  label: `Measures ${guide.measures.length}`,
+                  label: tx("Measures {count}", {
+                    count: guide.measures.length,
+                  }),
                   icon: "scale",
                 },
               ]}
@@ -313,7 +322,7 @@ export function CaliforniaGuidePreview({
             {tab === "candidates" ? (
               <View style={s.list}>
                 <Text style={s.note}>
-                  Statement submitters only, not your full ballot.
+                  {tx("Statement submitters only, not your full ballot.")}
                 </Text>
                 {guide.candidates.map((candidate) => (
                   <CandidateRow
@@ -329,7 +338,7 @@ export function CaliforniaGuidePreview({
                     <Icon name="sparkle" size={13} color={P.quiet} />
                     <Text style={s.note}>
                       {language === "en"
-                        ? "Official titles · bold added by Billion"
+                        ? tx("Official titles · bold added by Billion")
                         : t("reader.translatedTitles")}
                     </Text>
                   </View>
@@ -347,7 +356,7 @@ export function CaliforniaGuidePreview({
                   style={s.ballotButton}
                 >
                   <Text style={s.ballotButtonText}>
-                    Find my official ballot
+                    {tx("Find my official ballot")}
                   </Text>
                   <Icon name="arrowRight" size={17} color={P.inkOnNight} />
                 </TouchableOpacity>
@@ -355,17 +364,17 @@ export function CaliforniaGuidePreview({
               <Card flush style={s.sources}>
                 <SourceRow
                   icon="book"
-                  label="Official voter guide"
+                  label={tx("Official voter guide")}
                   url={guide.sourceUrl}
                 />
                 <SourceRow
                   icon="vote"
-                  label="Check your registration"
+                  label={tx("Check your registration")}
                   url="https://voterstatus.sos.ca.gov/EN/Authenticate"
                 />
                 <SourceRow
                   icon="pin"
-                  label="County elections office"
+                  label={tx("County elections office")}
                   url={COUNTY_OFFICES_URL}
                   last
                 />
@@ -375,7 +384,7 @@ export function CaliforniaGuidePreview({
         )}
         {onOpenFixtures && (
           <TouchableOpacity onPress={onOpenFixtures}>
-            <Text style={s.fixtureLink}>Development scenarios</Text>
+            <Text style={s.fixtureLink}>{tx("Development scenarios")}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

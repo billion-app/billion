@@ -2,8 +2,10 @@ import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 
+import type { AppStringKey } from "~/i18n/app-strings";
 import { Text } from "~/components/Themed";
 import { Icon, ScreenShell, SearchInput } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   fontBody,
@@ -11,32 +13,26 @@ import {
   DigestPalette as P,
 } from "~/styles";
 
-const FAQS = [
-  {
-    q: "Where does Billion get its information?",
-    a: "Directly from public sources — Congress.gov, the Federal Register, court dockets, and your local government's records. We link the original every time.",
-  },
-  {
-    q: "Is the AI explainer reliable?",
-    a: "It summarizes the official text to make it readable, but it can simplify nuance. Every article links the verbatim source so you can verify.",
-  },
-  {
-    q: "How does Dual-Lens stay neutral?",
-    a: "We surface arguments from across the spectrum side by side rather than blending them into a single 'neutral' voice.",
-  },
-  {
-    q: "How do I change my district?",
-    a: "Update your address under Elections. We re-pull your ballot automatically.",
-  },
+const FAQS: { q: AppStringKey; a: AppStringKey }[] = [
+  { q: "help.q1", a: "help.a1" },
+  { q: "help.q2", a: "help.a2" },
+  { q: "help.q3", a: "help.a3" },
+  { q: "help.q4", a: "help.a4" },
+  { q: "help.q5", a: "help.a5" },
 ];
 
 export default function HelpScreen() {
   const router = useRouter();
+  const { t } = useAppTranslation();
   const [open, setOpen] = useState<number>(0);
 
   return (
-    <ScreenShell title="Help">
-      <SearchInput placeholder="Search help…" style={{ marginBottom: 20 }} />
+    <ScreenShell title={t("help.title")}>
+      <SearchInput
+        placeholder={t("help.search")}
+        accessibilityLabel={t("help.search")}
+        style={{ marginBottom: 20 }}
+      />
 
       {FAQS.map((f, i) => {
         const expanded = open === i;
@@ -50,7 +46,7 @@ export default function HelpScreen() {
             accessibilityState={{ expanded }}
           >
             <View style={s.cardHead}>
-              <Text style={s.q}>{f.q}</Text>
+              <Text style={s.q}>{t(f.q)}</Text>
               <Icon
                 name="chevD"
                 size={16}
@@ -58,7 +54,7 @@ export default function HelpScreen() {
                 style={expanded ? s.chevOpen : undefined}
               />
             </View>
-            {expanded ? <Text style={s.a}>{f.a}</Text> : null}
+            {expanded ? <Text style={s.a}>{t(f.a)}</Text> : null}
           </TouchableOpacity>
         );
       })}
@@ -68,10 +64,10 @@ export default function HelpScreen() {
         activeOpacity={0.8}
         onPress={() => router.push("/settings/feedback")}
         accessibilityRole="button"
-        accessibilityLabel="Send feedback"
+        accessibilityLabel={t("help.sendFeedback")}
       >
         <Icon name="message" size={18} color={P.spark} />
-        <Text style={s.contactTitle}>Still stuck?</Text>
+        <Text style={s.contactTitle}>{t("help.stillStuck")}</Text>
         <Icon name="chevR" size={15} color={P.quiet} />
       </TouchableOpacity>
     </ScreenShell>

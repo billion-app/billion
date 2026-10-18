@@ -6,6 +6,7 @@ import type { EvidenceOpener } from "./ResearchUI";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { CandidateDisclosure } from "~/components/ballot-evidence/CandidateDisclosure";
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { hair, DigestPalette as P } from "~/styles";
 import {
   Action,
@@ -22,7 +23,7 @@ export const claimLabels = {
   fact: "Documented fact",
   disputed: "Disputed claim",
   analysis: "Billion interpretation",
-};
+} as const;
 export function Brief({
   brief,
   open,
@@ -32,6 +33,8 @@ export function Brief({
   open: EvidenceOpener;
   onPromise: (id: string) => void;
 }) {
+  const { t: tx, locale: appLocale } = useAppTranslation();
+
   const terms = brief.research?.terms;
   const claims = brief.sections.flatMap((section) => section.claims);
   const headline =
@@ -45,17 +48,17 @@ export function Brief({
   return (
     <>
       {brief.correction && (
-        <Panel title="Updated research">
+        <Panel title={tx("Updated research")}>
           <Text style={s.body}>{brief.correction.reason}</Text>
         </Panel>
       )}
       {headline && (
         <Panel>
           <Text style={s.muted}>
-            {claimLabels[headline.kind]}
+            {tx(claimLabels[headline.kind])}
             {headline.kind === "analysis" &&
             brief.authorship.kind === "generated"
-              ? " · AI-assisted"
+              ? ` · ${tx("AI-assisted")}`
               : ""}
           </Text>
           <Emphasis
@@ -65,13 +68,13 @@ export function Brief({
           />
           <EvidenceAction
             ids={headline.evidenceIds}
-            title="Candidate priorities"
+            title={tx("Candidate priorities")}
             open={open}
           />
         </Panel>
       )}
       <Text accessibilityRole="header" style={s.heading}>
-        Record & promises
+        {tx("Record & promises")}
       </Text>
       {records.length ? (
         records.map((claim) => (
@@ -95,15 +98,16 @@ export function Brief({
               ]}
             >
               <Text style={s.muted}>
-                Documented fact
-                {(() => {
-                  const date = brief.evidence.find(
-                    (e) => claim.evidenceIds.includes(e.id) && e.documentDate,
-                  )?.documentDate;
-                  return date
-                    ? ` · ${new Date(date + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`
-                    : "";
-                })()}
+                {tx("Documented fact {value1}", {
+                  value1: (() => {
+                    const date = brief.evidence.find(
+                      (e) => claim.evidenceIds.includes(e.id) && e.documentDate,
+                    )?.documentDate;
+                    return date
+                      ? ` · ${new Date(date + "T12:00:00Z").toLocaleDateString(appLocale, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`
+                      : "";
+                  })(),
+                })}
               </Text>
               <Emphasis
                 terms={terms}
@@ -113,7 +117,7 @@ export function Brief({
               <EvidenceAction
                 ids={claim.evidenceIds}
                 title={claim.text}
-                label="Read the record"
+                label={tx("Read the record")}
                 open={open}
               />
             </View>
@@ -123,7 +127,7 @@ export function Brief({
         <Panel>
           <Text style={s.muted}>
             {brief.sections.find((section) => section.topic === "record")
-              ?.missingEvidence ?? "No reviewed record available."}
+              ?.missingEvidence ?? tx("No reviewed record available.")}
           </Text>
         </Panel>
       )}
@@ -144,7 +148,7 @@ export function Brief({
               <Icon name="quote" size={19} color={P.primary} />
             </View>
             <View style={s.grow}>
-              <Text style={s.muted}>Candidate promise</Text>
+              <Text style={s.muted}>{tx("Candidate promise")}</Text>
               <Text style={s.heading}>
                 {brief.research?.promises.find((p) => p.claimId === claim.id)
                   ?.title ?? claim.text}
@@ -154,7 +158,9 @@ export function Brief({
           <Emphasis terms={terms} text={claim.text} phrases={claim.emphasis} />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Explore promise: ${claim.text}`}
+            accessibilityLabel={tx("Explore promise: {value1}", {
+              value1: claim.text,
+            })}
             onPress={() => onPromise(claim.id)}
             style={[
               s.rule,
@@ -162,21 +168,21 @@ export function Brief({
               { justifyContent: "space-between", minHeight: 48 },
             ]}
           >
-            <Text style={s.link}>Explore this promise</Text>
+            <Text style={s.link}>{tx("Explore this promise")}</Text>
             <Icon name="chevR" size={18} color={P.primary} />
           </Pressable>
         </Panel>
       ))}
       {!promises.length && (
-        <Panel title="Campaign promises">
+        <Panel title={tx("Campaign promises")}>
           <Text style={s.body}>
-            No reviewed campaign promises are available.
+            {tx("No reviewed campaign promises are available.")}
           </Text>
         </Panel>
       )}
       {brief.research &&
         brief.evidence.some((e) => e.origin === "candidate") && (
-          <CandidateDisclosure title="Values in their own words">
+          <CandidateDisclosure title={tx("Values in their own words")}>
             {brief.evidence
               .filter((e) => e.origin === "candidate")
               .map((e) => (
@@ -187,7 +193,7 @@ export function Brief({
                   <EvidenceAction
                     ids={[e.id]}
                     title={e.title ?? e.publisher}
-                    label="Campaign source"
+                    label={tx("Campaign source")}
                     open={open}
                   />
                 </View>
@@ -205,18 +211,18 @@ export function Brief({
           );
           if (brief.research && !remaining.length) return null;
           const title = {
-            priorities: "Values in their own words",
-            mechanisms: "How plans could work",
-            effects: "Potential effects",
-            tradeoffs: "Costs & tradeoffs",
-            unknowns: "What is still unknown",
-            record: "Record",
+            priorities: tx("Values in their own words"),
+            mechanisms: tx("How plans could work"),
+            effects: tx("Potential effects"),
+            tradeoffs: tx("Costs & tradeoffs"),
+            unknowns: tx("What is still unknown"),
+            record: tx("Record"),
           }[section.topic];
           return (
             <CandidateDisclosure key={section.topic} title={title}>
               {remaining.map((claim) => (
                 <View key={claim.id} style={s.point}>
-                  <Text style={s.muted}>{claimLabels[claim.kind]}</Text>
+                  <Text style={s.muted}>{tx(claimLabels[claim.kind])}</Text>
                   <Emphasis
                     terms={terms}
                     text={claim.text}
@@ -251,6 +257,8 @@ export function PromiseDetail({
   onRead: (analysis: boolean) => void;
   open: EvidenceOpener;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const terms = brief.research?.terms;
   const claim = brief.sections
     .flatMap((s) => s.claims)
@@ -260,22 +268,24 @@ export function PromiseDetail({
     detail?.brief.change.text.trim() === claim?.text.trim();
   if (!claim)
     return (
-      <Panel title="Promise unavailable">
+      <Panel title={tx("Promise unavailable")}>
         <Text style={s.body}>
-          This promise is not in the current candidate research.
+          {tx("This promise is not in the current candidate research.")}
         </Text>
       </Panel>
     );
   return (
     <>
       <Text accessibilityRole="header" style={s.title}>
-        {detail?.title ?? "Campaign promise"}
+        {detail?.title ?? tx("Campaign promise")}
       </Text>
       {!!terms?.length && (
-        <Text style={s.muted}>Tap an underlined word for its meaning.</Text>
+        <Text style={s.muted}>
+          {tx("Tap an underlined word for its meaning.")}
+        </Text>
       )}
       <Panel>
-        <Text style={s.muted}>Candidate promise</Text>
+        <Text style={s.muted}>{tx("Candidate promise")}</Text>
         <Emphasis terms={terms} text={claim.text} phrases={claim.emphasis} />
         <EvidenceAction
           ids={
@@ -288,39 +298,48 @@ export function PromiseDetail({
                 ]
               : claim.evidenceIds
           }
-          title="Campaign promise"
-          label={repeatsPromise ? "Proposal sources" : "Campaign source"}
+          title={tx("Campaign promise")}
+          label={
+            repeatsPromise ? tx("Proposal sources") : tx("Campaign source")
+          }
           open={open}
         />
       </Panel>
       <Segments
         options={[
-          { value: "brief", label: "In brief" },
-          { value: "analysis", label: "In depth" },
+          { value: "brief", label: tx("In brief") },
+          { value: "analysis", label: tx("In depth") },
         ]}
         value={analysis ? "analysis" : "brief"}
         onChange={(value) => onRead(value === "analysis")}
       />
       <Text style={s.muted}>
-        Billion interpretation
-        {brief.authorship.kind === "generated" ? " · AI-assisted" : ""}
+        {tx("Billion interpretation {value1}", {
+          value1:
+            brief.authorship.kind === "generated"
+              ? ` · ${tx("AI-assisted")}`
+              : "",
+        })}
       </Text>
       {!detail ? (
-        <Panel title="Analysis not yet available">
+        <Panel title={tx("Analysis not yet available")}>
           <Text style={s.body}>
-            The campaign source is available above. Billion has not published a
-            deeper analysis of this promise.
+            {tx(
+              "The campaign source is available above. Billion has not published a deeper analysis of this promise.",
+            )}
           </Text>
         </Panel>
       ) : analysis ? (
         <>
-          <Panel title="Benefits & tradeoffs">
+          <Panel title={tx("Benefits & tradeoffs")}>
             <Point
               terms={terms}
               point={
                 detail.benefits[0] ?? {
-                  title: "Potential benefits",
-                  text: "The reviewed sources do not establish the benefits.",
+                  title: tx("Potential benefits"),
+                  text: tx(
+                    "The reviewed sources do not establish the benefits.",
+                  ),
                   emphasis: [],
                   evidenceIds: claim.evidenceIds,
                 }
@@ -337,37 +356,41 @@ export function PromiseDetail({
                 ))
               ) : (
                 <Text style={s.body}>
-                  Costs have not been established in the reviewed sources.
+                  {tx(
+                    "Costs have not been established in the reviewed sources.",
+                  )}
                 </Text>
               )}
             </View>
           </Panel>
-          <Panel title="Who could be affected">
+          <Panel title={tx("Who could be affected")}>
             {detail.affected.length ? (
               detail.affected.map((p) => (
                 <Point terms={terms} key={p.title} point={p} open={open} />
               ))
             ) : (
               <Text style={s.body}>
-                The reviewed sources do not establish who would be affected.
+                {tx(
+                  "The reviewed sources do not establish who would be affected.",
+                )}
               </Text>
             )}
           </Panel>
-          <Panel title="Perspectives in the sources">
+          <Panel title={tx("Perspectives in the sources")}>
             {detail.perspectives.length ? (
               detail.perspectives.map((p) => (
                 <Point terms={terms} key={p.title} point={p} open={open} />
               ))
             ) : (
               <Text style={s.body}>
-                Additional perspectives have not been documented.
+                {tx("Additional perspectives have not been documented.")}
               </Text>
             )}
           </Panel>
           {[
-            { title: "Who needs to act", points: detail.steps },
-            { title: "Other approaches", points: detail.alternatives },
-            { title: "What is still unknown", points: detail.unknowns },
+            { title: tx("Who needs to act"), points: detail.steps },
+            { title: tx("Other approaches"), points: detail.alternatives },
+            { title: tx("What is still unknown"), points: detail.unknowns },
           ].map((group) => (
             <CandidateDisclosure key={group.title} title={group.title}>
               {group.points.length ? (
@@ -375,7 +398,9 @@ export function PromiseDetail({
                   <Point terms={terms} key={p.title} point={p} open={open} />
                 ))
               ) : (
-                <Text style={s.body}>No reviewed details are available.</Text>
+                <Text style={s.body}>
+                  {tx("No reviewed details are available.")}
+                </Text>
               )}
             </CandidateDisclosure>
           ))}
@@ -384,17 +409,17 @@ export function PromiseDetail({
         <>
           {[
             {
-              title: "What could change",
+              title: tx("What could change"),
               icon: "sparkle" as const,
               point: detail.brief.change,
             },
             {
-              title: "Who has to agree",
+              title: tx("Who has to agree"),
               icon: "layers" as const,
               point: detail.brief.authority,
             },
             {
-              title: "What we still don’t know",
+              title: tx("What we still don’t know"),
               icon: "help" as const,
               point: detail.brief.unknowns,
             },
@@ -428,13 +453,13 @@ export function PromiseDetail({
                 <EvidenceAction
                   ids={point.evidenceIds}
                   title={title}
-                  label="View sources"
+                  label={tx("View sources")}
                   open={open}
                 />
               </Panel>
             ))}
           <Action
-            label="Read the in-depth analysis"
+            label={tx("Read the in-depth analysis")}
             onPress={() => onRead(true)}
           />
         </>

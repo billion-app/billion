@@ -1,3 +1,4 @@
+import type { AppLanguage } from "~/i18n/language";
 /**
  * Jurisdiction-neutral presentation logic for local-government decisions.
  *
@@ -6,6 +7,8 @@
  * hand-mock shapes here.
  */
 import type { RouterOutputs } from "~/utils/api";
+import { appTranslator } from "~/i18n/app-strings";
+import { formatList, localeTag } from "~/i18n/format";
 
 export type DecisionListPage = RouterOutputs["legistar"]["listDecisions"];
 export type DecisionRow = DecisionListPage[number];
@@ -57,7 +60,7 @@ export const JURISDICTION_FALLBACK_NAMES: Record<LocalJurisdictionKey, string> =
 // Topics
 // ---------------------------------------------------------------------------
 
-const TOPIC_LABELS: Record<string, string> = {
+const TOPIC_LABELS = {
   "housing-land-use": "Housing & land use",
   transportation: "Transportation",
   "public-safety": "Public safety",
@@ -66,16 +69,28 @@ const TOPIC_LABELS: Record<string, string> = {
   "community-services": "Neighborhood services",
   "ethics-government": "Ethics & open government",
   other: "Other",
-};
+} as const;
 
 /** Plain-language topic label; unknown keys pass through de-jargonized. */
-export function topicLabel(topic: string | null | undefined): string | null {
+export function topicLabel(
+  topic: string | null | undefined,
+  language: AppLanguage = "en",
+): string | null {
+  const t = appTranslator(language);
   if (!topic) return null;
-  return TOPIC_LABELS[topic] ?? titleCase(topic);
+  return topic in TOPIC_LABELS
+    ? t(TOPIC_LABELS[topic as keyof typeof TOPIC_LABELS])
+    : titleCase(topic);
 }
 
-export function topicLabelOrFallback(topic: string): string {
-  return TOPIC_LABELS[topic] ?? titleCase(topic);
+export function topicLabelOrFallback(
+  topic: string,
+  language: AppLanguage = "en",
+): string {
+  const t = appTranslator(language);
+  return topic in TOPIC_LABELS
+    ? t(TOPIC_LABELS[topic as keyof typeof TOPIC_LABELS])
+    : titleCase(topic);
 }
 
 function titleCase(slug: string): string {
@@ -103,31 +118,39 @@ export function scopeInfo(
   scopeKind: string,
   districtNumbers: readonly number[] | null,
   geographicText: string | null | undefined,
+  language: AppLanguage = "en",
 ): ScopeInfo {
+  const t = appTranslator(language);
   switch (scopeKind) {
     case "citywide":
       return {
         kind: "citywide",
-        label: "Citywide",
-        sentence: "Affects the whole city.",
+        label: t("Citywide"),
+        sentence: t("Affects the whole city."),
       };
     case "district": {
-      const districts = (districtNumbers ?? []).map((n) => `District ${n}`);
+      const districts = (districtNumbers ?? []).map((n) =>
+        t("District {value1}", { value1: n }),
+      );
       const label = districts.length
         ? districts.join(" · ")
-        : "Council district";
+        : t("Council district");
       return {
         kind: "district",
         label,
-        sentence: `Affects ${districts.join(" and ")}.`,
+        sentence: t("Affects {value1}.", {
+          value1: formatList(language, districts),
+        }),
       };
     }
     case "place": {
       const place = geographicText?.trim() ?? null;
       return {
         kind: "place",
-        label: place ? truncate(place, 28) : "Specific location",
-        sentence: place ? `Affects the area around ${place}.` : null,
+        label: place ? truncate(place, 28) : t("Specific location"),
+        sentence: place
+          ? t("Affects the area around {value1}.", { value1: place })
+          : null,
       };
     }
     default:
@@ -216,36 +239,42 @@ export function classifyDecision(
 }
 
 /** Plain-language status label. Never implies a vote happened when it didn't. */
-export function lifecycleLabel(lifecycle: DecisionLifecycle): string {
+export function lifecycleLabel(
+  lifecycle: DecisionLifecycle,
+  language: AppLanguage = "en",
+): string {
+  const t = appTranslator(language);
   switch (lifecycle) {
     case "upcoming":
-      return "Scheduled for a public meeting";
+      return t("Scheduled for a public meeting");
     case "awaiting_outcome":
-      return "Heard — outcome not yet published";
+      return t("Heard — outcome not yet published");
     case "approved":
-      return "Approved";
+      return t("Approved");
     case "rejected":
-      return "Not approved";
+      return t("Not approved");
     case "deferred":
-      return "Deferred to a later meeting";
+      return t("Deferred to a later meeting");
     case "withdrawn":
-      return "Withdrawn";
+      return t("Withdrawn");
     case "cancelled":
-      return "Meeting cancelled";
+      return t("Meeting cancelled");
     case "informational":
-      return "Informational — no vote expected";
+      return t("Informational — no vote expected");
     case "decided_other":
-      return "Action taken";
+      return t("Action taken");
     default:
-      return "Status unclear in official records";
+      return t("Status unclear in official records");
   }
 }
 
 /** Screen-reader-friendly full status sentence. */
 export function lifecycleAccessibilityLabel(
   lifecycle: DecisionLifecycle,
+  language: AppLanguage = "en",
 ): string {
-  return `Status: ${lifecycleLabel(lifecycle)}`;
+  const t = appTranslator(language);
+  return t("Status: {value1}", { value1: lifecycleLabel(lifecycle, language) });
 }
 
 /**
@@ -347,14 +376,18 @@ export function groupVotesByOccurrence(
 }
 
 /** Canonical short label for a recorded vote value. */
-export function voteValueLabel(value: string): string {
+export function voteValueLabel(
+  value: string,
+  language: AppLanguage = "en",
+): string {
+  const t = appTranslator(language);
   const normalized = value.trim().toLowerCase();
-  if (normalized.startsWith("y")) return "Yes";
-  if (normalized.startsWith("n")) return "No";
-  if (normalized.includes("abstain")) return "Abstained";
-  if (normalized.includes("absent")) return "Absent";
-  if (normalized.includes("recus")) return "Recused";
-  if (normalized.includes("excused")) return "Excused";
+  if (normalized.startsWith("y")) return t("Yes");
+  if (normalized.startsWith("n")) return t("No");
+  if (normalized.includes("abstain")) return t("Abstained");
+  if (normalized.includes("absent")) return t("Absent");
+  if (normalized.includes("recus")) return t("Recused");
+  if (normalized.includes("excused")) return t("Excused");
   return value.trim();
 }
 
@@ -372,38 +405,45 @@ export function voteValueTone(value: string): "for" | "against" | "neutral" {
 export function voteAvailability(
   occurrence: Pick<DecisionOccurrence, "action" | "tally">,
   hasRecordedVotes: boolean,
+  language: AppLanguage = "en",
 ): {
   visible: boolean;
   headline: string;
   detail: string | null;
 } {
+  const t = appTranslator(language);
   if (hasRecordedVotes) {
     return {
       visible: true,
-      headline: "How officials voted",
+      headline: t("How officials voted"),
       detail: null,
     };
   }
   if (occurrence.tally?.trim()) {
     return {
       visible: false,
-      headline: "Individual votes have not been published",
-      detail: `The meeting record shows a ${occurrence.tally.trim()} result, but named votes aren’t available yet.`,
+      headline: t("Individual votes have not been published"),
+      detail: t(
+        "The meeting record shows a {value1} result, but named votes aren’t available yet.",
+        { value1: occurrence.tally.trim() },
+      ),
     };
   }
   if (occurrence.action?.trim()) {
     return {
       visible: false,
-      headline: "Individual votes have not been published",
-      detail:
+      headline: t("Individual votes have not been published"),
+      detail: t(
         "The outcome above comes from the official record; named votes weren’t published with this item.",
+      ),
     };
   }
   return {
     visible: false,
-    headline: "No vote recorded yet",
-    detail:
+    headline: t("No vote recorded yet"),
+    detail: t(
       "If this item was voted on, individual results will appear after the body publishes them.",
+    ),
   };
 }
 
@@ -445,25 +485,31 @@ export function parseDate(
 
 export function formatMeetingDate(
   date: Date | string | null | undefined,
+  language: AppLanguage = "en",
 ): string {
+  const t = appTranslator(language);
   const parsed = parseDate(date);
-  if (!parsed) return "Date not published";
-  return parsed.toLocaleDateString("en-US", {
+  if (!parsed) return t("Date not published");
+  return parsed.toLocaleDateString(localeTag(language), {
     weekday: "short",
     month: "short",
     day: "numeric",
   });
 }
 
-export function formatMeetingDateTime(date: Date | string | null): string {
+export function formatMeetingDateTime(
+  date: Date | string | null,
+  language: AppLanguage = "en",
+): string {
+  const t = appTranslator(language);
   const parsed = parseDate(date);
-  if (!parsed) return "Time not published";
-  const day = parsed.toLocaleDateString("en-US", {
+  if (!parsed) return t("Time not published");
+  const day = parsed.toLocaleDateString(localeTag(language), {
     weekday: "short",
     month: "short",
     day: "numeric",
   });
-  const time = parsed.toLocaleTimeString("en-US", {
+  const time = parsed.toLocaleTimeString(localeTag(language), {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -473,17 +519,20 @@ export function formatMeetingDateTime(date: Date | string | null): string {
 export function relativeDay(
   date: Date | string | null,
   now = new Date(),
+  language: AppLanguage = "en",
 ): string | null {
+  const t = appTranslator(language);
   const parsed = parseDate(date);
   if (!parsed) return null;
   const days = Math.round(
     (startOfDay(parsed).getTime() - startOfDay(now).getTime()) / 86_400_000,
   );
-  if (days === 0) return "Today";
-  if (days === 1) return "Tomorrow";
-  if (days === -1) return "Yesterday";
-  if (days > 1 && days <= 13) return `In ${days} days`;
-  if (days < -1 && days >= -13) return `${Math.abs(days)} days ago`;
+  if (days === 0) return t("Today");
+  if (days === 1) return t("Tomorrow");
+  if (days === -1) return t("Yesterday");
+  if (days > 1 && days <= 13) return t("In {value1} days", { value1: days });
+  if (days < -1 && days >= -13)
+    return t("{value1} days ago", { value1: Math.abs(days) });
   return null;
 }
 
@@ -497,7 +546,7 @@ function startOfDay(date: Date): Date {
 // Documents
 // ---------------------------------------------------------------------------
 
-const DOCUMENT_LABELS: Record<string, string> = {
+const DOCUMENT_LABELS = {
   staff_report: "Staff report",
   ordinance: "Ordinance",
   resolution: "Resolution",
@@ -506,10 +555,16 @@ const DOCUMENT_LABELS: Record<string, string> = {
   minutes_order: "Minutes order",
   reference: "Official reference",
   other: "Document",
-};
+} as const;
 
-export function documentCategoryLabel(category: string): string {
-  return DOCUMENT_LABELS[category] ?? titleCase(category);
+export function documentCategoryLabel(
+  category: string,
+  language: AppLanguage = "en",
+): string {
+  const t = appTranslator(language);
+  return category in DOCUMENT_LABELS
+    ? t(DOCUMENT_LABELS[category as keyof typeof DOCUMENT_LABELS])
+    : titleCase(category);
 }
 
 // ---------------------------------------------------------------------------

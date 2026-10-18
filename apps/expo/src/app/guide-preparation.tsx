@@ -9,11 +9,14 @@ import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { PrivatePreparation } from "~/components/preparation/PrivatePreparation";
 import { NavHeader } from "~/components/ui";
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { fontBody, DigestPalette as P, sp } from "~/styles";
 import { trpc } from "~/utils/api";
 import { ballotElectionDate } from "~/utils/ballot-lookup";
 
 export default function GuidePreparation() {
+  const { t: tx, language: uiLanguage } = useAppTranslation();
+
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
@@ -22,7 +25,7 @@ export default function GuidePreparation() {
   return (
     <View style={{ flex: 1, backgroundColor: P.canvas }}>
       <NavHeader
-        title={mode === "notes" ? "Guide notes" : "Voting plan"}
+        title={mode === "notes" ? tx("Guide notes") : tx("Voting plan")}
         onBack={returnToGuide}
       />
       <ScrollView
@@ -41,7 +44,7 @@ export default function GuidePreparation() {
             lineHeight: 18,
           }}
         >
-          California statewide guide · local races are not included.
+          {tx("California statewide guide · local races are not included.")}
         </Text>
         {mode === "notes" && !guide && (
           <PrivatePreparation provider="archive" initiallyOpen />
@@ -50,18 +53,18 @@ export default function GuidePreparation() {
           <ActivityIndicator color={P.inkOnNight} />
         ) : !guide ? (
           <SourceLink
-            label="Read California’s official guide"
+            label={tx("Read California’s official guide")}
             url="https://voterguide.sos.ca.gov/"
           />
         ) : mode === "notes" ? (
           <PrivatePreparation
-            heading="Your guide notes"
+            heading={tx("Your guide notes")}
             initiallyOpen
             provider="California Secretary of State statement guide"
             lookupScope="statewide-guide:ca"
             election={{
               id: `ca-guide:${guide.electionDate}`,
-              name: "California statewide guide",
+              name: tx("California statewide guide"),
               electionDay: guide.electionDate,
               ocdDivisionId: "ocd-division/country:us/state:ca",
             }}
@@ -91,11 +94,13 @@ export default function GuidePreparation() {
           <VotingPlanSection
             initiallyOpen
             california
-            returnLabel="Return to statewide guide"
+            returnLabel={tx("Return to statewide guide")}
             onReturn={returnToGuide}
             election={{
               id: `ca-guide:${guide.electionDate}`,
-              name: `California statewide election · ${ballotElectionDate(guide.electionDate)}`,
+              name: tx("California statewide election · {value1}", {
+                value1: ballotElectionDate(guide.electionDate, uiLanguage),
+              }),
               electionDay: guide.electionDate,
               ocdDivisionId: "ocd-division/country:us/state:ca",
             }}

@@ -18,6 +18,7 @@ import {
 } from "@acme/validators";
 
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   fontBody,
   fontEditorial,
@@ -38,12 +39,14 @@ export function MeasureRelationships({
   number: string;
   relationships?: Relationship[];
 }) {
+  const { t: tx } = useAppTranslation();
+
   const readable = relationships.filter((r) => r.compact);
   if (!readable.length) return null;
   return (
     <View style={s.section} testID="measure-relationships">
       <Text accessibilityRole="header" style={s.heading}>
-        Related measures
+        {tx("Related measures")}
       </Text>
       {readable.map((r) => (
         <RelationshipCard key={r.revision} relationship={r} number={number} />
@@ -58,6 +61,8 @@ function RelationshipCard({
   relationship: Relationship;
   number: string;
 }) {
+  const { t: tx, language } = useAppTranslation();
+
   const router = useRouter();
   const { fontScale, width } = useWindowDimensions();
   const [selected, setSelected] = useState<Scenario>("both");
@@ -68,20 +73,28 @@ function RelationshipCard({
   const options: { id: Scenario; label: string; accessible: string }[] = [
     {
       id: "neither",
-      label: "Neither passes",
-      accessible: "Neither measure passes",
+      label: tx("Neither passes"),
+      accessible: tx("Neither measure passes"),
     },
     {
       id: "onlyFirst",
-      label: `Only ${r.measures[0].number} passes`,
-      accessible: `Only Proposition ${r.measures[0].number} passes`,
+      label: tx("Only {value1} passes", { value1: r.measures[0].number }),
+      accessible: tx("Only Proposition {value1} passes", {
+        value1: r.measures[0].number,
+      }),
     },
     {
       id: "onlySecond",
-      label: `Only ${r.measures[1].number} passes`,
-      accessible: `Only Proposition ${r.measures[1].number} passes`,
+      label: tx("Only {value1} passes", { value1: r.measures[1].number }),
+      accessible: tx("Only Proposition {value1} passes", {
+        value1: r.measures[1].number,
+      }),
     },
-    { id: "both", label: "Both pass", accessible: "Both measures pass" },
+    {
+      id: "both",
+      label: tx("Both pass"),
+      accessible: tx("Both measures pass"),
+    },
   ];
   const outcome = compact.scenarios[selected];
   const sourceLinks = (ids: string[]) => (
@@ -93,7 +106,10 @@ function RelationshipCard({
           <Pressable
             key={id}
             accessibilityRole="link"
-            accessibilityLabel={`Proposition ${source.number}, ${source.locator}, open official source`}
+            accessibilityLabel={tx(
+              "Proposition {value1}, {value2}, open official source",
+              { value1: source.number, value2: source.locator },
+            )}
             style={s.sourceLink}
             onPress={() => {
               void Linking.openURL(source.url).then(
@@ -104,7 +120,8 @@ function RelationshipCard({
           >
             <Text style={s.link}>
               {source.number} ·{" "}
-              {source.role === "legal-text" ? "Legal text" : "LAO analysis"} ↗
+              {source.role === "legal-text" ? tx("Legal text") : "LAO analysis"}{" "}
+              ↗
             </Text>
           </Pressable>
         );
@@ -113,7 +130,7 @@ function RelationshipCard({
   );
   const moneyContext = (claim: Claim) =>
     (claim.money ?? []).map((money, index) => {
-      const presentation = contextMoneyPresentation(money);
+      const presentation = contextMoneyPresentation(money, language);
       return (
         <View
           key={index}
@@ -131,7 +148,7 @@ function RelationshipCard({
           {money.comparison.state === "available" && (
             <>
               <Text style={s.caption}>
-                Budget evidence:{" "}
+                {tx("Budget evidence:")}{" "}
                 {money.comparison.denominator.evidence
                   .map((e) => e.locator)
                   .join("; ")}
@@ -152,14 +169,16 @@ function RelationshipCard({
     </View>
   );
   const kindLabel = {
-    conflict: "Possible conflict",
-    precedence: "Precedence rule",
-    dependency: "Depends on another measure",
-    uncertain: "Possible interaction",
+    conflict: tx("Possible conflict"),
+    precedence: tx("Precedence rule"),
+    dependency: tx("Depends on another measure"),
+    uncertain: tx("Possible interaction"),
   }[r.kind];
   return (
     <View style={s.card} testID={`relationship-${r.revision}`}>
-      <Text style={s.caption}>Billion explanation · {kindLabel}</Text>
+      <Text style={s.caption}>
+        {tx("Billion explanation · {value1}", { value1: kindLabel })}
+      </Text>
       <View style={[s.pair, stacked && s.pairStacked]}>
         {r.measures.map((measure, index) => {
           const description = compact.measures[index];
@@ -167,8 +186,10 @@ function RelationshipCard({
           const node = (
             <View style={s.node}>
               <Text style={s.nodeMeta}>
-                PROP {measure.number}
-                {number === measure.number ? " · THIS PAGE" : " →"}
+                {tx("PROP {value1}{value2}", {
+                  value1: measure.number,
+                  value2: number === measure.number ? " · THIS PAGE" : " →",
+                })}
               </Text>
               <Text style={s.nodeBody}>{description.text}</Text>
               {moneyContext(description)}
@@ -182,7 +203,10 @@ function RelationshipCard({
             <Pressable
               key={measure.number}
               accessibilityRole="link"
-              accessibilityLabel={`Read Proposition ${measure.number}: ${description.text}`}
+              accessibilityLabel={tx("Read Proposition {value1}: {value2}", {
+                value1: measure.number,
+                value2: description.text,
+              })}
               style={[s.nodeWrap, webNodeWrap]}
               onPress={() =>
                 router.push({
@@ -199,7 +223,7 @@ function RelationshipCard({
       <Text style={s.framing}>{compact.takeaway.text}</Text>
       {moneyContext(compact.takeaway)}
       <View style={s.chooser}>
-        <Text style={s.label}>What if…</Text>
+        <Text style={s.label}>{tx("What if…")}</Text>
         <View style={s.optionGrid}>
           {options.map((option) => (
             <Pressable
@@ -258,12 +282,12 @@ function RelationshipCard({
       <View style={s.supporting}>
         {selected === "both" && compact.bothPassComparisons && (
           <Disclosure
-            title="How Yes totals could matter"
+            title={tx("How Yes totals could matter")}
             testID="relationship-vote-comparison"
           >
             <Text style={s.caption}>
               {compact.conflictScopes?.condition.text ??
-                "These cases assume both measures pass."}
+                tx("These cases assume both measures pass.")}
             </Text>
             {compact.conflictScopes &&
               moneyContext(compact.conflictScopes.condition)}
@@ -271,8 +295,10 @@ function RelationshipCard({
               <View key={key} style={s.comparison}>
                 <Text style={s.label}>
                   {key === "equal"
-                    ? "Equal Yes totals"
-                    : `${r.measures[key === "firstMore" ? 0 : 1].number} has more Yes votes`}
+                    ? tx("Equal Yes totals")
+                    : tx("{value1} has more Yes votes", {
+                        value1: r.measures[key === "firstMore" ? 0 : 1].number,
+                      })}
                 </Text>
                 <Text style={s.body}>
                   {compact.bothPassComparisons?.[key].text}
@@ -291,14 +317,18 @@ function RelationshipCard({
         <Disclosure
           title={
             r.kind === "dependency"
-              ? "Affected provisions"
-              : "Which rules overlap?"
+              ? tx("Affected provisions")
+              : tx("Which rules overlap?")
           }
           testID="relationship-provisions"
         >
           {compact.provisions.map((provision, index) => (
             <View key={index} style={s.provision}>
-              <Text style={s.nodeMeta}>PROP {r.measures[index]?.number}</Text>
+              <Text style={s.nodeMeta}>
+                {tx("PROP {value1}", {
+                  value1: r.measures[index]?.number ?? "",
+                })}
+              </Text>
               <Text style={s.body}>{provision.text}</Text>
               {moneyContext(provision)}
               {sourceLinks(provision.sourceIds)}
@@ -306,7 +336,7 @@ function RelationshipCard({
           ))}
           {compact.conflictScopes && (
             <>
-              <Text style={s.label}>Proposed conflict clauses</Text>
+              <Text style={s.label}>{tx("Proposed conflict clauses")}</Text>
               <Text style={s.caption}>
                 {compact.conflictScopes.condition.text}
               </Text>
@@ -314,7 +344,9 @@ function RelationshipCard({
               {compact.conflictScopes.scopes.map((scope, index) => (
                 <View key={index} style={s.comparison}>
                   <Text style={s.nodeMeta}>
-                    PROP {r.measures[index]?.number}
+                    {tx("PROP {value1}", {
+                      value1: r.measures[index]?.number ?? "",
+                    })}
                   </Text>
                   <Text style={s.body}>{scope.text}</Text>
                   {moneyContext(scope)}
@@ -327,43 +359,58 @@ function RelationshipCard({
             </>
           )}
         </Disclosure>
-        <Disclosure title="Sources & conditions" testID="relationship-evidence">
-          <Text style={s.label}>What remains unresolved</Text>
+        <Disclosure
+          title={tx("Sources & conditions")}
+          testID="relationship-evidence"
+        >
+          <Text style={s.label}>{tx("What remains unresolved")}</Text>
           {r.conditions.map((claim, index) => (
             <View key={index}>
               <Text style={s.body}>{claim.text}</Text>
               {moneyContext(claim)}
             </View>
           ))}
-          <Disclosure title="Full provision explanation">
+          <Disclosure title={tx("Full provision explanation")}>
             {r.affectedProvisions.map((claim, index) =>
               detailClaim(claim, `detail-${index}`),
             )}
           </Disclosure>
-          <Text style={s.label}>Official records</Text>
+          <Text style={s.label}>{tx("Official records")}</Text>
           {r.sources.map((source) => (
             <View key={source.id}>
               <Text style={s.caption}>
-                Proposition {source.number} · {source.locator}
+                {tx("Proposition {value1} · {value2}", {
+                  value1: source.number,
+                  value2: source.locator,
+                })}
               </Text>
               {sourceLinks([source.id])}
               <Text style={s.caption}>
-                Retrieved {source.retrievedAt.slice(0, 10)} UTC
+                {tx("Retrieved {value1} UTC", {
+                  value1: source.retrievedAt.slice(0, 10),
+                })}
               </Text>
             </View>
           ))}
           <Text style={s.caption}>
-            {r.review.state === "approved"
-              ? `Reviewed ${r.review.reviewedAt?.slice(0, 10)} · ${r.review.reviewer}.`
-              : "Editorial review pending · preview only."}{" "}
-            Retrieval is separate from editorial review.
+            {tx("{value1} Retrieval is separate from editorial review.", {
+              value1:
+                r.review.state === "approved"
+                  ? tx("Reviewed {date} · {reviewer}.", {
+                      date: r.review.reviewedAt?.slice(0, 10) ?? "—",
+                      reviewer: r.review.reviewer ?? "—",
+                    })
+                  : tx("Editorial review pending · preview only."),
+            })}
           </Text>
         </Disclosure>
       </View>
-      <Text style={s.limit}>This comparison covers this pair only.</Text>
+      <Text style={s.limit}>
+        {tx("This comparison covers this pair only.")}
+      </Text>
       {failed && (
         <Text accessibilityRole="alert" style={s.caption}>
-          Could not open source. Tap its link to retry.
+          {tx("Could not open source. Tap its link to retry.")}
         </Text>
       )}
     </View>

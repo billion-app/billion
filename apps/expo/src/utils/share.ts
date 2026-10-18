@@ -26,6 +26,8 @@ interface ShareTarget {
   contentType: string;
   title: string;
   surface: ShareSurface;
+  /** Android chooser title, already in the reader's language. */
+  dialogTitle?: string;
 }
 
 /**
@@ -139,7 +141,7 @@ async function openImageShareSheet(
   await Sharing.shareAsync(destination.uri, {
     mimeType: "image/png",
     UTI: "public.png",
-    dialogTitle: "Share this brief",
+    dialogTitle: target.dialogTitle ?? "Share this brief",
   });
 
   // expo-sharing reports nothing about what the reader picked — or whether

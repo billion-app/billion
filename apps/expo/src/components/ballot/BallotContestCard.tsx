@@ -6,6 +6,7 @@ import type { Contest } from "@acme/api";
 import { Text } from "~/components/Themed";
 import { Card, Icon } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, fontEditorial, hair, planes } from "~/styles";
 import {
   ballotContestRoute,
@@ -29,32 +30,34 @@ export function BallotContestCard({
   electionStage?: string;
   provider?: { name: string; sourceUrl?: string; fetchedAt?: string };
 }) {
+  const { t: tx, language: uiLanguage } = useAppTranslation();
+
   const router = useRouter();
   const isMeasure = isBallotMeasure(contest);
   const title = isMeasure
-    ? (contest.referendumTitle ?? contest.office ?? "Ballot measure")
-    : contestListTitle(contest);
+    ? (contest.referendumTitle ?? contest.office ?? tx("Ballot measure"))
+    : contestListTitle(contest, uiLanguage);
   const count = contest.candidates?.length ?? 0;
   const sourceNames = contest.sources
     ?.map((source) => source.name)
     .filter(Boolean)
     .join(", ");
   const sourceLabel =
-    (sourceNames?.length ?? 0) > 0 ? sourceNames : "unavailable";
+    (sourceNames?.length ?? 0) > 0 ? sourceNames : tx("unavailable");
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={[
-        `Open ${title}`,
+        tx("Open {value1}", { value1: title }),
         electionDate
-          ? ballotElectionDate(electionDate)
-          : "Election date unavailable",
-        contest.district?.name ?? "District unavailable",
+          ? ballotElectionDate(electionDate, uiLanguage)
+          : tx("Election date unavailable"),
+        contest.district?.name ?? tx("District unavailable"),
         electionStage?.trim()
           ? electionStage.trim()
-          : "Election stage unavailable",
+          : tx("Election stage unavailable"),
         electionCoverageLabel("partial"),
-        `Source: ${sourceLabel}`,
+        tx("Source: {value1}", { value1: sourceLabel ?? "" }),
       ].join(". ")}
       onPress={() => {
         if (!isMeasure) {
@@ -65,12 +68,16 @@ export function BallotContestCard({
           });
         }
         router.push(
-          ballotContestRoute(contest, {
-            state,
-            electionDate,
-            electionStage,
-            provider,
-          }),
+          ballotContestRoute(
+            contest,
+            {
+              state,
+              electionDate,
+              electionStage,
+              provider,
+            },
+            uiLanguage,
+          ),
         );
       }}
     >
@@ -79,10 +86,10 @@ export function BallotContestCard({
           <Text style={s.title}>{title}</Text>
           <Text style={s.meta}>
             {isMeasure
-              ? "Read measure details"
+              ? tx("Read measure details")
               : count
                 ? `${count} candidate${count === 1 ? "" : "s"}`
-                : "Candidate information unavailable"}
+                : tx("Candidate information unavailable")}
           </Text>
         </View>
         <Icon name="chevR" size={16} color={colors.textSecondary} />

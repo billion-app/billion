@@ -11,6 +11,7 @@ import type { Election } from "@acme/api";
 
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, hair, planes } from "~/styles";
 import { daysUntil, monthDay } from "~/utils/dates";
 import {
@@ -25,21 +26,23 @@ interface ElectionHeroProps {
 }
 
 export function ElectionHero({ election }: ElectionHeroProps) {
+  const { language, locale, t } = useAppTranslation();
   const type = electionType(election.name);
   const days = daysUntil(election.electionDay);
 
   // Show published dates only; registration and mail guidance is source-backed below.
   const dates = [
     {
+      key: "electionDay",
       icon: "flag" as const,
-      label: "Election Day",
-      value: monthDay(election.electionDay),
+      label: t("elections.electionDay"),
+      value: monthDay(election.electionDay, locale),
       accent: colors.green[500],
       countdown:
         days > 0
-          ? `${days} day${days !== 1 ? "s" : ""} left`
+          ? t("relative.daysLeft", { count: days })
           : days === 0
-            ? "Today"
+            ? t("common.today")
             : undefined,
     },
   ];
@@ -47,23 +50,23 @@ export function ElectionHero({ election }: ElectionHeroProps) {
   return (
     <View style={s.card}>
       <View style={s.badge}>
-        <Text style={s.badgeText}>{electionTypeLabel(type)}</Text>
+        <Text style={s.badgeText}>{electionTypeLabel(type, language)}</Text>
       </View>
 
       <Text style={s.name}>{election.name}</Text>
-      <Text style={s.date}>{monthDay(election.electionDay)}</Text>
+      <Text style={s.date}>{monthDay(election.electionDay, locale)}</Text>
 
       <View style={s.divider} />
 
       <Text style={s.explainer}>
         {type === "primary"
-          ? "Voters choose candidates for the next stage of the election. Rules vary by state and office."
-          : electionExplainer(type)}
+          ? t("elections.explainer.primaryGeneric")
+          : electionExplainer(type, language)}
       </Text>
 
       <View style={s.dates}>
         {dates.map((d) => (
-          <View key={d.label} style={s.dateRow}>
+          <View key={d.key} style={s.dateRow}>
             <Icon name={d.icon} size={14} color={d.accent} />
             <Text style={s.dateLabel}>{d.label}</Text>
             <Text style={[s.dateValue, { color: d.accent }]}>{d.value}</Text>

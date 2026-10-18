@@ -44,6 +44,7 @@ import { PushSync } from "~/components/PushSync";
 import { createRouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { UpdatePrompt } from "~/components/UpdatePrompt";
 import { posthog } from "~/config/posthog";
+import { useLanguage } from "~/hooks/useLanguage";
 import { useTheme } from "~/styles";
 import { queryClient } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -114,6 +115,15 @@ function PostHogAuthSync() {
 // This is the main layout of the app
 // It wraps your pages with the providers they need
 export default function RootLayout() {
+  const { language } = useLanguage();
+  useEffect(() => {
+    const webDocument = (
+      globalThis as { document?: { documentElement: { lang: string } } }
+    ).document;
+    if (webDocument)
+      webDocument.documentElement.lang =
+        language === "zh" ? "zh-Hans" : language;
+  }, [language]);
   const { theme } = useTheme();
   const pathname = usePathname();
   const params = useGlobalSearchParams();

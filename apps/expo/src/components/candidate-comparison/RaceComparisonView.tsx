@@ -14,6 +14,7 @@ import type {
 } from "./model";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { Icon } from "~/components/ui/Icon";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   colors,
   fontBody,
@@ -38,13 +39,15 @@ function SourceLink({
   number: number;
   count: number;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
   return (
     <View style={{ gap: 8 }}>
       <Pressable
         accessibilityRole={source.fixtureText ? "button" : "link"}
-        accessibilityLabel={`${source.fixtureText ? (open ? "Hide" : "View") : "Read"} source: ${source.name}, ${source.locator}`}
+        accessibilityLabel={`${source.fixtureText ? (open ? tx("Hide") : tx("View")) : tx("Read")} source: ${source.name}, ${source.locator}`}
         accessibilityState={source.fixtureText ? { expanded: open } : undefined}
         style={[s.action, s.sourceAction]}
         onPress={() => {
@@ -62,9 +65,9 @@ function SourceLink({
         <Text style={s.sourceLabel}>
           {source.fixtureText
             ? open
-              ? "Hide source"
-              : "View source"
-            : "Read source"}
+              ? tx("Hide source")
+              : tx("View source")
+            : tx("Read source")}
           {count > 1 ? ` ${number}` : ""}
           {" · "}
           {source.locator}
@@ -83,7 +86,9 @@ function SourceLink({
       </Pressable>
       {open && (
         <View style={s.excerpt}>
-          <Text style={s.status}>Source excerpt · Fictional source</Text>
+          <Text style={s.status}>
+            {tx("Source excerpt · Fictional source")}
+          </Text>
           <Text style={s.metadata}>
             {source.name} · {source.locator}
           </Text>
@@ -94,7 +99,7 @@ function SourceLink({
       )}
       {failed && (
         <Text accessibilityRole="alert" style={s.body}>
-          Could not open the source. Tap the source again to retry.
+          {tx("Could not open the source. Tap the source again to retry.")}
         </Text>
       )}
     </View>
@@ -137,6 +142,8 @@ function SectionChoices({
 
 /** One shared question, then directly attributed answers in roster order. */
 export function RaceComparisonView({ race }: { race: RaceComparison }) {
+  const { t: tx } = useAppTranslation();
+
   const { fontScale } = useWindowDimensions();
   const [topic, setTopic] = useState<ComparisonTopic>("priorities");
   const [choosingSection, setChoosingSection] = useState(false);
@@ -145,14 +152,17 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
   if (!__DEV__ || !race.fixture)
     return (
       <Text style={s.body}>
-        Candidate comparisons are unpublished pending editorial approval.
+        {tx(
+          "Candidate comparisons are unpublished pending editorial approval.",
+        )}
       </Text>
     );
   if (validateComparison(race).length)
     return (
       <Text accessibilityRole="alert" style={s.body}>
-        Comparison unavailable: the evidence or candidate identities could not
-        be verified.
+        {tx(
+          "Comparison unavailable: the evidence or candidate identities could not be verified.",
+        )}
       </Text>
     );
   const rows = comparisonRows(race, topic);
@@ -178,14 +188,16 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
   const topicLabel = comparisonTopics.find((item) => item.id === topic)?.label;
   const emptyHeading =
     topic === "effects"
-      ? "Reviewed analysis isn’t available for this race."
+      ? tx("Reviewed analysis isn’t available for this race.")
       : topic === "questionnaire"
-        ? "No questionnaire responses are available."
-        : "We don’t have evidence for this question yet.";
+        ? tx("No questionnaire responses are available.")
+        : tx("We don’t have evidence for this question yet.");
   return (
     <View style={s.section}>
       <Text style={s.metadata}>
-        Fictional preview · Unpublished · {race.candidates.length} candidates
+        {tx("Fictional preview · Unpublished · {value1} candidates", {
+          value1: race.candidates.length,
+        })}
       </Text>
       <Text accessibilityRole="header" style={s.title}>
         {race.office}
@@ -201,7 +213,8 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
         }}
       >
         <Text style={[s.link, { flex: 1 }]}>
-          {topicLabel} · {choosingSection ? "Close sections" : "Change section"}
+          {topicLabel ? tx(topicLabel) : ""} ·{" "}
+          {choosingSection ? tx("Close sections") : tx("Change section")}
         </Text>
         <View
           accessible={false}
@@ -215,7 +228,10 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
       </Pressable>
       {choosingSection && (
         <SectionChoices
-          options={comparisonTopics}
+          options={comparisonTopics.map((item) => ({
+            ...item,
+            label: tx(item.label),
+          }))}
           value={topic}
           onChange={(next) => {
             setTopic(next);
@@ -233,7 +249,7 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
             <Icon name="users" size={14} color={colors.textSecondary} />
           </View>
           <Text style={[s.metadata, { flex: 1 }]}>
-            Statements shown share: {sharedContext}
+            {tx("Statements shown share: {value1}", { value1: sharedContext })}
           </Text>
         </View>
       )}
@@ -241,8 +257,9 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
         <View style={s.empty}>
           <Text style={s.body}>{emptyHeading}</Text>
           <Text style={s.metadata}>
-            Missing information doesn’t tell us what a candidate supports or has
-            done.
+            {tx(
+              "Missing information doesn’t tell us what a candidate supports or has done.",
+            )}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -254,12 +271,17 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
             }}
           >
             <Text style={s.recoveryText}>
-              {choosingFromEmpty ? "Close sections" : "Choose another section"}
+              {choosingFromEmpty
+                ? tx("Close sections")
+                : tx("Choose another section")}
             </Text>
           </Pressable>
           {choosingFromEmpty && (
             <SectionChoices
-              options={comparisonTopics}
+              options={comparisonTopics.map((item) => ({
+                ...item,
+                label: tx(item.label),
+              }))}
               value={topic}
               onChange={(next) => {
                 setTopic(next);
@@ -271,8 +293,9 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
       )}
       {!rows.length && (
         <Text style={s.body}>
-          Candidate roster unavailable. A comparison cannot establish who is on
-          your ballot.
+          {tx(
+            "Candidate roster unavailable. A comparison cannot establish who is on your ballot.",
+          )}
         </Text>
       )}
       <View style={allEmpty ? s.roster : s.section}>
@@ -293,7 +316,7 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
             <Text style={s.metadata}>{candidate.identity}</Text>
             {candidate.ballotStatus === "withdrawn-still-on-ballot" && (
               <Text style={s.status}>
-                Withdrawn · Still on this example ballot
+                {tx("Withdrawn · Still on this example ballot")}
               </Text>
             )}
             {cell.status !== "available" ? (
@@ -365,8 +388,9 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
       </View>
       {hasGaps && !allEmpty && (
         <Text style={s.metadata}>
-          Missing information doesn’t tell us what a candidate supports or has
-          done.
+          {tx(
+            "Missing information doesn’t tell us what a candidate supports or has done.",
+          )}
         </Text>
       )}
       <Pressable
@@ -376,7 +400,9 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
         onPress={() => setAboutOpen(!aboutOpen)}
       >
         <Text style={[s.link, { flex: 1 }]}>
-          About this comparison · {aboutOpen ? "Hide" : "Read more"}
+          {tx("About this comparison · {value1}", {
+            value1: aboutOpen ? tx("Hide") : tx("Read more"),
+          })}
         </Text>
         <View
           accessible={false}
@@ -389,24 +415,24 @@ export function RaceComparisonView({ race }: { race: RaceComparison }) {
       {aboutOpen && (
         <View style={s.excerpt}>
           <Text style={s.body}>
-            These candidates and records are fictional, not voting advice.
-            Publication requires editorial approval and reviewed evidence.
+            {tx(
+              "These candidates and records are fictional, not voting advice. Publication requires editorial approval and reviewed evidence.",
+            )}
           </Text>
           <Text style={s.body}>
-            Every candidate gets the same question. Similar layouts do not mean
-            equally strong evidence. Different stated priorities do not by
-            themselves establish disagreement.
+            {tx(
+              "Every candidate gets the same question. Similar layouts do not mean equally strong evidence. Different stated priorities do not by themselves establish disagreement.",
+            )}
           </Text>
           <Text style={s.body}>
-            Candidate statements and questionnaire answers are
-            candidate-authored. They are separate from documented records and
-            Billion analysis. Promises alone do not establish how a plan would
-            work or its tradeoffs.
+            {tx(
+              "Candidate statements and questionnaire answers are candidate-authored. They are separate from documented records and Billion analysis. Promises alone do not establish how a plan would work or its tradeoffs.",
+            )}
           </Text>
           <Text style={s.body}>
-            Questionnaire responses are optional evidence. No response does not
-            establish a position. This prototype does not invite or collect
-            responses.
+            {tx(
+              "Questionnaire responses are optional evidence. No response does not establish a position. This prototype does not invite or collect responses.",
+            )}
           </Text>
         </View>
       )}

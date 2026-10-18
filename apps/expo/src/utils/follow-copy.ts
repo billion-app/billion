@@ -1,3 +1,7 @@
+import type { AppStringKey } from "~/i18n/app-strings";
+import type { AppLanguage } from "~/i18n/language";
+import { translateApp } from "~/i18n/app-strings";
+
 /**
  * Save is the existing device-local saved set. Storage keys and analytics
  * names stay as they are.
@@ -18,16 +22,30 @@ export function followNoun(type: string | undefined): string {
   }
 }
 
+const NOUN_KEYS: Record<string, { save: AppStringKey; remove: AppStringKey }> =
+  {
+    bill: { save: "follow.saveBill", remove: "follow.removeBill" },
+    case: { save: "follow.saveCase", remove: "follow.removeCase" },
+    order: { save: "follow.saveOrder", remove: "follow.removeOrder" },
+    record: { save: "follow.saveRecord", remove: "follow.removeRecord" },
+  };
+
 export function followAccessibilityLabel(
   type: string | undefined,
   saved: boolean,
   title?: string,
+  language: AppLanguage = "en",
 ): string {
-  const noun = followNoun(type);
   if (title) {
-    return saved ? `Remove ${title} from saved` : `Save ${title} for later`;
+    return translateApp(
+      language,
+      saved ? "follow.removeTitle" : "follow.saveTitle",
+      { title },
+    );
   }
-  return saved
-    ? `Remove this ${noun} from saved`
-    : `Save this ${noun} for later`;
+  const keys = NOUN_KEYS[followNoun(type)] ?? {
+    save: "follow.saveRecord",
+    remove: "follow.removeRecord",
+  };
+  return translateApp(language, saved ? keys.remove : keys.save);
 }

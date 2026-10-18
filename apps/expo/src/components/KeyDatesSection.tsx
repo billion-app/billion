@@ -1,10 +1,12 @@
 import { StyleSheet } from "react-native";
 
 import { Text, View } from "~/components/Themed";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestHair, DigestPalette, DigestSpace, fontBody } from "~/styles";
 import { daysUntil, formatDate } from "~/utils/dates";
 
 interface KeyDate {
+  key: string;
   label: string;
   date: string;
 }
@@ -20,40 +22,47 @@ export function KeyDatesSection({
   electionDate,
   earlyVoteStart,
 }: KeyDatesSectionProps) {
+  const { locale, t } = useAppTranslation();
   const electionDateObj = new Date(electionDate);
   const registrationDeadline = new Date(electionDateObj);
   registrationDeadline.setDate(registrationDeadline.getDate() - 15);
 
   const dates: KeyDate[] = [
     {
-      label: "Register by",
+      key: "register",
+      label: t("elections.keyDates.registerBy"),
       date: registrationDeadline.toISOString().split("T")[0] ?? "",
     },
     {
-      label: "Election Day",
+      key: "electionDay",
+      label: t("elections.electionDay"),
       date: electionDate,
     },
   ];
   if (earlyVoteStart) {
-    dates.splice(1, 0, { label: "Early voting", date: earlyVoteStart });
+    dates.splice(1, 0, {
+      key: "early",
+      label: t("elections.keyDates.earlyVoting"),
+      date: earlyVoteStart,
+    });
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.kicker}>Calendar</Text>
+      <Text style={styles.kicker}>{t("elections.keyDates.calendar")}</Text>
       {dates.map((item, index) => {
         const days = daysUntil(item.date);
         const isPassed = days < 0;
         const isNext =
           !isPassed && dates.findIndex((d) => daysUntil(d.date) >= 0) === index;
         const countdown = isPassed
-          ? "Passed"
+          ? t("elections.keyDates.passed")
           : days === 0
-            ? "Today"
-            : `${days} days`;
+            ? t("common.today")
+            : t("elections.keyDates.days", { count: days });
 
         return (
-          <View key={item.label}>
+          <View key={item.key}>
             {index > 0 ? <View style={styles.hair} /> : null}
             <View style={styles.row}>
               <Text style={[styles.label, isPassed && styles.textMuted]}>
@@ -66,7 +75,7 @@ export function KeyDatesSection({
                   isNext && styles.valueOn,
                 ]}
               >
-                {formatDate(item.date)} · {countdown}
+                {formatDate(item.date, locale)} · {countdown}
               </Text>
             </View>
           </View>

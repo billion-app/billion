@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import type { BallotResponse } from "~/utils/ballot-lookup";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { DigestPalette as P } from "~/styles";
 import { BallotLookupView } from "./BallotLookupView";
 
@@ -159,6 +160,8 @@ export function BallotLookupFixture({
   initialScenario?: Scenario;
   hideControls?: boolean;
 }) {
+  const { t: tx } = useAppTranslation();
+
   const [scenario, setScenario] = useState<Scenario>(initialScenario);
   const [pending, setPending] = useState(false);
   const [selected, setSelected] = useState<string>();
@@ -242,7 +245,7 @@ export function BallotLookupFixture({
         }}
         renderCaliforniaResults={() => (
           <Text style={{ color: P.inkOnNight }}>
-            California results slot (fixture, no network)
+            {tx("California results slot (fixture, no network)")}
           </Text>
         )}
       />

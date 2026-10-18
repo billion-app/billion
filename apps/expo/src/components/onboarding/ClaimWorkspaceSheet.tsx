@@ -20,6 +20,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { useSegments } from "expo-router";
 
+import type { AppStringKey, AppTranslate } from "~/i18n/app-strings";
+import type { Sector, TrackingVector } from "~/utils/onboarding-store";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useOnboarding } from "~/hooks/useOnboarding";
 import {
   DigestHair,
@@ -27,7 +30,6 @@ import {
   fontDisplay,
   DigestPalette as P,
 } from "~/styles";
-import { SECTOR_SHORT, VECTOR_SHORT } from "~/utils/onboarding-store";
 
 const GOLD = P.spark;
 const INK = P.ink;
@@ -36,13 +38,27 @@ const PAPER = P.inkOnNight;
 const RISE_MS = 620;
 const FALL_MS = 360;
 
-function comingSoon() {
-  Alert.alert(
-    "Accounts are coming soon",
-    "Sign-in isn’t built yet. Your workspace is already saved on this device — nothing is lost while you explore.",
-    [{ text: "Got it" }],
-  );
+function comingSoon(t: AppTranslate) {
+  Alert.alert(t("onboarding.soonKicker"), t("claim.soonBody"), [
+    { text: t("claim.gotIt") },
+  ]);
 }
+
+const VECTOR_KEYS: Record<TrackingVector, AppStringKey> = {
+  congress: "onboarding.vector.congress",
+  state: "onboarding.vector.state",
+  executive: "onboarding.vector.executive",
+  courts: "onboarding.vector.courts",
+};
+
+const SECTOR_KEYS: Record<Sector, AppStringKey> = {
+  defense: "onboarding.sector.defense",
+  technology: "onboarding.sector.technology",
+  fiscal: "onboarding.sector.fiscal",
+  energy: "onboarding.sector.energy",
+  healthcare: "onboarding.sector.healthcare",
+  infrastructure: "onboarding.sector.infrastructure",
+};
 
 export function ClaimWorkspaceGate() {
   const onboarding = useOnboarding();
@@ -76,6 +92,7 @@ export function ClaimWorkspaceSheet({
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const onboarding = useOnboarding();
+  const { t: tr } = useAppTranslation();
   const [present, setPresent] = useState(visible);
 
   const t = useSharedValue(visible ? 1 : 0);
@@ -105,8 +122,8 @@ export function ClaimWorkspaceSheet({
   if (!present && !visible) return null;
 
   const lines = linesProp ?? [
-    ...onboarding.vectors.map((id) => VECTOR_SHORT[id]),
-    ...onboarding.sectors.map((id) => SECTOR_SHORT[id]),
+    ...onboarding.vectors.map((id) => tr(VECTOR_KEYS[id])),
+    ...onboarding.sectors.map((id) => tr(SECTOR_KEYS[id])),
   ];
   const signals =
     signalsProp ??
@@ -126,7 +143,9 @@ export function ClaimWorkspaceSheet({
         style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 22) }, sheet]}
       >
         <View style={s.grabber} />
-        <Text style={s.headline}>Your Billion is ready.</Text>
+        <Text style={s.headline} accessibilityRole="header">
+          {tr("claim.ready")}
+        </Text>
 
         <View style={s.list}>
           {lines.map((line) => (
@@ -135,45 +154,32 @@ export function ClaimWorkspaceSheet({
             </Text>
           ))}
         </View>
-        <Text style={s.signals}>
-          {signals} signals selected for your briefing.
-        </Text>
+        <Text style={s.signals}>{tr("claim.signals", { count: signals })}</Text>
 
-        <Text style={s.save}>Save your workspace</Text>
+        <Text style={s.save}>{tr("claim.save")}</Text>
 
-        <Pressable
-          style={s.provider}
-          onPress={comingSoon}
-          accessibilityRole="button"
-          accessibilityLabel="Continue with Apple"
-        >
-          <Text style={s.providerText}>Continue with Apple</Text>
-        </Pressable>
-        <Pressable
-          style={s.provider}
-          onPress={comingSoon}
-          accessibilityRole="button"
-          accessibilityLabel="Continue with Google"
-        >
-          <Text style={s.providerText}>Continue with Google</Text>
-        </Pressable>
-        <Pressable
-          style={s.provider}
-          onPress={comingSoon}
-          accessibilityRole="button"
-          accessibilityLabel="Continue with Email"
-        >
-          <Text style={s.providerText}>Continue with Email</Text>
-        </Pressable>
+        {(["claim.apple", "claim.google", "claim.email"] as const).map(
+          (key) => (
+            <Pressable
+              key={key}
+              style={s.provider}
+              onPress={() => comingSoon(tr)}
+              accessibilityRole="button"
+              accessibilityLabel={tr(key)}
+            >
+              <Text style={s.providerText}>{tr(key)}</Text>
+            </Pressable>
+          ),
+        )}
 
         <Pressable
           onPress={onDismiss}
           accessibilityRole="button"
-          accessibilityLabel="Explore first without an account"
+          accessibilityLabel={tr("claim.exploreA11y")}
           testID="claim-explore"
           style={s.explore}
         >
-          <Text style={s.exploreText}>Explore first</Text>
+          <Text style={s.exploreText}>{tr("claim.explore")}</Text>
         </Pressable>
       </Animated.View>
     </View>

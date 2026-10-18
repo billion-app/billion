@@ -1,3 +1,6 @@
+import type { AppLanguage } from "~/i18n/language";
+import { appTranslator } from "~/i18n/app-strings";
+
 /** Manually authored teaching content, independent of candidate statements. */
 export interface OfficeRoleContent {
   id: string;
@@ -9,13 +12,13 @@ export interface OfficeRoleContent {
   power: string;
   limit: string;
   example: string;
-  sources: { label: string; url: string }[];
+  sources: readonly { label: string; url: string }[];
 }
 const constitution =
   "https://www.archives.gov/founding-docs/constitution-transcript";
 const ca = (article: string) =>
   `https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=CONS&article=${article}`;
-export const officeRoles: readonly OfficeRoleContent[] = [
+export const officeRoles = [
   {
     id: "us-house",
     action: "Votes on federal laws and spending",
@@ -86,18 +89,17 @@ export const officeRoles: readonly OfficeRoleContent[] = [
       },
     ],
   },
-];
+] as const satisfies readonly OfficeRoleContent[];
 export interface OfficeRoleContext {
   office?: string;
   state?: string;
   districtId?: string;
 }
 /** Never infer legal authority from a title alone or match a different jurisdiction. */
-export function resolveOfficeRole({
-  office,
-  state,
-  districtId,
-}: OfficeRoleContext): OfficeRoleContent | undefined {
+export function resolveOfficeRole(
+  { office, state, districtId }: OfficeRoleContext,
+  language: AppLanguage = "en",
+): OfficeRoleContent | undefined {
   const title = office?.trim().toLowerCase();
   const district = districtId?.toLowerCase();
   let id: string | undefined;
@@ -134,5 +136,19 @@ export function resolveOfficeRole({
     )
   )
     id = "boston-council";
-  return officeRoles.find((role) => role.id === id);
+  const role = officeRoles.find((role) => role.id === id);
+  if (!role) return undefined;
+  if (language === "en") return role;
+  const t = appTranslator(language);
+  return {
+    ...role,
+    action: t(role.action),
+    check: t(role.check),
+    title: t(role.title),
+    serves: t(role.serves),
+    term: t(role.term),
+    power: t(role.power),
+    limit: t(role.limit),
+    example: t(role.example),
+  };
 }

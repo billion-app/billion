@@ -1,27 +1,73 @@
 import type { ContextMoney } from "./budget-context";
 
-export function contextMoneyPresentation(value: ContextMoney): {
+export type ContextMoneyLanguage = "en" | "es" | "zh";
+
+const moneyLabels = {
+  en: {
+    annual: "annual",
+    "one-time": "one-time",
+    stock: "stock",
+    gross: "gross basis",
+    net: "net basis",
+    unspecified: "gross/net basis unspecified",
+    measured: "measured",
+    projection: "projection",
+    illustrative: "illustrative",
+    unavailable: "Budget share unavailable",
+    inapplicable: "Budget share inapplicable",
+  },
+  es: {
+    annual: "anual",
+    "one-time": "una sola vez",
+    stock: "saldo acumulado",
+    gross: "base bruta",
+    net: "base neta",
+    unspecified: "base bruta/neta no especificada",
+    measured: "medido",
+    projection: "proyección",
+    illustrative: "ilustrativo",
+    unavailable: "Proporción del presupuesto no disponible",
+    inapplicable: "Proporción del presupuesto no aplicable",
+  },
+  zh: {
+    annual: "每年",
+    "one-time": "一次性",
+    stock: "存量",
+    gross: "总额口径",
+    net: "净额口径",
+    unspecified: "未说明总额或净额口径",
+    measured: "实测",
+    projection: "预测",
+    illustrative: "示例",
+    unavailable: "预算占比不可用",
+    inapplicable: "预算占比不适用",
+  },
+};
+
+export function contextMoneyPresentation(
+  value: ContextMoney,
+  language: ContextMoneyLanguage = "en",
+): {
   nominal: string;
   comparison: string;
   scope: string;
   reason?: string;
 } {
   const comparison = value.comparison;
-  const accounting =
-    value.scope.accounting === "unspecified"
-      ? "gross/net basis unspecified"
-      : `${value.scope.accounting} basis`;
-  const scope = `${value.scope.period} · ${value.scope.jurisdiction} · ${value.scope.timing} · ${accounting}`;
+  const labels = moneyLabels[language];
+  const locale = language === "zh" ? "zh-CN" : `${language}-US`;
+  const accounting = labels[value.scope.accounting];
+  const scope = `${value.scope.period} · ${value.scope.jurisdiction} · ${labels[value.scope.timing]} · ${accounting}`;
   const nominal = `${value.nominal} USD`;
   if (comparison.state !== "available")
     return {
       nominal,
-      comparison: `Budget share ${comparison.state}`,
+      comparison: labels[comparison.state],
       scope,
       reason: comparison.reason,
     };
   const percent = (amount: number) =>
-    new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 }).format(
+    new Intl.NumberFormat(locale, { maximumSignificantDigits: 3 }).format(
       (amount / comparison.denominator.amount) * 100,
     );
   const share =
@@ -31,16 +77,32 @@ export function contextMoneyPresentation(value: ContextMoney): {
   const amount = comparison.denominator.amount;
   const scale = amount >= 1e9 ? 1e9 : amount >= 1e6 ? 1e6 : 1;
   const unit = scale === 1e9 ? " billion" : scale === 1e6 ? " million" : "";
-  const denominator = `$${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 6 }).format(amount / scale)}${unit} USD`;
+  const denominator =
+    language === "en"
+      ? `$${new Intl.NumberFormat(locale, { maximumSignificantDigits: 6 }).format(amount / scale)}${unit} USD`
+      : new Intl.NumberFormat(locale, {
+          style: "currency",
+          currency: "USD",
+          currencyDisplay: "code",
+          maximumFractionDigits: 2,
+        }).format(amount);
   return {
     nominal,
-    comparison: `${share} of ${comparison.denominator.name} (${denominator})`,
-    scope: `${scope} · ${comparison.basis}`,
+    comparison:
+      language === "zh"
+        ? `占${comparison.denominator.name}（${denominator}）的 ${share}`
+        : language === "es"
+          ? `${share} de ${comparison.denominator.name} (${denominator})`
+          : `${share} of ${comparison.denominator.name} (${denominator})`,
+    scope: `${scope} · ${labels[comparison.basis]}`,
   };
 }
 /** Text-only consumers use the same calculation and complete scope. */
-export function contextMoneyLabel(value: ContextMoney): string {
-  const parts = contextMoneyPresentation(value);
+export function contextMoneyLabel(
+  value: ContextMoney,
+  language: ContextMoneyLanguage = "en",
+): string {
+  const parts = contextMoneyPresentation(value, language);
   return [parts.nominal, parts.comparison, parts.scope, parts.reason]
     .filter(Boolean)
     .join(" · ");

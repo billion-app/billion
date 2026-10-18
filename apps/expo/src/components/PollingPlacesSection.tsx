@@ -18,6 +18,7 @@ import type { Address, PollingLocation } from "@acme/api";
 
 import { Text } from "~/components/Themed";
 import { Icon, Kicker } from "~/components/ui";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestPalette,
@@ -63,7 +64,9 @@ function LocationCard({
   loc: PollingLocation;
   accent: string;
 }) {
-  const name = loc.name ?? loc.address.locationName ?? "Voting location";
+  const { t } = useAppTranslation();
+  const name =
+    loc.name ?? loc.address.locationName ?? t("voting.locationFallback");
   return (
     <View style={styles.locCard}>
       <View style={[styles.locDot, { backgroundColor: accent }]} />
@@ -91,8 +94,11 @@ function LocationCard({
           style={styles.directions}
           onPress={() => openDirections(loc)}
           suppressHighlighting
+          accessibilityRole="link"
+          accessibilityLabel={t("voting.directionsTo", { place: name })}
         >
-          <Icon name="pin" size={12} color={DigestPalette.spark} /> Directions
+          <Icon name="pin" size={12} color={DigestPalette.spark} />{" "}
+          {t("voting.directions")}
         </Text>
       </View>
     </View>
@@ -111,6 +117,7 @@ function LocationGroup({
   accent: string;
   keyPrefix: string;
 }) {
+  const { t } = useAppTranslation();
   const [expanded, setExpanded] = useState(false);
   const overflow = locations.length - COLLAPSED_COUNT;
   const visible =
@@ -127,9 +134,13 @@ function LocationGroup({
           onPress={() => setExpanded((v) => !v)}
           activeOpacity={0.7}
           style={styles.showAll}
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
         >
           <Text style={styles.showAllText}>
-            {expanded ? "Show fewer" : `Show all ${locations.length}`}
+            {expanded
+              ? t("voting.showFewer")
+              : t("voting.showAll", { count: locations.length })}
           </Text>
           <Icon
             name={expanded ? "chevD" : "chevR"}
@@ -154,24 +165,23 @@ export function PollingPlacesSection({
   const early = earlyVoteSites ?? [];
   const dropOff = dropOffLocations ?? [];
   const hasAny = polling.length + early.length + dropOff.length > 0;
+  const { t } = useAppTranslation();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.kicker}>Locations</Text>
+      <Text style={styles.kicker}>{t("voting.locations")}</Text>
 
       {isLoading && (
         <ActivityIndicator color={DigestPalette.spark} style={styles.loader} />
       )}
 
       {!isLoading && mailOnly && (
-        <Text style={styles.noticeText}>
-          Mail-ballot election — drop a box below or return by mail.
-        </Text>
+        <Text style={styles.noticeText}>{t("voting.mailOnlyNotice")}</Text>
       )}
 
       {!isLoading && polling.length > 0 && (
         <LocationGroup
-          title="Your polling place"
+          title={t("voting.yourPollingPlace")}
           locations={polling}
           accent={DigestPalette.badgeTeal}
           keyPrefix="p"
@@ -180,7 +190,7 @@ export function PollingPlacesSection({
 
       {!isLoading && early.length > 0 && (
         <LocationGroup
-          title="Early vote sites"
+          title={t("voting.earlyVoteSites")}
           locations={early}
           accent={DigestPalette.spark}
           keyPrefix="e"
@@ -189,7 +199,7 @@ export function PollingPlacesSection({
 
       {!isLoading && dropOff.length > 0 && (
         <LocationGroup
-          title="Ballot drop boxes"
+          title={t("voting.dropBoxes")}
           locations={dropOff}
           accent={DigestPalette.badgeBlue}
           keyPrefix="d"
@@ -198,9 +208,7 @@ export function PollingPlacesSection({
 
       {!isLoading && !hasAny && (
         <Text style={styles.empty}>
-          {hasAddress
-            ? "No polling locations published for this address yet."
-            : "Add an address to see your polling place."}
+          {hasAddress ? t("voting.noLocations") : t("voting.addAddress")}
         </Text>
       )}
     </View>

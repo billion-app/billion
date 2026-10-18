@@ -26,6 +26,7 @@ import { OccurrenceTimeline } from "~/components/local-government/OccurrenceTime
 import { Text } from "~/components/Themed";
 import { Icon } from "~/components/ui/Icon";
 import { NavHeader } from "~/components/ui/NavHeader";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import {
   DigestHair,
   DigestRadii,
@@ -47,6 +48,8 @@ import {
 } from "~/utils/local-government";
 
 export default function LocalDecisionDetailScreen() {
+  const { t: tx } = useAppTranslation();
+
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === "string" ? params.id : undefined;
@@ -64,13 +67,15 @@ export default function LocalDecisionDetailScreen() {
     return (
       <View style={s.screen}>
         <NavHeader
-          title="Local decision"
+          title={tx("Local decision")}
           tone="dark"
           onBack={() => router.back()}
         />
         <DetailState
-          title="This decision isn't available"
-          body="It may have been removed from the official record, or the link is out of date."
+          title={tx("This decision isn't available")}
+          body={tx(
+            "It may have been removed from the official record, or the link is out of date.",
+          )}
         />
       </View>
     );
@@ -80,7 +85,7 @@ export default function LocalDecisionDetailScreen() {
     return (
       <View style={s.screen}>
         <NavHeader
-          title="Local decision"
+          title={tx("Local decision")}
           tone="dark"
           onBack={() => router.back()}
         />
@@ -95,13 +100,15 @@ export default function LocalDecisionDetailScreen() {
     return (
       <View style={s.screen}>
         <NavHeader
-          title="Local decision"
+          title={tx("Local decision")}
           tone="dark"
           onBack={() => router.back()}
         />
         <DetailState
-          title="Couldn't load this decision"
-          body="The official records source didn't respond. Your link is still valid — try again."
+          title={tx("Couldn't load this decision")}
+          body={tx(
+            "The official records source didn't respond. Your link is still valid \u2014 try again.",
+          )}
         />
       </View>
     );
@@ -117,6 +124,8 @@ function DecisionBody({
   decision: DecisionDetail;
   onBack: () => void;
 }) {
+  const { t: tx, language } = useAppTranslation();
+
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const latest = latestOccurrence(decision.occurrences);
@@ -132,13 +141,14 @@ function DecisionBody({
     decision.scope,
     decision.districtNumbers,
     decision.geographicText,
+    language,
   );
-  const topic = topicLabel(decision.topic);
+  const topic = topicLabel(decision.topic, language);
   const upcoming = nextUpcomingOccurrence(decision.occurrences);
 
   return (
     <View style={s.screen}>
-      <NavHeader title="Local decision" tone="dark" onBack={onBack} />
+      <NavHeader title={tx("Local decision")} tone="dark" onBack={onBack} />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
@@ -163,52 +173,57 @@ function DecisionBody({
           {[
             decision.jurisdiction,
             scope.sentence ??
-              "Geographic area not specified in the official record.",
+              tx("Geographic area not specified in the official record."),
           ].join(" · ")}
         </Text>
 
         {/* Key facts */}
         <View style={s.factsCard}>
           <FactRow
-            label="Status"
+            label={tx("Status")}
             value={
               decision.status?.trim()
-                ? `${lifecycleLabel(lifecycle)} (listed as “${decision.status.trim()}”)`
-                : lifecycleLabel(lifecycle)
+                ? tx("{value1} (listed as “{value2}”)", {
+                    value1: lifecycleLabel(lifecycle, language),
+                    value2: decision.status.trim(),
+                  })
+                : lifecycleLabel(lifecycle, language)
             }
           />
           {upcoming ? (
             <FactRow
-              label="Next public meeting"
-              value={`${formatMeetingDate(upcoming.startsAt)} · ${upcoming.body}`}
+              label={tx("Next public meeting")}
+              value={`${formatMeetingDate(upcoming.startsAt, language)} · ${upcoming.body}`}
             />
           ) : decision.occurrences[0] ? (
             <FactRow
-              label="Most recent meeting"
-              value={`${formatMeetingDate(decision.occurrences.at(-1)?.startsAt)} · ${decision.occurrences.at(-1)?.body}`}
+              label={tx("Most recent meeting")}
+              value={`${formatMeetingDate(decision.occurrences.at(-1)?.startsAt, language)} · ${decision.occurrences.at(-1)?.body}`}
             />
           ) : (
             <FactRow
-              label="Meetings"
-              value="No meeting appearances published yet"
+              label={tx("Meetings")}
+              value={tx("No meeting appearances published yet")}
             />
           )}
           {decision.fileNumber ? (
-            <FactRow label="File number" value={decision.fileNumber} />
+            <FactRow label={tx("File number")} value={decision.fileNumber} />
           ) : null}
           {decision.type ? (
-            <FactRow label="Type" value={decision.type} />
+            <FactRow label={tx("Type")} value={decision.type} />
           ) : null}
           {parseDate(decision.introDate) ? (
             <FactRow
-              label="Introduced"
-              value={formatMeetingDate(decision.introDate)}
+              label={tx("Introduced")}
+              value={formatMeetingDate(decision.introDate, language)}
             />
           ) : null}
           {decision.enactmentNumber && parseDate(decision.enactmentDate) ? (
             <FactRow
-              label={`Enacted (${decision.enactmentNumber})`}
-              value={formatMeetingDate(decision.enactmentDate)}
+              label={tx("Enacted ({value1})", {
+                value1: decision.enactmentNumber,
+              })}
+              value={formatMeetingDate(decision.enactmentDate, language)}
             />
           ) : null}
         </View>
@@ -219,7 +234,9 @@ function DecisionBody({
             <View style={s.sourceButton}>
               <Icon name="link" size={13} color={P.spark} />
               <Text style={s.sourceButtonText}>
-                Open on the official {decision.jurisdiction} site
+                {tx("Open on the official {value1} site", {
+                  value1: decision.jurisdiction,
+                })}
               </Text>
               <Icon name="external" size={12} color={P.spark} />
             </View>
@@ -231,8 +248,10 @@ function DecisionBody({
           <>
             <SectionHeading>
               {decision.occurrences.length > 1
-                ? `Considered at ${decision.occurrences.length} meetings`
-                : "Meeting appearance"}
+                ? tx("Considered at {value1} meetings", {
+                    value1: decision.occurrences.length,
+                  })
+                : tx("Meeting appearance")}
             </SectionHeading>
             <OccurrenceTimeline
               occurrences={decision.occurrences}
@@ -241,8 +260,9 @@ function DecisionBody({
           </>
         ) : (
           <Text style={s.partialNote}>
-            This file exists in the official record, but no meeting agenda has
-            published it yet.
+            {tx(
+              "This file exists in the official record, but no meeting agenda has published it yet.",
+            )}
           </Text>
         )}
 
@@ -256,8 +276,10 @@ function DecisionBody({
               accessibilityState={{ expanded: historyOpen }}
             >
               <Text style={s.historyToggleText}>
-                {historyOpen ? "Hide" : "Show"} published action history (
-                {decision.history.length})
+                {tx("{value1} published action history ( {value2})", {
+                  value1: historyOpen ? tx("Hide") : tx("Show"),
+                  value2: decision.history.length,
+                })}
               </Text>
               <Icon
                 name={historyOpen ? "chevD" : "chevR"}
@@ -271,8 +293,8 @@ function DecisionBody({
                   <View key={entry.id} style={s.historyRow}>
                     <Text style={s.historyDate}>
                       {entry.actionDate
-                        ? formatMeetingDate(entry.actionDate)
-                        : "Undated"}
+                        ? formatMeetingDate(entry.actionDate, language)
+                        : tx("Undated")}
                     </Text>
                     <Text style={s.historyAction}>
                       {[entry.body, entry.action].filter(Boolean).join(" · ")}
@@ -293,10 +315,13 @@ function DecisionBody({
 
         {/* Honest provenance footer */}
         <Text style={s.provenance}>
-          Everything above comes from {decision.jurisdiction}'s published
-          records, last updated {formatMeetingDate(decision.sourceUpdatedAt)}.
-          Blank fields mean the city hasn't published that information — not
-          that it doesn't exist.
+          {tx(
+            "Everything above comes from {value1}'s published records, last updated {value2}. Blank fields mean the city hasn't published that information — not that it doesn't exist.",
+            {
+              value1: decision.jurisdiction,
+              value2: formatMeetingDate(decision.sourceUpdatedAt, language),
+            },
+          )}
         </Text>
       </ScrollView>
     </View>

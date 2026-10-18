@@ -10,9 +10,11 @@ import type { ErrorBoundaryProps } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
+import { LanguageCorner } from "~/components/LanguageButton";
 import { Text } from "~/components/Themed";
 import { GhostButton, PrimaryButton } from "~/components/ui";
 import { posthog } from "~/config/posthog";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { colors, fontBody, fontDisplay, planes } from "~/styles";
 
 /**
@@ -24,6 +26,7 @@ import { colors, fontBody, fontDisplay, planes } from "~/styles";
 export function createRouteErrorBoundary(routeName: string) {
   return function RouteErrorBoundary({ error, retry }: ErrorBoundaryProps) {
     const router = useRouter();
+    const { t } = useAppTranslation();
 
     // Render-phase capture is intentional: the boundary renders once per error,
     // and deferring to an effect risks losing the report if the user leaves
@@ -32,18 +35,19 @@ export function createRouteErrorBoundary(routeName: string) {
 
     return (
       <View style={s.screen}>
-        <Text style={s.title}>Something went wrong</Text>
-        <Text style={s.body}>
-          This screen couldn&apos;t be displayed. The problem has been reported.
+        <LanguageCorner />
+        <Text style={s.title} accessibilityRole="header">
+          {t("error.title")}
         </Text>
+        <Text style={s.body}>{t("error.body")}</Text>
         <PrimaryButton
-          label="Try again"
+          label={t("common.tryAgain")}
           onPress={() => void retry()}
           style={s.action}
         />
         {router.canGoBack() && (
           <GhostButton
-            label="Go back"
+            label={t("common.goBack")}
             onPress={() => router.back()}
             style={s.action}
           />

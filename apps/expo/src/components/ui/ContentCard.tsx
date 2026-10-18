@@ -7,14 +7,9 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 
 import type { ContentTypeKey } from "~/styles";
+import { useAppTranslation } from "~/hooks/useAppTranslation";
 import { useRelativeActivity } from "~/hooks/useRelativeActivity";
-import {
-  contentType,
-  DigestPalette,
-  DigestRadii,
-  fontBody,
-  fontDisplay,
-} from "~/styles";
+import { DigestPalette, DigestRadii, fontBody, fontDisplay } from "~/styles";
 import { contentImageSource } from "~/utils/editorial-visuals";
 import { followAccessibilityLabel } from "~/utils/follow-copy";
 import { Icon } from "./Icon";
@@ -46,7 +41,8 @@ export function ContentCard({
   onSave?: () => void;
   saved?: boolean;
 }) {
-  const t = contentType[item.type];
+  const { language, t } = useAppTranslation();
+  const typeLabel = t(`contentType.${item.type}`);
   const imageUri = item.imageUri ?? item.thumbnailUrl;
   const imageSource = contentImageSource(imageUri);
   const [imageFailed, setImageFailed] = useState(false);
@@ -58,11 +54,19 @@ export function ContentCard({
       style={s.card}
       onPress={onPress}
       activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={[
+        item.tag ? `${typeLabel} ${item.tag}` : typeLabel,
+        item.title,
+        status,
+      ]
+        .filter(Boolean)
+        .join(". ")}
       testID="content-card"
     >
       <View style={s.top}>
         <Text style={s.kicker} testID="content-card-badge">
-          {t.label}
+          {typeLabel}
           {item.tag ? ` · ${item.tag}` : ""}
         </Text>
         {item.jurisdictionCode ? (
@@ -82,6 +86,7 @@ export function ContentCard({
               item.type,
               !!saved,
               item.title,
+              language,
             )}
             accessibilityState={{ selected: !!saved }}
           >
