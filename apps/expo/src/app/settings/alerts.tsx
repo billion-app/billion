@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import type { AlertItem } from "~/utils/alert-history";
+import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { GoldBillionMark } from "~/components/GoldBillionMark";
 import { NavHeader } from "~/components/ui";
 import { useAlertHistory } from "~/hooks/useAlertHistory";
@@ -19,7 +20,7 @@ import { formatAlertTime, groupAlertsByDay } from "~/utils/alert-history";
 export default function AlertsScreen() {
   const router = useRouter();
   const { language, t } = useAppTranslation();
-  const { items, isLoading, error } = useAlertHistory();
+  const { items, isLoading, error, retry } = useAlertHistory();
   const groups = groupAlertsByDay(items, new Date(), language);
 
   return (
@@ -30,6 +31,11 @@ export default function AlertsScreen() {
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
+        <CardTranslationNotice
+          items={items.filter((item) => item.translationState)}
+          onRetry={retry}
+          isError={!!error}
+        />
         {groups.length === 0 ? (
           <View>
             <Text style={s.emptyTitle}>

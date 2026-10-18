@@ -259,3 +259,25 @@ void test("provider contest kind never becomes stage and provenance survives nav
   assert.equal(route.params.ballotSourceName, "Democracy Works");
   assert.equal(route.params.ballotFetchedAt, "2026-10-01");
 });
+
+void test("translation identity preserves canonical titles independently from localized route fallbacks", () => {
+  for (const contest of [
+    {
+      type: "General",
+      ballotTitle: "School board",
+      candidates: [{ name: "Alex" }],
+    },
+    { type: "General", candidates: [{ name: "Alex" }] },
+    { type: "Referendum", summary: "Proposal", summaryIsAiGenerated: true },
+  ]) {
+    const route = ballotContestRoute(contest, undefined, "zh");
+    const identity = JSON.parse(route.params.translationIdentity) as {
+      title: string;
+    };
+    assert.equal(
+      identity.title,
+      "ballotTitle" in contest ? contest.ballotTitle : "",
+    );
+    assert.equal(route.params.translationTitleField, "ballotTitle");
+  }
+});

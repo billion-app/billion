@@ -62,3 +62,19 @@ export function executiveOrderAlertCopy(order: { id: string; title: string }) {
     href: `/article-detail?id=${order.id}`,
   };
 }
+
+export function testAlertCopy(language: "en" | "es" | "zh" = "en") {
+  if (language === "zh")
+    return {
+      ...TEST_ALERT_COPY,
+      title: "Billion 测试通知",
+      body: "通知已开启。",
+    };
+  if (language === "es")
+    return {
+      ...TEST_ALERT_COPY,
+      title: "Notificación de prueba de Billion",
+      body: "Las notificaciones están activadas.",
+    };
+  return TEST_ALERT_COPY;
+}

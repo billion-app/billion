@@ -125,11 +125,11 @@ export function EvidenceSheet({
               <>
                 <Text style={s.eyebrow}>
                   {source.origin === "candidate"
-                    ? "CANDIDATE'S OWN WORDS"
+                    ? tx("CANDIDATE'S OWN WORDS")
                     : source.origin === "primary_record"
                       ? tx("ORIGINAL RECORD")
                       : tx("INDEPENDENT REPORTING")}
-                  {fictional ? " · FICTIONAL" : ""}
+                  {fictional ? ` · ${tx("FICTIONAL")}` : ""}
                 </Text>
                 <Text accessibilityRole="header" style={s.heading}>
                   {source.title ?? source.publisher}

@@ -1,6 +1,6 @@
 import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 
 import type { Contest } from "@acme/api";
 
@@ -21,6 +21,32 @@ export default function GuidePreparation() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const query = useQuery(trpc.civic.getCaliforniaGuide.queryOptions());
   const guide = query.isError ? undefined : query.data;
+  const titles = useQueries({
+    queries: (guide?.measures ?? []).map((measure) => ({
+      ...trpc.civic.getMeasureTranslation.queryOptions({
+        number: measure.number,
+        scope: "title",
+        language: uiLanguage === "en" ? "zh" : uiLanguage,
+      }),
+      enabled: uiLanguage !== "en",
+      refetchInterval: (query: { state: { data?: { status: string } } }) =>
+        query.state.data?.status === "pending" ? 3000 : false,
+    })),
+  });
+  const displayTitles = Object.fromEntries(
+    (guide?.measures ?? []).flatMap((measure, index) => {
+      const translated = titles[index]?.data;
+      return translated?.status === "translated" && uiLanguage !== "en"
+        ? [
+            [
+              `Proposition ${measure.number}: ${measure.title}`,
+              tx("Proposition {value1}", { value1: measure.number }) +
+                `：${translated.measure.title}`,
+            ],
+          ]
+        : [];
+    }),
+  );
   const returnToGuide = () => router.back();
   return (
     <View style={{ flex: 1, backgroundColor: P.canvas }}>
@@ -59,6 +85,7 @@ export default function GuidePreparation() {
         ) : mode === "notes" ? (
           <PrivatePreparation
             heading={tx("Your guide notes")}
+            displayTitles={displayTitles}
             initiallyOpen
             provider="California Secretary of State statement guide"
             lookupScope="statewide-guide:ca"

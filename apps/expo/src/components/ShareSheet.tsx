@@ -57,7 +57,7 @@ export function ShareSheet({
   subheading,
 }: ShareSheetProps) {
   const insets = useSafeAreaInsets();
-  const { t } = useAppTranslation();
+  const { t, language } = useAppTranslation();
   const [busy, setBusy] = useState<"link" | "image" | "instagram" | null>(null);
   const [instagramAvailable, setInstagramAvailable] = useState(false);
 
@@ -77,6 +77,7 @@ export function ShareSheet({
   }, [visible]);
 
   const target = {
+    language,
     contentId,
     contentType,
     title: contentTitle,

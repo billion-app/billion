@@ -15,7 +15,7 @@ export function CandidateBallotStatus({
   inStatementGuide?: boolean;
   compact?: boolean;
 }) {
-  const { t: tx } = useAppTranslation();
+  const { t: tx, language } = useAppTranslation();
 
   const withdrawn = status === "withdrewStillOnBallot";
   const icon = withdrawn
@@ -40,7 +40,7 @@ export function CandidateBallotStatus({
         <Text style={[s.label, compact && s.compactLabel]}>
           {withdrawn
             ? tx("Withdrawn")
-            : candidateStatusLabel(status, inStatementGuide)}
+            : candidateStatusLabel(status, inStatementGuide, language)}
         </Text>
       </View>
       {withdrawn && (

@@ -1,14 +1,19 @@
+import type { AppLanguage } from "~/i18n/language";
+import { appTranslator } from "~/i18n/app-strings";
+
 /** Labels describe supplied evidence; guide inclusion never proves ballot eligibility. */
 export function candidateStatusLabel(
   status: string | undefined,
   inStatementGuide = false,
+  language: AppLanguage = "en",
 ): string {
+  const t = appTranslator(language);
   if (status === "withdrewStillOnBallot")
-    return "Withdrawn; name remains listed by the ballot source";
-  if (status === "onBallot") return "Listed by the ballot source";
+    return t("Withdrawn; name remains listed by the ballot source");
+  if (status === "onBallot") return t("Listed by the ballot source");
   if (inStatementGuide)
-    return "Statement guide entry · ballot status unverified";
-  return "Ballot status unknown";
+    return t("Statement guide entry · ballot status unverified");
+  return t("Ballot status unknown");
 }
 
 export type ElectionCoverage =
@@ -17,16 +22,26 @@ export type ElectionCoverage =
   | "statement-guide"
   | "unknown";
 
-export function electionCoverageLabel(coverage: ElectionCoverage): string {
+export function electionCoverageLabel(
+  coverage: ElectionCoverage,
+  language: AppLanguage = "en",
+): string {
+  const t = appTranslator(language);
   switch (coverage) {
     case "verified-complete":
-      return "Complete ballot verified against official records";
+      return t("Complete ballot verified against official records");
     case "partial":
-      return "Partial provider data · other contests or candidates may be missing";
+      return t(
+        "Partial provider data · other contests or candidates may be missing",
+      );
     case "statement-guide":
-      return "Statement guide · includes statement submitters, not a complete ballot";
+      return t(
+        "Statement guide · includes statement submitters, not a complete ballot",
+      );
     case "unknown":
-      return "Coverage unknown · missing data does not mean no election or race exists";
+      return t(
+        "Coverage unknown · missing data does not mean no election or race exists",
+      );
   }
 }
 
@@ -34,16 +49,20 @@ export function electionCoverageLabel(coverage: ElectionCoverage): string {
 export function freshnessLabel(
   evidence: { fetchedAt?: string; staleAfter?: string; conflicting?: boolean },
   now = Date.now(),
+  language: AppLanguage = "en",
 ): string | undefined {
+  const t = appTranslator(language);
   if (evidence.conflicting)
-    return "Sources disagree · confirm with your election office";
+    return t("Sources disagree · confirm with your election office");
   if (!evidence.fetchedAt || !Number.isFinite(Date.parse(evidence.fetchedAt)))
-    return "Retrieval date unavailable";
+    return t("Retrieval date unavailable");
   if (
     evidence.staleAfter &&
     Number.isFinite(Date.parse(evidence.staleAfter)) &&
     now >= Date.parse(evidence.staleAfter)
   )
-    return "Source retrieval is out of date · confirm with your election office";
+    return t(
+      "Source retrieval is out of date · confirm with your election office",
+    );
   return undefined;
 }

@@ -1,5 +1,11 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createTRPCClient, httpBatchLink, loggerLink } from "@trpc/client";
+import {
+  createTRPCClient,
+  httpBatchLink,
+  httpLink,
+  loggerLink,
+  splitLink,
+} from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import superjson from "superjson";
 
@@ -16,6 +22,18 @@ export const queryClient = new QueryClient({
   },
 });
 
+const httpOptions = {
+  transformer: superjson,
+  url: `${getBaseUrl()}/api/trpc`,
+  headers() {
+    const headers = new Map<string, string>();
+    headers.set("x-trpc-source", "expo-react");
+    const cookies = authClient.getCookie();
+    if (cookies) headers.set("Cookie", cookies);
+    return headers;
+  },
+};
+
 /**
  * A set of typesafe hooks for consuming your API.
  */
@@ -26,19 +44,10 @@ export const trpcClient = createTRPCClient<AppRouter>({
         process.env.NODE_ENV === "development" && opts.direction === "up",
       colorMode: "ansi",
     }),
-    httpBatchLink({
-      transformer: superjson,
-      url: `${getBaseUrl()}/api/trpc`,
-      headers() {
-        const headers = new Map<string, string>();
-        headers.set("x-trpc-source", "expo-react");
-
-        const cookies = authClient.getCookie();
-        if (cookies) {
-          headers.set("Cookie", cookies);
-        }
-        return headers;
-      },
+    splitLink({
+      condition: (operation) => operation.path === "civic.getBallotTranslation",
+      true: httpLink({ ...httpOptions, methodOverride: "POST" }),
+      false: httpBatchLink(httpOptions),
     }),
   ],
 });

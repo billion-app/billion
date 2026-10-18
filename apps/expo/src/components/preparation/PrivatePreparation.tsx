@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueries } from "@tanstack/react-query";
 
 import type { Contest, Election } from "@acme/api";
 
@@ -18,6 +19,7 @@ import { BallotText as BaseText } from "~/components/ballot-evidence/BallotText"
 import { Icon } from "~/components/ui/Icon";
 import { Card } from "~/components/ui/layout";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { translateAppLabel } from "~/i18n/app-strings";
 import {
   colors,
   fontBody,
@@ -27,6 +29,7 @@ import {
   planes,
   sp,
 } from "~/styles";
+import { trpc } from "~/utils/api";
 import {
   contestSnapshot,
   createPreparationStore,
@@ -56,7 +59,9 @@ export function PrivatePreparation({
   onOpenBallot,
   showElectionContext = true,
   heading,
+  displayTitles = {},
 }: {
+  displayTitles?: Record<string, string>;
   heading?: string;
   election?: Election;
   provider: string;
@@ -67,7 +72,7 @@ export function PrivatePreparation({
   onOpenBallot?: () => void;
   showElectionContext?: boolean;
 }) {
-  const { t: tx, locale: appLocale } = useAppTranslation();
+  const { t: tx, locale: appLocale, language } = useAppTranslation();
 
   const identity =
     election && lookupScope
@@ -84,6 +89,40 @@ export function PrivatePreparation({
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [open, setOpen] = useState(initiallyOpen);
+  const ballotTitles = useQueries({
+    queries: contests.map((contest) => ({
+      ...trpc.civic.getBallotTranslation.queryOptions({
+        reference: contest.translationReference ?? "",
+        language: language === "en" ? "zh" : language,
+      }),
+      enabled: open && language !== "en" && !!contest.translationReference,
+      refetchInterval: (query: { state: { data?: { status: string } } }) =>
+        query.state.data?.status === "pending" ? 3000 : false,
+    })),
+  });
+  const displayTitle = (title: string) => {
+    if (language !== "en") {
+      const translated = ballotTitles.find(
+        (query) =>
+          query.data?.status === "translated" &&
+          query.data.identity.title === title,
+      )?.data;
+      if (translated?.status === "translated") {
+        for (const key of [
+          "ballot.referendumTitle",
+          "ballot.office",
+          "ballot.ballotTitle",
+        ])
+          if (
+            translated.originals[key] === title &&
+            translated.translations[key]
+          )
+            return translated.translations[key];
+      }
+    }
+    return displayTitles[title] ?? translateAppLabel(language, title);
+  };
+
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [choiceOpen, setChoiceOpen] = useState(false);
@@ -274,7 +313,7 @@ export function PrivatePreparation({
         gap: sp[2],
       }}
     >
-      <Text style={s.heading}>{item.title}</Text>
+      <Text style={s.heading}>{displayTitle(item.title)}</Text>
       {item.choice && (
         <Text>{tx("Possible choice: {value1}", { value1: item.choice })}</Text>
       )}
@@ -306,7 +345,7 @@ export function PrivatePreparation({
       >
         <Text accessibilityRole="header" style={[s.heading, { flex: 1 }]}>
           {draft
-            ? draft.title
+            ? displayTitle(draft.title)
             : election
               ? (heading ?? tx("Your ballot notes"))
               : tx("Your saved notes")}
@@ -626,7 +665,7 @@ export function PrivatePreparation({
                         <Pressable
                           key={index}
                           accessibilityRole="button"
-                          accessibilityLabel={`${contest.referendumTitle ? tx("Measure") : contest.office ? tx("Race") : tx("Contest")}, ${title}, ${duplicate ? tx("Notes unavailable for this item") : item ? status(item.progress) : tx("Add notes")}${item?.choice ? tx(", Possible choice: {value1}", { value1: item.choice }) : item?.notes ? tx(", Your note preview: {value1}", { value1: item.notes.slice(0, 120) }) : ""}`}
+                          accessibilityLabel={`${contest.referendumTitle ? tx("Measure") : contest.office ? tx("Race") : tx("Contest")}, ${displayTitle(title)}, ${duplicate ? tx("Notes unavailable for this item") : item ? status(item.progress) : tx("Add notes")}${item?.choice ? tx(", Possible choice: {value1}", { value1: item.choice }) : item?.notes ? tx(", Your note preview: {value1}", { value1: item.notes.slice(0, 120) }) : ""}`}
                           accessibilityState={{ disabled: duplicate || busy }}
                           disabled={duplicate || busy}
                           onPress={() => {
@@ -678,7 +717,9 @@ export function PrivatePreparation({
                             />
                           </View>
                           <View style={{ flex: 1, gap: sp[2] }}>
-                            <Text style={s.rowTitle}>{title}</Text>
+                            <Text style={s.rowTitle}>
+                              {displayTitle(title)}
+                            </Text>
                             {item ? (
                               readingBadge(item.progress)
                             ) : (

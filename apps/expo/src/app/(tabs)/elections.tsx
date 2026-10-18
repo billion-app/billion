@@ -29,6 +29,7 @@ import { VotingLogisticsSection } from "~/components/voting-logistics/VotingLogi
 import { VotingPlanSection } from "~/components/voting-plan/VotingPlanSection";
 import { posthog } from "~/config/posthog";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useBallotTranslation } from "~/hooks/useBallotTranslation";
 import { useUserAddress } from "~/hooks/useUserAddress";
 import {
   colors,
@@ -58,6 +59,12 @@ function measureRoute(m: Contest) {
   return {
     pathname: "/measure-detail" as const,
     params: {
+      translationIdentity: JSON.stringify({
+        kind: "measure",
+        title: m.referendumTitle ?? m.office ?? m.ballotTitle ?? "",
+        candidates: m.candidates?.map((candidate) => candidate.name) ?? [],
+      }),
+      translationReference: m.translationReference ?? "",
       referendumTitle: m.referendumTitle ?? "",
       referendumSubtitle: m.referendumSubtitle ?? "",
       referendumProStatement: m.referendumProStatement ?? "",
@@ -88,7 +95,7 @@ function topSourceLabel(m: Contest, t: AppTranslate): string | null {
 
 /** Expandable card for a single ballot measure (statewide or local). */
 function MeasureCard({
-  measure: m,
+  measure: original,
   expanded,
   onToggle,
   onReadMore,
@@ -99,6 +106,24 @@ function MeasureCard({
   onReadMore: () => void;
 }) {
   const { t } = useAppTranslation();
+  const localization = useBallotTranslation(original.translationReference, {
+    kind: "measure",
+    title: original.referendumTitle ?? "",
+    candidates: [],
+  });
+  const m = {
+    ...original,
+    referendumTitle: localization.text(
+      "referendumTitle",
+      original.referendumTitle,
+    ),
+    referendumSubtitle: localization.text(
+      "referendumSubtitle",
+      original.referendumSubtitle,
+    ),
+    summary: localization.text("summary", original.summary),
+    summaryShort: localization.text("summaryShort", original.summaryShort),
+  };
   const sourceLabel = topSourceLabel(m, t);
   return (
     <Card style={{ padding: 18 }}>

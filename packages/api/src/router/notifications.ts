@@ -13,6 +13,7 @@ import {
 
 import { drainTestAlert, enqueueTestAlert } from "../lib/notifications/deliver";
 import { isExpoPushToken } from "../lib/notifications/expo-push";
+import { localizeAlertHistory } from "../lib/notifications/localization";
 import { clampMinutes } from "../lib/notifications/quiet-hours";
 import { publicProcedure } from "../trpc";
 
@@ -154,6 +155,7 @@ export const notificationsRouter = {
       z.object({
         token: TokenInput,
         billId: z.string().uuid().optional(),
+        language: z.enum(["en", "es", "zh"]).default("en"),
       }),
     )
     .mutation(async ({ input }) => {
@@ -188,7 +190,12 @@ export const notificationsRouter = {
           .limit(1);
         bill = row;
       }
-      const outboxId = await enqueueTestAlert(device.id, bill);
+      const outboxId = await enqueueTestAlert(
+        device.id,
+        bill,
+        new Date(),
+        input.language,
+      );
       const drained = await drainTestAlert(outboxId);
       if (drained.sent !== 1) {
         throw new TRPCError({
@@ -201,7 +208,12 @@ export const notificationsRouter = {
     }),
 
   history: publicProcedure
-    .input(z.object({ token: TokenInput }))
+    .input(
+      z.object({
+        token: TokenInput,
+        language: z.enum(["en", "es", "zh"]).default("en"),
+      }),
+    )
     .query(async ({ input }) => {
       const device = await requireDevice(input.token);
       const rows = await db
@@ -223,14 +235,17 @@ export const notificationsRouter = {
         )
         .orderBy(desc(NotificationOutbox.sentAt))
         .limit(50);
-      return rows.map((row) => ({
-        id: row.id,
-        at: row.at?.toISOString() ?? new Date().toISOString(),
-        kind: row.kind,
-        title: row.title,
-        body: row.body,
-        href: row.href,
-      }));
+      return localizeAlertHistory(
+        rows.map((row) => ({
+          id: row.id,
+          at: row.at?.toISOString() ?? new Date().toISOString(),
+          kind: row.kind,
+          title: row.title,
+          body: row.body,
+          href: row.href,
+        })),
+        input.language,
+      );
     }),
 } satisfies TRPCRouterRecord;
 

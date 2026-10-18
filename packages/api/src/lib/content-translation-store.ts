@@ -36,7 +36,14 @@ export async function getTranslations(input: {
 
 export interface SegmentTranslationRequest {
   contentId: string;
-  contentType: "bill" | "government_content" | "court_case" | "measure";
+  contentType:
+    | "bill"
+    | "government_content"
+    | "court_case"
+    | "measure"
+    | "candidate"
+    | "ballot"
+    | "notification";
   language: TranslationLanguage;
   segments: Segment[];
 }

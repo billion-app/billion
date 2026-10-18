@@ -1,3 +1,5 @@
+import type { ReaderLanguage } from "~/app/_lib/reader-language";
+
 import "server-only";
 
 import { cache } from "react";
@@ -42,3 +44,30 @@ export const getSharedContent = cache(
     }
   },
 );
+
+/** Uses the same reviewed source and translation cache as the in-app reader. */
+export async function getLocalizedSharedContent(
+  segment: string,
+  language: ReaderLanguage,
+) {
+  const content = await getSharedContent(segment);
+  if (!content || language === "en") return { content, pending: false };
+  const translated = await caller.content.getTranslation({
+    id: content.id,
+    language,
+    sourceHash: content.translationSourceHash,
+    supportsMassachusetts: true,
+  });
+  if (translated.status !== "translated")
+    return { content: null, pending: true };
+  return {
+    pending: false,
+    content: {
+      ...content,
+      title: translated.title,
+      description: translated.description,
+      articleContent: translated.articleContent ?? translated.description,
+      ...("brief" in content ? { brief: translated.brief } : {}),
+    } as SharedContent,
+  };
+}

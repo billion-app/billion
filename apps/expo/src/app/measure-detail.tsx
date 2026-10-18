@@ -23,8 +23,10 @@ import {
 } from "~/components/ballot-evidence/BallotReadingCard";
 import { BallotText as Text } from "~/components/ballot-evidence/BallotText";
 import { webUrl } from "~/components/ballot-evidence/model";
+import { CardTranslationNotice } from "~/components/CardTranslationNotice";
 import { Icon, NavHeader } from "~/components/ui";
 import { useAppTranslation } from "~/hooks/useAppTranslation";
+import { useBallotTranslation } from "~/hooks/useBallotTranslation";
 import {
   fontBody,
   fontDisplay,
@@ -33,6 +35,7 @@ import {
   planes,
   sp,
 } from "~/styles";
+import { ballotIdentityFromRoute } from "~/utils/ballot-translation";
 import { parseRouteArray } from "~/utils/route-array";
 
 export default function MeasureDetailScreen() {
@@ -41,7 +44,10 @@ export default function MeasureDetailScreen() {
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const [mode, setMode] = useState<"overview" | "original">("overview");
-  const params = useLocalSearchParams<{
+  const original = useLocalSearchParams<{
+    translationReference?: string;
+    translationIdentity?: string;
+    translationTitleField?: string;
     referendumTitle: string;
     referendumSubtitle: string;
     referendumProStatement: string;
@@ -57,16 +63,45 @@ export default function MeasureDetailScreen() {
     conArguments: string;
     citations: string;
   }>();
+  const localization = useBallotTranslation(
+    original.translationReference,
+    ballotIdentityFromRoute(original.translationIdentity) ?? {
+      kind: "measure",
+      title: original.referendumTitle,
+      candidates: [],
+    },
+  );
+  const params = {
+    ...original,
+    referendumTitle: localization.text(
+      original.translationTitleField ?? "referendumTitle",
+      original.referendumTitle,
+    ),
+    referendumSubtitle: localization.text(
+      "referendumSubtitle",
+      original.referendumSubtitle,
+    ),
+    summary: localization.text("summary", original.summary),
+    summaryShort: localization.text("summaryShort", original.summaryShort),
+    summaryLong: localization.text("summaryLong", original.summaryLong),
+    fiscalImpact: localization.text("fiscalImpact", original.fiscalImpact),
+  };
   const proArgs = parseRouteArray<MeasureArgumentRef>(
     params.proArguments,
     ["text"],
     ["sourceName", "sourceUrl", "author"],
-  );
+  ).map((arg, index) => ({
+    ...arg,
+    text: localization.text(`proArguments.${index}.text`, arg.text),
+  }));
   const conArgs = parseRouteArray<MeasureArgumentRef>(
     params.conArguments,
     ["text"],
     ["sourceName", "sourceUrl", "author"],
-  );
+  ).map((arg, index) => ({
+    ...arg,
+    text: localization.text(`conArguments.${index}.text`, arg.text),
+  }));
   const citations = parseRouteArray<MeasureCitationRef>(
     params.citations,
     ["field", "sourceName"],
@@ -128,6 +163,17 @@ export default function MeasureDetailScreen() {
         onBack={() => router.back()}
       />
       <ScrollView contentContainerStyle={s.content}>
+        {original.translationReference && (
+          <CardTranslationNotice
+            items={[localization]}
+            onRetry={localization.retry}
+          />
+        )}
+        {localization.expired && (
+          <Pressable onPress={() => router.replace("/ballot")}>
+            <Text style={s.secondary}>{tx("Reload ballot to translate")}</Text>
+          </Pressable>
+        )}
         <Text accessibilityRole="header" style={s.title}>
           {params.referendumTitle}
         </Text>
@@ -243,7 +289,7 @@ function ArgumentCard({
     <View style={s.argumentCard}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${title}, ${args.length} ${args.length === 1 ? "argument" : "arguments"}`}
+        accessibilityLabel={`${title}, ${tx("measure.argumentCount", { count: args.length })}`}
         aria-expanded={expanded}
         onPress={() => setExpanded(!expanded)}
         style={s.argumentHeader}
@@ -254,7 +300,7 @@ function ArgumentCard({
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={s.argumentTitle}>{title}</Text>
           <Text style={s.secondary}>
-            {args.length} {args.length === 1 ? "argument" : "arguments"}
+            {tx("measure.argumentCount", { count: args.length })}
           </Text>
         </View>
         <Icon
