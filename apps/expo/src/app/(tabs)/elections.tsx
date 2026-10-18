@@ -262,6 +262,40 @@ function CaliforniaElectionEntry({
             : "CALIFORNIA STATEWIDE GUIDE"}
         </Text>
         <Text style={s.entryTitle}>Voting in California?</Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="How to vote. Mail, drop box, early voting, or Election Day."
+          accessibilityHint="Opens a short guide to the ways you can vote"
+          activeOpacity={0.85}
+          onPress={() => router.push("/how-to-vote-guide")}
+          style={s.howCard}
+        >
+          <View style={s.howHead}>
+            <View style={s.entryIcon}>
+              <Icon name="vote" size={18} color={colors.bill} />
+            </View>
+            <View style={{ flex: 1, gap: 3 }}>
+              <Text style={s.entryGuideTitle}>How to vote</Text>
+              <Text style={s.entryNoteText}>Four ways, step by step.</Text>
+            </View>
+            <Icon name="chevR" size={16} color={colors.bill} />
+          </View>
+          <View style={s.howIcons}>
+            {(
+              [
+                ["mail", "Mail"],
+                ["inbox", "Drop box"],
+                ["calendar", "Early"],
+                ["flag", "Election Day"],
+              ] as const
+            ).map(([icon, label]) => (
+              <View key={icon} style={s.howChip}>
+                <Icon name={icon} size={13} color={colors.bill} />
+                <Text style={s.howChipText}>{label}</Text>
+              </View>
+            ))}
+          </View>
+        </TouchableOpacity>
         <Card style={s.entryGuide}>
           <View style={s.entryGuideHead}>
             <View
@@ -781,6 +815,33 @@ const s = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     gap: 13,
+  },
+  howCard: {
+    backgroundColor: planes.slate,
+    borderWidth: 1,
+    borderColor: hair[2],
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+    marginBottom: 14,
+  },
+  howHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  howIcons: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  howChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 30,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: planes.surface,
+    borderWidth: 1,
+    borderColor: hair[1],
+  },
+  howChipText: {
+    fontFamily: fontBody.semibold,
+    fontSize: 11.5,
+    color: "rgba(255,255,255,0.82)",
   },
   entryGuideHead: { flexDirection: "row", alignItems: "center", gap: 9 },
   entryGuideTitle: {
