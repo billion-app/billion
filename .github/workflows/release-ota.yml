@@ -1,9 +1,14 @@
 name: Release OTA (Production)
 
-# Production OTA releases use the ref selected in GitHub's "Use workflow from"
-# menu. The runtime guard finds and verifies a compatible production store build.
+# Always dispatch from main. The optional source SHA supports compatible backports
+# without executing a release workflow from an older or unmerged branch.
 on:
   workflow_dispatch:
+    inputs:
+      source_sha:
+        description: "Optional full source commit SHA (defaults to this main run)"
+        required: false
+        type: string
 
 concurrency:
   group: production-ota
@@ -12,7 +17,7 @@ concurrency:
 env:
   FORCE_COLOR: 3
   OTA_PLATFORM: ios
-  SOURCE_REF: ${{ github.ref_name }}
+  SOURCE_REF: ${{ inputs.source_sha || github.sha }}
 
 jobs:
   validate-publish:
@@ -23,19 +28,32 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Require workflow from main
+        shell: bash
+        run: |
+          test "$GITHUB_REF" = refs/heads/main || {
+            echo "Dispatch the production OTA workflow from main. Use source_sha for a compatibility backport."
+            exit 1
+          }
+          [[ "$SOURCE_REF" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "source_sha must be a full commit SHA."
+            exit 1
+          }
+
       # Keep the trusted workflow guard on main while allowing the OTA source to
       # be an older release line whose native fingerprint matches a store build.
       - name: Checkout workflow guard
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: main
           path: workflow
           persist-credentials: false
 
       - name: Checkout OTA source
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.source_sha || github.sha }}
+          fetch-depth: 0
           path: source
           persist-credentials: false
 
@@ -48,6 +66,10 @@ jobs:
           SOURCE_SUBJECT="$(git log -1 --pretty=%s)"
           echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
           echo "OTA_MESSAGE=Production OTA ${SOURCE_SHA:0:7}: $SOURCE_SUBJECT" >> "$GITHUB_ENV"
+
+      - name: Assert source is integrated into main
+        id: integration
+        run: node workflow/scripts/assert-ota-main.mjs source
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -83,7 +105,7 @@ jobs:
         run: pnpm exec expo export --platform "$OTA_PLATFORM" --output-dir dist
 
       # Do not expose the release token until the selected source has passed its
-      # install hooks, tests, lint, typecheck, and bundle.
+      # main integration check, install hooks, tests, lint, typecheck, and bundle.
       - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
@@ -161,6 +183,7 @@ jobs:
             echo "### Production OTA published"
             echo
             echo "- Source: \`${SOURCE_REF}\` (\`${{ steps.source.outputs.sha }}\`)"
+            echo "- Verified main: \`${{ steps.integration.outputs.main }}\`"
             echo "- Target: ${{ steps.runtime.outputs.platform }} build \`${{ steps.runtime.outputs.buildId }}\`"
             echo "- App: ${{ steps.runtime.outputs.appVersion }} (${{ steps.runtime.outputs.buildVersion }})"
             echo "- Fingerprint: \`${{ steps.runtime.outputs.fingerprint }}\`"
